@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  name          String
+  password_hash String
+  role          Role            @default(SUPPORT)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  pendingChanges   PendingChange[]
+  rejectedChanges  RejectedChange[]
+}
+
+enum Role {
+  ADMIN
+  SUPPORT
+}
+
+model Week {
+  id          Int    @id @default(autoincrement())
+  weekNumber  Int    @unique
+  days        Day[]
+}
+
+model Day {
+  id        Int        @id @default(autoincrement())
+  weekId    Int
+  dayName   String
+  week      Week       @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  activities Activity[]
+
+  @@unique([weekId, dayName])
+}
+
+model Activity {
+  id          Int      @id @default(autoincrement())
+  dayId       Int
+  time        String
+  description String
+  period      Period
+  orderIndex  Int
+  day         Day      @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  @@index([dayId, orderIndex])
+}
+
+enum Period {
+  MORNING
+  AFTERNOON
+  EVENING
+}
+
+model PendingChange {
+  id          String   @id @default(uuid())
+  weekId      Int
+  changeType  ChangeType
+  changeData  Json
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model RejectedChange {
+  id              String   @id @default(uuid())
+  weekId          Int
+  changeType      ChangeType
+  changeData      Json
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  submittedAt     DateTime
+  rejectedBy      String
+  rejectedAt      DateTime @default(now())
+  rejectionReason String
+  isRead          Boolean  @default(false)
+}
+
+enum ChangeType {
+  ADD
+  EDIT
+  DELETE
+}
