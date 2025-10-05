@@ -8,8 +8,11 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:seed": "ts-node prisma/seed.ts",
+    "postbuild": "npm run db:generate",
+    "railway:deploy": "npm run build && npm run db:migrate:deploy",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

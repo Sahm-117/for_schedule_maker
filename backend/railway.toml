@@ -1,0 +1,7 @@
+[deploy]
+  checkoutPath = "backend"
+  buildCommand = "npm install && npm run build && npm run db:generate"
+  startCommand = "npm start"
+
+[env]
+  NODE_ENV = "production"
