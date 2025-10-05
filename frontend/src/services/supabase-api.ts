@@ -243,11 +243,21 @@ export const activitiesApi = {
       const activities = [];
 
       for (const weekNumber of activityData.applyToWeeks) {
-        // Find the day in each week
+        // First get the original day's name
+        const { data: originalDay } = await supabase
+          .from('Day')
+          .select('dayName')
+          .eq('id', activityData.dayId)
+          .single();
+
+        if (!originalDay) continue;
+
+        // Find the same day name in the target week
         const { data: day, error: dayError } = await supabase
           .from('Day')
           .select('id, Week!inner (weekNumber)')
           .eq('Week.weekNumber', weekNumber)
+          .eq('dayName', originalDay.dayName)
           .single();
 
         if (dayError || !day) continue;
