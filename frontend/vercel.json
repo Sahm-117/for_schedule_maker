@@ -1,4 +1,5 @@
 {
+  "name": "fof_sop_scheduler",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
