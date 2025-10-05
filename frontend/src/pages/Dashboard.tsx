@@ -15,6 +15,7 @@ const Dashboard: React.FC = () => {
   const [rejectedChanges, setRejectedChanges] = useState<RejectedChange[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showUserManagement, setShowUserManagement] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadWeeks();
@@ -25,7 +26,9 @@ const Dashboard: React.FC = () => {
 
   const loadWeeks = async () => {
     try {
+      console.log('Loading weeks...');
       const response = await weeksApi.getAll();
+      console.log('Weeks loaded successfully:', response);
       setWeeks(response.weeks);
 
       // Update selectedWeek if it exists to reflect latest changes
@@ -41,6 +44,9 @@ const Dashboard: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to load weeks:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load weeks');
+      // Don't let the error prevent the component from rendering
+      setWeeks([]);
     } finally {
       setLoading(false);
     }
@@ -75,6 +81,28 @@ const Dashboard: React.FC = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading schedule...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md">
+          <div className="text-red-600 text-6xl mb-4">⚠️</div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Dashboard</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => {
+              setError(null);
+              setLoading(true);
+              loadWeeks();
+            }}
+            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
