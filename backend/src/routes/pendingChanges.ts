@@ -116,7 +116,8 @@ router.put('/:id/approve', authenticateToken, requireAdmin, async (req: AuthRequ
                   time,
                   description,
                   period,
-                  orderIndex: existingActivitiesCount + 1
+                  orderIndex: existingActivitiesCount + 1,
+                  userId: pendingChange.userId
                 }
               });
 
@@ -134,7 +135,8 @@ router.put('/:id/approve', authenticateToken, requireAdmin, async (req: AuthRequ
               time,
               description,
               period,
-              orderIndex: existingActivitiesCount + 1
+              orderIndex: existingActivitiesCount + 1,
+              userId: pendingChange.userId
             }
           });
 

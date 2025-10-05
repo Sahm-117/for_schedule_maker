@@ -328,7 +328,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !time || !description}
+                  disabled={loading || !getTime24Format() || !description}
                   className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50 text-sm sm:text-base"
                 >
                   {loading ?
