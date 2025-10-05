@@ -345,7 +345,7 @@ export const activitiesApi = {
         weekId: day.weekId,
         changeType: 'ADD',
         changeData: activityData,
-        userId: activityData.userId || 'demo_user_id',
+        userId: activityData.userId || 'a0000000-0000-4000-8000-000000000002',
       }])
       .select()
       .single();
@@ -532,7 +532,7 @@ export const pendingChangesApi = {
         weekId: changeData.weekId,
         changeType: changeData.changeType,
         changeData: changeData.changeData,
-        userId: changeData.userId || 'demo_user_id', // Use provided userId or fallback
+        userId: changeData.userId || 'a0000000-0000-4000-8000-000000000002', // Use provided userId or fallback
       }])
       .select()
       .single();

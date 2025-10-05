@@ -141,7 +141,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
           description,
           period,
           applyToWeeks: weekNumbers,
-          userId: user?.id || 'demo_user_id',
+          userId: user?.id || 'a0000000-0000-4000-8000-000000000002',
         };
 
         if (isAdmin) {
