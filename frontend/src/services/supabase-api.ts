@@ -326,6 +326,7 @@ export const activitiesApi = {
     description: string;
     period: 'MORNING' | 'AFTERNOON' | 'EVENING';
     applyToWeeks?: number[];
+    userId?: string;
   }): Promise<{ message: string; pendingChange: PendingChange }> {
     // Get the week ID from the day
     const { data: day, error: dayError } = await supabase
@@ -344,7 +345,7 @@ export const activitiesApi = {
         weekId: day.weekId,
         changeType: 'ADD',
         changeData: activityData,
-        userId: 'current_user_id', // Replace with actual user ID
+        userId: activityData.userId || 'demo_user_id',
       }])
       .select()
       .single();

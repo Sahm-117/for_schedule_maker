@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { activitiesApi } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 import type { Day, Activity, Week } from '../types';
 
 interface ActivityModalProps {
@@ -21,6 +22,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
   onSave,
   isAdmin,
 }) => {
+  const { user } = useAuth();
   const [time, setTime] = useState('');
   const [description, setDescription] = useState('');
   const [period, setPeriod] = useState<'MORNING' | 'AFTERNOON' | 'EVENING'>('MORNING');
@@ -86,6 +88,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
           description,
           period,
           applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
+          userId: user?.id || 'demo_user_id',
         };
 
         if (isAdmin) {
