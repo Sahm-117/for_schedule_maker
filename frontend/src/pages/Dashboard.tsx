@@ -178,6 +178,23 @@ const Dashboard: React.FC = () => {
                 onWeekUpdate={loadWeeks}
                 isAdmin={isAdmin}
               />
+            ) : weeks.length === 0 ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <div className="text-gray-400 text-6xl mb-4">📅</div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Schedule Data</h3>
+                <p className="text-gray-500 mb-4">
+                  The schedule database appears to be empty. Please contact your administrator to initialize the schedule data.
+                </p>
+                <button
+                  onClick={() => {
+                    setLoading(true);
+                    loadWeeks();
+                  }}
+                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark"
+                >
+                  Refresh
+                </button>
+              </div>
             ) : (
               <div className="bg-white rounded-lg shadow p-8 text-center">
                 <p className="text-gray-500">Select a week to view the schedule</p>
