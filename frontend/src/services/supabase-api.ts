@@ -99,23 +99,33 @@ export const weeksApi = {
     }
 
     // Transform Supabase data to match app types
-    const weeks: Week[] = (data || []).map((week: any) => ({
-      id: week.id,
-      weekNumber: week.weekNumber,
-      days: (week.Day || []).map((day: any) => ({
-        id: day.id,
-        weekId: day.weekId,
-        dayName: day.dayName,
-        activities: (day.Activity || []).map((activity: any) => ({
-          id: activity.id,
-          dayId: activity.dayId,
-          time: activity.time,
-          description: activity.description,
-          period: activity.period,
-          orderIndex: activity.orderIndex,
+    const weeks: Week[] = (data || []).map((week: any) => {
+      // Define day order (FOF weeks start on Sunday)
+      const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+      // Sort days according to FOF week order
+      const sortedDays = (week.Day || []).sort((a: any, b: any) => {
+        return dayOrder.indexOf(a.dayName) - dayOrder.indexOf(b.dayName);
+      });
+
+      return {
+        id: week.id,
+        weekNumber: week.weekNumber,
+        days: sortedDays.map((day: any) => ({
+          id: day.id,
+          weekId: day.weekId,
+          dayName: day.dayName,
+          activities: (day.Activity || []).map((activity: any) => ({
+            id: activity.id,
+            dayId: activity.dayId,
+            time: activity.time,
+            description: activity.description,
+            period: activity.period,
+            orderIndex: activity.orderIndex,
+          })),
         })),
-      })),
-    }));
+      };
+    });
 
     return { weeks };
   },
@@ -152,10 +162,15 @@ export const weeksApi = {
     }
 
     // Transform week data
+    const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const sortedDays = (weekData.Day || []).sort((a: any, b: any) => {
+      return dayOrder.indexOf(a.dayName) - dayOrder.indexOf(b.dayName);
+    });
+
     const week: Week = {
       id: weekData.id,
       weekNumber: weekData.weekNumber,
-      days: (weekData.Day || []).map((day: any) => ({
+      days: sortedDays.map((day: any) => ({
         id: day.id,
         weekId: day.weekId,
         dayName: day.dayName,
