@@ -1,0 +1,20 @@
+<svg width="200" height="80" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="200" height="80" fill="#1e40af" rx="8"/>
+
+  <!-- Shield/Covenant Symbol -->
+  <path d="M40 20 L60 20 L60 25 L65 30 L65 50 L50 60 L35 50 L35 30 L40 25 Z" fill="#ffffff" opacity="0.9"/>
+  <path d="M40 25 L60 25 L60 30 L60 45 L50 52 L40 45 L40 30 Z" fill="#fbbf24"/>
+
+  <!-- Cross in shield -->
+  <rect x="48" y="30" width="4" height="15" fill="#1e40af"/>
+  <rect x="42" y="35" width="16" height="4" fill="#1e40af"/>
+
+  <!-- Text -->
+  <text x="75" y="25" font-family="serif" font-size="14" font-weight="bold" fill="#ffffff">THE</text>
+  <text x="75" y="42" font-family="serif" font-size="18" font-weight="bold" fill="#fbbf24">COVENANT</text>
+  <text x="75" y="58" font-family="serif" font-size="14" font-weight="bold" fill="#ffffff">NATION</text>
+
+  <!-- Subtitle -->
+  <text x="75" y="70" font-family="sans-serif" font-size="8" fill="#cbd5e1">IKOROBU</text>
+</svg>
