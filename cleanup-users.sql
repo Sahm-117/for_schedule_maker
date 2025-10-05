@@ -5,15 +5,23 @@
 SELECT 'CURRENT USERS:' as status;
 SELECT id, name, email, role, "createdAt" FROM "User";
 
--- 2. Delete the problematic user (Olamide 2 with tisnotaname email)
+-- 2. First delete related records to avoid foreign key constraint violations
+-- Delete pending changes for the problematic user
+DELETE FROM "PendingChange"
+WHERE "userId" = (SELECT id FROM "User" WHERE email = 'tisnotaname@gmail.com' OR name = 'Olamide 2');
+
+-- Delete rejected changes for the problematic user
+DELETE FROM "RejectedChange"
+WHERE "userId" = (SELECT id FROM "User" WHERE email = 'tisnotaname@gmail.com' OR name = 'Olamide 2');
+
+-- 3. Now delete the problematic user (Olamide 2 with tisnotaname email)
 DELETE FROM "User"
 WHERE email = 'tisnotaname@gmail.com' OR name = 'Olamide 2';
 
--- 3. Clean up any pending changes from deleted users
+-- 4. Clean up any remaining orphaned records
 DELETE FROM "PendingChange"
 WHERE "userId" NOT IN (SELECT id FROM "User");
 
--- 4. Clean up any rejected changes from deleted users
 DELETE FROM "RejectedChange"
 WHERE "userId" NOT IN (SELECT id FROM "User");
 
