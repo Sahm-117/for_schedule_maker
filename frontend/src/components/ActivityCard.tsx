@@ -5,6 +5,11 @@ interface ActivityCardProps {
   activity: Activity;
   pendingChanges: PendingChange[];
   onEdit: () => void;
+  onDelete: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
   isAdmin: boolean;
 }
 
@@ -12,6 +17,11 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   activity,
   pendingChanges,
   onEdit,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
   isAdmin,
 }) => {
   const editPendingChange = pendingChanges.find(change => change.changeType === 'EDIT');
@@ -30,14 +40,14 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   };
 
   return (
-    <div className={`bg-white border rounded-lg p-4 hover:shadow-md transition-shadow ${
+    <div className={`bg-white border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow ${
       deletePendingChange ? 'border-red-200 bg-red-50' :
       editPendingChange ? 'border-orange-200 bg-orange-50' :
       'border-gray-200'
     }`}>
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center space-x-2 mb-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2">
             <span className="text-sm font-medium text-gray-900">
               {getTimeFormat(activity.time)}
             </span>
@@ -94,10 +104,10 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           )}
         </div>
 
-        <div className="flex items-center space-x-2 ml-4">
+        <div className="flex items-start gap-1 sm:gap-2 flex-shrink-0">
           <button
             onClick={onEdit}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
             title="Edit activity"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -105,12 +115,45 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             </svg>
           </button>
 
-          {/* Drag handle */}
-          <div className="text-gray-300 cursor-grab active:cursor-grabbing" title="Drag to reorder">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+          <button
+            onClick={onDelete}
+            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+            title="Delete activity"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
-          </div>
+          </button>
+
+          {/* Move Up/Down Buttons */}
+          {(onMoveUp || onMoveDown) && (
+            <div className="flex flex-col gap-1">
+              {onMoveUp && (
+                <button
+                  onClick={onMoveUp}
+                  disabled={!canMoveUp}
+                  className="p-1 text-gray-400 hover:text-gray-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+                  title="Move up"
+                >
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                  </svg>
+                </button>
+              )}
+              {onMoveDown && (
+                <button
+                  onClick={onMoveDown}
+                  disabled={!canMoveDown}
+                  className="p-1 text-gray-400 hover:text-gray-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+                  title="Move down"
+                >
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

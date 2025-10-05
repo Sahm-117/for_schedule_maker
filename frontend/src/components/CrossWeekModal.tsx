@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { activitiesApi } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 import type { Week, Day } from '../types';
 
 interface CrossWeekModalProps {
@@ -17,8 +18,9 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
   currentWeek,
   onSave,
 }) => {
+  const { user } = useAuth();
   const [selectedWeeks, setSelectedWeeks] = useState<number[]>([]);
-  const [selectedDay, setSelectedDay] = useState<string>('');
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [time, setTime] = useState('');
   const [description, setDescription] = useState('');
   const [period, setPeriod] = useState<'MORNING' | 'AFTERNOON' | 'EVENING'>('MORNING');
@@ -27,26 +29,65 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDay || !time || !description || selectedWeeks.length === 0) return;
+    if (selectedDays.length === 0 || !time || !description || selectedWeeks.length === 0) return;
 
     setLoading(true);
     setError('');
 
     try {
-      const targetDay = currentWeek.days.find(d => d.dayName === selectedDay);
-      if (!targetDay) {
-        throw new Error('Selected day not found');
+      const results = [];
+      const errors = [];
+
+      // Create activity for each selected day
+      for (const dayName of selectedDays) {
+        const targetDay = currentWeek.days.find(d => d.dayName === dayName);
+        if (!targetDay) {
+          errors.push(`Selected day ${dayName} not found`);
+          continue;
+        }
+
+        try {
+          const activityData = {
+            dayId: targetDay.id,
+            time,
+            description,
+            period,
+            applyToWeeks: selectedWeeks,
+          };
+
+          // Use correct API based on user role
+          let result;
+          if (user?.role === 'ADMIN') {
+            result = await activitiesApi.create(activityData);
+          } else {
+            result = await activitiesApi.request(activityData);
+          }
+          results.push(`${dayName}: Success`);
+        } catch (dayError: any) {
+          const errorMsg = dayError.response?.data?.error || `Failed to create activity for ${dayName}`;
+          errors.push(`${dayName}: ${errorMsg}`);
+        }
       }
 
-      await activitiesApi.create({
-        dayId: targetDay.id,
-        time,
-        description,
-        period,
-        applyToWeeks: selectedWeeks,
-      });
+      if (errors.length > 0) {
+        setError(`Some activities failed to create:\n${errors.join('\n')}\n\nSuccessful: ${results.join(', ')}`);
+        if (results.length === 0) {
+          // All failed, don't close modal
+          return;
+        }
+      }
 
       onSave();
+
+      // Reset form only if we had some success
+      if (results.length > 0) {
+        setSelectedWeeks([]);
+        setSelectedDays([]);
+        setTime('');
+        setDescription('');
+        setPeriod('MORNING');
+        onClose();
+      }
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to create cross-week activity');
     } finally {
@@ -94,12 +135,12 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
                   <label key={week.id} className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={selectedWeeks.includes(week.id)}
+                      checked={selectedWeeks.includes(week.weekNumber)}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedWeeks([...selectedWeeks, week.id]);
+                          setSelectedWeeks([...selectedWeeks, week.weekNumber]);
                         } else {
-                          setSelectedWeeks(selectedWeeks.filter(id => id !== week.id));
+                          setSelectedWeeks(selectedWeeks.filter(num => num !== week.weekNumber));
                         }
                       }}
                       className="rounded border-gray-300 text-primary focus:ring-primary"
@@ -115,21 +156,30 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Day of Week
+                Days of Week
               </label>
-              <select
-                value={selectedDay}
-                onChange={(e) => setSelectedDay(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                required
-              >
-                <option value="">Select a day</option>
+              <div className="grid grid-cols-2 gap-2 p-3 border border-gray-200 rounded-md">
                 {dayOptions.map((day) => (
-                  <option key={day} value={day}>
-                    {day.charAt(0) + day.slice(1).toLowerCase()}
-                  </option>
+                  <label key={day} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedDays.includes(day)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedDays([...selectedDays, day]);
+                        } else {
+                          setSelectedDays(selectedDays.filter(d => d !== day));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <span className="ml-2 text-sm">{day.charAt(0) + day.slice(1).toLowerCase()}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
+              {selectedDays.length === 0 && (
+                <p className="text-sm text-red-600 mt-1">Please select at least one day</p>
+              )}
             </div>
 
             <div>
@@ -180,6 +230,12 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
               </div>
             )}
 
+            {user?.role === 'SUPPORT' && (
+              <div className="text-blue-600 text-sm bg-blue-50 p-2 rounded">
+                As a support user, your activity will be submitted for admin approval.
+              </div>
+            )}
+
             <div className="flex justify-end space-x-3 pt-4 border-t">
               <button
                 type="button"
@@ -190,10 +246,13 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={loading || !selectedDay || !time || !description || selectedWeeks.length === 0}
+                disabled={loading || selectedDays.length === 0 || !time || !description || selectedWeeks.length === 0}
                 className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50"
               >
-                {loading ? 'Creating...' : 'Create Activity'}
+                {loading ?
+                  (user?.role === 'ADMIN' ? 'Creating...' : 'Submitting...') :
+                  (user?.role === 'ADMIN' ? 'Create Activity' : 'Submit for Approval')
+                }
               </button>
             </div>
           </form>

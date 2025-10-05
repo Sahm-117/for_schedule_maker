@@ -41,6 +41,7 @@ router.post('/check-duplicates', authenticateToken, async (req: AuthRequest, res
   }
 });
 
+// Admin-only route for direct activity creation
 router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { dayId, time, description, period, applyToWeeks = [] } = req.body;
@@ -135,6 +136,71 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res) 
   } catch (error) {
     console.error('Create activity error:', error);
     return res.status(500).json({ error: 'Failed to create activity' });
+  }
+});
+
+// Support user route - creates pending changes for admin approval
+router.post('/request', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    if (req.user.role === 'ADMIN') {
+      return res.status(400).json({ error: 'Admins should use direct activity creation endpoint' });
+    }
+
+    const { dayId, time, description, period, applyToWeeks = [] } = req.body;
+
+    if (!dayId || !time || !description || !period) {
+      return res.status(400).json({ error: 'dayId, time, description, and period are required' });
+    }
+
+    if (!['MORNING', 'AFTERNOON', 'EVENING'].includes(period)) {
+      return res.status(400).json({ error: 'Invalid period' });
+    }
+
+    // Get day info to determine weekId
+    const day = await prisma.day.findUnique({
+      where: { id: dayId },
+      include: { week: true }
+    });
+
+    if (!day) {
+      return res.status(400).json({ error: 'Invalid day ID' });
+    }
+
+    const changeData = {
+      dayId,
+      time,
+      description,
+      period,
+      dayName: day.dayName,
+      applyToWeeks: applyToWeeks.length > 0 ? applyToWeeks : [day.week.weekNumber]
+    };
+
+    const pendingChange = await prisma.pendingChange.create({
+      data: {
+        weekId: day.weekId,
+        changeType: 'ADD',
+        changeData,
+        userId: req.user.id
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true }
+        }
+      }
+    });
+
+    return res.status(201).json({
+      message: 'Activity request submitted for admin approval',
+      pendingChange
+    });
+
+  } catch (error) {
+    console.error('Create activity request error:', error);
+    return res.status(500).json({ error: 'Failed to create activity request' });
   }
 });
 

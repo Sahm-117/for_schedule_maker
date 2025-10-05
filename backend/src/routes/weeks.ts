@@ -20,6 +20,12 @@ router.get('/', authenticateToken, async (_req: AuthRequest, res) => {
       orderBy: { weekNumber: 'asc' }
     });
 
+    // Sort days in proper week order (Sunday-Saturday)
+    const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    weeks.forEach(week => {
+      week.days.sort((a, b) => dayOrder.indexOf(a.dayName) - dayOrder.indexOf(b.dayName));
+    });
+
     return res.json({ weeks });
   } catch (error) {
     console.error('Get weeks error:', error);
@@ -39,8 +45,7 @@ router.get('/:weekId', authenticateToken, async (req: AuthRequest, res) => {
             activities: {
               orderBy: { orderIndex: 'asc' }
             }
-          },
-          orderBy: { dayName: 'asc' }
+          }
         }
       }
     });
@@ -48,6 +53,10 @@ router.get('/:weekId', authenticateToken, async (req: AuthRequest, res) => {
     if (!week) {
       return res.status(404).json({ error: 'Week not found' });
     }
+
+    // Sort days in proper week order (Sunday-Saturday)
+    const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    week.days.sort((a, b) => dayOrder.indexOf(a.dayName) - dayOrder.indexOf(b.dayName));
 
     const pendingChanges = await prisma.pendingChange.findMany({
       where: { weekId },

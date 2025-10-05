@@ -79,13 +79,20 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
           applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
         });
       } else {
-        await activitiesApi.create({
+        // Use correct API based on user role
+        const activityData = {
           dayId: day.id,
           time,
           description,
           period,
           applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
-        });
+        };
+
+        if (isAdmin) {
+          await activitiesApi.create(activityData);
+        } else {
+          await activitiesApi.request(activityData);
+        }
       }
       onSave();
     } catch (error: any) {
@@ -97,22 +104,9 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
 
   const handleDelete = async () => {
     if (!activity) return;
-
-    if (!confirm('Are you sure you want to delete this activity?')) return;
-
-    setLoading(true);
-    setError('');
-
-    try {
-      await activitiesApi.delete(activity.id, {
-        applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
-      });
-      onSave();
-    } catch (error: any) {
-      setError(error.response?.data?.error || 'Failed to delete activity');
-    } finally {
-      setLoading(false);
-    }
+    // Note: Delete functionality moved to DaySchedule component with proper confirmation modal
+    // This function is kept for backwards compatibility but should not be used
+    console.warn('Delete function called from ActivityModal - use DaySchedule delete instead');
   };
 
   if (!isOpen) return null;
@@ -120,16 +114,16 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold">
+        <div className="p-4 sm:p-6">
+          <div className="flex justify-between items-start sm:items-center mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-semibold pr-4">
               {activity ? 'Edit Activity' : 'Add Activity'} - {day.dayName}
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 flex-shrink-0"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -237,34 +231,44 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
               </div>
             )}
 
-            <div className="flex justify-between pt-4 border-t">
+            {!isAdmin && !activity && (
+              <div className="text-blue-600 text-sm bg-blue-50 p-2 rounded">
+                As a support user, your activity will be submitted for admin approval.
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row justify-between pt-4 border-t gap-3">
               <div>
                 {activity && (
                   <button
                     type="button"
                     onClick={handleDelete}
                     disabled={loading}
-                    className="px-4 py-2 text-red-600 border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50"
+                    className="px-4 py-2 text-red-600 border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50 text-sm sm:text-base"
                   >
                     Delete
                   </button>
                 )}
               </div>
 
-              <div className="flex space-x-3">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 text-sm sm:text-base"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading || !time || !description}
-                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50"
+                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50 text-sm sm:text-base"
                 >
-                  {loading ? 'Saving...' : activity ? 'Update' : 'Add'} Activity
+                  {loading ?
+                    (isAdmin ? 'Saving...' : 'Submitting...') :
+                    activity ? 'Update' :
+                    (isAdmin ? 'Add Activity' : 'Submit for Approval')
+                  }
                 </button>
               </div>
             </div>

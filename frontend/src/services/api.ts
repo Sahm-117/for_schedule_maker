@@ -94,6 +94,7 @@ export const activitiesApi = {
     return response.data;
   },
 
+  // Admin only - creates activities directly
   async create(activityData: {
     dayId: number;
     time: string;
@@ -102,6 +103,18 @@ export const activitiesApi = {
     applyToWeeks?: number[];
   }): Promise<{ activities: any[] }> {
     const response = await api.post('/activities', activityData);
+    return response.data;
+  },
+
+  // Support users - creates pending change requests
+  async request(activityData: {
+    dayId: number;
+    time: string;
+    description: string;
+    period: string;
+    applyToWeeks?: number[];
+  }): Promise<{ message: string; pendingChange: any }> {
+    const response = await api.post('/activities/request', activityData);
     return response.data;
   },
 
