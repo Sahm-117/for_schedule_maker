@@ -524,12 +524,15 @@ export const pendingChangesApi = {
     weekId: number;
     changeType: 'ADD' | 'EDIT' | 'DELETE';
     changeData: any;
+    userId?: string;
   }): Promise<{ pendingChange: PendingChange }> {
     const { data, error } = await supabase
       .from('PendingChange')
       .insert([{
-        ...changeData,
-        userId: 'demo_user_id', // Temporary placeholder - need to implement proper user ID
+        weekId: changeData.weekId,
+        changeType: changeData.changeType,
+        changeData: changeData.changeData,
+        userId: changeData.userId || 'demo_user_id', // Use provided userId or fallback
       }])
       .select()
       .single();

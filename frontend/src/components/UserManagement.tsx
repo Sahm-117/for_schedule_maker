@@ -111,6 +111,22 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleResetPassword = async (userId: string, newPassword: string) => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await usersApi.update(userId, { password: newPassword });
+      setSuccess('Password reset successfully');
+      setSelectedUser(null); // Close the details modal
+    } catch (error: any) {
+      setError(error.response?.data?.error || 'Failed to reset password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -410,17 +426,21 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                       ••••••••
                     </div>
                     <button
-                      onClick={() => setShowPasswordInDetails(!showPasswordInDetails)}
-                      className="px-3 py-2 bg-gray-100 border border-l-0 border-gray-200 rounded-r-md hover:bg-gray-200 text-gray-600"
-                      title="Passwords are encrypted and cannot be viewed"
+                      onClick={() => {
+                        const newPassword = prompt('Enter new password for ' + selectedUser.name + ':');
+                        if (newPassword && newPassword.trim()) {
+                          handleResetPassword(selectedUser.id, newPassword.trim());
+                        }
+                      }}
+                      className="px-3 py-2 bg-blue-600 border border-l-0 border-blue-600 rounded-r-md hover:bg-blue-700 text-white"
+                      title="Reset user password"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                       </svg>
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Passwords are encrypted and cannot be displayed for security reasons.</p>
+                  <p className="text-xs text-gray-500 mt-1">Passwords are encrypted for security. Click the reset button to set a new password.</p>
                 </div>
               </div>
 
