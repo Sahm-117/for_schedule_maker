@@ -582,6 +582,20 @@ export const pendingChangesApi = {
     };
   },
 
+  async cancel(changeId: string): Promise<{ message: string }> {
+    // Simply delete the pending change (allows users to cancel their own requests)
+    const { error } = await supabase
+      .from('PendingChange')
+      .delete()
+      .eq('id', changeId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { message: 'Change request cancelled' };
+  },
+
   async reject(changeId: string, rejectionReason: string): Promise<{ message: string; rejectedChange: RejectedChange }> {
     // Get the pending change
     const { data: change, error: changeError } = await supabase

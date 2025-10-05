@@ -21,15 +21,34 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
   const { user } = useAuth();
   const [selectedWeeks, setSelectedWeeks] = useState<number[]>([]);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
-  const [time, setTime] = useState('');
+  const [timeHour, setTimeHour] = useState('12');
+  const [timeMinute, setTimeMinute] = useState('00');
+  const [timeAmPm, setTimeAmPm] = useState<'AM' | 'PM'>('AM');
   const [description, setDescription] = useState('');
-  const [period, setPeriod] = useState<'MORNING' | 'AFTERNOON' | 'EVENING'>('MORNING');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Convert 12-hour format to 24-hour format
+  const getTime24Format = () => {
+    let hour = parseInt(timeHour);
+    if (timeAmPm === 'AM' && hour === 12) hour = 0;
+    if (timeAmPm === 'PM' && hour !== 12) hour += 12;
+    return `${hour.toString().padStart(2, '0')}:${timeMinute}`;
+  };
+
+  // Automatically determine period based on time
+  const getPeriodFromTime = (time24: string) => {
+    const [hours] = time24.split(':');
+    const hour = parseInt(hours);
+
+    if (hour >= 0 && hour < 12) return 'MORNING';
+    if (hour >= 12 && hour < 17) return 'AFTERNOON';
+    return 'EVENING';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedDays.length === 0 || !time || !description || selectedWeeks.length === 0) return;
+    if (selectedDays.length === 0 || !getTime24Format() || !description || selectedWeeks.length === 0) return;
 
     setLoading(true);
     setError('');
@@ -37,6 +56,8 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
     try {
       const results = [];
       const errors = [];
+      const time24 = getTime24Format();
+      const period = getPeriodFromTime(time24);
 
       // Create activity for each selected day
       for (const dayName of selectedDays) {
@@ -49,10 +70,11 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
         try {
           const activityData = {
             dayId: targetDay.id,
-            time,
+            time: time24,
             description,
             period,
             applyToWeeks: selectedWeeks,
+            userId: user?.id || 'a0000000-0000-4000-8000-000000000002',
           };
 
           // Use correct API based on user role
@@ -83,9 +105,10 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
       if (results.length > 0) {
         setSelectedWeeks([]);
         setSelectedDays([]);
-        setTime('');
+        setTimeHour('12');
+        setTimeMinute('00');
+        setTimeAmPm('AM');
         setDescription('');
-        setPeriod('MORNING');
         onClose();
       }
     } catch (error: any) {
@@ -186,28 +209,41 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Time
               </label>
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Period
-              </label>
-              <select
-                value={period}
-                onChange={(e) => setPeriod(e.target.value as 'MORNING' | 'AFTERNOON' | 'EVENING')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-              >
-                <option value="MORNING">Morning</option>
-                <option value="AFTERNOON">Afternoon</option>
-                <option value="EVENING">Evening</option>
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={timeHour}
+                  onChange={(e) => setTimeHour(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(hour => (
+                    <option key={hour} value={hour.toString()}>
+                      {hour}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={timeMinute}
+                  onChange={(e) => setTimeMinute(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
+                >
+                  {['00', '15', '30', '45'].map(minute => (
+                    <option key={minute} value={minute}>
+                      {minute}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={timeAmPm}
+                  onChange={(e) => setTimeAmPm(e.target.value as 'AM' | 'PM')}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
+                >
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Period will be automatically determined: 12am-11:59am (Morning), 12pm-4:59pm (Afternoon), 5pm-11:59pm (Evening)
+              </p>
             </div>
 
             <div>
@@ -246,7 +282,7 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={loading || selectedDays.length === 0 || !time || !description || selectedWeeks.length === 0}
+                disabled={loading || selectedDays.length === 0 || !getTime24Format() || !description || selectedWeeks.length === 0}
                 className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50"
               >
                 {loading ?

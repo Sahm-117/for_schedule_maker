@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { pendingChangesApi } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 import type { PendingChange } from '../types';
 
 interface PendingChangesPanelProps {
@@ -15,6 +16,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   onReject,
   isAdmin,
 }) => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
@@ -42,6 +44,18 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
       onReject();
     } catch (error) {
       console.error('Failed to reject change:', error);
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleCancel = async (changeId: string) => {
+    setLoading(changeId);
+    try {
+      await pendingChangesApi.cancel(changeId);
+      onReject(); // Reuse same callback to refresh the list
+    } catch (error) {
+      console.error('Failed to cancel change:', error);
     } finally {
       setLoading(null);
     }
@@ -121,24 +135,37 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
                 </p>
               </div>
 
-              {isAdmin && (
-                <div className="flex items-center space-x-2 ml-4">
+              <div className="flex items-center space-x-2 ml-4">
+                {isAdmin && (
+                  <>
+                    <button
+                      onClick={() => handleApprove(change.id)}
+                      disabled={loading === change.id}
+                      className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {loading === change.id ? 'Approving...' : 'Approve'}
+                    </button>
+                    <button
+                      onClick={() => setShowRejectModal(change.id)}
+                      disabled={loading === change.id}
+                      className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
+
+                {/* Support users can cancel their own pending changes */}
+                {!isAdmin && user && change.userId === user.id && (
                   <button
-                    onClick={() => handleApprove(change.id)}
+                    onClick={() => handleCancel(change.id)}
                     disabled={loading === change.id}
-                    className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                    className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50"
                   >
-                    {loading === change.id ? 'Approving...' : 'Approve'}
+                    {loading === change.id ? 'Cancelling...' : 'Cancel'}
                   </button>
-                  <button
-                    onClick={() => setShowRejectModal(change.id)}
-                    disabled={loading === change.id}
-                    className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-                  >
-                    Reject
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         ))}
