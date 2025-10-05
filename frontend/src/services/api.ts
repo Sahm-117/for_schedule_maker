@@ -1,7 +1,20 @@
 import axios from 'axios';
 import type { AuthResponse, User, Week, PendingChange, RejectedChange } from '../types';
 
+// Import Supabase API
+import {
+  authApi as supabaseAuthApi,
+  weeksApi as supabaseWeeksApi,
+  activitiesApi as supabaseActivitiesApi,
+  pendingChangesApi as supabasePendingChangesApi,
+  rejectedChangesApi as supabaseRejectedChangesApi,
+  usersApi as supabaseUsersApi,
+  setAuthToken as supabaseSetAuthToken,
+  clearAuthToken as supabaseClearAuthToken,
+} from './supabase-api';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const USE_SUPABASE = import.meta.env.VITE_SUPABASE_URL ? true : false;
 
 const api = axios.create({
   baseURL: API_URL,
@@ -32,12 +45,12 @@ api.interceptors.response.use(
   }
 );
 
-export const setAuthToken = (token: string) => {
+export const setAuthToken = USE_SUPABASE ? supabaseSetAuthToken : (token: string) => {
   authToken = token;
   localStorage.setItem('accessToken', token);
 };
 
-export const clearAuthToken = () => {
+export const clearAuthToken = USE_SUPABASE ? supabaseClearAuthToken : () => {
   authToken = null;
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
@@ -52,7 +65,7 @@ if (typeof window !== 'undefined') {
 }
 
 // Auth API
-export const authApi = {
+export const authApi = USE_SUPABASE ? supabaseAuthApi : {
   async login(email: string, password: string): Promise<AuthResponse> {
     const response = await api.post('/auth/login', { email, password });
     return response.data;
@@ -75,7 +88,7 @@ export const authApi = {
 };
 
 // Weeks API
-export const weeksApi = {
+export const weeksApi = USE_SUPABASE ? supabaseWeeksApi : {
   async getAll(): Promise<{ weeks: Week[] }> {
     const response = await api.get('/weeks');
     return response.data;
@@ -88,7 +101,7 @@ export const weeksApi = {
 };
 
 // Activities API
-export const activitiesApi = {
+export const activitiesApi = USE_SUPABASE ? supabaseActivitiesApi : {
   async checkDuplicates(time: string, description: string, dayName: string): Promise<{ existingWeeks: number[] }> {
     const response = await api.post('/activities/check-duplicates', { time, description, dayName });
     return response.data;
@@ -141,7 +154,7 @@ export const activitiesApi = {
 };
 
 // Pending Changes API
-export const pendingChangesApi = {
+export const pendingChangesApi = USE_SUPABASE ? supabasePendingChangesApi : {
   async getByWeek(weekId: number): Promise<{ pendingChanges: PendingChange[] }> {
     const response = await api.get(`/pending-changes/${weekId}`);
     return response.data;
@@ -168,7 +181,7 @@ export const pendingChangesApi = {
 };
 
 // Rejected Changes API
-export const rejectedChangesApi = {
+export const rejectedChangesApi = USE_SUPABASE ? supabaseRejectedChangesApi : {
   async getMine(): Promise<{ rejectedChanges: RejectedChange[]; unreadCount: number }> {
     const response = await api.get('/rejected-changes/me');
     return response.data;
@@ -186,7 +199,7 @@ export const rejectedChangesApi = {
 };
 
 // Users API
-export const usersApi = {
+export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
   async getAll(): Promise<{ users: User[] }> {
     const response = await api.get('/users');
     return response.data;

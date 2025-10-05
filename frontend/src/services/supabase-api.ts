@@ -1,20 +1,16 @@
 import { supabase } from '../lib/supabase';
+import type { Session } from '@supabase/supabase-js';
 import type {
   User,
   Week,
   Day,
   Activity,
   PendingChange,
-  RejectedChange
-} from '../lib/supabase';
-import { Session } from '@supabase/supabase-js';
+  RejectedChange,
+  AuthResponse
+} from '../types';
 
-// Types for API responses
-interface AuthResponse {
-  user: User;
-  accessToken: string;
-  refreshToken?: string;
-}
+// Types for API responses are now imported from ../types
 
 // Current user session
 let currentSession: Session | null = null;
@@ -44,6 +40,7 @@ export const authApi = {
     return {
       user: users,
       accessToken: `mock_token_${users.id}`,
+      refreshToken: `refresh_token_${users.id}`,
     };
   },
 
@@ -101,7 +98,26 @@ export const weeksApi = {
       throw new Error(error.message);
     }
 
-    return { weeks: data || [] };
+    // Transform Supabase data to match app types
+    const weeks: Week[] = (data || []).map((week: any) => ({
+      id: week.id,
+      weekNumber: week.weekNumber,
+      days: (week.Day || []).map((day: any) => ({
+        id: day.id,
+        weekId: day.weekId,
+        dayName: day.dayName,
+        activities: (day.Activity || []).map((activity: any) => ({
+          id: activity.id,
+          dayId: activity.dayId,
+          time: activity.time,
+          description: activity.description,
+          period: activity.period,
+          orderIndex: activity.orderIndex,
+        })),
+      })),
+    }));
+
+    return { weeks };
   },
 
   async getById(weekId: number): Promise<{ week: Week; pendingChanges: PendingChange[] }> {
@@ -123,11 +139,11 @@ export const weeksApi = {
     }
 
     // Get pending changes for this week
-    const { data: pendingChanges, error: changesError } = await supabase
+    const { data: pendingChangesData, error: changesError } = await supabase
       .from('PendingChange')
       .select(`
         *,
-        User (name, email)
+        User (id, name, email)
       `)
       .eq('weekId', weekId);
 
@@ -135,10 +151,41 @@ export const weeksApi = {
       throw new Error(changesError.message);
     }
 
-    return {
-      week: weekData,
-      pendingChanges: pendingChanges || []
+    // Transform week data
+    const week: Week = {
+      id: weekData.id,
+      weekNumber: weekData.weekNumber,
+      days: (weekData.Day || []).map((day: any) => ({
+        id: day.id,
+        weekId: day.weekId,
+        dayName: day.dayName,
+        activities: (day.Activity || []).map((activity: any) => ({
+          id: activity.id,
+          dayId: activity.dayId,
+          time: activity.time,
+          description: activity.description,
+          period: activity.period,
+          orderIndex: activity.orderIndex,
+        })),
+      })),
     };
+
+    // Transform pending changes data
+    const pendingChanges: PendingChange[] = (pendingChangesData || []).map((change: any) => ({
+      id: change.id,
+      weekId: change.weekId,
+      changeType: change.changeType,
+      changeData: change.changeData,
+      userId: change.userId,
+      user: {
+        id: change.User?.id || change.userId,
+        name: change.User?.name || 'Unknown',
+        email: change.User?.email || 'unknown@email.com',
+      },
+      createdAt: change.createdAt,
+    }));
+
+    return { week, pendingChanges };
   },
 };
 
