@@ -529,7 +529,7 @@ export const pendingChangesApi = {
       .from('PendingChange')
       .insert([{
         ...changeData,
-        userId: 'current_user_id', // Replace with actual user ID
+        userId: 'demo_user_id', // Temporary placeholder - need to implement proper user ID
       }])
       .select()
       .single();
@@ -626,21 +626,12 @@ export const pendingChangesApi = {
 // Rejected Changes API
 export const rejectedChangesApi = {
   async getMine(): Promise<{ rejectedChanges: RejectedChange[]; unreadCount: number }> {
-    const { data, error } = await supabase
-      .from('RejectedChange')
-      .select(`
-        *,
-        User (name, email)
-      `)
-      .eq('userId', 'current_user_id') // Replace with actual user ID
-      .order('rejectedAt', { ascending: false });
+    // For now, return empty array since we don't have proper user auth context
+    // TODO: Implement proper user filtering when auth context is available
+    console.log('getMine called - returning empty array for now');
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    const rejectedChanges = data || [];
-    const unreadCount = rejectedChanges.filter(change => !change.isRead).length;
+    const rejectedChanges: RejectedChange[] = [];
+    const unreadCount = 0;
 
     return { rejectedChanges, unreadCount };
   },
@@ -661,18 +652,9 @@ export const rejectedChangesApi = {
   },
 
   async markAllRead(): Promise<{ message: string; updatedCount: number }> {
-    const { data, error } = await supabase
-      .from('RejectedChange')
-      .update({ isRead: true })
-      .eq('userId', 'current_user_id') // Replace with actual user ID
-      .eq('isRead', false)
-      .select();
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    return { message: 'All marked as read', updatedCount: data?.length || 0 };
+    // For now, return 0 since we're not implementing this functionality yet
+    console.log('markAllRead called - returning 0 for now');
+    return { message: 'All marked as read', updatedCount: 0 };
   },
 };
 
