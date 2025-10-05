@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usersApi, authApi } from '../services/api';
 import type { User } from '../types';
+import { useAuth } from '../hooks/useAuth';
 
 interface UserManagementProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface UserManagementProps {
 }
 
 const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddUser, setShowAddUser] = useState(false);
@@ -78,6 +80,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
   };
 
   const handleDeleteUser = async (userId: string, userName: string) => {
+    // Prevent admin from deleting themselves
+    if (currentUser?.id === userId) {
+      setError('You cannot delete your own account');
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete user "${userName}"?`)) return;
 
     setLoading(true);
@@ -326,10 +334,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                           </button>
                           <button
                             onClick={() => handleDeleteUser(user.id, user.name)}
-                            disabled={loading}
+                            disabled={loading || currentUser?.id === user.id}
                             className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                            title={currentUser?.id === user.id ? 'Cannot delete your own account' : 'Delete user'}
                           >
-                            Delete
+                            {currentUser?.id === user.id ? 'Self' : 'Delete'}
                           </button>
                         </td>
                       </tr>
