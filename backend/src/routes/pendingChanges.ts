@@ -1,6 +1,8 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth';
+import { sendNotification } from '../services/notifications';
+import { sendTelegramNotification } from '../services/telegram';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -234,6 +236,37 @@ router.put('/:id/approve', authenticateToken, requireAdmin, async (req: AuthRequ
         where: { id: changeId }
       });
 
+      // Send notifications to user (email + Telegram)
+      try {
+        const week = await prisma.week.findUnique({
+          where: { id: pendingChange.weekId }
+        });
+
+        const notificationData = {
+          userId: pendingChange.user.id,
+          userName: pendingChange.user.name,
+          userEmail: pendingChange.user.email,
+          type: 'approved' as const,
+          changeType: changeType as 'ADD' | 'EDIT' | 'DELETE',
+          activityDescription: (changeData as any).description || 'Activity',
+          activityTime: (changeData as any).time,
+          weekNumber: week?.weekNumber || 1,
+          dayName: (changeData as any).dayName || 'Unknown',
+          approvedBy: req.user?.name || 'Admin',
+          timestamp: new Date()
+        };
+
+        // Send email notification
+        await sendNotification(notificationData);
+        console.log('✅ Email notification sent to', pendingChange.user.email);
+
+        // Send Telegram notification
+        await sendTelegramNotification(notificationData);
+      } catch (notifError) {
+        console.error('⚠️ Failed to send notifications:', notifError);
+        // Don't fail the request if notification fails
+      }
+
       return res.json({
         message: 'Change approved and applied successfully',
         results,
@@ -264,7 +297,12 @@ router.post('/:id/reject', authenticateToken, requireAdmin, async (req: AuthRequ
     }
 
     const pendingChange = await prisma.pendingChange.findUnique({
-      where: { id: changeId }
+      where: { id: changeId },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true }
+        }
+      }
     });
 
     if (!pendingChange) {
@@ -291,6 +329,40 @@ router.post('/:id/reject', authenticateToken, requireAdmin, async (req: AuthRequ
     await prisma.pendingChange.delete({
       where: { id: changeId }
     });
+
+    // Send notifications to user (email + Telegram)
+    try {
+      const week = await prisma.week.findUnique({
+        where: { id: pendingChange.weekId }
+      });
+
+      const changeData = pendingChange.changeData as any;
+
+      const notificationData = {
+        userId: pendingChange.user.id,
+        userName: pendingChange.user.name,
+        userEmail: pendingChange.user.email,
+        type: 'rejected' as const,
+        changeType: pendingChange.changeType as 'ADD' | 'EDIT' | 'DELETE',
+        activityDescription: changeData.description || 'Activity',
+        activityTime: changeData.time,
+        weekNumber: week?.weekNumber || 1,
+        dayName: changeData.dayName || 'Unknown',
+        rejectedBy: req.user.name || 'Admin',
+        rejectionReason: rejectionReason.trim(),
+        timestamp: new Date()
+      };
+
+      // Send email notification
+      await sendNotification(notificationData);
+      console.log('✅ Email notification sent to', pendingChange.user.email);
+
+      // Send Telegram notification
+      await sendTelegramNotification(notificationData);
+    } catch (notifError) {
+      console.error('⚠️ Failed to send notifications:', notifError);
+      // Don't fail the request if notification fails
+    }
 
     return res.json({
       message: 'Change rejected successfully',
