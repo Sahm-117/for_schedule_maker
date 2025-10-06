@@ -5,6 +5,7 @@ import DaySchedule from './DaySchedule';
 import ActivityModal from './ActivityModal';
 import CrossWeekModal from './CrossWeekModal';
 import PendingChangesPanel from './PendingChangesPanel';
+import HistoryPanel from './HistoryPanel';
 import { exportWeekToPDF, exportAllWeeksToPDF } from '../utils/pdfExport';
 
 interface ScheduleViewProps {
@@ -26,6 +27,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [crossWeekModalOpen, setCrossWeekModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [showPendingChanges, setShowPendingChanges] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -136,6 +138,18 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+            {/* History Button */}
+            <button
+              onClick={() => setShowHistory(true)}
+              className="inline-flex items-center px-3 sm:px-4 py-2 border border-purple-200 text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors text-sm"
+            >
+              <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="hidden sm:inline">History</span>
+              <span className="sm:hidden">History</span>
+            </button>
+
             {pendingChanges.length > 0 && (
               <button
                 onClick={() => setShowPendingChanges(!showPendingChanges)}
@@ -238,6 +252,12 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           onSave={handleActivitySaved}
         />
       )}
+
+      {/* History Panel */}
+      <HistoryPanel
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+      />
     </div>
   );
 };
