@@ -80,11 +80,10 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
           };
 
           // Use correct API based on user role
-          let result;
           if (user?.role === 'ADMIN') {
-            result = await activitiesApi.create(activityData);
+            await activitiesApi.create(activityData);
           } else {
-            result = await activitiesApi.request(activityData);
+            await activitiesApi.request(activityData);
           }
           results.push(`${dayName}: Success`);
         } catch (dayError: any) {
