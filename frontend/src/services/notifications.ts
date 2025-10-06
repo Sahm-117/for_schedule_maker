@@ -268,12 +268,22 @@ Please review the feedback and submit a new request if needed.`;
  */
 export async function sendNotifications(data: NotificationData): Promise<void> {
   console.log(`📧 Sending ${data.type} notification to ${data.userName}...`);
+  console.log('📧 Notification data:', data);
+  console.log('📧 Environment check:', {
+    hasResendKey: !!RESEND_API_KEY,
+    hasResendEmail: !!RESEND_FROM_EMAIL,
+    hasTelegramToken: !!TELEGRAM_BOT_TOKEN,
+    hasTelegramChatId: !!TELEGRAM_GROUP_CHAT_ID,
+    appUrl: APP_URL,
+  });
 
   // Send both in parallel
-  await Promise.allSettled([
+  const results = await Promise.allSettled([
     sendEmailNotification(data),
     sendTelegramNotification(data),
   ]);
+
+  console.log('📧 Notification results:', results);
 }
 
 export default {
