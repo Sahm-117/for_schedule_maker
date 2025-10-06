@@ -45,21 +45,10 @@ const Login: React.FC = () => {
           {/* Logo */}
           <div className="flex justify-center mb-6">
             <img
-              src="/logo-covenant-nation.svg"
-              alt="The Covenant Nation Logo"
-              className="h-16 w-auto"
-              onError={(e) => {
-                // Fallback if logo doesn't load
-                e.currentTarget.style.display = 'none';
-                const fallback = e.currentTarget.parentElement?.querySelector('.logo-fallback');
-                if (fallback) fallback.style.display = 'block';
-              }}
+              src="/logo.png"
+              alt="FOF IKD Logo"
+              className="h-20 w-20 object-contain"
             />
-            <div className="logo-fallback" style={{ display: 'none' }}>
-              <div className="h-16 w-16 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">CN</span>
-              </div>
-            </div>
           </div>
 
           <h2 className="text-3xl font-extrabold text-gray-900">
