@@ -79,16 +79,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleDeleteUser = async (userId: string, userName: string) => {
+  const handleDeleteUser = async (userId: string, userName: string, userEmail: string) => {
     // Prevent admin from deleting themselves
     if (currentUser?.id === userId) {
       setError('You cannot delete your own account');
       return;
     }
 
-    // Prevent deletion of System Admin
-    const SYSTEM_ADMIN_ID = '73030840-066c-4752-9e41-23dc506cf492';
-    if (userId === SYSTEM_ADMIN_ID) {
+    // Prevent deletion of System Admin by email
+    if (userEmail === 'system@fof.com') {
       setError('Cannot delete System Admin - this account is protected');
       return;
     }
@@ -340,16 +339,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                             View Details
                           </button>
                           <button
-                            onClick={() => handleDeleteUser(user.id, user.name)}
-                            disabled={loading || currentUser?.id === user.id || user.id === '73030840-066c-4752-9e41-23dc506cf492'}
+                            onClick={() => handleDeleteUser(user.id, user.name, user.email)}
+                            disabled={loading || currentUser?.id === user.id || user.email === 'system@fof.com'}
                             className="text-red-600 hover:text-red-900 disabled:opacity-50"
                             title={
                               currentUser?.id === user.id ? 'Cannot delete your own account' :
-                              user.id === '73030840-066c-4752-9e41-23dc506cf492' ? 'System Admin is protected' :
+                              user.email === 'system@fof.com' ? 'System Admin is protected' :
                               'Delete user'
                             }
                           >
-                            {currentUser?.id === user.id ? 'Self' : user.id === '73030840-066c-4752-9e41-23dc506cf492' ? 'Protected' : 'Delete'}
+                            {currentUser?.id === user.id ? 'Self' : user.email === 'system@fof.com' ? 'Protected' : 'Delete'}
                           </button>
                         </td>
                       </tr>

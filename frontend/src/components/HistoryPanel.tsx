@@ -43,6 +43,16 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleMarkAllAsRead = async () => {
+    try {
+      const unreadChanges = rejectedChanges.filter(change => !change.isRead);
+      await Promise.all(unreadChanges.map(change => rejectedChangesApi.markRead(change.id)));
+      loadHistory(); // Refresh the list
+    } catch (error) {
+      console.error('Failed to mark all as read:', error);
+    }
+  };
+
   const getChangeDescription = (change: RejectedChange) => {
     const { changeType, changeData } = change;
 
@@ -84,14 +94,25 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose }) => {
         <div className="p-6 border-b border-gray-200">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-semibold text-gray-900">Change History</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-3">
+              {rejectedChanges.some(change => !change.isRead) && (
+                <button
+                  onClick={handleMarkAllAsRead}
+                  className="px-3 py-1.5 text-sm text-primary border border-primary rounded-md hover:bg-primary/5 transition-colors"
+                >
+                  Mark All as Read
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Close"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Filter Tabs */}
@@ -123,9 +144,8 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose }) => {
                   ? 'border-primary text-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
-              disabled
             >
-              Approved <span className="text-xs text-gray-400">(Coming Soon)</span>
+              Approved
             </button>
           </div>
         </div>
