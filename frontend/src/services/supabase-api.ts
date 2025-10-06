@@ -148,12 +148,12 @@ export const weeksApi = {
       throw new Error(weekError.message);
     }
 
-    // Get pending changes for this week
+    // Get pending changes for this week with User relation
     const { data: pendingChangesData, error: changesError } = await supabase
       .from('PendingChange')
       .select(`
         *,
-        User (id, name, email)
+        User:User!PendingChange_userId_fkey (id, name, email)
       `)
       .eq('weekId', weekId);
 
@@ -186,19 +186,25 @@ export const weeksApi = {
     };
 
     // Transform pending changes data
-    const pendingChanges: PendingChange[] = (pendingChangesData || []).map((change: any) => ({
-      id: change.id,
-      weekId: change.weekId,
-      changeType: change.changeType,
-      changeData: change.changeData,
-      userId: change.userId,
-      user: {
-        id: change.User?.id || change.userId,
-        name: change.User?.name || 'Unknown',
-        email: change.User?.email || 'unknown@email.com',
-      },
-      createdAt: change.createdAt,
-    }));
+    const SYSTEM_ID = 'a0000000-0000-4000-8000-000000000002';
+    const pendingChanges: PendingChange[] = (pendingChangesData || []).map((change: any) => {
+      const uiUser = change.User ?? {};
+      const isSystem = (uiUser.id || change.userId) === SYSTEM_ID;
+
+      return {
+        id: change.id,
+        weekId: change.weekId,
+        changeType: change.changeType,
+        changeData: change.changeData,
+        userId: change.userId,
+        user: {
+          id: uiUser.id || change.userId,
+          name: isSystem ? 'System' : (uiUser.name || '—'),
+          email: isSystem ? 'system@fof.com' : (uiUser.email || ''),
+        },
+        createdAt: change.createdAt,
+      };
+    });
 
     return { week, pendingChanges };
   },
