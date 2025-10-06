@@ -61,7 +61,9 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
 
       // Create activity for each selected day
       for (const dayName of selectedDays) {
-        const targetDay = currentWeek.days.find(d => d.dayName === dayName);
+        // Convert uppercase day name to proper case (e.g., 'WEDNESDAY' -> 'Wednesday')
+        const properDayName = dayName.charAt(0) + dayName.slice(1).toLowerCase();
+        const targetDay = currentWeek.days.find(d => d.dayName === properDayName);
         if (!targetDay) {
           errors.push(`Selected day ${dayName} not found`);
           continue;
