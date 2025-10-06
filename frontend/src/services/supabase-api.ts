@@ -610,9 +610,6 @@ export const pendingChangesApi = {
         .eq('id', change.weekId)
         .single();
 
-      // Get current admin user name
-      const currentUser = await authApi.getCurrentUser();
-
       await sendNotifications({
         userName: change.User?.name || 'User',
         userEmail: change.User?.email || '',
@@ -622,7 +619,7 @@ export const pendingChangesApi = {
         activityTime: change.changeData.time,
         weekNumber: week?.weekNumber || 1,
         dayName: change.changeData.dayName || 'Unknown',
-        approvedBy: currentUser?.name || 'Admin',
+        approvedBy: 'Admin',
       });
     } catch (notifError) {
       console.error('⚠️ Failed to send notifications:', notifError);
@@ -699,9 +696,6 @@ export const pendingChangesApi = {
         .eq('id', change.weekId)
         .single();
 
-      // Get current admin user name
-      const currentUser = await authApi.getCurrentUser();
-
       await sendNotifications({
         userName: change.User?.name || 'User',
         userEmail: change.User?.email || '',
@@ -711,7 +705,7 @@ export const pendingChangesApi = {
         activityTime: change.changeData.time,
         weekNumber: week?.weekNumber || 1,
         dayName: change.changeData.dayName || 'Unknown',
-        rejectedBy: currentUser?.name || 'Admin',
+        rejectedBy: 'Admin',
         rejectionReason,
       });
     } catch (notifError) {
