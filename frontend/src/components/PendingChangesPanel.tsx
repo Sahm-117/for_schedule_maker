@@ -18,8 +18,21 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
 }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [selectedReason, setSelectedReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
+  const [showBulkRejectModal, setShowBulkRejectModal] = useState(false);
+
+  const rejectionReasons = [
+    'Conflicts with existing schedule',
+    'Incorrect time format',
+    'Duplicate activity',
+    'Not aligned with programme guidelines',
+    'Missing required information',
+    'Other (specify below)',
+  ];
 
   const handleApprove = async (changeId: string) => {
     setLoading(changeId);
@@ -34,18 +47,55 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   };
 
   const handleReject = async (changeId: string) => {
-    if (!rejectionReason.trim()) return;
+    const finalReason = selectedReason === 'Other (specify below)' ? customReason : selectedReason;
+    if (!finalReason.trim()) return;
 
     setLoading(changeId);
     try {
-      await pendingChangesApi.reject(changeId, rejectionReason);
+      await pendingChangesApi.reject(changeId, finalReason);
       setShowRejectModal(null);
+      setSelectedReason('');
+      setCustomReason('');
       setRejectionReason('');
       onReject();
     } catch (error) {
       console.error('Failed to reject change:', error);
     } finally {
       setLoading(null);
+    }
+  };
+
+  const handleApproveAll = async () => {
+    setBulkLoading(true);
+    try {
+      for (const change of pendingChanges) {
+        await pendingChangesApi.approve(change.id);
+      }
+      onApprove();
+    } catch (error) {
+      console.error('Failed to approve all changes:', error);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleRejectAll = async () => {
+    const finalReason = selectedReason === 'Other (specify below)' ? customReason : selectedReason;
+    if (!finalReason.trim()) return;
+
+    setBulkLoading(true);
+    try {
+      for (const change of pendingChanges) {
+        await pendingChangesApi.reject(change.id, finalReason);
+      }
+      setShowBulkRejectModal(false);
+      setSelectedReason('');
+      setCustomReason('');
+      onReject();
+    } catch (error) {
+      console.error('Failed to reject all changes:', error);
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -104,10 +154,28 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
 
   return (
     <div className="bg-white rounded-lg shadow">
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-200 flex justify-between items-center">
         <h3 className="text-lg font-medium text-gray-900">
           Pending Changes ({pendingChanges.length})
         </h3>
+        {isAdmin && pendingChanges.length > 0 && (
+          <div className="flex space-x-2">
+            <button
+              onClick={handleApproveAll}
+              disabled={bulkLoading}
+              className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+            >
+              {bulkLoading ? 'Approving...' : 'Approve All'}
+            </button>
+            <button
+              onClick={() => setShowBulkRejectModal(true)}
+              disabled={bulkLoading}
+              className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+            >
+              Reject All
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="p-4 space-y-4">
@@ -180,34 +248,66 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
         )}
       </div>
 
-      {/* Rejection Modal */}
+      {/* Single Rejection Modal */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Reject Change Request
+                Reject Change
               </h3>
 
+              <p className="text-sm text-gray-600 mb-4">
+                Please provide a reason for rejecting this change. This helps the team understand your decision.
+              </p>
+
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Reason for rejection
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Select a reason:
                 </label>
-                <textarea
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                  placeholder="Please provide a reason for rejecting this change..."
-                  required
-                />
+                <div className="space-y-2">
+                  {rejectionReasons.map((reason) => (
+                    <label key={reason} className="flex items-center">
+                      <input
+                        type="radio"
+                        name="rejectionReason"
+                        value={reason}
+                        checked={selectedReason === reason}
+                        onChange={(e) => setSelectedReason(e.target.value)}
+                        className="mr-2"
+                      />
+                      <span className="text-sm">{reason}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
+
+              {selectedReason === 'Other (specify below)' && (
+                <div className="mb-4">
+                  <textarea
+                    value={customReason}
+                    onChange={(e) => setCustomReason(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
+                    placeholder="Please specify the reason..."
+                    required
+                  />
+                </div>
+              )}
+
+              {selectedReason && selectedReason !== 'Other (specify below)' && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                  <p className="text-sm"><strong>Change being rejected:</strong></p>
+                  <p className="text-sm text-gray-700">{getChangeDescription(pendingChanges.find(c => c.id === showRejectModal)!)}</p>
+                </div>
+              )}
 
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => {
                     setShowRejectModal(null);
-                    setRejectionReason('');
+                    setSelectedReason('');
+                    setCustomReason('');
                   }}
                   className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                 >
@@ -215,10 +315,81 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
                 </button>
                 <button
                   onClick={() => handleReject(showRejectModal)}
-                  disabled={!rejectionReason.trim() || loading === showRejectModal}
+                  disabled={!selectedReason || (selectedReason === 'Other (specify below)' && !customReason.trim()) || loading === showRejectModal}
                   className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
                 >
-                  {loading === showRejectModal ? 'Rejecting...' : 'Reject Change'}
+                  {loading === showRejectModal ? 'Rejecting...' : 'Reject with Reason'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Rejection Modal */}
+      {showBulkRejectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Reject All Changes
+              </h3>
+
+              <p className="text-sm text-gray-600 mb-4">
+                You are about to reject <strong>{pendingChanges.length} pending changes</strong>. Please select a reason:
+              </p>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Select a reason:
+                </label>
+                <div className="space-y-2">
+                  {rejectionReasons.map((reason) => (
+                    <label key={reason} className="flex items-center">
+                      <input
+                        type="radio"
+                        name="bulkRejectionReason"
+                        value={reason}
+                        checked={selectedReason === reason}
+                        onChange={(e) => setSelectedReason(e.target.value)}
+                        className="mr-2"
+                      />
+                      <span className="text-sm">{reason}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {selectedReason === 'Other (specify below)' && (
+                <div className="mb-4">
+                  <textarea
+                    value={customReason}
+                    onChange={(e) => setCustomReason(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
+                    placeholder="Please specify the reason..."
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowBulkRejectModal(false);
+                    setSelectedReason('');
+                    setCustomReason('');
+                  }}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRejectAll}
+                  disabled={!selectedReason || (selectedReason === 'Other (specify below)' && !customReason.trim()) || bulkLoading}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                >
+                  {bulkLoading ? 'Rejecting All...' : 'Reject All'}
                 </button>
               </div>
             </div>
