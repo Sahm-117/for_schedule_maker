@@ -86,6 +86,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
       return;
     }
 
+    // Prevent deletion of System Admin
+    const SYSTEM_ADMIN_ID = '73030840-066c-4752-9e41-23dc506cf492';
+    if (userId === SYSTEM_ADMIN_ID) {
+      setError('Cannot delete System Admin - this account is protected');
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete user "${userName}"?`)) return;
 
     setLoading(true);
@@ -334,11 +341,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                           </button>
                           <button
                             onClick={() => handleDeleteUser(user.id, user.name)}
-                            disabled={loading || currentUser?.id === user.id}
+                            disabled={loading || currentUser?.id === user.id || user.id === '73030840-066c-4752-9e41-23dc506cf492'}
                             className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                            title={currentUser?.id === user.id ? 'Cannot delete your own account' : 'Delete user'}
+                            title={
+                              currentUser?.id === user.id ? 'Cannot delete your own account' :
+                              user.id === '73030840-066c-4752-9e41-23dc506cf492' ? 'System Admin is protected' :
+                              'Delete user'
+                            }
                           >
-                            {currentUser?.id === user.id ? 'Self' : 'Delete'}
+                            {currentUser?.id === user.id ? 'Self' : user.id === '73030840-066c-4752-9e41-23dc506cf492' ? 'Protected' : 'Delete'}
                           </button>
                         </td>
                       </tr>

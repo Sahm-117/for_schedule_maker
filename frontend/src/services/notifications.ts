@@ -6,7 +6,7 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 interface NotificationData {
   userName: string;
   userEmail: string;
-  type: 'approved' | 'rejected';
+  type: 'approved' | 'rejected' | 'pending';
   changeType: 'ADD' | 'EDIT' | 'DELETE';
   activityDescription: string;
   activityTime?: string;
@@ -15,6 +15,7 @@ interface NotificationData {
   approvedBy?: string;
   rejectedBy?: string;
   rejectionReason?: string;
+  submittedBy?: string;
 }
 
 /**

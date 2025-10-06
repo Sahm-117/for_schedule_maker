@@ -564,6 +564,77 @@ export const pendingChangesApi = {
       throw new Error(error.message);
     }
 
+    // Send notifications to all admins
+    try {
+      // Get the user who submitted the change
+      const { data: submittedBy } = await supabase
+        .from('User')
+        .select('name, email')
+        .eq('id', changeData.userId || 'a0000000-0000-4000-8000-000000000002')
+        .single();
+
+      // Get week info
+      const { data: week } = await supabase
+        .from('Week')
+        .select('weekNumber')
+        .eq('id', changeData.weekId)
+        .single();
+
+      // Get day name
+      let dayName = 'Unknown';
+      if (changeData.changeData.dayId) {
+        const { data: day } = await supabase
+          .from('Day')
+          .select('dayName')
+          .eq('id', changeData.changeData.dayId)
+          .single();
+        dayName = day?.dayName || 'Unknown';
+      } else if (changeData.changeData.dayName) {
+        dayName = changeData.changeData.dayName;
+      }
+
+      // Get all admin users
+      const { data: admins } = await supabase
+        .from('User')
+        .select('name, email')
+        .eq('role', 'admin');
+
+      // Send email to each admin with an email
+      const emailPromises = (admins || [])
+        .filter(admin => admin.email)
+        .map(admin =>
+          sendNotifications({
+            userName: admin.name || 'Admin',
+            userEmail: admin.email,
+            type: 'pending',
+            changeType: changeData.changeType as 'ADD' | 'EDIT' | 'DELETE',
+            activityDescription: changeData.changeData.description || 'Activity',
+            activityTime: changeData.changeData.time,
+            weekNumber: week?.weekNumber || 1,
+            dayName: dayName,
+            submittedBy: submittedBy?.name || 'User',
+          })
+        );
+
+      // Send Telegram notification to group
+      const telegramPromise = sendNotifications({
+        userName: 'Admins',
+        userEmail: 'admin@fof.com', // Dummy email, Telegram will still send
+        type: 'pending',
+        changeType: changeData.changeType as 'ADD' | 'EDIT' | 'DELETE',
+        activityDescription: changeData.changeData.description || 'Activity',
+        activityTime: changeData.changeData.time,
+        weekNumber: week?.weekNumber || 1,
+        dayName: dayName,
+        submittedBy: submittedBy?.name || 'User',
+      });
+
+      await Promise.all([...emailPromises, telegramPromise]);
+    } catch (notifError) {
+      console.error('⚠️ Failed to send admin notifications:', notifError);
+      // Don't fail the request if notification fails
+    }
+
     return { pendingChange: data };
   },
 
@@ -610,6 +681,19 @@ export const pendingChangesApi = {
         .eq('id', change.weekId)
         .single();
 
+      // Get day name from the day ID in changeData
+      let dayName = 'Unknown';
+      if (change.changeData.dayId) {
+        const { data: day } = await supabase
+          .from('Day')
+          .select('dayName')
+          .eq('id', change.changeData.dayId)
+          .single();
+        dayName = day?.dayName || 'Unknown';
+      } else if (change.changeData.dayName) {
+        dayName = change.changeData.dayName;
+      }
+
       await sendNotifications({
         userName: change.User?.name || 'User',
         userEmail: change.User?.email || '',
@@ -618,7 +702,7 @@ export const pendingChangesApi = {
         activityDescription: change.changeData.description || 'Activity',
         activityTime: change.changeData.time,
         weekNumber: week?.weekNumber || 1,
-        dayName: change.changeData.dayName || 'Unknown',
+        dayName: dayName,
         approvedBy: 'Admin',
       });
     } catch (notifError) {
@@ -696,6 +780,19 @@ export const pendingChangesApi = {
         .eq('id', change.weekId)
         .single();
 
+      // Get day name from the day ID in changeData
+      let dayName = 'Unknown';
+      if (change.changeData.dayId) {
+        const { data: day } = await supabase
+          .from('Day')
+          .select('dayName')
+          .eq('id', change.changeData.dayId)
+          .single();
+        dayName = day?.dayName || 'Unknown';
+      } else if (change.changeData.dayName) {
+        dayName = change.changeData.dayName;
+      }
+
       await sendNotifications({
         userName: change.User?.name || 'User',
         userEmail: change.User?.email || '',
@@ -704,7 +801,7 @@ export const pendingChangesApi = {
         activityDescription: change.changeData.description || 'Activity',
         activityTime: change.changeData.time,
         weekNumber: week?.weekNumber || 1,
-        dayName: change.changeData.dayName || 'Unknown',
+        dayName: dayName,
         rejectedBy: 'Admin',
         rejectionReason,
       });

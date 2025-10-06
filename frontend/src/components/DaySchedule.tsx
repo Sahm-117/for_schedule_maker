@@ -45,7 +45,13 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   const getPeriodActivities = (period: 'MORNING' | 'AFTERNOON' | 'EVENING') => {
     return day.activities
       .filter(activity => activity.period === period)
-      .sort((a, b) => a.orderIndex - b.orderIndex);
+      .sort((a, b) => {
+        // First sort by time
+        const timeCompare = a.time.localeCompare(b.time);
+        if (timeCompare !== 0) return timeCompare;
+        // If times are equal, sort by orderIndex
+        return a.orderIndex - b.orderIndex;
+      });
   };
 
   const getPendingChangesForActivity = (activityId: number) => {
@@ -79,8 +85,16 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
 
       const targetActivity = activities[targetIndex];
 
-      // Use the target activity's order index
+      // Only allow movement if activities have the same time
+      if (activity.time !== targetActivity.time) {
+        alert('You can only reorder activities with the same time.');
+        return;
+      }
+
+      // Swap order indices
+      const tempOrderIndex = activity.orderIndex;
       await activitiesApi.reorder(activity.id, targetActivity.orderIndex);
+      await activitiesApi.reorder(targetActivity.id, tempOrderIndex);
 
       onRefresh();
     } catch (error) {
@@ -197,20 +211,26 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
               {/* Activities */}
               <div className="space-y-2">
                 {activities.length > 0 ? (
-                  activities.map((activity, index) => (
-                    <ActivityCard
-                      key={activity.id}
-                      activity={activity}
-                      pendingChanges={getPendingChangesForActivity(activity.id)}
-                      onEdit={() => onEditActivity(activity, day)}
-                      onDelete={() => handleDeleteActivity(activity)}
-                      onMoveUp={() => handleMoveActivity(activity, 'up')}
-                      onMoveDown={() => handleMoveActivity(activity, 'down')}
-                      canMoveUp={index > 0}
-                      canMoveDown={index < activities.length - 1}
-                      isAdmin={isAdmin}
-                    />
-                  ))
+                  activities.map((activity, index) => {
+                    // Only show move arrows if adjacent activities have the same time
+                    const canMoveUp = index > 0 && activities[index - 1].time === activity.time;
+                    const canMoveDown = index < activities.length - 1 && activities[index + 1].time === activity.time;
+
+                    return (
+                      <ActivityCard
+                        key={activity.id}
+                        activity={activity}
+                        pendingChanges={getPendingChangesForActivity(activity.id)}
+                        onEdit={() => onEditActivity(activity, day)}
+                        onDelete={() => handleDeleteActivity(activity)}
+                        onMoveUp={canMoveUp ? () => handleMoveActivity(activity, 'up') : undefined}
+                        onMoveDown={canMoveDown ? () => handleMoveActivity(activity, 'down') : undefined}
+                        canMoveUp={canMoveUp}
+                        canMoveDown={canMoveDown}
+                        isAdmin={isAdmin}
+                      />
+                    );
+                  })
                 ) : (
                   <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-lg">
                     <svg className="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

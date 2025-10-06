@@ -57,16 +57,16 @@ const Login: React.FC = () => {
             />
             <div className="logo-fallback" style={{ display: 'none' }}>
               <div className="h-16 w-16 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">FOF</span>
+                <span className="text-white font-bold text-xl">CN</span>
               </div>
             </div>
           </div>
 
           <h2 className="text-3xl font-extrabold text-gray-900">
-            FOF Schedule Editor
+            Foundation of Faith
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Foundation of Faith Programme Schedule Management
+            Covenant Nation Ikorodu - Schedule Management
           </p>
         </div>
 

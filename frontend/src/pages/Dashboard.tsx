@@ -114,10 +114,14 @@ const Dashboard: React.FC = () => {
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 sm:py-0 sm:h-16 gap-3 sm:gap-0">
-            <div className="flex items-center">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-                FOF Schedule Editor v2
-              </h1>
+            <div className="flex items-center gap-3">
+              {/* TODO: Add Covenant Nation logo image here */}
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  Foundation of Faith
+                </h1>
+                <p className="text-xs sm:text-sm text-gray-600">Covenant Nation Ikorodu</p>
+              </div>
               <span className="ml-2 sm:ml-3 px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
                 {isAdmin ? 'Admin' : 'Support'}
               </span>

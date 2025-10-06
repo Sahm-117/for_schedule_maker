@@ -10,7 +10,7 @@ const APP_URL = Deno.env.get('APP_URL') || 'https://for-schedule-maker.vercel.ap
 interface NotificationRequest {
   userName: string;
   userEmail: string;
-  type: 'approved' | 'rejected';
+  type: 'approved' | 'rejected' | 'pending';
   changeType: 'ADD' | 'EDIT' | 'DELETE';
   activityDescription: string;
   activityTime?: string;
@@ -19,13 +19,17 @@ interface NotificationRequest {
   approvedBy?: string;
   rejectedBy?: string;
   rejectionReason?: string;
+  submittedBy?: string;
 }
 
 // Send email via Resend API
 async function sendEmail(data: NotificationRequest): Promise<void> {
+  console.log('📧 Starting email send...');
+  console.log('RESEND_API_KEY exists:', !!RESEND_API_KEY);
+
   if (!RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not configured');
-    return;
+    console.error('❌ RESEND_API_KEY not configured');
+    throw new Error('RESEND_API_KEY not configured');
   }
 
   const changeTypeText = data.changeType === 'ADD' ? 'add' :
@@ -34,7 +38,61 @@ async function sendEmail(data: NotificationRequest): Promise<void> {
   let html = '';
   let subject = '';
 
-  if (data.type === 'approved') {
+  if (data.type === 'pending') {
+    subject = `🔔 New Pending Request: ${data.activityDescription}`;
+    html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: #f59e0b; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">🔔 New Pending Request</h1>
+        </div>
+        <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none;">
+          <p style="font-size: 16px; margin-top: 0;">Hi ${data.userName},</p>
+          <p style="font-size: 16px;">A new request to <strong>${changeTypeText}</strong> an activity is awaiting your review.</p>
+          <div style="background: #fef3c7; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 20px 0;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold; width: 140px;">Activity:</td>
+                <td style="padding: 8px 0;">${data.activityDescription}</td>
+              </tr>
+              ${data.activityTime ? `
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold;">Time:</td>
+                <td style="padding: 8px 0;">${data.activityTime}</td>
+              </tr>` : ''}
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold;">Week:</td>
+                <td style="padding: 8px 0;">Week ${data.weekNumber}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold;">Day:</td>
+                <td style="padding: 8px 0;">${data.dayName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold;">Submitted by:</td>
+                <td style="padding: 8px 0;">${data.submittedBy || 'User'}</td>
+              </tr>
+            </table>
+          </div>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${APP_URL}" style="background: #f59e0b; color: white; padding: 12px 32px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+              Review Request
+            </a>
+          </div>
+          <p style="font-size: 14px; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+            This is an automated notification from FOF Schedule Editor.<br>
+            <a href="${APP_URL}" style="color: #3b82f6; text-decoration: none;">Open App →</a>
+          </p>
+        </div>
+      </body>
+      </html>
+    `;
+  } else if (data.type === 'approved') {
     subject = `✅ Change Approved: ${data.activityDescription}`;
     html = `
       <!DOCTYPE html>
@@ -81,7 +139,8 @@ async function sendEmail(data: NotificationRequest): Promise<void> {
             </a>
           </div>
           <p style="font-size: 14px; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-            This is an automated notification from FOF Schedule Editor.
+            This is an automated notification from FOF Schedule Editor.<br>
+            <a href="${APP_URL}" style="color: #3b82f6; text-decoration: none;">Open App →</a>
           </p>
         </div>
       </body>
@@ -138,7 +197,8 @@ async function sendEmail(data: NotificationRequest): Promise<void> {
             </a>
           </div>
           <p style="font-size: 14px; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-            This is an automated notification from FOF Schedule Editor.
+            This is an automated notification from FOF Schedule Editor.<br>
+            <a href="${APP_URL}" style="color: #3b82f6; text-decoration: none;">Open App →</a>
           </p>
         </div>
       </body>
@@ -146,40 +206,67 @@ async function sendEmail(data: NotificationRequest): Promise<void> {
     `;
   }
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: RESEND_FROM_EMAIL,
-      to: [data.userEmail],
-      subject: subject,
-      html: html,
-    }),
-  });
+  try {
+    console.log('📧 Calling Resend API...');
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: RESEND_FROM_EMAIL,
+        to: [data.userEmail],
+        subject: subject,
+        html: html,
+      }),
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Resend API error: ${error}`);
+    console.log('📧 Resend API response status:', response.status);
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('❌ Resend API error response:', error);
+      throw new Error(`Resend API error: ${error}`);
+    }
+
+    const result = await response.json();
+    console.log('✅ Email sent successfully:', result);
+  } catch (error) {
+    console.error('❌ Email send error:', error);
+    throw error;
   }
-
-  console.log('✅ Email sent to', data.userEmail);
 }
 
 // Send Telegram message
 async function sendTelegram(data: NotificationRequest): Promise<void> {
+  console.log('💬 Starting Telegram send...');
+  console.log('TELEGRAM_BOT_TOKEN exists:', !!TELEGRAM_BOT_TOKEN);
+  console.log('TELEGRAM_GROUP_CHAT_ID exists:', !!TELEGRAM_GROUP_CHAT_ID);
+
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_GROUP_CHAT_ID) {
-    console.warn('Telegram not configured');
-    return;
+    console.error('❌ Telegram not configured');
+    throw new Error('Telegram credentials not configured');
   }
 
   const changeTypeText = data.changeType === 'ADD' ? 'add' :
                         data.changeType === 'EDIT' ? 'edit' : 'delete';
 
   let message = '';
-  if (data.type === 'approved') {
+  if (data.type === 'pending') {
+    message = `🔔 *New Pending Request*
+
+Hi *${data.userName}*,
+
+A new request to *${changeTypeText}* an activity is awaiting your review.
+
+📋 *Activity:* ${data.activityDescription}
+${data.activityTime ? `🕐 *Time:* ${data.activityTime}\n` : ''}📅 *Week:* Week ${data.weekNumber}
+📆 *Day:* ${data.dayName}
+👤 *Submitted by:* ${data.submittedBy || 'User'}
+
+Review request: ${APP_URL}`;
+  } else if (data.type === 'approved') {
     message = `✅ *Change Approved!*
 
 Hi *${data.userName}*,
@@ -191,7 +278,7 @@ ${data.activityTime ? `🕐 *Time:* ${data.activityTime}\n` : ''}📅 *Week:* We
 📆 *Day:* ${data.dayName}
 👤 *Approved by:* ${data.approvedBy || 'Admin'}
 
-View the updated schedule at your convenience.`;
+View the updated schedule: ${APP_URL}`;
   } else {
     message = `❌ *Change Rejected*
 
@@ -205,30 +292,40 @@ ${data.activityTime ? `🕐 *Time:* ${data.activityTime}\n` : ''}📅 *Week:* We
 👤 *Rejected by:* ${data.rejectedBy || 'Admin'}
 ${data.rejectionReason ? `\n💬 *Reason:* ${data.rejectionReason}` : ''}
 
-Please review the feedback and submit a new request if needed.`;
+Review details and resubmit: ${APP_URL}`;
   }
 
-  const response = await fetch(
-    `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_GROUP_CHAT_ID,
-        text: message,
-        parse_mode: 'Markdown',
-      }),
+  try {
+    console.log('💬 Calling Telegram API...');
+    const response = await fetch(
+      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_GROUP_CHAT_ID,
+          text: message,
+          parse_mode: 'Markdown',
+        }),
+      }
+    );
+
+    console.log('💬 Telegram API response status:', response.status);
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('❌ Telegram API error response:', error);
+      throw new Error(`Telegram API error: ${error}`);
     }
-  );
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Telegram API error: ${error}`);
+    const result = await response.json();
+    console.log('✅ Telegram message sent successfully:', result);
+  } catch (error) {
+    console.error('❌ Telegram send error:', error);
+    throw error;
   }
-
-  console.log('✅ Telegram message sent');
 }
 
 // Main handler
