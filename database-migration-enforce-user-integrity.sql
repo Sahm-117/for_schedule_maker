@@ -104,10 +104,18 @@ BEGIN
 END $$;
 
 -- STEP 6: Add RLS policy to allow reading User for joins
-CREATE POLICY IF NOT EXISTS "pc_join_can_read_minimal_user"
-ON "User"
-FOR SELECT
-USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'User' AND policyname = 'pc_join_can_read_minimal_user'
+  ) THEN
+    CREATE POLICY "pc_join_can_read_minimal_user"
+    ON "User"
+    FOR SELECT
+    USING (true);
+  END IF;
+END $$;
 
 -- STEP 7: Verify the migration worked
 SELECT 'VERIFICATION: Checking all tables now have valid users...' AS step;
