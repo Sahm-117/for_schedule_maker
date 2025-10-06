@@ -9,6 +9,7 @@ import type {
   RejectedChange,
   AuthResponse
 } from '../types';
+import { sendNotifications } from './notifications';
 
 // Types for API responses are now imported from ../types
 
@@ -567,10 +568,13 @@ export const pendingChangesApi = {
   },
 
   async approve(changeId: string): Promise<{ message: string; results: any[]; approvedBy: string }> {
-    // Get the pending change
+    // Get the pending change with user info
     const { data: change, error: changeError } = await supabase
       .from('PendingChange')
-      .select('*')
+      .select(`
+        *,
+        User:User!PendingChange_userId_fkey (id, name, email)
+      `)
       .eq('id', changeId)
       .single();
 
@@ -597,6 +601,34 @@ export const pendingChangesApi = {
       .delete()
       .eq('id', changeId);
 
+    // Send notifications (email + Telegram)
+    try {
+      // Get week info for notification
+      const { data: week } = await supabase
+        .from('Week')
+        .select('weekNumber')
+        .eq('id', change.weekId)
+        .single();
+
+      // Get current admin user name
+      const currentUser = await authApi.getCurrentUser();
+
+      await sendNotifications({
+        userName: change.User?.name || 'User',
+        userEmail: change.User?.email || '',
+        type: 'approved',
+        changeType: change.changeType as 'ADD' | 'EDIT' | 'DELETE',
+        activityDescription: change.changeData.description || 'Activity',
+        activityTime: change.changeData.time,
+        weekNumber: week?.weekNumber || 1,
+        dayName: change.changeData.dayName || 'Unknown',
+        approvedBy: currentUser?.name || 'Admin',
+      });
+    } catch (notifError) {
+      console.error('⚠️ Failed to send notifications:', notifError);
+      // Don't fail the request if notification fails
+    }
+
     return {
       message: 'Change approved and applied',
       results,
@@ -619,10 +651,13 @@ export const pendingChangesApi = {
   },
 
   async reject(changeId: string, rejectionReason: string): Promise<{ message: string; rejectedChange: RejectedChange }> {
-    // Get the pending change
+    // Get the pending change with user info
     const { data: change, error: changeError } = await supabase
       .from('PendingChange')
-      .select('*')
+      .select(`
+        *,
+        User:User!PendingChange_userId_fkey (id, name, email)
+      `)
       .eq('id', changeId)
       .single();
 
@@ -654,6 +689,35 @@ export const pendingChangesApi = {
       .from('PendingChange')
       .delete()
       .eq('id', changeId);
+
+    // Send notifications (email + Telegram)
+    try {
+      // Get week info for notification
+      const { data: week } = await supabase
+        .from('Week')
+        .select('weekNumber')
+        .eq('id', change.weekId)
+        .single();
+
+      // Get current admin user name
+      const currentUser = await authApi.getCurrentUser();
+
+      await sendNotifications({
+        userName: change.User?.name || 'User',
+        userEmail: change.User?.email || '',
+        type: 'rejected',
+        changeType: change.changeType as 'ADD' | 'EDIT' | 'DELETE',
+        activityDescription: change.changeData.description || 'Activity',
+        activityTime: change.changeData.time,
+        weekNumber: week?.weekNumber || 1,
+        dayName: change.changeData.dayName || 'Unknown',
+        rejectedBy: currentUser?.name || 'Admin',
+        rejectionReason,
+      });
+    } catch (notifError) {
+      console.error('⚠️ Failed to send notifications:', notifError);
+      // Don't fail the request if notification fails
+    }
 
     return {
       message: 'Change rejected',
