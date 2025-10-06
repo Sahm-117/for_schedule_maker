@@ -25,7 +25,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose }) => {
   const loadHistory = async () => {
     setLoading(true);
     try {
-      const { rejectedChanges } = await rejectedChangesApi.getMine();
+      const { rejectedChanges } = await rejectedChangesApi.getMine(user?.id);
       setRejectedChanges(rejectedChanges);
     } catch (error) {
       console.error('Failed to load history:', error);

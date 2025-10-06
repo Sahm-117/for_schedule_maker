@@ -664,13 +664,44 @@ export const pendingChangesApi = {
 
 // Rejected Changes API
 export const rejectedChangesApi = {
-  async getMine(): Promise<{ rejectedChanges: RejectedChange[]; unreadCount: number }> {
-    // For now, return empty array since we don't have proper user auth context
-    // TODO: Implement proper user filtering when auth context is available
-    console.log('getMine called - returning empty array for now');
+  async getMine(userId?: string): Promise<{ rejectedChanges: RejectedChange[]; unreadCount: number }> {
+    if (!userId) {
+      // If no user ID provided, return all rejected changes (for admins)
+      // Or return empty for now
+      return { rejectedChanges: [], unreadCount: 0 };
+    }
 
-    const rejectedChanges: RejectedChange[] = [];
-    const unreadCount = 0;
+    const { data, error } = await supabase
+      .from('RejectedChange')
+      .select(`
+        *,
+        User:User!RejectedChange_userId_fkey (id, name, email)
+      `)
+      .eq('userId', userId)
+      .order('rejectedAt', { ascending: false });
+
+    if (error) {
+      console.error('Failed to fetch rejected changes:', error);
+      return { rejectedChanges: [], unreadCount: 0 };
+    }
+
+    // Transform with System mapper
+    const SYSTEM_ID = 'a0000000-0000-4000-8000-000000000002';
+    const rejectedChanges: RejectedChange[] = (data || []).map((change: any) => {
+      const uiUser = change.User ?? {};
+      const isSystem = (uiUser.id || change.userId) === SYSTEM_ID;
+
+      return {
+        ...change,
+        user: {
+          id: uiUser.id || change.userId,
+          name: isSystem ? 'System' : (uiUser.name || '—'),
+          email: isSystem ? 'system@fof.com' : (uiUser.email || ''),
+        },
+      };
+    });
+
+    const unreadCount = rejectedChanges.filter(c => !c.isRead).length;
 
     return { rejectedChanges, unreadCount };
   },
