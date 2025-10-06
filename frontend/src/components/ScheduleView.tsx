@@ -29,6 +29,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [showPendingChanges, setShowPendingChanges] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
 
   useEffect(() => {
     loadPendingChanges();
@@ -163,28 +164,70 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               </button>
             )}
 
-            {/* Export Buttons */}
-            <button
-              onClick={handleExportWeek}
-              className="inline-flex items-center px-3 sm:px-4 py-2 border border-green-200 text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-sm"
-            >
-              <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span className="hidden sm:inline">Export Week</span>
-              <span className="sm:hidden">Export</span>
-            </button>
+            {/* Export Dropdown */}
+            <div className="relative">
+              <button
+                onClick={handleExportWeek}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setShowExportDropdown(!showExportDropdown);
+                }}
+                className="inline-flex items-center px-3 sm:px-4 py-2 border border-green-200 text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-sm group"
+              >
+                <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="hidden sm:inline">Export Week</span>
+                <span className="sm:hidden">Export</span>
+                <svg
+                  className="w-4 h-4 ml-1 sm:ml-2 cursor-pointer"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowExportDropdown(!showExportDropdown);
+                  }}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
 
-            <button
-              onClick={handleExportAllWeeks}
-              className="inline-flex items-center px-3 sm:px-4 py-2 border border-blue-200 text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-sm"
-            >
-              <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span className="hidden sm:inline">Export All</span>
-              <span className="sm:hidden">All</span>
-            </button>
+              {showExportDropdown && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowExportDropdown(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                    <button
+                      onClick={() => {
+                        handleExportWeek();
+                        setShowExportDropdown(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 rounded-t-lg flex items-center"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Export Current Week
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleExportAllWeeks();
+                        setShowExportDropdown(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-b-lg flex items-center"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Export All Weeks
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
 
             {!isAdmin && (
               <button
