@@ -1,4 +1,3 @@
-import { Resend } from 'resend';
 import axios from 'axios';
 
 const RESEND_API_KEY = import.meta.env.VITE_RESEND_API_KEY;
@@ -30,7 +29,6 @@ async function sendEmailNotification(data: NotificationData): Promise<void> {
     return;
   }
 
-  const resend = new Resend(RESEND_API_KEY);
   const changeTypeText = data.changeType === 'ADD' ? 'add' :
                         data.changeType === 'EDIT' ? 'edit' : 'delete';
 
@@ -100,11 +98,16 @@ async function sendEmailNotification(data: NotificationData): Promise<void> {
         </html>
       `;
 
-      await resend.emails.send({
+      await axios.post('https://api.resend.com/emails', {
         from: RESEND_FROM_EMAIL,
-        to: data.userEmail,
+        to: [data.userEmail],
         subject: `✅ Change Approved: ${data.activityDescription}`,
         html: html,
+      }, {
+        headers: {
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        }
       });
 
       console.log('✅ Email notification sent to', data.userEmail);
@@ -177,11 +180,16 @@ async function sendEmailNotification(data: NotificationData): Promise<void> {
         </html>
       `;
 
-      await resend.emails.send({
+      await axios.post('https://api.resend.com/emails', {
         from: RESEND_FROM_EMAIL,
-        to: data.userEmail,
+        to: [data.userEmail],
         subject: `❌ Change Rejected: ${data.activityDescription}`,
         html: html,
+      }, {
+        headers: {
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        }
       });
 
       console.log('✅ Email notification sent to', data.userEmail);
