@@ -514,7 +514,7 @@ export const pendingChangesApi = {
       .from('PendingChange')
       .select(`
         *,
-        User (name, email)
+        User:User!PendingChange_userId_fkey (id, name, email)
       `)
       .eq('weekId', weekId)
       .order('createdAt', { ascending: false });
@@ -523,7 +523,23 @@ export const pendingChangesApi = {
       throw new Error(error.message);
     }
 
-    return { pendingChanges: data || [] };
+    // Transform with System mapper
+    const SYSTEM_ID = 'a0000000-0000-4000-8000-000000000002';
+    const pendingChanges = (data || []).map((change: any) => {
+      const uiUser = change.User ?? {};
+      const isSystem = (uiUser.id || change.userId) === SYSTEM_ID;
+
+      return {
+        ...change,
+        user: {
+          id: uiUser.id || change.userId,
+          name: isSystem ? 'System' : (uiUser.name || '—'),
+          email: isSystem ? 'system@fof.com' : (uiUser.email || ''),
+        },
+      };
+    });
+
+    return { pendingChanges };
   },
 
   async create(changeData: {
