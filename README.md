@@ -6,9 +6,7 @@
 
 **Production:** [https://fof-schedule-manager.vercel.app](https://fof-schedule-manager.vercel.app)
 
-### Demo Credentials
-- **Admin:** admin@fof.com / admin123
-- **Support User:** Create via User Management
+> Contact administrator for access credentials
 
 ## ✨ Features
 
@@ -215,14 +213,9 @@ FOF_SOP_Scheduler/
 
 ## 🔑 Default Users
 
-After seeding, the following users are created:
+After seeding, default admin users are created. Contact your system administrator for credentials.
 
-| Role | Email | Password | Description |
-|------|-------|----------|-------------|
-| Admin | admin@fof.com | admin123 | System Administrator (Protected) |
-| Admin | system@fof.com | system123 | System User (Protected, cannot be deleted) |
-
-**Note:** Change these passwords in production!
+**Security Note:** Always change default passwords immediately after first deployment!
 
 ## 🧪 API Endpoints
 
