@@ -1,107 +1,176 @@
-# FOF Schedule Editor - Full Production Build
+# FOF Schedule Manager 📅
 
-Foundation of Faith (FOF) is an 8-week church discipleship programme. This application allows support team members to collaboratively edit weekly schedules, with admin approval for changes.
+> Foundation of Faith (FOF) is an 8-week church discipleship programme. This application allows support team members to collaboratively edit weekly schedules, with admin approval for changes.
 
-## 🚀 Quick Start
+## 🚀 Live Demo
+
+**Production:** [https://fof-schedule-manager.vercel.app](https://fof-schedule-manager.vercel.app)
+
+### Demo Credentials
+- **Admin:** admin@fof.com / admin123
+- **Support User:** Create via User Management
+
+## ✨ Features
+
+### 🔐 Authentication & User Management
+- JWT-based authentication with secure password hashing
+- Role-based access control (Admin/Support)
+- User management dashboard with role assignment
+- Protected System Admin account
+
+### 📋 Schedule Management
+- **8-week programme structure** with daily schedules
+- **Time-based periods**: Morning, Afternoon, Evening (auto-determined)
+- **Activity ordering**: Reorder activities with same time slot
+- **Cross-week operations**: Apply activities to multiple weeks at once
+- **Multi-week editing**: Update/delete activities across multiple weeks
+- **PDF Export**: Export individual weeks or all weeks at once
+
+### 🔄 Workflow & Approvals
+- **Pending Changes System**: Support users submit change requests
+- **Admin Approval Dashboard**: Review and approve/reject changes
+- **Rejection History**: Track rejected changes with reasons
+- **Change History Panel**: View all approved/rejected changes
+- **Email & Telegram Notifications**: Get notified of important events
+
+### 📱 UX/UI Features
+- **Fully responsive design** optimized for mobile, tablet, and desktop
+- **Toast notifications** for user feedback
+- **Loading states** with skeleton loaders
+- **Empty states** with helpful prompts
+- **Accessibility features** (ARIA labels, keyboard navigation)
+- **Mobile-optimized layouts**: Card views for better mobile experience
+- **Visual indicators** for pending changes and activity status
+
+### 🔔 Notification System
+- **Email notifications** via Resend API
+- **Telegram notifications** via Telegram Bot API
+- **Configurable settings** per admin user
+- **Event types**: Change requests, approvals, rejections, mentions
+
+## 🏗 Tech Stack
+
+### Frontend
+- **React 18** + **TypeScript**
+- **Vite** for fast development
+- **Tailwind CSS** for styling
+- **jsPDF** + **html2canvas** for PDF export
+- **DOMPurify** for XSS protection
+
+### Backend
+- **Node.js** + **Express**
+- **TypeScript** for type safety
+- **Prisma ORM** with PostgreSQL
+- **JWT authentication**
+- **bcrypt** for password hashing
+
+### Infrastructure
+- **Supabase** (PostgreSQL database)
+- **Vercel** (Frontend hosting)
+- **Render** (Backend hosting - if used)
+- **Supabase Edge Functions** for notifications
+
+## 📦 Installation & Setup
 
 ### Prerequisites
 - Node.js 18+
-- PostgreSQL database (or use Prisma local dev database)
+- PostgreSQL database (or Supabase account)
+- Telegram Bot Token (optional, for notifications)
+- Resend API Key (optional, for email notifications)
 
-### Development Setup
+### 1. Clone the Repository
+```bash
+git clone <your-repo-url>
+cd FOF_SOP_Scheduler
+```
 
-1. **Clone and navigate to the project**
-   ```bash
-   cd FOF_SOP_Scheduler
-   ```
+### 2. Backend Setup
+```bash
+cd backend
+npm install
 
-2. **Backend Setup**
-   ```bash
-   cd backend
-   npm install
+# Create .env file
+cp .env.example .env
+```
 
-   # Copy environment variables
-   cp .env.example .env
-   # Edit .env with your database credentials
+#### Configure Backend Environment Variables
+```env
+# Database
+DATABASE_URL="postgresql://user:password@host:5432/database"
 
-   # Start local Prisma database (or use your own PostgreSQL)
-   npx prisma dev  # This runs in background
+# JWT Secrets (generate strong random strings)
+JWT_SECRET="your-secure-jwt-secret-min-32-chars"
+JWT_REFRESH_SECRET="your-secure-refresh-secret-min-32-chars"
 
-   # Run migrations and seed data
-   npm run db:migrate
-   npm run db:seed
+# CORS
+FRONTEND_URL="https://your-frontend-url.vercel.app"
 
-   # Start backend development server
-   npm run dev
-   ```
+# Server
+PORT=3000
+NODE_ENV="production"
 
-3. **Frontend Setup** (in new terminal)
-   ```bash
-   cd frontend
-   npm install
+# Notifications (Optional)
+TELEGRAM_BOT_TOKEN="your-telegram-bot-token"
+RESEND_API_KEY="your-resend-api-key"
+```
 
-   # Copy environment variables
-   cp .env.example .env
+#### Initialize Database
+```bash
+# Run migrations
+npx prisma migrate deploy
 
-   # Start frontend development server
-   npm run dev
-   ```
+# Seed initial data (creates admin user and 8 weeks)
+npm run db:seed
 
-### Default Admin Account
-After seeding, use these credentials to log in:
-- **Email:** admin@fofscheduler.local
-- **Password:** admin123!
+# Start server
+npm start
+```
 
-## 📋 Features Completed
+### 3. Frontend Setup
+```bash
+cd frontend
+npm install
 
-### ✅ Backend Infrastructure
-- **Authentication System**
-  - JWT-based authentication with refresh tokens
-  - Role-based access control (Admin/Support)
-  - Password hashing with bcrypt
-  - Admin-only user registration
+# Create .env file
+cp .env.example .env
+```
 
-- **Database Schema**
-  - Complete Prisma schema with all required models
-  - User management with roles
-  - Week/Day/Activity structure
-  - Pending changes workflow
-  - Rejection history tracking
+#### Configure Frontend Environment Variables
+```env
+VITE_API_URL=https://your-backend-url.com/api
+```
 
-- **API Endpoints** (Basic structure)
-  - Authentication routes (`/api/auth/*`)
-  - User management (`/api/users/*`)
-  - Schedule management (`/api/weeks/*`, `/api/activities/*`)
-  - Pending changes (`/api/pending-changes/*`)
-  - Rejection history (`/api/rejected-changes/*`)
+#### Build & Deploy
+```bash
+# Development
+npm run dev
 
-- **Initial Data**
-  - Week 1 populated with FOF schedule from SOP document
-  - Weeks 2-8 created but empty
-  - Admin user created for testing
+# Production build
+npm run build
 
-### 🚧 What's Next
+# Preview production build
+npm run preview
+```
 
-The foundation is complete! The next phase will implement:
+### 4. Supabase Edge Functions (Optional - for notifications)
+```bash
+cd supabase/functions
 
-1. **Full API Implementation**
-   - Complete CRUD operations for all entities
-   - Cross-week activity management
-   - Pending changes approval workflow
-   - PDF export functionality
+# Install Supabase CLI
+brew install supabase/tap/supabase
 
-2. **Frontend Development**
-   - React 18 + TypeScript setup
-   - Authentication UI
-   - Schedule view and editing
-   - Cross-week selection interface
-   - Admin approval dashboard
+# Login and link project
+supabase login
+supabase link --project-ref your-project-ref
 
-3. **Advanced Features**
-   - Visual pending change indicators
-   - Rejection system with reasons
-   - Change history tracking
-   - Responsive design
+# Set secrets
+supabase secrets set TELEGRAM_BOT_TOKEN="your-token"
+supabase secrets set RESEND_API_KEY="your-key"
+supabase secrets set DATABASE_URL="your-db-url"
+
+# Deploy functions
+supabase functions deploy send-notification
+```
 
 ## 🗂 Project Structure
 
@@ -109,86 +178,157 @@ The foundation is complete! The next phase will implement:
 FOF_SOP_Scheduler/
 ├── backend/
 │   ├── src/
-│   │   ├── routes/         # API endpoints
-│   │   ├── middleware/     # Auth middleware
-│   │   ├── utils/          # Helper functions
-│   │   └── index.ts        # Express server
+│   │   ├── routes/           # API endpoints
+│   │   │   ├── auth.ts       # Authentication
+│   │   │   ├── users.ts      # User management
+│   │   │   ├── weeks.ts      # Week operations
+│   │   │   ├── activities.ts # Activity CRUD + cross-week
+│   │   │   ├── pendingChanges.ts  # Approval workflow
+│   │   │   └── rejectedChanges.ts # History tracking
+│   │   ├── middleware/       # Auth middleware
+│   │   ├── utils/            # Helper functions
+│   │   └── index.ts          # Express server
 │   ├── prisma/
-│   │   ├── schema.prisma   # Database schema
-│   │   └── seed.ts         # Initial data
+│   │   ├── schema.prisma     # Database schema
+│   │   └── seed.ts           # Initial data
 │   └── package.json
 ├── frontend/
 │   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── pages/          # Page components
-│   │   ├── services/       # API client
-│   │   ├── hooks/          # Custom hooks
-│   │   ├── types/          # TypeScript types
-│   │   └── utils/          # Helper functions
+│   │   ├── components/       # React components
+│   │   │   ├── ActivityModal.tsx
+│   │   │   ├── DaySchedule.tsx
+│   │   │   ├── MultiWeekDeleteModal.tsx
+│   │   │   ├── PendingChangesPanel.tsx
+│   │   │   ├── HistoryPanel.tsx
+│   │   │   └── UserManagement.tsx
+│   │   ├── pages/            # Page components
+│   │   ├── services/         # API client
+│   │   ├── hooks/            # Custom hooks
+│   │   ├── types/            # TypeScript types
+│   │   └── utils/            # Helper functions
 │   └── package.json
+├── supabase/
+│   └── functions/            # Edge Functions for notifications
+│       └── send-notification/
 └── README.md
 ```
 
-## 🧪 API Testing
+## 🔑 Default Users
 
-Test the backend with curl:
+After seeding, the following users are created:
 
-```bash
-# Health check
-curl http://localhost:3000/api/health
+| Role | Email | Password | Description |
+|------|-------|----------|-------------|
+| Admin | admin@fof.com | admin123 | System Administrator (Protected) |
+| Admin | system@fof.com | system123 | System User (Protected, cannot be deleted) |
 
-# Login (get access token)
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@fofscheduler.local",
-    "password": "admin123!"
-  }'
+**Note:** Change these passwords in production!
 
-# Use the token for authenticated requests
-curl -H "Authorization: Bearer YOUR_TOKEN" \
-  http://localhost:3000/api/weeks
-```
+## 🧪 API Endpoints
 
-## 🔑 Environment Variables
+### Authentication
+- `POST /api/auth/login` - Login with email/phone and password
+- `POST /api/auth/refresh` - Refresh access token
+- `GET /api/auth/me` - Get current user
 
-### Backend (.env)
-```env
-DATABASE_URL="your-postgresql-connection-string"
-JWT_SECRET="your-jwt-secret-minimum-32-characters"
-JWT_REFRESH_SECRET="your-refresh-secret-minimum-32-characters"
-FRONTEND_URL="http://localhost:5173"
-PORT=3000
-```
+### Users (Admin only)
+- `GET /api/users` - List all users
+- `POST /api/users` - Create new user
+- `PUT /api/users/:id/role` - Update user role
+- `DELETE /api/users/:id` - Delete user
 
-### Frontend (.env)
-```env
-VITE_API_URL=http://localhost:3000/api
-```
+### Weeks
+- `GET /api/weeks` - Get all weeks
+- `GET /api/weeks/:id` - Get specific week with days and activities
+- `POST /api/weeks` - Create new week (Admin only)
 
-## 📊 Database Schema
+### Activities
+- `POST /api/activities` - Create activity (Admin only)
+- `POST /api/activities/request` - Request activity (Support users)
+- `PUT /api/activities/:id` - Update activity
+- `DELETE /api/activities/:id` - Delete activity
+- `PUT /api/activities/:id/reorder` - Reorder activity
+- `POST /api/activities/check-duplicates` - Check if activity exists in other weeks
 
-Key models:
-- **User** - Authentication and role management
-- **Week** - 8 weeks of the programme
-- **Day** - 7 days per week
-- **Activity** - Individual schedule items with time/description/period
-- **PendingChange** - Changes awaiting admin approval
-- **RejectedChange** - Rejected changes with reasons
+### Pending Changes
+- `GET /api/pending-changes/week/:weekId` - Get pending changes for week
+- `GET /api/pending-changes` - Get all pending changes (Admin only)
+- `POST /api/pending-changes` - Create pending change
+- `PUT /api/pending-changes/:id/approve` - Approve change (Admin only)
+- `PUT /api/pending-changes/:id/reject` - Reject change with reason (Admin only)
 
-## 🎯 Core Business Logic
+### Rejected Changes
+- `GET /api/rejected-changes/mine` - Get my rejected changes
+- `PUT /api/rejected-changes/:id/read` - Mark as read
 
-1. **Cross-Week Operations** - When users add/edit activities, they can apply changes across multiple weeks
-2. **Approval Workflow** - Support users submit changes, admins approve/reject
-3. **Visual Indicators** - Pending changes are clearly marked in the UI
-4. **Audit Trail** - Complete history of all changes and rejections
+## 📱 Features in Detail
 
-## 🚀 Next Steps
+### Multi-Week Operations
 
-After reviewing this foundation, the development will continue with:
-1. Complete API implementation with cross-week logic
-2. Frontend React application
-3. PDF export functionality
-4. Production deployment setup
+#### Delete Across Weeks
+When deleting an activity that exists in multiple weeks:
+1. Admin clicks delete on an activity
+2. System checks if the same activity (time + description) exists in other weeks
+3. If found in multiple weeks, shows selection modal
+4. Admin selects which weeks to delete from
+5. Activity is deleted only from selected weeks
 
-The authentication system, database schema, and core infrastructure are ready for the full application build-out!
+#### Edit Across Weeks
+When editing an activity:
+1. System shows which weeks have this activity (blue badges)
+2. Checkbox: "Update in all X existing weeks"
+3. If checked: updates all instances (ignores week selector)
+4. If unchecked: only updates current instance
+
+### Notification Settings
+Each admin can configure:
+- Email notifications (requires verified Resend domain)
+- Telegram notifications (requires bot token)
+- Notification preferences per event type
+
+### PDF Export
+- **Export Week**: Export current week's schedule
+- **Export All Weeks**: Export all 8 weeks in one PDF
+- Dropdown menu for easy access
+- Professional formatting with time-based sections
+
+## 🛡 Security Features
+
+- **Password hashing** with bcrypt
+- **JWT authentication** with refresh tokens
+- **Protected routes** with role-based access
+- **XSS protection** with DOMPurify
+- **CORS** configured for frontend domain
+- **System Admin protection** (cannot be deleted)
+- **Input validation** on all endpoints
+
+## 🚀 Deployment
+
+### Frontend (Vercel)
+1. Push code to GitHub
+2. Connect repository to Vercel
+3. Set environment variable: `VITE_API_URL`
+4. Deploy
+
+### Backend (Render/Railway/etc.)
+1. Create new web service
+2. Set environment variables (DATABASE_URL, JWT secrets, etc.)
+3. Deploy
+
+### Database (Supabase)
+1. Create new project
+2. Copy DATABASE_URL from settings
+3. Run migrations: `npx prisma migrate deploy`
+4. Seed data: `npm run db:seed`
+
+## 📝 License
+
+MIT License - feel free to use this project for your church or organization!
+
+## 🤝 Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request.
+
+---
+
+Built with ❤️ for the Foundation of Faith Programme
