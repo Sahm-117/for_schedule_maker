@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { activitiesApi, pendingChangesApi } from '../services/api';
-import type { Day, Activity, PendingChange } from '../types';
+import type { Day, Activity, PendingChange, Week } from '../types';
 import ActivityCard from './ActivityCard';
 import ConfirmationModal from './ConfirmationModal';
+import MultiWeekDeleteModal from './MultiWeekDeleteModal';
 import { useAuth } from '../hooks/useAuth';
 
 interface DayScheduleProps {
@@ -14,6 +15,8 @@ interface DayScheduleProps {
   isAdmin: boolean;
   isExpanded: boolean;
   onToggleExpansion: () => void;
+  currentWeek: number;
+  allWeeks: Week[];
 }
 
 const DaySchedule: React.FC<DayScheduleProps> = ({
@@ -25,9 +28,12 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   isAdmin,
   isExpanded,
   onToggleExpansion,
+  currentWeek,
+  allWeeks,
 }) => {
   const { user } = useAuth();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [multiWeekDeleteOpen, setMultiWeekDeleteOpen] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState<Activity | null>(null);
   const getDayDisplayName = (dayName: string) => {
     const dayNames: { [key: string]: string } = {
@@ -102,9 +108,34 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
     }
   };
 
-  const handleDeleteActivity = (activity: Activity) => {
+  const handleDeleteActivity = async (activity: Activity) => {
     setActivityToDelete(activity);
-    setDeleteConfirmOpen(true);
+
+    // For admin users, check if activity exists in multiple weeks
+    if (isAdmin) {
+      try {
+        const { existingWeeks } = await activitiesApi.checkDuplicates(
+          activity.time,
+          activity.description,
+          day.dayName
+        );
+
+        if (existingWeeks.length > 1) {
+          // Show multi-week delete modal
+          setMultiWeekDeleteOpen(true);
+        } else {
+          // Show simple confirmation modal
+          setDeleteConfirmOpen(true);
+        }
+      } catch (error) {
+        console.error('Failed to check existing weeks:', error);
+        // Fallback to simple confirmation
+        setDeleteConfirmOpen(true);
+      }
+    } else {
+      // Support users always use simple confirmation (creates pending request)
+      setDeleteConfirmOpen(true);
+    }
   };
 
   const confirmDeleteActivity = async () => {
@@ -133,6 +164,23 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
       console.error('Failed to delete activity:', error);
     } finally {
       setActivityToDelete(null);
+      setDeleteConfirmOpen(false);
+    }
+  };
+
+  const confirmMultiWeekDelete = async (selectedWeeks: number[]) => {
+    if (!activityToDelete) return;
+
+    try {
+      await activitiesApi.delete(activityToDelete.id, {
+        applyToWeeks: selectedWeeks
+      });
+      onRefresh();
+    } catch (error) {
+      console.error('Failed to delete activity from selected weeks:', error);
+    } finally {
+      setActivityToDelete(null);
+      setMultiWeekDeleteOpen(false);
     }
   };
 
@@ -282,10 +330,13 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal (simple - single week or support user) */}
       <ConfirmationModal
         isOpen={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
+        onClose={() => {
+          setDeleteConfirmOpen(false);
+          setActivityToDelete(null);
+        }}
         onConfirm={confirmDeleteActivity}
         title="Delete Activity"
         message={
@@ -299,6 +350,19 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
         }
         confirmText={isAdmin ? 'Delete' : 'Submit Request'}
         type="danger"
+      />
+
+      {/* Multi-Week Delete Modal (admin only - when activity exists in multiple weeks) */}
+      <MultiWeekDeleteModal
+        isOpen={multiWeekDeleteOpen}
+        onClose={() => {
+          setMultiWeekDeleteOpen(false);
+          setActivityToDelete(null);
+        }}
+        onConfirm={confirmMultiWeekDelete}
+        activity={activityToDelete}
+        currentWeek={currentWeek}
+        allWeeks={allWeeks}
       />
     </div>
   );

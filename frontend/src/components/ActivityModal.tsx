@@ -32,6 +32,9 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
   const [error, setError] = useState('');
   const [duplicateWeeks, setDuplicateWeeks] = useState<number[]>([]);
   const [showCrossWeek, setShowCrossWeek] = useState(false);
+  const [existingWeeks, setExistingWeeks] = useState<number[]>([]);
+  const [updateAllExisting, setUpdateAllExisting] = useState(false);
+  const [checkingExisting, setCheckingExisting] = useState(false);
 
   // Convert 12-hour format to 24-hour format
   const getTime24Format = () => {
@@ -69,17 +72,42 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
     if (activity) {
       setTimeFrom24Format(activity.time);
       setDescription(activity.description);
+      // Check for existing weeks when editing
+      checkExistingWeeks();
     } else {
       setTimeHour('12');
       setTimeMinute('00');
       setTimeAmPm('AM');
       setDescription('');
+      setExistingWeeks([]);
     }
     setSelectedWeeks([]);
     setError('');
     setDuplicateWeeks([]);
     setShowCrossWeek(false);
+    setUpdateAllExisting(false);
   }, [activity, isOpen]);
+
+  const checkExistingWeeks = async () => {
+    if (!activity) return;
+
+    setCheckingExisting(true);
+    try {
+      const { existingWeeks: weeks } = await activitiesApi.checkDuplicates(
+        activity.time,
+        activity.description,
+        day.dayName
+      );
+      setExistingWeeks(weeks);
+      // Auto-check "update all" if exists in multiple weeks
+      setUpdateAllExisting(weeks.length > 1);
+    } catch (error) {
+      console.error('Failed to check existing weeks:', error);
+      setExistingWeeks([]);
+    } finally {
+      setCheckingExisting(false);
+    }
+  };
 
   const checkDuplicates = async () => {
     const time24 = getTime24Format();
@@ -112,13 +140,19 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
       const period = getPeriodFromTime(time24);
 
       if (activity) {
-        // Convert week IDs to week numbers for updates too
-        const weekNumbers = selectedWeeks.length > 0
-          ? selectedWeeks.map(weekId => {
-              const week = weeks.find(w => w.id === weekId);
-              return week?.weekNumber;
-            }).filter(Boolean)
-          : undefined;
+        // Determine which weeks to update
+        let weekNumbers: number[] | undefined = undefined;
+
+        if (updateAllExisting && existingWeeks.length > 0) {
+          // Update all existing weeks (ignore week selector)
+          weekNumbers = existingWeeks;
+        } else if (selectedWeeks.length > 0) {
+          // Use selected weeks from week selector
+          weekNumbers = selectedWeeks.map(weekId => {
+            const week = weeks.find(w => w.id === weekId);
+            return week?.weekNumber;
+          }).filter(Boolean) as number[];
+        }
 
         await activitiesApi.update(activity.id, {
           time: time24,
@@ -241,11 +275,54 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
               />
             </div>
 
+            {/* Show existing weeks when editing */}
+            {activity && existingWeeks.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <p className="text-sm font-medium text-blue-900 mb-2">
+                  📍 This activity currently exists in:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {existingWeeks.map(weekNum => (
+                    <span
+                      key={weekNum}
+                      className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium"
+                    >
+                      Week {weekNum}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {duplicateWeeks.length > 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
                 <p className="text-sm text-yellow-800">
                   <strong>Similar activities found in weeks:</strong> {duplicateWeeks.join(', ')}
                 </p>
+              </div>
+            )}
+
+            {/* Update all existing weeks checkbox (only when editing) */}
+            {activity && existingWeeks.length > 1 && (
+              <div className="border-t border-b py-3">
+                <label className="flex items-start">
+                  <input
+                    type="checkbox"
+                    checked={updateAllExisting}
+                    onChange={(e) => setUpdateAllExisting(e.target.checked)}
+                    className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <div className="ml-3">
+                    <span className="text-sm font-medium text-gray-900">
+                      Update in all {existingWeeks.length} existing weeks
+                    </span>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {updateAllExisting
+                        ? `Changes will apply to weeks: ${existingWeeks.join(', ')}`
+                        : 'Only update this instance'}
+                    </p>
+                  </div>
+                </label>
               </div>
             )}
 
