@@ -290,78 +290,162 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                 <p className="mt-2 text-gray-600">Loading users...</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        User
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Role
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Created
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {users.map((user) => (
-                      <tr key={user.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                            <div className="text-sm text-gray-500">{user.email}</div>
+              <>
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          User
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Role
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Created
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {users.map((user) => (
+                        <tr key={user.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                              <div className="text-sm text-gray-500">{user.email}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <select
+                              value={user.role}
+                              onChange={(e) => handleRoleChange(user.id, e.target.value as 'ADMIN' | 'SUPPORT')}
+                              className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-primary focus:border-primary"
+                              disabled={loading}
+                            >
+                              <option value="SUPPORT">Support</option>
+                              <option value="ADMIN">Admin</option>
+                            </select>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
+                            <button
+                              onClick={() => setSelectedUser(user)}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              View Details
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user.id, user.name, user.email)}
+                              disabled={loading || currentUser?.id === user.id || user.email === 'system@fof.com'}
+                              className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                              title={
+                                currentUser?.id === user.id ? 'Cannot delete your own account' :
+                                user.email === 'system@fof.com' ? 'System Admin is protected' :
+                                'Delete user'
+                              }
+                            >
+                              {currentUser?.id === user.id ? 'Self' : user.email === 'system@fof.com' ? 'Protected' : 'Delete'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {users.length === 0 && !loading && (
+                    <div className="text-center py-8 text-gray-500">
+                      No users found
+                    </div>
+                  )}
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-4">
+                  {users.map((user) => (
+                    <div key={user.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h4 className="text-sm font-semibold text-gray-900">{user.name}</h4>
+                          <p className="text-xs text-gray-500 mt-1">{user.email}</p>
+                        </div>
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const button = e.currentTarget;
+                              const menu = button.nextElementSibling as HTMLElement;
+                              if (menu) {
+                                menu.classList.toggle('hidden');
+                              }
+                            }}
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                            aria-label="User actions"
+                          >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                            </svg>
+                          </button>
+                          <div className="hidden absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                            <button
+                              onClick={() => {
+                                setSelectedUser(user);
+                                const menu = document.querySelector('.hidden') as HTMLElement;
+                                if (menu) menu.classList.add('hidden');
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg"
+                            >
+                              View Details
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleDeleteUser(user.id, user.name, user.email);
+                                const menu = document.querySelector('.hidden') as HTMLElement;
+                                if (menu) menu.classList.add('hidden');
+                              }}
+                              disabled={currentUser?.id === user.id || user.email === 'system@fof.com'}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-b-lg"
+                            >
+                              {currentUser?.id === user.id ? 'Self (Cannot Delete)' :
+                               user.email === 'system@fof.com' ? 'Protected' :
+                               'Delete User'}
+                            </button>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-gray-500">Role:</span>
                           <select
                             value={user.role}
                             onChange={(e) => handleRoleChange(user.id, e.target.value as 'ADMIN' | 'SUPPORT')}
-                            className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-primary focus:border-primary"
+                            className="text-xs border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-primary focus:border-primary"
                             disabled={loading}
                           >
                             <option value="SUPPORT">Support</option>
                             <option value="ADMIN">Admin</option>
                           </select>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        </div>
+                        <div className="text-xs text-gray-500">
                           {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
-                          <button
-                            onClick={() => setSelectedUser(user)}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            View Details
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUser(user.id, user.name, user.email)}
-                            disabled={loading || currentUser?.id === user.id || user.email === 'system@fof.com'}
-                            className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                            title={
-                              currentUser?.id === user.id ? 'Cannot delete your own account' :
-                              user.email === 'system@fof.com' ? 'System Admin is protected' :
-                              'Delete user'
-                            }
-                          >
-                            {currentUser?.id === user.id ? 'Self' : user.email === 'system@fof.com' ? 'Protected' : 'Delete'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
 
-                {users.length === 0 && !loading && (
-                  <div className="text-center py-8 text-gray-500">
-                    No users found
-                  </div>
-                )}
-              </div>
+                  {users.length === 0 && !loading && (
+                    <div className="text-center py-8 text-gray-500">
+                      No users found
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
             <div className="flex justify-end pt-4 border-t mt-6">

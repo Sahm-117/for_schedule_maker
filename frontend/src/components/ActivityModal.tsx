@@ -294,14 +294,6 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
               </div>
             )}
 
-            {duplicateWeeks.length > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-                <p className="text-sm text-yellow-800">
-                  <strong>Similar activities found in weeks:</strong> {duplicateWeeks.join(', ')}
-                </p>
-              </div>
-            )}
-
             {/* Update all existing weeks checkbox (only when editing) */}
             {activity && existingWeeks.length > 1 && (
               <div className="border-t border-b py-3">
