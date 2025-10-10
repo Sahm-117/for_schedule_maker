@@ -85,6 +85,11 @@ export const authApi = USE_SUPABASE ? supabaseAuthApi : {
     const response = await api.post('/auth/refresh', { refreshToken });
     return response.data;
   },
+
+  async completeOnboarding(): Promise<{ user: User }> {
+    const response = await api.patch('/auth/onboarding/complete');
+    return response.data;
+  },
 };
 
 // Weeks API

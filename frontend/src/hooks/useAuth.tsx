@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isAdmin: boolean;
+  completeOnboarding: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,6 +43,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     clearAuthToken();
     setUser(null);
+  };
+
+  const completeOnboarding = async () => {
+    try {
+      const response = await authApi.completeOnboarding();
+      setUser(response.user);
+    } catch (error) {
+      console.error('Failed to complete onboarding:', error);
+      throw error;
+    }
   };
 
   const checkAuth = async () => {
@@ -81,6 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     isAdmin: user?.role === 'ADMIN',
+    completeOnboarding,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -75,7 +75,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   };
 
   return (
-    <div className={`bg-white border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow ${
+    <div className={`activity-card bg-white border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow ${
       deletePendingChange ? 'border-red-200 bg-red-50' :
       editPendingChange ? 'border-orange-200 bg-orange-50' :
       'border-gray-200'

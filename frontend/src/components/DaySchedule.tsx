@@ -224,7 +224,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
 
             <button
               onClick={onAddActivity}
-              className="inline-flex items-center px-3 py-1 border border-primary text-primary bg-white rounded-md hover:bg-primary/5 transition-colors text-sm"
+              className="add-activity-btn inline-flex items-center px-3 py-1 border border-primary text-primary bg-white rounded-md hover:bg-primary/5 transition-colors text-sm"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

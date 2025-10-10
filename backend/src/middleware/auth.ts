@@ -10,6 +10,7 @@ export interface AuthRequest extends Request {
     email: string;
     name: string;
     role: 'ADMIN' | 'SUPPORT';
+    onboardingCompleted: boolean;
   };
 }
 
@@ -27,7 +28,7 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, email: true, name: true, role: true }
+      select: { id: true, email: true, name: true, role: true, onboardingCompleted: true }
     });
 
     if (!user) {

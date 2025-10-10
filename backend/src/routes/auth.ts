@@ -138,4 +138,29 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res): Promise<any>
   }
 });
 
+router.patch('/onboarding/complete', authenticateToken, async (req: AuthRequest, res): Promise<any> => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { onboardingCompleted: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        onboardingCompleted: true
+      }
+    });
+
+    return res.json({ user: updatedUser });
+  } catch (error) {
+    console.error('Complete onboarding error:', error);
+    return res.status(500).json({ error: 'Failed to complete onboarding' });
+  }
+});
+
 export default router;

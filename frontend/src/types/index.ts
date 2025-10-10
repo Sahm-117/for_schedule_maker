@@ -3,6 +3,7 @@ export interface User {
   email: string;
   name: string;
   role: 'ADMIN' | 'SUPPORT';
+  onboardingCompleted?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

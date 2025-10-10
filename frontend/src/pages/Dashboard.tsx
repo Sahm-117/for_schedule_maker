@@ -6,15 +6,17 @@ import WeekSelector from '../components/WeekSelector';
 import ScheduleView from '../components/ScheduleView';
 import RejectedChangesNotification from '../components/RejectedChangesNotification';
 import UserManagement from '../components/UserManagement';
+import OnboardingWalkthrough from '../components/OnboardingWalkthrough';
 
 const Dashboard: React.FC = () => {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, completeOnboarding } = useAuth();
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<Week | null>(null);
   const [loading, setLoading] = useState(true);
   const [rejectedChanges, setRejectedChanges] = useState<RejectedChange[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,6 +25,13 @@ const Dashboard: React.FC = () => {
       loadRejectedChanges();
     }
   }, [isAdmin]);
+
+  // Check if onboarding should be shown
+  useEffect(() => {
+    if (user && !user.onboardingCompleted && weeks.length > 0) {
+      setShowOnboarding(true);
+    }
+  }, [user, weeks]);
 
   const loadWeeks = async () => {
     try {
@@ -73,6 +82,15 @@ const Dashboard: React.FC = () => {
 
   const handleRejectedChangesUpdate = () => {
     loadRejectedChanges();
+  };
+
+  const handleOnboardingComplete = async () => {
+    try {
+      await completeOnboarding();
+      setShowOnboarding(false);
+    } catch (error) {
+      console.error('Failed to complete onboarding:', error);
+    }
   };
 
   if (loading) {
@@ -135,7 +153,7 @@ const Dashboard: React.FC = () => {
                 {isAdmin && (
                   <button
                     onClick={() => setShowUserManagement(true)}
-                    className="text-xs sm:text-sm text-primary hover:text-primary-dark px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-primary hover:bg-primary/5"
+                    className="user-management-btn text-xs sm:text-sm text-primary hover:text-primary-dark px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-primary hover:bg-primary/5"
                   >
                     Manage Users
                   </button>
@@ -154,18 +172,20 @@ const Dashboard: React.FC = () => {
 
       {/* Rejected Changes Notification */}
       {!isAdmin && unreadCount > 0 && (
-        <RejectedChangesNotification
-          rejectedChanges={rejectedChanges}
-          unreadCount={unreadCount}
-          onUpdate={handleRejectedChangesUpdate}
-        />
+        <div className="rejected-changes-notification">
+          <RejectedChangesNotification
+            rejectedChanges={rejectedChanges}
+            unreadCount={unreadCount}
+            onUpdate={handleRejectedChangesUpdate}
+          />
+        </div>
       )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-8">
           {/* Week Selector */}
-          <div className="lg:col-span-1 order-1">
+          <div className="lg:col-span-1 order-1 week-selector">
             <WeekSelector
               weeks={weeks}
               selectedWeek={selectedWeek}
@@ -213,6 +233,15 @@ const Dashboard: React.FC = () => {
         isOpen={showUserManagement}
         onClose={() => setShowUserManagement(false)}
       />
+
+      {/* Onboarding Walkthrough */}
+      {user && (
+        <OnboardingWalkthrough
+          isOpen={showOnboarding}
+          onComplete={handleOnboardingComplete}
+          userRole={user.role}
+        />
+      )}
     </div>
   );
 };

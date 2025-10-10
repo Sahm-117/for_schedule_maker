@@ -161,7 +161,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     e.preventDefault();
                     setShowExportDropdown(!showExportDropdown);
                   }}
-                  className="w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-green-200 text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-sm group"
+                  className="export-btn w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-green-200 text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-sm group"
                 >
                   <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -223,7 +223,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             {pendingChanges.length > 0 && (
               <button
                 onClick={() => setShowPendingChanges(!showPendingChanges)}
-                className="inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-orange-200 text-orange-700 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors text-sm"
+                className="pending-changes-btn inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-orange-200 text-orange-700 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors text-sm"
               >
                 <svg className="w-4 h-4 mr-1 sm:mr-2" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -252,12 +252,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
       {/* Pending Changes Panel */}
       {showPendingChanges && pendingChanges.length > 0 && (
-        <PendingChangesPanel
-          pendingChanges={pendingChanges}
-          onApprove={handlePendingChangeApproved}
-          onReject={handlePendingChangeApproved}
-          isAdmin={isAdmin}
-        />
+        <div className="pending-changes-panel">
+          <PendingChangesPanel
+            pendingChanges={pendingChanges}
+            onApprove={handlePendingChangeApproved}
+            onReject={handlePendingChangeApproved}
+            isAdmin={isAdmin}
+          />
+        </div>
       )}
 
       {/* Days Grid */}
