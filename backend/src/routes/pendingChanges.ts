@@ -89,6 +89,26 @@ router.put('/:id/approve', authenticateToken, requireAdmin, async (req: AuthRequ
     const { changeType, changeData } = pendingChange;
     const results = [];
 
+    // Fetch activity data BEFORE applying changes (for EDIT/DELETE notifications)
+    let activityDataForNotification: { dayName: string; description: string; time: string } | null = null;
+
+    if (changeType === 'EDIT' || changeType === 'DELETE') {
+      const activityId = (changeData as any).activityId;
+      if (activityId) {
+        const activity = await prisma.activity.findUnique({
+          where: { id: activityId },
+          include: { day: { select: { dayName: true } } }
+        });
+        if (activity) {
+          activityDataForNotification = {
+            dayName: activity.day.dayName,
+            description: activity.description,
+            time: activity.time
+          };
+        }
+      }
+    }
+
     try {
       if (changeType === 'ADD') {
         const { dayId, time, description, period, applyToWeeks = [] } = changeData as any;
@@ -242,16 +262,36 @@ router.put('/:id/approve', authenticateToken, requireAdmin, async (req: AuthRequ
           where: { id: pendingChange.weekId }
         });
 
+        // Use pre-fetched activity data for EDIT/DELETE, otherwise use changeData
+        let dayName = 'Unknown';
+        let activityDescription = 'Activity';
+        let activityTime = '';
+
+        if (changeType === 'ADD') {
+          dayName = (changeData as any).dayName || 'Unknown';
+          activityDescription = (changeData as any).description || 'Activity';
+          activityTime = (changeData as any).time;
+        } else if (activityDataForNotification) {
+          dayName = activityDataForNotification.dayName;
+          activityDescription = activityDataForNotification.description;
+          activityTime = activityDataForNotification.time;
+        } else {
+          // Fallback to changeData if pre-fetch failed
+          dayName = (changeData as any).dayName || 'Unknown';
+          activityDescription = (changeData as any).description || 'Activity';
+          activityTime = (changeData as any).time;
+        }
+
         const notificationData = {
           userId: pendingChange.user.id,
           userName: pendingChange.user.name,
           userEmail: pendingChange.user.email,
           type: 'approved' as const,
           changeType: changeType as 'ADD' | 'EDIT' | 'DELETE',
-          activityDescription: (changeData as any).description || 'Activity',
-          activityTime: (changeData as any).time,
+          activityDescription: activityDescription,
+          activityTime: activityTime,
           weekNumber: week?.weekNumber || 1,
-          dayName: (changeData as any).dayName || 'Unknown',
+          dayName: dayName,
           approvedBy: req.user?.name || 'Admin',
           timestamp: new Date()
         };
@@ -338,6 +378,22 @@ router.post('/:id/reject', authenticateToken, requireAdmin, async (req: AuthRequ
 
       const changeData = pendingChange.changeData as any;
 
+      // Get day name - for ADD it's in changeData, for EDIT/DELETE we need to fetch it from the activity
+      let dayName = changeData.dayName || 'Unknown';
+
+      if (pendingChange.changeType === 'EDIT' || pendingChange.changeType === 'DELETE') {
+        const activityId = changeData.activityId;
+        if (activityId) {
+          const activity = await prisma.activity.findUnique({
+            where: { id: activityId },
+            include: { day: { select: { dayName: true } } }
+          });
+          if (activity?.day?.dayName) {
+            dayName = activity.day.dayName;
+          }
+        }
+      }
+
       const notificationData = {
         userId: pendingChange.user.id,
         userName: pendingChange.user.name,
@@ -347,7 +403,7 @@ router.post('/:id/reject', authenticateToken, requireAdmin, async (req: AuthRequ
         activityDescription: changeData.description || 'Activity',
         activityTime: changeData.time,
         weekNumber: week?.weekNumber || 1,
-        dayName: changeData.dayName || 'Unknown',
+        dayName: dayName,
         rejectedBy: req.user.name || 'Admin',
         rejectionReason: rejectionReason.trim(),
         timestamp: new Date()

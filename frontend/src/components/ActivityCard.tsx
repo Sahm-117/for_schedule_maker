@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Activity, PendingChange } from '../types';
 
 interface ActivityCardProps {
@@ -24,6 +24,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   canMoveDown = false,
   isAdmin,
 }) => {
+  const [copied, setCopied] = useState(false);
   const editPendingChange = pendingChanges.find(change => change.changeType === 'EDIT');
   const deletePendingChange = pendingChanges.find(change => change.changeType === 'DELETE');
 
@@ -36,6 +37,40 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
       return `${hour12}:${minutes} ${ampm}`;
     } catch {
       return time;
+    }
+  };
+
+  const handleCopyToClipboard = async () => {
+    const textToCopy = activity.description;
+    try {
+      // Modern clipboard API (requires HTTPS or localhost)
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(textToCopy);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        // Fallback for older browsers or non-secure contexts
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        textArea.style.top = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+
+        try {
+          document.execCommand('copy');
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch (execErr) {
+          console.error('Fallback copy failed:', execErr);
+        }
+
+        document.body.removeChild(textArea);
+      }
+    } catch (err) {
+      console.error('Failed to copy text:', err);
     }
   };
 
@@ -61,9 +96,26 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             )}
           </div>
 
-          <p className={`text-gray-700 ${deletePendingChange ? 'line-through text-gray-500' : ''}`}>
-            {activity.description}
-          </p>
+          <div className="flex items-start gap-2">
+            <p className={`flex-1 text-gray-700 ${deletePendingChange ? 'line-through text-gray-500' : ''}`}>
+              {activity.description}
+            </p>
+            <button
+              onClick={handleCopyToClipboard}
+              className="p-1 text-gray-300 hover:text-gray-500 transition-colors flex-shrink-0"
+              title="Copy to clipboard"
+            >
+              {copied ? (
+                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              )}
+            </button>
+          </div>
 
           {/* Show pending edit changes */}
           {editPendingChange && (
