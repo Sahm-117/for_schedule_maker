@@ -79,6 +79,26 @@ export const authApi = {
     // Mock implementation
     throw new Error('Refresh not implemented yet');
   },
+
+  async completeOnboarding(): Promise<{ user: User }> {
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      throw new Error('No user logged in');
+    }
+
+    const { data, error } = await supabase
+      .from('User')
+      .update({ onboardingCompleted: true })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { user: data };
+  },
 };
 
 // Weeks API
