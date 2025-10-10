@@ -144,7 +144,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               {/* History Button */}
               <button
                 onClick={() => setShowHistory(true)}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-purple-200 text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors text-sm"
+                className="history-btn flex-1 sm:flex-initial inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-purple-200 text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors text-sm"
               >
                 <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -234,10 +234,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             )}
 
             {/* Mobile: Second row - Cross-Week Activity (full width) */}
-            {!isAdmin && (
+            {isAdmin && (
               <button
                 onClick={handleCrossWeekActivity}
-                className="w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-primary text-primary bg-white rounded-lg hover:bg-primary/5 transition-colors text-sm"
+                className="add-cross-week-btn w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-primary text-primary bg-white rounded-lg hover:bg-primary/5 transition-colors text-sm"
               >
                 <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

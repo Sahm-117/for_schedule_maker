@@ -35,9 +35,15 @@ const OnboardingWalkthrough: React.FC<OnboardingWalkthroughProps> = ({
       position: 'bottom',
     },
     {
+      target: '.add-cross-week-btn',
+      title: 'Cross-Week Activities',
+      content: 'Use this button to add the same activity across multiple weeks at once. Great for recurring activities!',
+      position: 'bottom',
+    },
+    {
       target: '.activity-card',
       title: 'Manage Activities',
-      content: 'Each activity card shows the time and description. Click the edit icon to modify or the delete icon to remove activities.',
+      content: 'Each activity card shows the time and description. Click the edit or delete icons. When editing/deleting, you can apply changes to multiple weeks.',
       position: 'top',
     },
     {
@@ -80,9 +86,9 @@ const OnboardingWalkthrough: React.FC<OnboardingWalkthroughProps> = ({
       position: 'top',
     },
     {
-      target: '.rejected-changes-notification',
+      target: '.history-btn',
       title: 'Rejected Changes',
-      content: 'If your changes are rejected, you\'ll see a notification here with the reason. Review feedback to understand what needs improvement.',
+      content: 'If your changes are rejected, click the History button to see the rejection reason. Review feedback to understand what needs improvement.',
       position: 'bottom',
     },
     {
