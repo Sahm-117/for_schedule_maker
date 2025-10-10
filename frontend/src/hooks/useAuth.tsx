@@ -34,6 +34,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await authApi.login(email, password);
       setAuthToken(response.accessToken);
       localStorage.setItem('refreshToken', response.refreshToken);
+      localStorage.setItem('userId', response.user.id);
       setUser(response.user);
     } catch (error) {
       throw error;
@@ -42,6 +43,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     clearAuthToken();
+    localStorage.removeItem('userId');
     setUser(null);
   };
 
