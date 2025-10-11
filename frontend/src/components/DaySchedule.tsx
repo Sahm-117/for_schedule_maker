@@ -77,8 +77,9 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   const handleMoveActivity = async (activity: Activity, direction: 'up' | 'down') => {
     if (movingActivityId) return; // Prevent multiple moves at once
 
-    setMovingActivityId(activity.id);
     try {
+      setMovingActivityId(activity.id);
+
       const activities = getPeriodActivities(activity.period);
       const currentIndex = activities.findIndex(a => a.id === activity.id);
 
@@ -91,6 +92,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
 
       // Check if movement is valid
       if (targetIndex < 0 || targetIndex >= activities.length) {
+        setMovingActivityId(null);
         return; // Can't move beyond bounds
       }
 
@@ -99,6 +101,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
       // Only allow movement if activities have the same time
       if (activity.time !== targetActivity.time) {
         alert('You can only reorder activities with the same time.');
+        setMovingActivityId(null);
         return;
       }
 
@@ -107,7 +110,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
       await activitiesApi.reorder(activity.id, targetActivity.orderIndex);
       await activitiesApi.reorder(targetActivity.id, tempOrderIndex);
 
-      onRefresh();
+      await onRefresh();
     } catch (error) {
       console.error('Failed to reorder activity:', error);
     } finally {
