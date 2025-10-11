@@ -44,6 +44,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     clearAuthToken();
     localStorage.removeItem('userId');
+    localStorage.removeItem('refreshToken');
     setUser(null);
   };
 
@@ -59,25 +60,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuth = async () => {
     const token = localStorage.getItem('accessToken');
-    console.log('Checking auth with token:', token ? 'exists' : 'none');
 
     if (!token) {
-      console.log('No token found, user not authenticated');
       setLoading(false);
       return;
     }
 
     try {
       setAuthToken(token);
-      console.log('Calling authApi.getMe()...');
       const response = await authApi.getMe();
-      console.log('Auth response:', response);
       setUser(response.user);
-      console.log('User set successfully:', response.user);
     } catch (error) {
       console.error('Auth check failed:', error);
-      console.error('Error details:', error.response?.data || error.message);
       clearAuthToken();
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('userId');
       setUser(null);
     } finally {
       setLoading(false);

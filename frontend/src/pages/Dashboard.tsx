@@ -35,9 +35,7 @@ const Dashboard: React.FC = () => {
 
   const loadWeeks = async () => {
     try {
-      console.log('Loading weeks...');
       const response = await weeksApi.getAll();
-      console.log('Weeks loaded successfully:', response);
       setWeeks(response.weeks);
 
       // Update selectedWeek if it exists to reflect latest changes
@@ -47,14 +45,24 @@ const Dashboard: React.FC = () => {
           setSelectedWeek(updatedSelectedWeek);
         }
       } else if (response.weeks.length > 0 && !selectedWeek) {
-        // Default to Week 1 if available, otherwise first week
-        const week1 = response.weeks.find(week => week.weekNumber === 1);
-        setSelectedWeek(week1 || response.weeks[0]);
+        // Try to restore last viewed week from localStorage
+        const savedWeekId = localStorage.getItem('lastViewedWeekId');
+        let weekToSelect: Week | undefined;
+
+        if (savedWeekId) {
+          weekToSelect = response.weeks.find(week => week.id === parseInt(savedWeekId));
+        }
+
+        // Fallback: Week 1 if available, otherwise first week
+        if (!weekToSelect) {
+          weekToSelect = response.weeks.find(week => week.weekNumber === 1) || response.weeks[0];
+        }
+
+        setSelectedWeek(weekToSelect);
       }
     } catch (error) {
       console.error('Failed to load weeks:', error);
       setError(error instanceof Error ? error.message : 'Failed to load weeks');
-      // Don't let the error prevent the component from rendering
       setWeeks([]);
     } finally {
       setLoading(false);
@@ -75,6 +83,8 @@ const Dashboard: React.FC = () => {
     try {
       const response = await weeksApi.getById(weekId);
       setSelectedWeek(response.week);
+      // Save to localStorage for persistence
+      localStorage.setItem('lastViewedWeekId', weekId.toString());
     } catch (error) {
       console.error('Failed to load week:', error);
     }
