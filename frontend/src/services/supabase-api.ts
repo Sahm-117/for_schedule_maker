@@ -289,6 +289,22 @@ export const activitiesApi = {
 
         if (dayError || !day) continue;
 
+        // Check if this exact activity already exists on this day
+        const { data: existingActivity } = await supabase
+          .from('Activity')
+          .select('id')
+          .eq('dayId', day.id)
+          .eq('time', activityData.time)
+          .eq('description', activityData.description)
+          .limit(1)
+          .single();
+
+        // Skip if activity already exists (prevent duplicates)
+        if (existingActivity) {
+          console.log(`Skipping duplicate: ${activityData.description} at ${activityData.time} on ${originalDay.dayName} Week ${weekNumber}`);
+          continue;
+        }
+
         // Get next order index
         const { data: maxOrder } = await supabase
           .from('Activity')
@@ -518,7 +534,7 @@ export const activitiesApi = {
       // Delete activities across multiple weeks
       const { data: activity, error: actError } = await supabase
         .from('Activity')
-        .select('time, description')
+        .select('time, description, Day (dayName)')
         .eq('id', activityId)
         .single();
 
@@ -526,31 +542,40 @@ export const activitiesApi = {
         throw new Error('Activity not found');
       }
 
+      const dayName = (activity.Day as any)?.dayName;
       const deletedActivities = [];
 
       for (const weekNumber of deleteData.applyToWeeks) {
-        const { data, error } = await supabase
+        // Find the specific day in this week
+        const { data: targetDay, error: dayError } = await supabase
+          .from('Day')
+          .select('id, Week!inner (weekNumber)')
+          .eq('Week.weekNumber', weekNumber)
+          .eq('dayName', dayName)
+          .single();
+
+        if (dayError || !targetDay) continue;
+
+        // Find activities matching time + description on this specific day
+        // Then take ONLY the first match to avoid deleting duplicates
+        const { data: activities, error: actError2 } = await supabase
           .from('Activity')
-          .select(`
-            *,
-            Day!inner (
-              Week!inner (weekNumber)
-            )
-          `)
-          .eq('Day.Week.weekNumber', weekNumber)
+          .select('*')
+          .eq('dayId', targetDay.id)
           .eq('time', activity.time)
-          .eq('description', activity.description);
+          .eq('description', activity.description)
+          .order('id', { ascending: true })
+          .limit(1);  // ← FIX: Only take first matching activity
 
-        if (!error && data) {
-          for (const act of data) {
-            const { error: deleteError } = await supabase
-              .from('Activity')
-              .delete()
-              .eq('id', act.id);
+        if (!actError2 && activities && activities.length > 0) {
+          const actToDelete = activities[0];
+          const { error: deleteError } = await supabase
+            .from('Activity')
+            .delete()
+            .eq('id', actToDelete.id);
 
-            if (!deleteError) {
-              deletedActivities.push(act);
-            }
+          if (!deleteError) {
+            deletedActivities.push(actToDelete);
           }
         }
       }
