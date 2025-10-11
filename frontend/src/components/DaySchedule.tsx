@@ -36,6 +36,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   const [multiWeekDeleteOpen, setMultiWeekDeleteOpen] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState<Activity | null>(null);
   const [existingWeeks, setExistingWeeks] = useState<number[]>([]);
+  const [movingActivityId, setMovingActivityId] = useState<number | null>(null);
   const getDayDisplayName = (dayName: string) => {
     const dayNames: { [key: string]: string } = {
       'MONDAY': 'Monday',
@@ -74,6 +75,9 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   };
 
   const handleMoveActivity = async (activity: Activity, direction: 'up' | 'down') => {
+    if (movingActivityId) return; // Prevent multiple moves at once
+
+    setMovingActivityId(activity.id);
     try {
       const activities = getPeriodActivities(activity.period);
       const currentIndex = activities.findIndex(a => a.id === activity.id);
@@ -106,6 +110,8 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
       onRefresh();
     } catch (error) {
       console.error('Failed to reorder activity:', error);
+    } finally {
+      setMovingActivityId(null);
     }
   };
 
@@ -291,6 +297,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
                         canMoveUp={canMoveUp}
                         canMoveDown={canMoveDown}
                         isAdmin={isAdmin}
+                        isMoving={movingActivityId === activity.id}
                       />
                     );
                   })

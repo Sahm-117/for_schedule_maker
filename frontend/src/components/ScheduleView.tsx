@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { weeksApi, pendingChangesApi } from '../services/api';
+import { weeksApi, pendingChangesApi, activitiesApi } from '../services/api';
 import type { Week, Day, Activity, PendingChange } from '../types';
 import DaySchedule from './DaySchedule';
 import ActivityModal from './ActivityModal';
 import CrossWeekModal from './CrossWeekModal';
 import PendingChangesPanel from './PendingChangesPanel';
 import HistoryPanel from './HistoryPanel';
+import MultiWeekDeleteModal from './MultiWeekDeleteModal';
 import { exportWeekToPDF, exportAllWeeksToPDF } from '../utils/pdfExport';
+import { useAuth } from '../hooks/useAuth';
 
 interface ScheduleViewProps {
   week: Week;
@@ -21,6 +23,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   onWeekUpdate,
   isAdmin,
 }) => {
+  const { user } = useAuth();
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [selectedDay, setSelectedDay] = useState<Day | null>(null);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
@@ -30,6 +33,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [showHistory, setShowHistory] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
   const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [multiWeekDeleteOpen, setMultiWeekDeleteOpen] = useState(false);
+  const [activityToDelete, setActivityToDelete] = useState<Activity | null>(null);
+  const [existingWeeksForDelete, setExistingWeeksForDelete] = useState<number[]>([]);
 
   useEffect(() => {
     loadPendingChanges();
@@ -60,6 +66,70 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     setSelectedDay(activityDay || null);
     setEditingActivity(activity);
     setActivityModalOpen(true);
+  };
+
+  const handleDeleteFromEdit = async (activity: Activity) => {
+    // Close edit modal first
+    setActivityModalOpen(false);
+    setEditingActivity(null);
+
+    // Find the day for this activity
+    const activityDay = week.days.find(d => d.id === activity.dayId);
+    if (!activityDay) return;
+
+    // Check if activity exists in multiple weeks
+    try {
+      const { existingWeeks: weeks } = await activitiesApi.checkDuplicates(
+        activity.time,
+        activity.description,
+        activityDay.dayName
+      );
+
+      setActivityToDelete(activity);
+      setExistingWeeksForDelete(weeks);
+      setMultiWeekDeleteOpen(true);
+    } catch (error) {
+      console.error('Failed to check existing weeks:', error);
+      // Fallback: still open modal with just current week
+      setActivityToDelete(activity);
+      setExistingWeeksForDelete([week.weekNumber]);
+      setMultiWeekDeleteOpen(true);
+    }
+  };
+
+  const confirmMultiWeekDelete = async (selectedWeeks: number[]) => {
+    if (!activityToDelete) return;
+
+    try {
+      if (isAdmin) {
+        // Admin: Delete immediately from selected weeks
+        await activitiesApi.delete(activityToDelete.id, {
+          applyToWeeks: selectedWeeks
+        });
+      } else {
+        // Support: Create pending change request with selected weeks
+        await pendingChangesApi.create({
+          weekId: week.id,
+          changeType: 'DELETE',
+          changeData: {
+            activityId: activityToDelete.id,
+            time: activityToDelete.time,
+            description: activityToDelete.description,
+            period: activityToDelete.period,
+            applyToWeeks: selectedWeeks
+          },
+          userId: user?.id
+        });
+      }
+      onWeekUpdate();
+      loadPendingChanges();
+    } catch (error) {
+      console.error('Failed to delete activity from selected weeks:', error);
+    } finally {
+      setActivityToDelete(null);
+      setMultiWeekDeleteOpen(false);
+      setExistingWeeksForDelete([]);
+    }
   };
 
   const handleCrossWeekActivity = () => {
@@ -292,6 +362,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           onSave={handleActivitySaved}
           isAdmin={isAdmin}
           currentWeek={week.weekNumber}
+          onDelete={handleDeleteFromEdit}
         />
       )}
 
@@ -310,6 +381,22 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       <HistoryPanel
         isOpen={showHistory}
         onClose={() => setShowHistory(false)}
+      />
+
+      {/* Multi-Week Delete Modal (triggered from Edit modal) */}
+      <MultiWeekDeleteModal
+        isOpen={multiWeekDeleteOpen}
+        onClose={() => {
+          setMultiWeekDeleteOpen(false);
+          setActivityToDelete(null);
+          setExistingWeeksForDelete([]);
+        }}
+        onConfirm={confirmMultiWeekDelete}
+        activity={activityToDelete}
+        currentWeek={week.weekNumber}
+        allWeeks={weeks}
+        isAdmin={isAdmin}
+        existingWeeks={existingWeeksForDelete}
       />
     </div>
   );
