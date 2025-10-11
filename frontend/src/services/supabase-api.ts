@@ -764,17 +764,30 @@ export const pendingChangesApi = {
         .eq('id', change.weekId)
         .single();
 
-      // Get day name from the day ID in changeData
+      // Get day name - for ADD it's in changeData, for EDIT/DELETE we need to fetch from activity
       let dayName = 'Unknown';
-      if (change.changeData.dayId) {
-        const { data: day } = await supabase
-          .from('Day')
-          .select('dayName')
-          .eq('id', change.changeData.dayId)
+      if (change.changeType === 'ADD') {
+        if (change.changeData.dayId) {
+          const { data: day } = await supabase
+            .from('Day')
+            .select('dayName')
+            .eq('id', change.changeData.dayId)
+            .single();
+          dayName = day?.dayName || 'Unknown';
+        } else if (change.changeData.dayName) {
+          dayName = change.changeData.dayName;
+        }
+      } else if (change.changeType === 'EDIT' || change.changeType === 'DELETE') {
+        // For EDIT/DELETE, fetch the activity and its day
+        const { data: activity } = await supabase
+          .from('Activity')
+          .select('Day (dayName)')
+          .eq('id', change.changeData.activityId)
           .single();
-        dayName = day?.dayName || 'Unknown';
-      } else if (change.changeData.dayName) {
-        dayName = change.changeData.dayName;
+
+        if (activity && activity.Day) {
+          dayName = (activity.Day as any).dayName;
+        }
       }
 
       await sendNotifications({
@@ -863,17 +876,30 @@ export const pendingChangesApi = {
         .eq('id', change.weekId)
         .single();
 
-      // Get day name from the day ID in changeData
+      // Get day name - for ADD it's in changeData, for EDIT/DELETE we need to fetch from activity
       let dayName = 'Unknown';
-      if (change.changeData.dayId) {
-        const { data: day } = await supabase
-          .from('Day')
-          .select('dayName')
-          .eq('id', change.changeData.dayId)
+      if (change.changeType === 'ADD') {
+        if (change.changeData.dayId) {
+          const { data: day } = await supabase
+            .from('Day')
+            .select('dayName')
+            .eq('id', change.changeData.dayId)
+            .single();
+          dayName = day?.dayName || 'Unknown';
+        } else if (change.changeData.dayName) {
+          dayName = change.changeData.dayName;
+        }
+      } else if (change.changeType === 'EDIT' || change.changeType === 'DELETE') {
+        // For EDIT/DELETE, fetch the activity and its day
+        const { data: activity } = await supabase
+          .from('Activity')
+          .select('Day (dayName)')
+          .eq('id', change.changeData.activityId)
           .single();
-        dayName = day?.dayName || 'Unknown';
-      } else if (change.changeData.dayName) {
-        dayName = change.changeData.dayName;
+
+        if (activity && activity.Day) {
+          dayName = (activity.Day as any).dayName;
+        }
       }
 
       await sendNotifications({

@@ -111,29 +111,24 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   const handleDeleteActivity = async (activity: Activity) => {
     setActivityToDelete(activity);
 
-    // For admin users, check if activity exists in multiple weeks
-    if (isAdmin) {
-      try {
-        const { existingWeeks } = await activitiesApi.checkDuplicates(
-          activity.time,
-          activity.description,
-          day.dayName
-        );
+    // Check if activity exists in multiple weeks (for both Admin and Support)
+    try {
+      const { existingWeeks } = await activitiesApi.checkDuplicates(
+        activity.time,
+        activity.description,
+        day.dayName
+      );
 
-        if (existingWeeks.length > 1) {
-          // Show multi-week delete modal
-          setMultiWeekDeleteOpen(true);
-        } else {
-          // Show simple confirmation modal
-          setDeleteConfirmOpen(true);
-        }
-      } catch (error) {
-        console.error('Failed to check existing weeks:', error);
-        // Fallback to simple confirmation
+      if (existingWeeks.length > 1) {
+        // Show multi-week delete modal for both Admin and Support
+        setMultiWeekDeleteOpen(true);
+      } else {
+        // Show simple confirmation modal
         setDeleteConfirmOpen(true);
       }
-    } else {
-      // Support users always use simple confirmation (creates pending request)
+    } catch (error) {
+      console.error('Failed to check existing weeks:', error);
+      // Fallback to simple confirmation
       setDeleteConfirmOpen(true);
     }
   };
@@ -172,9 +167,26 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
     if (!activityToDelete) return;
 
     try {
-      await activitiesApi.delete(activityToDelete.id, {
-        applyToWeeks: selectedWeeks
-      });
+      if (isAdmin) {
+        // Admin: Delete immediately from selected weeks
+        await activitiesApi.delete(activityToDelete.id, {
+          applyToWeeks: selectedWeeks
+        });
+      } else {
+        // Support: Create pending change request with selected weeks
+        await pendingChangesApi.create({
+          weekId: day.week?.id || day.weekId,
+          changeType: 'DELETE',
+          changeData: {
+            activityId: activityToDelete.id,
+            time: activityToDelete.time,
+            description: activityToDelete.description,
+            period: activityToDelete.period,
+            applyToWeeks: selectedWeeks
+          },
+          userId: user?.id
+        });
+      }
       onRefresh();
     } catch (error) {
       console.error('Failed to delete activity from selected weeks:', error);
@@ -352,7 +364,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
         type="danger"
       />
 
-      {/* Multi-Week Delete Modal (admin only - when activity exists in multiple weeks) */}
+      {/* Multi-Week Delete Modal (for both Admin and Support - when activity exists in multiple weeks) */}
       <MultiWeekDeleteModal
         isOpen={multiWeekDeleteOpen}
         onClose={() => {
@@ -363,6 +375,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
         activity={activityToDelete}
         currentWeek={currentWeek}
         allWeeks={allWeeks}
+        isAdmin={isAdmin}
       />
     </div>
   );

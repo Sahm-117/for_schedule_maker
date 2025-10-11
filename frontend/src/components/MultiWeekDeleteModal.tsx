@@ -9,6 +9,7 @@ interface MultiWeekDeleteModalProps {
   activity: Activity | null;
   currentWeek: number;
   allWeeks: Week[];
+  isAdmin?: boolean;
 }
 
 const MultiWeekDeleteModal: React.FC<MultiWeekDeleteModalProps> = ({
@@ -18,6 +19,7 @@ const MultiWeekDeleteModal: React.FC<MultiWeekDeleteModalProps> = ({
   activity,
   currentWeek,
   allWeeks,
+  isAdmin = true,
 }) => {
   const [existingWeeks, setExistingWeeks] = useState<number[]>([]);
   const [selectedWeeks, setSelectedWeeks] = useState<number[]>([]);
@@ -171,13 +173,17 @@ const MultiWeekDeleteModal: React.FC<MultiWeekDeleteModalProps> = ({
               )}
 
               {/* Warning */}
-              <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className={`mb-6 p-3 border rounded-lg ${isAdmin ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'}`}>
                 <div className="flex items-start gap-2">
-                  <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isAdmin ? 'text-red-600' : 'text-orange-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
-                  <p className="text-sm text-red-800">
-                    <strong>Warning:</strong> This action cannot be undone. The activity will be permanently deleted.
+                  <p className={`text-sm ${isAdmin ? 'text-red-800' : 'text-orange-800'}`}>
+                    {isAdmin ? (
+                      <><strong>Warning:</strong> This action cannot be undone. The activity will be permanently deleted.</>
+                    ) : (
+                      <><strong>Note:</strong> This will submit a deletion request for admin approval.</>
+                    )}
                   </p>
                 </div>
               </div>
@@ -193,9 +199,14 @@ const MultiWeekDeleteModal: React.FC<MultiWeekDeleteModalProps> = ({
                 <button
                   onClick={handleConfirm}
                   disabled={selectedWeeks.length === 0}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className={`flex-1 px-4 py-2 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                    isAdmin ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'
+                  }`}
                 >
-                  Delete from {selectedWeeks.length} Week{selectedWeeks.length !== 1 ? 's' : ''}
+                  {isAdmin
+                    ? `Delete from ${selectedWeeks.length} Week${selectedWeeks.length !== 1 ? 's' : ''}`
+                    : `Submit Request for ${selectedWeeks.length} Week${selectedWeeks.length !== 1 ? 's' : ''}`
+                  }
                 </button>
               </div>
             </>
