@@ -234,6 +234,8 @@ export const weeksApi = {
 // Activities API
 export const activitiesApi = {
   async checkDuplicates(time: string, description: string, dayName: string): Promise<{ existingWeeks: number[] }> {
+    console.log('🔍 checkDuplicates called with:', { time, description, dayName });
+
     const { data, error } = await supabase
       .from('Activity')
       .select(`
@@ -248,12 +250,18 @@ export const activitiesApi = {
       .eq('Day.dayName', dayName);
 
     if (error) {
+      console.error('❌ checkDuplicates error:', error);
       throw new Error(error.message);
     }
+
+    console.log('✅ checkDuplicates found activities:', data?.length || 0);
+    console.log('Activities data:', data);
 
     const existingWeeks = data?.map(activity =>
       (activity.Day as any)?.Week?.weekNumber
     ).filter(Boolean) || [];
+
+    console.log('📊 Existing weeks:', existingWeeks);
 
     return { existingWeeks };
   },
@@ -346,10 +354,14 @@ export const activitiesApi = {
 
       const nextOrderIndex = (maxOrder?.orderIndex || 0) + 1;
 
+      // Only include database columns (exclude applyToWeeks)
       const { data, error } = await supabase
         .from('Activity')
         .insert([{
-          ...activityData,
+          dayId: activityData.dayId,
+          time: activityData.time,
+          description: activityData.description,
+          period: activityData.period,
           orderIndex: nextOrderIndex,
         }])
         .select()
