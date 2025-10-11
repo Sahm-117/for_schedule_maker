@@ -291,6 +291,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           weeks={weeks}
           onSave={handleActivitySaved}
           isAdmin={isAdmin}
+          currentWeek={week.weekNumber}
         />
       )}
 

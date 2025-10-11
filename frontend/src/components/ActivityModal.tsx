@@ -11,6 +11,7 @@ interface ActivityModalProps {
   weeks: Week[];
   onSave: () => void;
   isAdmin: boolean;
+  currentWeek?: number;
 }
 
 const ActivityModal: React.FC<ActivityModalProps> = ({
@@ -21,6 +22,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
   weeks,
   onSave,
   isAdmin,
+  currentWeek,
 }) => {
   const { user } = useAuth();
   const [timeHour, setTimeHour] = useState('12');
@@ -322,14 +324,15 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                   <div className="grid grid-cols-4 gap-2">
                     {existingWeeks.map(weekNum => {
                       const isSelected = updateAllExisting || selectedWeeks.includes(weekNum);
+                      const isCurrent = weekNum === currentWeek;
                       return (
                         <label
                           key={weekNum}
-                          className={`flex items-center justify-center p-2 border-2 rounded-lg cursor-pointer transition-all ${
+                          className={`flex flex-col items-center justify-center p-2 border-2 rounded-lg cursor-pointer transition-all ${
                             isSelected
                               ? 'border-primary bg-primary/10 text-primary'
                               : 'border-gray-300 bg-white hover:border-gray-400'
-                          }`}
+                          } ${isCurrent ? 'ring-2 ring-blue-300' : ''}`}
                         >
                           <input
                             type="checkbox"
@@ -351,6 +354,9 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                           <span className="text-sm font-medium">
                             Week {weekNum}
                           </span>
+                          {isCurrent && (
+                            <span className="text-xs text-blue-600 font-medium">(Current)</span>
+                          )}
                         </label>
                       );
                     })}

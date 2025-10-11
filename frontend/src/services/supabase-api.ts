@@ -810,6 +810,32 @@ export const pendingChangesApi = {
       throw new Error('Pending change not found');
     }
 
+    // Get day name BEFORE executing delete (so activity still exists)
+    let dayName = 'Unknown';
+    if (change.changeType === 'ADD') {
+      if (change.changeData.dayId) {
+        const { data: day } = await supabase
+          .from('Day')
+          .select('dayName')
+          .eq('id', change.changeData.dayId)
+          .single();
+        dayName = day?.dayName || 'Unknown';
+      } else if (change.changeData.dayName) {
+        dayName = change.changeData.dayName;
+      }
+    } else if (change.changeType === 'EDIT' || change.changeType === 'DELETE') {
+      // For EDIT/DELETE, fetch the activity and its day BEFORE deleting
+      const { data: activity } = await supabase
+        .from('Activity')
+        .select('Day (dayName)')
+        .eq('id', change.changeData.activityId)
+        .single();
+
+      if (activity && activity.Day) {
+        dayName = (activity.Day as any).dayName;
+      }
+    }
+
     // Execute the change based on type
     let results = [];
     if (change.changeType === 'ADD') {
@@ -837,32 +863,6 @@ export const pendingChangesApi = {
         .select('weekNumber')
         .eq('id', change.weekId)
         .single();
-
-      // Get day name - for ADD it's in changeData, for EDIT/DELETE we need to fetch from activity
-      let dayName = 'Unknown';
-      if (change.changeType === 'ADD') {
-        if (change.changeData.dayId) {
-          const { data: day } = await supabase
-            .from('Day')
-            .select('dayName')
-            .eq('id', change.changeData.dayId)
-            .single();
-          dayName = day?.dayName || 'Unknown';
-        } else if (change.changeData.dayName) {
-          dayName = change.changeData.dayName;
-        }
-      } else if (change.changeType === 'EDIT' || change.changeType === 'DELETE') {
-        // For EDIT/DELETE, fetch the activity and its day
-        const { data: activity } = await supabase
-          .from('Activity')
-          .select('Day (dayName)')
-          .eq('id', change.changeData.activityId)
-          .single();
-
-        if (activity && activity.Day) {
-          dayName = (activity.Day as any).dayName;
-        }
-      }
 
       await sendNotifications({
         userName: change.User?.name || 'User',
