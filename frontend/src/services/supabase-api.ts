@@ -484,46 +484,79 @@ export const activitiesApi = {
     description: string;
     applyToWeeks?: number[];
   }): Promise<{ activities: Activity[] }> {
+    console.log('🔄 update called with:', { activityId, updateData });
+
     if (updateData.applyToWeeks && updateData.applyToWeeks.length > 0) {
-      // Update activities across multiple weeks
+      // MULTI-WEEK UPDATE: Get the ORIGINAL activity's data first
+      const { data: originalActivity, error: origError } = await supabase
+        .from('Activity')
+        .select('time, description, Day (dayName)')
+        .eq('id', activityId)
+        .single();
+
+      if (origError || !originalActivity) {
+        throw new Error('Activity not found');
+      }
+
+      console.log('📝 Original activity:', originalActivity);
+
+      const dayName = (originalActivity.Day as any)?.dayName;
       const activities = [];
 
       for (const weekNumber of updateData.applyToWeeks) {
-        // Find activities with same time/description in this week
-        const { data, error } = await supabase
+        // Find the specific day in this week
+        const { data: targetDay, error: dayError } = await supabase
+          .from('Day')
+          .select('id, Week!inner (weekNumber)')
+          .eq('Week.weekNumber', weekNumber)
+          .eq('dayName', dayName)
+          .single();
+
+        if (dayError || !targetDay) {
+          console.warn(`Day not found for week ${weekNumber}`);
+          continue;
+        }
+
+        // Find activities matching ORIGINAL time + description on this specific day
+        const { data: matchingActivities, error: actError } = await supabase
           .from('Activity')
-          .select(`
-            *,
-            Day!inner (
-              Week!inner (weekNumber)
-            )
-          `)
-          .eq('Day.Week.weekNumber', weekNumber)
-          .eq('time', updateData.time)
-          .eq('description', updateData.description);
+          .select('*')
+          .eq('dayId', targetDay.id)
+          .eq('time', originalActivity.time)
+          .eq('description', originalActivity.description)
+          .order('id', { ascending: true })
+          .limit(1); // Only take first matching activity
 
-        if (!error && data) {
-          for (const activity of data) {
-            const { data: updated, error: updateError } = await supabase
-              .from('Activity')
-              .update({
-                time: updateData.time,
-                description: updateData.description,
-              })
-              .eq('id', activity.id)
-              .select()
-              .single();
+        if (actError || !matchingActivities || matchingActivities.length === 0) {
+          console.warn(`No matching activity found in week ${weekNumber}`);
+          continue;
+        }
 
-            if (!updateError && updated) {
-              activities.push(updated);
-            }
-          }
+        const activityToUpdate = matchingActivities[0];
+
+        // Update with NEW values
+        const { data: updated, error: updateError } = await supabase
+          .from('Activity')
+          .update({
+            time: updateData.time,
+            description: updateData.description,
+          })
+          .eq('id', activityToUpdate.id)
+          .select()
+          .single();
+
+        if (!updateError && updated) {
+          console.log(`✅ Updated activity in week ${weekNumber}:`, updated.id);
+          activities.push(updated);
+        } else {
+          console.error(`Failed to update activity in week ${weekNumber}:`, updateError);
         }
       }
 
+      console.log(`✅ Multi-week update complete: ${activities.length} activities updated`);
       return { activities };
     } else {
-      // Update single activity
+      // SINGLE ACTIVITY UPDATE
       const { data, error } = await supabase
         .from('Activity')
         .update({
@@ -538,6 +571,7 @@ export const activitiesApi = {
         throw new Error(error.message);
       }
 
+      console.log('✅ Single activity updated:', data.id);
       return { activities: [data] };
     }
   },

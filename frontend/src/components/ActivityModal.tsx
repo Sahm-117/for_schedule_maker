@@ -144,15 +144,24 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
         let weekNumbers: number[] | undefined = undefined;
 
         if (updateAllExisting && existingWeeks.length > 0) {
-          // Update all existing weeks (ignore week selector)
+          // Update all existing weeks
           weekNumbers = existingWeeks;
         } else if (selectedWeeks.length > 0) {
-          // Use selected weeks from week selector
-          weekNumbers = selectedWeeks.map(weekId => {
-            const week = weeks.find(w => w.id === weekId);
-            return week?.weekNumber;
-          }).filter(Boolean) as number[];
+          // For multi-week activities, selectedWeeks contains week NUMBERS (not IDs)
+          // For new activities, it contains week IDs that need conversion
+          if (existingWeeks.length > 0) {
+            // Editing existing multi-week activity: selectedWeeks are week numbers
+            weekNumbers = selectedWeeks;
+          } else {
+            // Converting week IDs to week numbers (for cross-week feature)
+            weekNumbers = selectedWeeks.map(weekId => {
+              const week = weeks.find(w => w.id === weekId);
+              return week?.weekNumber;
+            }).filter(Boolean) as number[];
+          }
         }
+
+        console.log('📤 Submitting update with weekNumbers:', weekNumbers);
 
         await activitiesApi.update(activity.id, {
           time: time24,
@@ -294,27 +303,66 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
               </div>
             )}
 
-            {/* Update all existing weeks checkbox (only when editing) */}
+            {/* Granular week selection (only when editing and exists in multiple weeks) */}
             {activity && existingWeeks.length > 1 && (
               <div className="border-t border-b py-3">
-                <label className="flex items-start">
-                  <input
-                    type="checkbox"
-                    checked={updateAllExisting}
-                    onChange={(e) => setUpdateAllExisting(e.target.checked)}
-                    className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
-                  />
-                  <div className="ml-3">
-                    <span className="text-sm font-medium text-gray-900">
-                      Update in all {existingWeeks.length} existing weeks
-                    </span>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {updateAllExisting
-                        ? `Changes will apply to weeks: ${existingWeeks.join(', ')}`
-                        : 'Only update this instance'}
-                    </p>
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-gray-900">
+                      Select weeks to update:
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setUpdateAllExisting(!updateAllExisting)}
+                      className="text-xs text-primary hover:text-primary-dark"
+                    >
+                      {updateAllExisting ? 'Deselect All' : 'Select All'}
+                    </button>
                   </div>
-                </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {existingWeeks.map(weekNum => {
+                      const isSelected = updateAllExisting || selectedWeeks.includes(weekNum);
+                      return (
+                        <label
+                          key={weekNum}
+                          className={`flex items-center justify-center p-2 border-2 rounded-lg cursor-pointer transition-all ${
+                            isSelected
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-gray-300 bg-white hover:border-gray-400'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              // Disable "Select All" when manually toggling
+                              setUpdateAllExisting(false);
+
+                              if (e.target.checked) {
+                                if (!selectedWeeks.includes(weekNum)) {
+                                  setSelectedWeeks([...selectedWeeks, weekNum]);
+                                }
+                              } else {
+                                setSelectedWeeks(selectedWeeks.filter(w => w !== weekNum));
+                              }
+                            }}
+                            className="sr-only"
+                          />
+                          <span className="text-sm font-medium">
+                            Week {weekNum}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {updateAllExisting
+                      ? `All ${existingWeeks.length} weeks selected`
+                      : selectedWeeks.length > 0
+                      ? `${selectedWeeks.length} week${selectedWeeks.length !== 1 ? 's' : ''} selected`
+                      : 'Only this instance will be updated'}
+                  </p>
+                </div>
               </div>
             )}
 
