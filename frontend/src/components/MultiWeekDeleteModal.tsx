@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import type { Activity, Week } from '../types';
-import { activitiesApi } from '../services/api';
 
 interface MultiWeekDeleteModalProps {
   isOpen: boolean;
@@ -10,6 +9,7 @@ interface MultiWeekDeleteModalProps {
   currentWeek: number;
   allWeeks: Week[];
   isAdmin?: boolean;
+  existingWeeks: number[];
 }
 
 const MultiWeekDeleteModal: React.FC<MultiWeekDeleteModalProps> = ({
@@ -20,38 +20,16 @@ const MultiWeekDeleteModal: React.FC<MultiWeekDeleteModalProps> = ({
   currentWeek,
   allWeeks,
   isAdmin = true,
+  existingWeeks: propExistingWeeks,
 }) => {
-  const [existingWeeks, setExistingWeeks] = useState<number[]>([]);
   const [selectedWeeks, setSelectedWeeks] = useState<number[]>([]);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen && activity) {
-      checkExistingWeeks();
-    }
-  }, [isOpen, activity]);
-
-  const checkExistingWeeks = async () => {
-    if (!activity) return;
-
-    setLoading(true);
-    try {
-      const { existingWeeks: weeks } = await activitiesApi.checkDuplicates(
-        activity.time,
-        activity.description,
-        activity.Day?.dayName || ''
-      );
-      setExistingWeeks(weeks);
+    if (isOpen) {
       // Default selection: only current week
       setSelectedWeeks([currentWeek]);
-    } catch (error) {
-      console.error('Failed to check existing weeks:', error);
-      setExistingWeeks([currentWeek]);
-      setSelectedWeeks([currentWeek]);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [isOpen, currentWeek]);
 
   const toggleWeek = (weekNum: number) => {
     setSelectedWeeks(prev =>
@@ -62,7 +40,7 @@ const MultiWeekDeleteModal: React.FC<MultiWeekDeleteModalProps> = ({
   };
 
   const selectAll = () => {
-    setSelectedWeeks(existingWeeks);
+    setSelectedWeeks(propExistingWeeks);
   };
 
   const handleConfirm = () => {
@@ -95,40 +73,34 @@ const MultiWeekDeleteModal: React.FC<MultiWeekDeleteModalProps> = ({
             </button>
           </div>
 
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <p className="text-gray-500 mt-2">Checking weeks...</p>
-            </div>
-          ) : (
-            <>
-              {/* Info Message */}
-              {existingWeeks.length > 1 ? (
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-yellow-800">
-                        This activity exists in {existingWeeks.length} weeks
-                      </p>
-                      <p className="text-xs text-yellow-700 mt-1">
-                        Select which weeks you want to delete it from
-                      </p>
-                    </div>
+          <>
+            {/* Info Message */}
+            {propExistingWeeks.length > 1 ? (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-yellow-800">
+                      This activity exists in {propExistingWeeks.length} weeks
+                    </p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      Select which weeks you want to delete it from
+                    </p>
                   </div>
                 </div>
-              ) : (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    This activity only exists in Week {currentWeek}
-                  </p>
-                </div>
-              )}
+              </div>
+            ) : (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  This activity only exists in Week {currentWeek}
+                </p>
+              </div>
+            )}
 
-              {/* Week Selection */}
-              {existingWeeks.length > 1 && (
+            {/* Week Selection */}
+            {propExistingWeeks.length > 1 && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-sm font-medium text-gray-700">
@@ -142,7 +114,7 @@ const MultiWeekDeleteModal: React.FC<MultiWeekDeleteModalProps> = ({
                     </button>
                   </div>
                   <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-lg">
-                    {existingWeeks.map(weekNum => (
+                    {propExistingWeeks.map(weekNum => (
                       <label
                         key={weekNum}
                         className={`flex items-center justify-center p-2 border-2 rounded-lg cursor-pointer transition-all ${
@@ -210,7 +182,6 @@ const MultiWeekDeleteModal: React.FC<MultiWeekDeleteModalProps> = ({
                 </button>
               </div>
             </>
-          )}
         </div>
       </div>
     </div>

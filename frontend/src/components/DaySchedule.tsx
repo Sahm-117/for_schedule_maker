@@ -35,6 +35,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [multiWeekDeleteOpen, setMultiWeekDeleteOpen] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState<Activity | null>(null);
+  const [existingWeeks, setExistingWeeks] = useState<number[]>([]);
   const getDayDisplayName = (dayName: string) => {
     const dayNames: { [key: string]: string } = {
       'MONDAY': 'Monday',
@@ -113,13 +114,15 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
 
     // Check if activity exists in multiple weeks (for both Admin and Support)
     try {
-      const { existingWeeks } = await activitiesApi.checkDuplicates(
+      const { existingWeeks: weeks } = await activitiesApi.checkDuplicates(
         activity.time,
         activity.description,
         day.dayName
       );
 
-      if (existingWeeks.length > 1) {
+      setExistingWeeks(weeks); // Store the existingWeeks
+
+      if (weeks.length > 1) {
         // Show multi-week delete modal for both Admin and Support
         setMultiWeekDeleteOpen(true);
       } else {
@@ -376,6 +379,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
         currentWeek={currentWeek}
         allWeeks={allWeeks}
         isAdmin={isAdmin}
+        existingWeeks={existingWeeks}
       />
     </div>
   );
