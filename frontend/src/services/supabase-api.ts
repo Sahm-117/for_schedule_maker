@@ -236,6 +236,10 @@ export const activitiesApi = {
   async checkDuplicates(time: string, description: string, dayName: string): Promise<{ existingWeeks: number[] }> {
     console.log('🔍 checkDuplicates called with:', { time, description, dayName });
 
+    // Normalize dayName to match database format (e.g., "SUNDAY" -> "Sunday")
+    const normalizedDayName = dayName.charAt(0).toUpperCase() + dayName.slice(1).toLowerCase();
+    console.log('📝 Normalized dayName:', normalizedDayName);
+
     const { data, error } = await supabase
       .from('Activity')
       .select(`
@@ -247,7 +251,7 @@ export const activitiesApi = {
       `)
       .eq('time', time)
       .eq('description', description)
-      .eq('Day.dayName', dayName);
+      .eq('Day.dayName', normalizedDayName);
 
     if (error) {
       console.error('❌ checkDuplicates error:', error);
@@ -255,7 +259,6 @@ export const activitiesApi = {
     }
 
     console.log('✅ checkDuplicates found activities:', data?.length || 0);
-    console.log('Activities data:', data);
 
     const existingWeeks = data?.map(activity =>
       (activity.Day as any)?.Week?.weekNumber
