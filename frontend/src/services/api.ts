@@ -9,6 +9,7 @@ import {
   pendingChangesApi as supabasePendingChangesApi,
   rejectedChangesApi as supabaseRejectedChangesApi,
   usersApi as supabaseUsersApi,
+  teamsApi as supabaseTeamsApi,
   setAuthToken as supabaseSetAuthToken,
   clearAuthToken as supabaseClearAuthToken,
 } from './supabase-api';
@@ -227,6 +228,50 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
 
   async delete(userId: string): Promise<{ message: string }> {
     const response = await api.delete(`/users/${userId}`);
+    return response.data;
+  },
+};
+
+// Teams API
+export const teamsApi = USE_SUPABASE ? supabaseTeamsApi : {
+  async getAll(): Promise<{ teams: any[] }> {
+    const response = await api.get('/teams');
+    return response.data;
+  },
+
+  async getById(teamId: number): Promise<{ team: any }> {
+    const response = await api.get(`/teams/${teamId}`);
+    return response.data;
+  },
+
+  async create(teamData: {
+    name: string;
+    color: string;
+  }): Promise<{ team: any }> {
+    const response = await api.post('/teams', teamData);
+    return response.data;
+  },
+
+  async update(teamId: number, updateData: {
+    name?: string;
+    color?: string;
+  }): Promise<{ team: any }> {
+    const response = await api.put(`/teams/${teamId}`, updateData);
+    return response.data;
+  },
+
+  async delete(teamId: number): Promise<{ message: string }> {
+    const response = await api.delete(`/teams/${teamId}`);
+    return response.data;
+  },
+
+  async getActivityTeams(activityId: number): Promise<{ teams: any[] }> {
+    const response = await api.get(`/activities/${activityId}/teams`);
+    return response.data;
+  },
+
+  async assignTeamsToActivity(activityId: number, teamIds: number[]): Promise<{ message: string }> {
+    const response = await api.post(`/activities/${activityId}/teams`, { teamIds });
     return response.data;
   },
 };
