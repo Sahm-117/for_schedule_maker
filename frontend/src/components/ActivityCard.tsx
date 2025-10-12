@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import type { Activity, PendingChange } from '../types';
+import React, { useState, useEffect } from 'react';
+import type { Activity, PendingChange, Team } from '../types';
+import { teamsApi } from '../services/api';
+import TeamBadge from './TeamBadge';
 
 interface ActivityCardProps {
   activity: Activity;
@@ -27,8 +29,22 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   isMoving = false,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [teams, setTeams] = useState<Team[]>([]);
   const editPendingChange = pendingChanges.find(change => change.changeType === 'EDIT');
   const deletePendingChange = pendingChanges.find(change => change.changeType === 'DELETE');
+
+  // Load teams for this activity
+  useEffect(() => {
+    const loadTeams = async () => {
+      try {
+        const { teams: activityTeams } = await teamsApi.getActivityTeams(activity.id);
+        setTeams(activityTeams);
+      } catch (error) {
+        console.error('Failed to load activity teams:', error);
+      }
+    };
+    loadTeams();
+  }, [activity.id]);
 
   const getTimeFormat = (time: string) => {
     try {
@@ -100,7 +116,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
 
           <div className="flex items-start gap-2">
             <p className={`flex-1 text-gray-700 ${deletePendingChange ? 'line-through text-gray-500' : ''}`}>
-              {activity.description}
+              {activity.description} <TeamBadge teams={teams} inline={true} />
             </p>
             <button
               onClick={handleCopyToClipboard}

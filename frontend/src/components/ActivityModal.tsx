@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { activitiesApi } from '../services/api';
+import { activitiesApi, teamsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import type { Day, Activity, Week } from '../types';
+import TeamSelector from './TeamSelector';
 
 interface ActivityModalProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
   const [timeMinute, setTimeMinute] = useState('00');
   const [timeAmPm, setTimeAmPm] = useState<'AM' | 'PM'>('AM');
   const [description, setDescription] = useState('');
+  const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>([]);
   const [selectedWeeks, setSelectedWeeks] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -76,6 +78,8 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
     if (activity) {
       setTimeFrom24Format(activity.time);
       setDescription(activity.description);
+      // Load teams for this activity
+      loadActivityTeams();
       // Check for existing weeks when editing
       checkExistingWeeks();
     } else {
@@ -83,6 +87,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
       setTimeMinute('00');
       setTimeAmPm('AM');
       setDescription('');
+      setSelectedTeamIds([]);
       setExistingWeeks([]);
     }
     setSelectedWeeks([]);
@@ -91,6 +96,17 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
     setShowCrossWeek(false);
     setUpdateAllExisting(false);
   }, [activity, isOpen]);
+
+  const loadActivityTeams = async () => {
+    if (!activity) return;
+    try {
+      const { teams } = await teamsApi.getActivityTeams(activity.id);
+      setSelectedTeamIds(teams.map((t: any) => t.id));
+    } catch (error) {
+      console.error('Failed to load activity teams:', error);
+      setSelectedTeamIds([]);
+    }
+  };
 
   const checkExistingWeeks = async () => {
     if (!activity) return;
@@ -166,11 +182,18 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
         }
 
 
-        await activitiesApi.update(activity.id, {
+        const result = await activitiesApi.update(activity.id, {
           time: time24,
           description,
           applyToWeeks: weekNumbers,
         });
+
+        // Assign teams to all updated activities
+        if (result.activities && result.activities.length > 0) {
+          for (const updatedActivity of result.activities) {
+            await teamsApi.assignTeamsToActivity(updatedActivity.id, selectedTeamIds);
+          }
+        }
       } else {
         // Convert week IDs to week numbers
         const weekNumbers = selectedWeeks.length > 0
@@ -191,9 +214,18 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
         };
 
         if (isAdmin) {
-          await activitiesApi.create(activityData);
+          const result = await activitiesApi.create(activityData);
+
+          // Assign teams to all created activities
+          if (result.activities && result.activities.length > 0) {
+            for (const createdActivity of result.activities) {
+              await teamsApi.assignTeamsToActivity(createdActivity.id, selectedTeamIds);
+            }
+          }
         } else {
           await activitiesApi.request(activityData);
+          // Note: For support users, teams will be in pending change
+          // and assigned when admin approves
         }
       }
       onSave();
@@ -286,6 +318,12 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                 required
               />
             </div>
+
+            {/* Team Selection */}
+            <TeamSelector
+              selectedTeamIds={selectedTeamIds}
+              onChange={setSelectedTeamIds}
+            />
 
             {/* Show existing weeks when editing */}
             {activity && existingWeeks.length > 0 && (

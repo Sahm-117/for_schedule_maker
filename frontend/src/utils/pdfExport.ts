@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
-import type { Week } from '../types';
+import type { Week, Team } from '../types';
+import { teamsApi } from '../services/api';
 
 interface ExportOptions {
   includeEmptyDays?: boolean;
@@ -32,6 +33,20 @@ const formatTime = (time: string): string => {
   } catch {
     return time;
   }
+};
+
+// Convert hex color to RGB array for jsPDF
+const hexToRgb = (hex: string): number[] => {
+  // Remove # if present
+  hex = hex.replace(/^#/, '');
+
+  // Parse hex to RGB
+  const bigint = parseInt(hex, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+
+  return [r, g, b];
 };
 
 const addTimelineHeader = (pdf: jsPDF, pageWidth: number, weekNumber: number): number => {
@@ -154,13 +169,66 @@ export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) =
       const timeText = formatTime(activity.time);
       pdf.text(timeText, 25, yPosition);
 
+      // Fetch teams for this activity
+      let teams: Team[] = [];
+      try {
+        const response = await teamsApi.getActivityTeams(activity.id);
+        teams = response.teams;
+      } catch (error) {
+        console.error('Failed to load teams for activity:', error);
+      }
+
+      // Build description with teams
+      let fullDescription = activity.description;
+      if (teams.length > 0) {
+        const teamNames = teams.map(t => t.name).join(', ');
+        fullDescription += ` (${teamNames})`;
+      }
+
       // Description with line wrapping
       pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(...COLORS.brand.lightText);
-      const descriptionLines = pdf.splitTextToSize(activity.description, 140);
-      pdf.text(descriptionLines, 55, yPosition);
 
-      yPosition += Math.max(7, descriptionLines.length * 5);
+      // If no teams, just render the description normally
+      if (teams.length === 0) {
+        const descriptionLines = pdf.splitTextToSize(activity.description, 140);
+        pdf.text(descriptionLines, 55, yPosition);
+        yPosition += Math.max(7, descriptionLines.length * 5);
+      } else {
+        // Render description
+        const textWidth = pdf.getTextWidth(activity.description + ' ');
+        pdf.text(activity.description + ' ', 55, yPosition);
+
+        let xPosition = 55 + textWidth;
+
+        // Render team names with colored text
+        pdf.text('(', xPosition, yPosition);
+        xPosition += pdf.getTextWidth('(');
+
+        teams.forEach((team, index) => {
+          // Set team color
+          const teamRgb = hexToRgb(team.color);
+          pdf.setTextColor(...teamRgb);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(team.name, xPosition, yPosition);
+          xPosition += pdf.getTextWidth(team.name);
+
+          // Add comma if not last team
+          if (index < teams.length - 1) {
+            pdf.setTextColor(...COLORS.brand.lightText);
+            pdf.setFont('helvetica', 'normal');
+            pdf.text(', ', xPosition, yPosition);
+            xPosition += pdf.getTextWidth(', ');
+          }
+        });
+
+        // Close parenthesis
+        pdf.setTextColor(...COLORS.brand.lightText);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(')', xPosition, yPosition);
+
+        yPosition += 7;
+      }
     }
 
     yPosition += 8; // Space between days

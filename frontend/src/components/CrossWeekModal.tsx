@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { activitiesApi } from '../services/api';
+import { activitiesApi, teamsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import type { Week, Day } from '../types';
+import TeamSelector from './TeamSelector';
 
 interface CrossWeekModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
   const [timeMinute, setTimeMinute] = useState('00');
   const [timeAmPm, setTimeAmPm] = useState<'AM' | 'PM'>('AM');
   const [description, setDescription] = useState('');
+  const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -81,9 +83,17 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
 
           // Use correct API based on user role
           if (user?.role === 'ADMIN') {
-            await activitiesApi.create(activityData);
+            const result = await activitiesApi.create(activityData);
+
+            // Assign teams to all created activities
+            if (result.activities && result.activities.length > 0) {
+              for (const createdActivity of result.activities) {
+                await teamsApi.assignTeamsToActivity(createdActivity.id, selectedTeamIds);
+              }
+            }
           } else {
             await activitiesApi.request(activityData);
+            // Note: For support users, teams will be in pending change
           }
           results.push(`${dayName}: Success`);
         } catch (dayError: any) {
@@ -110,6 +120,7 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
         setTimeMinute('00');
         setTimeAmPm('AM');
         setDescription('');
+        setSelectedTeamIds([]);
         onClose();
       }
     } catch (error: any) {
@@ -260,6 +271,12 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
                 required
               />
             </div>
+
+            {/* Team Selection */}
+            <TeamSelector
+              selectedTeamIds={selectedTeamIds}
+              onChange={setSelectedTeamIds}
+            />
 
             {error && (
               <div className="text-red-600 text-sm bg-red-50 p-2 rounded">

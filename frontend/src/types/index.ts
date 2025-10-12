@@ -8,6 +8,14 @@ export interface User {
   updatedAt?: string;
 }
 
+export interface Team {
+  id: number;
+  name: string;
+  color: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Activity {
   id: number;
   dayId: number;
@@ -15,6 +23,7 @@ export interface Activity {
   description: string;
   period: 'MORNING' | 'AFTERNOON' | 'EVENING';
   orderIndex: number;
+  teams?: Team[]; // Teams assigned to this activity
   day?: Day;
 }
 
