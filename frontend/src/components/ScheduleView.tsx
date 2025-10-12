@@ -15,6 +15,7 @@ interface ScheduleViewProps {
   weeks: Week[];
   onWeekUpdate: () => void;
   isAdmin: boolean;
+  highlightedActivityId?: number | null;
 }
 
 const ScheduleView: React.FC<ScheduleViewProps> = ({
@@ -22,6 +23,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   weeks,
   onWeekUpdate,
   isAdmin,
+  highlightedActivityId,
 }) => {
   const { user } = useAuth();
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
@@ -44,6 +46,24 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       setExpandedDays(new Set([week.days[0].id]));
     }
   }, [week.id]);
+
+  // Auto-expand day when activity is highlighted
+  useEffect(() => {
+    if (highlightedActivityId) {
+      // Find the day containing the highlighted activity
+      const dayWithActivity = week.days.find(day =>
+        day.activities.some(activity => activity.id === highlightedActivityId)
+      );
+
+      if (dayWithActivity) {
+        setExpandedDays(prev => {
+          const newSet = new Set(prev);
+          newSet.add(dayWithActivity.id);
+          return newSet;
+        });
+      }
+    }
+  }, [highlightedActivityId, week.days]);
 
   const loadPendingChanges = async () => {
     try {
@@ -347,6 +367,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             onToggleExpansion={() => toggleDayExpansion(day.id)}
             currentWeek={week.weekNumber}
             allWeeks={weeks}
+            highlightedActivityId={highlightedActivityId}
           />
         ))}
       </div>

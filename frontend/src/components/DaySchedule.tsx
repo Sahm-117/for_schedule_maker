@@ -17,6 +17,7 @@ interface DayScheduleProps {
   onToggleExpansion: () => void;
   currentWeek: number;
   allWeeks: Week[];
+  highlightedActivityId?: number | null;
 }
 
 const DaySchedule: React.FC<DayScheduleProps> = ({
@@ -30,6 +31,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   onToggleExpansion,
   currentWeek,
   allWeeks,
+  highlightedActivityId,
 }) => {
   const { user } = useAuth();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -289,19 +291,28 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
                     const canMoveDown = index < activities.length - 1 && activities[index + 1].time === activity.time;
 
                     return (
-                      <ActivityCard
+                      <div
                         key={activity.id}
-                        activity={activity}
-                        pendingChanges={getPendingChangesForActivity(activity.id)}
-                        onEdit={() => onEditActivity(activity, day)}
-                        onDelete={() => handleDeleteActivity(activity)}
-                        onMoveUp={canMoveUp ? () => handleMoveActivity(activity, 'up') : undefined}
-                        onMoveDown={canMoveDown ? () => handleMoveActivity(activity, 'down') : undefined}
-                        canMoveUp={canMoveUp}
-                        canMoveDown={canMoveDown}
-                        isAdmin={isAdmin}
-                        isMoving={movingActivityId === activity.id}
-                      />
+                        id={`activity-${activity.id}`}
+                        className={`transition-all duration-500 ${
+                          highlightedActivityId === activity.id
+                            ? 'ring-4 ring-yellow-400 ring-opacity-75 rounded-lg animate-pulse'
+                            : ''
+                        }`}
+                      >
+                        <ActivityCard
+                          activity={activity}
+                          pendingChanges={getPendingChangesForActivity(activity.id)}
+                          onEdit={() => onEditActivity(activity, day)}
+                          onDelete={() => handleDeleteActivity(activity)}
+                          onMoveUp={canMoveUp ? () => handleMoveActivity(activity, 'up') : undefined}
+                          onMoveDown={canMoveDown ? () => handleMoveActivity(activity, 'down') : undefined}
+                          canMoveUp={canMoveUp}
+                          canMoveDown={canMoveDown}
+                          isAdmin={isAdmin}
+                          isMoving={movingActivityId === activity.id}
+                        />
+                      </div>
                     );
                   })
                 ) : (

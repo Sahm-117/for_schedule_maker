@@ -7,6 +7,7 @@ import ScheduleView from '../components/ScheduleView';
 import RejectedChangesNotification from '../components/RejectedChangesNotification';
 import UserManagement from '../components/UserManagement';
 import OnboardingWalkthrough from '../components/OnboardingWalkthrough';
+import SearchBar from '../components/SearchBar';
 
 const Dashboard: React.FC = () => {
   const { user, logout, isAdmin, completeOnboarding } = useAuth();
@@ -18,6 +19,7 @@ const Dashboard: React.FC = () => {
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [highlightedActivityId, setHighlightedActivityId] = useState<number | null>(null);
 
   useEffect(() => {
     loadWeeks();
@@ -101,6 +103,27 @@ const Dashboard: React.FC = () => {
     } catch (error) {
       console.error('Failed to complete onboarding:', error);
     }
+  };
+
+  const handleSearchResultClick = async (weekId: number, activityId: number) => {
+    // Navigate to the week
+    await handleWeekSelect(weekId);
+
+    // Set highlighted activity
+    setHighlightedActivityId(activityId);
+
+    // Scroll to activity after a short delay to ensure DOM is ready
+    setTimeout(() => {
+      const activityElement = document.getElementById(`activity-${activityId}`);
+      if (activityElement) {
+        activityElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 300);
+
+    // Clear highlight after 3 seconds
+    setTimeout(() => {
+      setHighlightedActivityId(null);
+    }, 3000);
   };
 
   if (loading) {
@@ -193,6 +216,14 @@ const Dashboard: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        {/* Search Bar */}
+        <div className="mb-6">
+          <SearchBar
+            weeks={weeks}
+            onResultClick={handleSearchResultClick}
+          />
+        </div>
+
         <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-8">
           {/* Week Selector */}
           <div className="lg:col-span-1 order-1 week-selector">
@@ -211,6 +242,7 @@ const Dashboard: React.FC = () => {
                 weeks={weeks}
                 onWeekUpdate={loadWeeks}
                 isAdmin={isAdmin}
+                highlightedActivityId={highlightedActivityId}
               />
             ) : weeks.length === 0 ? (
               <div className="bg-white rounded-lg shadow p-8 text-center">
