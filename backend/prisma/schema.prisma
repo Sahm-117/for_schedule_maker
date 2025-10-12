@@ -59,6 +59,7 @@ model Activity {
   userId      String?
   day         Day      @relation(fields: [dayId], references: [id], onDelete: Cascade)
   user        User?    @relation(fields: [userId], references: [id])
+  teams       ActivityTeam[]
 
   @@index([dayId, orderIndex])
 }
@@ -123,4 +124,26 @@ enum AuditAction {
   USER_ROLE_CHANGED
   BULK_ACTIVITY_CREATE  // Cross-week operations only
   BULK_ACTIVITY_DELETE  // Cross-week operations only
+}
+
+// Team Color Tagging System
+model Team {
+  id         Int            @id @default(autoincrement())
+  name       String         @unique
+  color      String         // Hex color code (e.g., "#FF5733")
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  activities ActivityTeam[]
+}
+
+model ActivityTeam {
+  activityId Int
+  teamId     Int
+  order      Int            @default(0) // Order in which teams were selected
+  activity   Activity       @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  team       Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, teamId])
+  @@index([activityId])
+  @@index([teamId])
 }

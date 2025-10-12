@@ -1118,6 +1118,133 @@ export const usersApi = {
   },
 };
 
+// Teams API
+export const teamsApi = {
+  async getAll(): Promise<{ teams: any[] }> {
+    const { data, error } = await supabase
+      .from('Team')
+      .select('*')
+      .order('createdAt', { ascending: true });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { teams: data || [] };
+  },
+
+  async create(teamData: {
+    name: string;
+    color: string;
+  }): Promise<{ team: any }> {
+    // Validate color format (hex code)
+    if (!/^#[0-9A-F]{6}$/i.test(teamData.color)) {
+      throw new Error('Color must be a valid hex code (e.g., #FF5733)');
+    }
+
+    const { data, error } = await supabase
+      .from('Team')
+      .insert([teamData])
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') { // Unique constraint violation
+        throw new Error('A team with this name already exists');
+      }
+      throw new Error(error.message);
+    }
+
+    return { team: data };
+  },
+
+  async update(teamId: number, updateData: {
+    name?: string;
+    color?: string;
+  }): Promise<{ team: any }> {
+    // Validate color format if provided
+    if (updateData.color && !/^#[0-9A-F]{6}$/i.test(updateData.color)) {
+      throw new Error('Color must be a valid hex code (e.g., #FF5733)');
+    }
+
+    const { data, error} = await supabase
+      .from('Team')
+      .update(updateData)
+      .eq('id', teamId)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') {
+        throw new Error('A team with this name already exists');
+      }
+      throw new Error(error.message);
+    }
+
+    return { team: data };
+  },
+
+  async delete(teamId: number): Promise<{ message: string }> {
+    const { error } = await supabase
+      .from('Team')
+      .delete()
+      .eq('id', teamId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { message: 'Team deleted successfully' };
+  },
+
+  // Get teams for a specific activity
+  async getActivityTeams(activityId: number): Promise<{ teams: any[] }> {
+    const { data, error } = await supabase
+      .from('ActivityTeam')
+      .select(`
+        order,
+        Team (*)
+      `)
+      .eq('activityId', activityId)
+      .order('order', { ascending: true });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const teams = (data || []).map((at: any) => at.Team);
+    return { teams };
+  },
+
+  // Assign teams to an activity
+  async assignTeamsToActivity(activityId: number, teamIds: number[]): Promise<{ message: string }> {
+    // First, remove existing team assignments
+    await supabase
+      .from('ActivityTeam')
+      .delete()
+      .eq('activityId', activityId);
+
+    // Then add new assignments with order
+    if (teamIds.length > 0) {
+      const assignments = teamIds.map((teamId, index) => ({
+        activityId,
+        teamId,
+        order: index
+      }));
+
+      const { error } = await supabase
+        .from('ActivityTeam')
+        .insert(assignments);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+    }
+
+    return { message: 'Teams assigned successfully' };
+  },
+};
+
 // Auth token management (mock for now)
 export const setAuthToken = (token: string) => {
   localStorage.setItem('accessToken', token);
