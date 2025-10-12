@@ -49,7 +49,7 @@ const addTimelineHeader = (pdf: jsPDF, pageWidth: number, weekNumber: number): n
   pdf.setFontSize(18);
   pdf.setTextColor(...COLORS.brand.text);
   pdf.setFont('helvetica', 'normal');
-  pdf.text('Sunday Schedule', pageWidth / 2, yPosition, { align: 'center' });
+  pdf.text('Activities Schedule', pageWidth / 2, yPosition, { align: 'center' });
 
   yPosition += 10;
 
