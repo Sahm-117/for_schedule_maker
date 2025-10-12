@@ -6,6 +6,7 @@ import WeekSelector from '../components/WeekSelector';
 import ScheduleView from '../components/ScheduleView';
 import RejectedChangesNotification from '../components/RejectedChangesNotification';
 import UserManagement from '../components/UserManagement';
+import TeamManagement from '../components/TeamManagement';
 import OnboardingWalkthrough from '../components/OnboardingWalkthrough';
 import SearchBar from '../components/SearchBar';
 
@@ -16,7 +17,8 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [rejectedChanges, setRejectedChanges] = useState<RejectedChange[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [adminTab, setAdminTab] = useState<'users' | 'teams'>('users');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [highlightedActivityId, setHighlightedActivityId] = useState<number | null>(null);
@@ -185,10 +187,13 @@ const Dashboard: React.FC = () => {
               <div className="flex items-center gap-2">
                 {isAdmin && (
                   <button
-                    onClick={() => setShowUserManagement(true)}
+                    onClick={() => {
+                      setAdminTab('users');
+                      setShowAdminPanel(true);
+                    }}
                     className="user-management-btn text-xs sm:text-sm text-primary hover:text-primary-dark px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-primary hover:bg-primary/5"
                   >
-                    Manage Users
+                    Admin Panel
                   </button>
                 )}
                 <button
@@ -270,11 +275,65 @@ const Dashboard: React.FC = () => {
         </div>
       </main>
 
-      {/* User Management Modal */}
-      <UserManagement
-        isOpen={showUserManagement}
-        onClose={() => setShowUserManagement(false)}
-      />
+      {/* Admin Panel - Tabbed Modal */}
+      {adminTab === 'users' && (
+        <UserManagement
+          isOpen={showAdminPanel}
+          onClose={() => setShowAdminPanel(false)}
+        />
+      )}
+
+      {adminTab === 'teams' && showAdminPanel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="border-b border-gray-200">
+              <div className="flex items-center justify-between px-6 py-4">
+                <h2 className="text-2xl font-semibold text-gray-900">Admin Panel</h2>
+                <button
+                  onClick={() => setShowAdminPanel(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-t border-gray-200">
+                <button
+                  onClick={() => setAdminTab('users')}
+                  className="flex-1 px-6 py-3 text-sm font-medium transition-colors border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    User Management
+                  </div>
+                </button>
+                <button
+                  onClick={() => setAdminTab('teams')}
+                  className="flex-1 px-6 py-3 text-sm font-medium transition-colors border-b-2 border-primary text-primary bg-primary/5"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    Team Management
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <TeamManagement />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Onboarding Walkthrough */}
       {user && (
