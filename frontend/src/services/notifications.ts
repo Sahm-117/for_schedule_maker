@@ -23,8 +23,6 @@ interface NotificationData {
  * This calls our server-side function which handles email and Telegram
  */
 export async function sendNotifications(data: NotificationData): Promise<void> {
-  console.log(`📧 Sending ${data.type} notification to ${data.userName}...`);
-  console.log('📧 Notification data:', data);
 
   try {
     const response = await axios.post(
@@ -38,18 +36,13 @@ export async function sendNotifications(data: NotificationData): Promise<void> {
       }
     );
 
-    console.log('✅ Notification response:', response.data);
 
     if (response.data.email === 'sent') {
-      console.log('✅ Email notification sent successfully');
     } else {
-      console.warn('⚠️ Email notification failed:', response.data.errors);
     }
 
     if (response.data.telegram === 'sent') {
-      console.log('✅ Telegram notification sent successfully');
     } else {
-      console.warn('⚠️ Telegram notification failed:', response.data.errors);
     }
   } catch (error) {
     console.error('❌ Failed to send notifications:', error);

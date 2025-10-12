@@ -165,7 +165,6 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
           }
         }
 
-        console.log('📤 Submitting update with weekNumbers:', weekNumbers);
 
         await activitiesApi.update(activity.id, {
           time: time24,

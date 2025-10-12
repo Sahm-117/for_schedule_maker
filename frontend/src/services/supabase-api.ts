@@ -234,11 +234,8 @@ export const weeksApi = {
 // Activities API
 export const activitiesApi = {
   async checkDuplicates(time: string, description: string, dayName: string): Promise<{ existingWeeks: number[] }> {
-    console.log('🔍 checkDuplicates called with:', { time, description, dayName });
-
     // Normalize dayName to match database format (e.g., "SUNDAY" -> "Sunday")
     const normalizedDayName = dayName.charAt(0).toUpperCase() + dayName.slice(1).toLowerCase();
-    console.log('📝 Normalized dayName:', normalizedDayName);
 
     const { data, error } = await supabase
       .from('Activity')
@@ -258,13 +255,9 @@ export const activitiesApi = {
       throw new Error(error.message);
     }
 
-    console.log('✅ checkDuplicates found activities:', data?.length || 0);
-
     const existingWeeks = data?.map(activity =>
       (activity.Day as any)?.Week?.weekNumber
     ).filter(Boolean) || [];
-
-    console.log('📊 Existing weeks:', existingWeeks);
 
     return { existingWeeks };
   },
@@ -312,7 +305,6 @@ export const activitiesApi = {
 
         // Skip if activity already exists (prevent duplicates)
         if (existingActivity) {
-          console.log(`Skipping duplicate: ${activityData.description} at ${activityData.time} on ${originalDay.dayName} Week ${weekNumber}`);
           continue;
         }
 
@@ -434,7 +426,6 @@ export const activitiesApi = {
         .select('name, email, role')
         .or('role.eq.admin,role.eq.ADMIN');
 
-      console.log('📧 Found admins for notification:', admins);
 
       // Send email to each admin with an email
       const emailPromises = (admins || [])
@@ -467,7 +458,6 @@ export const activitiesApi = {
       });
 
       await Promise.all([...emailPromises, telegramPromise]);
-      console.log('✅ Admin notifications sent successfully');
     } catch (notifError) {
       console.error('⚠️ Failed to send admin notifications:', notifError);
       // Don't fail the request if notification fails
@@ -484,7 +474,6 @@ export const activitiesApi = {
     description: string;
     applyToWeeks?: number[];
   }): Promise<{ activities: Activity[] }> {
-    console.log('🔄 update called with:', { activityId, updateData });
 
     if (updateData.applyToWeeks && updateData.applyToWeeks.length > 0) {
       // MULTI-WEEK UPDATE: Get the ORIGINAL activity's data first
@@ -498,7 +487,6 @@ export const activitiesApi = {
         throw new Error('Activity not found');
       }
 
-      console.log('📝 Original activity:', originalActivity);
 
       const dayName = (originalActivity.Day as any)?.dayName;
       const activities = [];
@@ -513,7 +501,6 @@ export const activitiesApi = {
           .single();
 
         if (dayError || !targetDay) {
-          console.warn(`Day not found for week ${weekNumber}`);
           continue;
         }
 
@@ -528,7 +515,6 @@ export const activitiesApi = {
           .limit(1); // Only take first matching activity
 
         if (actError || !matchingActivities || matchingActivities.length === 0) {
-          console.warn(`No matching activity found in week ${weekNumber}`);
           continue;
         }
 
@@ -546,14 +532,12 @@ export const activitiesApi = {
           .single();
 
         if (!updateError && updated) {
-          console.log(`✅ Updated activity in week ${weekNumber}:`, updated.id);
           activities.push(updated);
         } else {
           console.error(`Failed to update activity in week ${weekNumber}:`, updateError);
         }
       }
 
-      console.log(`✅ Multi-week update complete: ${activities.length} activities updated`);
       return { activities };
     } else {
       // SINGLE ACTIVITY UPDATE
@@ -571,7 +555,6 @@ export const activitiesApi = {
         throw new Error(error.message);
       }
 
-      console.log('✅ Single activity updated:', data.id);
       return { activities: [data] };
     }
   },
@@ -754,7 +737,6 @@ export const pendingChangesApi = {
         .select('name, email, role')
         .or('role.eq.admin,role.eq.ADMIN');
 
-      console.log('📧 Found admins for notification:', admins);
 
       // Send email to each admin with an email
       const emailPromises = (admins || [])
@@ -1061,7 +1043,6 @@ export const rejectedChangesApi = {
 
   async markAllRead(): Promise<{ message: string; updatedCount: number }> {
     // For now, return 0 since we're not implementing this functionality yet
-    console.log('markAllRead called - returning 0 for now');
     return { message: 'All marked as read', updatedCount: 0 };
   },
 };
