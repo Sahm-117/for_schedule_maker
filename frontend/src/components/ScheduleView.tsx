@@ -324,18 +324,16 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             )}
 
             {/* Mobile: Second row - Cross-Week Activity (full width) */}
-            {isAdmin && (
-              <button
-                onClick={handleCrossWeekActivity}
-                className="add-cross-week-btn w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-primary text-primary bg-white rounded-lg hover:bg-primary/5 transition-colors text-sm"
-              >
-                <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                <span className="hidden sm:inline">Add Cross-Week Activity</span>
-                <span className="sm:hidden">Cross-Week</span>
-              </button>
-            )}
+            <button
+              onClick={handleCrossWeekActivity}
+              className="add-cross-week-btn w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-primary text-primary bg-white rounded-lg hover:bg-primary/5 transition-colors text-sm"
+            >
+              <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              <span className="hidden sm:inline">Add Cross-Week Activity</span>
+              <span className="sm:hidden">Cross-Week</span>
+            </button>
           </div>
         </div>
       </div>
