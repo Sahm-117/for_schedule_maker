@@ -1,10 +1,24 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
+import rateLimit from 'express-rate-limit';
 import { hashPassword, comparePassword, generateTokens, verifyRefreshToken } from '../utils/auth';
 import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// Rate limiting: 5 login attempts per 15 minutes per IP
+const loginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 requests per windowMs
+  message: {
+    error: 'Too many login attempts from this IP, please try again after 15 minutes'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  // Skip successful logins (only count failed attempts)
+  skipSuccessfulRequests: true,
+});
 
 router.post('/register', authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
@@ -51,7 +65,7 @@ router.post('/register', authenticateToken, requireAdmin, async (req: AuthReques
   }
 });
 
-router.post('/login', async (req, res): Promise<any> => {
+router.post('/login', loginRateLimiter, async (req, res): Promise<any> => {
   try {
     const { email, password } = req.body;
 
