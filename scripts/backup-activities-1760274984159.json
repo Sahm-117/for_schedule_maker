@@ -1,0 +1,3044 @@
+[
+  {
+    "id": 1,
+    "dayId": 7,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 2,
+    "dayId": 29,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 3,
+    "dayId": 36,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 4,
+    "dayId": 8,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 6,
+    "dayId": 43,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 7,
+    "dayId": 50,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 8,
+    "dayId": 22,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 10,
+    "dayId": 29,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 11,
+    "dayId": 36,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 12,
+    "dayId": 8,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 13,
+    "dayId": 43,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 14,
+    "dayId": 15,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 15,
+    "dayId": 50,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 16,
+    "dayId": 22,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 17,
+    "dayId": 7,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 18,
+    "dayId": 29,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 19,
+    "dayId": 36,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 20,
+    "dayId": 8,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 22,
+    "dayId": 43,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 23,
+    "dayId": 50,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 25,
+    "dayId": 7,
+    "time": "09:30",
+    "description": "Class highlights: Prayer, Individual Introduction [participants, facilitators & supports], Overview of FOF Topics, Introduction of Faith Project, groupings & choosing leaders, expectation from groups [Group Prayers, Questions & Answers, Support, etc], Introduction to FOF Disciplines [Prayer Watch Post, inspirational readings - WhatsApp & Telegram], Attendance & Counseling - (To be taken by the different facilitators)",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 26,
+    "dayId": 7,
+    "time": "09:30",
+    "description": "Deacon Olakekan Ogunnii | Introductory Class  [60 mins]",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 27,
+    "dayId": 6,
+    "time": "18:00",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 28,
+    "dayId": 35,
+    "time": "18:00",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 29,
+    "dayId": 14,
+    "time": "18:00",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 30,
+    "dayId": 42,
+    "time": "18:00",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 31,
+    "dayId": 49,
+    "time": "18:00",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 32,
+    "dayId": 21,
+    "time": "18:00",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 33,
+    "dayId": 28,
+    "time": "18:00",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 34,
+    "dayId": 56,
+    "time": "18:00",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 35,
+    "dayId": 6,
+    "time": "15:30",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 36,
+    "dayId": 35,
+    "time": "15:30",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 37,
+    "dayId": 14,
+    "time": "15:30",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 38,
+    "dayId": 42,
+    "time": "15:30",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 39,
+    "dayId": 49,
+    "time": "15:30",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 40,
+    "dayId": 21,
+    "time": "15:30",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 41,
+    "dayId": 28,
+    "time": "15:30",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 42,
+    "dayId": 56,
+    "time": "15:30",
+    "description": "Admin verifies and confirms prayer scheduling - (Admin)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 43,
+    "dayId": 6,
+    "time": "11:00",
+    "description": " Prepare and submit next week’s Prayer Watch lineup before noon (Admin)",
+    "period": "MORNING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 44,
+    "dayId": 35,
+    "time": "11:00",
+    "description": " Prepare and submit next week’s Prayer Watch lineup before noon (Admin)",
+    "period": "MORNING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 45,
+    "dayId": 4,
+    "time": "19:30",
+    "description": "Finalise and confirm media content plans (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 46,
+    "dayId": 42,
+    "time": "11:00",
+    "description": " Prepare and submit next week’s Prayer Watch lineup before noon (Admin)",
+    "period": "MORNING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 47,
+    "dayId": 14,
+    "time": "11:00",
+    "description": " Prepare and submit next week’s Prayer Watch lineup before noon (Admin)",
+    "period": "MORNING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 48,
+    "dayId": 33,
+    "time": "19:30",
+    "description": "Finalise and confirm media content plans (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 49,
+    "dayId": 21,
+    "time": "11:00",
+    "description": " Prepare and submit next week’s Prayer Watch lineup before noon (Admin)",
+    "period": "MORNING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 50,
+    "dayId": 34,
+    "time": "17:00",
+    "description": "Responding group (10) begin posting answers for Q&A - (Class Management)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 51,
+    "dayId": 40,
+    "time": "19:30",
+    "description": "Finalise and confirm media content plans (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 52,
+    "dayId": 49,
+    "time": "11:00",
+    "description": " Prepare and submit next week’s Prayer Watch lineup before noon (Admin)",
+    "period": "MORNING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 53,
+    "dayId": 4,
+    "time": "17:00",
+    "description": "Second follow-up on faith discipline progress (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 54,
+    "dayId": 56,
+    "time": "11:00",
+    "description": " Prepare and submit next week’s Prayer Watch lineup before noon (Admin)",
+    "period": "MORNING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 57,
+    "dayId": 28,
+    "time": "11:00",
+    "description": " Prepare and submit next week’s Prayer Watch lineup before noon (Admin)",
+    "period": "MORNING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 61,
+    "dayId": 47,
+    "time": "19:30",
+    "description": "Finalise and confirm media content plans (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 63,
+    "dayId": 54,
+    "time": "19:30",
+    "description": "Finalise and confirm media content plans (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 65,
+    "dayId": 20,
+    "time": "17:00",
+    "description": "Responding group (6) begin posting answers for Q&A (Class Management)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 69,
+    "dayId": 5,
+    "time": "17:00",
+    "description": "Responding group (2) begin posting answers for Q&A - (Class Management)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 72,
+    "dayId": 4,
+    "time": "16:00",
+    "description": "Post Q&A manual and questions; Group 1, prompting response from Group 2 (Class Management)",
+    "period": "AFTERNOON",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 73,
+    "dayId": 13,
+    "time": "17:00",
+    "description": "Responding group (4) begin posting answers for Q&A - (Class Management)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 74,
+    "dayId": 12,
+    "time": "19:30",
+    "description": "Finalise and confirm media content plans (Media)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 75,
+    "dayId": 33,
+    "time": "16:00",
+    "description": "Post Q&A manual and questions; Group 9, prompting response from group 10 (Class Management)",
+    "period": "AFTERNOON",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 79,
+    "dayId": 40,
+    "time": "16:00",
+    "description": "Post Class manual (Class Management)",
+    "period": "AFTERNOON",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 80,
+    "dayId": 32,
+    "time": "19:30",
+    "description": "Book Club progress report and update - (Book Club)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 81,
+    "dayId": 3,
+    "time": "19:30",
+    "description": "Report on group prayers (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 84,
+    "dayId": 12,
+    "time": "16:00",
+    "description": "Post Q&A manual and questions Group 3, prompting response from Group 4 (Class Management)",
+    "period": "AFTERNOON",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 85,
+    "dayId": 3,
+    "time": "19:30",
+    "description": "Book Club progress report and update - (Book Club)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 86,
+    "dayId": 3,
+    "time": "19:30",
+    "description": "Hold midweek supports’ meeting for review and assessment (Admin)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 87,
+    "dayId": 32,
+    "time": "19:30",
+    "description": "Report on group prayers (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 90,
+    "dayId": 19,
+    "time": "16:00",
+    "description": "Post Q&A manual and questions; Group 5, prompting response from Group 6 (Class Management)",
+    "period": "AFTERNOON",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 91,
+    "dayId": 32,
+    "time": "19:30",
+    "description": "Hold midweek supports’ meeting for review and assessment (Admin)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 92,
+    "dayId": 11,
+    "time": "19:30",
+    "description": "Book Club progress report and update - (Book Club)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 93,
+    "dayId": 26,
+    "time": "19:30",
+    "description": "Finalise and confirm media content plans (Media)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 94,
+    "dayId": 27,
+    "time": "17:00",
+    "description": "Responding groups begin posting answers for Q&A - (Class Management)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 95,
+    "dayId": 47,
+    "time": "16:00",
+    "description": "Post Class manual (Class Management)",
+    "period": "AFTERNOON",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 96,
+    "dayId": 39,
+    "time": "19:30",
+    "description": "Report on group prayers (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 97,
+    "dayId": 39,
+    "time": "19:30",
+    "description": "Hold midweek supports’ meeting for review and assessment (Admin)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 98,
+    "dayId": 39,
+    "time": "19:30",
+    "description": "Book Club progress report and update - (Book Club)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 101,
+    "dayId": 11,
+    "time": "19:30",
+    "description": "Report on group prayers (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 102,
+    "dayId": 11,
+    "time": "19:30",
+    "description": "Hold midweek supports’ meeting for review and assessment (Admin)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 103,
+    "dayId": 18,
+    "time": "19:30",
+    "description": "Book Club progress report and update - (Book Club)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 104,
+    "dayId": 54,
+    "time": "16:00",
+    "description": "Post Class manual (Class Management)",
+    "period": "AFTERNOON",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 105,
+    "dayId": 18,
+    "time": "19:30",
+    "description": "Report on group prayers (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 106,
+    "dayId": 18,
+    "time": "19:30",
+    "description": "Hold midweek supports’ meeting for review and assessment (Admin)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 108,
+    "dayId": 46,
+    "time": "19:30",
+    "description": "Book Club progress report and update - (Book Club)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 109,
+    "dayId": 46,
+    "time": "19:30",
+    "description": "Report on group prayers (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 110,
+    "dayId": 46,
+    "time": "19:30",
+    "description": "Hold midweek supports’ meeting for review and assessment (Admin)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 113,
+    "dayId": 25,
+    "time": "19:30",
+    "description": "Report on group prayers (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 115,
+    "dayId": 25,
+    "time": "19:30",
+    "description": "Hold midweek supports’ meeting for review and assessment (Admin)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 116,
+    "dayId": 32,
+    "time": "19:30",
+    "description": "Verify accountability partner updates (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 118,
+    "dayId": 53,
+    "time": "19:30",
+    "description": "Book Club progress report and update - (Book Club)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 120,
+    "dayId": 53,
+    "time": "19:30",
+    "description": "Report on group prayers (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 121,
+    "dayId": 3,
+    "time": "19:30",
+    "description": "Verify accountability partner updates (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 122,
+    "dayId": 53,
+    "time": "19:30",
+    "description": "Hold midweek supports’ meeting for review and assessment (Admin)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 126,
+    "dayId": 11,
+    "time": "19:30",
+    "description": "Verify accountability partner updates (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 130,
+    "dayId": 39,
+    "time": "19:30",
+    "description": "Verify accountability partner updates (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 131,
+    "dayId": 26,
+    "time": "16:00",
+    "description": "Post Q&A manual and questions; Group 5, prompting response Group 6 - (Class Management)",
+    "period": "AFTERNOON",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 133,
+    "dayId": 2,
+    "time": "17:00",
+    "description": "Conduct the first follow-up on faith discipline participation - (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 135,
+    "dayId": 18,
+    "time": "19:30",
+    "description": "Verify accountability partner updates (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 139,
+    "dayId": 46,
+    "time": "19:30",
+    "description": "Verify accountability partner updates (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 142,
+    "dayId": 25,
+    "time": "19:30",
+    "description": "Verify accountability partner updates (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 144,
+    "dayId": 25,
+    "time": "19:30",
+    "description": "Book Club progress report and update - (Book Club)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 145,
+    "dayId": 53,
+    "time": "19:30",
+    "description": "Verify accountability partner updates (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 150,
+    "dayId": 1,
+    "time": "17:00",
+    "description": "Post Faith discipline materials for the week (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 151,
+    "dayId": 2,
+    "time": "16:00",
+    "description": "Supports check-ins with accountability partners. (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 152,
+    "dayId": 2,
+    "time": "18:30",
+    "description": "Media Posts (Media)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 153,
+    "dayId": 2,
+    "time": "19:30",
+    "description": "Media meets with groups to plan and finalise content; Start from the Last Group 10 & 9 - (Media)",
+    "period": "EVENING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 154,
+    "dayId": 31,
+    "time": "18:30",
+    "description": "Media Posts (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 155,
+    "dayId": 31,
+    "time": "19:30",
+    "description": "Media meets with groups to plan and finalise content; Group 2 & 1 (Media)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 156,
+    "dayId": 38,
+    "time": "18:30",
+    "description": "Media Posts (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 157,
+    "dayId": 38,
+    "time": "19:30",
+    "description": "Media meets with groups to plan and finalise content; Group 11 & 10 (Media)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 158,
+    "dayId": 10,
+    "time": "18:30",
+    "description": "Media Posts (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 159,
+    "dayId": 10,
+    "time": "19:30",
+    "description": "Media meets with groups to plan and finalise content; Group 8 & 7 (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 160,
+    "dayId": 17,
+    "time": "18:30",
+    "description": "Media Posts (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 161,
+    "dayId": 17,
+    "time": "19:30",
+    "description": "Media meets with groups to plan and finalise content; Group 5 & 6 (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 162,
+    "dayId": 45,
+    "time": "18:30",
+    "description": "Media Posts (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 163,
+    "dayId": 45,
+    "time": "19:30",
+    "description": "Media meets with groups to plan and finalise content; Group 8 & 9 (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 164,
+    "dayId": 24,
+    "time": "18:30",
+    "description": "Media Posts (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 165,
+    "dayId": 24,
+    "time": "19:30",
+    "description": "Media meets with groups to plan and finalise content; Group 4 & 3 - (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 166,
+    "dayId": 52,
+    "time": "18:30",
+    "description": "Media Posts (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 167,
+    "dayId": 52,
+    "time": "19:30",
+    "description": "Media meets with groups to plan and finalise content; Group 6 & 7 (Media)",
+    "period": "EVENING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 168,
+    "dayId": 1,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 169,
+    "dayId": 30,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 170,
+    "dayId": 37,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 171,
+    "dayId": 9,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 173,
+    "dayId": 44,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 174,
+    "dayId": 51,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 175,
+    "dayId": 23,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 1,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 176,
+    "dayId": 1,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 177,
+    "dayId": 30,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 178,
+    "dayId": 37,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 179,
+    "dayId": 9,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 180,
+    "dayId": 16,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 181,
+    "dayId": 44,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 182,
+    "dayId": 51,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 183,
+    "dayId": 23,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 192,
+    "dayId": 2,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 193,
+    "dayId": 2,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 194,
+    "dayId": 31,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 195,
+    "dayId": 38,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 196,
+    "dayId": 10,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 198,
+    "dayId": 45,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 199,
+    "dayId": 52,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 200,
+    "dayId": 24,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 201,
+    "dayId": 4,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 202,
+    "dayId": 6,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 203,
+    "dayId": 33,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 205,
+    "dayId": 35,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 206,
+    "dayId": 40,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 207,
+    "dayId": 5,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 209,
+    "dayId": 42,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 210,
+    "dayId": 12,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 211,
+    "dayId": 34,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 212,
+    "dayId": 3,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 214,
+    "dayId": 14,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 216,
+    "dayId": 1,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 217,
+    "dayId": 41,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 218,
+    "dayId": 32,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 221,
+    "dayId": 47,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 222,
+    "dayId": 30,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 223,
+    "dayId": 13,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 224,
+    "dayId": 39,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 226,
+    "dayId": 49,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 227,
+    "dayId": 54,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 228,
+    "dayId": 37,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 230,
+    "dayId": 11,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 232,
+    "dayId": 56,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 233,
+    "dayId": 26,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 234,
+    "dayId": 9,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 235,
+    "dayId": 48,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 238,
+    "dayId": 28,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 240,
+    "dayId": 55,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 241,
+    "dayId": 46,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 242,
+    "dayId": 22,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 243,
+    "dayId": 44,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 244,
+    "dayId": 27,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 245,
+    "dayId": 53,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 246,
+    "dayId": 51,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 247,
+    "dayId": 25,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 248,
+    "dayId": 23,
+    "time": "21:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 268,
+    "dayId": 5,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 269,
+    "dayId": 13,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 271,
+    "dayId": 27,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 272,
+    "dayId": 34,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 273,
+    "dayId": 41,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 274,
+    "dayId": 48,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 275,
+    "dayId": 55,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 276,
+    "dayId": 4,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 277,
+    "dayId": 12,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 279,
+    "dayId": 26,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 280,
+    "dayId": 33,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 281,
+    "dayId": 40,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 282,
+    "dayId": 47,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 283,
+    "dayId": 54,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 284,
+    "dayId": 3,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 285,
+    "dayId": 11,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 286,
+    "dayId": 18,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 287,
+    "dayId": 25,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 288,
+    "dayId": 32,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 289,
+    "dayId": 39,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 290,
+    "dayId": 46,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 291,
+    "dayId": 53,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 292,
+    "dayId": 11,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 293,
+    "dayId": 32,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 294,
+    "dayId": 3,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 295,
+    "dayId": 39,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 296,
+    "dayId": 46,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 297,
+    "dayId": 53,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 298,
+    "dayId": 25,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 306,
+    "dayId": 14,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 308,
+    "dayId": 28,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 309,
+    "dayId": 35,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 310,
+    "dayId": 42,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 311,
+    "dayId": 49,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 330,
+    "dayId": 10,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 332,
+    "dayId": 24,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 333,
+    "dayId": 31,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 334,
+    "dayId": 38,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 335,
+    "dayId": 45,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 336,
+    "dayId": 28,
+    "time": "12:00",
+    "description": "Conduct Group Performance Review (Admin/Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 337,
+    "dayId": 56,
+    "time": "12:00",
+    "description": "Conduct Group Performance Review (Admin/Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 338,
+    "dayId": 29,
+    "time": "19:30",
+    "description": "Prepare Next Faith Discipline and Support Training Manual\n(Support Team)",
+    "period": "EVENING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 339,
+    "dayId": 29,
+    "time": "19:30",
+    "description": "Initiate Role Understudy and Review Progress\n(Admin/Team Leads)",
+    "period": "EVENING",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 340,
+    "dayId": 36,
+    "time": "19:30",
+    "description": "Initiate Role Understudy and Review Progress\n(Admin/Team Leads)",
+    "period": "EVENING",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 341,
+    "dayId": 43,
+    "time": "19:30",
+    "description": "Initiate Role Understudy and Review Progress\n(Admin/Team Leads)",
+    "period": "EVENING",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 342,
+    "dayId": 50,
+    "time": "19:30",
+    "description": "Initiate Role Understudy and Review Progress\n(Admin/Team Leads)",
+    "period": "EVENING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 343,
+    "dayId": 36,
+    "time": "16:00",
+    "description": "Encourage Participants to Volunteer for FOF department or units. \n(Group Support)  ",
+    "period": "AFTERNOON",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 344,
+    "dayId": 43,
+    "time": "16:00",
+    "description": "Encourage Participants to Volunteer for FOF department or units. \n(Group Support)  ",
+    "period": "AFTERNOON",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 345,
+    "dayId": 50,
+    "time": "16:00",
+    "description": "Encourage Participants to Volunteer for FOF department or units. \n(Group Support)  ",
+    "period": "AFTERNOON",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 346,
+    "dayId": 49,
+    "time": "16:00",
+    "description": "Prepare FOF 7 Report (Admin)",
+    "period": "AFTERNOON",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 347,
+    "dayId": 56,
+    "time": "16:00",
+    "description": "Prepare and Review FOF 7 Report (Finalisation)\n(Admin)",
+    "period": "AFTERNOON",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 348,
+    "dayId": 50,
+    "time": "19:30",
+    "description": "Planning and Preparation for next FOF session.\n(Operational Supports)",
+    "period": "EVENING",
+    "orderIndex": 7,
+    "userId": "1827edd0-65e8-4aaf-9227-08d6fe9225a2"
+  },
+  {
+    "id": 349,
+    "dayId": 10,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 4,
+    "userId": "11b8a514-aabf-4566-9dbd-184e955e9090"
+  },
+  {
+    "id": 350,
+    "dayId": 5,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 351,
+    "dayId": 7,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 352,
+    "dayId": 2,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 353,
+    "dayId": 4,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 354,
+    "dayId": 6,
+    "time": "06:00",
+    "description": "Prayer Watch Post (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 355,
+    "dayId": 6,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 356,
+    "dayId": 6,
+    "time": "10:00",
+    "description": "Responding group(2) continue posting answers for Q&A - (Class Management)",
+    "period": "MORNING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 357,
+    "dayId": 8,
+    "time": "09:30",
+    "description": "Class 2 - New Creation Realities | Mrs Osaretin Kevin-Sadhere ",
+    "period": "MORNING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 358,
+    "dayId": 1,
+    "time": "20:00",
+    "description": "Groups meet to review Q&A questions received on Sunday; Group 1 (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 359,
+    "dayId": 9,
+    "time": "20:00",
+    "description": "Groups meet to review Q&A questions received on Sunday; Group 3 (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 360,
+    "dayId": 12,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 361,
+    "dayId": 13,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 362,
+    "dayId": 14,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 363,
+    "dayId": 14,
+    "time": "10:00",
+    "description": "Responding group(4) continue posting answers for Q&A (Class Management)",
+    "period": "MORNING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 364,
+    "dayId": 21,
+    "time": "21:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 365,
+    "dayId": 21,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 366,
+    "dayId": 21,
+    "time": "06:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 367,
+    "dayId": 20,
+    "time": "21:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 369,
+    "dayId": 20,
+    "time": "06:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 370,
+    "dayId": 19,
+    "time": "21:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 371,
+    "dayId": 19,
+    "time": "06:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 373,
+    "dayId": 19,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 374,
+    "dayId": 20,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 376,
+    "dayId": 18,
+    "time": "09:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 377,
+    "dayId": 18,
+    "time": "15:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 378,
+    "dayId": 18,
+    "time": "06:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 10,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 379,
+    "dayId": 17,
+    "time": "21:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 2,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 380,
+    "dayId": 17,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 381,
+    "dayId": 17,
+    "time": "06:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 382,
+    "dayId": 16,
+    "time": "21:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 384,
+    "dayId": 16,
+    "time": "06:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 385,
+    "dayId": 15,
+    "time": "21:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 3,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 387,
+    "dayId": 15,
+    "time": "06:00",
+    "description": "Prayer Watch (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 390,
+    "dayId": 15,
+    "time": "09:30",
+    "description": "Class 3 - Integrity of God's word | ",
+    "period": "MORNING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 391,
+    "dayId": 16,
+    "time": "20:00",
+    "description": "Groups meet to review Q&A questions received on Sunday; Group 5 (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 392,
+    "dayId": 19,
+    "time": "19:30",
+    "description": "Finalise and confirm media content plans (Media)",
+    "period": "EVENING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 393,
+    "dayId": 21,
+    "time": "10:00",
+    "description": "Responding group (6) continue posting answers for Q&A (Class Management)",
+    "period": "MORNING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 395,
+    "dayId": 50,
+    "time": "18:30",
+    "description": "Groups Review Reminder and Scheduling (Admin)",
+    "period": "EVENING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 396,
+    "dayId": 50,
+    "time": "15:00",
+    "description": "Report all contents gathered for FOF",
+    "period": "AFTERNOON",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 397,
+    "dayId": 50,
+    "time": "15:00",
+    "description": "Group Review",
+    "period": "AFTERNOON",
+    "orderIndex": 10,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 398,
+    "dayId": 22,
+    "time": "09:30",
+    "description": "Class 4 - The Holy Spirit | ",
+    "period": "MORNING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 399,
+    "dayId": 29,
+    "time": "19:30",
+    "description": "Preparation of Supports Training Materials Starts ",
+    "period": "EVENING",
+    "orderIndex": 10,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 401,
+    "dayId": 29,
+    "time": "09:30",
+    "description": "Class 5 - What is Faith? | ",
+    "period": "MORNING",
+    "orderIndex": 11,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 403,
+    "dayId": 31,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 404,
+    "dayId": 24,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 405,
+    "dayId": 30,
+    "time": "20:00",
+    "description": "Groups meet to review Q&A questions received on Sunday; Group 9 (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 406,
+    "dayId": 31,
+    "time": "16:00",
+    "description": "Supports check-ins with accountability partners. (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 407,
+    "dayId": 33,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 408,
+    "dayId": 34,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 409,
+    "dayId": 35,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 410,
+    "dayId": 35,
+    "time": "10:00",
+    "description": "Responding group (10) continue posting answers for Q&A - (Class Management)",
+    "period": "MORNING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 414,
+    "dayId": 38,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 415,
+    "dayId": 40,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 416,
+    "dayId": 41,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 417,
+    "dayId": 45,
+    "time": "14:00",
+    "description": "Inspirational Scriptures (Group Support)",
+    "period": "AFTERNOON",
+    "orderIndex": 4,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 418,
+    "dayId": 43,
+    "time": "09:30",
+    "description": "Class 7 - Prayer | ",
+    "period": "MORNING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 419,
+    "dayId": 50,
+    "time": "09:30",
+    "description": "Class 8 - Love | ",
+    "period": "MORNING",
+    "orderIndex": 11,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 420,
+    "dayId": 36,
+    "time": "09:30",
+    "description": "Class 6 - Praise & Worship |",
+    "period": "MORNING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 421,
+    "dayId": 7,
+    "time": "19:30",
+    "description": "General FOF Team Meeting (Admin)",
+    "period": "EVENING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 422,
+    "dayId": 8,
+    "time": "19:30",
+    "description": "General FOF Team Meeting (Admin)",
+    "period": "EVENING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 423,
+    "dayId": 36,
+    "time": "19:30",
+    "description": "General FOF Team Meeting (Admin)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 424,
+    "dayId": 29,
+    "time": "19:30",
+    "description": "General FOF Team Meeting (Admin)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 425,
+    "dayId": 43,
+    "time": "19:30",
+    "description": "General FOF Team Meeting (Admin)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 426,
+    "dayId": 15,
+    "time": "19:30",
+    "description": "General FOF Team Meeting (Admin)",
+    "period": "EVENING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 427,
+    "dayId": 22,
+    "time": "19:30",
+    "description": "General FOF Team Meeting (Admin)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 428,
+    "dayId": 50,
+    "time": "19:30",
+    "description": "General FOF Team Meeting (Admin)",
+    "period": "EVENING",
+    "orderIndex": 12,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 429,
+    "dayId": 15,
+    "time": "11:30",
+    "description": "Groups Review Reminder and Scheduling (Admin)",
+    "period": "MORNING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 430,
+    "dayId": 15,
+    "time": "19:30",
+    "description": "Reports on all contents gathered for FOF (Admin)",
+    "period": "EVENING",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 433,
+    "dayId": 23,
+    "time": "20:00",
+    "description": "Groups meet to review Q&A questions received on Sunday; Group 7 (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 5,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 434,
+    "dayId": 7,
+    "time": "18:00",
+    "description": "Send the next class manual to Group Support (Class Management)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 435,
+    "dayId": 29,
+    "time": "18:00",
+    "description": "Send the next class manual to Group Support (Class Management)",
+    "period": "EVENING",
+    "orderIndex": 12,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 436,
+    "dayId": 36,
+    "time": "18:00",
+    "description": "Send the next class manual to Group Support (Class Management)",
+    "period": "EVENING",
+    "orderIndex": 11,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 437,
+    "dayId": 8,
+    "time": "18:00",
+    "description": "Send the next class manual to Group Support (Class Management)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 438,
+    "dayId": 15,
+    "time": "18:00",
+    "description": "Send the next class manual to Group Support (Class Management)",
+    "period": "EVENING",
+    "orderIndex": 10,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 439,
+    "dayId": 43,
+    "time": "18:00",
+    "description": "Send the next class manual to Group Support (Class Management)",
+    "period": "EVENING",
+    "orderIndex": 10,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 440,
+    "dayId": 50,
+    "time": "18:00",
+    "description": "Send the next class manual to Group Support (Class Management)",
+    "period": "EVENING",
+    "orderIndex": 13,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 441,
+    "dayId": 22,
+    "time": "18:00",
+    "description": "Send the next class manual to Group Support (Class Management)",
+    "period": "EVENING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 442,
+    "dayId": 29,
+    "time": "19:30",
+    "description": "Departmental Volunteering starts (Group supports talk personally with participant)",
+    "period": "EVENING",
+    "orderIndex": 13,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 450,
+    "dayId": 11,
+    "time": "18:00",
+    "description": "Initiate Support Backup Activities (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 451,
+    "dayId": 18,
+    "time": "18:00",
+    "description": "Initiate Support Backup Activities (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 11,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 452,
+    "dayId": 25,
+    "time": "18:00",
+    "description": "Initiate Support Backup Activities (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 453,
+    "dayId": 32,
+    "time": "18:00",
+    "description": "Initiate Support Backup Activities (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 10,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 454,
+    "dayId": 39,
+    "time": "18:00",
+    "description": "Initiate Support Backup Activities (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 455,
+    "dayId": 46,
+    "time": "18:00",
+    "description": "Initiate Support Backup Activities (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 456,
+    "dayId": 53,
+    "time": "18:00",
+    "description": "Initiate Support Backup Activities (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 457,
+    "dayId": 3,
+    "time": "18:00",
+    "description": "Initiate Support Backup Activities (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 458,
+    "dayId": 6,
+    "time": "18:00",
+    "description": "Handover Support Activities to Next Support (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 459,
+    "dayId": 14,
+    "time": "18:00",
+    "description": "Handover Support Activities to Next Support (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 460,
+    "dayId": 35,
+    "time": "18:00",
+    "description": "Handover Support Activities to Next Support (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 461,
+    "dayId": 42,
+    "time": "18:00",
+    "description": "Handover Support Activities to Next Support (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 6,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 462,
+    "dayId": 49,
+    "time": "18:00",
+    "description": "Handover Support Activities to Next Support (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 463,
+    "dayId": 21,
+    "time": "18:00",
+    "description": "Handover Support Activities to Next Support (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 464,
+    "dayId": 28,
+    "time": "18:00",
+    "description": "Handover Support Activities to Next Support (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 465,
+    "dayId": 56,
+    "time": "18:00",
+    "description": "Handover Support Activities to Next Support (Group Support)",
+    "period": "EVENING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 466,
+    "dayId": 8,
+    "time": "05:45",
+    "description": "Next Support to practicalize postings (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 467,
+    "dayId": 15,
+    "time": "05:45",
+    "description": "Next Support to practicalize postings (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 11,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 468,
+    "dayId": 22,
+    "time": "05:45",
+    "description": "Next Support to practicalize postings (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 469,
+    "dayId": 29,
+    "time": "05:45",
+    "description": "Next Support to practicalize postings (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 14,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 470,
+    "dayId": 36,
+    "time": "05:45",
+    "description": "Next Support to practicalize postings (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 12,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 471,
+    "dayId": 43,
+    "time": "05:45",
+    "description": "Next Support to practicalize postings (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 11,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 472,
+    "dayId": 50,
+    "time": "05:45",
+    "description": "Next Support to practicalize postings (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 14,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 473,
+    "dayId": 14,
+    "time": "05:45",
+    "description": "Next Support to practicalize postings (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 474,
+    "dayId": 21,
+    "time": "05:45",
+    "description": "Next Support to practicalize postings (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 475,
+    "dayId": 28,
+    "time": "05:45",
+    "description": "Next Support to practicalize postings (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 476,
+    "dayId": 35,
+    "time": "05:45",
+    "description": "Next Support to practicalize postings (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 9,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 477,
+    "dayId": 42,
+    "time": "05:45",
+    "description": "Next Support to practicalize postings (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 7,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 478,
+    "dayId": 49,
+    "time": "05:45",
+    "description": "Next Support to practicalize postings (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  },
+  {
+    "id": 479,
+    "dayId": 56,
+    "time": "05:45",
+    "description": "Next Support to practicalize postings (Group Support)",
+    "period": "MORNING",
+    "orderIndex": 8,
+    "userId": "a0000000-0000-4000-8000-000000000002"
+  }
+]
