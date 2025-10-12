@@ -17,6 +17,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ weeks, onResultClick }) => {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [showAllResultsModal, setShowAllResultsModal] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -102,6 +103,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ weeks, onResultClick }) => {
   const handleResultClick = (result: SearchResult) => {
     onResultClick(result.week.id, result.activity.id);
     setIsOpen(false);
+    setShowAllResultsModal(false);
+  };
+
+  const handleViewAllResults = () => {
+    setIsOpen(false);
+    setShowAllResultsModal(true);
   };
 
   const getDayDisplayName = (dayName: string) => {
@@ -251,9 +258,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ weeks, onResultClick }) => {
           {/* View All Results Footer */}
           {hasMoreResults && (
             <div className="sticky bottom-0 bg-gray-50 px-4 py-3 border-t border-gray-200">
-              <p className="text-xs text-gray-600 text-center">
-                Showing first 10 results • {results.length - 10} more available
-              </p>
+              <button
+                onClick={handleViewAllResults}
+                className="w-full text-sm text-primary hover:text-primary-dark font-medium transition-colors"
+              >
+                View All {results.length} Results →
+              </button>
             </div>
           )}
         </div>
@@ -269,6 +279,78 @@ const SearchBar: React.FC<SearchBarProps> = ({ weeks, onResultClick }) => {
           <p className="text-xs text-gray-500">
             No activities match "{searchTerm}"
           </p>
+        </div>
+      )}
+
+      {/* All Results Modal */}
+      {showAllResultsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[85vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-200 rounded-t-lg flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Search Results
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Found {results.length} activit{results.length !== 1 ? 'ies' : 'y'} matching "{searchTerm}"
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAllResultsModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-3">
+                {results.map((result, index) => (
+                  <button
+                    key={`${result.week.id}-${result.day.id}-${result.activity.id}-${index}`}
+                    onClick={() => handleResultClick(result)}
+                    className="w-full px-4 py-3 bg-white hover:bg-gray-50 text-left transition-colors border border-gray-200 rounded-lg"
+                  >
+                    {/* Location Context */}
+                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                      <span className="font-medium text-primary">Week {result.week.weekNumber}</span>
+                      <span>→</span>
+                      <span>{getDayDisplayName(result.day.dayName)}</span>
+                      <span>→</span>
+                      <span className="flex items-center gap-1">
+                        <span>{getPeriodEmoji(result.activity.period)}</span>
+                        <span className="capitalize">{result.activity.period.toLowerCase()}</span>
+                      </span>
+                    </div>
+
+                    {/* Activity Details */}
+                    <div className="flex items-start gap-3">
+                      <span className="text-sm font-medium text-gray-600 flex-shrink-0">
+                        {result.activity.time}
+                      </span>
+                      <p className="text-sm text-gray-900 flex-1">
+                        {highlightMatch(result.activity.description, searchTerm)}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t border-gray-200 rounded-b-lg">
+              <button
+                onClick={() => setShowAllResultsModal(false)}
+                className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
