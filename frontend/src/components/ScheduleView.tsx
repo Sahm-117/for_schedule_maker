@@ -35,6 +35,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const [showHistory, setShowHistory] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
   const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [isExportingWeek, setIsExportingWeek] = useState(false);
+  const [isExportingAllWeeks, setIsExportingAllWeeks] = useState(false);
   const [multiWeekDeleteOpen, setMultiWeekDeleteOpen] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState<Activity | null>(null);
   const [existingWeeksForDelete, setExistingWeeksForDelete] = useState<number[]>([]);
@@ -175,17 +177,23 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   const handleExportWeek = async () => {
     try {
+      setIsExportingWeek(true);
       await exportWeekToPDF(week, { includeEmptyDays: false });
     } catch (error) {
       console.error('Failed to export week:', error);
+    } finally {
+      setIsExportingWeek(false);
     }
   };
 
   const handleExportAllWeeks = async () => {
     try {
+      setIsExportingAllWeeks(true);
       await exportAllWeeksToPDF(weeks, { includeEmptyDays: false });
     } catch (error) {
       console.error('Failed to export all weeks:', error);
+    } finally {
+      setIsExportingAllWeeks(false);
     }
   };
 
@@ -251,13 +259,21 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                     e.preventDefault();
                     setShowExportDropdown(!showExportDropdown);
                   }}
-                  className="export-btn w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-green-200 text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-sm group"
+                  disabled={isExportingWeek || isExportingAllWeeks}
+                  className="export-btn w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-green-200 text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-sm group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span className="hidden sm:inline">Export Week</span>
-                  <span className="sm:hidden">Export</span>
+                  {isExportingWeek ? (
+                    <svg className="w-4 h-4 mr-1 sm:mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  )}
+                  <span className="hidden sm:inline">{isExportingWeek ? 'Exporting...' : 'Export Week'}</span>
+                  <span className="sm:hidden">{isExportingWeek ? 'Exporting...' : 'Export'}</span>
                   <svg
                     className="w-4 h-4 ml-1 sm:ml-2 cursor-pointer"
                     fill="none"
@@ -284,24 +300,40 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                           handleExportWeek();
                           setShowExportDropdown(false);
                         }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 rounded-t-lg flex items-center"
+                        disabled={isExportingWeek || isExportingAllWeeks}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 rounded-t-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Export Current Week
+                        {isExportingWeek ? (
+                          <svg className="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        )}
+                        {isExportingWeek ? 'Exporting...' : 'Export Current Week'}
                       </button>
                       <button
                         onClick={() => {
                           handleExportAllWeeks();
                           setShowExportDropdown(false);
                         }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-b-lg flex items-center"
+                        disabled={isExportingWeek || isExportingAllWeeks}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-b-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Export All Weeks
+                        {isExportingAllWeeks ? (
+                          <svg className="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        )}
+                        {isExportingAllWeeks ? 'Exporting...' : 'Export All Weeks'}
                       </button>
                     </div>
                   </>
