@@ -14,14 +14,16 @@ datasource db {
 }
 
 model User {
-  id                   String          @id @default(uuid())
-  email                String          @unique
-  name                 String
-  password_hash        String
-  role                 Role            @default(SUPPORT)
-  onboardingCompleted  Boolean         @default(false)
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
+  id                     String          @id @default(uuid())
+  email                  String          @unique
+  name                   String
+  password_hash          String
+  role                   Role            @default(SUPPORT)
+  onboardingCompleted    Boolean         @default(false)
+  onboardingReplayCount  Int             @default(0)
+  onboardingLastReplayAt DateTime?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
 
   activities       Activity[]
   pendingChanges   PendingChange[]

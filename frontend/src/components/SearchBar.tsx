@@ -158,7 +158,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ weeks, onResultClick }) => {
   const hasMoreResults = results.length > 10;
 
   return (
-    <div ref={searchRef} className="relative w-full">
+    <div ref={searchRef} className="relative w-full search-bar">
       {/* Search Input */}
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

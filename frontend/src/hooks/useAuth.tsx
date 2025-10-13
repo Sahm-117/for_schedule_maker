@@ -9,6 +9,7 @@ interface AuthContextType {
   logout: () => void;
   isAdmin: boolean;
   completeOnboarding: () => Promise<void>;
+  replayOnboarding: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -58,6 +59,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const replayOnboarding = async () => {
+    try {
+      const response = await authApi.replayOnboarding();
+      setUser(response.user);
+    } catch (error) {
+      console.error('Failed to replay onboarding:', error);
+      throw error;
+    }
+  };
+
   const checkAuth = async () => {
     const token = localStorage.getItem('accessToken');
 
@@ -92,6 +103,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     isAdmin: user?.role === 'ADMIN',
     completeOnboarding,
+    replayOnboarding,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -91,6 +91,11 @@ export const authApi = USE_SUPABASE ? supabaseAuthApi : {
     const response = await api.patch('/auth/onboarding/complete');
     return response.data;
   },
+
+  async replayOnboarding(): Promise<{ user: User }> {
+    const response = await api.post('/auth/onboarding/replay');
+    return response.data;
+  },
 };
 
 // Weeks API

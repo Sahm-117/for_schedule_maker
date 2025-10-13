@@ -99,6 +99,36 @@ export const authApi = {
 
     return { user: data };
   },
+
+  async replayOnboarding(): Promise<{ user: User }> {
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      throw new Error('No user logged in');
+    }
+
+    // Get current count first
+    const { data: currentUser } = await supabase
+      .from('User')
+      .select('onboardingReplayCount')
+      .eq('id', userId)
+      .single();
+
+    const { data, error } = await supabase
+      .from('User')
+      .update({
+        onboardingReplayCount: (currentUser?.onboardingReplayCount || 0) + 1,
+        onboardingLastReplayAt: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { user: data };
+  },
 };
 
 // Weeks API

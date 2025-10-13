@@ -8,10 +8,12 @@ import RejectedChangesNotification from '../components/RejectedChangesNotificati
 import UserManagement from '../components/UserManagement';
 import TeamManagement from '../components/TeamManagement';
 import OnboardingWalkthrough from '../components/OnboardingWalkthrough';
+import WelcomeModal from '../components/WelcomeModal';
+import QuickStartChecklist from '../components/QuickStartChecklist';
 import SearchBar from '../components/SearchBar';
 
 const Dashboard: React.FC = () => {
-  const { user, logout, isAdmin, completeOnboarding } = useAuth();
+  const { user, logout, isAdmin, completeOnboarding, replayOnboarding } = useAuth();
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<Week | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,7 +21,9 @@ const Dashboard: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [showTeamManagement, setShowTeamManagement] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showQuickStartChecklist, setShowQuickStartChecklist] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [highlightedActivityId, setHighlightedActivityId] = useState<number | null>(null);
 
@@ -33,9 +37,18 @@ const Dashboard: React.FC = () => {
   // Check if onboarding should be shown
   useEffect(() => {
     if (user && !user.onboardingCompleted && weeks.length > 0) {
-      setShowOnboarding(true);
+      // Show welcome modal first, then onboarding tour
+      setShowWelcomeModal(true);
     }
   }, [user, weeks]);
+
+  // Check if quick start checklist should be shown
+  useEffect(() => {
+    const quickStartDismissed = localStorage.getItem('quickStartDismissed');
+    if (user && user.onboardingCompleted && !quickStartDismissed) {
+      setShowQuickStartChecklist(true);
+    }
+  }, [user]);
 
   const loadWeeks = async () => {
     try {
@@ -98,12 +111,37 @@ const Dashboard: React.FC = () => {
     loadRejectedChanges();
   };
 
+  const handleWelcomeModalStart = () => {
+    setShowWelcomeModal(false);
+    setShowOnboarding(true);
+  };
+
+  const handleWelcomeModalSkip = async () => {
+    try {
+      await completeOnboarding();
+      setShowWelcomeModal(false);
+      setShowQuickStartChecklist(true);
+    } catch (error) {
+      console.error('Failed to skip onboarding:', error);
+    }
+  };
+
   const handleOnboardingComplete = async () => {
     try {
       await completeOnboarding();
       setShowOnboarding(false);
+      setShowQuickStartChecklist(true);
     } catch (error) {
       console.error('Failed to complete onboarding:', error);
+    }
+  };
+
+  const handleReplayTour = async () => {
+    try {
+      await replayOnboarding();
+      setShowOnboarding(true);
+    } catch (error) {
+      console.error('Failed to replay tour:', error);
     }
   };
 
@@ -201,6 +239,14 @@ const Dashboard: React.FC = () => {
                     </button>
                   </>
                 )}
+                <button
+                  onClick={handleReplayTour}
+                  className="text-xs sm:text-sm text-gray-600 hover:text-primary px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-gray-300 hover:border-primary hover:bg-primary/5 flex items-center gap-1"
+                  title="Replay Tour"
+                >
+                  <span>🔄</span>
+                  <span className="hidden sm:inline">Tour</span>
+                </button>
                 <button
                   onClick={logout}
                   className="text-xs sm:text-sm text-gray-500 hover:text-gray-700 px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-gray-300 hover:bg-gray-50"
@@ -311,12 +357,31 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
+      {/* Welcome Modal */}
+      {user && (
+        <WelcomeModal
+          isOpen={showWelcomeModal}
+          userRole={user.role}
+          userName={user.name}
+          onStartTour={handleWelcomeModalStart}
+          onSkipTour={handleWelcomeModalSkip}
+        />
+      )}
+
       {/* Onboarding Walkthrough */}
       {user && (
         <OnboardingWalkthrough
           isOpen={showOnboarding}
           onComplete={handleOnboardingComplete}
           userRole={user.role}
+        />
+      )}
+
+      {/* Quick Start Checklist */}
+      {user && showQuickStartChecklist && (
+        <QuickStartChecklist
+          userRole={user.role}
+          onReplayTour={handleReplayTour}
         />
       )}
     </div>

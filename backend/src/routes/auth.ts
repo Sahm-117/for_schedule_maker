@@ -177,4 +177,34 @@ router.patch('/onboarding/complete', authenticateToken, async (req: AuthRequest,
   }
 });
 
+router.post('/onboarding/replay', authenticateToken, async (req: AuthRequest, res): Promise<any> => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        onboardingReplayCount: { increment: 1 },
+        onboardingLastReplayAt: new Date()
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        onboardingCompleted: true,
+        onboardingReplayCount: true,
+        onboardingLastReplayAt: true
+      }
+    });
+
+    return res.json({ user: updatedUser });
+  } catch (error) {
+    console.error('Replay onboarding error:', error);
+    return res.status(500).json({ error: 'Failed to record onboarding replay' });
+  }
+});
+
 export default router;
