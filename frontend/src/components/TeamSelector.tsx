@@ -63,60 +63,32 @@ const TeamSelector: React.FC<TeamSelectorProps> = ({
   }
 
   const selectedTeams = teams.filter(t => selectedTeamIds.includes(t.id));
-  const useCheckboxes = teams.length <= 4;
 
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium text-gray-700">{label}</label>
 
-      {/* Checkboxes for ≤4 teams */}
-      {useCheckboxes && (
-        <div className="space-y-2">
-          {teams.map((team) => (
-            <label
-              key={team.id}
-              className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-colors"
-            >
-              <input
-                type="checkbox"
-                checked={selectedTeamIds.includes(team.id)}
-                onChange={() => handleToggle(team.id)}
-                className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
-              />
-              <div
-                className="w-4 h-4 rounded flex-shrink-0"
-                style={{ backgroundColor: team.color }}
-              />
-              <span className="text-sm text-gray-700">{team.name}</span>
-            </label>
-          ))}
-        </div>
-      )}
-
-      {/* Dropdown for >4 teams */}
-      {!useCheckboxes && (
-        <div className="relative">
-          <select
-            multiple
-            value={selectedTeamIds.map(String)}
-            onChange={(e) => {
-              const selected = Array.from(e.target.selectedOptions).map(opt => parseInt(opt.value));
-              onChange(selected);
-            }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            size={Math.min(teams.length, 6)}
+      {/* Always use checkboxes for mobile-friendly multi-select */}
+      <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md p-2 space-y-1">
+        {teams.map((team) => (
+          <label
+            key={team.id}
+            className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-colors"
           >
-            {teams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-gray-500 mt-1">
-            Hold Cmd/Ctrl to select multiple teams
-          </p>
-        </div>
-      )}
+            <input
+              type="checkbox"
+              checked={selectedTeamIds.includes(team.id)}
+              onChange={() => handleToggle(team.id)}
+              className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+            />
+            <div
+              className="w-4 h-4 rounded flex-shrink-0"
+              style={{ backgroundColor: team.color }}
+            />
+            <span className="text-sm text-gray-700">{team.name}</span>
+          </label>
+        ))}
+      </div>
 
       {/* Selected Teams as Colored Badges */}
       {selectedTeams.length > 0 && (
