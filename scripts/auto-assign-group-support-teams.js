@@ -18,19 +18,19 @@ const supabase = createClient(
  *
  * For each week 1-8:
  * - Find all activities containing "group support" (case-insensitive)
- * - Assign them to the team "Group Support {weekNumber}"
+ * - Assign them to the team "Group {weekNumber} Support"
  * - Replace any existing team assignments
  */
 async function autoAssignGroupSupportTeams() {
   console.log('🔄 Starting Group Support team auto-assignment...\n');
 
   try {
-    // Step 1: Fetch all Group Support teams (Group Support 1 through Group Support 8)
+    // Step 1: Fetch all Group Support teams (Group 1 Support through Group 8 Support)
     console.log('📋 Fetching Group Support teams...');
     const { data: teams, error: teamsError } = await supabase
       .from('Team')
       .select('id, name')
-      .ilike('name', 'Group Support%')
+      .ilike('name', 'Group % Support')
       .order('name');
 
     if (teamsError) {
@@ -44,8 +44,8 @@ async function autoAssignGroupSupportTeams() {
     // Create a mapping of week number to team ID
     const weekToTeamMap = {};
     teams.forEach(team => {
-      // Extract week number from team name (e.g., "Group Support 1" -> 1)
-      const match = team.name.match(/Group Support (\d+)/i);
+      // Extract week number from team name (e.g., "Group 1 Support" -> 1)
+      const match = team.name.match(/Group (\d+) Support/i);
       if (match) {
         const weekNumber = parseInt(match[1]);
         weekToTeamMap[weekNumber] = team.id;
@@ -67,7 +67,7 @@ async function autoAssignGroupSupportTeams() {
       const teamId = weekToTeamMap[weekNumber];
 
       if (!teamId) {
-        console.log(`⚠️  Week ${weekNumber}: No corresponding "Group Support ${weekNumber}" team found. Skipping.`);
+        console.log(`⚠️  Week ${weekNumber}: No corresponding "Group ${weekNumber} Support" team found. Skipping.`);
         continue;
       }
 
@@ -145,7 +145,7 @@ async function autoAssignGroupSupportTeams() {
           continue;
         }
 
-        console.log(`         ✅ Assigned to "Group Support ${weekNumber}"`);
+        console.log(`         ✅ Assigned to "Group ${weekNumber} Support"`);
         totalActivitiesUpdated++;
         totalAssignmentsCreated++;
       }
