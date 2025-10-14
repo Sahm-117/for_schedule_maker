@@ -29,22 +29,11 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   isMoving = false,
 }) => {
   const [copied, setCopied] = useState(false);
-  const [teams, setTeams] = useState<Team[]>([]);
   const editPendingChange = pendingChanges.find(change => change.changeType === 'EDIT');
   const deletePendingChange = pendingChanges.find(change => change.changeType === 'DELETE');
 
-  // Load teams for this activity
-  useEffect(() => {
-    const loadTeams = async () => {
-      try {
-        const { teams: activityTeams } = await teamsApi.getActivityTeams(activity.id);
-        setTeams(activityTeams);
-      } catch (error) {
-        console.error('Failed to load activity teams:', error);
-      }
-    };
-    loadTeams();
-  }, [activity.id]);
+  // Use teams from activity prop (already loaded with week data)
+  const teams = activity.teams || [];
 
   const getTimeFormat = (time: string) => {
     try {
