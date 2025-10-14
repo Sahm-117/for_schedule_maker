@@ -119,8 +119,12 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
         day.dayName
       );
       setExistingWeeks(weeks);
-      // Auto-check "update all" if exists in multiple weeks
-      setUpdateAllExisting(weeks.length > 1);
+      // Only pre-select the current week when editing
+      if (currentWeek && weeks.includes(currentWeek)) {
+        setSelectedWeeks([currentWeek]);
+      }
+      // Don't auto-select all weeks
+      setUpdateAllExisting(false);
     } catch (error) {
       console.error('Failed to check existing weeks:', error);
       setExistingWeeks([]);

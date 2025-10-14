@@ -140,7 +140,13 @@ export const weeksApi = {
         *,
         Day (
           *,
-          Activity (*)
+          Activity (
+            *,
+            ActivityTeam (
+              order,
+              Team (*)
+            )
+          )
         )
       `)
       .order('weekNumber');
@@ -173,6 +179,9 @@ export const weeksApi = {
             description: activity.description,
             period: activity.period,
             orderIndex: activity.orderIndex,
+            teams: (activity.ActivityTeam || [])
+              .sort((a: any, b: any) => a.order - b.order)
+              .map((at: any) => at.Team),
           })),
         })),
       };
@@ -189,7 +198,13 @@ export const weeksApi = {
         *,
         Day (
           *,
-          Activity (*)
+          Activity (
+            *,
+            ActivityTeam (
+              order,
+              Team (*)
+            )
+          )
         )
       `)
       .eq('id', weekId)
@@ -232,6 +247,9 @@ export const weeksApi = {
           description: activity.description,
           period: activity.period,
           orderIndex: activity.orderIndex,
+          teams: (activity.ActivityTeam || [])
+            .sort((a: any, b: any) => a.order - b.order)
+            .map((at: any) => at.Team),
         })),
       })),
     };

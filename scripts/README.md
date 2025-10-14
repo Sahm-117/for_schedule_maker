@@ -60,6 +60,22 @@ This folder contains utility scripts for database maintenance and debugging.
   node test-connection.js
   ```
 
+### Team Management Scripts
+
+- **`auto-assign-group-support-teams.js`** - Auto-assign Group Support activities to week-specific teams
+  ```bash
+  node auto-assign-group-support-teams.js
+  ```
+
+  This script will:
+  - Search for all activities containing "group support" (case-insensitive)
+  - For Week 1, assign them to "Group Support 1" team
+  - For Week 2, assign them to "Group Support 2" team
+  - ... and so on through Week 8
+  - Replace any existing team assignments
+
+  The script provides detailed output showing which activities were updated and which teams were assigned.
+
 ## Usage
 
 All scripts should be run from within the `scripts` directory:
