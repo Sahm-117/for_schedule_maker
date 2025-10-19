@@ -1,92 +1,139 @@
-# Utility Scripts
+# Scripts Directory
 
-This folder contains utility scripts for database maintenance and debugging.
+This directory contains utility scripts for database management, migrations, and maintenance.
 
-## Prerequisites
+## Directory Structure
 
-1. Make sure `.env` file exists in the project root with:
-   ```
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_SERVICE_KEY=your_service_key
-   ```
-
-2. Install dependencies:
-   ```bash
-   cd .. && npm install
-   ```
-
-## Available Scripts
-
-### Database Inspection Scripts
-
-- **`check-weeks.js`** - List all weeks and check for duplicate activities
-  ```bash
-  node check-weeks.js
-  ```
-
-- **`check-days.js`** - Check Day table and verify activity relationships
-  ```bash
-  node check-days.js
-  ```
-
-- **`investigate-duplicates.js`** - Detailed investigation of duplicate activities
-  ```bash
-  node investigate-duplicates.js
-  ```
-
-- **`find-duplicates.js`** - Scan entire database for same-day duplicates
-  ```bash
-  node find-duplicates.js
-  ```
-
-### Cleanup Scripts
-
-⚠️ **Warning: These scripts modify the database!**
-
-- **`cleanup-duplicates.js`** - Remove all duplicate activities (keeps first copy)
-  ```bash
-  node cleanup-duplicates.js
-  ```
-
-- **`cleanup-same-day-duplicates.js`** - Remove only same-day duplicates
-  ```bash
-  node cleanup-same-day-duplicates.js
-  ```
-
-### Testing Scripts
-
-- **`test-connection.js`** - Test Supabase connection and environment variables
-  ```bash
-  node test-connection.js
-  ```
-
-### Team Management Scripts
-
-- **`auto-assign-group-support-teams.js`** - Auto-assign Group Support activities to week-specific teams
-  ```bash
-  node auto-assign-group-support-teams.js
-  ```
-
-  This script will:
-  - Search for all activities containing "group support" (case-insensitive)
-  - For Week 1, assign them to "Group Support 1" team
-  - For Week 2, assign them to "Group Support 2" team
-  - ... and so on through Week 8
-  - Replace any existing team assignments
-
-  The script provides detailed output showing which activities were updated and which teams were assigned.
-
-## Usage
-
-All scripts should be run from within the `scripts` directory:
-
-```bash
-cd scripts
-node <script-name>.js
+```
+scripts/
+├── archive/              # Backup files and historical data
+├── database-utilities/   # General database maintenance scripts
+├── team-migration/       # Team color tagging migration scripts
+├── documentation/        # Detailed guides and documentation
+└── README.md            # This file
 ```
 
-## Notes
+## Quick Start
 
-- All scripts automatically load environment variables from `../.env`
-- Cleanup scripts include a 5-second countdown before proceeding
-- Press `Ctrl+C` to cancel any script before it completes
+All scripts require environment variables to be set. Create a `.env` file in the project root with:
+
+```env
+SUPABASE_URL=your-supabase-url
+SUPABASE_SERVICE_KEY=your-service-key
+DATABASE_URL=postgresql://...
+```
+
+## Database Utilities
+
+**Location:** `database-utilities/`
+
+### Check Scripts
+- `test-connection.js` - Verify Supabase connection
+- `check-days.js` - Verify day records integrity
+- `check-weeks.js` - Verify week records integrity
+
+### Duplicate Management
+- `find-duplicates.js` - Find duplicate activities across weeks
+- `investigate-duplicates.js` - Detailed duplicate analysis
+- `cleanup-duplicates.js` - Remove duplicate activities (with backup)
+- `cleanup-same-day-duplicates.js` - Remove duplicates within same day
+
+**Usage:**
+```bash
+cd scripts/database-utilities
+node test-connection.js
+node find-duplicates.js
+```
+
+## Team Migration
+
+**Location:** `team-migration/`
+
+### Migration Files
+- `SUPABASE_MIGRATION.sql` - SQL to create Team and ActivityTeam tables
+- `SUPABASE_MIGRATION_CLEAN.sql` - Clean migration (alternative version)
+- `migrate-teams-from-descriptions.js` - Extract teams from activity descriptions
+- `create-team-tables.js` - Create team tables via script
+
+### Team Management
+- `auto-assign-group-support-teams.js` - Auto-assign "Group Support" team
+- `check-teams.js` - Verify team data
+- `test-teams-query.js` - Test team queries
+- `fix-team-migration.js` - Fix migration issues
+
+### Migration Steps
+
+1. **Run SQL Migration**
+   ```sql
+   -- In Supabase SQL Editor
+   -- Paste contents of team-migration/SUPABASE_MIGRATION.sql
+   -- Click Run
+   ```
+
+2. **Migrate Existing Data**
+   ```bash
+   cd scripts/team-migration
+   node migrate-teams-from-descriptions.js
+   ```
+
+3. **Verify Migration**
+   ```bash
+   node check-teams.js
+   node test-teams-query.js
+   ```
+
+See `documentation/TEAM_MIGRATION_GUIDE.md` for detailed instructions.
+
+## Archive
+
+**Location:** `archive/`
+
+Contains backup files created during migrations and cleanups. Format: `backup-activities-{timestamp}.json`
+
+## Safety Features
+
+- All destructive scripts create automatic backups
+- Backups stored in `archive/` directory
+- Scripts are idempotent (safe to re-run)
+- Detailed logging for all operations
+
+## Documentation
+
+**Location:** `documentation/`
+
+- `TEAM_MIGRATION_GUIDE.md` - Comprehensive team migration guide
+- Additional guides as needed
+
+## Common Issues
+
+### Connection Errors
+```bash
+# Test connection first
+node database-utilities/test-connection.js
+```
+
+### Missing Environment Variables
+Ensure `.env` file exists in project root with all required variables.
+
+### Permission Errors
+Use service key (not anon key) for administrative scripts.
+
+## Best Practices
+
+1. Always test connection before running scripts
+2. Review backup files before deleting
+3. Run check scripts after migrations
+4. Keep archive files for at least 30 days
+
+## Support
+
+For issues or questions, check:
+1. Script error messages (usually descriptive)
+2. Supabase logs (Dashboard → Logs)
+3. Archive backups (for data recovery)
+4. Documentation files in `documentation/`
+
+---
+
+**Last Updated:** January 2025
+**Maintainer:** FOF Development Team

@@ -173,43 +173,61 @@ supabase functions deploy send-notification
 ## 🗂 Project Structure
 
 ```
-FOF_SOP_Scheduler/
-├── backend/
+for_schedule_maker/
+├── backend/                  # Express API server
 │   ├── src/
-│   │   ├── routes/           # API endpoints
-│   │   │   ├── auth.ts       # Authentication
-│   │   │   ├── users.ts      # User management
-│   │   │   ├── weeks.ts      # Week operations
-│   │   │   ├── activities.ts # Activity CRUD + cross-week
-│   │   │   ├── pendingChanges.ts  # Approval workflow
-│   │   │   └── rejectedChanges.ts # History tracking
-│   │   ├── middleware/       # Auth middleware
-│   │   ├── utils/            # Helper functions
-│   │   └── index.ts          # Express server
-│   ├── prisma/
-│   │   ├── schema.prisma     # Database schema
-│   │   └── seed.ts           # Initial data
-│   └── package.json
-├── frontend/
+│   │   ├── routes/          # API endpoints
+│   │   ├── middleware/      # Authentication & authorization
+│   │   ├── services/        # External integrations (email, telegram)
+│   │   └── utils/           # Helper functions
+│   ├── prisma/              # Database schema & migrations
+│   └── README.md            # Backend documentation
+│
+├── frontend/                 # React frontend
 │   ├── src/
-│   │   ├── components/       # React components
-│   │   │   ├── ActivityModal.tsx
-│   │   │   ├── DaySchedule.tsx
-│   │   │   ├── MultiWeekDeleteModal.tsx
-│   │   │   ├── PendingChangesPanel.tsx
-│   │   │   ├── HistoryPanel.tsx
-│   │   │   └── UserManagement.tsx
-│   │   ├── pages/            # Page components
-│   │   ├── services/         # API client
-│   │   ├── hooks/            # Custom hooks
-│   │   ├── types/            # TypeScript types
-│   │   └── utils/            # Helper functions
-│   └── package.json
+│   │   ├── components/      # React components (24 components)
+│   │   ├── pages/           # Page components (Login, Dashboard)
+│   │   ├── services/        # API clients
+│   │   ├── hooks/           # Custom React hooks
+│   │   ├── types/           # TypeScript definitions
+│   │   └── utils/           # PDF export, etc.
+│   └── README.md            # Frontend documentation
+│
+├── scripts/                  # Utility scripts (organized)
+│   ├── database-utilities/  # DB maintenance scripts
+│   ├── team-migration/      # Team color tagging migration
+│   ├── documentation/       # Detailed guides
+│   ├── archive/             # Backup files
+│   └── README.md            # Scripts documentation
+│
+├── database-migrations/      # Manual SQL migrations
+│   ├── supabase-schema-update.sql
+│   └── README.md            # Migration guide
+│
+├── deployment/               # Deployment configurations
+│   ├── Dockerfile           # Docker setup
+│   ├── fly.toml             # Fly.io config
+│   ├── railway.toml         # Railway config
+│   ├── render.yaml          # Render config
+│   └── README.md            # Deployment guide
+│
 ├── supabase/
-│   └── functions/            # Edge Functions for notifications
-│       └── send-notification/
-└── README.md
+│   └── functions/           # Edge Functions for notifications
+│
+├── .gitignore
+├── README.md                # This file (main documentation)
+├── SECURITY_AUDIT_REPORT.md # Security audit results
+└── TEAM_COLOR_TAGGING_STATUS.md # Team feature status
 ```
+
+**Key Documentation:**
+- `/backend/README.md` - Backend API setup and routes
+- `/frontend/README.md` - Frontend components and features
+- `/scripts/README.md` - Utility scripts organization
+- `/database-migrations/README.md` - Database migration guide
+- `/deployment/README.md` - Platform-specific deployment
+- `/SECURITY_AUDIT_REPORT.md` - Security review findings
+- `/TEAM_COLOR_TAGGING_STATUS.md` - Team feature implementation status
 
 ## 🔑 Default Users
 
@@ -321,6 +339,56 @@ MIT License - feel free to use this project for your church or organization!
 ## 🤝 Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request.
+
+## 📚 Quick Reference
+
+### Common Commands
+
+**Backend:**
+```bash
+cd backend
+npm run dev          # Start dev server
+npm run build        # Build for production
+npx prisma migrate dev  # Create migration
+npx prisma db:seed   # Seed database
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm run dev          # Start dev server
+npm run build        # Build for production
+npm run preview      # Preview build
+```
+
+**Scripts:**
+```bash
+cd scripts/database-utilities
+node test-connection.js    # Test DB connection
+node find-duplicates.js    # Find duplicate activities
+
+cd ../team-migration
+node migrate-teams-from-descriptions.js  # Migrate teams
+```
+
+### File Locations
+
+- **Environment configs:** `backend/.env`, `frontend/.env`
+- **Database schema:** `backend/prisma/schema.prisma`
+- **API routes:** `backend/src/routes/`
+- **React components:** `frontend/src/components/`
+- **Type definitions:** `frontend/src/types/index.ts`
+- **Deployment configs:** `deployment/`
+- **Migration scripts:** `scripts/team-migration/`
+
+### Getting Help
+
+- **Setup issues:** See `/backend/README.md` or `/frontend/README.md`
+- **Database issues:** See `/database-migrations/README.md`
+- **Script usage:** See `/scripts/README.md`
+- **Deployment:** See `/deployment/README.md`
+- **Security:** See `/SECURITY_AUDIT_REPORT.md`
+- **Team features:** See `/TEAM_COLOR_TAGGING_STATUS.md`
 
 ---
 

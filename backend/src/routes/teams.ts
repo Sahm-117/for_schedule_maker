@@ -6,7 +6,7 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 // GET /api/teams - Get all teams (accessible by all authenticated users)
-router.get('/', authenticateToken, async (req: AuthRequest, res): Promise<any> => {
+router.get('/', authenticateToken, async (_req: AuthRequest, res): Promise<any> => {
   try {
     const teams = await prisma.team.findMany({
       orderBy: { createdAt: 'asc' },
