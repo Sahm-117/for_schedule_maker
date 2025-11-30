@@ -9,6 +9,7 @@ import weekRoutes from './routes/weeks';
 import activityRoutes from './routes/activities';
 import pendingChangeRoutes from './routes/pendingChanges';
 import rejectedChangeRoutes from './routes/rejectedChanges';
+import keepAliveRoutes from './routes/keepAlive';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -27,6 +28,7 @@ app.use('/api/weeks', weekRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/pending-changes', pendingChangeRoutes);
 app.use('/api/rejected-changes', rejectedChangeRoutes);
+app.use('/api/keep-alive', keepAliveRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });

@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "dist/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "dist/index.js"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/keep-alive",
+      "schedule": "0 0 */5 * *"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}

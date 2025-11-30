@@ -13,6 +13,7 @@
     "db:seed": "ts-node prisma/seed.ts",
     "postbuild": "npm run db:generate",
     "railway:deploy": "npm run build && npm run db:migrate:deploy",
+    "vercel-build": "prisma generate && tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -21,6 +22,7 @@
   "type": "commonjs",
   "dependencies": {
     "@prisma/client": "^6.16.3",
+    "@supabase/supabase-js": "^2.86.0",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
