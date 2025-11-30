@@ -34,24 +34,29 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-const server = app.listen(port, () => {
-  console.log(`🚀 FOF Schedule Editor API running on port ${port}`);
-});
-
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  await prisma.$disconnect();
-  server.close(() => {
-    process.exit(0);
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  const server = app.listen(port, () => {
+    console.log(`🚀 FOF Schedule Editor API running on port ${port}`);
   });
-});
 
-process.on('SIGINT', async () => {
-  console.log('SIGINT received, shutting down gracefully');
-  await prisma.$disconnect();
-  server.close(() => {
-    process.exit(0);
+  process.on('SIGTERM', async () => {
+    console.log('SIGTERM received, shutting down gracefully');
+    await prisma.$disconnect();
+    server.close(() => {
+      process.exit(0);
+    });
   });
-});
 
+  process.on('SIGINT', async () => {
+    console.log('SIGINT received, shutting down gracefully');
+    await prisma.$disconnect();
+    server.close(() => {
+      process.exit(0);
+    });
+  });
+}
+
+// Export for Vercel serverless
+export default app;
 export { prisma };
