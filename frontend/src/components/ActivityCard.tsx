@@ -89,7 +89,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
                 )}
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Proposed by {editPendingChange.user.name}
+                Proposed by {editPendingChange.user?.name ?? 'Unknown user'}
               </p>
             </div>
           )}
@@ -98,7 +98,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           {deletePendingChange && (
             <div className="mt-3 p-3 bg-white border border-red-200 rounded">
               <p className="text-xs text-red-600 font-medium mb-1">
-                Deletion requested by {deletePendingChange.user.name}
+                Deletion requested by {deletePendingChange.user?.name ?? 'Unknown user'}
               </p>
             </div>
           )}

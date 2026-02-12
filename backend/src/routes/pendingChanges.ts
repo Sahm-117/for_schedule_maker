@@ -1,9 +1,34 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth';
+import { sendTelegramNotification } from '../services/notifications/telegram';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+const getChangeSummary = (changeData: unknown): string => {
+  if (!changeData || typeof changeData !== 'object') {
+    return 'No summary provided';
+  }
+
+  const data = changeData as Record<string, unknown>;
+  const time = typeof data.time === 'string' ? data.time : undefined;
+  const description = typeof data.description === 'string' ? data.description : undefined;
+
+  if (time && description) {
+    return `${time} - ${description}`;
+  }
+
+  if (description) {
+    return description;
+  }
+
+  if (typeof data.activityId === 'number') {
+    return `Activity ID ${data.activityId}`;
+  }
+
+  return 'No summary provided';
+};
 
 router.get('/:weekId', authenticateToken, async (req: AuthRequest, res) => {
   try {
@@ -58,6 +83,21 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           select: { id: true, name: true, email: true }
         }
       }
+    });
+
+    const changeDataObject = changeData as Record<string, unknown>;
+    const dayName = typeof changeDataObject.dayName === 'string' ? changeDataObject.dayName : undefined;
+
+    await sendTelegramNotification({
+      event: 'CHANGE_REQUEST_CREATED',
+      changeType: changeType as 'ADD' | 'EDIT' | 'DELETE',
+      actorName: req.user.name,
+      actorRole: req.user.role,
+      requestId: pendingChange.id,
+      weekId,
+      dayName,
+      summary: getChangeSummary(changeData),
+      timestamp: pendingChange.createdAt.toISOString(),
     });
 
     return res.status(201).json({ pendingChange });
@@ -232,6 +272,20 @@ router.put('/:id/approve', authenticateToken, requireAdmin, async (req: AuthRequ
         where: { id: changeId }
       });
 
+      const changeDataObject = changeData as Record<string, unknown>;
+      const dayName = typeof changeDataObject.dayName === 'string' ? changeDataObject.dayName : undefined;
+
+      await sendTelegramNotification({
+        event: 'CHANGE_APPROVED',
+        changeType,
+        actorName: req.user?.name || 'Unknown admin',
+        actorRole: req.user?.role || 'ADMIN',
+        requestId: changeId,
+        weekId: pendingChange.weekId,
+        dayName,
+        summary: getChangeSummary(changeData),
+      });
+
       return res.json({
         message: 'Change approved and applied successfully',
         results,
@@ -288,6 +342,21 @@ router.post('/:id/reject', authenticateToken, requireAdmin, async (req: AuthRequ
 
     await prisma.pendingChange.delete({
       where: { id: changeId }
+    });
+
+    const changeDataObject = pendingChange.changeData as Record<string, unknown>;
+    const dayName = typeof changeDataObject.dayName === 'string' ? changeDataObject.dayName : undefined;
+
+    await sendTelegramNotification({
+      event: 'CHANGE_REJECTED',
+      changeType: pendingChange.changeType,
+      actorName: req.user.name,
+      actorRole: req.user.role,
+      requestId: pendingChange.id,
+      weekId: pendingChange.weekId,
+      dayName,
+      summary: `${getChangeSummary(pendingChange.changeData)} | Reason: ${rejectionReason.trim()}`,
+      timestamp: rejectedChange.rejectedAt.toISOString(),
     });
 
     return res.json({

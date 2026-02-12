@@ -1,6 +1,7 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth';
+import { sendTelegramNotification } from '../services/notifications/telegram';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -191,6 +192,18 @@ router.post('/request', authenticateToken, async (req: AuthRequest, res) => {
           select: { id: true, name: true, email: true }
         }
       }
+    });
+
+    await sendTelegramNotification({
+      event: 'CHANGE_REQUEST_CREATED',
+      changeType: 'ADD',
+      actorName: req.user.name,
+      actorRole: req.user.role,
+      requestId: pendingChange.id,
+      weekId: day.weekId,
+      dayName: day.dayName,
+      summary: `${time} - ${description}`,
+      timestamp: pendingChange.createdAt.toISOString(),
     });
 
     return res.status(201).json({

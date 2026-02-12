@@ -244,7 +244,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
                           {change.changeData.time} - {change.changeData.description}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {change.changeData.period} • By {change.user.name}
+                          {change.changeData.period} • By {change.user?.name ?? 'Unknown user'}
                         </p>
                       </div>
                       <span className="text-xs text-orange-600 font-medium">

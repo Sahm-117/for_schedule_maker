@@ -107,7 +107,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
                     {change.changeType} Request
                   </span>
                   <span className="text-xs text-gray-500">
-                    by {change.user.name}
+                    by {change.user?.name ?? 'Unknown user'}
                   </span>
                 </div>
 

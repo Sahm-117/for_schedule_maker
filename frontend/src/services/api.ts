@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { AuthResponse, User, Week, PendingChange, RejectedChange } from '../types';
+import { normalizePendingChanges } from '../utils/pendingChanges';
 
 // Import Supabase API
 import {
@@ -14,7 +15,12 @@ import {
 } from './supabase-api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-const USE_SUPABASE = import.meta.env.VITE_SUPABASE_URL ? true : false;
+const DATA_PROVIDER = (import.meta.env.VITE_DATA_PROVIDER || 'backend').toLowerCase();
+const USE_SUPABASE = DATA_PROVIDER === 'supabase';
+
+if (USE_SUPABASE && (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY)) {
+  throw new Error('Supabase mode selected but VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY are missing');
+}
 
 const api = axios.create({
   baseURL: API_URL,
@@ -96,7 +102,10 @@ export const weeksApi = USE_SUPABASE ? supabaseWeeksApi : {
 
   async getById(weekId: number): Promise<{ week: Week; pendingChanges: PendingChange[] }> {
     const response = await api.get(`/weeks/${weekId}`);
-    return response.data;
+    return {
+      ...response.data,
+      pendingChanges: normalizePendingChanges(response.data.pendingChanges || []),
+    };
   },
 };
 
@@ -157,7 +166,9 @@ export const activitiesApi = USE_SUPABASE ? supabaseActivitiesApi : {
 export const pendingChangesApi = USE_SUPABASE ? supabasePendingChangesApi : {
   async getByWeek(weekId: number): Promise<{ pendingChanges: PendingChange[] }> {
     const response = await api.get(`/pending-changes/${weekId}`);
-    return response.data;
+    return {
+      pendingChanges: normalizePendingChanges(response.data.pendingChanges || []),
+    };
   },
 
   async create(changeData: {

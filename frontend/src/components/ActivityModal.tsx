@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { activitiesApi } from '../services/api';
+import { activitiesApi, pendingChangesApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import type { Day, Activity, Week } from '../types';
 
@@ -75,11 +75,28 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
 
     try {
       if (activity) {
-        await activitiesApi.update(activity.id, {
-          time,
-          description,
-          applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
-        });
+        if (isAdmin) {
+          await activitiesApi.update(activity.id, {
+            time,
+            description,
+            applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
+          });
+        } else {
+          await pendingChangesApi.create({
+            weekId: day.weekId,
+            changeType: 'EDIT',
+            changeData: {
+              activityId: activity.id,
+              dayId: day.id,
+              dayName: day.dayName,
+              oldTime: activity.time,
+              oldDescription: activity.description,
+              time,
+              description,
+              applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
+            },
+          });
+        }
       } else {
         // Use correct API based on user role
         const activityData = {
@@ -209,12 +226,12 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                         <label key={week.id} className="flex items-center">
                           <input
                             type="checkbox"
-                            checked={selectedWeeks.includes(week.id)}
+                            checked={selectedWeeks.includes(week.weekNumber)}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedWeeks([...selectedWeeks, week.id]);
+                                setSelectedWeeks([...selectedWeeks, week.weekNumber]);
                               } else {
-                                setSelectedWeeks(selectedWeeks.filter(id => id !== week.id));
+                                setSelectedWeeks(selectedWeeks.filter((weekNumber) => weekNumber !== week.weekNumber));
                               }
                             }}
                             className="rounded border-gray-300 text-primary focus:ring-primary"
@@ -234,9 +251,9 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
               </div>
             )}
 
-            {!isAdmin && !activity && (
+            {!isAdmin && (
               <div className="text-blue-600 text-sm bg-blue-50 p-2 rounded">
-                As a support user, your activity will be submitted for admin approval.
+                As a support user, your changes will be submitted for admin approval.
               </div>
             )}
 

@@ -163,7 +163,36 @@ PORT=3000
 
 ### Frontend (.env)
 ```env
+VITE_DATA_PROVIDER=backend
 VITE_API_URL=http://localhost:3000/api
+
+# Optional fallback mode only (non-production)
+# VITE_DATA_PROVIDER=supabase
+# VITE_SUPABASE_URL=https://your-project.supabase.co
+# VITE_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+### Production Recommendation
+- Use `VITE_DATA_PROVIDER=backend` so moderation and role workflows stay server-enforced.
+- Keep Supabase direct mode for local experimentation only.
+
+### Telegram Notifications (Backend)
+```env
+TELEGRAM_ENABLED=true
+TELEGRAM_BOT_TOKEN=123456:your-bot-token
+TELEGRAM_CHAT_ID=-1001234567890
+```
+
+The backend sends Telegram notifications when:
+- support submits a change request
+- admin approves a request
+- admin rejects a request
+
+Validation example:
+```bash
+curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/sendMessage" \
+  -H "Content-Type: application/json" \
+  -d '{"chat_id":"<YOUR_CHAT_ID>","text":"FOF Scheduler Telegram test"}'
 ```
 
 ## 📊 Database Schema

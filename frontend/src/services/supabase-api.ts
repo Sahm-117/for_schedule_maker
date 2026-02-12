@@ -9,6 +9,7 @@ import type {
   RejectedChange,
   AuthResponse
 } from '../types';
+import { normalizePendingChanges } from '../utils/pendingChanges';
 
 // Types for API responses are now imported from ../types
 
@@ -186,19 +187,7 @@ export const weeksApi = {
     };
 
     // Transform pending changes data
-    const pendingChanges: PendingChange[] = (pendingChangesData || []).map((change: any) => ({
-      id: change.id,
-      weekId: change.weekId,
-      changeType: change.changeType,
-      changeData: change.changeData,
-      userId: change.userId,
-      user: {
-        id: change.User?.id || change.userId,
-        name: change.User?.name || 'Unknown',
-        email: change.User?.email || 'unknown@email.com',
-      },
-      createdAt: change.createdAt,
-    }));
+    const pendingChanges = normalizePendingChanges((pendingChangesData || []) as unknown[]);
 
     return { week, pendingChanges };
   },
@@ -517,7 +506,9 @@ export const pendingChangesApi = {
       throw new Error(error.message);
     }
 
-    return { pendingChanges: data || [] };
+    return {
+      pendingChanges: normalizePendingChanges((data || []) as unknown[]),
+    };
   },
 
   async create(changeData: {
