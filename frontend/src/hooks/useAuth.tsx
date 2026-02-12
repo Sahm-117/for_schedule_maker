@@ -33,6 +33,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await authApi.login(email, password);
       setAuthToken(response.accessToken);
       localStorage.setItem('refreshToken', response.refreshToken);
+      localStorage.setItem('user', JSON.stringify(response.user));
       setUser(response.user);
     } catch (error) {
       throw error;
@@ -41,6 +42,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     clearAuthToken();
+    localStorage.removeItem('user');
     setUser(null);
   };
 
@@ -54,10 +56,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setAuthToken(token);
       const response = await authApi.getMe();
+      localStorage.setItem('user', JSON.stringify(response.user));
       setUser(response.user);
     } catch (error) {
       console.error('Auth check failed:', error);
       clearAuthToken();
+      localStorage.removeItem('user');
     } finally {
       setLoading(false);
     }

@@ -175,6 +175,7 @@ export const pendingChangesApi = USE_SUPABASE ? supabasePendingChangesApi : {
     weekId: number;
     changeType: string;
     changeData: any;
+    userId?: string;
   }): Promise<{ pendingChange: PendingChange }> {
     const response = await api.post('/pending-changes', changeData);
     return response.data;

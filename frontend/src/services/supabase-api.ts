@@ -18,6 +18,32 @@ import { sendTelegramNotification } from './telegramNotifications';
 // Current user session
 let currentSession: Session | null = null;
 
+const getCurrentUserFromStorage = (): User | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const raw = localStorage.getItem('user');
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as User;
+  } catch {
+    return null;
+  }
+};
+
+const getUserIdFromToken = (token: string, prefix: string): string | null => {
+  if (!token || !token.startsWith(prefix)) {
+    return null;
+  }
+
+  const userId = token.slice(prefix.length);
+  return userId || null;
+};
+
 const getChangeSummary = (changeData: unknown): string => {
   if (!changeData || typeof changeData !== 'object') {
     return 'No summary provided';
@@ -100,14 +126,55 @@ export const authApi = {
   },
 
   async getMe(): Promise<{ user: User }> {
-    // In a real implementation, you'd decode the JWT token to get user ID
-    // For now, we'll return mock data
-    throw new Error('getMe not implemented yet');
+    if (typeof window === 'undefined') {
+      throw new Error('Cannot get current user outside browser context');
+    }
+
+    const token = localStorage.getItem('accessToken') || '';
+    const userId = getUserIdFromToken(token, 'mock_token_');
+
+    if (!userId) {
+      const cachedUser = getCurrentUserFromStorage();
+      if (cachedUser) {
+        return { user: cachedUser };
+      }
+      throw new Error('No active session');
+    }
+
+    const { data, error } = await supabase
+      .from('User')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) {
+      throw new Error('User not found');
+    }
+
+    return { user: data };
   },
 
   async refresh(refreshToken: string): Promise<AuthResponse> {
-    // Mock implementation
-    throw new Error('Refresh not implemented yet');
+    const userId = getUserIdFromToken(refreshToken, 'refresh_token_');
+    if (!userId) {
+      throw new Error('Invalid refresh token');
+    }
+
+    const { data, error } = await supabase
+      .from('User')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) {
+      throw new Error('User not found');
+    }
+
+    return {
+      user: data,
+      accessToken: `mock_token_${data.id}`,
+      refreshToken: `refresh_token_${data.id}`,
+    };
   },
 };
 
@@ -325,7 +392,10 @@ export const activitiesApi = {
       const { data, error } = await supabase
         .from('Activity')
         .insert([{
-          ...activityData,
+          dayId: activityData.dayId,
+          time: activityData.time,
+          description: activityData.description,
+          period: activityData.period,
           orderIndex: nextOrderIndex,
         }])
         .select()
