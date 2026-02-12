@@ -163,30 +163,37 @@ PORT=3000
 
 ### Frontend (.env)
 ```env
-VITE_DATA_PROVIDER=backend
-VITE_API_URL=http://localhost:3000/api
+VITE_DATA_PROVIDER=supabase
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
 
-# Optional fallback mode only (non-production)
-# VITE_DATA_PROVIDER=supabase
-# VITE_SUPABASE_URL=https://your-project.supabase.co
-# VITE_SUPABASE_ANON_KEY=your-anon-key-here
+# Optional backend mode (future)
+# VITE_DATA_PROVIDER=backend
+# VITE_API_URL=https://your-backend-url.com/api
 ```
 
 ### Production Recommendation
-- Use `VITE_DATA_PROVIDER=backend` so moderation and role workflows stay server-enforced.
-- Keep Supabase direct mode for local experimentation only.
+- Use `VITE_DATA_PROVIDER=supabase` for the current production architecture.
+- Keep backend mode as an optional future path.
 
-### Telegram Notifications (Backend)
-```env
-TELEGRAM_ENABLED=true
-TELEGRAM_BOT_TOKEN=123456:your-bot-token
-TELEGRAM_CHAT_ID=-1001234567890
+### Telegram Notifications (Supabase Edge Function)
+Set Supabase function secrets (not Vercel frontend env vars):
+```bash
+supabase secrets set TELEGRAM_BOT_TOKEN=123456:your-bot-token
+supabase secrets set TELEGRAM_CHAT_ID=-1001234567890
 ```
 
-The backend sends Telegram notifications when:
+Deploy function:
+```bash
+supabase functions deploy notify-telegram
+```
+
+The edge function sends Telegram notifications when:
 - support submits a change request
 - admin approves a request
 - admin rejects a request
+
+After function validation, remove `VITE_TELEGRAM_BOT_TOKEN` and `VITE_TELEGRAM_GROUP_CHAT_ID` from Vercel frontend envs.
 
 Validation example:
 ```bash

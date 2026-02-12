@@ -85,6 +85,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
           await pendingChangesApi.create({
             weekId: day.weekId,
             changeType: 'EDIT',
+            userId: user?.id,
             changeData: {
               activityId: activity.id,
               dayId: day.id,

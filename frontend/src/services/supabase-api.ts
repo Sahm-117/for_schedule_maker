@@ -7,14 +7,44 @@ import type {
   Activity,
   PendingChange,
   RejectedChange,
-  AuthResponse
+  AuthResponse,
+  TelegramNotificationEvent
 } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
+import { sendTelegramNotification } from './telegramNotifications';
 
 // Types for API responses are now imported from ../types
 
 // Current user session
 let currentSession: Session | null = null;
+
+const getChangeSummary = (changeData: unknown): string => {
+  if (!changeData || typeof changeData !== 'object') {
+    return 'No summary provided';
+  }
+
+  const data = changeData as Record<string, unknown>;
+  const time = typeof data.time === 'string' ? data.time : undefined;
+  const description = typeof data.description === 'string' ? data.description : undefined;
+
+  if (time && description) {
+    return `${time} - ${description}`;
+  }
+
+  if (description) {
+    return description;
+  }
+
+  if (typeof data.activityId === 'number') {
+    return `Activity ID ${data.activityId}`;
+  }
+
+  return 'No summary provided';
+};
+
+const notifyTelegram = async (payload: TelegramNotificationEvent): Promise<void> => {
+  await sendTelegramNotification(payload);
+};
 
 // Initialize session from Supabase
 export const initializeAuth = async () => {
@@ -320,7 +350,7 @@ export const activitiesApi = {
     // Get the week ID from the day
     const { data: day, error: dayError } = await supabase
       .from('Day')
-      .select('weekId')
+      .select('weekId, dayName')
       .eq('id', activityData.dayId)
       .single();
 
@@ -342,6 +372,18 @@ export const activitiesApi = {
     if (error) {
       throw new Error(error.message);
     }
+
+    await notifyTelegram({
+      event: 'CHANGE_REQUEST_CREATED',
+      changeType: 'ADD',
+      actorName: activityData.userId || 'Support User',
+      actorRole: 'SUPPORT',
+      requestId: data.id,
+      weekId: day.weekId,
+      dayName: day.dayName,
+      summary: `${activityData.time} - ${activityData.description}`,
+      timestamp: data.createdAt,
+    });
 
     return {
       message: 'Change request submitted',
@@ -515,12 +557,13 @@ export const pendingChangesApi = {
     weekId: number;
     changeType: 'ADD' | 'EDIT' | 'DELETE';
     changeData: any;
+    userId?: string;
   }): Promise<{ pendingChange: PendingChange }> {
     const { data, error } = await supabase
       .from('PendingChange')
       .insert([{
         ...changeData,
-        userId: 'current_user_id', // Replace with actual user ID
+        userId: changeData.userId || 'current_user_id',
       }])
       .select()
       .single();
@@ -562,6 +605,21 @@ export const pendingChangesApi = {
       .from('PendingChange')
       .delete()
       .eq('id', changeId);
+
+    const changeData = change.changeData as Record<string, unknown>;
+    const dayName = typeof changeData.dayName === 'string' ? changeData.dayName : undefined;
+
+    await notifyTelegram({
+      event: 'CHANGE_APPROVED',
+      changeType: change.changeType,
+      actorName: 'Admin',
+      actorRole: 'ADMIN',
+      requestId: changeId,
+      weekId: change.weekId,
+      dayName,
+      summary: getChangeSummary(change.changeData),
+      timestamp: new Date().toISOString(),
+    });
 
     return {
       message: 'Change approved and applied',
@@ -606,6 +664,21 @@ export const pendingChangesApi = {
       .from('PendingChange')
       .delete()
       .eq('id', changeId);
+
+    const changeData = change.changeData as Record<string, unknown>;
+    const dayName = typeof changeData.dayName === 'string' ? changeData.dayName : undefined;
+
+    await notifyTelegram({
+      event: 'CHANGE_REJECTED',
+      changeType: change.changeType,
+      actorName: 'Admin',
+      actorRole: 'ADMIN',
+      requestId: changeId,
+      weekId: change.weekId,
+      dayName,
+      summary: `${getChangeSummary(change.changeData)} | Reason: ${rejectionReason}`,
+      timestamp: rejectedChange.rejectedAt,
+    });
 
     return {
       message: 'Change rejected',

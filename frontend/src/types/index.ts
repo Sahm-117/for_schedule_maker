@@ -64,3 +64,15 @@ export interface ApiError {
   error: string;
   details?: string;
 }
+
+export interface TelegramNotificationEvent {
+  event: 'CHANGE_REQUEST_CREATED' | 'CHANGE_APPROVED' | 'CHANGE_REJECTED';
+  changeType: 'ADD' | 'EDIT' | 'DELETE';
+  actorName: string;
+  actorRole: 'ADMIN' | 'SUPPORT' | 'SYSTEM';
+  requestId: string;
+  weekId?: number;
+  dayName?: string;
+  summary?: string;
+  timestamp?: string;
+}

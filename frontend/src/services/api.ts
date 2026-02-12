@@ -15,7 +15,7 @@ import {
 } from './supabase-api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-const DATA_PROVIDER = (import.meta.env.VITE_DATA_PROVIDER || 'backend').toLowerCase();
+const DATA_PROVIDER = (import.meta.env.VITE_DATA_PROVIDER || 'supabase').toLowerCase();
 const USE_SUPABASE = DATA_PROVIDER === 'supabase';
 
 if (USE_SUPABASE && (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY)) {

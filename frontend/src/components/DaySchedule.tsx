@@ -3,6 +3,7 @@ import { activitiesApi, pendingChangesApi } from '../services/api';
 import type { Day, Activity, PendingChange } from '../types';
 import ActivityCard from './ActivityCard';
 import ConfirmationModal from './ConfirmationModal';
+import { useAuth } from '../hooks/useAuth';
 
 interface DayScheduleProps {
   day: Day;
@@ -25,6 +26,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   isExpanded,
   onToggleExpansion,
 }) => {
+  const { user } = useAuth();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState<Activity | null>(null);
   const getDayDisplayName = (dayName: string) => {
@@ -103,6 +105,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
         await pendingChangesApi.create({
           weekId: day.week?.id || day.weekId,
           changeType: 'DELETE',
+          userId: user?.id,
           changeData: {
             activityId: activityToDelete.id,
             time: activityToDelete.time,
