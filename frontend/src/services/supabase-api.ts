@@ -350,15 +350,20 @@ export const labelsApi = {
       throw new Error(error.message);
     }
 
-    return {
-      labels: ((data || []) as any[]).map((l) => ({
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+    const labels = ((data || []) as any[])
+      .map((l) => ({
         id: l.id,
         name: l.name,
         color: l.color,
         createdAt: l.createdAt,
         updatedAt: l.updatedAt,
-      }) as Label),
-    };
+      }) as Label)
+      // Ensure "Group 2" comes before "Group 10"
+      .sort((a, b) => collator.compare(a.name, b.name));
+
+    return { labels };
   },
 
   async create(input: { name: string; color: string }): Promise<{ label: Label }> {

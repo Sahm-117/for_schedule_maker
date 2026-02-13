@@ -22,7 +22,8 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose }) =>
   const [editing, setEditing] = useState<Label | null>(null);
 
   const sorted = useMemo(() => {
-    return [...labels].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+    return [...labels].sort((a, b) => collator.compare(a.name, b.name));
   }, [labels]);
 
   const loadLabels = async () => {
