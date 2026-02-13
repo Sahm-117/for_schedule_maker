@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Activity, PendingChange } from '../types';
+import { formatTimeForDisplay } from '../utils/time';
 
 interface ActivityCardProps {
   activity: Activity;
@@ -27,18 +28,6 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   const editPendingChange = pendingChanges.find(change => change.changeType === 'EDIT');
   const deletePendingChange = pendingChanges.find(change => change.changeType === 'DELETE');
 
-  const getTimeFormat = (time: string) => {
-    try {
-      const [hours, minutes] = time.split(':');
-      const hour24 = parseInt(hours);
-      const ampm = hour24 >= 12 ? 'PM' : 'AM';
-      const hour12 = hour24 % 12 || 12;
-      return `${hour12}:${minutes} ${ampm}`;
-    } catch {
-      return time;
-    }
-  };
-
   return (
     <div className={`bg-white border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow ${
       deletePendingChange ? 'border-red-200 bg-red-50' :
@@ -49,7 +38,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
         <div className="flex-1 min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2">
             <span className="text-sm font-medium text-gray-900">
-              {getTimeFormat(activity.time)}
+              {formatTimeForDisplay(activity.time)}
             </span>
             {pendingChanges.length > 0 && (
               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -72,9 +61,9 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
               <div className="text-sm">
                 {editPendingChange.changeData.time && editPendingChange.changeData.time !== activity.time && (
                   <p className="text-gray-600">
-                    Time: <span className="line-through">{getTimeFormat(activity.time)}</span> →
+                    Time: <span className="line-through">{formatTimeForDisplay(activity.time)}</span> →
                     <span className="text-orange-600 font-medium ml-1">
-                      {getTimeFormat(editPendingChange.changeData.time)}
+                      {formatTimeForDisplay(editPendingChange.changeData.time)}
                     </span>
                   </p>
                 )}

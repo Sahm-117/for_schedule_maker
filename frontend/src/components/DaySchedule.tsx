@@ -4,6 +4,7 @@ import type { Day, Activity, PendingChange } from '../types';
 import ActivityCard from './ActivityCard';
 import ConfirmationModal from './ConfirmationModal';
 import { useAuth } from '../hooks/useAuth';
+import { compareTimeStrings, parseTimeToMinutes } from '../utils/time';
 
 interface DayScheduleProps {
   day: Day;
@@ -45,7 +46,13 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   const getPeriodActivities = (period: 'MORNING' | 'AFTERNOON' | 'EVENING') => {
     return day.activities
       .filter(activity => activity.period === period)
-      .sort((a, b) => a.orderIndex - b.orderIndex);
+      .sort((a, b) => {
+        const t = compareTimeStrings(a.time, b.time);
+        if (t !== 0) return t;
+        const oi = a.orderIndex - b.orderIndex;
+        if (oi !== 0) return oi;
+        return a.id - b.id;
+      });
   };
 
   const getPendingChangesForActivity = (activityId: number) => {
@@ -79,7 +86,17 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
 
       const targetActivity = activities[targetIndex];
 
-      // Use the target activity's order index
+      // Only allow manual moves within same-time groups.
+      const aTime = parseTimeToMinutes(activity.time);
+      const bTime = parseTimeToMinutes(targetActivity.time);
+      if (aTime === null || bTime === null || aTime !== bTime) {
+        return;
+      }
+
+      // Swap orderIndex values using a temporary sentinel to avoid collisions.
+      const temp = -Date.now();
+      await activitiesApi.reorder(activity.id, temp);
+      await activitiesApi.reorder(targetActivity.id, activity.orderIndex);
       await activitiesApi.reorder(activity.id, targetActivity.orderIndex);
 
       onRefresh();
@@ -197,20 +214,34 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
               {/* Activities */}
               <div className="space-y-2">
                 {activities.length > 0 ? (
-                  activities.map((activity, index) => (
-                    <ActivityCard
-                      key={activity.id}
-                      activity={activity}
-                      pendingChanges={getPendingChangesForActivity(activity.id)}
-                      onEdit={() => onEditActivity(activity, day)}
-                      onDelete={() => handleDeleteActivity(activity)}
-                      onMoveUp={() => handleMoveActivity(activity, 'up')}
-                      onMoveDown={() => handleMoveActivity(activity, 'down')}
-                      canMoveUp={index > 0}
-                      canMoveDown={index < activities.length - 1}
-                      isAdmin={isAdmin}
-                    />
-                  ))
+                  activities.map((activity, index) => {
+                    const upNeighbor = index > 0 ? activities[index - 1] : undefined;
+                    const downNeighbor = index < activities.length - 1 ? activities[index + 1] : undefined;
+                    const activityTime = parseTimeToMinutes(activity.time);
+                    const canMoveUpSameTime =
+                      Boolean(upNeighbor) &&
+                      activityTime !== null &&
+                      parseTimeToMinutes(upNeighbor!.time) === activityTime;
+                    const canMoveDownSameTime =
+                      Boolean(downNeighbor) &&
+                      activityTime !== null &&
+                      parseTimeToMinutes(downNeighbor!.time) === activityTime;
+
+                    return (
+                      <ActivityCard
+                        key={activity.id}
+                        activity={activity}
+                        pendingChanges={getPendingChangesForActivity(activity.id)}
+                        onEdit={() => onEditActivity(activity, day)}
+                        onDelete={() => handleDeleteActivity(activity)}
+                        onMoveUp={() => handleMoveActivity(activity, 'up')}
+                        onMoveDown={() => handleMoveActivity(activity, 'down')}
+                        canMoveUp={canMoveUpSameTime}
+                        canMoveDown={canMoveDownSameTime}
+                        isAdmin={isAdmin}
+                      />
+                    );
+                  })
                 ) : (
                   <div className="text-center py-6 border-2 border-dashed border-gray-200 rounded-lg">
                     <svg className="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

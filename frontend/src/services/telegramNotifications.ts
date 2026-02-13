@@ -1,4 +1,3 @@
-import { supabase } from '../lib/supabase';
 import type { TelegramNotificationEvent } from '../types';
 
 const sendTelegramDirectFallback = async (payload: TelegramNotificationEvent): Promise<void> => {
@@ -48,12 +47,27 @@ const sendTelegramDirectFallback = async (payload: TelegramNotificationEvent): P
 
 export const sendTelegramNotification = async (payload: TelegramNotificationEvent): Promise<void> => {
   try {
-    const { error } = await supabase.functions.invoke('notify-telegram', {
-      body: payload,
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !anonKey) {
+      throw new Error('Missing Supabase env for Telegram edge function');
+    }
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/notify-telegram`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: anonKey,
+        // We don't use Supabase Auth sessions in this app; send anon JWT explicitly.
+        Authorization: `Bearer ${anonKey}`,
+      },
+      body: JSON.stringify(payload),
     });
 
-    if (error) {
-      console.warn('Edge function Telegram notification failed:', error.message);
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      console.warn('Edge function Telegram notification failed:', response.status, text);
       await sendTelegramDirectFallback(payload);
     }
   } catch (error) {

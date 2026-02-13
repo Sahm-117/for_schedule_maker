@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import type { Week } from '../types';
+import { compareTimeStrings } from './time';
 
 interface ExportOptions {
   includeEmptyDays?: boolean;
@@ -114,10 +115,14 @@ export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) =
       continue;
     }
 
-    // Activities grouped and sorted
-    const allActivities = day.activities
-      .sort((a, b) => a.orderIndex - b.orderIndex)
-      .sort((a, b) => a.time.localeCompare(b.time));
+    // Activities grouped and sorted (time asc, then manual orderIndex, then id)
+    const allActivities = [...day.activities].sort((a, b) => {
+      const t = compareTimeStrings(a.time, b.time);
+      if (t !== 0) return t;
+      const oi = a.orderIndex - b.orderIndex;
+      if (oi !== 0) return oi;
+      return a.id - b.id;
+    });
 
     for (const activity of allActivities) {
       // Check page break for activities
