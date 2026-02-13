@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { labelsApi } from '../services/api';
 import type { Label } from '../types';
-import { getContrastingTextColor, normalizeHexColor } from '../utils/color';
+import { deltaE76, getContrastingTextColor, normalizeHexColor } from '../utils/color';
 
 interface LabelManagementProps {
   isOpen: boolean;
@@ -9,6 +9,7 @@ interface LabelManagementProps {
 }
 
 const DEFAULT_COLOR = '#FF914D';
+const SIMILARITY_THRESHOLD = 12; // Delta-E 76. Lower = stricter.
 
 const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose }) => {
   const [labels, setLabels] = useState<Label[]>([]);
@@ -61,6 +62,28 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose }) =>
     return { name: trimmedName, color: normalizedColor };
   };
 
+  const findSimilarColorConflict = (candidateColor: string, excludeId?: string): { label: Label; distance: number } | null => {
+    const normalizedCandidate = normalizeHexColor(candidateColor);
+    if (!normalizedCandidate) return null;
+
+    let best: { label: Label; distance: number } | null = null;
+    for (const label of labels) {
+      if (excludeId && label.id === excludeId) continue;
+      const otherColor = normalizeHexColor(label.color);
+      if (!otherColor) continue;
+      const d = deltaE76(normalizedCandidate, otherColor);
+      if (typeof d !== 'number') continue;
+      if (!best || d < best.distance) {
+        best = { label, distance: d };
+      }
+    }
+
+    if (best && best.distance < SIMILARITY_THRESHOLD) {
+      return best;
+    }
+    return null;
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -68,6 +91,12 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose }) =>
     setSuccess('');
     try {
       const input = normalizeOrError(newLabel.name, newLabel.color);
+      const conflict = findSimilarColorConflict(input.color);
+      if (conflict) {
+        throw new Error(
+          `Color is too similar to "${conflict.label.name}" (${normalizeHexColor(conflict.label.color) || conflict.label.color}). Please pick a more distinct color.`
+        );
+      }
       await labelsApi.create(input);
       setSuccess('Label created');
       setNewLabel({ name: '', color: DEFAULT_COLOR });
@@ -89,6 +118,12 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose }) =>
     setSuccess('');
     try {
       const input = normalizeOrError(editing.name, editing.color);
+      const conflict = findSimilarColorConflict(input.color, editing.id);
+      if (conflict) {
+        throw new Error(
+          `Color is too similar to "${conflict.label.name}" (${normalizeHexColor(conflict.label.color) || conflict.label.color}). Please pick a more distinct color.`
+        );
+      }
       await labelsApi.update(editing.id, input);
       setSuccess('Label updated');
       setEditing(null);
@@ -368,4 +403,3 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose }) =>
 };
 
 export default LabelManagement;
-
