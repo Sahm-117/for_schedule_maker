@@ -68,6 +68,23 @@ const getChangeSummary = (changeData: unknown): string => {
   return 'No summary provided';
 };
 
+const resolveWeekNumber = async (weekId?: number): Promise<number | undefined> => {
+  if (typeof weekId !== 'number') return undefined;
+  const { data, error } = await supabase
+    .from('Week')
+    .select('weekNumber')
+    .eq('id', weekId)
+    .single();
+  if (error || !data) return undefined;
+  return (data as any).weekNumber as number | undefined;
+};
+
+const getLoginUrl = (): string | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  // Keep it simple and always point to login.
+  return `${window.location.origin}/login`;
+};
+
 const notifyTelegram = async (payload: TelegramNotificationEvent): Promise<void> => {
   await sendTelegramNotification(payload);
 };
@@ -480,6 +497,7 @@ export const activitiesApi = {
 
     const actor = getCurrentUserFromStorage();
 
+    const weekNumber = await resolveWeekNumber(day.weekId);
     await notifyTelegram({
       event: 'CHANGE_REQUEST_CREATED',
       changeType: 'ADD',
@@ -487,9 +505,11 @@ export const activitiesApi = {
       actorRole: actor?.role || 'SUPPORT',
       requestId: data.id,
       weekId: day.weekId,
+      weekNumber,
       dayName: day.dayName,
       summary: `${activityData.time} - ${activityData.description}`,
       timestamp: data.createdAt,
+      loginUrl: getLoginUrl(),
     });
 
     return {
@@ -768,9 +788,11 @@ export const pendingChangesApi = {
         actorRole: actor?.role || 'SUPPORT',
         requestId: (data as any).id,
         weekId: changeData.weekId,
+        weekNumber: await resolveWeekNumber(changeData.weekId),
         dayName,
         summary: getChangeSummary(changeData.changeData),
         timestamp: (data as any).createdAt,
+        loginUrl: getLoginUrl(),
       });
     } catch (notifyError) {
       console.warn('Telegram notification failed for pending change create:', notifyError);
@@ -827,9 +849,11 @@ export const pendingChangesApi = {
       actorRole: 'ADMIN',
       requestId: changeId,
       weekId: change.weekId,
+      weekNumber: await resolveWeekNumber(change.weekId),
       dayName,
       summary: getChangeSummary(change.changeData),
       timestamp: new Date().toISOString(),
+      loginUrl: getLoginUrl(),
     });
 
     return {
@@ -886,9 +910,11 @@ export const pendingChangesApi = {
       actorRole: 'ADMIN',
       requestId: changeId,
       weekId: change.weekId,
+      weekNumber: await resolveWeekNumber(change.weekId),
       dayName,
       summary: `${getChangeSummary(change.changeData)} | Reason: ${rejectionReason}`,
       timestamp: rejectedChange.rejectedAt,
+      loginUrl: getLoginUrl(),
     });
 
     return {

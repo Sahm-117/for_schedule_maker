@@ -10,9 +10,11 @@ interface TelegramNotificationEvent {
   actorRole: ActorRole;
   requestId: string;
   weekId?: number;
+  weekNumber?: number;
   dayName?: string;
   summary?: string;
   timestamp?: string;
+  loginUrl?: string;
 }
 
 const corsHeaders = {
@@ -21,17 +23,34 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+const formatTimestamp = (raw?: string): string => {
+  if (!raw) return new Date().toLocaleString();
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  // Keep it human readable without being overly verbose.
+  return d.toLocaleString(undefined, {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 const toMessage = (payload: TelegramNotificationEvent): string => {
   const eventLabel = payload.event.split('_').join(' ');
   const lines = [
     `FOF Scheduler: ${eventLabel}`,
     `Action: ${payload.changeType}`,
     `Actor: ${payload.actorName} (${payload.actorRole})`,
-    `Request ID: ${payload.requestId}`,
   ];
 
-  if (typeof payload.weekId === 'number') {
-    lines.push(`Week ID: ${payload.weekId}`);
+  if (typeof payload.weekNumber === 'number') {
+    lines.push(`Week: ${payload.weekNumber}`);
+  } else if (typeof payload.weekId === 'number') {
+    // Fallback if weekNumber isn't provided.
+    lines.push(`Week: ${payload.weekId}`);
   }
 
   if (payload.dayName) {
@@ -42,7 +61,7 @@ const toMessage = (payload: TelegramNotificationEvent): string => {
     lines.push(`Summary: ${payload.summary}`);
   }
 
-  lines.push(`At: ${payload.timestamp || new Date().toISOString()}`);
+  lines.push(`At: ${formatTimestamp(payload.timestamp)}`);
   return lines.join('\n');
 };
 
@@ -78,6 +97,13 @@ serve(async (req) => {
       body: JSON.stringify({
         chat_id: chatId,
         text: toMessage(body),
+        ...(body.loginUrl
+          ? {
+              reply_markup: {
+                inline_keyboard: [[{ text: 'Open Admin', url: body.loginUrl }]],
+              },
+            }
+          : {}),
       }),
     });
 

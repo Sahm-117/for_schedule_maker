@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { pendingChangesApi } from '../services/api';
 import type { PendingChange } from '../types';
+import ConfirmationModal from './ConfirmationModal';
 
 interface PendingChangesPanelProps {
   pendingChanges: PendingChange[];
@@ -19,6 +20,10 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string>('');
+  const [bulkApproveOpen, setBulkApproveOpen] = useState(false);
+  const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkRejectionReason, setBulkRejectionReason] = useState('');
 
   const handleApprove = async (changeId: string) => {
     setLoading(changeId);
@@ -49,6 +54,41 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
       setActionError(error instanceof Error ? error.message : 'Failed to reject change');
     } finally {
       setLoading(null);
+    }
+  };
+
+  const handleApproveAll = async () => {
+    if (pendingChanges.length === 0) return;
+    setBulkLoading(true);
+    setActionError('');
+    try {
+      for (const change of pendingChanges) {
+        await pendingChangesApi.approve(change.id);
+      }
+      onApprove();
+    } catch (error) {
+      console.error('Failed to approve all changes:', error);
+      setActionError(error instanceof Error ? error.message : 'Failed to approve all changes');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleRejectAll = async () => {
+    if (pendingChanges.length === 0 || !bulkRejectionReason.trim()) return;
+    setBulkLoading(true);
+    setActionError('');
+    try {
+      for (const change of pendingChanges) {
+        await pendingChangesApi.reject(change.id, bulkRejectionReason);
+      }
+      setBulkRejectionReason('');
+      onReject();
+    } catch (error) {
+      console.error('Failed to reject all changes:', error);
+      setActionError(error instanceof Error ? error.message : 'Failed to reject all changes');
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -96,9 +136,32 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="p-4 border-b border-gray-200">
-        <h3 className="text-lg font-medium text-gray-900">
-          Pending Changes ({pendingChanges.length})
-        </h3>
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-lg font-medium text-gray-900">
+            Pending Changes ({pendingChanges.length})
+          </h3>
+
+          {isAdmin && pendingChanges.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setBulkApproveOpen(true)}
+                disabled={bulkLoading}
+                className="px-2 py-1 text-xs border border-green-300 text-green-700 bg-white rounded hover:bg-green-50 disabled:opacity-50"
+                title="Approve all pending changes (requires confirmation)"
+              >
+                Approve All
+              </button>
+              <button
+                onClick={() => setBulkRejectOpen(true)}
+                disabled={bulkLoading}
+                className="px-2 py-1 text-xs border border-red-300 text-red-700 bg-white rounded hover:bg-red-50 disabled:opacity-50"
+                title="Reject all pending changes (requires confirmation)"
+              >
+                Reject All
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="p-4 space-y-4">
@@ -203,6 +266,67 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
                   className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
                 >
                   {loading === showRejectModal ? 'Rejecting...' : 'Reject Change'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmationModal
+        isOpen={bulkApproveOpen}
+        onClose={() => setBulkApproveOpen(false)}
+        onConfirm={handleApproveAll}
+        title="Approve All Changes"
+        message={`This will approve and apply ${pendingChanges.length} pending change(s). Continue?`}
+        confirmText={bulkLoading ? 'Approving...' : 'Approve All'}
+        type="warning"
+      />
+
+      {bulkRejectOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Reject All Changes
+              </h3>
+
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">
+                  This will reject {pendingChanges.length} pending change(s). Provide a single reason that will be applied to all.
+                </p>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for rejection
+                </label>
+                <textarea
+                  value={bulkRejectionReason}
+                  onChange={(e) => setBulkRejectionReason(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
+                  placeholder="Reason for rejecting all changes..."
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setBulkRejectOpen(false);
+                    setBulkRejectionReason('');
+                  }}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    handleRejectAll();
+                    setBulkRejectOpen(false);
+                  }}
+                  disabled={!bulkRejectionReason.trim() || bulkLoading}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                >
+                  {bulkLoading ? 'Rejecting...' : 'Reject All'}
                 </button>
               </div>
             </div>

@@ -72,7 +72,9 @@ export interface TelegramNotificationEvent {
   actorRole: 'ADMIN' | 'SUPPORT' | 'SYSTEM';
   requestId: string;
   weekId?: number;
+  weekNumber?: number;
   dayName?: string;
   summary?: string;
   timestamp?: string;
+  loginUrl?: string;
 }
