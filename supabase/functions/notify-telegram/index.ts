@@ -100,7 +100,7 @@ serve(async (req) => {
         ...(body.loginUrl
           ? {
               reply_markup: {
-                inline_keyboard: [[{ text: 'Open Admin', url: body.loginUrl }]],
+                inline_keyboard: [[{ text: 'Open App', url: body.loginUrl }]],
               },
             }
           : {}),
