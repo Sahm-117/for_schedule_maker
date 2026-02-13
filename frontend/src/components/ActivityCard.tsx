@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Activity, PendingChange } from '../types';
 import { formatTimeForDisplay } from '../utils/time';
+import { getContrastingTextColor, normalizeHexColor } from '../utils/color';
 
 interface ActivityCardProps {
   activity: Activity;
@@ -53,6 +54,25 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
           <p className={`text-gray-700 ${deletePendingChange ? 'line-through text-gray-500' : ''}`}>
             {activity.description}
           </p>
+
+          {Array.isArray(activity.labels) && activity.labels.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {activity.labels.map((label) => {
+                const bg = normalizeHexColor(label.color) || '#E5E7EB';
+                const fg = getContrastingTextColor(bg);
+                return (
+                  <span
+                    key={label.id}
+                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
+                    style={{ backgroundColor: bg, color: fg }}
+                    title={label.name}
+                  >
+                    {label.name}
+                  </span>
+                );
+              })}
+            </div>
+          )}
 
           {/* Show pending edit changes */}
           {editPendingChange && (

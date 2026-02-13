@@ -5,6 +5,7 @@ import type {
   Week,
   Day,
   Activity,
+  Label,
   PendingChange,
   RejectedChange,
   AuthResponse,
@@ -204,7 +205,12 @@ export const weeksApi = {
         *,
         Day (
           *,
-          Activity (*)
+          Activity (
+            *,
+            ActivityLabel (
+              Label (*)
+            )
+          )
         )
       `)
       .order('weekNumber');
@@ -237,6 +243,16 @@ export const weeksApi = {
             description: activity.description,
             period: activity.period,
             orderIndex: activity.orderIndex,
+            labels: ((activity.ActivityLabel || []) as any[])
+              .map((al: any) => al?.Label)
+              .filter(Boolean)
+              .map((l: any) => ({
+                id: l.id,
+                name: l.name,
+                color: l.color,
+                createdAt: l.createdAt,
+                updatedAt: l.updatedAt,
+              }) as Label),
           })),
         })),
       };
@@ -253,7 +269,12 @@ export const weeksApi = {
         *,
         Day (
           *,
-          Activity (*)
+          Activity (
+            *,
+            ActivityLabel (
+              Label (*)
+            )
+          )
         )
       `)
       .eq('id', weekId)
@@ -296,6 +317,16 @@ export const weeksApi = {
           description: activity.description,
           period: activity.period,
           orderIndex: activity.orderIndex,
+          labels: ((activity.ActivityLabel || []) as any[])
+            .map((al: any) => al?.Label)
+            .filter(Boolean)
+            .map((l: any) => ({
+              id: l.id,
+              name: l.name,
+              color: l.color,
+              createdAt: l.createdAt,
+              updatedAt: l.updatedAt,
+            }) as Label),
         })),
       })),
     };
@@ -305,6 +336,118 @@ export const weeksApi = {
 
     return { week, pendingChanges };
   },
+};
+
+// Labels API
+export const labelsApi = {
+  async getAll(): Promise<{ labels: Label[] }> {
+    const { data, error } = await supabase
+      .from('Label')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return {
+      labels: ((data || []) as any[]).map((l) => ({
+        id: l.id,
+        name: l.name,
+        color: l.color,
+        createdAt: l.createdAt,
+        updatedAt: l.updatedAt,
+      }) as Label),
+    };
+  },
+
+  async create(input: { name: string; color: string }): Promise<{ label: Label }> {
+    const { data, error } = await supabase
+      .from('Label')
+      .insert([{
+        name: input.name,
+        color: input.color,
+      }])
+      .select()
+      .single();
+
+    if (error || !data) {
+      throw new Error(error?.message || 'Failed to create label');
+    }
+
+    return {
+      label: {
+        id: (data as any).id,
+        name: (data as any).name,
+        color: (data as any).color,
+        createdAt: (data as any).createdAt,
+        updatedAt: (data as any).updatedAt,
+      },
+    };
+  },
+
+  async update(labelId: string, input: { name: string; color: string }): Promise<{ label: Label }> {
+    const { data, error } = await supabase
+      .from('Label')
+      .update({
+        name: input.name,
+        color: input.color,
+        updatedAt: new Date().toISOString(),
+      })
+      .eq('id', labelId)
+      .select()
+      .single();
+
+    if (error || !data) {
+      throw new Error(error?.message || 'Failed to update label');
+    }
+
+    return {
+      label: {
+        id: (data as any).id,
+        name: (data as any).name,
+        color: (data as any).color,
+        createdAt: (data as any).createdAt,
+        updatedAt: (data as any).updatedAt,
+      },
+    };
+  },
+
+  async delete(labelId: string): Promise<{ message: string }> {
+    const { error } = await supabase
+      .from('Label')
+      .delete()
+      .eq('id', labelId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { message: 'Label deleted' };
+  },
+};
+
+const uniq = <T,>(arr: T[]): T[] => Array.from(new Set(arr));
+
+const setActivityLabels = async (activityId: number, labelIds: string[] | undefined): Promise<void> => {
+  const ids = uniq((labelIds || []).filter(Boolean));
+
+  const { error: delError } = await supabase
+    .from('ActivityLabel')
+    .delete()
+    .eq('activityId', activityId);
+  if (delError) {
+    throw new Error(delError.message);
+  }
+
+  if (ids.length === 0) return;
+
+  const { error: insError } = await supabase
+    .from('ActivityLabel')
+    .insert(ids.map((labelId) => ({ activityId, labelId })));
+  if (insError) {
+    throw new Error(insError.message);
+  }
 };
 
 // Activities API
@@ -340,6 +483,7 @@ export const activitiesApi = {
     description: string;
     period: 'MORNING' | 'AFTERNOON' | 'EVENING';
     applyToWeeks?: number[];
+    labelIds?: string[];
   }): Promise<{ activities: Activity[] }> {
     // If applyToWeeks is specified, create activities for multiple weeks (always include originating week).
     if (activityData.applyToWeeks && activityData.applyToWeeks.length > 0) {
@@ -421,6 +565,12 @@ export const activitiesApi = {
           continue;
         }
 
+        try {
+          await setActivityLabels((activity as any).id as number, activityData.labelIds);
+        } catch (labelError) {
+          console.warn('Failed to set activity labels for created activity', (activity as any).id, labelError);
+        }
+
         activities.push(activity as Activity);
       }
 
@@ -457,6 +607,8 @@ export const activitiesApi = {
         throw new Error(error.message);
       }
 
+      await setActivityLabels((data as any).id as number, activityData.labelIds);
+
       return { activities: [data] };
     }
   },
@@ -468,6 +620,7 @@ export const activitiesApi = {
     period: 'MORNING' | 'AFTERNOON' | 'EVENING';
     applyToWeeks?: number[];
     userId?: string;
+    labelIds?: string[];
   }): Promise<{ message: string; pendingChange: PendingChange }> {
     // Get the week ID from the day
     const { data: day, error: dayError } = await supabase
@@ -525,6 +678,7 @@ export const activitiesApi = {
     oldTime?: string;
     oldDescription?: string;
     dayName?: string;
+    labelIds?: string[];
   }): Promise<{ activities: Activity[] }> {
     const activities: Activity[] = [];
 
@@ -555,6 +709,10 @@ export const activitiesApi = {
 
     if (updateError || !updatedOriginal) {
       throw new Error(updateError?.message || 'Failed to update activity');
+    }
+
+    if (Array.isArray(updateData.labelIds)) {
+      await setActivityLabels((updatedOriginal as any).id as number, updateData.labelIds);
     }
 
     activities.push(updatedOriginal as Activity);
@@ -636,6 +794,14 @@ export const activitiesApi = {
           if (matchUpdateError || !updated) {
             console.warn('Failed to update matching activity for weekNumber', weekNumber, matchUpdateError?.message);
             continue;
+          }
+
+          if (Array.isArray(updateData.labelIds)) {
+            try {
+              await setActivityLabels((updated as any).id as number, updateData.labelIds);
+            } catch (labelError) {
+              console.warn('Failed to set activity labels for updated activity', (updated as any).id, labelError);
+            }
           }
 
           activities.push(updated as Activity);

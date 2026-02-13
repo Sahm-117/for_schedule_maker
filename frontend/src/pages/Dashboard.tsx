@@ -6,6 +6,7 @@ import WeekSelector from '../components/WeekSelector';
 import ScheduleView from '../components/ScheduleView';
 import RejectedChangesNotification from '../components/RejectedChangesNotification';
 import UserManagement from '../components/UserManagement';
+import LabelManagement from '../components/LabelManagement';
 
 const Dashboard: React.FC = () => {
   const { user, logout, isAdmin } = useAuth();
@@ -15,6 +16,7 @@ const Dashboard: React.FC = () => {
   const [rejectedChanges, setRejectedChanges] = useState<RejectedChange[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showLabelManagement, setShowLabelManagement] = useState(false);
 
   useEffect(() => {
     loadWeeks();
@@ -101,12 +103,20 @@ const Dashboard: React.FC = () => {
               </span>
               <div className="flex items-center gap-2">
                 {isAdmin && (
-                  <button
-                    onClick={() => setShowUserManagement(true)}
-                    className="text-xs sm:text-sm text-primary hover:text-primary-dark px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-primary hover:bg-primary/5"
-                  >
-                    Manage Users
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setShowLabelManagement(true)}
+                      className="text-xs sm:text-sm text-primary hover:text-primary-dark px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-primary hover:bg-primary/5"
+                    >
+                      Manage Labels
+                    </button>
+                    <button
+                      onClick={() => setShowUserManagement(true)}
+                      className="text-xs sm:text-sm text-primary hover:text-primary-dark px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-primary hover:bg-primary/5"
+                    >
+                      Manage Users
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={logout}
@@ -163,6 +173,12 @@ const Dashboard: React.FC = () => {
       <UserManagement
         isOpen={showUserManagement}
         onClose={() => setShowUserManagement(false)}
+      />
+
+      {/* Label Management Modal */}
+      <LabelManagement
+        isOpen={showLabelManagement}
+        onClose={() => setShowLabelManagement(false)}
       />
     </div>
   );

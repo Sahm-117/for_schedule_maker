@@ -7,6 +7,14 @@ export interface User {
   updatedAt?: string;
 }
 
+export interface Label {
+  id: string;
+  name: string;
+  color: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Activity {
   id: number;
   dayId: number;
@@ -15,6 +23,7 @@ export interface Activity {
   period: 'MORNING' | 'AFTERNOON' | 'EVENING';
   orderIndex: number;
   day?: Day;
+  labels?: Label[];
 }
 
 export interface Day {

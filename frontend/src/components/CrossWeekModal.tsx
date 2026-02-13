@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { activitiesApi } from '../services/api';
+import React, { useEffect, useState } from 'react';
+import { activitiesApi, labelsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
-import type { Week, Day } from '../types';
+import type { Week, Label } from '../types';
+import { getContrastingTextColor, normalizeHexColor } from '../utils/color';
 
 interface CrossWeekModalProps {
   isOpen: boolean;
@@ -26,6 +27,37 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
   const [period, setPeriod] = useState<'MORNING' | 'AFTERNOON' | 'EVENING'>('MORNING');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [labels, setLabels] = useState<Label[]>([]);
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  const [labelsLoading, setLabelsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setLabelsLoading(true);
+    labelsApi.getAll()
+      .then((res) => {
+        if (cancelled) return;
+        setLabels(res.labels || []);
+      })
+      .catch((e) => {
+        console.warn('Failed to load labels:', e);
+        if (!cancelled) setLabels([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLabelsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [isOpen]);
+
+  const toggleLabel = (labelId: string, checked: boolean) => {
+    setSelectedLabelIds((prev) => {
+      const set = new Set(prev);
+      if (checked) set.add(labelId);
+      else set.delete(labelId);
+      return Array.from(set);
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +85,7 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
             description,
             period,
             applyToWeeks: selectedWeeks,
+            labelIds: selectedLabelIds,
           };
 
           // Use correct API based on user role
@@ -86,6 +119,7 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
         setTime('');
         setDescription('');
         setPeriod('MORNING');
+        setSelectedLabelIds([]);
         onClose();
       }
     } catch (error: any) {
@@ -97,15 +131,10 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
 
   if (!isOpen) return null;
 
-  const dayOptions = [
-    'MONDAY',
-    'TUESDAY',
-    'WEDNESDAY',
-    'THURSDAY',
-    'FRIDAY',
-    'SATURDAY',
-    'SUNDAY'
-  ];
+  const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayOptions = [...currentWeek.days]
+    .map((d) => d.dayName)
+    .sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -222,6 +251,69 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
                 placeholder="Describe the activity..."
                 required
               />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Labels (optional)
+                </label>
+                {labelsLoading && (
+                  <span className="text-xs text-gray-500">Loading labels...</span>
+                )}
+              </div>
+
+              {selectedLabelIds.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1">
+                  {labels
+                    .filter((l) => selectedLabelIds.includes(l.id))
+                    .map((label) => {
+                      const bg = normalizeHexColor(label.color) || '#E5E7EB';
+                      const fg = getContrastingTextColor(bg);
+                      return (
+                        <span
+                          key={label.id}
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
+                          style={{ backgroundColor: bg, color: fg }}
+                        >
+                          {label.name}
+                        </span>
+                      );
+                    })}
+                </div>
+              )}
+
+              <div className="border border-gray-200 rounded-md p-3 max-h-40 overflow-y-auto">
+                {labels.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    No labels yet.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {labels.map((label) => {
+                      const bg = normalizeHexColor(label.color) || '#E5E7EB';
+                      const fg = getContrastingTextColor(bg);
+                      const checked = selectedLabelIds.includes(label.id);
+                      return (
+                        <label key={label.id} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => toggleLabel(label.id, e.target.checked)}
+                            className="rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
+                            style={{ backgroundColor: bg, color: fg }}
+                          >
+                            {label.name}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             {error && (

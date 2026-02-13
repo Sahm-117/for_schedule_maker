@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { activitiesApi, pendingChangesApi } from '../services/api';
+import { activitiesApi, pendingChangesApi, labelsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
-import type { Day, Activity, Week } from '../types';
+import type { Day, Activity, Week, Label } from '../types';
+import { getContrastingTextColor, normalizeHexColor } from '../utils/color';
 
 interface ActivityModalProps {
   isOpen: boolean;
@@ -31,22 +32,55 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
   const [error, setError] = useState('');
   const [duplicateWeeks, setDuplicateWeeks] = useState<number[]>([]);
   const [showCrossWeek, setShowCrossWeek] = useState(false);
+  const [labels, setLabels] = useState<Label[]>([]);
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  const [labelsLoading, setLabelsLoading] = useState(false);
 
   useEffect(() => {
     if (activity) {
       setTime(activity.time);
       setDescription(activity.description);
       setPeriod(activity.period);
+      setSelectedLabelIds((activity.labels || []).map((l) => l.id));
     } else {
       setTime('');
       setDescription('');
       setPeriod('MORNING');
+      setSelectedLabelIds([]);
     }
     setSelectedWeeks([]);
     setError('');
     setDuplicateWeeks([]);
     setShowCrossWeek(false);
   }, [activity, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setLabelsLoading(true);
+    labelsApi.getAll()
+      .then((res) => {
+        if (cancelled) return;
+        setLabels(res.labels || []);
+      })
+      .catch((e) => {
+        console.warn('Failed to load labels:', e);
+        if (!cancelled) setLabels([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLabelsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [isOpen]);
+
+  const toggleLabel = (labelId: string, checked: boolean) => {
+    setSelectedLabelIds((prev) => {
+      const set = new Set(prev);
+      if (checked) set.add(labelId);
+      else set.delete(labelId);
+      return Array.from(set);
+    });
+  };
 
   const checkDuplicates = async () => {
     if (!time || !description) return;
@@ -74,47 +108,50 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
     setError('');
 
     try {
-      if (activity) {
-        if (isAdmin) {
-          await activitiesApi.update(activity.id, {
-            time,
-            description,
-            applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
-          });
-        } else {
-          await pendingChangesApi.create({
-            weekId: day.weekId,
-            changeType: 'EDIT',
-            userId: user?.id,
-            changeData: {
-              activityId: activity.id,
-              dayId: day.id,
-              dayName: day.dayName,
-              oldTime: activity.time,
-              oldDescription: activity.description,
+        if (activity) {
+          if (isAdmin) {
+            await activitiesApi.update(activity.id, {
               time,
               description,
               applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
-            },
-          });
-        }
-      } else {
-        // Use correct API based on user role
-        const activityData = {
-          dayId: day.id,
-          time,
-          description,
-          period,
-          applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
-          userId: user?.id || 'demo_user_id',
-        };
-
-        if (isAdmin) {
-          await activitiesApi.create(activityData);
+              labelIds: selectedLabelIds,
+            });
+          } else {
+            await pendingChangesApi.create({
+              weekId: day.weekId,
+              changeType: 'EDIT',
+              userId: user?.id,
+              changeData: {
+                activityId: activity.id,
+                dayId: day.id,
+                dayName: day.dayName,
+                oldTime: activity.time,
+                oldDescription: activity.description,
+                time,
+                description,
+                applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
+                labelIds: selectedLabelIds,
+              },
+            });
+          }
         } else {
-          await activitiesApi.request(activityData);
+          // Use correct API based on user role
+          const activityData = {
+            dayId: day.id,
+            time,
+            description,
+            period,
+            applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
+            labelIds: selectedLabelIds,
+            userId: user?.id || 'demo_user_id',
+          };
+
+          if (isAdmin) {
+            await activitiesApi.create(activityData);
+          } else {
+            await activitiesApi.request(activityData);
+          }
         }
-      }
       onSave();
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to save activity');
@@ -193,6 +230,69 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                 placeholder="Describe the activity..."
                 required
               />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Labels (optional)
+                </label>
+                {labelsLoading && (
+                  <span className="text-xs text-gray-500">Loading labels...</span>
+                )}
+              </div>
+
+              {selectedLabelIds.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1">
+                  {labels
+                    .filter((l) => selectedLabelIds.includes(l.id))
+                    .map((label) => {
+                      const bg = normalizeHexColor(label.color) || '#E5E7EB';
+                      const fg = getContrastingTextColor(bg);
+                      return (
+                        <span
+                          key={label.id}
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
+                          style={{ backgroundColor: bg, color: fg }}
+                        >
+                          {label.name}
+                        </span>
+                      );
+                    })}
+                </div>
+              )}
+
+              <div className="border border-gray-200 rounded-md p-3 max-h-40 overflow-y-auto">
+                {labels.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    No labels yet.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {labels.map((label) => {
+                      const bg = normalizeHexColor(label.color) || '#E5E7EB';
+                      const fg = getContrastingTextColor(bg);
+                      const checked = selectedLabelIds.includes(label.id);
+                      return (
+                        <label key={label.id} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => toggleLabel(label.id, e.target.checked)}
+                            className="rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
+                            style={{ backgroundColor: bg, color: fg }}
+                          >
+                            {label.name}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             {duplicateWeeks.length > 0 && (

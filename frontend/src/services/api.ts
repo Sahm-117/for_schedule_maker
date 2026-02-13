@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AuthResponse, User, Week, PendingChange, RejectedChange } from '../types';
+import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
 
 // Import Supabase API
@@ -7,6 +7,7 @@ import {
   authApi as supabaseAuthApi,
   weeksApi as supabaseWeeksApi,
   activitiesApi as supabaseActivitiesApi,
+  labelsApi as supabaseLabelsApi,
   pendingChangesApi as supabasePendingChangesApi,
   rejectedChangesApi as supabaseRejectedChangesApi,
   usersApi as supabaseUsersApi,
@@ -158,6 +159,26 @@ export const activitiesApi = USE_SUPABASE ? supabaseActivitiesApi : {
 
   async reorder(activityId: number, newOrderIndex: number): Promise<{ activity: any }> {
     const response = await api.put(`/activities/${activityId}/reorder`, { newOrderIndex });
+    return response.data;
+  },
+};
+
+// Labels API
+export const labelsApi = USE_SUPABASE ? supabaseLabelsApi : {
+  async getAll(): Promise<{ labels: Label[] }> {
+    const response = await api.get('/labels');
+    return response.data;
+  },
+  async create(input: { name: string; color: string }): Promise<{ label: Label }> {
+    const response = await api.post('/labels', input);
+    return response.data;
+  },
+  async update(labelId: string, input: { name: string; color: string }): Promise<{ label: Label }> {
+    const response = await api.put(`/labels/${labelId}`, input);
+    return response.data;
+  },
+  async delete(labelId: string): Promise<{ message: string }> {
+    const response = await api.delete(`/labels/${labelId}`);
     return response.data;
   },
 };

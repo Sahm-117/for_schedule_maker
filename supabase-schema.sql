@@ -41,6 +41,28 @@ CREATE TABLE "Activity" (
     "orderIndex" INTEGER NOT NULL
 );
 
+-- Labels table (admin-managed)
+CREATE TABLE "Label" (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    color TEXT NOT NULL,
+    "createdAt" TIMESTAMP DEFAULT NOW(),
+    "updatedAt" TIMESTAMP DEFAULT NOW()
+);
+
+-- Case-insensitive uniqueness on label name
+CREATE UNIQUE INDEX idx_label_name_lower_unique ON "Label"(lower(name));
+
+-- Activity <-> Label join table
+CREATE TABLE "ActivityLabel" (
+    "activityId" INTEGER NOT NULL REFERENCES "Activity"(id) ON DELETE CASCADE,
+    "labelId" UUID NOT NULL REFERENCES "Label"(id) ON DELETE CASCADE,
+    PRIMARY KEY ("activityId", "labelId")
+);
+
+CREATE INDEX idx_activitylabel_activity ON "ActivityLabel"("activityId");
+CREATE INDEX idx_activitylabel_label ON "ActivityLabel"("labelId");
+
 -- Pending changes table
 CREATE TABLE "PendingChange" (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -90,6 +112,8 @@ ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Week" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Day" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Activity" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Label" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "ActivityLabel" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "PendingChange" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "RejectedChange" ENABLE ROW LEVEL SECURITY;
 
@@ -98,5 +122,7 @@ CREATE POLICY "Allow all operations" ON "User" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "Week" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "Day" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "Activity" FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON "Label" FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON "ActivityLabel" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "PendingChange" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "RejectedChange" FOR ALL USING (true);

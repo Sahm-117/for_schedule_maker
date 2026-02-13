@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import type { Week } from '../types';
 import { compareTimeStrings } from './time';
+import { getContrastingTextColor, hexToRgb, normalizeHexColor } from './color';
 
 interface ExportOptions {
   includeEmptyDays?: boolean;
@@ -60,6 +61,92 @@ const addTimelineHeader = (pdf: jsPDF, pageWidth: number, weekNumber: number): n
   pdf.line(20, yPosition, pageWidth - 20, yPosition);
 
   return yPosition + 15;
+};
+
+const drawLabelChips = (pdf: jsPDF, labels: Array<{ name: string; color: string }>, xStart: number, yStart: number, maxWidth: number): number => {
+  if (!labels || labels.length === 0) return yStart;
+
+  // Chips styling
+  const chipHeight = 5;
+  const chipPadX = 2;
+  const gapX = 2;
+  const gapY = 2;
+
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'bold');
+
+  let x = xStart;
+  let y = yStart;
+
+  for (const label of labels) {
+    const bg = normalizeHexColor(label.color) || '#E5E7EB';
+    const rgb = hexToRgb(bg) || [229, 231, 235];
+    const fg = getContrastingTextColor(bg);
+    const textRgb = fg === '#FFFFFF' ? [255, 255, 255] : [0, 0, 0];
+
+    const textW = pdf.getTextWidth(label.name);
+    const chipW = Math.min(maxWidth, textW + chipPadX * 2 + 2);
+
+    if (x + chipW > xStart + maxWidth) {
+      x = xStart;
+      y += chipHeight + gapY;
+    }
+
+    // Rounded rect background
+    pdf.setDrawColor(...rgb);
+    pdf.setFillColor(...rgb);
+    const rr = (pdf as any).roundedRect;
+    if (typeof rr === 'function') {
+      rr.call(pdf, x, y - chipHeight + 1, chipW, chipHeight, 2, 2, 'F');
+    } else {
+      pdf.rect(x, y - chipHeight + 1, chipW, chipHeight, 'F');
+    }
+
+    // Text
+    pdf.setTextColor(...(textRgb as any));
+    pdf.text(label.name, x + chipPadX, y);
+
+    x += chipW + gapX;
+  }
+
+  // Restore default font styling
+  pdf.setTextColor(...COLORS.brand.lightText);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(11);
+
+  return y + chipHeight + 1;
+};
+
+const estimateLabelChipBlockHeight = (pdf: jsPDF, labels: Array<{ name: string }>, maxWidth: number): number => {
+  if (!labels || labels.length === 0) return 0;
+
+  const chipHeight = 5;
+  const chipPadX = 2;
+  const gapX = 2;
+  const gapY = 2;
+
+  const prevFontSize = (pdf as any).getFontSize?.() ?? 11;
+  pdf.setFontSize(8);
+  pdf.setFont('helvetica', 'bold');
+
+  let lineCount = 1;
+  let x = 0;
+
+  for (const label of labels) {
+    const textW = pdf.getTextWidth(label.name);
+    const chipW = Math.min(maxWidth, textW + chipPadX * 2 + 2);
+    if (x > 0 && x + chipW > maxWidth) {
+      lineCount += 1;
+      x = 0;
+    }
+    x += chipW + gapX;
+  }
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(prevFontSize);
+
+  // Baseline y from description to chips uses yStart = descEnd + 1, then chips add lines with chipHeight + gapY.
+  return lineCount * (chipHeight + gapY) + 1;
 };
 
 export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) => {
@@ -125,8 +212,27 @@ export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) =
     });
 
     for (const activity of allActivities) {
+      const descX = 55;
+      const rightMargin = 20;
+      const descMaxWidth = Math.max(60, pageWidth - rightMargin - descX);
+
+      // Description with line wrapping (use dynamic width to avoid cutoff)
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'normal');
+      const descriptionLines = pdf.splitTextToSize(activity.description, descMaxWidth);
+      const lineHeight = 5;
+
+      // Estimate label chip height for page breaks
+      const labels = Array.isArray((activity as any).labels) ? ((activity as any).labels as any[]) : [];
+      const chipBlockEstimate = estimateLabelChipBlockHeight(
+        pdf,
+        labels.map((l: any) => ({ name: String(l?.name || '') })),
+        descMaxWidth
+      );
+      const needed = Math.max(7, descriptionLines.length * lineHeight) + chipBlockEstimate;
+
       // Check page break for activities
-      if (yPosition > pageHeight - 20) {
+      if (yPosition + needed > pageHeight - 20) {
         pdf.addPage();
         yPosition = addTimelineHeader(pdf, pageWidth, week.weekNumber);
       }
@@ -159,13 +265,29 @@ export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) =
       const timeText = formatTime(activity.time);
       pdf.text(timeText, 25, yPosition);
 
-      // Description with line wrapping
+      // Description (manual line layout for predictable wrapping)
+      pdf.setFontSize(11);
       pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(...COLORS.brand.lightText);
-      const descriptionLines = pdf.splitTextToSize(activity.description, 140);
-      pdf.text(descriptionLines, 55, yPosition);
+      for (let i = 0; i < descriptionLines.length; i++) {
+        pdf.text(descriptionLines[i], descX, yPosition + i * lineHeight);
+      }
 
-      yPosition += Math.max(7, descriptionLines.length * 5);
+      let nextY = yPosition + Math.max(7, descriptionLines.length * lineHeight);
+
+      // Labels (chips) below description
+      if (Array.isArray((activity as any).labels) && (activity as any).labels.length > 0) {
+        const chipsStartY = yPosition + descriptionLines.length * lineHeight + 1;
+        nextY = drawLabelChips(
+          pdf,
+          (activity as any).labels.map((l: any) => ({ name: l.name, color: l.color })),
+          descX,
+          chipsStartY,
+          descMaxWidth
+        );
+      }
+
+      yPosition = nextY;
     }
 
     yPosition += 8; // Space between days
