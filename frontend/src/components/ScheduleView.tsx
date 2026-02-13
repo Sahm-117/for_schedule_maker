@@ -195,6 +195,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           onApprove={handlePendingChangeApproved}
           onReject={handlePendingChangeApproved}
           isAdmin={isAdmin}
+          weekNumber={week.weekNumber}
         />
       )}
 

@@ -8,6 +8,7 @@ interface PendingChangesPanelProps {
   onApprove: () => void;
   onReject: () => void;
   isAdmin: boolean;
+  weekNumber?: number;
 }
 
 const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
@@ -15,6 +16,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   onApprove,
   onReject,
   isAdmin,
+  weekNumber,
 }) => {
   const [loading, setLoading] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -94,16 +96,18 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
 
   const getChangeDescription = (change: PendingChange) => {
     const { changeType, changeData } = change;
+    const wk = typeof weekNumber === 'number' ? weekNumber : undefined;
+    const prefix = wk ? `Week ${wk}: ` : '';
 
     switch (changeType) {
       case 'ADD':
-        return `Add new activity: ${changeData.time} - ${changeData.description}`;
+        return `${prefix}Add new activity: ${changeData.time} - ${changeData.description}`;
       case 'EDIT':
-        return `Edit activity: ${changeData.description || 'Activity details'}`;
+        return `${prefix}Edit activity: ${changeData.description || 'Activity details'}`;
       case 'DELETE':
-        return `Delete activity: ${changeData.description || 'Activity'}`;
+        return `${prefix}Delete activity: ${changeData.description || 'Activity'}`;
       default:
-        return 'Unknown change';
+        return `${prefix}Unknown change`;
     }
   };
 
@@ -190,6 +194,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
                 </p>
 
                 <p className="text-xs text-gray-500">
+                  {typeof weekNumber === 'number' ? `Week ${weekNumber} • ` : ''}
                   Submitted on {new Date(change.createdAt).toLocaleDateString()} at{' '}
                   {new Date(change.createdAt).toLocaleTimeString()}
                 </p>
