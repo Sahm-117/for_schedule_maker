@@ -31,19 +31,18 @@ const sendTelegramDirectFallback = async (payload: TelegramNotificationEvent): P
 
   lines.push(`At: ${payload.timestamp || new Date().toISOString()}`);
 
-  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text: lines.join('\n'),
-    }),
-  });
+  // Telegram Bot API does not reliably support browser CORS for JSON POSTs.
+  // Use a GET request with `no-cors` mode as a best-effort fallback.
+  const text = lines.join('\n');
+  const url = `https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${encodeURIComponent(
+    chatId
+  )}&text=${encodeURIComponent(text)}`;
 
-  if (!response.ok) {
-    throw new Error(`Fallback Telegram send failed with status ${response.status}`);
+  try {
+    await fetch(url, { method: 'GET', mode: 'no-cors' });
+  } catch (error) {
+    // Best-effort only: if this fails, we still don't want to break the main action.
+    console.warn('Direct Telegram fallback failed:', error);
   }
 };
 

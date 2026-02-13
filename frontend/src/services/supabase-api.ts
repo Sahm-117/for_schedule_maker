@@ -324,45 +324,73 @@ export const activitiesApi = {
     period: 'MORNING' | 'AFTERNOON' | 'EVENING';
     applyToWeeks?: number[];
   }): Promise<{ activities: Activity[] }> {
-    // If applyToWeeks is specified, create activities for multiple weeks
+    // If applyToWeeks is specified, create activities for multiple weeks (always include originating week).
     if (activityData.applyToWeeks && activityData.applyToWeeks.length > 0) {
-      const activities = [];
+      const activities: Activity[] = [];
 
-      for (const weekNumber of activityData.applyToWeeks) {
-        // First get the original day's name
-        const { data: originalDay } = await supabase
-          .from('Day')
-          .select('dayName')
-          .eq('id', activityData.dayId)
+      const { data: originalDay, error: originalDayError } = await supabase
+        .from('Day')
+        .select('dayName, weekId')
+        .eq('id', activityData.dayId)
+        .single();
+
+      if (originalDayError || !originalDay) {
+        throw new Error('Day not found');
+      }
+
+      const { data: originalWeek, error: originalWeekError } = await supabase
+        .from('Week')
+        .select('weekNumber')
+        .eq('id', (originalDay as any).weekId)
+        .single();
+
+      const originalWeekNumber = !originalWeekError && originalWeek
+        ? ((originalWeek as any).weekNumber as number)
+        : undefined;
+
+      const weeksToApply = Array.from(new Set([
+        ...activityData.applyToWeeks,
+        ...(typeof originalWeekNumber === 'number' ? [originalWeekNumber] : []),
+      ]));
+
+      for (const weekNumber of weeksToApply) {
+        const { data: weekRow, error: weekError } = await supabase
+          .from('Week')
+          .select('id')
+          .eq('weekNumber', weekNumber)
           .single();
 
-        if (!originalDay) continue;
+        if (weekError || !weekRow) {
+          console.warn('Week not found for weekNumber', weekNumber);
+          continue;
+        }
 
-        // Find the same day name in the target week
-        const { data: day, error: dayError } = await supabase
+        const { data: dayRow, error: dayError } = await supabase
           .from('Day')
-          .select('id, Week!inner (weekNumber)')
-          .eq('Week.weekNumber', weekNumber)
-          .eq('dayName', originalDay.dayName)
+          .select('id')
+          .eq('weekId', (weekRow as any).id)
+          .eq('dayName', (originalDay as any).dayName)
           .single();
 
-        if (dayError || !day) continue;
+        if (dayError || !dayRow) {
+          console.warn('Target day not found for weekNumber/dayName', weekNumber, (originalDay as any).dayName);
+          continue;
+        }
 
-        // Get next order index
         const { data: maxOrder } = await supabase
           .from('Activity')
           .select('orderIndex')
-          .eq('dayId', day.id)
+          .eq('dayId', (dayRow as any).id)
           .order('orderIndex', { ascending: false })
           .limit(1)
           .single();
 
-        const nextOrderIndex = (maxOrder?.orderIndex || 0) + 1;
+        const nextOrderIndex = ((maxOrder as any)?.orderIndex || 0) + 1;
 
         const { data: activity, error: actError } = await supabase
           .from('Activity')
           .insert([{
-            dayId: day.id,
+            dayId: (dayRow as any).id,
             time: activityData.time,
             description: activityData.description,
             period: activityData.period,
@@ -371,9 +399,16 @@ export const activitiesApi = {
           .select()
           .single();
 
-        if (!actError && activity) {
-          activities.push(activity);
+        if (actError || !activity) {
+          console.warn('Failed to insert activity for weekNumber', weekNumber, actError?.message);
+          continue;
         }
+
+        activities.push(activity as Activity);
+      }
+
+      if (activities.length === 0) {
+        throw new Error('No activities were created. Check that target weeks/days exist.');
       }
 
       return { activities };
@@ -443,11 +478,13 @@ export const activitiesApi = {
       throw new Error(error.message);
     }
 
+    const actor = getCurrentUserFromStorage();
+
     await notifyTelegram({
       event: 'CHANGE_REQUEST_CREATED',
       changeType: 'ADD',
-      actorName: activityData.userId || 'Support User',
-      actorRole: 'SUPPORT',
+      actorName: actor?.name || 'Support User',
+      actorRole: actor?.role || 'SUPPORT',
       requestId: data.id,
       weekId: day.weekId,
       dayName: day.dayName,
@@ -465,63 +502,132 @@ export const activitiesApi = {
     time: string;
     description: string;
     applyToWeeks?: number[];
+    oldTime?: string;
+    oldDescription?: string;
+    dayName?: string;
   }): Promise<{ activities: Activity[] }> {
+    const activities: Activity[] = [];
+
+    // Fetch current activity first so we can match other weeks by old values.
+    const { data: current, error: currentError } = await supabase
+      .from('Activity')
+      .select('id, dayId, time, description')
+      .eq('id', activityId)
+      .single();
+
+    if (currentError || !current) {
+      throw new Error(currentError?.message || 'Activity not found');
+    }
+
+    const matchTime = updateData.oldTime || (current as any).time;
+    const matchDescription = updateData.oldDescription || (current as any).description;
+
+    // Always update the requested activity id first.
+    const { data: updatedOriginal, error: updateError } = await supabase
+      .from('Activity')
+      .update({
+        time: updateData.time,
+        description: updateData.description,
+      })
+      .eq('id', activityId)
+      .select()
+      .single();
+
+    if (updateError || !updatedOriginal) {
+      throw new Error(updateError?.message || 'Failed to update activity');
+    }
+
+    activities.push(updatedOriginal as Activity);
+
     if (updateData.applyToWeeks && updateData.applyToWeeks.length > 0) {
-      // Update activities across multiple weeks
-      const activities = [];
-
-      for (const weekNumber of updateData.applyToWeeks) {
-        // Find activities with same time/description in this week
-        const { data, error } = await supabase
-          .from('Activity')
-          .select(`
-            *,
-            Day!inner (
-              Week!inner (weekNumber)
-            )
-          `)
-          .eq('Day.Week.weekNumber', weekNumber)
-          .eq('time', updateData.time)
-          .eq('description', updateData.description);
-
-        if (!error && data) {
-          for (const activity of data) {
-            const { data: updated, error: updateError } = await supabase
-              .from('Activity')
-              .update({
-                time: updateData.time,
-                description: updateData.description,
-              })
-              .eq('id', activity.id)
-              .select()
-              .single();
-
-            if (!updateError && updated) {
-              activities.push(updated);
-            }
-          }
-        }
-      }
-
-      return { activities };
-    } else {
-      // Update single activity
-      const { data, error } = await supabase
-        .from('Activity')
-        .update({
-          time: updateData.time,
-          description: updateData.description,
-        })
-        .eq('id', activityId)
-        .select()
+      const { data: dayRow, error: dayError } = await supabase
+        .from('Day')
+        .select('id, weekId, dayName')
+        .eq('id', (current as any).dayId)
         .single();
 
-      if (error) {
-        throw new Error(error.message);
+      if (dayError || !dayRow) {
+        throw new Error('Day not found for activity');
       }
 
-      return { activities: [data] };
+      const resolvedDayName = updateData.dayName || ((dayRow as any).dayName as string);
+
+      const { data: originalWeek, error: originalWeekError } = await supabase
+        .from('Week')
+        .select('weekNumber')
+        .eq('id', (dayRow as any).weekId)
+        .single();
+
+      const originalWeekNumber = !originalWeekError && originalWeek
+        ? ((originalWeek as any).weekNumber as number)
+        : undefined;
+
+      const weeksToApply = Array.from(new Set(updateData.applyToWeeks))
+        .filter((w) => typeof w === 'number')
+        .filter((w) => (typeof originalWeekNumber === 'number' ? w !== originalWeekNumber : true));
+
+      for (const weekNumber of weeksToApply) {
+        const { data: weekRow, error: weekError } = await supabase
+          .from('Week')
+          .select('id')
+          .eq('weekNumber', weekNumber)
+          .single();
+
+        if (weekError || !weekRow) {
+          console.warn('Week not found for weekNumber', weekNumber);
+          continue;
+        }
+
+        const { data: targetDay, error: targetDayError } = await supabase
+          .from('Day')
+          .select('id')
+          .eq('weekId', (weekRow as any).id)
+          .eq('dayName', resolvedDayName)
+          .single();
+
+        if (targetDayError || !targetDay) {
+          console.warn('Target day not found for weekNumber/dayName', weekNumber, resolvedDayName);
+          continue;
+        }
+
+        const { data: matches, error: matchesError } = await supabase
+          .from('Activity')
+          .select('id')
+          .eq('dayId', (targetDay as any).id)
+          .eq('time', matchTime)
+          .eq('description', matchDescription);
+
+        if (matchesError || !matches || matches.length === 0) {
+          console.warn('No matching activities found to update for weekNumber', weekNumber);
+          continue;
+        }
+
+        for (const match of matches) {
+          const { data: updated, error: matchUpdateError } = await supabase
+            .from('Activity')
+            .update({
+              time: updateData.time,
+              description: updateData.description,
+            })
+            .eq('id', (match as any).id)
+            .select()
+            .single();
+
+          if (matchUpdateError || !updated) {
+            console.warn('Failed to update matching activity for weekNumber', weekNumber, matchUpdateError?.message);
+            continue;
+          }
+
+          activities.push(updated as Activity);
+        }
+      }
     }
+
+    if (activities.length === 0) {
+      throw new Error('No activities were updated');
+    }
+
+    return { activities };
   },
 
   async delete(activityId: number, deleteData: {
@@ -568,6 +674,10 @@ export const activitiesApi = {
         }
       }
 
+      if (deletedActivities.length === 0) {
+        throw new Error('No activities were deleted');
+      }
+
       return { deletedActivities };
     } else {
       // Delete single activity
@@ -580,6 +690,10 @@ export const activitiesApi = {
 
       if (error) {
         throw new Error(error.message);
+      }
+
+      if (!data) {
+        throw new Error('No activity was deleted');
       }
 
       return { deletedActivities: [data] };
@@ -609,7 +723,7 @@ export const pendingChangesApi = {
       .from('PendingChange')
       .select(`
         *,
-        User (name, email)
+        User (id, name, email)
       `)
       .eq('weekId', weekId)
       .order('createdAt', { ascending: false });
@@ -642,6 +756,26 @@ export const pendingChangesApi = {
       throw new Error(error.message);
     }
 
+    try {
+      const actor = getCurrentUserFromStorage();
+      const payloadData = changeData.changeData as Record<string, unknown> | undefined;
+      const dayName = typeof payloadData?.dayName === 'string' ? (payloadData.dayName as string) : undefined;
+
+      await notifyTelegram({
+        event: 'CHANGE_REQUEST_CREATED',
+        changeType: changeData.changeType,
+        actorName: actor?.name || 'Support User',
+        actorRole: actor?.role || 'SUPPORT',
+        requestId: (data as any).id,
+        weekId: changeData.weekId,
+        dayName,
+        summary: getChangeSummary(changeData.changeData),
+        timestamp: (data as any).createdAt,
+      });
+    } catch (notifyError) {
+      console.warn('Telegram notification failed for pending change create:', notifyError);
+    }
+
     return { pendingChange: data };
   },
 
@@ -670,11 +804,18 @@ export const pendingChangesApi = {
       results = result.deletedActivities;
     }
 
-    // Delete the pending change
-    await supabase
+    if (!Array.isArray(results) || results.length === 0) {
+      throw new Error('Approval applied 0 changes. Pending request kept.');
+    }
+
+    const { error: deleteError } = await supabase
       .from('PendingChange')
       .delete()
       .eq('id', changeId);
+
+    if (deleteError) {
+      throw new Error(deleteError.message);
+    }
 
     const changeData = change.changeData as Record<string, unknown>;
     const dayName = typeof changeData.dayName === 'string' ? changeData.dayName : undefined;

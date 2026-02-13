@@ -18,14 +18,17 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   const [loading, setLoading] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string>('');
 
   const handleApprove = async (changeId: string) => {
     setLoading(changeId);
+    setActionError('');
     try {
       await pendingChangesApi.approve(changeId);
       onApprove();
     } catch (error) {
       console.error('Failed to approve change:', error);
+      setActionError(error instanceof Error ? error.message : 'Failed to approve change');
     } finally {
       setLoading(null);
     }
@@ -35,6 +38,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
     if (!rejectionReason.trim()) return;
 
     setLoading(changeId);
+    setActionError('');
     try {
       await pendingChangesApi.reject(changeId, rejectionReason);
       setShowRejectModal(null);
@@ -42,6 +46,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
       onReject();
     } catch (error) {
       console.error('Failed to reject change:', error);
+      setActionError(error instanceof Error ? error.message : 'Failed to reject change');
     } finally {
       setLoading(null);
     }
@@ -97,6 +102,12 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
       </div>
 
       <div className="p-4 space-y-4">
+        {actionError && (
+          <div className="text-red-700 text-sm bg-red-50 border border-red-200 p-3 rounded">
+            {actionError}
+          </div>
+        )}
+
         {pendingChanges.map((change) => (
           <div key={change.id} className="border border-orange-200 rounded-lg p-4 bg-orange-50">
             <div className="flex items-start justify-between">
