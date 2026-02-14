@@ -644,7 +644,13 @@ export const activitiesApi = {
         weekId: day.weekId,
         changeType: 'ADD',
         changeData: activityData,
-        userId: activityData.userId || 'demo_user_id',
+        userId: (() => {
+          const resolved = activityData.userId || getCurrentUserFromStorage()?.id;
+          if (!resolved) {
+            throw new Error('No active user session (missing userId)');
+          }
+          return resolved;
+        })(),
       }])
       .select()
       .single();

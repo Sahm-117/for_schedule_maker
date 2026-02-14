@@ -86,6 +86,7 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
             period,
             applyToWeeks: selectedWeeks,
             labelIds: selectedLabelIds,
+            userId: user?.id,
           };
 
           // Use correct API based on user role
@@ -97,7 +98,10 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
           }
           results.push(`${dayName}: Success`);
         } catch (dayError: any) {
-          const errorMsg = dayError.response?.data?.error || `Failed to create activity for ${dayName}`;
+          const errorMsg =
+            (dayError instanceof Error ? dayError.message : null) ||
+            dayError?.response?.data?.error ||
+            `Failed to create activity for ${dayName}`;
           errors.push(`${dayName}: ${errorMsg}`);
         }
       }
@@ -123,7 +127,11 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
         onClose();
       }
     } catch (error: any) {
-      setError(error.response?.data?.error || 'Failed to create cross-week activity');
+      const msg =
+        (error instanceof Error ? error.message : null) ||
+        error?.response?.data?.error ||
+        'Failed to create cross-week activity';
+      setError(msg);
     } finally {
       setLoading(false);
     }
