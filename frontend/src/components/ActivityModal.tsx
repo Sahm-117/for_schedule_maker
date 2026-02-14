@@ -35,7 +35,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(false);
-  const [labelsOpen, setLabelsOpen] = useState(false);
+  const [labelsOpen, setLabelsOpen] = useState(true);
   const [labelQuery, setLabelQuery] = useState('');
 
   useEffect(() => {
@@ -44,13 +44,13 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
       setDescription(activity.description);
       setPeriod(activity.period);
       setSelectedLabelIds((activity.labels || []).map((l) => l.id));
-      setLabelsOpen(((activity.labels || []).length || 0) > 0);
+      setLabelsOpen(true);
     } else {
       setTime('');
       setDescription('');
       setPeriod('MORNING');
       setSelectedLabelIds([]);
-      setLabelsOpen(false);
+      setLabelsOpen(true);
     }
     setSelectedWeeks([]);
     setError('');

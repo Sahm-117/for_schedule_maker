@@ -30,13 +30,13 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(false);
-  const [labelsOpen, setLabelsOpen] = useState(false);
+  const [labelsOpen, setLabelsOpen] = useState(true);
   const [labelQuery, setLabelQuery] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
-    setLabelsOpen(false);
+    setLabelsOpen(true);
     setLabelQuery('');
     setLabelsLoading(true);
     labelsApi.getAll()
