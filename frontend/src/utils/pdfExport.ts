@@ -307,7 +307,7 @@ export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) =
     pdf.setFontSize(8);
     pdf.setTextColor(...COLORS.brand.lightText);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(`Foundation of Faith | Week ${week.weekNumber}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    pdf.text('TCN Ikorodu | Foundation of Faith SOP', pageWidth / 2, pageHeight - 10, { align: 'center' });
     pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
   }
 
@@ -413,7 +413,8 @@ export const exportAllWeeksToPDF = async (weeks: Week[], options: ExportOptions 
     pdf.setPage(i);
     pdf.setFontSize(8);
     pdf.setTextColor(...COLORS.brand.lightText);
-    pdf.text(`Foundation of Faith Complete Schedule - Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    pdf.text('TCN Ikorodu | Foundation of Faith SOP', pageWidth / 2, pageHeight - 10, { align: 'center' });
+    pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
   }
 
   pdf.save('FOF-Complete-Schedule.pdf');
