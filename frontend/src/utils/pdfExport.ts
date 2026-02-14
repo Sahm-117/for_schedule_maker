@@ -149,7 +149,8 @@ const drawLabelChips = (pdf: jsPDF, labels: Array<{ name: string; color: string 
 
     // Text
     pdf.setTextColor(...(textRgb as any));
-    pdf.text(label.name, x + chipPadX, y);
+    // jsPDF positions text by baseline; nudge up for visual centering within the pill.
+    pdf.text(label.name, x + chipPadX, y - 1);
 
     x += chipW + gapX;
   }
