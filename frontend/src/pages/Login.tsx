@@ -44,20 +44,20 @@ const Login: React.FC = () => {
         <div className="text-center">
           {/* Logo */}
           <div className="flex justify-center mb-6">
-            <img
-              src="/logo-covenant-nation.svg"
-              alt="The Covenant Nation Logo"
-              className="h-16 w-auto"
-              onError={(e) => {
-                // Fallback if logo doesn't load
-                e.currentTarget.style.display = 'none';
-                const fallback = e.currentTarget.parentElement?.querySelector('.logo-fallback');
-                if (fallback) fallback.style.display = 'block';
-              }}
-            />
-            <div className="logo-fallback" style={{ display: 'none' }}>
-              <div className="h-16 w-16 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">FOF</span>
+            <div className="bg-white rounded-md p-2 inline-flex shadow-sm border border-gray-100">
+              <img
+                src="/logo-full.png"
+                alt="The Covenant Nation | Ikorodu"
+                className="h-12 sm:h-14 w-auto object-contain"
+                onError={(e) => {
+                  // Fallback if logo doesn't load
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.parentElement?.querySelector('.logo-fallback');
+                  if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                }}
+              />
+              <div className="logo-fallback items-center justify-center px-4" style={{ display: 'none' }}>
+                <span className="text-gray-900 font-bold text-lg">TCN Ikorodu</span>
               </div>
             </div>
           </div>

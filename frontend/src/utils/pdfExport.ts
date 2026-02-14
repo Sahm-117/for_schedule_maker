@@ -8,6 +8,22 @@ interface ExportOptions {
   format?: 'portrait' | 'landscape';
 }
 
+const loadPublicPngAsDataUrl = async (path: string): Promise<string | null> => {
+  try {
+    const res = await fetch(path);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Failed to read image'));
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+};
+
 // Clean design colors - FOF brand focused
 const COLORS = {
   brand: {
@@ -36,14 +52,42 @@ const formatTime = (time: string): string => {
   }
 };
 
-const addTimelineHeader = (pdf: jsPDF, pageWidth: number, weekNumber: number): number => {
+type TimelineHeaderOptions = {
+  showLogo?: boolean;
+  logoDataUrl?: string | null;
+};
+
+const addTimelineHeader = (pdf: jsPDF, pageWidth: number, weekNumber: number, opts: TimelineHeaderOptions = {}): number => {
+  const { showLogo = false, logoDataUrl = null } = opts;
+
+  const leftMargin = 20;
+  const rightMargin = 20;
+  const textX = pageWidth - rightMargin;
+
+  // Full logo (wide) goes top-left only on the first page.
+  const logoX = leftMargin;
+  const logoY = 12;
+  const logoW = 38;
+  const logoH = logoW * (66 / 230);
+
+  if (showLogo && logoDataUrl) {
+    // White background behind logo to guarantee readability.
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(logoX, logoY, logoW, logoH, 'F');
+
+    const addImage = (pdf as any).addImage;
+    if (typeof addImage === 'function') {
+      addImage.call(pdf, logoDataUrl, 'PNG', logoX, logoY, logoW, logoH);
+    }
+  }
+
   let yPosition = 20;
 
   // Main title - Foundation of Faith
   pdf.setFontSize(24);
   pdf.setTextColor(...COLORS.brand.orange);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('Foundation of Faith - Week ' + weekNumber, pageWidth / 2, yPosition, { align: 'center' });
+  pdf.text('Foundation of Faith - Week ' + weekNumber, textX, yPosition, { align: 'right' });
 
   yPosition += 10;
 
@@ -51,14 +95,15 @@ const addTimelineHeader = (pdf: jsPDF, pageWidth: number, weekNumber: number): n
   pdf.setFontSize(18);
   pdf.setTextColor(...COLORS.brand.text);
   pdf.setFont('helvetica', 'normal');
-  pdf.text('Sunday Schedule', pageWidth / 2, yPosition, { align: 'center' });
+  pdf.text('Sunday Schedule', textX, yPosition, { align: 'right' });
 
   yPosition += 10;
 
   // Orange line under header
   pdf.setDrawColor(...COLORS.brand.orange);
   pdf.setLineWidth(2);
-  pdf.line(20, yPosition, pageWidth - 20, yPosition);
+  const lineStartX = showLogo && logoDataUrl ? (logoX + logoW + 6) : leftMargin;
+  pdf.line(lineStartX, yPosition, pageWidth - rightMargin, yPosition);
 
   return yPosition + 15;
 };
@@ -162,8 +207,11 @@ export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) =
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
+  const logoDataUrl = await loadPublicPngAsDataUrl('/logo-full.png');
+  let pageIndex = 1;
+
   // Clean header
-  let yPosition = addTimelineHeader(pdf, pageWidth, week.weekNumber);
+  let yPosition = addTimelineHeader(pdf, pageWidth, week.weekNumber, { showLogo: pageIndex === 1, logoDataUrl });
 
   // Day order for proper week flow
   const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -183,7 +231,8 @@ export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) =
     // Check if we need a new page
     if (yPosition > pageHeight - 60) {
       pdf.addPage();
-      yPosition = addTimelineHeader(pdf, pageWidth, week.weekNumber);
+      pageIndex += 1;
+      yPosition = addTimelineHeader(pdf, pageWidth, week.weekNumber, { showLogo: pageIndex === 1, logoDataUrl });
     }
 
     // Day title
@@ -234,7 +283,8 @@ export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) =
       // Check page break for activities
       if (yPosition + needed > pageHeight - 20) {
         pdf.addPage();
-        yPosition = addTimelineHeader(pdf, pageWidth, week.weekNumber);
+        pageIndex += 1;
+        yPosition = addTimelineHeader(pdf, pageWidth, week.weekNumber, { showLogo: pageIndex === 1, logoDataUrl });
       }
 
       // Determine border color based on period
@@ -328,14 +378,33 @@ export const exportAllWeeksToPDF = async (weeks: Week[], options: ExportOptions 
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
+  const logoDataUrl = await loadPublicPngAsDataUrl('/logo-full.png');
+
   // Header for complete schedule
   let yPosition = 20;
+
+  // Full logo on top-left of the first page only
+  if (logoDataUrl) {
+    const logoX = 20;
+    const logoY = 12;
+    const logoW = 38;
+    const logoH = logoW * (66 / 230);
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(logoX, logoY, logoW, logoH, 'F');
+    const addImage = (pdf as any).addImage;
+    if (typeof addImage === 'function') {
+      addImage.call(pdf, logoDataUrl, 'PNG', logoX, logoY, logoW, logoH);
+    }
+  }
+
+  const rightMargin = 20;
+  const textX = pageWidth - rightMargin;
 
   // Main title
   pdf.setFontSize(24);
   pdf.setTextColor(...COLORS.brand.orange);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('Foundation of Faith', pageWidth / 2, yPosition, { align: 'center' });
+  pdf.text('Foundation of Faith', textX, yPosition, { align: 'right' });
 
   yPosition += 10;
 
@@ -343,14 +412,15 @@ export const exportAllWeeksToPDF = async (weeks: Week[], options: ExportOptions 
   pdf.setFontSize(18);
   pdf.setTextColor(...COLORS.brand.text);
   pdf.setFont('helvetica', 'normal');
-  pdf.text('Complete Programme Schedule', pageWidth / 2, yPosition, { align: 'center' });
+  pdf.text('Complete Programme Schedule', textX, yPosition, { align: 'right' });
 
   yPosition += 10;
 
   // Orange line
   pdf.setDrawColor(...COLORS.brand.orange);
   pdf.setLineWidth(2);
-  pdf.line(20, yPosition, pageWidth - 20, yPosition);
+  const lineStartX = logoDataUrl ? (20 + 38 + 6) : 20;
+  pdf.line(lineStartX, yPosition, pageWidth - rightMargin, yPosition);
 
   yPosition += 20;
 

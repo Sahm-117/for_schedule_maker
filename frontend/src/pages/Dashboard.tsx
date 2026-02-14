@@ -92,6 +92,11 @@ const Dashboard: React.FC = () => {
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
                 FOF Schedule Editor
               </h1>
+              <img
+                src="/logo-mark.png"
+                alt="The Covenant Nation"
+                className="ml-3 h-8 w-8 rounded bg-white p-1 border border-gray-200 object-contain shrink-0"
+              />
               <span className="ml-2 sm:ml-3 px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
                 {isAdmin ? 'Admin' : 'Support'}
               </span>
