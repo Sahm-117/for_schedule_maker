@@ -1,6 +1,23 @@
 import type { TelegramNotificationEvent } from '../types';
 
-const sendTelegramDirectFallback = async (payload: TelegramNotificationEvent): Promise<void> => {
+const fetchWithTimeout = async (
+  url: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> => {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(t);
+  }
+};
+
+const sendTelegramDirectFallback = async (
+  payload: TelegramNotificationEvent,
+  timeoutMs: number
+): Promise<void> => {
   const botToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
   const chatId = import.meta.env.VITE_TELEGRAM_GROUP_CHAT_ID;
 
@@ -38,14 +55,18 @@ const sendTelegramDirectFallback = async (payload: TelegramNotificationEvent): P
   )}&text=${encodeURIComponent(text)}`;
 
   try {
-    await fetch(url, { method: 'GET', mode: 'no-cors' });
+    await fetchWithTimeout(url, { method: 'GET', mode: 'no-cors' }, timeoutMs);
   } catch (error) {
     // Best-effort only: if this fails, we still don't want to break the main action.
     console.warn('Direct Telegram fallback failed:', error);
   }
 };
 
-export const sendTelegramNotification = async (payload: TelegramNotificationEvent): Promise<void> => {
+export const sendTelegramNotification = async (
+  payload: TelegramNotificationEvent,
+  options: { timeoutMs?: number } = {}
+): Promise<void> => {
+  const timeoutMs = options.timeoutMs ?? 2500;
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -54,28 +75,42 @@ export const sendTelegramNotification = async (payload: TelegramNotificationEven
       throw new Error('Missing Supabase env for Telegram edge function');
     }
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/notify-telegram`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: anonKey,
-        // We don't use Supabase Auth sessions in this app; send anon JWT explicitly.
-        Authorization: `Bearer ${anonKey}`,
+    const response = await fetchWithTimeout(
+      `${supabaseUrl}/functions/v1/notify-telegram`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: anonKey,
+          // We don't use Supabase Auth sessions in this app; send anon JWT explicitly.
+          Authorization: `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-    });
+      timeoutMs
+    );
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
       console.warn('Edge function Telegram notification failed:', response.status, text);
-      await sendTelegramDirectFallback(payload);
+      await sendTelegramDirectFallback(payload, timeoutMs);
     }
   } catch (error) {
     console.warn('Telegram notification invocation failed:', error);
     try {
-      await sendTelegramDirectFallback(payload);
+      await sendTelegramDirectFallback(payload, timeoutMs);
     } catch (fallbackError) {
       console.warn('Telegram fallback notification failed:', fallbackError);
     }
   }
+};
+
+export const sendTelegramNotificationBestEffort = (
+  payload: TelegramNotificationEvent,
+  options: { timeoutMs?: number } = {}
+): void => {
+  // Intentionally fire-and-forget; never block business actions.
+  void sendTelegramNotification(payload, options).catch((e) => {
+    console.warn('Telegram notification (best effort) failed:', e);
+  });
 };

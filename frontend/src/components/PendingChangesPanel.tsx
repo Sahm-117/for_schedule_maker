@@ -26,6 +26,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkRejectionReason, setBulkRejectionReason] = useState('');
+  const [bulkProgress, setBulkProgress] = useState<{ mode: 'approve' | 'reject'; done: number; total: number } | null>(null);
 
   const handleApprove = async (changeId: string) => {
     setLoading(changeId);
@@ -63,9 +64,12 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
     if (pendingChanges.length === 0) return;
     setBulkLoading(true);
     setActionError('');
+    setBulkProgress({ mode: 'approve', done: 0, total: pendingChanges.length });
     try {
-      for (const change of pendingChanges) {
+      for (let i = 0; i < pendingChanges.length; i++) {
+        const change = pendingChanges[i];
         await pendingChangesApi.approve(change.id);
+        setBulkProgress({ mode: 'approve', done: i + 1, total: pendingChanges.length });
       }
       onApprove();
     } catch (error) {
@@ -73,6 +77,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
       setActionError(error instanceof Error ? error.message : 'Failed to approve all changes');
     } finally {
       setBulkLoading(false);
+      setBulkProgress(null);
     }
   };
 
@@ -80,9 +85,12 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
     if (pendingChanges.length === 0 || !bulkRejectionReason.trim()) return;
     setBulkLoading(true);
     setActionError('');
+    setBulkProgress({ mode: 'reject', done: 0, total: pendingChanges.length });
     try {
-      for (const change of pendingChanges) {
+      for (let i = 0; i < pendingChanges.length; i++) {
+        const change = pendingChanges[i];
         await pendingChangesApi.reject(change.id, bulkRejectionReason);
+        setBulkProgress({ mode: 'reject', done: i + 1, total: pendingChanges.length });
       }
       setBulkRejectionReason('');
       onReject();
@@ -91,6 +99,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
       setActionError(error instanceof Error ? error.message : 'Failed to reject all changes');
     } finally {
       setBulkLoading(false);
+      setBulkProgress(null);
     }
   };
 
@@ -141,9 +150,16 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
     <div className="bg-white rounded-lg shadow">
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-lg font-medium text-gray-900">
-            Pending Changes ({pendingChanges.length})
-          </h3>
+          <div>
+            <h3 className="text-lg font-medium text-gray-900">
+              Pending Changes ({pendingChanges.length})
+            </h3>
+            {bulkProgress && (
+              <p className="text-xs text-gray-500 mt-1">
+                {bulkProgress.mode === 'approve' ? 'Approving' : 'Rejecting'} {bulkProgress.done}/{bulkProgress.total}...
+              </p>
+            )}
+          </div>
 
           {isAdmin && pendingChanges.length > 0 && (
             <div className="flex items-center gap-2">

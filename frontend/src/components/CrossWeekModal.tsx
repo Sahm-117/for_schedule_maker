@@ -30,10 +30,14 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(false);
+  const [labelsOpen, setLabelsOpen] = useState(false);
+  const [labelQuery, setLabelQuery] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
+    setLabelsOpen(false);
+    setLabelQuery('');
     setLabelsLoading(true);
     labelsApi.getAll()
       .then((res) => {
@@ -49,6 +53,11 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
       });
     return () => { cancelled = true; };
   }, [isOpen]);
+
+  const otherWeeks = weeks.filter((w) => w.weekNumber !== currentWeek.weekNumber);
+  const filteredLabels = labelQuery.trim()
+    ? labels.filter((l) => l.name.toLowerCase().includes(labelQuery.trim().toLowerCase()))
+    : labels;
 
   const toggleLabel = (labelId: string, checked: boolean) => {
     setSelectedLabelIds((prev) => {
@@ -146,30 +155,60 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold">
-              Add Cross-Week Activity
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-200 flex justify-between items-center">
+          <h2 className="text-lg sm:text-xl font-semibold">
+            Add Cross-Week Activity
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+            type="button"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Weeks to Apply
-              </label>
-              <div className="grid grid-cols-4 gap-2 p-3 border border-gray-200 rounded-md">
-                {weeks.map((week) => (
-                  <label key={week.id} className="flex items-center">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Select other weeks to apply
+                </label>
+                <span className="text-xs text-gray-500">
+                  Selected: {selectedWeeks.length} / {otherWeeks.length}
+                </span>
+              </div>
+
+              <p className="text-xs text-gray-500 mb-2">
+                Current week is always included.
+              </p>
+
+              <div className="flex items-center gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedWeeks(otherWeeks.map((w) => w.weekNumber))}
+                  className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                  disabled={otherWeeks.length === 0}
+                >
+                  Select all
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedWeeks([])}
+                  className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                  disabled={selectedWeeks.length === 0}
+                >
+                  Clear
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 border border-gray-200 rounded-md">
+                {otherWeeks.map((week) => (
+                  <label key={week.id} className="flex items-center gap-2 p-2 rounded hover:bg-gray-50">
                     <input
                       type="checkbox"
                       checked={selectedWeeks.includes(week.weekNumber)}
@@ -182,12 +221,13 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
                       }}
                       className="rounded border-gray-300 text-primary focus:ring-primary"
                     />
-                    <span className="ml-1 text-sm">Week {week.weekNumber}</span>
+                    <span className="text-sm">Week {week.weekNumber}</span>
                   </label>
                 ))}
               </div>
+
               {selectedWeeks.length === 0 && (
-                <p className="text-sm text-red-600 mt-1">Please select at least one week</p>
+                <p className="text-sm text-red-600 mt-1">Please select at least one other week</p>
               )}
             </div>
 
@@ -262,13 +302,27 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
             </div>
 
             <div>
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Labels (optional)
-                </label>
-                {labelsLoading && (
-                  <span className="text-xs text-gray-500">Loading labels...</span>
-                )}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Labels (optional)
+                  </label>
+                  <span className="text-xs text-gray-500">
+                    Selected: {selectedLabelIds.length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {labelsLoading && (
+                    <span className="text-xs text-gray-500">Loading...</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setLabelsOpen((v) => !v)}
+                    className="text-xs text-primary hover:text-primary-dark px-2 py-1 rounded border border-primary hover:bg-primary/5"
+                  >
+                    {labelsOpen ? 'Hide' : 'Show'}
+                  </button>
+                </div>
               </div>
 
               {selectedLabelIds.length > 0 && (
@@ -291,37 +345,53 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
                 </div>
               )}
 
-              <div className="border border-gray-200 rounded-md p-3 max-h-40 overflow-y-auto">
-                {labels.length === 0 ? (
-                  <p className="text-sm text-gray-500">
-                    No labels yet.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {labels.map((label) => {
-                      const bg = normalizeHexColor(label.color) || '#E5E7EB';
-                      const fg = getContrastingTextColor(bg);
-                      const checked = selectedLabelIds.includes(label.id);
-                      return (
-                        <label key={label.id} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={(e) => toggleLabel(label.id, e.target.checked)}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <span
-                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
-                            style={{ backgroundColor: bg, color: fg }}
-                          >
-                            {label.name}
-                          </span>
-                        </label>
-                      );
-                    })}
+              {labelsOpen && (
+                <div className="mt-2 border border-gray-200 rounded-md p-3">
+                  <input
+                    type="text"
+                    value={labelQuery}
+                    onChange={(e) => setLabelQuery(e.target.value)}
+                    placeholder="Search labels..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary text-sm mb-3"
+                  />
+
+                  <div className="max-h-44 overflow-y-auto">
+                    {labels.length === 0 ? (
+                      <p className="text-sm text-gray-500">
+                        No labels yet.
+                      </p>
+                    ) : filteredLabels.length === 0 ? (
+                      <p className="text-sm text-gray-500">
+                        No labels match your search.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {filteredLabels.map((label) => {
+                          const bg = normalizeHexColor(label.color) || '#E5E7EB';
+                          const fg = getContrastingTextColor(bg);
+                          const checked = selectedLabelIds.includes(label.id);
+                          return (
+                            <label key={label.id} className="flex items-center gap-2 p-1 rounded hover:bg-gray-50">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => toggleLabel(label.id, e.target.checked)}
+                                className="rounded border-gray-300 text-primary focus:ring-primary"
+                              />
+                              <span
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
+                                style={{ backgroundColor: bg, color: fg }}
+                              >
+                                {label.name}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {error && (
@@ -336,18 +406,21 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
               </div>
             )}
 
-            <div className="flex justify-end space-x-3 pt-4 border-t">
+          </div>
+
+          <div className="shrink-0 px-4 py-3 sm:px-6 sm:py-4 border-t border-gray-200 bg-white">
+            <div className="flex items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                className="px-3 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 text-sm"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading || selectedDays.length === 0 || !time || !description || selectedWeeks.length === 0}
-                className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50"
+                className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50 text-sm"
               >
                 {loading ?
                   (user?.role === 'ADMIN' ? 'Creating...' : 'Submitting...') :
@@ -355,8 +428,8 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
                 }
               </button>
             </div>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     </div>
   );

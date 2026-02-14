@@ -12,12 +12,13 @@ import type {
   TelegramNotificationEvent
 } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
-import { sendTelegramNotification } from './telegramNotifications';
+import { sendTelegramNotificationBestEffort } from './telegramNotifications';
 
 // Types for API responses are now imported from ../types
 
 // Current user session
 let currentSession: Session | null = null;
+const weekNumberCache = new Map<number, number>();
 
 const getCurrentUserFromStorage = (): User | null => {
   if (typeof window === 'undefined') {
@@ -71,13 +72,20 @@ const getChangeSummary = (changeData: unknown): string => {
 
 const resolveWeekNumber = async (weekId?: number): Promise<number | undefined> => {
   if (typeof weekId !== 'number') return undefined;
+  // Simple in-memory cache to avoid extra network calls during bulk operations.
+  const cached = weekNumberCache.get(weekId);
+  if (typeof cached === 'number') return cached;
   const { data, error } = await supabase
     .from('Week')
     .select('weekNumber')
     .eq('id', weekId)
     .single();
   if (error || !data) return undefined;
-  return (data as any).weekNumber as number | undefined;
+  const wn = (data as any).weekNumber as number | undefined;
+  if (typeof wn === 'number') {
+    weekNumberCache.set(weekId, wn);
+  }
+  return wn;
 };
 
 const getLoginUrl = (): string | undefined => {
@@ -86,8 +94,8 @@ const getLoginUrl = (): string | undefined => {
   return `${window.location.origin}/login`;
 };
 
-const notifyTelegram = async (payload: TelegramNotificationEvent): Promise<void> => {
-  await sendTelegramNotification(payload);
+const notifyTelegramBestEffort = (payload: TelegramNotificationEvent): void => {
+  sendTelegramNotificationBestEffort(payload, { timeoutMs: 2500 });
 };
 
 // Initialize session from Supabase
@@ -434,6 +442,23 @@ export const labelsApi = {
 
 const uniq = <T,>(arr: T[]): T[] => Array.from(new Set(arr));
 
+const chunk = <T,>(arr: T[], size = 500): T[][] => {
+  if (size <= 0) return [arr];
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    out.push(arr.slice(i, i + size));
+  }
+  return out;
+};
+
+const uniqNumbers = (arr: Array<number | undefined | null>): number[] => {
+  const set = new Set<number>();
+  for (const v of arr) {
+    if (typeof v === 'number' && Number.isFinite(v)) set.add(v);
+  }
+  return Array.from(set);
+};
+
 const setActivityLabels = async (activityId: number, labelIds: string[] | undefined): Promise<void> => {
   const ids = uniq((labelIds || []).filter(Boolean));
 
@@ -453,6 +478,83 @@ const setActivityLabels = async (activityId: number, labelIds: string[] | undefi
   if (insError) {
     throw new Error(insError.message);
   }
+};
+
+const setActivityLabelsBulk = async (activityIds: number[], labelIds: string[]): Promise<void> => {
+  const aIds = uniqNumbers(activityIds);
+  const lIds = uniq((labelIds || []).filter(Boolean));
+
+  if (aIds.length === 0) return;
+
+  const { error: delError } = await supabase
+    .from('ActivityLabel')
+    .delete()
+    .in('activityId', aIds);
+  if (delError) throw new Error(delError.message);
+
+  if (lIds.length === 0) return;
+
+  const joinRows = aIds.flatMap((activityId) => lIds.map((labelId) => ({ activityId, labelId })));
+  for (const batch of chunk(joinRows, 500)) {
+    const { error: insError } = await supabase
+      .from('ActivityLabel')
+      .insert(batch);
+    if (insError) throw new Error(insError.message);
+  }
+};
+
+const resolveWeekRowsByNumbers = async (
+  weekNumbers: number[]
+): Promise<Array<{ id: number; weekNumber: number }>> => {
+  const nums = uniqNumbers(weekNumbers);
+  if (nums.length === 0) return [];
+  const { data, error } = await supabase
+    .from('Week')
+    .select('id, weekNumber')
+    .in('weekNumber', nums);
+  if (error) throw new Error(error.message);
+  return ((data || []) as any[]).map((w) => ({ id: w.id as number, weekNumber: w.weekNumber as number }));
+};
+
+const resolveDayRowsForWeeks = async (
+  dayName: string,
+  weekIds: number[]
+): Promise<Array<{ id: number; weekId: number }>> => {
+  const ids = uniqNumbers(weekIds);
+  if (!dayName || ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from('Day')
+    .select('id, weekId')
+    .in('weekId', ids)
+    .eq('dayName', dayName);
+  if (error) throw new Error(error.message);
+  return ((data || []) as any[]).map((d) => ({ id: d.id as number, weekId: d.weekId as number }));
+};
+
+const getMaxOrderIndexByDayId = async (dayIds: number[]): Promise<Record<number, number>> => {
+  const ids = uniqNumbers(dayIds);
+  if (ids.length === 0) return {};
+  const { data, error } = await supabase
+    .from('Activity')
+    .select('dayId, orderIndex')
+    .in('dayId', ids);
+  if (error) throw new Error(error.message);
+
+  const maxByDay: Record<number, number> = {};
+  for (const row of (data || []) as any[]) {
+    const dayId = row.dayId as number;
+    const oi = row.orderIndex as number;
+    if (typeof dayId !== 'number' || typeof oi !== 'number') continue;
+    maxByDay[dayId] = Math.max(maxByDay[dayId] ?? 0, oi);
+  }
+  return maxByDay;
+};
+
+const resolveDayIdsForWeekNumbers = async (dayName: string, weekNumbers: number[]): Promise<number[]> => {
+  const weeks = await resolveWeekRowsByNumbers(weekNumbers);
+  const weekIds = weeks.map((w) => w.id);
+  const days = await resolveDayRowsForWeeks(dayName, weekIds);
+  return days.map((d) => d.id);
 };
 
 // Activities API
@@ -492,8 +594,6 @@ export const activitiesApi = {
   }): Promise<{ activities: Activity[] }> {
     // If applyToWeeks is specified, create activities for multiple weeks (always include originating week).
     if (activityData.applyToWeeks && activityData.applyToWeeks.length > 0) {
-      const activities: Activity[] = [];
-
       const { data: originalDay, error: originalDayError } = await supabase
         .from('Day')
         .select('dayName, weekId')
@@ -514,73 +614,59 @@ export const activitiesApi = {
         ? ((originalWeek as any).weekNumber as number)
         : undefined;
 
-      const weeksToApply = Array.from(new Set([
-        ...activityData.applyToWeeks,
+      const weeksToApply = uniqNumbers([
+        ...(activityData.applyToWeeks || []),
         ...(typeof originalWeekNumber === 'number' ? [originalWeekNumber] : []),
-      ]));
+      ]);
 
-      for (const weekNumber of weeksToApply) {
-        const { data: weekRow, error: weekError } = await supabase
-          .from('Week')
-          .select('id')
-          .eq('weekNumber', weekNumber)
-          .single();
+      // Fetch all target weeks + corresponding days in bulk
+      const weekRows = await resolveWeekRowsByNumbers(weeksToApply);
+      const dayRows = await resolveDayRowsForWeeks((originalDay as any).dayName as string, weekRows.map((w) => w.id));
 
-        if (weekError || !weekRow) {
-          console.warn('Week not found for weekNumber', weekNumber);
-          continue;
-        }
-
-        const { data: dayRow, error: dayError } = await supabase
-          .from('Day')
-          .select('id')
-          .eq('weekId', (weekRow as any).id)
-          .eq('dayName', (originalDay as any).dayName)
-          .single();
-
-        if (dayError || !dayRow) {
-          console.warn('Target day not found for weekNumber/dayName', weekNumber, (originalDay as any).dayName);
-          continue;
-        }
-
-        const { data: maxOrder } = await supabase
-          .from('Activity')
-          .select('orderIndex')
-          .eq('dayId', (dayRow as any).id)
-          .order('orderIndex', { ascending: false })
-          .limit(1)
-          .single();
-
-        const nextOrderIndex = ((maxOrder as any)?.orderIndex || 0) + 1;
-
-        const { data: activity, error: actError } = await supabase
-          .from('Activity')
-          .insert([{
-            dayId: (dayRow as any).id,
-            time: activityData.time,
-            description: activityData.description,
-            period: activityData.period,
-            orderIndex: nextOrderIndex,
-          }])
-          .select()
-          .single();
-
-        if (actError || !activity) {
-          console.warn('Failed to insert activity for weekNumber', weekNumber, actError?.message);
-          continue;
-        }
-
-        try {
-          await setActivityLabels((activity as any).id as number, activityData.labelIds);
-        } catch (labelError) {
-          console.warn('Failed to set activity labels for created activity', (activity as any).id, labelError);
-        }
-
-        activities.push(activity as Activity);
+      const dayIds = dayRows.map((d) => d.id);
+      if (dayIds.length === 0) {
+        throw new Error('No target days found for selected weeks/day');
       }
 
+      const maxByDay = await getMaxOrderIndexByDayId(dayIds);
+      const insertRows = dayIds.map((dayId) => ({
+        dayId,
+        time: activityData.time,
+        description: activityData.description,
+        period: activityData.period,
+        orderIndex: (maxByDay[dayId] ?? 0) + 1,
+      }));
+
+      const { data: inserted, error: insError } = await supabase
+        .from('Activity')
+        .insert(insertRows)
+        .select();
+
+      if (insError) {
+        throw new Error(insError.message);
+      }
+
+      const activities = (inserted || []) as Activity[];
       if (activities.length === 0) {
         throw new Error('No activities were created. Check that target weeks/days exist.');
+      }
+
+      // Labels: bulk insert join rows (no deletes needed for new activities).
+      const labelIds = uniq((activityData.labelIds || []).filter(Boolean));
+      if (labelIds.length > 0) {
+        const joinRows = activities.flatMap((a: any) =>
+          labelIds.map((labelId) => ({ activityId: (a as any).id as number, labelId }))
+        );
+        for (const batch of chunk(joinRows, 500)) {
+          const { error: alErr } = await supabase
+            .from('ActivityLabel')
+            .insert(batch);
+          if (alErr) {
+            // Best-effort: activity create should still succeed even if label linking fails.
+            console.warn('Failed to insert ActivityLabel batch:', alErr.message);
+            break;
+          }
+        }
       }
 
       return { activities };
@@ -662,7 +748,7 @@ export const activitiesApi = {
     const actor = getCurrentUserFromStorage();
 
     const weekNumber = await resolveWeekNumber(day.weekId);
-    await notifyTelegram({
+    notifyTelegramBestEffort({
       event: 'CHANGE_REQUEST_CREATED',
       changeType: 'ADD',
       actorName: actor?.name || 'Support User',
@@ -751,71 +837,43 @@ export const activitiesApi = {
         ? ((originalWeek as any).weekNumber as number)
         : undefined;
 
-      const weeksToApply = Array.from(new Set(updateData.applyToWeeks))
-        .filter((w) => typeof w === 'number')
+      const weeksToApply = uniqNumbers(updateData.applyToWeeks)
         .filter((w) => (typeof originalWeekNumber === 'number' ? w !== originalWeekNumber : true));
 
-      for (const weekNumber of weeksToApply) {
-        const { data: weekRow, error: weekError } = await supabase
-          .from('Week')
-          .select('id')
-          .eq('weekNumber', weekNumber)
-          .single();
-
-        if (weekError || !weekRow) {
-          console.warn('Week not found for weekNumber', weekNumber);
-          continue;
-        }
-
-        const { data: targetDay, error: targetDayError } = await supabase
-          .from('Day')
-          .select('id')
-          .eq('weekId', (weekRow as any).id)
-          .eq('dayName', resolvedDayName)
-          .single();
-
-        if (targetDayError || !targetDay) {
-          console.warn('Target day not found for weekNumber/dayName', weekNumber, resolvedDayName);
-          continue;
-        }
-
+      const targetDayIds = await resolveDayIdsForWeekNumbers(resolvedDayName, weeksToApply);
+      if (targetDayIds.length > 0) {
         const { data: matches, error: matchesError } = await supabase
           .from('Activity')
           .select('id')
-          .eq('dayId', (targetDay as any).id)
+          .in('dayId', targetDayIds)
           .eq('time', matchTime)
           .eq('description', matchDescription);
 
-        if (matchesError || !matches || matches.length === 0) {
-          console.warn('No matching activities found to update for weekNumber', weekNumber);
-          continue;
-        }
-
-        for (const match of matches) {
-          const { data: updated, error: matchUpdateError } = await supabase
+        if (!matchesError && matches && matches.length > 0) {
+          const ids = (matches as any[]).map((m) => m.id as number).filter((v) => typeof v === 'number');
+          const { data: updatedRows, error: updError } = await supabase
             .from('Activity')
-            .update({
-              time: updateData.time,
-              description: updateData.description,
-            })
-            .eq('id', (match as any).id)
-            .select()
-            .single();
+            .update({ time: updateData.time, description: updateData.description })
+            .in('id', ids)
+            .select();
 
-          if (matchUpdateError || !updated) {
-            console.warn('Failed to update matching activity for weekNumber', weekNumber, matchUpdateError?.message);
-            continue;
+          if (updError) {
+            throw new Error(updError.message);
+          }
+
+          const updatedActs = (updatedRows || []) as Activity[];
+          for (const ua of updatedActs) {
+            activities.push(ua);
           }
 
           if (Array.isArray(updateData.labelIds)) {
             try {
-              await setActivityLabels((updated as any).id as number, updateData.labelIds);
+              const crossIds = uniqNumbers(updatedActs.map((a: any) => (a as any).id as number));
+              await setActivityLabelsBulk(crossIds, updateData.labelIds);
             } catch (labelError) {
-              console.warn('Failed to set activity labels for updated activity', (updated as any).id, labelError);
+              console.warn('Failed to set activity labels for updated activities (bulk):', labelError);
             }
           }
-
-          activities.push(updated as Activity);
         }
       }
     }
@@ -831,10 +889,10 @@ export const activitiesApi = {
     applyToWeeks?: number[];
   }): Promise<{ deletedActivities: Activity[] }> {
     if (deleteData.applyToWeeks && deleteData.applyToWeeks.length > 0) {
-      // Delete activities across multiple weeks
+      // Delete activities across multiple weeks (same dayName, time, description)
       const { data: activity, error: actError } = await supabase
         .from('Activity')
-        .select('time, description')
+        .select('id, dayId, time, description')
         .eq('id', activityId)
         .single();
 
@@ -842,35 +900,63 @@ export const activitiesApi = {
         throw new Error('Activity not found');
       }
 
-      const deletedActivities = [];
+      const { data: dayRow, error: dayError } = await supabase
+        .from('Day')
+        .select('dayName, weekId')
+        .eq('id', (activity as any).dayId)
+        .single();
 
-      for (const weekNumber of deleteData.applyToWeeks) {
-        const { data, error } = await supabase
-          .from('Activity')
-          .select(`
-            *,
-            Day!inner (
-              Week!inner (weekNumber)
-            )
-          `)
-          .eq('Day.Week.weekNumber', weekNumber)
-          .eq('time', activity.time)
-          .eq('description', activity.description);
-
-        if (!error && data) {
-          for (const act of data) {
-            const { error: deleteError } = await supabase
-              .from('Activity')
-              .delete()
-              .eq('id', act.id);
-
-            if (!deleteError) {
-              deletedActivities.push(act);
-            }
-          }
-        }
+      if (dayError || !dayRow) {
+        throw new Error('Day not found for activity');
       }
 
+      const { data: originalWeek, error: originalWeekError } = await supabase
+        .from('Week')
+        .select('weekNumber')
+        .eq('id', (dayRow as any).weekId)
+        .single();
+
+      const originalWeekNumber = !originalWeekError && originalWeek
+        ? ((originalWeek as any).weekNumber as number)
+        : undefined;
+
+      const weekNumbers = uniqNumbers([
+        ...(deleteData.applyToWeeks || []),
+        ...(typeof originalWeekNumber === 'number' ? [originalWeekNumber] : []),
+      ]);
+
+      const targetDayIds = await resolveDayIdsForWeekNumbers((dayRow as any).dayName as string, weekNumbers);
+      if (targetDayIds.length === 0) {
+        throw new Error('No target days found for selected weeks/day');
+      }
+
+      const { data: matches, error: matchesError } = await supabase
+        .from('Activity')
+        .select('id')
+        .in('dayId', targetDayIds)
+        .eq('time', (activity as any).time)
+        .eq('description', (activity as any).description);
+
+      if (matchesError) {
+        throw new Error(matchesError.message);
+      }
+
+      const ids = ((matches || []) as any[]).map((m) => m.id as number).filter((v) => typeof v === 'number');
+      if (ids.length === 0) {
+        throw new Error('No activities were deleted');
+      }
+
+      const { data: deleted, error: delError } = await supabase
+        .from('Activity')
+        .delete()
+        .in('id', ids)
+        .select();
+
+      if (delError) {
+        throw new Error(delError.message);
+      }
+
+      const deletedActivities = (deleted || []) as Activity[];
       if (deletedActivities.length === 0) {
         throw new Error('No activities were deleted');
       }
@@ -958,7 +1044,7 @@ export const pendingChangesApi = {
       const payloadData = changeData.changeData as Record<string, unknown> | undefined;
       const dayName = typeof payloadData?.dayName === 'string' ? (payloadData.dayName as string) : undefined;
 
-      await notifyTelegram({
+      notifyTelegramBestEffort({
         event: 'CHANGE_REQUEST_CREATED',
         changeType: changeData.changeType,
         actorName: actor?.name || 'Support User',
@@ -1019,7 +1105,7 @@ export const pendingChangesApi = {
     const changeData = change.changeData as Record<string, unknown>;
     const dayName = typeof changeData.dayName === 'string' ? changeData.dayName : undefined;
 
-    await notifyTelegram({
+    notifyTelegramBestEffort({
       event: 'CHANGE_APPROVED',
       changeType: change.changeType,
       actorName: 'Admin',
@@ -1080,7 +1166,7 @@ export const pendingChangesApi = {
     const changeData = change.changeData as Record<string, unknown>;
     const dayName = typeof changeData.dayName === 'string' ? changeData.dayName : undefined;
 
-    await notifyTelegram({
+    notifyTelegramBestEffort({
       event: 'CHANGE_REJECTED',
       changeType: change.changeType,
       actorName: 'Admin',
