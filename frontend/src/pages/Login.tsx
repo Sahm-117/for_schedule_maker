@@ -63,7 +63,7 @@ const Login: React.FC = () => {
           </div>
 
           <h2 className="text-3xl font-extrabold text-gray-900">
-            FOF Schedule Editor
+            FOF IKD - SOP Manager
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             Foundation of Faith Programme Schedule Management
