@@ -232,12 +232,37 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Days of Week
-              </label>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Days of Week
+                </label>
+                <span className="text-xs text-gray-500">
+                  Selected: {selectedDays.length} / {dayOptions.length}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedDays(dayOptions)}
+                  className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                  disabled={dayOptions.length === 0}
+                >
+                  Select all
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDays([])}
+                  className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                  disabled={selectedDays.length === 0}
+                >
+                  Clear
+                </button>
+              </div>
+
               <div className="grid grid-cols-2 gap-2 p-3 border border-gray-200 rounded-md">
                 {dayOptions.map((day) => (
-                  <label key={day} className="flex items-center">
+                  <label key={day} className="flex items-center gap-2 p-2 rounded hover:bg-gray-50">
                     <input
                       type="checkbox"
                       checked={selectedDays.includes(day)}
@@ -250,7 +275,7 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
                       }}
                       className="rounded border-gray-300 text-primary focus:ring-primary"
                     />
-                    <span className="ml-2 text-sm">{day.charAt(0) + day.slice(1).toLowerCase()}</span>
+                    <span className="text-sm">{day.charAt(0) + day.slice(1).toLowerCase()}</span>
                   </label>
                 ))}
               </div>

@@ -352,77 +352,75 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
               </div>
             )}
 
-            {!isAdmin && (
-              <div className="border-t pt-4">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={showCrossWeek}
-                    onChange={(e) => setShowCrossWeek(e.target.checked)}
-                    className="rounded border-gray-300 text-primary focus:ring-primary"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">
-                    Apply to multiple weeks
-                  </span>
-                </label>
+            <div className="border-t pt-4">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={showCrossWeek}
+                  onChange={(e) => setShowCrossWeek(e.target.checked)}
+                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <span className="ml-2 text-sm text-gray-700">
+                  Apply to multiple weeks
+                </span>
+              </label>
 
-                {showCrossWeek && (
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between gap-3 mb-2">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Select other weeks to apply changes
-                      </label>
-                      <span className="text-xs text-gray-500">
-                        Selected: {selectedWeeks.length} / {otherWeeks.length}
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-gray-500 mb-2">
-                      Current week is always included.
-                    </p>
-
-                    <div className="flex items-center gap-2 mb-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedWeeks(otherWeeks.map((w) => w.weekNumber))}
-                        className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
-                        disabled={otherWeeks.length === 0}
-                      >
-                        Select all
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedWeeks([])}
-                        className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
-                        disabled={selectedWeeks.length === 0}
-                      >
-                        Clear
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {otherWeeks.map((week) => (
-                        <label key={week.id} className="flex items-center gap-2 p-2 rounded hover:bg-gray-50">
-                          <input
-                            type="checkbox"
-                            checked={selectedWeeks.includes(week.weekNumber)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedWeeks([...selectedWeeks, week.weekNumber]);
-                              } else {
-                                setSelectedWeeks(selectedWeeks.filter((weekNumber) => weekNumber !== week.weekNumber));
-                              }
-                            }}
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm">Week {week.weekNumber}</span>
-                        </label>
-                      ))}
-                    </div>
+              {showCrossWeek && (
+                <div className="mt-3">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Select other weeks to apply changes
+                    </label>
+                    <span className="text-xs text-gray-500">
+                      Selected: {selectedWeeks.length} / {otherWeeks.length}
+                    </span>
                   </div>
-                )}
-              </div>
-            )}
+
+                  <p className="text-xs text-gray-500 mb-2">
+                    Current week is always included.
+                  </p>
+
+                  <div className="flex items-center gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedWeeks(otherWeeks.map((w) => w.weekNumber))}
+                      className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                      disabled={otherWeeks.length === 0}
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedWeeks([])}
+                      className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                      disabled={selectedWeeks.length === 0}
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {otherWeeks.map((week) => (
+                      <label key={week.id} className="flex items-center gap-2 p-2 rounded hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={selectedWeeks.includes(week.weekNumber)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedWeeks([...selectedWeeks, week.weekNumber]);
+                            } else {
+                              setSelectedWeeks(selectedWeeks.filter((weekNumber) => weekNumber !== week.weekNumber));
+                            }
+                          }}
+                          className="rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm">Week {week.weekNumber}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {error && (
               <div className="text-red-600 text-sm bg-red-50 p-2 rounded">
