@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { activitiesApi, labelsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import type { Week, Label } from '../types';
-import { getContrastingTextColor, normalizeHexColor } from '../utils/color';
+import LabelChip from './LabelChip';
 
 interface CrossWeekModalProps {
   isOpen: boolean;
@@ -355,16 +355,13 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
                   {labels
                     .filter((l) => selectedLabelIds.includes(l.id))
                     .map((label) => {
-                      const bg = normalizeHexColor(label.color) || '#E5E7EB';
-                      const fg = getContrastingTextColor(bg);
                       return (
-                        <span
+                        <LabelChip
                           key={label.id}
-                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
-                          style={{ backgroundColor: bg, color: fg }}
-                        >
-                          {label.name}
-                        </span>
+                          name={label.name}
+                          color={label.color}
+                          size="sm"
+                        />
                       );
                     })}
                 </div>
@@ -392,8 +389,6 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {filteredLabels.map((label) => {
-                          const bg = normalizeHexColor(label.color) || '#E5E7EB';
-                          const fg = getContrastingTextColor(bg);
                           const checked = selectedLabelIds.includes(label.id);
                           return (
                             <label key={label.id} className="flex items-center gap-2 p-1 rounded hover:bg-gray-50">
@@ -403,12 +398,7 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
                                 onChange={(e) => toggleLabel(label.id, e.target.checked)}
                                 className="rounded border-gray-300 text-primary focus:ring-primary"
                               />
-                              <span
-                                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
-                                style={{ backgroundColor: bg, color: fg }}
-                              >
-                                {label.name}
-                              </span>
+                              <LabelChip name={label.name} color={label.color} size="sm" />
                             </label>
                           );
                         })}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { activitiesApi, pendingChangesApi, labelsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import type { Day, Activity, Week, Label } from '../types';
-import { getContrastingTextColor, normalizeHexColor } from '../utils/color';
+import LabelChip from './LabelChip';
 
 interface ActivityModalProps {
   isOpen: boolean;
@@ -280,16 +280,13 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                   {labels
                     .filter((l) => selectedLabelIds.includes(l.id))
                     .map((label) => {
-                      const bg = normalizeHexColor(label.color) || '#E5E7EB';
-                      const fg = getContrastingTextColor(bg);
                       return (
-                        <span
+                        <LabelChip
                           key={label.id}
-                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
-                          style={{ backgroundColor: bg, color: fg }}
-                        >
-                          {label.name}
-                        </span>
+                          name={label.name}
+                          color={label.color}
+                          size="sm"
+                        />
                       );
                     })}
                 </div>
@@ -317,8 +314,6 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {filteredLabels.map((label) => {
-                          const bg = normalizeHexColor(label.color) || '#E5E7EB';
-                          const fg = getContrastingTextColor(bg);
                           const checked = selectedLabelIds.includes(label.id);
                           return (
                             <label key={label.id} className="flex items-center gap-2 p-1 rounded hover:bg-gray-50">
@@ -328,12 +323,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                                 onChange={(e) => toggleLabel(label.id, e.target.checked)}
                                 className="rounded border-gray-300 text-primary focus:ring-primary"
                               />
-                              <span
-                                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium"
-                                style={{ backgroundColor: bg, color: fg }}
-                              >
-                                {label.name}
-                              </span>
+                              <LabelChip name={label.name} color={label.color} size="sm" />
                             </label>
                           );
                         })}

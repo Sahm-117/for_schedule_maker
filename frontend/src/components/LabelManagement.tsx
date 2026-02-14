@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { labelsApi } from '../services/api';
 import type { Label } from '../types';
 import { deltaE76, getContrastingTextColor, normalizeHexColor } from '../utils/color';
+import LabelChip from './LabelChip';
 
 interface LabelManagementProps {
   isOpen: boolean;
@@ -245,15 +246,11 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose }) =>
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-600">
                     Preview:{' '}
-                    <span
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-                      style={{
-                        backgroundColor: normalizeHexColor(newLabel.color) || '#E5E7EB',
-                        color: getContrastingTextColor(normalizeHexColor(newLabel.color) || '#E5E7EB'),
-                      }}
-                    >
-                      {newLabel.name || 'Label'}
-                    </span>
+                    <LabelChip
+                      name={newLabel.name || 'Label'}
+                      color={newLabel.color}
+                      size="md"
+                    />
                   </div>
                   <button
                     type="submit"
@@ -310,15 +307,11 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose }) =>
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-600">
                     Preview:{' '}
-                    <span
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-                      style={{
-                        backgroundColor: normalizeHexColor(editing.color) || '#E5E7EB',
-                        color: getContrastingTextColor(normalizeHexColor(editing.color) || '#E5E7EB'),
-                      }}
-                    >
-                      {editing.name || 'Label'}
-                    </span>
+                    <LabelChip
+                      name={editing.name || 'Label'}
+                      color={editing.color}
+                      size="md"
+                    />
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -359,12 +352,7 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose }) =>
                 return (
                   <div key={label.id} className="px-4 py-3 border-t border-gray-200 flex items-center">
                     <div className="w-20">
-                      <span
-                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-                        style={{ backgroundColor: bg, color: fg }}
-                      >
-                        {label.color}
-                      </span>
+                      <LabelChip name={label.color} color={label.color} size="md" />
                     </div>
                     <div className="flex-1 text-sm text-gray-900">
                       {label.name}
