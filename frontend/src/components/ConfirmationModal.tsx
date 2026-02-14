@@ -6,9 +6,11 @@ interface ConfirmationModalProps {
   onConfirm: () => void;
   title: string;
   message: string;
+  children?: React.ReactNode;
   confirmText?: string;
   cancelText?: string;
   type?: 'danger' | 'warning' | 'info';
+  confirmDisabled?: boolean;
 }
 
 const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -17,9 +19,11 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   onConfirm,
   title,
   message,
+  children,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   type = 'danger',
+  confirmDisabled = false,
 }) => {
   if (!isOpen) return null;
 
@@ -76,6 +80,11 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             <p className="text-gray-600 text-sm leading-relaxed">
               {message}
             </p>
+            {children ? (
+              <div className="mt-4">
+                {children}
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 sm:justify-end">
@@ -90,7 +99,8 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                 onConfirm();
                 onClose();
               }}
-              className={`w-full sm:w-auto px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${styles.confirmBtn}`}
+              disabled={confirmDisabled}
+              className={`w-full sm:w-auto px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${styles.confirmBtn} disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {confirmText}
             </button>

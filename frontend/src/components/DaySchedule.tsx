@@ -13,6 +13,7 @@ interface DayScheduleProps {
   onEditActivity: (activity: Activity) => void;
   onRefresh: () => void;
   isAdmin: boolean;
+  weekNumber: number;
   isExpanded: boolean;
   onToggleExpansion: () => void;
 }
@@ -24,12 +25,16 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   onEditActivity,
   onRefresh,
   isAdmin,
+  weekNumber,
   isExpanded,
   onToggleExpansion,
 }) => {
   const { user } = useAuth();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState<Activity | null>(null);
+  const [deleteSimilarWeeks, setDeleteSimilarWeeks] = useState<number[]>([]);
+  const [deleteSelectedWeeks, setDeleteSelectedWeeks] = useState<number[]>([]);
+  const [deleteSimilarLoading, setDeleteSimilarLoading] = useState(false);
   const getDayDisplayName = (dayName: string) => {
     const dayNames: { [key: string]: string } = {
       'MONDAY': 'Monday',
@@ -107,7 +112,26 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
 
   const handleDeleteActivity = (activity: Activity) => {
     setActivityToDelete(activity);
+    setDeleteSelectedWeeks([]);
+    setDeleteSimilarWeeks([]);
+    setDeleteSimilarLoading(true);
     setDeleteConfirmOpen(true);
+
+    // Find similar activities across other weeks (same dayName, time, description).
+    activitiesApi.checkDuplicates(activity.time, activity.description, day.dayName)
+      .then((res) => {
+        const others = (res.existingWeeks || [])
+          .filter((w) => typeof w === 'number' && w !== weekNumber)
+          .sort((a, b) => a - b);
+        setDeleteSimilarWeeks(others);
+      })
+      .catch((e) => {
+        console.warn('Failed to check similar activities for delete:', e);
+        setDeleteSimilarWeeks([]);
+      })
+      .finally(() => {
+        setDeleteSimilarLoading(false);
+      });
   };
 
   const confirmDeleteActivity = async () => {
@@ -115,7 +139,9 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
 
     try {
       if (isAdmin) {
-        await activitiesApi.delete(activityToDelete.id, {});
+        await activitiesApi.delete(activityToDelete.id, {
+          applyToWeeks: deleteSelectedWeeks.length > 0 ? deleteSelectedWeeks : undefined,
+        });
         onRefresh(); // Immediate refresh for admin
       } else {
         // Support users create pending deletion requests
@@ -127,7 +153,9 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
             activityId: activityToDelete.id,
             time: activityToDelete.time,
             description: activityToDelete.description,
-            period: activityToDelete.period
+            period: activityToDelete.period,
+            dayName: day.dayName,
+            applyToWeeks: deleteSelectedWeeks.length > 0 ? deleteSelectedWeeks : undefined,
           }
         });
         onRefresh(); // Refresh to show pending change
@@ -308,9 +336,67 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
               }`
             : ''
         }
+        confirmDisabled={false}
         confirmText={isAdmin ? 'Delete' : 'Submit Request'}
         type="danger"
-      />
+      >
+        {deleteSimilarLoading ? (
+          <p className="text-sm text-gray-500">Checking other weeks...</p>
+        ) : deleteSimilarWeeks.length > 0 ? (
+          <div className="border border-gray-200 rounded-md p-3 bg-gray-50">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-gray-800">
+                Also found in other weeks
+              </p>
+              <span className="text-xs text-gray-500">
+                Selected: {deleteSelectedWeeks.length}/{deleteSimilarWeeks.length}
+              </span>
+            </div>
+
+            <p className="text-xs text-gray-500 mt-1">
+              Current week is always included.
+            </p>
+
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                type="button"
+                className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-white"
+                onClick={() => setDeleteSelectedWeeks(deleteSimilarWeeks)}
+              >
+                Select all
+              </button>
+              <button
+                type="button"
+                className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-white disabled:opacity-50"
+                onClick={() => setDeleteSelectedWeeks([])}
+                disabled={deleteSelectedWeeks.length === 0}
+              >
+                Clear
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+              {deleteSimilarWeeks.map((wn) => (
+                <label key={wn} className="flex items-center gap-2 p-2 rounded hover:bg-white">
+                  <input
+                    type="checkbox"
+                    checked={deleteSelectedWeeks.includes(wn)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setDeleteSelectedWeeks((prev) => Array.from(new Set([...prev, wn])).sort((a, b) => a - b));
+                      } else {
+                        setDeleteSelectedWeeks((prev) => prev.filter((x) => x !== wn));
+                      }
+                    }}
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm">Week {wn}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </ConfirmationModal>
     </div>
   );
 };

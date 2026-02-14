@@ -210,6 +210,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             onEditActivity={handleEditActivity}
             onRefresh={handleRefresh}
             isAdmin={isAdmin}
+            weekNumber={week.weekNumber}
             isExpanded={expandedDays.has(day.id)}
             onToggleExpansion={() => toggleDayExpansion(day.id)}
           />

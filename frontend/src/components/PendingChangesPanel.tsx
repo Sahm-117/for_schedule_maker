@@ -107,14 +107,17 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
     const { changeType, changeData } = change;
     const wk = typeof weekNumber === 'number' ? weekNumber : undefined;
     const prefix = wk ? `Week ${wk}: ` : '';
+    const weeksSuffix = Array.isArray(changeData?.applyToWeeks) && changeData.applyToWeeks.length > 0
+      ? ` (also weeks: ${changeData.applyToWeeks.join(', ')})`
+      : '';
 
     switch (changeType) {
       case 'ADD':
-        return `${prefix}Add new activity: ${changeData.time} - ${changeData.description}`;
+        return `${prefix}Add new activity: ${changeData.time} - ${changeData.description}${weeksSuffix}`;
       case 'EDIT':
-        return `${prefix}Edit activity: ${changeData.description || 'Activity details'}`;
+        return `${prefix}Edit activity: ${changeData.description || 'Activity details'}${weeksSuffix}`;
       case 'DELETE':
-        return `${prefix}Delete activity: ${changeData.description || 'Activity'}`;
+        return `${prefix}Delete activity: ${changeData.description || 'Activity'}${weeksSuffix}`;
       default:
         return `${prefix}Unknown change`;
     }
