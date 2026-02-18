@@ -99,7 +99,10 @@ const Dashboard: React.FC = () => {
       const body = await response.json().catch(() => ({}));
 
       if (!response.ok || body?.ok !== true) {
-        const errText = body?.error || `Request failed (${response.status})`;
+        const dispatchDetail = body?.details?.failed?.[0]?.error;
+        const errText = dispatchDetail
+          ? `${body?.error || `Request failed (${response.status})`} - ${dispatchDetail}`
+          : (body?.error || `Request failed (${response.status})`);
         setDigestStatus(`Digest failed: ${errText}`);
         return;
       }

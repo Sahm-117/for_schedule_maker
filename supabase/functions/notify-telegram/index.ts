@@ -70,6 +70,54 @@ const parseChatIds = (raw?: string | null): string[] => {
   return chatIds;
 };
 
+const isValidHttpUrl = (value: string): boolean => {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+};
+
+const splitMessageByLines = (text: string, maxLength = 3500): string[] => {
+  if (text.length <= maxLength) return [text];
+
+  const lines = text.split('\n');
+  const chunks: string[] = [];
+  let current = '';
+
+  for (const line of lines) {
+    const candidate = current.length > 0 ? `${current}\n${line}` : line;
+    if (candidate.length <= maxLength) {
+      current = candidate;
+      continue;
+    }
+
+    if (current.length > 0) {
+      chunks.push(current);
+      current = '';
+    }
+
+    if (line.length <= maxLength) {
+      current = line;
+      continue;
+    }
+
+    let remainder = line;
+    while (remainder.length > maxLength) {
+      chunks.push(remainder.slice(0, maxLength));
+      remainder = remainder.slice(maxLength);
+    }
+    current = remainder;
+  }
+
+  if (current.length > 0) {
+    chunks.push(current);
+  }
+
+  return chunks.length > 0 ? chunks : [text];
+};
+
 const formatTimestamp = (raw?: string, timeZone?: string): string => {
   if (!raw) {
     return new Date().toLocaleString(undefined, {
@@ -217,14 +265,14 @@ const getDigestPdfUrl = (payload: TelegramNotificationEvent): string | undefined
 const getReplyMarkup = (payload: TelegramNotificationEvent): Record<string, unknown> | undefined => {
   if (payload.event === 'DAILY_DIGEST') {
     const digestPdfUrl = getDigestPdfUrl(payload);
-    if (!digestPdfUrl) return undefined;
+    if (!digestPdfUrl || !isValidHttpUrl(digestPdfUrl)) return undefined;
     return {
       inline_keyboard: [[{ text: '📄 Download SOP', url: digestPdfUrl }]],
     };
   }
 
   const openAppUrl = getOpenAppUrl(payload);
-  if (openAppUrl) {
+  if (openAppUrl && isValidHttpUrl(openAppUrl)) {
     return {
       inline_keyboard: [[{ text: 'Open App', url: openAppUrl }]],
     };
@@ -278,44 +326,58 @@ serve(async (req) => {
     const failed: SendFailure[] = [];
 
     for (const chatId of chatIds) {
+      const messageChunks = isDailyDigest ? splitMessageByLines(text, 3500) : [text];
+
       try {
-        const telegramRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text,
-            ...(isDailyDigest
-              ? {
-                  parse_mode: 'HTML',
-                }
-              : {}),
-            ...(replyMarkup
-              ? {
-                  reply_markup: replyMarkup,
-                }
-              : {}),
-          }),
-        });
+        let chatHadFailure = false;
 
-        const body = await telegramRes.json().catch(async () => ({ raw: await telegramRes.text().catch(() => '') }));
+        for (let i = 0; i < messageChunks.length; i += 1) {
+          const chunk = messageChunks[i];
+          const chunkReplyMarkup = i === messageChunks.length - 1 ? replyMarkup : undefined;
 
-        if (!telegramRes.ok) {
-          failed.push({
+          const telegramRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: chunk,
+              ...(isDailyDigest
+                ? {
+                    parse_mode: 'HTML',
+                  }
+                : {}),
+              ...(chunkReplyMarkup
+                ? {
+                    reply_markup: chunkReplyMarkup,
+                  }
+                : {}),
+            }),
+          });
+
+          const body = await telegramRes.json().catch(async () => ({ raw: await telegramRes.text().catch(() => '') }));
+
+          if (!telegramRes.ok) {
+            failed.push({
+              chatId,
+              status: telegramRes.status,
+              error: typeof body === 'string' ? body : JSON.stringify(body),
+            });
+            chatHadFailure = true;
+            break;
+          }
+
+          sent.push({
             chatId,
             status: telegramRes.status,
-            error: typeof body === 'string' ? body : JSON.stringify(body),
+            body,
           });
-          continue;
         }
 
-        sent.push({
-          chatId,
-          status: telegramRes.status,
-          body,
-        });
+        if (chatHadFailure) {
+          continue;
+        }
       } catch (error) {
         failed.push({
           chatId,
