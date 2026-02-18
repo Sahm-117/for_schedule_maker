@@ -2,32 +2,81 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 
 type ChangeType = 'ADD' | 'EDIT' | 'DELETE';
 type ActorRole = 'ADMIN' | 'SUPPORT' | 'SYSTEM';
+type TelegramEvent =
+  | 'CHANGE_REQUEST_CREATED'
+  | 'CHANGE_APPROVED'
+  | 'CHANGE_REJECTED'
+  | 'DAILY_DIGEST';
 
 interface TelegramNotificationEvent {
-  event: 'CHANGE_REQUEST_CREATED' | 'CHANGE_APPROVED' | 'CHANGE_REJECTED';
-  changeType: ChangeType;
-  actorName: string;
-  actorRole: ActorRole;
-  requestId: string;
+  event: TelegramEvent;
+  changeType?: ChangeType;
+  actorName?: string;
+  actorRole?: ActorRole;
+  requestId?: string;
   weekId?: number;
   weekNumber?: number;
   dayName?: string;
   summary?: string;
   timestamp?: string;
   loginUrl?: string;
+  digestTitle?: string;
+  digestLines?: string[];
+  pdfUrl?: string;
+}
+
+interface SendResult {
+  chatId: string;
+  status: number;
+  body: unknown;
+}
+
+interface SendFailure {
+  chatId: string;
+  status: number;
+  error: string;
 }
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const formatTimestamp = (raw?: string): string => {
-  if (!raw) return new Date().toLocaleString();
+const DIGEST_TIMEZONE = 'Africa/Lagos';
+
+const parseChatIds = (raw?: string | null): string[] => {
+  if (!raw) return [];
+
+  const seen = new Set<string>();
+  const chatIds: string[] = [];
+
+  for (const part of raw.split(',')) {
+    const value = part.trim();
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    chatIds.push(value);
+  }
+
+  return chatIds;
+};
+
+const formatTimestamp = (raw?: string, timeZone?: string): string => {
+  if (!raw) {
+    return new Date().toLocaleString(undefined, {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone,
+    });
+  }
+
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return raw;
-  // Keep it human readable without being overly verbose.
+
   return d.toLocaleString(undefined, {
     weekday: 'short',
     year: 'numeric',
@@ -35,21 +84,21 @@ const formatTimestamp = (raw?: string): string => {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone,
   });
 };
 
-const toMessage = (payload: TelegramNotificationEvent): string => {
+const toModerationMessage = (payload: TelegramNotificationEvent): string => {
   const eventLabel = payload.event.split('_').join(' ');
   const lines = [
     `FOF Scheduler: ${eventLabel}`,
-    `Action: ${payload.changeType}`,
-    `Actor: ${payload.actorName} (${payload.actorRole})`,
+    `Action: ${payload.changeType ?? 'N/A'}`,
+    `Actor: ${payload.actorName ?? 'Unknown'} (${payload.actorRole ?? 'SYSTEM'})`,
   ];
 
   if (typeof payload.weekNumber === 'number') {
     lines.push(`Week: ${payload.weekNumber}`);
   } else if (typeof payload.weekId === 'number') {
-    // Fallback if weekNumber isn't provided.
     lines.push(`Week: ${payload.weekId}`);
   }
 
@@ -65,6 +114,52 @@ const toMessage = (payload: TelegramNotificationEvent): string => {
   return lines.join('\n');
 };
 
+const toDailyDigestMessage = (payload: TelegramNotificationEvent): string => {
+  const title = payload.digestTitle || 'FOF IKD - SOP Manager';
+  const lines = [
+    title,
+    formatTimestamp(payload.timestamp, DIGEST_TIMEZONE),
+  ];
+
+  if (typeof payload.weekNumber === 'number' && payload.dayName) {
+    lines.push(`Week ${payload.weekNumber} • ${payload.dayName}`);
+  } else if (typeof payload.weekNumber === 'number') {
+    lines.push(`Week ${payload.weekNumber}`);
+  } else if (payload.dayName) {
+    lines.push(payload.dayName);
+  }
+
+  if (Array.isArray(payload.digestLines) && payload.digestLines.length > 0) {
+    lines.push(...payload.digestLines);
+  } else if (payload.summary) {
+    lines.push(payload.summary);
+  }
+
+  if (payload.pdfUrl) {
+    lines.push(`PDF: ${payload.pdfUrl}`);
+  }
+
+  return lines.join('\n');
+};
+
+const resolveTargetChatIds = (payload: TelegramNotificationEvent): string[] => {
+  const legacy = parseChatIds(Deno.env.get('TELEGRAM_CHAT_ID'));
+  const alertChatIds = parseChatIds(Deno.env.get('TELEGRAM_ALERT_CHAT_IDS'));
+  const dailyChatIds = parseChatIds(Deno.env.get('TELEGRAM_DAILY_CHAT_IDS'));
+
+  if (payload.event === 'DAILY_DIGEST') {
+    return dailyChatIds.length > 0 ? dailyChatIds : legacy;
+  }
+
+  return alertChatIds.length > 0 ? alertChatIds : legacy;
+};
+
+const getOpenAppUrl = (payload: TelegramNotificationEvent): string | undefined => {
+  if (payload.loginUrl) return payload.loginUrl;
+  const appBaseUrl = Deno.env.get('APP_BASE_URL')?.trim();
+  return appBaseUrl || undefined;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -78,45 +173,85 @@ serve(async (req) => {
   }
 
   try {
-    const body = (await req.json()) as TelegramNotificationEvent;
+    const payload = (await req.json()) as TelegramNotificationEvent;
     const token = Deno.env.get('TELEGRAM_BOT_TOKEN');
-    const chatId = Deno.env.get('TELEGRAM_CHAT_ID');
+    const chatIds = resolveTargetChatIds(payload);
 
-    if (!token || !chatId) {
-      return new Response(JSON.stringify({ error: 'Missing Telegram secrets' }), {
+    if (!token) {
+      return new Response(JSON.stringify({ ok: false, error: 'Missing TELEGRAM_BOT_TOKEN secret' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const telegramRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: toMessage(body),
-        ...(body.loginUrl
-          ? {
-              reply_markup: {
-                inline_keyboard: [[{ text: 'Open App', url: body.loginUrl }]],
-              },
-            }
-          : {}),
-      }),
-    });
-
-    if (!telegramRes.ok) {
-      const err = await telegramRes.text();
-      return new Response(JSON.stringify({ ok: false, error: err }), {
-        status: 502,
+    if (chatIds.length === 0) {
+      return new Response(JSON.stringify({
+        ok: false,
+        error: 'No Telegram chat IDs configured. Set TELEGRAM_ALERT_CHAT_IDS/TELEGRAM_DAILY_CHAT_IDS or TELEGRAM_CHAT_ID.',
+      }), {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    return new Response(JSON.stringify({ ok: true }), {
-      status: 200,
+    const text = payload.event === 'DAILY_DIGEST'
+      ? toDailyDigestMessage(payload)
+      : toModerationMessage(payload);
+
+    const openAppUrl = getOpenAppUrl(payload);
+
+    const sent: SendResult[] = [];
+    const failed: SendFailure[] = [];
+
+    for (const chatId of chatIds) {
+      try {
+        const telegramRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text,
+            ...(openAppUrl
+              ? {
+                  reply_markup: {
+                    inline_keyboard: [[{ text: 'Open App', url: openAppUrl }]],
+                  },
+                }
+              : {}),
+          }),
+        });
+
+        const body = await telegramRes.json().catch(async () => ({ raw: await telegramRes.text().catch(() => '') }));
+
+        if (!telegramRes.ok) {
+          failed.push({
+            chatId,
+            status: telegramRes.status,
+            error: typeof body === 'string' ? body : JSON.stringify(body),
+          });
+          continue;
+        }
+
+        sent.push({
+          chatId,
+          status: telegramRes.status,
+          body,
+        });
+      } catch (error) {
+        failed.push({
+          chatId,
+          status: 0,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    const ok = sent.length > 0;
+
+    return new Response(JSON.stringify({ ok, sent, failed }), {
+      status: ok ? 200 : 502,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

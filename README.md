@@ -180,12 +180,16 @@ VITE_SUPABASE_ANON_KEY=your-anon-key-here
 Set Supabase function secrets (not Vercel frontend env vars):
 ```bash
 supabase secrets set TELEGRAM_BOT_TOKEN=123456:your-bot-token
-supabase secrets set TELEGRAM_CHAT_ID=-1001234567890
+supabase secrets set TELEGRAM_ALERT_CHAT_IDS=-1003010422354
+supabase secrets set TELEGRAM_DAILY_CHAT_IDS=-1003800090207
+supabase secrets set APP_BASE_URL=https://for-schedule-maker.vercel.app
+supabase secrets set TELEGRAM_CRON_SECRET=replace-with-strong-secret
 ```
 
-Deploy function:
+Deploy functions:
 ```bash
 supabase functions deploy notify-telegram
+supabase functions deploy telegram-daily-digest
 ```
 
 The edge function sends Telegram notifications when:
@@ -193,7 +197,19 @@ The edge function sends Telegram notifications when:
 - admin approves a request
 - admin rejects a request
 
-After function validation, remove `VITE_TELEGRAM_BOT_TOKEN` and `VITE_TELEGRAM_GROUP_CHAT_ID` from Vercel frontend envs.
+Routing:
+- moderation alerts (`CHANGE_REQUEST_CREATED/APPROVED/REJECTED`) -> `TELEGRAM_ALERT_CHAT_IDS`
+- daily digest (`DAILY_DIGEST`) -> `TELEGRAM_DAILY_CHAT_IDS`
+
+Schedule daily digest for `06:00 Africa/Lagos` (example cURL payload):
+```bash
+curl -X POST "https://<project-ref>.supabase.co/functions/v1/telegram-daily-digest" \
+  -H "Content-Type: application/json" \
+  -H "apikey: <SUPABASE_ANON_KEY>" \
+  -H "Authorization: Bearer <SUPABASE_ANON_KEY>" \
+  -H "x-cron-secret: <TELEGRAM_CRON_SECRET>" \
+  -d '{"force":false}'
+```
 
 Validation example:
 ```bash

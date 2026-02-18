@@ -75,15 +75,18 @@ export interface ApiError {
 }
 
 export interface TelegramNotificationEvent {
-  event: 'CHANGE_REQUEST_CREATED' | 'CHANGE_APPROVED' | 'CHANGE_REJECTED';
-  changeType: 'ADD' | 'EDIT' | 'DELETE';
-  actorName: string;
-  actorRole: 'ADMIN' | 'SUPPORT' | 'SYSTEM';
-  requestId: string;
+  event: 'CHANGE_REQUEST_CREATED' | 'CHANGE_APPROVED' | 'CHANGE_REJECTED' | 'DAILY_DIGEST';
+  changeType?: 'ADD' | 'EDIT' | 'DELETE';
+  actorName?: string;
+  actorRole?: 'ADMIN' | 'SUPPORT' | 'SYSTEM';
+  requestId?: string;
   weekId?: number;
   weekNumber?: number;
   dayName?: string;
   summary?: string;
   timestamp?: string;
   loginUrl?: string;
+  digestTitle?: string;
+  digestLines?: string[];
+  pdfUrl?: string;
 }
