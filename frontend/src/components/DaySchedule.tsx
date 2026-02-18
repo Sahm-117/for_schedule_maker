@@ -10,7 +10,7 @@ interface DayScheduleProps {
   day: Day;
   pendingChanges: PendingChange[];
   onAddActivity: () => void;
-  onEditActivity: (activity: Activity) => void;
+  onEditActivity: (activity: Activity, day?: Day) => void;
   onRefresh: () => void;
   isAdmin: boolean;
   weekNumber: number;
@@ -154,6 +154,8 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
             time: activityToDelete.time,
             description: activityToDelete.description,
             period: activityToDelete.period,
+            labelIds: (activityToDelete.labels || []).map((label) => label.id),
+            labelNames: (activityToDelete.labels || []).map((label) => label.name),
             dayName: day.dayName,
             applyToWeeks: deleteSelectedWeeks.length > 0 ? deleteSelectedWeeks : undefined,
           }

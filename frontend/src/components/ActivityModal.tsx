@@ -122,6 +122,11 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
     setError('');
 
     try {
+      const labelNameMap = new Map(labels.map((label) => [label.id, label.name]));
+      const selectedLabelNames = selectedLabelIds
+        .map((labelId) => labelNameMap.get(labelId))
+        .filter((name): name is string => typeof name === 'string' && name.trim().length > 0);
+
       if (activity) {
         if (isAdmin) {
           await activitiesApi.update(activity.id, {
@@ -131,6 +136,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
             labelIds: selectedLabelIds,
           });
         } else {
+          const oldLabels = activity.labels || [];
           await pendingChangesApi.create({
             weekId: day.weekId,
             changeType: 'EDIT',
@@ -140,9 +146,14 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
               dayId: day.id,
               dayName: day.dayName,
               oldTime: activity.time,
+              oldPeriod: activity.period,
               oldDescription: activity.description,
+              oldLabelIds: oldLabels.map((label) => label.id),
+              oldLabelNames: oldLabels.map((label) => label.name),
               time,
+              period,
               description,
+              labelNames: selectedLabelNames,
               applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
               labelIds: selectedLabelIds,
             },
@@ -152,12 +163,14 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
         // Use correct API based on user role
         const activityData = {
           dayId: day.id,
+          dayName: day.dayName,
           time,
           description,
           period,
           applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
           labelIds: selectedLabelIds,
-          userId: user?.id || 'demo_user_id',
+          labelNames: selectedLabelNames,
+          userId: user?.id,
         };
 
         if (isAdmin) {

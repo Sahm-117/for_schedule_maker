@@ -78,6 +78,10 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
     try {
       const results = [];
       const errors = [];
+      const labelNameMap = new Map(labels.map((label) => [label.id, label.name]));
+      const selectedLabelNames = selectedLabelIds
+        .map((labelId) => labelNameMap.get(labelId))
+        .filter((name): name is string => typeof name === 'string' && name.trim().length > 0);
 
       // Create activity for each selected day
       for (const dayName of selectedDays) {
@@ -90,11 +94,13 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
         try {
           const activityData = {
             dayId: targetDay.id,
+            dayName,
             time,
             description,
             period,
             applyToWeeks: selectedWeeks,
             labelIds: selectedLabelIds,
+            labelNames: selectedLabelNames,
             userId: user?.id,
           };
 

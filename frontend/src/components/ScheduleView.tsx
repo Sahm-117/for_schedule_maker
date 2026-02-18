@@ -1,49 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { weeksApi, pendingChangesApi } from '../services/api';
 import type { Week, Day, Activity, PendingChange } from '../types';
 import DaySchedule from './DaySchedule';
 import ActivityModal from './ActivityModal';
 import CrossWeekModal from './CrossWeekModal';
-import PendingChangesPanel from './PendingChangesPanel';
 import { exportWeekToPDF, exportAllWeeksToPDF } from '../utils/pdfExport';
 
 interface ScheduleViewProps {
   week: Week;
   weeks: Week[];
+  pendingChanges: PendingChange[];
   onWeekUpdate: () => void;
+  onPendingChangesRefresh: () => void;
   isAdmin: boolean;
 }
 
 const ScheduleView: React.FC<ScheduleViewProps> = ({
   week,
   weeks,
+  pendingChanges,
   onWeekUpdate,
+  onPendingChangesRefresh,
   isAdmin,
 }) => {
-  const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [selectedDay, setSelectedDay] = useState<Day | null>(null);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [crossWeekModalOpen, setCrossWeekModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
-  const [showPendingChanges, setShowPendingChanges] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    loadPendingChanges();
-    // Set the first day as expanded by default
     if (week.days.length > 0) {
       setExpandedDays(new Set([week.days[0].id]));
     }
-  }, [week.id]);
-
-  const loadPendingChanges = async () => {
-    try {
-      const response = await pendingChangesApi.getByWeek(week.id);
-      setPendingChanges(response.pendingChanges);
-    } catch (error) {
-      console.error('Failed to load pending changes:', error);
-    }
-  };
+  }, [week.id, week.days]);
 
   const handleAddActivity = (day: Day) => {
     setSelectedDay(day);
@@ -52,8 +41,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   };
 
   const handleEditActivity = (activity: Activity, day?: Day) => {
-    // Use the passed day or find it from the week
-    const activityDay = day || week.days.find(d => d.id === activity.dayId);
+    const activityDay = day || week.days.find((d) => d.id === activity.dayId);
     setSelectedDay(activityDay || null);
     setEditingActivity(activity);
     setActivityModalOpen(true);
@@ -67,17 +55,12 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
     setActivityModalOpen(false);
     setCrossWeekModalOpen(false);
     onWeekUpdate();
-    loadPendingChanges();
-  };
-
-  const handlePendingChangeApproved = () => {
-    loadPendingChanges();
-    onWeekUpdate();
+    onPendingChangesRefresh();
   };
 
   const handleRefresh = () => {
     onWeekUpdate();
-    loadPendingChanges();
+    onPendingChangesRefresh();
   };
 
   const handleExportWeek = async () => {
@@ -97,7 +80,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   };
 
   const toggleDayExpansion = (dayId: number) => {
-    setExpandedDays(prev => {
+    setExpandedDays((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(dayId)) {
         newSet.delete(dayId);
@@ -109,13 +92,13 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   };
 
   const getPendingChangesForDay = (dayId: number) => {
-    return pendingChanges.filter(change => {
+    return pendingChanges.filter((change) => {
       if (change.changeType === 'ADD') {
         return change.changeData?.dayId === dayId;
       }
       if (change.changeType === 'EDIT' || change.changeType === 'DELETE') {
         return change.changeData?.activityId &&
-               week.days.find(d => d.id === dayId)?.activities.some(a => a.id === change.changeData.activityId);
+          week.days.find((d) => d.id === dayId)?.activities.some((a) => a.id === change.changeData.activityId);
       }
       return false;
     });
@@ -123,7 +106,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
       <div className="bg-white rounded-lg shadow p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -137,19 +119,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
             {pendingChanges.length > 0 && (
-              <button
-                onClick={() => setShowPendingChanges(!showPendingChanges)}
-                className="inline-flex items-center px-3 sm:px-4 py-2 border border-orange-200 text-orange-700 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors text-sm"
-              >
-                <svg className="w-4 h-4 mr-1 sm:mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                <span className="hidden sm:inline">{pendingChanges.length} Pending Change{pendingChanges.length !== 1 ? 's' : ''}</span>
-                <span className="sm:hidden">{pendingChanges.length} Pending</span>
-              </button>
+              <span className="inline-flex items-center px-3 py-2 border border-orange-200 text-orange-700 bg-orange-50 rounded-lg text-sm">
+                {pendingChanges.length} pending in this week
+              </span>
             )}
 
-            {/* Export Buttons */}
             <button
               onClick={handleExportWeek}
               className="inline-flex items-center px-3 sm:px-4 py-2 border border-green-200 text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-sm"
@@ -186,18 +160,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         </div>
       </div>
 
-      {/* Pending Changes Panel */}
-      {showPendingChanges && pendingChanges.length > 0 && (
-        <PendingChangesPanel
-          pendingChanges={pendingChanges}
-          onApprove={handlePendingChangeApproved}
-          onReject={handlePendingChangeApproved}
-          isAdmin={isAdmin}
-          weekNumber={week.weekNumber}
-        />
-      )}
-
-      {/* Days Grid */}
       <div className="grid grid-cols-1 gap-6">
         {week.days.map((day) => (
           <DaySchedule
@@ -215,7 +177,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         ))}
       </div>
 
-      {/* Activity Modal */}
       {activityModalOpen && selectedDay && (
         <ActivityModal
           isOpen={activityModalOpen}
@@ -228,7 +189,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         />
       )}
 
-      {/* Cross-Week Modal */}
       {crossWeekModalOpen && (
         <CrossWeekModal
           isOpen={crossWeekModalOpen}

@@ -1,23 +1,84 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { pendingChangesApi } from '../services/api';
-import type { PendingChange } from '../types';
+import type { PendingChange, Week } from '../types';
 import ConfirmationModal from './ConfirmationModal';
+import { buildPendingChangePreview, type ChangeSnapshot } from '../utils/pendingChangePreview';
 
 interface PendingChangesPanelProps {
   pendingChanges: PendingChange[];
-  onApprove: () => void;
-  onReject: () => void;
+  onApprove: (changeIds?: string[]) => void;
+  onReject: (changeIds?: string[]) => void;
   isAdmin: boolean;
-  weekNumber?: number;
+  weeks?: Week[];
 }
+
+const getTypeStyles = (changeType: string): string => {
+  switch (changeType) {
+    case 'ADD':
+      return 'bg-green-100 text-green-700 border-green-200';
+    case 'EDIT':
+      return 'bg-blue-100 text-blue-700 border-blue-200';
+    case 'DELETE':
+      return 'bg-red-100 text-red-700 border-red-200';
+    default:
+      return 'bg-gray-100 text-gray-700 border-gray-200';
+  }
+};
+
+const FieldRow: React.FC<{ label: string; value?: string }> = ({ label, value }) => {
+  if (!value) return null;
+  return (
+    <div className="text-sm text-gray-700">
+      <span className="font-medium text-gray-900">{label}:</span> {value}
+    </div>
+  );
+};
+
+const LabelChips: React.FC<{ labels: string[] }> = ({ labels }) => {
+  if (!labels || labels.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1 mt-2">
+      {labels.map((label) => (
+        <span key={label} className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-xs text-gray-800">
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+const SnapshotBlock: React.FC<{ title: string; snapshot?: ChangeSnapshot; tone: 'before' | 'after' }> = ({
+  title,
+  snapshot,
+  tone,
+}) => {
+  if (!snapshot) return null;
+
+  const classes = tone === 'before'
+    ? 'bg-red-50 border-red-200'
+    : 'bg-green-50 border-green-200';
+
+  return (
+    <div className={`rounded-md border p-3 ${classes}`}>
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2">{title}</p>
+      <div className="space-y-1">
+        <FieldRow label="Time" value={snapshot.time} />
+        <FieldRow label="Period" value={snapshot.period} />
+        <FieldRow label="Description" value={snapshot.description} />
+      </div>
+      <LabelChips labels={snapshot.labels} />
+    </div>
+  );
+};
 
 const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   pendingChanges,
   onApprove,
   onReject,
   isAdmin,
-  weekNumber,
+  weeks = [],
 }) => {
+  const [visibleChanges, setVisibleChanges] = useState<PendingChange[]>(pendingChanges);
   const [loading, setLoading] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
@@ -28,12 +89,29 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   const [bulkRejectionReason, setBulkRejectionReason] = useState('');
   const [bulkProgress, setBulkProgress] = useState<{ mode: 'approve' | 'reject'; done: number; total: number } | null>(null);
 
+  useEffect(() => {
+    setVisibleChanges(pendingChanges);
+  }, [pendingChanges]);
+
+  const previews = useMemo(() => {
+    return visibleChanges.map((change) => ({
+      change,
+      preview: buildPendingChangePreview(change, weeks),
+    }));
+  }, [visibleChanges, weeks]);
+
+  const removeChangesByIds = (ids: string[]) => {
+    if (ids.length === 0) return;
+    setVisibleChanges((prev) => prev.filter((change) => !ids.includes(change.id)));
+  };
+
   const handleApprove = async (changeId: string) => {
     setLoading(changeId);
     setActionError('');
     try {
       await pendingChangesApi.approve(changeId);
-      onApprove();
+      removeChangesByIds([changeId]);
+      onApprove([changeId]);
     } catch (error) {
       console.error('Failed to approve change:', error);
       setActionError(error instanceof Error ? error.message : 'Failed to approve change');
@@ -49,9 +127,10 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
     setActionError('');
     try {
       await pendingChangesApi.reject(changeId, rejectionReason);
+      removeChangesByIds([changeId]);
       setShowRejectModal(null);
       setRejectionReason('');
-      onReject();
+      onReject([changeId]);
     } catch (error) {
       console.error('Failed to reject change:', error);
       setActionError(error instanceof Error ? error.message : 'Failed to reject change');
@@ -61,17 +140,22 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   };
 
   const handleApproveAll = async () => {
-    if (pendingChanges.length === 0) return;
+    if (visibleChanges.length === 0) return;
     setBulkLoading(true);
     setActionError('');
-    setBulkProgress({ mode: 'approve', done: 0, total: pendingChanges.length });
+    setBulkProgress({ mode: 'approve', done: 0, total: visibleChanges.length });
+
+    const approvedIds: string[] = [];
+
     try {
-      for (let i = 0; i < pendingChanges.length; i++) {
-        const change = pendingChanges[i];
+      for (let i = 0; i < visibleChanges.length; i += 1) {
+        const change = visibleChanges[i];
         await pendingChangesApi.approve(change.id);
-        setBulkProgress({ mode: 'approve', done: i + 1, total: pendingChanges.length });
+        approvedIds.push(change.id);
+        removeChangesByIds([change.id]);
+        setBulkProgress({ mode: 'approve', done: i + 1, total: visibleChanges.length });
       }
-      onApprove();
+      onApprove(approvedIds);
     } catch (error) {
       console.error('Failed to approve all changes:', error);
       setActionError(error instanceof Error ? error.message : 'Failed to approve all changes');
@@ -82,18 +166,23 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
   };
 
   const handleRejectAll = async () => {
-    if (pendingChanges.length === 0 || !bulkRejectionReason.trim()) return;
+    if (visibleChanges.length === 0 || !bulkRejectionReason.trim()) return;
     setBulkLoading(true);
     setActionError('');
-    setBulkProgress({ mode: 'reject', done: 0, total: pendingChanges.length });
+    setBulkProgress({ mode: 'reject', done: 0, total: visibleChanges.length });
+
+    const rejectedIds: string[] = [];
+
     try {
-      for (let i = 0; i < pendingChanges.length; i++) {
-        const change = pendingChanges[i];
+      for (let i = 0; i < visibleChanges.length; i += 1) {
+        const change = visibleChanges[i];
         await pendingChangesApi.reject(change.id, bulkRejectionReason);
-        setBulkProgress({ mode: 'reject', done: i + 1, total: pendingChanges.length });
+        rejectedIds.push(change.id);
+        removeChangesByIds([change.id]);
+        setBulkProgress({ mode: 'reject', done: i + 1, total: visibleChanges.length });
       }
       setBulkRejectionReason('');
-      onReject();
+      onReject(rejectedIds);
     } catch (error) {
       console.error('Failed to reject all changes:', error);
       setActionError(error instanceof Error ? error.message : 'Failed to reject all changes');
@@ -103,60 +192,17 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
     }
   };
 
-  const getChangeDescription = (change: PendingChange) => {
-    const { changeType, changeData } = change;
-    const wk = typeof weekNumber === 'number' ? weekNumber : undefined;
-    const prefix = wk ? `Week ${wk}: ` : '';
-    const weeksSuffix = Array.isArray(changeData?.applyToWeeks) && changeData.applyToWeeks.length > 0
-      ? ` (also weeks: ${changeData.applyToWeeks.join(', ')})`
-      : '';
-
-    switch (changeType) {
-      case 'ADD':
-        return `${prefix}Add new activity: ${changeData.time} - ${changeData.description}${weeksSuffix}`;
-      case 'EDIT':
-        return `${prefix}Edit activity: ${changeData.description || 'Activity details'}${weeksSuffix}`;
-      case 'DELETE':
-        return `${prefix}Delete activity: ${changeData.description || 'Activity'}${weeksSuffix}`;
-      default:
-        return `${prefix}Unknown change`;
-    }
-  };
-
-  const getChangeIcon = (changeType: string) => {
-    switch (changeType) {
-      case 'ADD':
-        return (
-          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-          </svg>
-        );
-      case 'EDIT':
-        return (
-          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-        );
-      case 'DELETE':
-        return (
-          <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clipRule="evenodd" />
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 012 0v4a1 1 0 11-2 0V7zm2 6a1 1 0 011 1v.01a1 1 0 11-2 0V14a1 1 0 011-1z" clipRule="evenodd" />
-          </svg>
-        );
-      default:
-        return null;
-    }
-  };
-
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="p-4 border-b border-gray-200">
+    <div className="bg-white rounded-lg shadow border border-orange-200">
+      <div className="p-4 border-b border-orange-200">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-medium text-gray-900">
-              Pending Changes ({pendingChanges.length})
+            <h3 className="text-lg font-semibold text-gray-900">
+              Global Pending Inbox ({visibleChanges.length})
             </h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Requests from all weeks appear here.
+            </p>
             {bulkProgress && (
               <p className="text-xs text-gray-500 mt-1">
                 {bulkProgress.mode === 'approve' ? 'Approving' : 'Rejecting'} {bulkProgress.done}/{bulkProgress.total}...
@@ -164,7 +210,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
             )}
           </div>
 
-          {isAdmin && pendingChanges.length > 0 && (
+          {isAdmin && visibleChanges.length > 0 && (
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setBulkApproveOpen(true)}
@@ -194,33 +240,44 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
           </div>
         )}
 
-        {pendingChanges.map((change) => (
+        {previews.map(({ change, preview }) => (
           <div key={change.id} className="border border-orange-200 rounded-lg p-4 bg-orange-50">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-2">
-                  {getChangeIcon(change.changeType)}
-                  <span className="text-sm font-medium text-gray-900">
-                    {change.changeType} Request
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-semibold ${getTypeStyles(preview.type)}`}>
+                    {preview.type}
                   </span>
-                  <span className="text-xs text-gray-500">
-                    by {change.user?.name ?? 'Unknown user'}
+                  {typeof preview.weekNumber === 'number' && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-xs text-gray-700">
+                      Week {preview.weekNumber}
+                    </span>
+                  )}
+                  {preview.dayName && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-xs text-gray-700">
+                      {preview.dayName}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 border border-amber-200 text-xs text-amber-700">
+                    {preview.isMultiWeek
+                      ? `Multi-week${preview.scopeWeeks.length > 0 ? ` (${preview.scopeWeeks.join(', ')})` : ''}`
+                      : 'Single week'}
                   </span>
                 </div>
 
-                <p className="text-sm text-gray-700 mb-2">
-                  {getChangeDescription(change)}
+                <p className="text-xs text-gray-500 mb-3">
+                  by {preview.requesterName} • Submitted on {new Date(preview.submittedAt).toLocaleDateString()} at{' '}
+                  {new Date(preview.submittedAt).toLocaleTimeString()}
                 </p>
 
-                <p className="text-xs text-gray-500">
-                  {typeof weekNumber === 'number' ? `Week ${weekNumber} • ` : ''}
-                  Submitted on {new Date(change.createdAt).toLocaleDateString()} at{' '}
-                  {new Date(change.createdAt).toLocaleTimeString()}
-                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <SnapshotBlock title="Before" snapshot={preview.before} tone="before" />
+                  <SnapshotBlock title="After" snapshot={preview.after} tone="after" />
+                </div>
               </div>
 
               {isAdmin && (
-                <div className="flex items-center space-x-2 ml-4">
+                <div className="flex items-center space-x-2">
                   <button
                     onClick={() => handleApprove(change.id)}
                     disabled={loading === change.id}
@@ -241,7 +298,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
           </div>
         ))}
 
-        {pendingChanges.length === 0 && (
+        {visibleChanges.length === 0 && (
           <div className="text-center py-8">
             <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -251,7 +308,6 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
         )}
       </div>
 
-      {/* Rejection Modal */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full">
@@ -302,7 +358,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
         onClose={() => setBulkApproveOpen(false)}
         onConfirm={handleApproveAll}
         title="Approve All Changes"
-        message={`This will approve and apply ${pendingChanges.length} pending change(s). Continue?`}
+        message={`This will approve and apply ${visibleChanges.length} pending change(s). Continue?`}
         confirmText={bulkLoading ? 'Approving...' : 'Approve All'}
         type="warning"
       />
@@ -317,7 +373,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
 
               <div className="mb-4">
                 <p className="text-sm text-gray-600 mb-2">
-                  This will reject {pendingChanges.length} pending change(s). Provide a single reason that will be applied to all.
+                  This will reject {visibleChanges.length} pending change(s). Provide a single reason that will be applied to all.
                 </p>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Reason for rejection

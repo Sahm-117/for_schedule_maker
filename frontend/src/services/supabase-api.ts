@@ -732,6 +732,8 @@ export const activitiesApi = {
     applyToWeeks?: number[];
     userId?: string;
     labelIds?: string[];
+    labelNames?: string[];
+    dayName?: string;
   }): Promise<{ message: string; pendingChange: PendingChange }> {
     // Get the week ID from the day
     const { data: day, error: dayError } = await supabase
@@ -744,12 +746,22 @@ export const activitiesApi = {
       throw new Error('Day not found');
     }
 
+    const resolvedLabelNames = Array.isArray(activityData.labelNames)
+      ? activityData.labelNames.filter(Boolean)
+      : [];
+
+    const changeDataPayload = {
+      ...activityData,
+      dayName: day.dayName,
+      labelNames: resolvedLabelNames,
+    };
+
     const { data, error } = await supabase
       .from('PendingChange')
       .insert([{
         weekId: day.weekId,
         changeType: 'ADD',
-        changeData: activityData,
+        changeData: changeDataPayload,
         userId: (() => {
           const resolved = activityData.userId || getCurrentUserFromStorage()?.id;
           if (!resolved) {
@@ -1021,6 +1033,24 @@ export const activitiesApi = {
 
 // Pending Changes API
 export const pendingChangesApi = {
+  async getAll(): Promise<{ pendingChanges: PendingChange[] }> {
+    const { data, error } = await supabase
+      .from('PendingChange')
+      .select(`
+        *,
+        User (id, name, email)
+      `)
+      .order('createdAt', { ascending: false });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return {
+      pendingChanges: normalizePendingChanges((data || []) as unknown[]),
+    };
+  },
+
   async getByWeek(weekId: number): Promise<{ pendingChanges: PendingChange[] }> {
     const { data, error } = await supabase
       .from('PendingChange')

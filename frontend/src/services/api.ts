@@ -186,6 +186,10 @@ export const labelsApi = USE_SUPABASE ? supabaseLabelsApi : {
 
 // Pending Changes API
 export const pendingChangesApi = USE_SUPABASE ? supabasePendingChangesApi : {
+  async getAll(): Promise<{ pendingChanges: PendingChange[] }> {
+    return { pendingChanges: [] };
+  },
+
   async getByWeek(weekId: number): Promise<{ pendingChanges: PendingChange[] }> {
     const response = await api.get(`/pending-changes/${weekId}`);
     return {

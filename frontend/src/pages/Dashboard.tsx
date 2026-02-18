@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { weeksApi, rejectedChangesApi, settingsApi } from '../services/api';
-import type { Week, RejectedChange } from '../types';
+import { weeksApi, rejectedChangesApi, settingsApi, pendingChangesApi } from '../services/api';
+import type { Week, RejectedChange, PendingChange } from '../types';
+import { supabase } from '../lib/supabase';
 import WeekSelector from '../components/WeekSelector';
 import ScheduleView from '../components/ScheduleView';
 import RejectedChangesNotification from '../components/RejectedChangesNotification';
 import UserManagement from '../components/UserManagement';
 import LabelManagement from '../components/LabelManagement';
+import PendingChangesPanel from '../components/PendingChangesPanel';
+import AdminActionsSheet from '../components/AdminActionsSheet';
 
 const Dashboard: React.FC = () => {
   const { user, logout, isAdmin } = useAuth();
@@ -15,75 +18,162 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [rejectedChanges, setRejectedChanges] = useState<RejectedChange[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [globalPendingChanges, setGlobalPendingChanges] = useState<PendingChange[]>([]);
+  const [weekPendingChanges, setWeekPendingChanges] = useState<PendingChange[]>([]);
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [showLabelManagement, setShowLabelManagement] = useState(false);
+  const [showAdminActions, setShowAdminActions] = useState(false);
   const [digestSending, setDigestSending] = useState(false);
   const [digestEnabled, setDigestEnabled] = useState(true);
   const [digestToggleLoading, setDigestToggleLoading] = useState(false);
   const [digestStatus, setDigestStatus] = useState<string>('');
+  const [realtimeHealthy, setRealtimeHealthy] = useState(false);
+
+  const refreshTimeoutRef = useRef<number | null>(null);
+
+  const loadWeeks = useCallback(async () => {
+    const response = await weeksApi.getAll();
+    setWeeks(response.weeks);
+
+    setSelectedWeek((prev) => {
+      if (response.weeks.length === 0) return null;
+      if (prev) {
+        return response.weeks.find((week) => week.id === prev.id) || response.weeks[0];
+      }
+      const week1 = response.weeks.find((week) => week.weekNumber === 1);
+      return week1 || response.weeks[0];
+    });
+  }, []);
+
+  const loadRejectedChanges = useCallback(async () => {
+    const response = await rejectedChangesApi.getMine();
+    setRejectedChanges(response.rejectedChanges);
+    setUnreadCount(response.unreadCount);
+  }, []);
+
+  const loadGlobalPendingChanges = useCallback(async () => {
+    const response = await pendingChangesApi.getAll();
+    setGlobalPendingChanges(response.pendingChanges);
+  }, []);
+
+  const loadWeekPendingChanges = useCallback(async (weekId: number) => {
+    const response = await pendingChangesApi.getByWeek(weekId);
+    setWeekPendingChanges(response.pendingChanges);
+  }, []);
+
+  const loadDigestSettings = useCallback(async () => {
+    const response = await settingsApi.getDailyDigestEnabled();
+    setDigestEnabled(response.enabled);
+  }, []);
+
+  const refreshAdminData = useCallback(() => {
+    void Promise.all([loadWeeks(), loadGlobalPendingChanges()]);
+  }, [loadGlobalPendingChanges, loadWeeks]);
+
+  const scheduleAdminRefresh = useCallback(() => {
+    if (refreshTimeoutRef.current) {
+      window.clearTimeout(refreshTimeoutRef.current);
+    }
+    refreshTimeoutRef.current = window.setTimeout(() => {
+      refreshAdminData();
+    }, 300);
+  }, [refreshAdminData]);
 
   useEffect(() => {
-    loadWeeks();
-    if (isAdmin) {
-      loadDigestSettings();
-    } else {
-      loadRejectedChanges();
-    }
-  }, [isAdmin]);
+    let cancelled = false;
 
-  const loadWeeks = async () => {
-    try {
-      const response = await weeksApi.getAll();
-      setWeeks(response.weeks);
+    const initialize = async () => {
+      setLoading(true);
+      try {
+        await loadWeeks();
 
-      // Update selectedWeek if it exists to reflect latest changes
-      if (selectedWeek && response.weeks.length > 0) {
-        const updatedSelectedWeek = response.weeks.find(week => week.id === selectedWeek.id);
-        if (updatedSelectedWeek) {
-          setSelectedWeek(updatedSelectedWeek);
+        if (isAdmin) {
+          await Promise.all([loadDigestSettings(), loadGlobalPendingChanges()]);
+        } else {
+          await loadRejectedChanges();
         }
-      } else if (response.weeks.length > 0 && !selectedWeek) {
-        // Default to Week 1 if available, otherwise first week
-        const week1 = response.weeks.find(week => week.weekNumber === 1);
-        setSelectedWeek(week1 || response.weeks[0]);
+      } catch (error) {
+        console.error('Failed to initialize dashboard:', error);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-    } catch (error) {
-      console.error('Failed to load weeks:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const loadRejectedChanges = async () => {
-    try {
-      const response = await rejectedChangesApi.getMine();
-      setRejectedChanges(response.rejectedChanges);
-      setUnreadCount(response.unreadCount);
-    } catch (error) {
-      console.error('Failed to load rejected changes:', error);
-    }
-  };
+    initialize();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, loadDigestSettings, loadGlobalPendingChanges, loadRejectedChanges, loadWeeks]);
+
+  useEffect(() => {
+    if (isAdmin || !selectedWeek) return;
+
+    loadWeekPendingChanges(selectedWeek.id).catch((error) => {
+      console.error('Failed to load week pending changes:', error);
+    });
+  }, [isAdmin, selectedWeek, loadWeekPendingChanges]);
+
+  useEffect(() => {
+    if (!isAdmin || !(supabase as any)) return;
+
+    const channel = (supabase as any)
+      .channel(`dashboard-sync-${Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'PendingChange' }, () => {
+        scheduleAdminRefresh();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Activity' }, () => {
+        scheduleAdminRefresh();
+      })
+      .subscribe((status: string) => {
+        if (status === 'SUBSCRIBED') {
+          setRealtimeHealthy(true);
+          return;
+        }
+
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setRealtimeHealthy(false);
+        }
+      });
+
+    return () => {
+      if (refreshTimeoutRef.current) {
+        window.clearTimeout(refreshTimeoutRef.current);
+      }
+      setRealtimeHealthy(false);
+      (supabase as any).removeChannel(channel);
+    };
+  }, [isAdmin, scheduleAdminRefresh]);
+
+  useEffect(() => {
+    if (!isAdmin || realtimeHealthy) return;
+
+    const intervalId = window.setInterval(() => {
+      refreshAdminData();
+    }, 15000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isAdmin, realtimeHealthy, refreshAdminData]);
 
   const handleWeekSelect = async (weekId: number) => {
     try {
       const response = await weeksApi.getById(weekId);
       setSelectedWeek(response.week);
+
+      if (!isAdmin) {
+        await loadWeekPendingChanges(response.week.id);
+      }
     } catch (error) {
       console.error('Failed to load week:', error);
     }
   };
 
   const handleRejectedChangesUpdate = () => {
-    loadRejectedChanges();
-  };
-
-  const loadDigestSettings = async () => {
-    try {
-      const response = await settingsApi.getDailyDigestEnabled();
-      setDigestEnabled(response.enabled);
-    } catch (error) {
-      console.error('Failed to load digest settings:', error);
-    }
+    void loadRejectedChanges();
   };
 
   const handleToggleDigest = async () => {
@@ -149,6 +239,39 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const pendingChangesForSelectedWeek = useMemo(() => {
+    if (!selectedWeek) return [];
+    if (isAdmin) {
+      return globalPendingChanges.filter((change) => change.weekId === selectedWeek.id);
+    }
+    return weekPendingChanges;
+  }, [globalPendingChanges, isAdmin, selectedWeek, weekPendingChanges]);
+
+  const handlePendingChangesRefresh = () => {
+    if (isAdmin) {
+      void loadGlobalPendingChanges();
+      return;
+    }
+
+    if (selectedWeek) {
+      void loadWeekPendingChanges(selectedWeek.id);
+    }
+  };
+
+  const handlePendingApprove = (changeIds?: string[]) => {
+    if (changeIds && changeIds.length > 0) {
+      setGlobalPendingChanges((prev) => prev.filter((change) => !changeIds.includes(change.id)));
+    }
+    refreshAdminData();
+  };
+
+  const handlePendingReject = (changeIds?: string[]) => {
+    if (changeIds && changeIds.length > 0) {
+      setGlobalPendingChanges((prev) => prev.filter((change) => !changeIds.includes(change.id)));
+    }
+    refreshAdminData();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -162,12 +285,11 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 sm:py-0 sm:h-16 gap-3 sm:gap-0">
-            <div className="flex items-center">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
                 FOF IKD - SOP Manager
               </h1>
               <img
@@ -180,65 +302,47 @@ const Dashboard: React.FC = () => {
               </span>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-              <span className="text-sm text-gray-700">
-                Welcome, {user?.name}
-              </span>
-              <div className="flex items-center gap-2">
-                {isAdmin && (
-                  <>
-                    <button
-                      onClick={handleToggleDigest}
-                      disabled={digestToggleLoading}
-                      className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 rounded-md border disabled:opacity-50 ${
-                        digestEnabled
-                          ? 'text-green-700 border-green-600 hover:bg-green-50'
-                          : 'text-red-700 border-red-600 hover:bg-red-50'
-                      }`}
-                    >
-                      {digestToggleLoading ? 'Updating...' : `Digest ${digestEnabled ? 'ON' : 'OFF'}`}
-                    </button>
-                    <button
-                      onClick={handleSendDigestNow}
-                      disabled={digestSending || !digestEnabled}
-                      className="text-xs sm:text-sm text-green-700 hover:text-green-800 px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-green-600 hover:bg-green-50 disabled:opacity-50"
-                    >
-                      {digestSending ? 'Sending Digest...' : 'Send Digest Now'}
-                    </button>
-                    <button
-                      onClick={() => setShowLabelManagement(true)}
-                      className="text-xs sm:text-sm text-primary hover:text-primary-dark px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-primary hover:bg-primary/5"
-                    >
-                      Manage Labels
-                    </button>
-                    <button
-                      onClick={() => setShowUserManagement(true)}
-                      className="text-xs sm:text-sm text-primary hover:text-primary-dark px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-primary hover:bg-primary/5"
-                    >
-                      Manage Users
-                    </button>
-                  </>
-                )}
+            <div className="flex items-center gap-2">
+              {isAdmin && (
                 <button
-                  onClick={logout}
-                  className="text-xs sm:text-sm text-gray-500 hover:text-gray-700 px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-gray-300 hover:bg-gray-50"
+                  type="button"
+                  onClick={() => setShowAdminActions(true)}
+                  className="text-xs sm:text-sm text-primary hover:text-primary-dark px-3 py-2 rounded-md border border-primary hover:bg-primary/5"
                 >
-                  Logout
+                  Admin Actions
                 </button>
-              </div>
+              )}
+              <button
+                onClick={logout}
+                className="text-xs sm:text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50"
+              >
+                Logout
+              </button>
             </div>
           </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-gray-700">Welcome, {user?.name}</span>
+            {isAdmin && (
+              <>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200 text-xs">
+                  Pending: {globalPendingChanges.length}
+                </span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs ${realtimeHealthy ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
+                  {realtimeHealthy ? 'Live sync' : 'Polling fallback'}
+                </span>
+              </>
+            )}
+          </div>
+
           {isAdmin && digestStatus && (
-            <div className="pb-3">
-              <p className={`text-xs sm:text-sm ${digestStatus.startsWith('Digest sent') ? 'text-green-700' : 'text-red-600'}`}>
-                {digestStatus}
-              </p>
-            </div>
+            <p className={`text-xs sm:text-sm ${digestStatus.startsWith('Digest sent') || digestStatus.includes('enabled') || digestStatus.includes('disabled') ? 'text-green-700' : 'text-red-600'}`}>
+              {digestStatus}
+            </p>
           )}
         </div>
       </header>
 
-      {/* Rejected Changes Notification */}
       {!isAdmin && unreadCount > 0 && (
         <RejectedChangesNotification
           rejectedChanges={rejectedChanges}
@@ -247,10 +351,18 @@ const Dashboard: React.FC = () => {
         />
       )}
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
+        {isAdmin && (
+          <PendingChangesPanel
+            pendingChanges={globalPendingChanges}
+            onApprove={handlePendingApprove}
+            onReject={handlePendingReject}
+            isAdmin={isAdmin}
+            weeks={weeks}
+          />
+        )}
+
         <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-8">
-          {/* Week Selector */}
           <div className="lg:col-span-1 order-1">
             <WeekSelector
               weeks={weeks}
@@ -259,13 +371,14 @@ const Dashboard: React.FC = () => {
             />
           </div>
 
-          {/* Schedule View */}
           <div className="lg:col-span-3 order-2">
             {selectedWeek ? (
               <ScheduleView
                 week={selectedWeek}
                 weeks={weeks}
+                pendingChanges={pendingChangesForSelectedWeek}
                 onWeekUpdate={loadWeeks}
+                onPendingChangesRefresh={handlePendingChangesRefresh}
                 isAdmin={isAdmin}
               />
             ) : (
@@ -277,13 +390,23 @@ const Dashboard: React.FC = () => {
         </div>
       </main>
 
-      {/* User Management Modal */}
+      <AdminActionsSheet
+        isOpen={showAdminActions}
+        onClose={() => setShowAdminActions(false)}
+        digestEnabled={digestEnabled}
+        digestToggleLoading={digestToggleLoading}
+        digestSending={digestSending}
+        onToggleDigest={handleToggleDigest}
+        onSendDigestNow={handleSendDigestNow}
+        onOpenLabels={() => setShowLabelManagement(true)}
+        onOpenUsers={() => setShowUserManagement(true)}
+      />
+
       <UserManagement
         isOpen={showUserManagement}
         onClose={() => setShowUserManagement(false)}
       />
 
-      {/* Label Management Modal */}
       <LabelManagement
         isOpen={showLabelManagement}
         onClose={() => setShowLabelManagement(false)}
