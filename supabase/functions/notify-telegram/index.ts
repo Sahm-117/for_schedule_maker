@@ -248,15 +248,26 @@ const getOpenAppUrl = (payload: TelegramNotificationEvent): string | undefined =
 
 const getDigestPdfUrl = (payload: TelegramNotificationEvent): string | undefined => {
   if (payload.pdfUrl && payload.pdfUrl.trim().length > 0) {
-    return payload.pdfUrl.trim();
+    const candidate = payload.pdfUrl.trim();
+    if (isValidHttpUrl(candidate)) return candidate;
   }
 
   const direct = Deno.env.get('TELEGRAM_DIGEST_SOP_URL')?.trim();
-  if (direct) return direct;
+  if (direct && isValidHttpUrl(direct)) return direct;
 
   const template = Deno.env.get('PDF_URL_TEMPLATE')?.trim();
   if (template && typeof payload.weekNumber === 'number') {
-    return template.replaceAll('{weekNumber}', String(payload.weekNumber));
+    const templated = template.replaceAll('{weekNumber}', String(payload.weekNumber));
+    if (isValidHttpUrl(templated)) return templated;
+  }
+
+  const appBaseUrl = Deno.env.get('APP_BASE_URL')?.trim();
+  if (appBaseUrl && isValidHttpUrl(appBaseUrl)) {
+    const normalized = appBaseUrl.endsWith('/') ? appBaseUrl.slice(0, -1) : appBaseUrl;
+    if (typeof payload.weekNumber === 'number') {
+      return `${normalized}/sop-download?week=${payload.weekNumber}`;
+    }
+    return `${normalized}/sop-download`;
   }
 
   return undefined;
@@ -265,7 +276,7 @@ const getDigestPdfUrl = (payload: TelegramNotificationEvent): string | undefined
 const getReplyMarkup = (payload: TelegramNotificationEvent): Record<string, unknown> | undefined => {
   if (payload.event === 'DAILY_DIGEST') {
     const digestPdfUrl = getDigestPdfUrl(payload);
-    if (!digestPdfUrl || !isValidHttpUrl(digestPdfUrl)) return undefined;
+    if (!digestPdfUrl) return undefined;
     return {
       inline_keyboard: [[{ text: '📄 Download SOP', url: digestPdfUrl }]],
     };
