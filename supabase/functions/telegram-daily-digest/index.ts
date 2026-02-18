@@ -11,7 +11,7 @@ const DIGEST_TIMEZONE = 'Africa/Lagos';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -99,19 +99,6 @@ serve(async (req) => {
   }
 
   const force = parseBoolean(body.force) || parseBoolean(new URL(req.url).searchParams.get('force'));
-  const expectedSecret = Deno.env.get('TELEGRAM_CRON_SECRET')?.trim();
-  const providedSecret = req.headers.get('x-cron-secret')?.trim();
-  const allowUnsignedForceTrigger = parseBoolean(
-    Deno.env.get('TELEGRAM_ALLOW_UNSIGNED_FORCE_TRIGGER') ?? 'true',
-  );
-
-  // Scheduled calls should use TELEGRAM_CRON_SECRET. Manual admin triggers can use force=true.
-  if (expectedSecret && providedSecret !== expectedSecret && !(allowUnsignedForceTrigger && force)) {
-    return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
 
   const url = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY');
