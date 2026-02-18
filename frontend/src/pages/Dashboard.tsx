@@ -17,6 +17,8 @@ const Dashboard: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [showLabelManagement, setShowLabelManagement] = useState(false);
+  const [digestSending, setDigestSending] = useState(false);
+  const [digestStatus, setDigestStatus] = useState<string>('');
 
   useEffect(() => {
     loadWeeks();
@@ -71,6 +73,51 @@ const Dashboard: React.FC = () => {
     loadRejectedChanges();
   };
 
+  const handleSendDigestNow = async () => {
+    const cronSecret = window.prompt('Enter Telegram digest trigger secret');
+    if (!cronSecret) {
+      return;
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+
+    if (!supabaseUrl || !anonKey) {
+      setDigestStatus('Missing Supabase env config in frontend.');
+      return;
+    }
+
+    setDigestSending(true);
+    setDigestStatus('');
+
+    try {
+      const response = await fetch(`${supabaseUrl}/functions/v1/telegram-daily-digest?force=true`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+          'x-cron-secret': cronSecret,
+        },
+        body: JSON.stringify({ force: true }),
+      });
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok || body?.ok !== true) {
+        const errText = body?.error || `Request failed (${response.status})`;
+        setDigestStatus(`Digest failed: ${errText}`);
+        return;
+      }
+
+      setDigestStatus(`Digest sent to Telegram (${body?.dayName || 'today'}).`);
+    } catch (error) {
+      setDigestStatus(`Digest failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setDigestSending(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -110,6 +157,13 @@ const Dashboard: React.FC = () => {
                 {isAdmin && (
                   <>
                     <button
+                      onClick={handleSendDigestNow}
+                      disabled={digestSending}
+                      className="text-xs sm:text-sm text-green-700 hover:text-green-800 px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-green-600 hover:bg-green-50 disabled:opacity-50"
+                    >
+                      {digestSending ? 'Sending Digest...' : 'Send Digest Now'}
+                    </button>
+                    <button
                       onClick={() => setShowLabelManagement(true)}
                       className="text-xs sm:text-sm text-primary hover:text-primary-dark px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-primary hover:bg-primary/5"
                     >
@@ -132,6 +186,13 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
           </div>
+          {isAdmin && digestStatus && (
+            <div className="pb-3">
+              <p className={`text-xs sm:text-sm ${digestStatus.startsWith('Digest sent') ? 'text-green-700' : 'text-red-600'}`}>
+                {digestStatus}
+              </p>
+            </div>
+          )}
         </div>
       </header>
 

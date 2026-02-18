@@ -133,7 +133,8 @@ const toDailyDigestMessage = (payload: TelegramNotificationEvent): string => {
   lines.push('🌟 Activities for today');
 
   if (Array.isArray(payload.digestLines) && payload.digestLines.length > 0) {
-    lines.push(...payload.digestLines);
+    lines.push('');
+    lines.push(payload.digestLines.join('\n\n'));
   } else if (payload.summary) {
     lines.push(payload.summary);
   }
@@ -163,23 +164,32 @@ const getOpenAppUrl = (payload: TelegramNotificationEvent): string | undefined =
   return appBaseUrl || undefined;
 };
 
-const getReplyMarkup = (payload: TelegramNotificationEvent): Record<string, unknown> | undefined => {
-  const openAppUrl = getOpenAppUrl(payload);
-
-  if (payload.event === 'DAILY_DIGEST') {
-    const buttons: Array<Array<{ text: string; url: string }>> = [];
-
-    if (payload.pdfUrl) {
-      buttons.push([{ text: '📄 Download SOP', url: payload.pdfUrl }]);
-    }
-
-    if (openAppUrl) {
-      buttons.push([{ text: '📱 Open App', url: openAppUrl }]);
-    }
-
-    return buttons.length > 0 ? { inline_keyboard: buttons } : undefined;
+const getDigestPdfUrl = (payload: TelegramNotificationEvent): string | undefined => {
+  if (payload.pdfUrl && payload.pdfUrl.trim().length > 0) {
+    return payload.pdfUrl.trim();
   }
 
+  const direct = Deno.env.get('TELEGRAM_DIGEST_SOP_URL')?.trim();
+  if (direct) return direct;
+
+  const template = Deno.env.get('PDF_URL_TEMPLATE')?.trim();
+  if (template && typeof payload.weekNumber === 'number') {
+    return template.replaceAll('{weekNumber}', String(payload.weekNumber));
+  }
+
+  return undefined;
+};
+
+const getReplyMarkup = (payload: TelegramNotificationEvent): Record<string, unknown> | undefined => {
+  if (payload.event === 'DAILY_DIGEST') {
+    const digestPdfUrl = getDigestPdfUrl(payload);
+    if (!digestPdfUrl) return undefined;
+    return {
+      inline_keyboard: [[{ text: '📄 Download SOP', url: digestPdfUrl }]],
+    };
+  }
+
+  const openAppUrl = getOpenAppUrl(payload);
   if (openAppUrl) {
     return {
       inline_keyboard: [[{ text: 'Open App', url: openAppUrl }]],

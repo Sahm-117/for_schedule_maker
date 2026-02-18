@@ -67,6 +67,9 @@ const getPdfUrl = (weekNumber: number, bodyPdfUrl?: string): string | undefined 
     return bodyPdfUrl.trim();
   }
 
+  const sopUrl = Deno.env.get('TELEGRAM_DIGEST_SOP_URL')?.trim();
+  if (sopUrl) return sopUrl;
+
   const direct = Deno.env.get('TELEGRAM_DIGEST_PDF_URL')?.trim();
   if (direct) return direct;
 
@@ -194,7 +197,7 @@ serve(async (req) => {
           .filter((name): name is string => typeof name === 'string' && name.trim().length > 0);
 
         const labelsText = labels.length > 0
-          ? ` | 🏷️ ${labels.join(', ')}`
+          ? `\n🏷️ ${labels.join(', ')}`
           : '';
 
         return `🕒 ${formatTime(String(activity.time))} - ${String(activity.description || '')}${labelsText}`;
