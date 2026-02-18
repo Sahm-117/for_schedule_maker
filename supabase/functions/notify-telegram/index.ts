@@ -118,16 +118,19 @@ const toDailyDigestMessage = (payload: TelegramNotificationEvent): string => {
   const title = payload.digestTitle || 'FOF IKD - SOP Manager';
   const lines = [
     title,
-    formatTimestamp(payload.timestamp, DIGEST_TIMEZONE),
+    `🗓️ ${formatTimestamp(payload.timestamp, DIGEST_TIMEZONE)}`,
   ];
 
   if (typeof payload.weekNumber === 'number' && payload.dayName) {
-    lines.push(`Week ${payload.weekNumber} • ${payload.dayName}`);
+    lines.push(`📚 Week ${payload.weekNumber} • ${payload.dayName}`);
   } else if (typeof payload.weekNumber === 'number') {
-    lines.push(`Week ${payload.weekNumber}`);
+    lines.push(`📚 Week ${payload.weekNumber}`);
   } else if (payload.dayName) {
-    lines.push(payload.dayName);
+    lines.push(`📚 ${payload.dayName}`);
   }
+
+  lines.push('━━━━━━━━━━━━━━');
+  lines.push('🌟 Activities for today');
 
   if (Array.isArray(payload.digestLines) && payload.digestLines.length > 0) {
     lines.push(...payload.digestLines);
@@ -158,6 +161,32 @@ const getOpenAppUrl = (payload: TelegramNotificationEvent): string | undefined =
   if (payload.loginUrl) return payload.loginUrl;
   const appBaseUrl = Deno.env.get('APP_BASE_URL')?.trim();
   return appBaseUrl || undefined;
+};
+
+const getReplyMarkup = (payload: TelegramNotificationEvent): Record<string, unknown> | undefined => {
+  const openAppUrl = getOpenAppUrl(payload);
+
+  if (payload.event === 'DAILY_DIGEST') {
+    const buttons: Array<Array<{ text: string; url: string }>> = [];
+
+    if (payload.pdfUrl) {
+      buttons.push([{ text: '📄 Download SOP', url: payload.pdfUrl }]);
+    }
+
+    if (openAppUrl) {
+      buttons.push([{ text: '📱 Open App', url: openAppUrl }]);
+    }
+
+    return buttons.length > 0 ? { inline_keyboard: buttons } : undefined;
+  }
+
+  if (openAppUrl) {
+    return {
+      inline_keyboard: [[{ text: 'Open App', url: openAppUrl }]],
+    };
+  }
+
+  return undefined;
 };
 
 serve(async (req) => {
@@ -198,7 +227,7 @@ serve(async (req) => {
       ? toDailyDigestMessage(payload)
       : toModerationMessage(payload);
 
-    const openAppUrl = getOpenAppUrl(payload);
+    const replyMarkup = getReplyMarkup(payload);
 
     const sent: SendResult[] = [];
     const failed: SendFailure[] = [];
@@ -213,11 +242,9 @@ serve(async (req) => {
           body: JSON.stringify({
             chat_id: chatId,
             text,
-            ...(openAppUrl
+            ...(replyMarkup
               ? {
-                  reply_markup: {
-                    inline_keyboard: [[{ text: 'Open App', url: openAppUrl }]],
-                  },
+                  reply_markup: replyMarkup,
                 }
               : {}),
           }),

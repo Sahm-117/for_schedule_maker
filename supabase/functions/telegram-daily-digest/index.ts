@@ -8,7 +8,6 @@ type DigestRequestBody = {
 };
 
 const DIGEST_TIMEZONE = 'Africa/Lagos';
-const MAX_DIGEST_ITEMS = 12;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -61,11 +60,6 @@ const formatTime = (time: string): string => {
   const ampm = hour24 >= 12 ? 'PM' : 'AM';
   const hour12 = hour24 % 12 || 12;
   return `${hour12}:${minute} ${ampm}`;
-};
-
-const truncate = (input: string, max = 110): string => {
-  if (input.length <= max) return input;
-  return `${input.slice(0, max - 1)}…`;
 };
 
 const getPdfUrl = (weekNumber: number, bodyPdfUrl?: string): string | undefined => {
@@ -165,7 +159,7 @@ serve(async (req) => {
 
   const { data: weeks, error: weeksError } = await supabase
     .from('Week')
-    .select('id, weekNumber, Day(id, dayName, Activity(id, time, description, orderIndex, period))')
+    .select('id, weekNumber, Day(id, dayName, Activity(id, time, description, orderIndex, period, ActivityLabel(Label(name))))')
     .order('weekNumber', { ascending: true });
 
   if (weeksError || !weeks || weeks.length === 0) {
@@ -192,17 +186,19 @@ serve(async (req) => {
     return ai - bi;
   });
 
-  let digestLines: string[];
-  if (sortedActivities.length === 0) {
-    digestLines = ['No scheduled activities for today.'];
-  } else {
-    const visible = sortedActivities.slice(0, MAX_DIGEST_ITEMS);
-    digestLines = visible.map((activity) => `• ${formatTime(String(activity.time))} - ${truncate(String(activity.description || ''))}`);
+  const digestLines: string[] = sortedActivities.length === 0
+    ? ['😌 No scheduled activities for today.']
+    : sortedActivities.map((activity) => {
+        const labels = ((activity.ActivityLabel || []) as any[])
+          .map((entry) => entry?.Label?.name)
+          .filter((name): name is string => typeof name === 'string' && name.trim().length > 0);
 
-    if (sortedActivities.length > MAX_DIGEST_ITEMS) {
-      digestLines.push(`...and ${sortedActivities.length - MAX_DIGEST_ITEMS} more activities.`);
-    }
-  }
+        const labelsText = labels.length > 0
+          ? ` | 🏷️ ${labels.join(', ')}`
+          : '';
+
+        return `🕒 ${formatTime(String(activity.time))} - ${String(activity.description || '')}${labelsText}`;
+      });
 
   const appBaseUrl = Deno.env.get('APP_BASE_URL')?.trim();
   const payload = {
@@ -211,7 +207,7 @@ serve(async (req) => {
     weekNumber: (selectedWeek as any).weekNumber as number,
     dayName,
     timestamp: now.toISOString(),
-    digestTitle: 'FOF IKD - SOP Manager',
+    digestTitle: '✨ FOF IKD - SOP Manager',
     digestLines,
     pdfUrl: getPdfUrl((selectedWeek as any).weekNumber as number, body.pdfUrl),
     loginUrl: appBaseUrl,

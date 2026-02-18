@@ -201,7 +201,7 @@ Routing:
 - moderation alerts (`CHANGE_REQUEST_CREATED/APPROVED/REJECTED`) -> `TELEGRAM_ALERT_CHAT_IDS`
 - daily digest (`DAILY_DIGEST`) -> `TELEGRAM_DAILY_CHAT_IDS`
 
-Schedule daily digest for `06:00 Africa/Lagos` (example cURL payload):
+Schedule daily digest for `05:20 Africa/Lagos` (example cURL payload):
 ```bash
 curl -X POST "https://<project-ref>.supabase.co/functions/v1/telegram-daily-digest" \
   -H "Content-Type: application/json" \
