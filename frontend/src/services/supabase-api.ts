@@ -19,6 +19,26 @@ import { sendTelegramNotificationBestEffort } from './telegramNotifications';
 // Current user session
 let currentSession: Session | null = null;
 const weekNumberCache = new Map<number, number>();
+const DAILY_DIGEST_ENABLED_KEY = 'daily_digest_enabled';
+
+const parseDailyDigestEnabled = (value: unknown): boolean => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') {
+      return true;
+    }
+    if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off') {
+      return false;
+    }
+  }
+  if (value && typeof value === 'object') {
+    const maybeEnabled = (value as { enabled?: unknown }).enabled;
+    if (typeof maybeEnabled === 'boolean') return maybeEnabled;
+  }
+  // Safe default: enabled unless explicitly disabled.
+  return true;
+};
 
 const getCurrentUserFromStorage = (): User | null => {
   if (typeof window === 'undefined') {
@@ -1237,6 +1257,48 @@ export const rejectedChangesApi = {
     }
 
     return { message: 'All marked as read', updatedCount: data?.length || 0 };
+  },
+};
+
+// App Settings API
+export const settingsApi = {
+  async getDailyDigestEnabled(): Promise<{ enabled: boolean }> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', DAILY_DIGEST_ENABLED_KEY)
+      .maybeSingle();
+
+    if (error) {
+      // Backward-compatible fallback when migration isn't applied yet.
+      if ((error as any).code === '42P01' || error.message?.includes('AppSetting')) {
+        return { enabled: true };
+      }
+      throw new Error(error.message);
+    }
+
+    return { enabled: parseDailyDigestEnabled((data as any)?.value) };
+  },
+
+  async setDailyDigestEnabled(enabled: boolean): Promise<{ enabled: boolean }> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .upsert(
+        [{
+          settingKey: DAILY_DIGEST_ENABLED_KEY,
+          value: enabled,
+          updatedAt: new Date().toISOString(),
+        }],
+        { onConflict: 'settingKey' }
+      )
+      .select('value')
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { enabled: parseDailyDigestEnabled((data as any)?.value) };
   },
 };
 

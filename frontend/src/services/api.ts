@@ -8,6 +8,7 @@ import {
   weeksApi as supabaseWeeksApi,
   activitiesApi as supabaseActivitiesApi,
   labelsApi as supabaseLabelsApi,
+  settingsApi as supabaseSettingsApi,
   pendingChangesApi as supabasePendingChangesApi,
   rejectedChangesApi as supabaseRejectedChangesApi,
   usersApi as supabaseUsersApi,
@@ -256,6 +257,15 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
   async delete(userId: string): Promise<{ message: string }> {
     const response = await api.delete(`/users/${userId}`);
     return response.data;
+  },
+};
+
+export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
+  async getDailyDigestEnabled(): Promise<{ enabled: boolean }> {
+    return { enabled: true };
+  },
+  async setDailyDigestEnabled(enabled: boolean): Promise<{ enabled: boolean }> {
+    return { enabled };
   },
 };
 

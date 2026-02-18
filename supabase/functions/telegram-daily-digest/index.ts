@@ -8,6 +8,7 @@ type DigestRequestBody = {
 };
 
 const DIGEST_TIMEZONE = 'Africa/Lagos';
+const DAILY_DIGEST_ENABLED_KEY = 'daily_digest_enabled';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,6 +32,20 @@ const parseWeekNumber = (value: unknown): number | undefined => {
     if (Number.isInteger(parsed) && parsed > 0) return parsed;
   }
   return undefined;
+};
+
+const parseDailyDigestEnabled = (value: unknown): boolean => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') return true;
+    if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off') return false;
+  }
+  if (value && typeof value === 'object') {
+    const enabled = (value as { enabled?: unknown }).enabled;
+    if (typeof enabled === 'boolean') return enabled;
+  }
+  return true;
 };
 
 const formatRunDate = (date: Date): string => {
@@ -137,6 +152,31 @@ serve(async (req) => {
   const supabase = createClient(url, serviceRoleKey, {
     auth: { persistSession: false },
   });
+
+  const { data: digestSettingData, error: digestSettingError } = await supabase
+    .from('AppSetting')
+    .select('value')
+    .eq('settingKey', DAILY_DIGEST_ENABLED_KEY)
+    .maybeSingle();
+
+  if (digestSettingError && (digestSettingError as any).code !== '42P01') {
+    return new Response(JSON.stringify({ ok: false, error: digestSettingError.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const digestEnabled = parseDailyDigestEnabled((digestSettingData as any)?.value);
+  if (!digestEnabled && !force) {
+    return new Response(JSON.stringify({
+      ok: true,
+      status: 'SKIPPED',
+      reason: 'Daily digest is disabled by admin setting.',
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 
   const now = new Date();
   const runDate = formatRunDate(now);

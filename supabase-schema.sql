@@ -87,6 +87,13 @@ CREATE TABLE "RejectedChange" (
     "isRead" BOOLEAN DEFAULT FALSE
 );
 
+-- App settings table
+CREATE TABLE "AppSetting" (
+    "settingKey" TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    "updatedAt" TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Create indexes for better performance
 CREATE INDEX idx_activity_day_order ON "Activity"("dayId", "orderIndex");
 
@@ -116,6 +123,7 @@ ALTER TABLE "Label" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ActivityLabel" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "PendingChange" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "RejectedChange" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "AppSetting" ENABLE ROW LEVEL SECURITY;
 
 -- Create policies (allow all for now - you can tighten security later)
 CREATE POLICY "Allow all operations" ON "User" FOR ALL USING (true);
@@ -126,3 +134,9 @@ CREATE POLICY "Allow all operations" ON "Label" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "ActivityLabel" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "PendingChange" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "RejectedChange" FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON "AppSetting" FOR ALL USING (true);
+
+-- Default app settings
+INSERT INTO "AppSetting" ("settingKey", value)
+VALUES ('daily_digest_enabled', 'true'::jsonb)
+ON CONFLICT ("settingKey") DO NOTHING;

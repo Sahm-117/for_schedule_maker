@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { weeksApi, rejectedChangesApi } from '../services/api';
+import { weeksApi, rejectedChangesApi, settingsApi } from '../services/api';
 import type { Week, RejectedChange } from '../types';
 import WeekSelector from '../components/WeekSelector';
 import ScheduleView from '../components/ScheduleView';
@@ -18,11 +18,15 @@ const Dashboard: React.FC = () => {
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [showLabelManagement, setShowLabelManagement] = useState(false);
   const [digestSending, setDigestSending] = useState(false);
+  const [digestEnabled, setDigestEnabled] = useState(true);
+  const [digestToggleLoading, setDigestToggleLoading] = useState(false);
   const [digestStatus, setDigestStatus] = useState<string>('');
 
   useEffect(() => {
     loadWeeks();
-    if (!isAdmin) {
+    if (isAdmin) {
+      loadDigestSettings();
+    } else {
       loadRejectedChanges();
     }
   }, [isAdmin]);
@@ -73,7 +77,37 @@ const Dashboard: React.FC = () => {
     loadRejectedChanges();
   };
 
+  const loadDigestSettings = async () => {
+    try {
+      const response = await settingsApi.getDailyDigestEnabled();
+      setDigestEnabled(response.enabled);
+    } catch (error) {
+      console.error('Failed to load digest settings:', error);
+    }
+  };
+
+  const handleToggleDigest = async () => {
+    const nextValue = !digestEnabled;
+    setDigestToggleLoading(true);
+    setDigestStatus('');
+
+    try {
+      const response = await settingsApi.setDailyDigestEnabled(nextValue);
+      setDigestEnabled(response.enabled);
+      setDigestStatus(response.enabled ? 'Daily digest enabled.' : 'Daily digest disabled.');
+    } catch (error) {
+      setDigestStatus(`Digest toggle failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setDigestToggleLoading(false);
+    }
+  };
+
   const handleSendDigestNow = async () => {
+    if (!digestEnabled) {
+      setDigestStatus('Daily digest is currently OFF. Turn it on first.');
+      return;
+    }
+
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
@@ -154,8 +188,19 @@ const Dashboard: React.FC = () => {
                 {isAdmin && (
                   <>
                     <button
+                      onClick={handleToggleDigest}
+                      disabled={digestToggleLoading}
+                      className={`text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 rounded-md border disabled:opacity-50 ${
+                        digestEnabled
+                          ? 'text-green-700 border-green-600 hover:bg-green-50'
+                          : 'text-red-700 border-red-600 hover:bg-red-50'
+                      }`}
+                    >
+                      {digestToggleLoading ? 'Updating...' : `Digest ${digestEnabled ? 'ON' : 'OFF'}`}
+                    </button>
+                    <button
                       onClick={handleSendDigestNow}
-                      disabled={digestSending}
+                      disabled={digestSending || !digestEnabled}
                       className="text-xs sm:text-sm text-green-700 hover:text-green-800 px-2 sm:px-3 py-1 sm:py-2 rounded-md border border-green-600 hover:bg-green-50 disabled:opacity-50"
                     >
                       {digestSending ? 'Sending Digest...' : 'Send Digest Now'}
