@@ -91,28 +91,26 @@ serve(async (req) => {
     });
   }
 
-  const expectedSecret = Deno.env.get('TELEGRAM_CRON_SECRET');
-  const providedSecret = req.headers.get('x-cron-secret');
-
-  if (!expectedSecret) {
-    return new Response(JSON.stringify({ ok: false, error: 'Missing TELEGRAM_CRON_SECRET' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  if (!providedSecret || providedSecret !== expectedSecret) {
-    return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
   let body: DigestRequestBody = {};
   try {
     body = (await req.json()) as DigestRequestBody;
   } catch {
     body = {};
+  }
+
+  const force = parseBoolean(body.force) || parseBoolean(new URL(req.url).searchParams.get('force'));
+  const expectedSecret = Deno.env.get('TELEGRAM_CRON_SECRET')?.trim();
+  const providedSecret = req.headers.get('x-cron-secret')?.trim();
+  const allowUnsignedForceTrigger = parseBoolean(
+    Deno.env.get('TELEGRAM_ALLOW_UNSIGNED_FORCE_TRIGGER') ?? 'true',
+  );
+
+  // Scheduled calls should use TELEGRAM_CRON_SECRET. Manual admin triggers can use force=true.
+  if (expectedSecret && providedSecret !== expectedSecret && !(allowUnsignedForceTrigger && force)) {
+    return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   const url = Deno.env.get('SUPABASE_URL');
@@ -132,8 +130,6 @@ serve(async (req) => {
   const now = new Date();
   const runDate = formatRunDate(now);
   const dayName = getDayName(now);
-
-  const force = parseBoolean(body.force) || parseBoolean(new URL(req.url).searchParams.get('force'));
 
   const { data: existingLog, error: logCheckError } = await supabase
     .from('TelegramDigestLog')

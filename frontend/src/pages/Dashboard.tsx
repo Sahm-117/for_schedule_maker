@@ -74,11 +74,6 @@ const Dashboard: React.FC = () => {
   };
 
   const handleSendDigestNow = async () => {
-    const cronSecret = window.prompt('Enter Telegram digest trigger secret');
-    if (!cronSecret) {
-      return;
-    }
-
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
@@ -97,7 +92,6 @@ const Dashboard: React.FC = () => {
           'Content-Type': 'application/json',
           apikey: anonKey,
           Authorization: `Bearer ${anonKey}`,
-          'x-cron-secret': cronSecret,
         },
         body: JSON.stringify({ force: true }),
       });
