@@ -73,7 +73,17 @@ const parseChatIds = (raw?: string | null): string[] => {
 const isValidHttpUrl = (value: string): boolean => {
   try {
     const parsed = new URL(value);
-    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+
+    const host = parsed.hostname.trim().toLowerCase();
+    if (!host) return false;
+
+    // Telegram accepts real HTTP URLs; reject placeholder/single-label hosts like "your-direct-sop-download-link".
+    const isLocalhost = host === 'localhost';
+    const isIpv4 = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host);
+    const hasDot = host.includes('.');
+
+    return isLocalhost || isIpv4 || hasDot;
   } catch {
     return false;
   }
