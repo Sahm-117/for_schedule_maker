@@ -134,13 +134,9 @@ const toDailyDigestMessage = (payload: TelegramNotificationEvent): string => {
 
   if (Array.isArray(payload.digestLines) && payload.digestLines.length > 0) {
     lines.push('');
-    lines.push(payload.digestLines.join('\n\n'));
+    lines.push(...payload.digestLines);
   } else if (payload.summary) {
     lines.push(payload.summary);
-  }
-
-  if (payload.pdfUrl) {
-    lines.push(`PDF: ${payload.pdfUrl}`);
   }
 
   return lines.join('\n');

@@ -62,6 +62,30 @@ const formatTime = (time: string): string => {
   return `${hour12}:${minute} ${ampm}`;
 };
 
+const getMinutesFromTime = (time: string): number | null => {
+  const parts = time.split(':');
+  if (parts.length < 2) return null;
+  const hours = Number.parseInt(parts[0], 10);
+  const minutes = Number.parseInt(parts[1], 10);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return (hours * 60) + minutes;
+};
+
+type PeriodKey = 'MORNING' | 'AFTERNOON' | 'EVENING';
+
+const resolvePeriod = (activity: any): PeriodKey => {
+  const rawPeriod = typeof activity?.period === 'string' ? activity.period.trim().toUpperCase() : '';
+  if (rawPeriod.includes('MORNING')) return 'MORNING';
+  if (rawPeriod.includes('AFTERNOON')) return 'AFTERNOON';
+  if (rawPeriod.includes('EVENING')) return 'EVENING';
+
+  const minutes = getMinutesFromTime(String(activity?.time || ''));
+  if (minutes === null) return 'EVENING';
+  if (minutes < 12 * 60) return 'MORNING';
+  if (minutes < 18 * 60) return 'AFTERNOON';
+  return 'EVENING';
+};
+
 const getPdfUrl = (weekNumber: number, bodyPdfUrl?: string): string | undefined => {
   if (typeof bodyPdfUrl === 'string' && bodyPdfUrl.trim().length > 0) {
     return bodyPdfUrl.trim();
@@ -174,17 +198,54 @@ serve(async (req) => {
 
   const digestLines: string[] = sortedActivities.length === 0
     ? ['😌 No scheduled activities for today.']
-    : sortedActivities.map((activity) => {
-        const labels = ((activity.ActivityLabel || []) as any[])
-          .map((entry) => entry?.Label?.name)
-          .filter((name): name is string => typeof name === 'string' && name.trim().length > 0);
+    : (() => {
+        const grouped: Record<PeriodKey, any[]> = {
+          MORNING: [],
+          AFTERNOON: [],
+          EVENING: [],
+        };
 
-        const labelsText = labels.length > 0
-          ? `\n🏷️ ${labels.join(', ')}`
-          : '';
+        for (const activity of sortedActivities) {
+          grouped[resolvePeriod(activity)].push(activity);
+        }
 
-        return `🕒 ${formatTime(String(activity.time))} - ${String(activity.description || '')}${labelsText}`;
-      });
+        const sections: Array<{ key: PeriodKey; title: string; divider: string }> = [
+          { key: 'MORNING', title: '🌅 Morning', divider: '────────────' },
+          { key: 'AFTERNOON', title: '☀️ Afternoon', divider: '────────────' },
+          { key: 'EVENING', title: '🌙 Evening', divider: '────────────' },
+        ];
+
+        const lines: string[] = [];
+
+        for (const section of sections) {
+          const sectionActivities = grouped[section.key];
+          if (sectionActivities.length === 0) continue;
+
+          if (lines.length > 0) lines.push('');
+          lines.push(section.title);
+          lines.push(section.divider);
+
+          for (const activity of sectionActivities) {
+            lines.push(`🕒 ${formatTime(String(activity.time))} - ${String(activity.description || '')}`);
+
+            const labels = ((activity.ActivityLabel || []) as any[])
+              .map((entry) => entry?.Label?.name)
+              .filter((name): name is string => typeof name === 'string' && name.trim().length > 0);
+
+            if (labels.length > 0) {
+              lines.push(`🏷️ ${labels.join(', ')}`);
+            }
+
+            lines.push('');
+          }
+
+          while (lines.length > 0 && lines[lines.length - 1] === '') {
+            lines.pop();
+          }
+        }
+
+        return lines;
+      })();
 
   const appBaseUrl = Deno.env.get('APP_BASE_URL')?.trim();
   const payload = {
