@@ -45,6 +45,15 @@ const corsHeaders = {
 
 const DIGEST_TIMEZONE = 'Africa/Lagos';
 
+const escapeHtml = (value: string): string => {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+};
+
 const parseChatIds = (raw?: string | null): string[] => {
   if (!raw) return [];
 
@@ -114,29 +123,58 @@ const toModerationMessage = (payload: TelegramNotificationEvent): string => {
   return lines.join('\n');
 };
 
+const formatDigestLineHtml = (line: string): string => {
+  const trimmed = line.trim();
+
+  if (!trimmed) return '';
+
+  if (trimmed === '🌅 Morning' || trimmed === '☀️ Afternoon' || trimmed === '🌙 Evening') {
+    return `<b>${escapeHtml(trimmed)}</b>`;
+  }
+
+  if (trimmed.startsWith('🕒 ')) {
+    const body = trimmed.slice(3).trim();
+    const [timePart, ...descriptionParts] = body.split(' - ');
+    const time = timePart?.trim() || '';
+    const description = descriptionParts.join(' - ').trim();
+
+    if (description) {
+      return `🕒 <b>${escapeHtml(time)}</b> - ${escapeHtml(description)}`;
+    }
+
+    return `🕒 <b>${escapeHtml(body)}</b>`;
+  }
+
+  if (trimmed.startsWith('🏷️ ')) {
+    return `🏷️ <b>${escapeHtml(trimmed.slice(3).trim())}</b>`;
+  }
+
+  return escapeHtml(trimmed);
+};
+
 const toDailyDigestMessage = (payload: TelegramNotificationEvent): string => {
   const title = payload.digestTitle || 'FOF IKD - SOP Manager';
   const lines = [
-    title,
-    `🗓️ ${formatTimestamp(payload.timestamp, DIGEST_TIMEZONE)}`,
+    `<b>${escapeHtml(title)}</b>`,
+    `🗓️ <i>${escapeHtml(formatTimestamp(payload.timestamp, DIGEST_TIMEZONE))}</i>`,
   ];
 
   if (typeof payload.weekNumber === 'number' && payload.dayName) {
-    lines.push(`📚 Week ${payload.weekNumber} • ${payload.dayName}`);
+    lines.push(`📚 <b>Week ${payload.weekNumber} • ${escapeHtml(payload.dayName)}</b>`);
   } else if (typeof payload.weekNumber === 'number') {
-    lines.push(`📚 Week ${payload.weekNumber}`);
+    lines.push(`📚 <b>Week ${payload.weekNumber}</b>`);
   } else if (payload.dayName) {
-    lines.push(`📚 ${payload.dayName}`);
+    lines.push(`📚 <b>${escapeHtml(payload.dayName)}</b>`);
   }
 
   lines.push('━━━━━━━━━━━━━━');
-  lines.push('🌟 Activities for today');
+  lines.push('🌟 <b>Activities for today</b>');
 
   if (Array.isArray(payload.digestLines) && payload.digestLines.length > 0) {
     lines.push('');
-    lines.push(...payload.digestLines);
+    lines.push(...payload.digestLines.map(formatDigestLineHtml));
   } else if (payload.summary) {
-    lines.push(payload.summary);
+    lines.push(escapeHtml(payload.summary));
   }
 
   return lines.join('\n');
@@ -229,7 +267,8 @@ serve(async (req) => {
       });
     }
 
-    const text = payload.event === 'DAILY_DIGEST'
+    const isDailyDigest = payload.event === 'DAILY_DIGEST';
+    const text = isDailyDigest
       ? toDailyDigestMessage(payload)
       : toModerationMessage(payload);
 
@@ -248,6 +287,11 @@ serve(async (req) => {
           body: JSON.stringify({
             chat_id: chatId,
             text,
+            ...(isDailyDigest
+              ? {
+                  parse_mode: 'HTML',
+                }
+              : {}),
             ...(replyMarkup
               ? {
                   reply_markup: replyMarkup,
