@@ -802,6 +802,7 @@ export const activitiesApi = {
 
   async update(activityId: number, updateData: {
     time: string;
+    period?: 'MORNING' | 'AFTERNOON' | 'EVENING';
     description: string;
     applyToWeeks?: number[];
     oldTime?: string;
@@ -824,12 +825,14 @@ export const activitiesApi = {
 
     const matchTime = updateData.oldTime || (current as any).time;
     const matchDescription = updateData.oldDescription || (current as any).description;
+    const periodToSave = updateData.period || ((current as any).period as 'MORNING' | 'AFTERNOON' | 'EVENING');
 
     // Always update the requested activity id first.
     const { data: updatedOriginal, error: updateError } = await supabase
       .from('Activity')
       .update({
         time: updateData.time,
+        period: periodToSave,
         description: updateData.description,
       })
       .eq('id', activityId)
@@ -885,7 +888,7 @@ export const activitiesApi = {
           const ids = (matches as any[]).map((m) => m.id as number).filter((v) => typeof v === 'number');
           const { data: updatedRows, error: updError } = await supabase
             .from('Activity')
-            .update({ time: updateData.time, description: updateData.description })
+            .update({ time: updateData.time, period: periodToSave, description: updateData.description })
             .in('id', ids)
             .select();
 

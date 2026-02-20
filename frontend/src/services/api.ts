@@ -144,6 +144,7 @@ export const activitiesApi = USE_SUPABASE ? supabaseActivitiesApi : {
 
   async update(activityId: number, updateData: {
     time: string;
+    period?: string;
     description: string;
     applyToWeeks?: number[];
   }): Promise<{ activities: any[] }> {

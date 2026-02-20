@@ -131,6 +131,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
         if (isAdmin) {
           await activitiesApi.update(activity.id, {
             time,
+            period,
             description,
             applyToWeeks: selectedWeeks.length > 0 ? selectedWeeks : undefined,
             labelIds: selectedLabelIds,
@@ -233,22 +234,20 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
               />
             </div>
 
-            {!activity && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Period
-                </label>
-                <select
-                  value={period}
-                  onChange={(e) => setPeriod(e.target.value as 'MORNING' | 'AFTERNOON' | 'EVENING')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                >
-                  <option value="MORNING">Morning</option>
-                  <option value="AFTERNOON">Afternoon</option>
-                  <option value="EVENING">Evening</option>
-                </select>
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Period
+              </label>
+              <select
+                value={period}
+                onChange={(e) => setPeriod(e.target.value as 'MORNING' | 'AFTERNOON' | 'EVENING')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
+              >
+                <option value="MORNING">Morning</option>
+                <option value="AFTERNOON">Afternoon</option>
+                <option value="EVENING">Evening</option>
+              </select>
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
