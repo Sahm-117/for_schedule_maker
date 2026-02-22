@@ -90,3 +90,24 @@ export interface TelegramNotificationEvent {
   digestLines?: string[];
   pdfUrl?: string;
 }
+
+export interface DailyDigestCursor {
+  weekNumber: number;
+  dayName: string;
+  completed: boolean;
+}
+
+export interface DailyDigestFunctionResponse {
+  ok: boolean;
+  status?: string;
+  enabled?: boolean;
+  reason?: string;
+  error?: string;
+  cursor?: DailyDigestCursor;
+  current?: DailyDigestCursor;
+  next?: DailyDigestCursor;
+  nextActionLabel?: 'Send Digest Now' | 'Restart Digest';
+  dayName?: string;
+  weekNumber?: number;
+  details?: unknown;
+}

@@ -1,18 +1,42 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 
+type DigestAction = 'send' | 'status' | 'restart';
+
 type DigestRequestBody = {
   force?: boolean;
-  weekNumber?: number;
+  action?: DigestAction;
+  advance?: boolean;
   pdfUrl?: string;
+};
+
+type WeekRow = {
+  id: number;
+  weekNumber: number;
+  Day?: Array<{
+    id: number;
+    dayName: string;
+    Activity?: any[];
+  }>;
+};
+
+type DigestCursor = {
+  weekNumber: number;
+  dayIndex: number;
+  completed: boolean;
+  lastStatus?: 'SENT' | 'FAILED' | 'SKIPPED';
+  lastAttemptAt?: string;
+  lastSentAt?: string;
 };
 
 const DIGEST_TIMEZONE = 'Africa/Lagos';
 const DAILY_DIGEST_ENABLED_KEY = 'daily_digest_enabled';
+const DAILY_DIGEST_CURSOR_KEY = 'daily_digest_cursor';
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -25,13 +49,13 @@ const parseBoolean = (value: unknown): boolean => {
   return false;
 };
 
-const parseWeekNumber = (value: unknown): number | undefined => {
-  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
-  if (typeof value === 'string') {
-    const parsed = Number.parseInt(value, 10);
-    if (Number.isInteger(parsed) && parsed > 0) return parsed;
+const parseDigestAction = (value: unknown): DigestAction => {
+  if (typeof value !== 'string') return 'send';
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'status' || normalized === 'restart' || normalized === 'send') {
+    return normalized;
   }
-  return undefined;
+  return 'send';
 };
 
 const parseDailyDigestEnabled = (value: unknown): boolean => {
@@ -54,13 +78,6 @@ const formatRunDate = (date: Date): string => {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(date);
-};
-
-const getDayName = (date: Date): string => {
-  return new Intl.DateTimeFormat('en-US', {
-    timeZone: DIGEST_TIMEZONE,
-    weekday: 'long',
   }).format(date);
 };
 
@@ -118,6 +135,185 @@ const getPdfUrl = (weekNumber: number, bodyPdfUrl?: string): string | undefined 
   return template.replaceAll('{weekNumber}', String(weekNumber));
 };
 
+const getDayIndex = (dayName: string | undefined): number | null => {
+  if (!dayName) return null;
+  const normalized = dayName.trim().toLowerCase();
+  const idx = DAY_NAMES.findIndex((name) => name.toLowerCase() === normalized);
+  return idx >= 0 ? idx : null;
+};
+
+const clampDayIndex = (value: unknown): number => {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return 0;
+  if (value < 0) return 0;
+  if (value > 6) return 6;
+  return value;
+};
+
+const buildCursorView = (cursor: DigestCursor) => ({
+  weekNumber: cursor.weekNumber,
+  dayName: DAY_NAMES[cursor.dayIndex] || 'Sunday',
+  completed: cursor.completed,
+});
+
+const getNextActionLabel = (cursor: DigestCursor): 'Send Digest Now' | 'Restart Digest' => {
+  return cursor.completed ? 'Restart Digest' : 'Send Digest Now';
+};
+
+const getDefaultCursor = (weeks: WeekRow[]): DigestCursor => {
+  return {
+    weekNumber: weeks[0].weekNumber,
+    dayIndex: 0,
+    completed: false,
+  };
+};
+
+const normalizeCursorForWeeks = (cursor: DigestCursor, weeks: WeekRow[]): DigestCursor => {
+  const dayIndex = clampDayIndex(cursor.dayIndex);
+  const hasWeek = weeks.some((week) => week.weekNumber === cursor.weekNumber);
+  if (hasWeek) {
+    return {
+      ...cursor,
+      dayIndex,
+    };
+  }
+
+  return {
+    ...getDefaultCursor(weeks),
+    lastStatus: cursor.lastStatus,
+    lastAttemptAt: cursor.lastAttemptAt,
+    lastSentAt: cursor.lastSentAt,
+  };
+};
+
+const computeNextCursor = (cursor: DigestCursor, weeks: WeekRow[]): DigestCursor => {
+  if (weeks.length === 0) return cursor;
+  if (cursor.completed) return cursor;
+
+  const normalized = normalizeCursorForWeeks(cursor, weeks);
+
+  if (normalized.dayIndex < 6) {
+    return {
+      ...normalized,
+      dayIndex: normalized.dayIndex + 1,
+      completed: false,
+    };
+  }
+
+  const currentWeekIndex = weeks.findIndex((week) => week.weekNumber === normalized.weekNumber);
+  if (currentWeekIndex >= 0 && currentWeekIndex < weeks.length - 1) {
+    return {
+      ...normalized,
+      weekNumber: weeks[currentWeekIndex + 1].weekNumber,
+      dayIndex: 0,
+      completed: false,
+    };
+  }
+
+  return {
+    ...normalized,
+    weekNumber: weeks[weeks.length - 1].weekNumber,
+    dayIndex: 6,
+    completed: true,
+  };
+};
+
+const parseCursorValue = (value: unknown): DigestCursor | null => {
+  if (!value || typeof value !== 'object') return null;
+
+  const raw = value as {
+    weekNumber?: unknown;
+    dayIndex?: unknown;
+    completed?: unknown;
+    lastStatus?: unknown;
+    lastAttemptAt?: unknown;
+    lastSentAt?: unknown;
+  };
+
+  if (typeof raw.weekNumber !== 'number' || !Number.isInteger(raw.weekNumber) || raw.weekNumber <= 0) {
+    return null;
+  }
+
+  return {
+    weekNumber: raw.weekNumber,
+    dayIndex: clampDayIndex(raw.dayIndex),
+    completed: parseBoolean(raw.completed),
+    lastStatus: raw.lastStatus === 'SENT' || raw.lastStatus === 'FAILED' || raw.lastStatus === 'SKIPPED'
+      ? raw.lastStatus
+      : undefined,
+    lastAttemptAt: typeof raw.lastAttemptAt === 'string' ? raw.lastAttemptAt : undefined,
+    lastSentAt: typeof raw.lastSentAt === 'string' ? raw.lastSentAt : undefined,
+  };
+};
+
+const upsertDigestCursor = async (supabase: ReturnType<typeof createClient>, cursor: DigestCursor): Promise<void> => {
+  const { error } = await supabase
+    .from('AppSetting')
+    .upsert(
+      [{
+        settingKey: DAILY_DIGEST_CURSOR_KEY,
+        value: cursor,
+        updatedAt: new Date().toISOString(),
+      }],
+      { onConflict: 'settingKey' }
+    );
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+const loadOrBootstrapCursor = async (
+  supabase: ReturnType<typeof createClient>,
+  weeks: WeekRow[]
+): Promise<DigestCursor> => {
+  const defaultCursor = getDefaultCursor(weeks);
+
+  const { data: cursorData, error: cursorError } = await supabase
+    .from('AppSetting')
+    .select('value')
+    .eq('settingKey', DAILY_DIGEST_CURSOR_KEY)
+    .maybeSingle();
+
+  if (!cursorError) {
+    const parsedCursor = parseCursorValue((cursorData as any)?.value);
+    if (parsedCursor) {
+      return normalizeCursorForWeeks(parsedCursor, weeks);
+    }
+  } else if ((cursorError as any).code !== '42P01') {
+    throw new Error(cursorError.message);
+  }
+
+  const { data: latestSentLog, error: latestSentError } = await supabase
+    .from('TelegramDigestLog')
+    .select('weekNumber, dayName')
+    .eq('status', 'SENT')
+    .order('createdAt', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latestSentError && (latestSentError as any).code !== '42P01') {
+    throw new Error(latestSentError.message);
+  }
+
+  if (latestSentLog && typeof (latestSentLog as any).weekNumber === 'number') {
+    const dayIndex = getDayIndex((latestSentLog as any).dayName as string | undefined);
+    if (dayIndex !== null) {
+      const next = computeNextCursor(
+        {
+          weekNumber: (latestSentLog as any).weekNumber,
+          dayIndex,
+          completed: false,
+        },
+        weeks
+      );
+      await upsertDigestCursor(supabase, next);
+      return next;
+    }
+  }
+
+  await upsertDigestCursor(supabase, defaultCursor);
+  return defaultCursor;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -137,7 +333,10 @@ serve(async (req) => {
     body = {};
   }
 
-  const force = parseBoolean(body.force) || parseBoolean(new URL(req.url).searchParams.get('force'));
+  const query = new URL(req.url).searchParams;
+  const action = parseDigestAction(body.action || query.get('action'));
+  const force = parseBoolean(body.force) || parseBoolean(query.get('force'));
+  const advance = typeof body.advance === 'boolean' ? body.advance : !force;
 
   const url = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY');
@@ -167,11 +366,94 @@ serve(async (req) => {
   }
 
   const digestEnabled = parseDailyDigestEnabled((digestSettingData as any)?.value);
+
+  const { data: weeksRaw, error: weeksError } = await supabase
+    .from('Week')
+    .select('id, weekNumber, Day(id, dayName, Activity(id, time, description, orderIndex, period, ActivityLabel(Label(name))))')
+    .order('weekNumber', { ascending: true });
+
+  if (weeksError || !weeksRaw || weeksRaw.length === 0) {
+    return new Response(JSON.stringify({ ok: false, error: weeksError?.message || 'No week data found' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const sortedWeeks = [...(weeksRaw as WeekRow[])].sort((a, b) => a.weekNumber - b.weekNumber);
+
+  let cursor: DigestCursor;
+  try {
+    cursor = await loadOrBootstrapCursor(supabase, sortedWeeks);
+  } catch (error) {
+    return new Response(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : 'Failed to load digest cursor' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  cursor = normalizeCursorForWeeks(cursor, sortedWeeks);
+
+  if (action === 'status') {
+    return new Response(JSON.stringify({
+      ok: true,
+      status: cursor.completed ? 'COMPLETED' : 'READY',
+      enabled: digestEnabled,
+      cursor: buildCursorView(cursor),
+      nextActionLabel: getNextActionLabel(cursor),
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (action === 'restart') {
+    const restartCursor = {
+      ...getDefaultCursor(sortedWeeks),
+      lastStatus: 'SKIPPED' as const,
+      lastAttemptAt: new Date().toISOString(),
+    };
+    await upsertDigestCursor(supabase, restartCursor);
+
+    return new Response(JSON.stringify({
+      ok: true,
+      status: 'RESTARTED',
+      enabled: digestEnabled,
+      cursor: buildCursorView(restartCursor),
+      nextActionLabel: getNextActionLabel(restartCursor),
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   if (!digestEnabled && !force) {
+    const skippedCursor: DigestCursor = {
+      ...cursor,
+      lastStatus: 'SKIPPED',
+      lastAttemptAt: new Date().toISOString(),
+    };
+    await upsertDigestCursor(supabase, skippedCursor);
+
     return new Response(JSON.stringify({
       ok: true,
       status: 'SKIPPED',
       reason: 'Daily digest is disabled by admin setting.',
+      enabled: digestEnabled,
+      cursor: buildCursorView(skippedCursor),
+      nextActionLabel: getNextActionLabel(skippedCursor),
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (cursor.completed) {
+    return new Response(JSON.stringify({
+      ok: true,
+      status: 'COMPLETED',
+      enabled: digestEnabled,
+      cursor: buildCursorView(cursor),
+      nextActionLabel: getNextActionLabel(cursor),
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -180,20 +462,24 @@ serve(async (req) => {
 
   const now = new Date();
   const runDate = formatRunDate(now);
-  const dayName = getDayName(now);
 
-  const { data: existingLog, error: logCheckError } = await supabase
+  let existingLog: { id: string } | null = null;
+  const { data: existingLogData, error: logCheckError } = await supabase
     .from('TelegramDigestLog')
-    .select('id, status')
+    .select('id')
     .eq('runDate', runDate)
     .eq('timezone', DIGEST_TIMEZONE)
     .maybeSingle();
 
-  if (logCheckError) {
+  if (logCheckError && (logCheckError as any).code !== '42P01') {
     return new Response(JSON.stringify({ ok: false, error: logCheckError.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  }
+
+  if (!logCheckError) {
+    existingLog = (existingLogData as { id: string } | null) || null;
   }
 
   if (existingLog && !force) {
@@ -201,32 +487,20 @@ serve(async (req) => {
       ok: true,
       status: 'SKIPPED',
       reason: `Digest already processed for ${runDate} (${DIGEST_TIMEZONE})`,
+      enabled: digestEnabled,
+      cursor: buildCursorView(cursor),
+      nextActionLabel: getNextActionLabel(cursor),
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  const { data: weeks, error: weeksError } = await supabase
-    .from('Week')
-    .select('id, weekNumber, Day(id, dayName, Activity(id, time, description, orderIndex, period, ActivityLabel(Label(name))))')
-    .order('weekNumber', { ascending: true });
+  const currentCursor = { ...cursor };
+  const currentDayName = DAY_NAMES[currentCursor.dayIndex] || 'Sunday';
+  const selectedWeek = sortedWeeks.find((week) => week.weekNumber === currentCursor.weekNumber) || sortedWeeks[0];
 
-  if (weeksError || !weeks || weeks.length === 0) {
-    return new Response(JSON.stringify({ ok: false, error: weeksError?.message || 'No week data found' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  const bodyWeekNumber = parseWeekNumber(body.weekNumber);
-  const envWeekNumber = parseWeekNumber(Deno.env.get('TELEGRAM_DIGEST_WEEK_NUMBER'));
-  const targetWeekNumber = bodyWeekNumber || envWeekNumber || 1;
-
-  const sortedWeeks = [...weeks].sort((a: any, b: any) => (a.weekNumber as number) - (b.weekNumber as number));
-  const selectedWeek = sortedWeeks.find((week: any) => week.weekNumber === targetWeekNumber) || sortedWeeks[0];
-
-  const selectedDay = ((selectedWeek as any).Day || []).find((day: any) => day.dayName === dayName);
+  const selectedDay = ((selectedWeek.Day || []) as any[]).find((day: any) => day.dayName === currentDayName);
   const dayActivities = selectedDay ? ((selectedDay.Activity || []) as any[]) : [];
 
   const sortedActivities = [...dayActivities].sort((a, b) => {
@@ -290,13 +564,13 @@ serve(async (req) => {
   const appBaseUrl = Deno.env.get('APP_BASE_URL')?.trim();
   const payload = {
     event: 'DAILY_DIGEST',
-    weekId: (selectedWeek as any).id as number,
-    weekNumber: (selectedWeek as any).weekNumber as number,
-    dayName,
+    weekId: selectedWeek.id,
+    weekNumber: selectedWeek.weekNumber,
+    dayName: currentDayName,
     timestamp: now.toISOString(),
     digestTitle: '✨ FOF IKD - SOP Manager',
     digestLines,
-    pdfUrl: getPdfUrl((selectedWeek as any).weekNumber as number, body.pdfUrl),
+    pdfUrl: getPdfUrl(selectedWeek.weekNumber, body.pdfUrl),
     loginUrl: appBaseUrl,
   };
 
@@ -311,38 +585,64 @@ serve(async (req) => {
   });
 
   const notifyBody = await notifyRes.json().catch(() => ({}));
-  const status = notifyRes.ok && (notifyBody as any)?.ok ? 'SENT' : 'FAILED';
+  const sendSuccess = notifyRes.ok && (notifyBody as any)?.ok === true;
+  const sendStatus = sendSuccess ? 'SENT' : 'FAILED';
 
-  if (existingLog?.id) {
-    await supabase
-      .from('TelegramDigestLog')
-      .update({
-        weekNumber: (selectedWeek as any).weekNumber as number,
-        dayName,
-        status,
-        details: notifyBody,
-      })
-      .eq('id', existingLog.id);
-  } else {
-    await supabase
-      .from('TelegramDigestLog')
-      .insert([{
-        runDate,
-        timezone: DIGEST_TIMEZONE,
-        weekNumber: (selectedWeek as any).weekNumber as number,
-        dayName,
-        status,
-        details: notifyBody,
-      }]);
+  if ((logCheckError as any)?.code !== '42P01') {
+    if (existingLog?.id) {
+      await supabase
+        .from('TelegramDigestLog')
+        .update({
+          weekNumber: selectedWeek.weekNumber,
+          dayName: currentDayName,
+          status: sendStatus,
+          details: notifyBody,
+        })
+        .eq('id', existingLog.id);
+    } else {
+      await supabase
+        .from('TelegramDigestLog')
+        .insert([{
+          runDate,
+          timezone: DIGEST_TIMEZONE,
+          weekNumber: selectedWeek.weekNumber,
+          dayName: currentDayName,
+          status: sendStatus,
+          details: notifyBody,
+        }]);
+    }
   }
 
-  if (!notifyRes.ok || !(notifyBody as any)?.ok) {
+  const nextCursor = sendSuccess
+    ? (() => {
+        const moved = advance ? computeNextCursor(currentCursor, sortedWeeks) : currentCursor;
+        return {
+          ...moved,
+          lastStatus: 'SENT' as const,
+          lastAttemptAt: now.toISOString(),
+          lastSentAt: now.toISOString(),
+        };
+      })()
+    : {
+        ...currentCursor,
+        lastStatus: 'FAILED' as const,
+        lastAttemptAt: now.toISOString(),
+      };
+
+  await upsertDigestCursor(supabase, nextCursor);
+
+  if (!sendSuccess) {
     const details = typeof notifyBody === 'object' ? notifyBody : { raw: String(notifyBody) };
     return new Response(JSON.stringify({
       ok: false,
       status: 'FAILED',
       error: 'Daily digest dispatch failed',
       details,
+      enabled: digestEnabled,
+      current: buildCursorView(currentCursor),
+      next: buildCursorView(nextCursor),
+      cursor: buildCursorView(nextCursor),
+      nextActionLabel: getNextActionLabel(nextCursor),
     }), {
       status: 502,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -351,13 +651,19 @@ serve(async (req) => {
 
   return new Response(JSON.stringify({
     ok: true,
-    status: 'SENT',
+    status: nextCursor.completed ? 'COMPLETED' : 'SENT',
     runDate,
     timezone: DIGEST_TIMEZONE,
-    weekNumber: (selectedWeek as any).weekNumber,
-    dayName,
+    weekNumber: selectedWeek.weekNumber,
+    dayName: currentDayName,
     digestCount: sortedActivities.length,
     notify: notifyBody,
+    enabled: digestEnabled,
+    advance,
+    current: buildCursorView(currentCursor),
+    next: buildCursorView(nextCursor),
+    cursor: buildCursorView(nextCursor),
+    nextActionLabel: getNextActionLabel(nextCursor),
   }), {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { weeksApi, rejectedChangesApi, settingsApi, pendingChangesApi } from '../services/api';
-import type { Week, RejectedChange, PendingChange } from '../types';
+import { weeksApi, rejectedChangesApi, settingsApi, pendingChangesApi, digestApi } from '../services/api';
+import type { Week, RejectedChange, PendingChange, DailyDigestCursor, DailyDigestFunctionResponse } from '../types';
 import { supabase } from '../lib/supabase';
 import WeekSelector from '../components/WeekSelector';
 import ScheduleView from '../components/ScheduleView';
@@ -27,6 +27,8 @@ const Dashboard: React.FC = () => {
   const [digestEnabled, setDigestEnabled] = useState(true);
   const [digestToggleLoading, setDigestToggleLoading] = useState(false);
   const [digestStatus, setDigestStatus] = useState<string>('');
+  const [digestCursor, setDigestCursor] = useState<DailyDigestCursor | null>(null);
+  const [digestActionLabel, setDigestActionLabel] = useState<'Send Digest Now' | 'Restart Digest'>('Send Digest Now');
   const [realtimeHealthy, setRealtimeHealthy] = useState(false);
 
   const refreshTimeoutRef = useRef<number | null>(null);
@@ -61,10 +63,22 @@ const Dashboard: React.FC = () => {
     setWeekPendingChanges(response.pendingChanges);
   }, []);
 
-  const loadDigestSettings = useCallback(async () => {
-    const response = await settingsApi.getDailyDigestEnabled();
-    setDigestEnabled(response.enabled);
+  const applyDigestResponseState = useCallback((response: DailyDigestFunctionResponse) => {
+    if (typeof response.enabled === 'boolean') {
+      setDigestEnabled(response.enabled);
+    }
+    if (response.cursor && typeof response.cursor.weekNumber === 'number' && typeof response.cursor.dayName === 'string') {
+      setDigestCursor(response.cursor);
+    }
+    if (response.nextActionLabel === 'Send Digest Now' || response.nextActionLabel === 'Restart Digest') {
+      setDigestActionLabel(response.nextActionLabel);
+    }
   }, []);
+
+  const loadDigestStatus = useCallback(async () => {
+    const response = await digestApi.getDigestStatus();
+    applyDigestResponseState(response);
+  }, [applyDigestResponseState]);
 
   const refreshAdminData = useCallback(() => {
     void Promise.all([loadWeeks(), loadGlobalPendingChanges()]);
@@ -88,7 +102,7 @@ const Dashboard: React.FC = () => {
         await loadWeeks();
 
         if (isAdmin) {
-          await Promise.all([loadDigestSettings(), loadGlobalPendingChanges()]);
+          await Promise.all([loadDigestStatus(), loadGlobalPendingChanges()]);
         } else {
           await loadRejectedChanges();
         }
@@ -106,7 +120,7 @@ const Dashboard: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, loadDigestSettings, loadGlobalPendingChanges, loadRejectedChanges, loadWeeks]);
+  }, [isAdmin, loadDigestStatus, loadGlobalPendingChanges, loadRejectedChanges, loadWeeks]);
 
   useEffect(() => {
     if (isAdmin || !selectedWeek) return;
@@ -185,6 +199,11 @@ const Dashboard: React.FC = () => {
       const response = await settingsApi.setDailyDigestEnabled(nextValue);
       setDigestEnabled(response.enabled);
       setDigestStatus(response.enabled ? 'Daily digest enabled.' : 'Daily digest disabled.');
+      try {
+        await loadDigestStatus();
+      } catch (statusError) {
+        console.warn('Failed to refresh digest status after toggle:', statusError);
+      }
     } catch (error) {
       setDigestStatus(`Digest toggle failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
@@ -193,16 +212,8 @@ const Dashboard: React.FC = () => {
   };
 
   const handleSendDigestNow = async () => {
-    if (!digestEnabled) {
+    if (!digestEnabled && digestActionLabel !== 'Restart Digest') {
       setDigestStatus('Daily digest is currently OFF. Turn it on first.');
-      return;
-    }
-
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-
-    if (!supabaseUrl || !anonKey) {
-      setDigestStatus('Missing Supabase env config in frontend.');
       return;
     }
 
@@ -210,32 +221,38 @@ const Dashboard: React.FC = () => {
     setDigestStatus('');
 
     try {
-      const response = await fetch(`${supabaseUrl}/functions/v1/telegram-daily-digest?force=true`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: anonKey,
-          Authorization: `Bearer ${anonKey}`,
-        },
-        body: JSON.stringify({ force: true }),
-      });
-
-      const body = await response.json().catch(() => ({}));
-
-      if (!response.ok || body?.ok !== true) {
-        const dispatchDetail = body?.details?.failed?.[0]?.error;
-        const errText = dispatchDetail
-          ? `${body?.error || `Request failed (${response.status})`} - ${dispatchDetail}`
-          : (body?.error || `Request failed (${response.status})`);
-        setDigestStatus(`Digest failed: ${errText}`);
-        return;
+      if (digestActionLabel === 'Restart Digest') {
+        const body = await digestApi.restartDigest();
+        applyDigestResponseState(body);
+        const restartedAt = body.cursor ? `Week ${body.cursor.weekNumber} • ${body.cursor.dayName}` : 'Week 1 • Sunday';
+        setDigestStatus(`Digest restarted at ${restartedAt}.`);
+      } else {
+        const body = await digestApi.sendDigestNow();
+        applyDigestResponseState(body);
+        if (body.status === 'COMPLETED') {
+          setDigestStatus('Digest already completed. Use Restart Digest.');
+        } else {
+          const currentCursor = body.current || body.cursor;
+          const sentLabel = currentCursor
+            ? `Week ${currentCursor.weekNumber} • ${currentCursor.dayName}`
+            : (body.dayName ? `${body.dayName}` : 'current day');
+          setDigestStatus(`Digest sent to Telegram (${sentLabel}).`);
+        }
       }
-
-      setDigestStatus(`Digest sent to Telegram (${body?.dayName || 'today'}).`);
     } catch (error) {
-      setDigestStatus(`Digest failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const maybePayload = (error as { payload?: DailyDigestFunctionResponse } | undefined)?.payload;
+      const dispatchDetail = (maybePayload?.details as { failed?: Array<{ error?: string }> } | undefined)?.failed?.[0]?.error;
+      const errText = dispatchDetail
+        ? `${error instanceof Error ? error.message : 'Unknown error'} - ${dispatchDetail}`
+        : (error instanceof Error ? error.message : 'Unknown error');
+      setDigestStatus(`Digest failed: ${errText}`);
     } finally {
       setDigestSending(false);
+      try {
+        await loadDigestStatus();
+      } catch (error) {
+        console.warn('Failed to refresh digest status:', error);
+      }
     }
   };
 
@@ -331,12 +348,27 @@ const Dashboard: React.FC = () => {
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs ${realtimeHealthy ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
                   {realtimeHealthy ? 'Live sync' : 'Polling fallback'}
                 </span>
+                {digestCursor && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs">
+                    {digestCursor.completed
+                      ? 'Digest Progress: Completed (last week finished)'
+                      : `Digest Progress: Week ${digestCursor.weekNumber} • ${digestCursor.dayName}`}
+                  </span>
+                )}
               </>
             )}
           </div>
 
           {isAdmin && digestStatus && (
-            <p className={`text-xs sm:text-sm ${digestStatus.startsWith('Digest sent') || digestStatus.includes('enabled') || digestStatus.includes('disabled') ? 'text-green-700' : 'text-red-600'}`}>
+            <p className={`text-xs sm:text-sm ${
+              digestStatus.startsWith('Digest sent')
+              || digestStatus.startsWith('Digest restarted')
+              || digestStatus.startsWith('Digest already completed')
+              || digestStatus.includes('enabled')
+              || digestStatus.includes('disabled')
+                ? 'text-green-700'
+                : 'text-red-600'
+            }`}>
               {digestStatus}
             </p>
           )}
@@ -396,6 +428,7 @@ const Dashboard: React.FC = () => {
         digestEnabled={digestEnabled}
         digestToggleLoading={digestToggleLoading}
         digestSending={digestSending}
+        digestActionLabel={digestActionLabel}
         onToggleDigest={handleToggleDigest}
         onSendDigestNow={handleSendDigestNow}
         onOpenLabels={() => setShowLabelManagement(true)}

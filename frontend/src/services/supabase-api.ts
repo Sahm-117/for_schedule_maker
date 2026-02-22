@@ -9,7 +9,8 @@ import type {
   PendingChange,
   RejectedChange,
   AuthResponse,
-  TelegramNotificationEvent
+  TelegramNotificationEvent,
+  DailyDigestFunctionResponse
 } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
 import { sendTelegramNotificationBestEffort } from './telegramNotifications';
@@ -38,6 +39,45 @@ const parseDailyDigestEnabled = (value: unknown): boolean => {
   }
   // Safe default: enabled unless explicitly disabled.
   return true;
+};
+
+const getDigestFunctionEnv = (): { url: string; anonKey: string } => {
+  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+
+  if (!url || !anonKey) {
+    throw new Error('Missing Supabase env config in frontend.');
+  }
+
+  return { url, anonKey };
+};
+
+const callDigestFunction = async (
+  payload: Record<string, unknown>
+): Promise<DailyDigestFunctionResponse> => {
+  const { url, anonKey } = getDigestFunctionEnv();
+  const response = await fetch(`${url}/functions/v1/telegram-daily-digest`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const body = (await response.json().catch(() => ({}))) as DailyDigestFunctionResponse;
+  if (!response.ok || body.ok !== true) {
+    const err = new Error(body.error || `Request failed (${response.status})`) as Error & {
+      details?: unknown;
+      payload?: DailyDigestFunctionResponse;
+    };
+    err.details = body.details;
+    err.payload = body;
+    throw err;
+  }
+
+  return body;
 };
 
 const getCurrentUserFromStorage = (): User | null => {
@@ -1332,6 +1372,30 @@ export const settingsApi = {
     }
 
     return { enabled: parseDailyDigestEnabled((data as any)?.value) };
+  },
+};
+
+export const digestApi = {
+  async getDigestStatus(): Promise<DailyDigestFunctionResponse> {
+    return callDigestFunction({
+      action: 'status',
+      force: true,
+    });
+  },
+
+  async sendDigestNow(): Promise<DailyDigestFunctionResponse> {
+    return callDigestFunction({
+      action: 'send',
+      force: true,
+      advance: false,
+    });
+  },
+
+  async restartDigest(): Promise<DailyDigestFunctionResponse> {
+    return callDigestFunction({
+      action: 'restart',
+      force: true,
+    });
   },
 };
 

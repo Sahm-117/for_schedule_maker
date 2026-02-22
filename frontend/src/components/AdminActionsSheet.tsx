@@ -6,6 +6,7 @@ interface AdminActionsSheetProps {
   digestEnabled: boolean;
   digestToggleLoading: boolean;
   digestSending: boolean;
+  digestActionLabel: 'Send Digest Now' | 'Restart Digest';
   onToggleDigest: () => void;
   onSendDigestNow: () => void;
   onOpenLabels: () => void;
@@ -18,6 +19,7 @@ const AdminActionsSheet: React.FC<AdminActionsSheetProps> = ({
   digestEnabled,
   digestToggleLoading,
   digestSending,
+  digestActionLabel,
   onToggleDigest,
   onSendDigestNow,
   onOpenLabels,
@@ -74,10 +76,12 @@ const AdminActionsSheet: React.FC<AdminActionsSheetProps> = ({
           <button
             type="button"
             onClick={onSendDigestNow}
-            disabled={!digestEnabled || digestSending}
+            disabled={digestSending || (!digestEnabled && digestActionLabel !== 'Restart Digest')}
             className="w-full inline-flex items-center justify-center px-4 py-3 rounded-lg border border-green-600 text-green-700 hover:bg-green-50 disabled:opacity-50"
           >
-            {digestSending ? 'Sending Digest...' : 'Send Digest Now'}
+            {digestSending
+              ? (digestActionLabel === 'Restart Digest' ? 'Restarting Digest...' : 'Sending Digest...')
+              : digestActionLabel}
           </button>
 
           <button

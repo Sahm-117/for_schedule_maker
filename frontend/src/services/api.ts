@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label } from '../types';
+import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label, DailyDigestFunctionResponse } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
 
 // Import Supabase API
@@ -9,6 +9,7 @@ import {
   activitiesApi as supabaseActivitiesApi,
   labelsApi as supabaseLabelsApi,
   settingsApi as supabaseSettingsApi,
+  digestApi as supabaseDigestApi,
   pendingChangesApi as supabasePendingChangesApi,
   rejectedChangesApi as supabaseRejectedChangesApi,
   usersApi as supabaseUsersApi,
@@ -271,6 +272,34 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   },
   async setDailyDigestEnabled(enabled: boolean): Promise<{ enabled: boolean }> {
     return { enabled };
+  },
+};
+
+export const digestApi = USE_SUPABASE ? supabaseDigestApi : {
+  async getDigestStatus(): Promise<DailyDigestFunctionResponse> {
+    return {
+      ok: true,
+      status: 'NOT_SUPPORTED',
+      enabled: true,
+      cursor: { weekNumber: 1, dayName: 'Sunday', completed: false },
+      nextActionLabel: 'Send Digest Now',
+    };
+  },
+  async sendDigestNow(): Promise<DailyDigestFunctionResponse> {
+    return {
+      ok: true,
+      status: 'NOT_SUPPORTED',
+      cursor: { weekNumber: 1, dayName: 'Sunday', completed: false },
+      nextActionLabel: 'Send Digest Now',
+    };
+  },
+  async restartDigest(): Promise<DailyDigestFunctionResponse> {
+    return {
+      ok: true,
+      status: 'NOT_SUPPORTED',
+      cursor: { weekNumber: 1, dayName: 'Sunday', completed: false },
+      nextActionLabel: 'Send Digest Now',
+    };
   },
 };
 
