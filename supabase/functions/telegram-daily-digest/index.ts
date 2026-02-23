@@ -81,6 +81,13 @@ const formatRunDate = (date: Date): string => {
   }).format(date);
 };
 
+const getLagosWeekdayName = (date: Date): string => {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: DIGEST_TIMEZONE,
+    weekday: 'long',
+  }).format(date);
+};
+
 const formatTime = (time: string): string => {
   const parts = time.split(':');
   if (parts.length < 2) return time;
@@ -392,6 +399,22 @@ serve(async (req) => {
   }
 
   cursor = normalizeCursorForWeeks(cursor, sortedWeeks);
+
+  // For scheduled runs, keep digest aligned with today's Lagos weekday.
+  // Manual sends (force=true) intentionally preserve current cursor day for retry behavior.
+  if (action === 'send' && !force && !cursor.completed && cursor.lastStatus !== 'FAILED') {
+    const todayDayName = getLagosWeekdayName(new Date());
+    const todayDayIndex = getDayIndex(todayDayName);
+    if (todayDayIndex !== null && cursor.dayIndex !== todayDayIndex) {
+      cursor = {
+        ...cursor,
+        dayIndex: todayDayIndex,
+        lastStatus: 'SKIPPED',
+        lastAttemptAt: new Date().toISOString(),
+      };
+      await upsertDigestCursor(supabase, cursor);
+    }
+  }
 
   if (action === 'status') {
     return new Response(JSON.stringify({
