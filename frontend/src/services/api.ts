@@ -13,6 +13,8 @@ import {
   pendingChangesApi as supabasePendingChangesApi,
   rejectedChangesApi as supabaseRejectedChangesApi,
   usersApi as supabaseUsersApi,
+  pushSubscriptionsApi as supabasePushSubscriptionsApi,
+  notificationSettingsApi as supabaseNotificationSettingsApi,
   setAuthToken as supabaseSetAuthToken,
   clearAuthToken as supabaseClearAuthToken,
 } from './supabase-api';
@@ -273,6 +275,16 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async setDailyDigestEnabled(enabled: boolean): Promise<{ enabled: boolean }> {
     return { enabled };
   },
+};
+
+export const pushSubscriptionsApi = USE_SUPABASE ? supabasePushSubscriptionsApi : {
+  async save(_userId: string, _subscription: PushSubscriptionJSON): Promise<void> {},
+  async remove(_userId: string, _endpoint: string): Promise<void> {},
+};
+
+export const notificationSettingsApi = USE_SUPABASE ? supabaseNotificationSettingsApi : {
+  async get(): Promise<{ remindBeforeMinutes: number[] }> { return { remindBeforeMinutes: [60] }; },
+  async set(minutes: number[]): Promise<{ remindBeforeMinutes: number[] }> { return { remindBeforeMinutes: minutes }; },
 };
 
 export const digestApi = USE_SUPABASE ? supabaseDigestApi : {

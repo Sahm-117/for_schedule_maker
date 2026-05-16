@@ -1428,6 +1428,47 @@ export const usersApi = {
     return { user: data };
   },
 
+  async getUserLabels(userId: string): Promise<{ labels: Label[] }> {
+    const { data, error } = await supabase
+      .from('UserLabel')
+      .select('Label(*)')
+      .eq('userId', userId);
+
+    if (error) throw new Error(error.message);
+
+    const labels = ((data || []) as any[])
+      .map((row: any) => row.Label)
+      .filter(Boolean)
+      .map((l: any) => ({
+        id: l.id,
+        name: l.name,
+        color: l.color,
+        createdAt: l.createdAt,
+        updatedAt: l.updatedAt,
+      }) as Label);
+
+    return { labels };
+  },
+
+  async setUserLabels(userId: string, labelIds: string[]): Promise<{ message: string }> {
+    const { error: delError } = await supabase
+      .from('UserLabel')
+      .delete()
+      .eq('userId', userId);
+
+    if (delError) throw new Error(delError.message);
+
+    if (labelIds.length === 0) return { message: 'Labels cleared' };
+
+    const { error: insError } = await supabase
+      .from('UserLabel')
+      .insert(labelIds.map((labelId) => ({ userId, labelId })));
+
+    if (insError) throw new Error(insError.message);
+
+    return { message: 'Labels updated' };
+  },
+
   async update(userId: string, updateData: {
     name?: string;
     email?: string;
@@ -1467,6 +1508,70 @@ export const usersApi = {
     }
 
     return { message: 'User deleted successfully' };
+  },
+};
+
+// Push Subscriptions API
+export const pushSubscriptionsApi = {
+  async save(userId: string, subscription: PushSubscriptionJSON): Promise<void> {
+    const keys = subscription.keys as { p256dh: string; auth: string } | undefined;
+    if (!subscription.endpoint || !keys?.p256dh || !keys?.auth) {
+      throw new Error('Invalid push subscription');
+    }
+
+    const { error } = await supabase
+      .from('PushSubscription')
+      .upsert([{
+        userId,
+        endpoint: subscription.endpoint,
+        p256dh: keys.p256dh,
+        auth: keys.auth,
+      }], { onConflict: 'userId,endpoint' });
+
+    if (error) throw new Error(error.message);
+  },
+
+  async remove(userId: string, endpoint: string): Promise<void> {
+    const { error } = await supabase
+      .from('PushSubscription')
+      .delete()
+      .eq('userId', userId)
+      .eq('endpoint', endpoint);
+
+    if (error) throw new Error(error.message);
+  },
+};
+
+const REMIND_BEFORE_KEY = 'remind_before_minutes';
+
+// Notification settings (stored in AppSetting table)
+export const notificationSettingsApi = {
+  async get(): Promise<{ remindBeforeMinutes: number[] }> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', REMIND_BEFORE_KEY)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+
+    const value = (data as any)?.value;
+    if (Array.isArray(value)) return { remindBeforeMinutes: value as number[] };
+    return { remindBeforeMinutes: [60] };
+  },
+
+  async set(minutes: number[]): Promise<{ remindBeforeMinutes: number[] }> {
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert([{
+        settingKey: REMIND_BEFORE_KEY,
+        value: minutes,
+        updatedAt: new Date().toISOString(),
+      }], { onConflict: 'settingKey' });
+
+    if (error) throw new Error(error.message);
+
+    return { remindBeforeMinutes: minutes };
   },
 };
 

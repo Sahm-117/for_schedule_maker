@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 import { weeksApi, rejectedChangesApi, settingsApi, pendingChangesApi, digestApi } from '../services/api';
 import type { Week, RejectedChange, PendingChange, DailyDigestCursor, DailyDigestFunctionResponse } from '../types';
 import { supabase } from '../lib/supabase';
@@ -10,9 +11,11 @@ import UserManagement from '../components/UserManagement';
 import LabelManagement from '../components/LabelManagement';
 import PendingChangesPanel from '../components/PendingChangesPanel';
 import AdminActionsSheet from '../components/AdminActionsSheet';
+import NotificationSettings from '../components/NotificationSettings';
 
 const Dashboard: React.FC = () => {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, userLabelIds } = useAuth();
+  usePushNotifications(user?.id, user?.role);
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<Week | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +26,7 @@ const Dashboard: React.FC = () => {
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [showLabelManagement, setShowLabelManagement] = useState(false);
   const [showAdminActions, setShowAdminActions] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [digestSending, setDigestSending] = useState(false);
   const [digestEnabled, setDigestEnabled] = useState(true);
   const [digestToggleLoading, setDigestToggleLoading] = useState(false);
@@ -412,6 +416,7 @@ const Dashboard: React.FC = () => {
                 onWeekUpdate={loadWeeks}
                 onPendingChangesRefresh={handlePendingChangesRefresh}
                 isAdmin={isAdmin}
+                filterLabelIds={isAdmin ? undefined : userLabelIds}
               />
             ) : (
               <div className="bg-white rounded-lg shadow p-8 text-center">
@@ -433,6 +438,7 @@ const Dashboard: React.FC = () => {
         onSendDigestNow={handleSendDigestNow}
         onOpenLabels={() => setShowLabelManagement(true)}
         onOpenUsers={() => setShowUserManagement(true)}
+        onOpenNotificationSettings={() => setShowNotificationSettings(true)}
       />
 
       <UserManagement
@@ -443,6 +449,11 @@ const Dashboard: React.FC = () => {
       <LabelManagement
         isOpen={showLabelManagement}
         onClose={() => setShowLabelManagement(false)}
+      />
+
+      <NotificationSettings
+        isOpen={showNotificationSettings}
+        onClose={() => setShowNotificationSettings(false)}
       />
     </div>
   );

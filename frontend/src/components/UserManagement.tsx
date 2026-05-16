@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { usersApi, authApi } from '../services/api';
-import type { User } from '../types';
+import { usersApi, authApi, labelsApi } from '../services/api';
+import type { User, Label } from '../types';
+import LabelChip from './LabelChip';
 
 interface UserManagementProps {
   isOpen: boolean;
@@ -9,15 +10,17 @@ interface UserManagementProps {
 
 const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
   const [users, setUsers] = useState<User[]>([]);
+  const [allLabels, setAllLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddUser, setShowAddUser] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUserLabels, setSelectedUserLabels] = useState<Label[]>([]);
+  const [labelEditIds, setLabelEditIds] = useState<string[]>([]);
+  const [savingLabels, setSavingLabels] = useState(false);
   const [showPasswordInForm, setShowPasswordInForm] = useState(false);
-  const [showPasswordInDetails, setShowPasswordInDetails] = useState(false);
 
-  // Add user form state
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
@@ -29,6 +32,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (isOpen) {
       loadUsers();
+      loadLabels();
     }
   }, [isOpen]);
 
@@ -37,12 +41,55 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
     try {
       const response = await usersApi.getAll();
       setUsers(response.users);
-    } catch (error) {
-      console.error('Failed to load users:', error);
+    } catch {
       setError('Failed to load users');
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadLabels = async () => {
+    try {
+      const response = await labelsApi.getAll();
+      setAllLabels(response.labels);
+    } catch {
+      // non-critical
+    }
+  };
+
+  const openUserDetails = async (user: User) => {
+    setSelectedUser(user);
+    setSelectedUserLabels([]);
+    setLabelEditIds([]);
+    try {
+      const response = await usersApi.getUserLabels(user.id);
+      setSelectedUserLabels(response.labels);
+      setLabelEditIds(response.labels.map((l) => l.id));
+    } catch {
+      // non-critical
+    }
+  };
+
+  const handleSaveLabels = async () => {
+    if (!selectedUser) return;
+    setSavingLabels(true);
+    setError('');
+    setSuccess('');
+    try {
+      await usersApi.setUserLabels(selectedUser.id, labelEditIds);
+      setSelectedUserLabels(allLabels.filter((l) => labelEditIds.includes(l.id)));
+      setSuccess('Support groups updated');
+    } catch {
+      setError('Failed to update support groups');
+    } finally {
+      setSavingLabels(false);
+    }
+  };
+
+  const toggleLabelEdit = (labelId: string) => {
+    setLabelEditIds((prev) =>
+      prev.includes(labelId) ? prev.filter((id) => id !== labelId) : [...prev, labelId]
+    );
   };
 
   const handleAddUser = async (e: React.FormEvent) => {
@@ -54,11 +101,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
     setSuccess('');
 
     try {
-      // Use phone as email if email is not provided
-      const userData = {
-        ...newUser,
-        email: newUser.email || newUser.phone
-      };
+      const userData = { ...newUser, email: newUser.email || newUser.phone };
       await authApi.register(userData);
       setSuccess('User created successfully');
       setNewUser({ name: '', email: '', phone: '', password: '', role: 'SUPPORT' });
@@ -68,7 +111,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || 'Failed to create user';
       if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
-        setError('A user with this email/phone already exists. Please use a different email or phone number.');
+        setError('A user with this email/phone already exists.');
       } else {
         setError(errorMessage);
       }
@@ -79,14 +122,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
 
   const handleDeleteUser = async (userId: string, userName: string) => {
     if (!confirm(`Are you sure you want to delete user "${userName}"?`)) return;
-
     setLoading(true);
     setError('');
     setSuccess('');
-
     try {
       await usersApi.delete(userId);
       setSuccess('User deleted successfully');
+      if (selectedUser?.id === userId) setSelectedUser(null);
       loadUsers();
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to delete user');
@@ -99,7 +141,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
     setLoading(true);
     setError('');
     setSuccess('');
-
     try {
       await usersApi.update(userId, { role: newRole });
       setSuccess('User role updated successfully');
@@ -120,27 +161,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold">User Management</h2>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600"
-              >
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            {error && (
-              <div className="mb-4 text-red-600 text-sm bg-red-50 p-3 rounded">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="mb-4 text-green-600 text-sm bg-green-50 p-3 rounded">
-                {success}
-              </div>
-            )}
+            {error && <div className="mb-4 text-red-600 text-sm bg-red-50 p-3 rounded">{error}</div>}
+            {success && <div className="mb-4 text-green-600 text-sm bg-green-50 p-3 rounded">{success}</div>}
 
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">Users ({users.length})</h3>
@@ -158,9 +187,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                 <form onSubmit={handleAddUser} className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Name *
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
                       <input
                         type="text"
                         value={newUser.name}
@@ -170,9 +197,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Email
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                       <input
                         type="email"
                         value={newUser.email}
@@ -182,9 +207,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Phone Number
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                       <input
                         type="tel"
                         value={newUser.phone}
@@ -194,9 +217,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Password *
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
                       <div className="relative">
                         <input
                           type={showPasswordInForm ? 'text' : 'password'}
@@ -211,23 +232,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                           onClick={() => setShowPasswordInForm(!showPasswordInForm)}
                           className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
                         >
-                          {showPasswordInForm ? (
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                            </svg>
-                          ) : (
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          )}
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
                         </button>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Role *
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
                       <select
                         value={newUser.role}
                         onChange={(e) => setNewUser({ ...newUser, role: e.target.value as 'ADMIN' | 'SUPPORT' })}
@@ -238,9 +251,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                       </select>
                     </div>
                   </div>
-                  <div className="text-sm text-gray-500 mt-2">
-                    * Required fields. Either email or phone number must be provided.
-                  </div>
+                  <div className="text-sm text-gray-500 mt-2">* Required. Either email or phone must be provided.</div>
                   <div className="flex justify-end">
                     <button
                       type="submit"
@@ -264,28 +275,18 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        User
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Role
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Created
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {users.map((user) => (
                       <tr key={user.id}>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                            <div className="text-sm text-gray-500">{user.email}</div>
-                          </div>
+                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                          <div className="text-sm text-gray-500">{user.email}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <select
@@ -302,11 +303,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                           {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
-                          <button
-                            onClick={() => setSelectedUser(user)}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            View Details
+                          <button onClick={() => openUserDetails(user)} className="text-blue-600 hover:text-blue-900">
+                            Manage
                           </button>
                           <button
                             onClick={() => handleDeleteUser(user.id, user.name)}
@@ -320,20 +318,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                     ))}
                   </tbody>
                 </table>
-
                 {users.length === 0 && !loading && (
-                  <div className="text-center py-8 text-gray-500">
-                    No users found
-                  </div>
+                  <div className="text-center py-8 text-gray-500">No users found</div>
                 )}
               </div>
             )}
 
             <div className="flex justify-end pt-4 border-t mt-6">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
+              <button onClick={onClose} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
                 Close
               </button>
             </div>
@@ -341,18 +333,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
         </div>
       </div>
 
-      {/* User Details Modal */}
+      {/* User Details + Label Assignment Modal */}
       {selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-[60]">
-          <div className="bg-white rounded-lg max-w-lg w-full">
+          <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-semibold">User Details</h3>
+                <h3 className="text-lg font-semibold">Manage User</h3>
                 <button
-                  onClick={() => {
-                    setSelectedUser(null);
-                    setShowPasswordInDetails(false);
-                  }}
+                  onClick={() => setSelectedUser(null)}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -364,72 +353,93 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
-                    {selectedUser.name}
-                  </div>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">{selectedUser.name}</div>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email/Phone</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
-                    {selectedUser.email}
-                  </div>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">{selectedUser.email}</div>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      selectedUser.role === 'ADMIN'
-                        ? 'bg-purple-100 text-purple-800'
-                        : 'bg-blue-100 text-blue-800'
+                      selectedUser.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
                     }`}>
                       {selectedUser.role}
                     </span>
                   </div>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">User ID</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm font-mono">
-                    {selectedUser.id}
-                  </div>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm font-mono">{selectedUser.id}</div>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Created Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Created</label>
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
-                    {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleString() : 'Not available'}
+                    {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleString() : 'N/A'}
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                  <div className="flex">
-                    <div className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-l-md">
-                      ••••••••
+                {/* Support Group Assignment */}
+                {selectedUser.role === 'SUPPORT' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Support Groups (Labels)
+                    </label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      This user will only see activities tagged with these groups.
+                    </p>
+
+                    {/* Current labels preview */}
+                    {selectedUserLabels.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {selectedUserLabels.map((l) => (
+                          <LabelChip key={l.id} name={l.name} color={l.color} size="md" />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Label checkboxes */}
+                    {allLabels.length > 0 ? (
+                      <div className="border border-gray-200 rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+                        {allLabels.map((label) => (
+                          <label key={label.id} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={labelEditIds.includes(label.id)}
+                              onChange={() => toggleLabelEdit(label.id)}
+                              className="rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                            <LabelChip name={label.name} color={label.color} size="sm" />
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">No labels created yet. Create labels first.</p>
+                    )}
+
+                    <div className="flex items-center gap-2 mt-3">
+                      <button
+                        onClick={handleSaveLabels}
+                        disabled={savingLabels}
+                        className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark disabled:opacity-50"
+                      >
+                        {savingLabels ? 'Saving...' : 'Save Groups'}
+                      </button>
+                      <button
+                        onClick={() => setLabelEditIds([])}
+                        className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+                      >
+                        Clear All
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setShowPasswordInDetails(!showPasswordInDetails)}
-                      className="px-3 py-2 bg-gray-100 border border-l-0 border-gray-200 rounded-r-md hover:bg-gray-200 text-gray-600"
-                      title="Passwords are encrypted and cannot be viewed"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    </button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Passwords are encrypted and cannot be displayed for security reasons.</p>
-                </div>
+                )}
               </div>
 
-              <div className="flex justify-end pt-6 border-t mt-6 space-x-3">
+              <div className="flex justify-end pt-6 border-t mt-6">
                 <button
-                  onClick={() => {
-                    setSelectedUser(null);
-                    setShowPasswordInDetails(false);
-                  }}
+                  onClick={() => setSelectedUser(null)}
                   className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                 >
                   Close

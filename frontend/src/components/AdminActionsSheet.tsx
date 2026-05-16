@@ -11,6 +11,7 @@ interface AdminActionsSheetProps {
   onSendDigestNow: () => void;
   onOpenLabels: () => void;
   onOpenUsers: () => void;
+  onOpenNotificationSettings: () => void;
 }
 
 const AdminActionsSheet: React.FC<AdminActionsSheetProps> = ({
@@ -24,6 +25,7 @@ const AdminActionsSheet: React.FC<AdminActionsSheetProps> = ({
   onSendDigestNow,
   onOpenLabels,
   onOpenUsers,
+  onOpenNotificationSettings,
 }) => {
   if (!isOpen) return null;
 
@@ -104,6 +106,17 @@ const AdminActionsSheet: React.FC<AdminActionsSheetProps> = ({
             className="w-full inline-flex items-center justify-center px-4 py-3 rounded-lg border border-primary text-primary hover:bg-primary/5"
           >
             Manage Users
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onOpenNotificationSettings();
+              onClose();
+            }}
+            className="w-full inline-flex items-center justify-center px-4 py-3 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+          >
+            Notification Settings
           </button>
         </div>
       </div>

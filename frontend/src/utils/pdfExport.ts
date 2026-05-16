@@ -6,6 +6,7 @@ import { getContrastingTextColor, hexToRgb, normalizeHexColor } from './color';
 interface ExportOptions {
   includeEmptyDays?: boolean;
   format?: 'portrait' | 'landscape';
+  filterLabelIds?: string[];
 }
 
 const loadPublicPngAsDataUrl = async (path: string): Promise<string | null> => {
@@ -196,7 +197,8 @@ const estimateLabelChipBlockHeight = (pdf: jsPDF, labels: Array<{ name: string }
 };
 
 export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) => {
-  const { includeEmptyDays = false, format = 'portrait' } = options;
+  const { includeEmptyDays = false, format = 'portrait', filterLabelIds } = options;
+  const isPersonal = Array.isArray(filterLabelIds) && filterLabelIds.length > 0;
 
   // Create clean timeline PDF
   const pdf = new jsPDF({
@@ -211,8 +213,21 @@ export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) =
   const logoDataUrl = await loadPublicPngAsDataUrl('/logo-full.png');
   let pageIndex = 1;
 
-  // Clean header
-  let yPosition = addTimelineHeader(pdf, pageWidth, week.weekNumber, { showLogo: pageIndex === 1, logoDataUrl });
+  // Override header title for personal schedule
+  const originalAddHeader = addTimelineHeader;
+  const addHeader = isPersonal
+    ? (p: jsPDF, pw: number, wn: number, opts: TimelineHeaderOptions) => {
+        const result = originalAddHeader(p, pw, wn, opts);
+        // Overwrite subtitle with "My Schedule"
+        p.setFontSize(18);
+        p.setTextColor(...COLORS.brand.text);
+        p.setFont('helvetica', 'normal');
+        p.text('My Schedule', pw - 20, 30, { align: 'right' });
+        return result;
+      }
+    : addTimelineHeader;
+
+  let yPosition = addHeader(pdf, pageWidth, week.weekNumber, { showLogo: pageIndex === 1, logoDataUrl });
 
   // Day order for proper week flow
   const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -222,7 +237,12 @@ export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) =
 
   // Process each day
   for (const day of sortedDays) {
-    const hasActivities = day.activities && day.activities.length > 0;
+    const dayActivities = isPersonal
+      ? (day.activities || []).filter((a) =>
+          a.labels?.some((l) => filterLabelIds!.includes(l.id))
+        )
+      : day.activities || [];
+    const hasActivities = dayActivities.length > 0;
 
     // Skip empty days if option is set
     if (!includeEmptyDays && !hasActivities) {
@@ -233,7 +253,7 @@ export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) =
     if (yPosition > pageHeight - 60) {
       pdf.addPage();
       pageIndex += 1;
-      yPosition = addTimelineHeader(pdf, pageWidth, week.weekNumber, { showLogo: pageIndex === 1, logoDataUrl });
+      yPosition = addHeader(pdf, pageWidth, week.weekNumber, { showLogo: pageIndex === 1, logoDataUrl });
     }
 
     // Day title
@@ -253,7 +273,7 @@ export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) =
     }
 
     // Activities grouped and sorted (time asc, then manual orderIndex, then id)
-    const allActivities = [...day.activities].sort((a, b) => {
+    const allActivities = [...dayActivities].sort((a, b) => {
       const t = compareTimeStrings(a.time, b.time);
       if (t !== 0) return t;
       const oi = a.orderIndex - b.orderIndex;
@@ -285,7 +305,7 @@ export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) =
       if (yPosition + needed > pageHeight - 20) {
         pdf.addPage();
         pageIndex += 1;
-        yPosition = addTimelineHeader(pdf, pageWidth, week.weekNumber, { showLogo: pageIndex === 1, logoDataUrl });
+        yPosition = addHeader(pdf, pageWidth, week.weekNumber, { showLogo: pageIndex === 1, logoDataUrl });
       }
 
       // Determine border color based on period
@@ -362,8 +382,9 @@ export const exportWeekToPDF = async (week: Week, options: ExportOptions = {}) =
     pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 20, pageHeight - 10, { align: 'right' });
   }
 
-  // Download the PDF
-  const fileName = `FOF-Week-${week.weekNumber}-Schedule.pdf`;
+  const fileName = isPersonal
+    ? `My-Schedule-Week-${week.weekNumber}.pdf`
+    : `FOF-Week-${week.weekNumber}-Schedule.pdf`;
   pdf.save(fileName);
 };
 

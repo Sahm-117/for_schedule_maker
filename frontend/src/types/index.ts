@@ -1,3 +1,11 @@
+export interface Label {
+  id: string;
+  name: string;
+  color: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -5,14 +13,7 @@ export interface User {
   role: 'ADMIN' | 'SUPPORT';
   createdAt?: string;
   updatedAt?: string;
-}
-
-export interface Label {
-  id: string;
-  name: string;
-  color: string;
-  createdAt?: string;
-  updatedAt?: string;
+  labels?: Label[];
 }
 
 export interface Activity {

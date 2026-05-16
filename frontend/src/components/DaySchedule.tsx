@@ -16,6 +16,7 @@ interface DayScheduleProps {
   weekNumber: number;
   isExpanded: boolean;
   onToggleExpansion: () => void;
+  filterLabelIds?: string[];
 }
 
 const DaySchedule: React.FC<DayScheduleProps> = ({
@@ -28,6 +29,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   weekNumber,
   isExpanded,
   onToggleExpansion,
+  filterLabelIds,
 }) => {
   const { user } = useAuth();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -50,7 +52,13 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
 
   const getPeriodActivities = (period: 'MORNING' | 'AFTERNOON' | 'EVENING') => {
     return day.activities
-      .filter(activity => activity.period === period)
+      .filter((activity) => {
+        if (activity.period !== period) return false;
+        if (filterLabelIds && filterLabelIds.length > 0) {
+          return activity.labels?.some((l) => filterLabelIds.includes(l.id));
+        }
+        return true;
+      })
       .sort((a, b) => {
         const t = compareTimeStrings(a.time, b.time);
         if (t !== 0) return t;
@@ -196,7 +204,9 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
               {getDayDisplayName(day.dayName)}
             </h3>
             <span className="text-xs text-gray-500">
-              ({day.activities.length} activities)
+              ({filterLabelIds && filterLabelIds.length > 0
+                ? day.activities.filter((a) => a.labels?.some((l) => filterLabelIds.includes(l.id))).length
+                : day.activities.length} activities)
             </span>
           </button>
 
