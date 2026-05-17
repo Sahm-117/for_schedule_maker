@@ -15,12 +15,13 @@ import AdminActionsSheet from '../components/AdminActionsSheet';
 import NotificationSettings from '../components/NotificationSettings';
 import AnnouncementsModal from '../components/AnnouncementsModal';
 import ResourceHubModal from '../components/ResourceHubModal';
+import NotificationPromptModal from '../components/NotificationPromptModal';
 import PWAInstallBanner from '../components/PWAInstallBanner';
 import PWAUpdateBanner from '../components/PWAUpdateBanner';
 
 const Dashboard: React.FC = () => {
   const { user, logout, isAdmin, isSopPreparer, userLabelIds } = useAuth();
-  usePushNotifications(user?.id, user?.role);
+  const { showPrompt, enable, dismiss } = usePushNotifications(user?.id);
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<Week | null>(null);
   const [loading, setLoading] = useState(true);
@@ -555,6 +556,7 @@ const Dashboard: React.FC = () => {
       />
 
       <ResourceHubModal isOpen={showResourceHub} onClose={() => setShowResourceHub(false)} onViewed={() => setNewResourceCount(0)} />
+      {showPrompt && <NotificationPromptModal onEnable={enable} onDismiss={dismiss} />}
       <PWAInstallBanner />
       <PWAUpdateBanner />
     </div>
