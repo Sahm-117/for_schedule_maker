@@ -140,10 +140,13 @@ const Signup: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                   <input
                     type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     required
                     value={contact}
-                    onChange={(e) => setContact(e.target.value)}
-                    placeholder="+234 800 000 0000"
+                    onChange={(e) => setContact(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="08100000000"
+                    maxLength={11}
                     className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   />
                   <p className="mt-1 text-xs text-gray-400">Use this number to log in — don't forget it.</p>
