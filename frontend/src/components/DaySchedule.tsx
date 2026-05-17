@@ -189,7 +189,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
     <div className="bg-white rounded-lg shadow">
       {/* Day Header */}
       <div className="p-3 sm:p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-row items-center justify-between gap-2">
           <button
             onClick={onToggleExpansion}
             className="flex items-center gap-2 text-left hover:text-primary transition-colors"

@@ -82,8 +82,8 @@ Deno.serve(async (req) => {
 
     // 3. Build payload
     const payload = JSON.stringify({
-      title: `📢 ${subject}`,
-      body,
+      title: `📢 From FOF Ops`,
+      body: `${subject}: ${body}`,
       icon: '/icon-192.png',
       tag: `fof-announcement-${announcement.id}`,
     })
