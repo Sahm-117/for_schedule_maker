@@ -1520,14 +1520,18 @@ export const pushSubscriptionsApi = {
       throw new Error('Invalid push subscription');
     }
 
+    // Delete all previous subscriptions for this user so only one active endpoint
+    // exists per user — prevents duplicate notifications from stale PWA installs.
+    await supabase.from('PushSubscription').delete().eq('userId', userId);
+
     const { error } = await supabase
       .from('PushSubscription')
-      .upsert([{
+      .insert([{
         userId,
         endpoint: subscription.endpoint,
         p256dh: keys.p256dh,
         auth: keys.auth,
-      }], { onConflict: 'userId,endpoint' });
+      }]);
 
     if (error) throw new Error(error.message);
   },
