@@ -16,6 +16,7 @@ import {
   pushSubscriptionsApi as supabasePushSubscriptionsApi,
   notificationSettingsApi as supabaseNotificationSettingsApi,
   announcementsApi as supabaseAnnouncementsApi,
+  resourcesApi as supabaseResourcesApi,
   setAuthToken as supabaseSetAuthToken,
   clearAuthToken as supabaseClearAuthToken,
 } from './supabase-api';
@@ -291,6 +292,13 @@ export const notificationSettingsApi = USE_SUPABASE ? supabaseNotificationSettin
 export const announcementsApi = USE_SUPABASE ? supabaseAnnouncementsApi : {
   async send(_subject: string, _body: string, _sentBy: string): Promise<{ sent: number }> { return { sent: 0 }; },
   async getHistory(): Promise<{ announcements: import('../types').Announcement[] }> { return { announcements: [] }; },
+};
+
+export const resourcesApi = USE_SUPABASE ? supabaseResourcesApi : {
+  async getAll(): Promise<{ resources: import('../types').Resource[] }> { return { resources: [] }; },
+  async addLink(_input: any): Promise<any> { return {}; },
+  async uploadFile(_input: any): Promise<any> { return {}; },
+  async delete(_id: string): Promise<void> {},
 };
 
 export const digestApi = USE_SUPABASE ? supabaseDigestApi : {

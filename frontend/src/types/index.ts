@@ -1,3 +1,15 @@
+export interface Resource {
+  id: string;
+  title: string;
+  description?: string;
+  type: 'link' | 'pdf' | 'doc' | 'image' | 'file';
+  url: string;
+  fileName?: string;
+  fileSize?: number;
+  addedBy?: string;
+  createdAt: string;
+}
+
 export interface Label {
   id: string;
   name: string;

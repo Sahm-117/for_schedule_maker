@@ -14,6 +14,7 @@ import PendingChangesPanel from '../components/PendingChangesPanel';
 import AdminActionsSheet from '../components/AdminActionsSheet';
 import NotificationSettings from '../components/NotificationSettings';
 import AnnouncementsModal from '../components/AnnouncementsModal';
+import ResourceHubModal from '../components/ResourceHubModal';
 import PWAInstallBanner from '../components/PWAInstallBanner';
 import PWAUpdateBanner from '../components/PWAUpdateBanner';
 
@@ -32,6 +33,7 @@ const Dashboard: React.FC = () => {
   const [showAdminActions, setShowAdminActions] = useState(false);
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
+  const [showResourceHub, setShowResourceHub] = useState(false);
   const [digestSending, setDigestSending] = useState(false);
   const [digestEnabled, setDigestEnabled] = useState(true);
   const [digestToggleLoading, setDigestToggleLoading] = useState(false);
@@ -333,6 +335,16 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                onClick={() => setShowResourceHub(true)}
+                title="Resource Hub"
+                className="text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100 border border-gray-200"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </button>
+              <button
+                type="button"
                 onClick={startTour}
                 title="Take a tour"
                 className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 border border-gray-200"
@@ -492,6 +504,7 @@ const Dashboard: React.FC = () => {
         onClose={() => setShowAnnouncements(false)}
       />
 
+      <ResourceHubModal isOpen={showResourceHub} onClose={() => setShowResourceHub(false)} />
       <PWAInstallBanner />
       <PWAUpdateBanner />
     </div>

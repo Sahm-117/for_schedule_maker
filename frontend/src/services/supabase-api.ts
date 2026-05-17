@@ -1596,6 +1596,79 @@ export const announcementsApi = {
   },
 };
 
+export const resourcesApi = {
+  async getAll(): Promise<{ resources: import('../types').Resource[] }> {
+    const { data, error } = await supabase
+      .from('Resource')
+      .select('*')
+      .order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { resources: (data as any[]) ?? [] };
+  },
+
+  async addLink(input: {
+    title: string;
+    description?: string;
+    url: string;
+    addedBy: string;
+  }): Promise<{ resource: import('../types').Resource }> {
+    const { data, error } = await supabase
+      .from('Resource')
+      .insert([{
+        title: input.title,
+        description: input.description || null,
+        type: 'link',
+        url: input.url,
+        addedBy: input.addedBy,
+      }])
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return { resource: data as any };
+  },
+
+  async uploadFile(input: {
+    title: string;
+    description?: string;
+    file: File;
+    addedBy: string;
+  }): Promise<{ resource: import('../types').Resource }> {
+    const ext = input.file.name.split('.').pop()?.toLowerCase() || 'file';
+    const path = `${Date.now()}_${input.file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const { error: uploadError } = await supabase.storage
+      .from('resources')
+      .upload(path, input.file, { upsert: false });
+    if (uploadError) throw new Error(uploadError.message);
+
+    const { data: urlData } = supabase.storage.from('resources').getPublicUrl(path);
+    const type = ['pdf'].includes(ext) ? 'pdf'
+      : ['doc', 'docx'].includes(ext) ? 'doc'
+      : ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext) ? 'image'
+      : 'file';
+
+    const { data, error } = await supabase
+      .from('Resource')
+      .insert([{
+        title: input.title,
+        description: input.description || null,
+        type,
+        url: urlData.publicUrl,
+        fileName: input.file.name,
+        fileSize: input.file.size,
+        addedBy: input.addedBy,
+      }])
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return { resource: data as any };
+  },
+
+  async delete(resourceId: string): Promise<void> {
+    const { error } = await supabase.from('Resource').delete().eq('id', resourceId);
+    if (error) throw new Error(error.message);
+  },
+};
+
 // Auth token management (mock for now)
 export const setAuthToken = (token: string) => {
   localStorage.setItem('accessToken', token);
