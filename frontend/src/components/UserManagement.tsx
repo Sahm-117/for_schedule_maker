@@ -25,6 +25,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
   const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
   const [resetPasswordValue, setResetPasswordValue] = useState('');
   const [resetPasswordSaving, setResetPasswordSaving] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const [newUser, setNewUser] = useState({
     name: '',
@@ -324,87 +325,176 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                 <p className="mt-2 text-gray-600">Loading users...</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {users.map((user) => (
-                      <tr key={user.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                          <div className="text-sm text-gray-500">{user.email}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+              <div>
+                {users.length === 0 && !loading && (
+                  <div className="text-center py-8 text-gray-500">No users found</div>
+                )}
+
+                {/* Mobile cards */}
+                <div className="sm:hidden space-y-3">
+                  {users.map((user) => (
+                    <div key={user.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 text-sm truncate">{user.name}</p>
+                          <p className="text-xs text-gray-500 truncate">{user.email || user.phone}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : ''}
+                          </p>
+                        </div>
+                        {/* Role selector + hamburger */}
+                        <div className="flex items-center gap-2 flex-shrink-0">
                           <select
                             value={user.role}
                             onChange={(e) => handleRoleChange(user.id, e.target.value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT')}
-                            className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-primary focus:border-primary"
+                            className="text-xs border border-gray-300 rounded-md px-1.5 py-1 focus:outline-none focus:ring-primary focus:border-primary"
                             disabled={loading}
                           >
                             <option value="SUPPORT">Support</option>
                             <option value="SOP_PREPARER">SOP Preparer</option>
                             <option value="ADMIN">Admin</option>
                           </select>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
-                        </td>
-                        <td className="px-6 py-4 text-right text-sm space-x-2">
-                          <button onClick={() => openUserDetails(user)} className="text-blue-600 hover:text-blue-900">
-                            Manage
+                          <div className="relative">
+                            <button
+                              onClick={() => setOpenMenuId(openMenuId === user.id ? null : user.id)}
+                              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                              </svg>
+                            </button>
+                            {openMenuId === user.id && (
+                              <div className="absolute right-0 top-8 z-20 w-40 bg-white border border-gray-200 rounded-xl shadow-lg py-1">
+                                <button
+                                  onClick={() => { openUserDetails(user); setOpenMenuId(null); }}
+                                  className="w-full text-left px-4 py-2.5 text-sm text-blue-600 hover:bg-gray-50"
+                                >
+                                  Manage labels
+                                </button>
+                                <button
+                                  onClick={() => { setResetPasswordUserId(user.id); setResetPasswordValue(''); setError(''); setOpenMenuId(null); }}
+                                  className="w-full text-left px-4 py-2.5 text-sm text-orange-500 hover:bg-gray-50"
+                                >
+                                  Reset password
+                                </button>
+                                <button
+                                  onClick={() => { handleDeleteUser(user.id, user.name); setOpenMenuId(null); }}
+                                  className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-gray-50"
+                                >
+                                  Delete user
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {/* Inline reset password */}
+                      {resetPasswordUserId === user.id && (
+                        <div className="mt-3 flex items-center gap-2 pt-3 border-t border-gray-100">
+                          <input
+                            type="text"
+                            value={resetPasswordValue}
+                            onChange={(e) => setResetPasswordValue(e.target.value)}
+                            placeholder="New password (min 6)"
+                            className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                          <button
+                            onClick={() => handleResetPassword(user.id)}
+                            disabled={resetPasswordSaving}
+                            className="text-xs px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary-dark disabled:opacity-50"
+                          >
+                            {resetPasswordSaving ? '...' : 'Save'}
                           </button>
                           <button
-                            onClick={() => { setResetPasswordUserId(user.id); setResetPasswordValue(''); setError(''); }}
-                            className="text-orange-500 hover:text-orange-700"
+                            onClick={() => { setResetPasswordUserId(null); setResetPasswordValue(''); }}
+                            className="text-xs text-gray-400 hover:text-gray-600"
                           >
-                            Reset PW
+                            Cancel
                           </button>
-                          <button
-                            onClick={() => handleDeleteUser(user.id, user.name)}
-                            disabled={loading}
-                            className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                          >
-                            Delete
-                          </button>
-                          {resetPasswordUserId === user.id && (
-                            <div className="mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="text"
-                                value={resetPasswordValue}
-                                onChange={(e) => setResetPasswordValue(e.target.value)}
-                                placeholder="New password (min 6)"
-                                className="text-sm border border-gray-300 rounded px-2 py-1 w-40 focus:outline-none focus:ring-1 focus:ring-primary"
-                              />
-                              <button
-                                onClick={() => handleResetPassword(user.id)}
-                                disabled={resetPasswordSaving}
-                                className="text-xs px-2 py-1 bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50"
-                              >
-                                {resetPasswordSaving ? '...' : 'Save'}
-                              </button>
-                              <button
-                                onClick={() => { setResetPasswordUserId(null); setResetPasswordValue(''); }}
-                                className="text-xs text-gray-400 hover:text-gray-600"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          )}
-                        </td>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop table */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {users.length === 0 && !loading && (
-                  <div className="text-center py-8 text-gray-500">No users found</div>
-                )}
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {users.map((user) => (
+                        <tr key={user.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                            <div className="text-sm text-gray-500">{user.email || user.phone}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <select
+                              value={user.role}
+                              onChange={(e) => handleRoleChange(user.id, e.target.value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT')}
+                              className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-primary focus:border-primary"
+                              disabled={loading}
+                            >
+                              <option value="SUPPORT">Support</option>
+                              <option value="SOP_PREPARER">SOP Preparer</option>
+                              <option value="ADMIN">Admin</option>
+                            </select>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 text-right text-sm space-x-2">
+                            <button onClick={() => openUserDetails(user)} className="text-blue-600 hover:text-blue-900">Manage</button>
+                            <button
+                              onClick={() => { setResetPasswordUserId(user.id); setResetPasswordValue(''); setError(''); }}
+                              className="text-orange-500 hover:text-orange-700"
+                            >
+                              Reset PW
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user.id, user.name)}
+                              disabled={loading}
+                              className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                            >
+                              Delete
+                            </button>
+                            {resetPasswordUserId === user.id && (
+                              <div className="mt-2 flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={resetPasswordValue}
+                                  onChange={(e) => setResetPasswordValue(e.target.value)}
+                                  placeholder="New password (min 6)"
+                                  className="text-sm border border-gray-300 rounded px-2 py-1 w-40 focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                                <button
+                                  onClick={() => handleResetPassword(user.id)}
+                                  disabled={resetPasswordSaving}
+                                  className="text-xs px-2 py-1 bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50"
+                                >
+                                  {resetPasswordSaving ? '...' : 'Save'}
+                                </button>
+                                <button
+                                  onClick={() => { setResetPasswordUserId(null); setResetPasswordValue(''); }}
+                                  className="text-xs text-gray-400 hover:text-gray-600"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
