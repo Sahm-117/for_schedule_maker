@@ -21,6 +21,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
   const [savingLabels, setSavingLabels] = useState(false);
   const [showPasswordInForm, setShowPasswordInForm] = useState(false);
 
+  const [newUserLabelIds, setNewUserLabelIds] = useState<string[]>([]);
+
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
@@ -102,9 +104,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
 
     try {
       const userData = { ...newUser, email: newUser.email || newUser.phone };
-      await authApi.register(userData);
+      const created = await authApi.register(userData);
+      if (newUser.role === 'SUPPORT' && newUserLabelIds.length > 0 && created?.user?.id) {
+        await usersApi.setUserLabels(created.user.id, newUserLabelIds);
+      }
       setSuccess('User created successfully');
       setNewUser({ name: '', email: '', phone: '', password: '', role: 'SUPPORT' });
+      setNewUserLabelIds([]);
       setShowAddUser(false);
       setShowPasswordInForm(false);
       loadUsers();
@@ -246,11 +252,35 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                         onChange={(e) => setNewUser({ ...newUser, role: e.target.value as 'ADMIN' | 'SUPPORT' })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
                       >
-                        <option value="SUPPORT">Support</option>
+                        <option value="SUPPORT">SOP Preparer</option>
                         <option value="ADMIN">Admin</option>
                       </select>
                     </div>
                   </div>
+                  {newUser.role === 'SUPPORT' && allLabels.length > 0 && (
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Support Groups</label>
+                      <div className="border border-gray-200 rounded-md p-3 space-y-2 max-h-36 overflow-y-auto bg-white">
+                        {allLabels.map((label) => (
+                          <label key={label.id} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newUserLabelIds.includes(label.id)}
+                              onChange={() =>
+                                setNewUserLabelIds((prev) =>
+                                  prev.includes(label.id)
+                                    ? prev.filter((id) => id !== label.id)
+                                    : [...prev, label.id]
+                                )
+                              }
+                              className="rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                            <LabelChip name={label.name} color={label.color} size="sm" />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="text-sm text-gray-500 mt-2">* Required. Either email or phone must be provided.</div>
                   <div className="flex justify-end">
                     <button
@@ -365,7 +395,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       selectedUser.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
                     }`}>
-                      {selectedUser.role}
+                      {selectedUser.role === 'ADMIN' ? 'Admin' : 'SOP Preparer'}
                     </span>
                   </div>
                 </div>

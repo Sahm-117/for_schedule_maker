@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useTour } from '../hooks/useTour';
 import { weeksApi, rejectedChangesApi, settingsApi, pendingChangesApi, digestApi } from '../services/api';
 import type { Week, RejectedChange, PendingChange, DailyDigestCursor, DailyDigestFunctionResponse } from '../types';
 import { supabase } from '../lib/supabase';
@@ -34,6 +35,7 @@ const Dashboard: React.FC = () => {
   const [digestCursor, setDigestCursor] = useState<DailyDigestCursor | null>(null);
   const [digestActionLabel, setDigestActionLabel] = useState<'Send Digest Now' | 'Restart Digest'>('Send Digest Now');
   const [realtimeHealthy, setRealtimeHealthy] = useState(false);
+  const { startTour } = useTour(isAdmin, loading);
 
   const refreshTimeoutRef = useRef<number | null>(null);
 
@@ -318,15 +320,26 @@ const Dashboard: React.FC = () => {
                 alt="The Covenant Nation"
                 className="ml-3 h-8 w-8 rounded bg-white p-1 border border-gray-200 object-contain shrink-0"
               />
-              <span className="ml-2 sm:ml-3 px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                {isAdmin ? 'Admin' : 'Support'}
+              <span className={`ml-2 sm:ml-3 px-2 py-1 text-xs font-semibold rounded-full ${isAdmin ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                {isAdmin ? 'Admin' : 'SOP Preparer'}
               </span>
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={startTour}
+                title="Take a tour"
+                className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 border border-gray-200"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
               {isAdmin && (
                 <button
                   type="button"
+                  data-tour="admin-actions"
                   onClick={() => setShowAdminActions(true)}
                   className="text-xs sm:text-sm text-primary hover:text-primary-dark px-3 py-2 rounded-md border border-primary hover:bg-primary/5"
                 >
@@ -389,17 +402,19 @@ const Dashboard: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
         {isAdmin && (
-          <PendingChangesPanel
-            pendingChanges={globalPendingChanges}
-            onApprove={handlePendingApprove}
-            onReject={handlePendingReject}
-            isAdmin={isAdmin}
-            weeks={weeks}
-          />
+          <div data-tour="pending-changes">
+            <PendingChangesPanel
+              pendingChanges={globalPendingChanges}
+              onApprove={handlePendingApprove}
+              onReject={handlePendingReject}
+              isAdmin={isAdmin}
+              weeks={weeks}
+            />
+          </div>
         )}
 
         <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-8">
-          <div className="lg:col-span-1 order-1">
+          <div className="lg:col-span-1 order-1" data-tour="week-selector">
             <WeekSelector
               weeks={weeks}
               selectedWeek={selectedWeek}
@@ -407,7 +422,7 @@ const Dashboard: React.FC = () => {
             />
           </div>
 
-          <div className="lg:col-span-3 order-2">
+          <div className="lg:col-span-3 order-2" data-tour="schedule-view">
             {selectedWeek ? (
               <ScheduleView
                 week={selectedWeek}
