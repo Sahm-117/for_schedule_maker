@@ -197,7 +197,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                       <input
                         type="text"
                         value={newUser.name}
-                        onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                        onChange={(e) => setNewUser(prev => ({ ...prev, name: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
                         required
                       />
@@ -207,7 +207,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                       <input
                         type="email"
                         value={newUser.email}
-                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                        onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
                         placeholder="user@example.com"
                       />
@@ -217,7 +217,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                       <input
                         type="tel"
                         value={newUser.phone}
-                        onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                        onChange={(e) => setNewUser(prev => ({ ...prev, phone: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
                         placeholder="+1234567890"
                       />
@@ -228,7 +228,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                         <input
                           type={showPasswordInForm ? 'text' : 'password'}
                           value={newUser.password}
-                          onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                          onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
                           className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
                           required
                           minLength={6}
@@ -249,7 +249,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
                       <select
                         value={newUser.role}
-                        onChange={(e) => setNewUser({ ...newUser, role: e.target.value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT' })}
+                        onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT' }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
                       >
                         <option value="SUPPORT">Support</option>
