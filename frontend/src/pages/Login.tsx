@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 // Force fresh deployment
 
 const Login: React.FC = () => {
@@ -148,7 +148,10 @@ const Login: React.FC = () => {
 
           <div className="text-center">
             <p className="text-xs text-gray-500">
-              Don't have an account? Contact your administrator to create one.
+              Support staff?{' '}
+              <Link to="/signup" className="text-primary font-medium hover:underline">
+                Create an account
+              </Link>
             </p>
           </div>
         </form>

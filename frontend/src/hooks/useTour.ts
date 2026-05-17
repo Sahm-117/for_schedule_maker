@@ -13,7 +13,7 @@ export function useTour(isAdmin: boolean, isSopPreparer: boolean, loading: boole
           {
             element: 'header',
             popover: {
-              title: 'Welcome to FOF SOP Manager',
+              title: 'Welcome to FOF Ops',
               description: 'This is your admin dashboard. You can manage the full programme schedule from here.',
               side: 'bottom' as const,
               align: 'start' as const,
@@ -108,7 +108,7 @@ export function useTour(isAdmin: boolean, isSopPreparer: boolean, loading: boole
           {
             element: 'header',
             popover: {
-              title: 'Welcome to FOF SOP Manager!',
+              title: 'Welcome to FOF Ops!',
               description: 'This is your personal schedule. You only see activities assigned to your support group.',
               side: 'bottom' as const,
               align: 'start' as const,
