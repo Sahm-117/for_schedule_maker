@@ -20,7 +20,7 @@ const PWAUpdateBanner: React.FC = () => {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
-            onClick={() => updateServiceWorker(true)}
+            onClick={async () => { await updateServiceWorker(true); window.location.reload(); }}
             className="px-3 py-1 bg-white text-primary text-xs font-bold rounded-lg hover:bg-gray-100"
           >
             Refresh
