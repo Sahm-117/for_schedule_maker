@@ -246,25 +246,28 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
               {error && <p className="text-xs text-red-600">{error}</p>}
 
               {/* Notify toggle */}
-              <button
-                type="button"
-                onClick={() => setNotifyUsers((v) => !v)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm transition-colors ${
-                  notifyUsers
-                    ? 'bg-orange-50 border-primary text-orange-900'
-                    : 'bg-white border-gray-200 text-gray-500'
-                }`}
-              >
-                <span className="flex items-center gap-2">
+              <label className={`flex items-center justify-between px-3 py-2.5 rounded-lg border cursor-pointer select-none transition-colors ${
+                notifyUsers ? 'bg-orange-50 border-primary' : 'bg-white border-gray-200'
+              }`}>
+                <span className={`flex items-center gap-2 text-sm font-medium ${notifyUsers ? 'text-orange-900' : 'text-gray-600'}`}>
                   <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
-                  <span className="font-medium">Notify all users</span>
+                  Notify all users
                 </span>
-                <span className={`w-9 h-5 rounded-full relative transition-colors ${notifyUsers ? 'bg-primary' : 'bg-gray-300'}`}>
-                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${notifyUsers ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                <input
+                  type="checkbox"
+                  checked={notifyUsers}
+                  onChange={(e) => setNotifyUsers(e.target.checked)}
+                  className="sr-only"
+                />
+                <span
+                  aria-hidden="true"
+                  style={{ width: 40, height: 22, flexShrink: 0, borderRadius: 11, backgroundColor: notifyUsers ? '#FF914D' : '#D1D5DB', position: 'relative', display: 'inline-block', transition: 'background-color 0.2s' }}
+                >
+                  <span style={{ position: 'absolute', top: 3, left: notifyUsers ? 21 : 3, width: 16, height: 16, borderRadius: '50%', backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)', transition: 'left 0.2s' }} />
                 </span>
-              </button>
+              </label>
 
               <button
                 type="submit"
