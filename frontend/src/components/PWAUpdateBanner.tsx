@@ -1,40 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const PWAUpdateBanner: React.FC = () => {
-  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW();
 
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
-
-    navigator.serviceWorker.ready.then((reg) => {
-      // Check for an already-waiting worker on load
-      if (reg.waiting) {
-        setWaitingWorker(reg.waiting);
-      }
-
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        if (!newWorker) return;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            setWaitingWorker(newWorker);
-          }
-        });
-      });
-    });
-  }, []);
-
-  const applyUpdate = () => {
-    if (!waitingWorker) return;
-    waitingWorker.postMessage({ type: 'SKIP_WAITING' });
-    waitingWorker.addEventListener('statechange', () => {
-      if (waitingWorker.state === 'activated') window.location.reload();
-    });
-    // Fallback reload
-    setTimeout(() => window.location.reload(), 1000);
-  };
-
-  if (!waitingWorker) return null;
+  if (!needRefresh) return null;
 
   return (
     <div className="fixed top-4 left-4 right-4 z-50 max-w-md mx-auto">
@@ -45,12 +18,23 @@ const PWAUpdateBanner: React.FC = () => {
           </svg>
           <p className="text-sm font-medium">New version available</p>
         </div>
-        <button
-          onClick={applyUpdate}
-          className="flex-shrink-0 px-3 py-1 bg-white text-primary text-xs font-bold rounded-lg hover:bg-gray-100"
-        >
-          Refresh
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => updateServiceWorker(true)}
+            className="px-3 py-1 bg-white text-primary text-xs font-bold rounded-lg hover:bg-gray-100"
+          >
+            Refresh
+          </button>
+          <button
+            onClick={() => setNeedRefresh(false)}
+            className="p-1 text-white/70 hover:text-white"
+            aria-label="Dismiss"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

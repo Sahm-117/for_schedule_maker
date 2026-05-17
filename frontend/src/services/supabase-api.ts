@@ -1667,6 +1667,14 @@ export const resourcesApi = {
     const { error } = await supabase.from('Resource').delete().eq('id', resourceId);
     if (error) throw new Error(error.message);
   },
+
+  async getNewCount(since?: string): Promise<number> {
+    let query = supabase.from('Resource').select('id', { count: 'exact', head: true });
+    if (since) query = (query as any).gt('createdAt', since);
+    const { count, error } = await query;
+    if (error) return 0;
+    return count ?? 0;
+  },
 };
 
 // Auth token management (mock for now)

@@ -3,9 +3,12 @@ import { resourcesApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import type { Resource } from '../types';
 
+const LAST_SEEN_KEY = 'fof_resources_last_seen';
+
 interface ResourceHubModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onViewed?: () => void;
 }
 
 type AddMode = 'link' | 'file';
@@ -52,7 +55,7 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose }) => {
+const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, onViewed }) => {
   const { user, isAdmin } = useAuth();
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(false);
@@ -80,6 +83,9 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose }) 
     setShowAdd(false);
     setError('');
     load();
+    // Mark as seen
+    localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString());
+    onViewed?.();
   }, [isOpen]);
 
   const resetForm = () => {

@@ -299,6 +299,7 @@ export const resourcesApi = USE_SUPABASE ? supabaseResourcesApi : {
   async addLink(_input: any): Promise<any> { return {}; },
   async uploadFile(_input: any): Promise<any> { return {}; },
   async delete(_id: string): Promise<void> {},
+  async getNewCount(_since?: string): Promise<number> { return 0; },
 };
 
 export const digestApi = USE_SUPABASE ? supabaseDigestApi : {

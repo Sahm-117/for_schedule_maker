@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../hooks/useAuth';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useTour } from '../hooks/useTour';
-import { weeksApi, rejectedChangesApi, settingsApi, pendingChangesApi, digestApi } from '../services/api';
+import { weeksApi, rejectedChangesApi, settingsApi, pendingChangesApi, digestApi, resourcesApi } from '../services/api';
 import type { Week, RejectedChange, PendingChange, DailyDigestCursor, DailyDigestFunctionResponse } from '../types';
 import { supabase } from '../lib/supabase';
 import WeekSelector from '../components/WeekSelector';
@@ -34,6 +34,7 @@ const Dashboard: React.FC = () => {
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [showResourceHub, setShowResourceHub] = useState(false);
+  const [newResourceCount, setNewResourceCount] = useState(0);
   const [digestSending, setDigestSending] = useState(false);
   const [digestEnabled, setDigestEnabled] = useState(true);
   const [digestToggleLoading, setDigestToggleLoading] = useState(false);
@@ -184,6 +185,11 @@ const Dashboard: React.FC = () => {
       window.clearInterval(intervalId);
     };
   }, [isAdmin, realtimeHealthy, refreshAdminData]);
+
+  useEffect(() => {
+    const since = localStorage.getItem('fof_resources_last_seen') ?? undefined;
+    resourcesApi.getNewCount(since).then((count) => setNewResourceCount(count)).catch(() => {});
+  }, []);
 
   const handleWeekSelect = async (weekId: number) => {
     try {
@@ -337,37 +343,47 @@ const Dashboard: React.FC = () => {
                 type="button"
                 onClick={() => setShowResourceHub(true)}
                 title="Resource Hub"
-                className="text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100 border border-gray-200"
+                className="relative text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100 border border-gray-200"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
+                {newResourceCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-white text-[10px] font-bold">
+                    {newResourceCount > 9 ? '9+' : newResourceCount}
+                  </span>
+                )}
               </button>
-              <button
-                type="button"
-                onClick={startTour}
-                title="Take a tour"
-                className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 border border-gray-200"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </button>
-              {isAdmin && (
+
+              {/* Admin + Tour grouped on desktop */}
+              <div className="flex items-center gap-2 sm:gap-0">
+                {isAdmin && (
+                  <button
+                    type="button"
+                    data-tour="admin-actions"
+                    onClick={() => setShowAdminActions(true)}
+                    className="flex items-center text-primary hover:text-primary-dark p-2 rounded-md sm:rounded-r-none border border-primary hover:bg-primary/5"
+                    title="Admin Actions"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="hidden sm:inline ml-1 text-xs font-medium">Admin</span>
+                  </button>
+                )}
                 <button
                   type="button"
-                  data-tour="admin-actions"
-                  onClick={() => setShowAdminActions(true)}
-                  className="text-primary hover:text-primary-dark p-2 rounded-md border border-primary hover:bg-primary/5"
-                  title="Admin Actions"
+                  onClick={startTour}
+                  title="Take a tour"
+                  className={`flex items-center text-gray-400 hover:text-gray-600 p-2 border border-gray-200 hover:bg-gray-100 ${isAdmin ? 'rounded-md sm:rounded-l-none sm:border-l-0' : 'rounded-full'}`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className="hidden sm:inline ml-1 text-xs font-medium">Admin</span>
                 </button>
-              )}
+              </div>
+
               <button
                 onClick={logout}
                 className="text-gray-500 hover:text-gray-700 p-2 rounded-md border border-gray-300 hover:bg-gray-50"
@@ -448,7 +464,29 @@ const Dashboard: React.FC = () => {
             />
           </div>
 
-          <div className="lg:col-span-3 order-2" data-tour="schedule-view">
+          <div className="lg:col-span-3 order-2 space-y-4" data-tour="schedule-view">
+            {newResourceCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowResourceHub(true)}
+                className="w-full flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 text-left hover:bg-orange-100 transition-colors"
+              >
+                <span className="flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-orange-500 text-white">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-orange-800">
+                    {newResourceCount === 1 ? '1 new resource' : `${newResourceCount} new resources`} in the Resource Hub
+                  </p>
+                  <p className="text-xs text-orange-600">Tap to view</p>
+                </div>
+                <svg className="w-4 h-4 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
             {selectedWeek ? (
               <ScheduleView
                 week={selectedWeek}
@@ -504,7 +542,7 @@ const Dashboard: React.FC = () => {
         onClose={() => setShowAnnouncements(false)}
       />
 
-      <ResourceHubModal isOpen={showResourceHub} onClose={() => setShowResourceHub(false)} />
+      <ResourceHubModal isOpen={showResourceHub} onClose={() => setShowResourceHub(false)} onViewed={() => setNewResourceCount(0)} />
       <PWAInstallBanner />
       <PWAUpdateBanner />
     </div>
