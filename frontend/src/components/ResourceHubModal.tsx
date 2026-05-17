@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { resourcesApi } from '../services/api';
+import { resourcesApi, announcementsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import type { Resource } from '../types';
 
@@ -68,6 +68,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [notifyUsers, setNotifyUsers] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = () => {
@@ -94,6 +95,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
     setUrl('');
     setFile(null);
     setError('');
+    setNotifyUsers(false);
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -110,6 +112,17 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
       } else {
         if (!file) { setError('Please select a file.'); setSaving(false); return; }
         await resourcesApi.uploadFile({ title: title.trim(), description: description.trim() || undefined, file, addedBy: user.id });
+      }
+      if (notifyUsers && user) {
+        try {
+          await announcementsApi.send(
+            'New resource added',
+            `"${title.trim()}" has been added to the Resource Hub. Open the app to view it.`,
+            user.id,
+          );
+        } catch {
+          // notification failure is non-blocking
+        }
       }
       resetForm();
       setShowAdd(false);
@@ -231,6 +244,27 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
               )}
 
               {error && <p className="text-xs text-red-600">{error}</p>}
+
+              {/* Notify toggle */}
+              <button
+                type="button"
+                onClick={() => setNotifyUsers((v) => !v)}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm transition-colors ${
+                  notifyUsers
+                    ? 'bg-orange-50 border-primary text-orange-900'
+                    : 'bg-white border-gray-200 text-gray-500'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  <span className="font-medium">Notify all users</span>
+                </span>
+                <span className={`w-9 h-5 rounded-full relative transition-colors ${notifyUsers ? 'bg-primary' : 'bg-gray-300'}`}>
+                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${notifyUsers ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                </span>
+              </button>
 
               <button
                 type="submit"
