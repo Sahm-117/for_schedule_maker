@@ -4,6 +4,8 @@ import { authApi } from '../services/api';
 
 type ContactMethod = 'email' | 'phone';
 
+const isValidNigerianPhone = (value: string) => /^0[7-9][0-1]\d{8}$/.test(value);
+
 const Signup: React.FC = () => {
   const [contactMethod, setContactMethod] = useState<ContactMethod>('email');
   const [name, setName] = useState('');
@@ -29,6 +31,10 @@ const Signup: React.FC = () => {
     }
     if (!contact.trim()) {
       setError(`Please enter your ${contactMethod === 'email' ? 'email address' : 'phone number'}.`);
+      return;
+    }
+    if (contactMethod === 'phone' && !isValidNigerianPhone(contact.trim())) {
+      setError('Enter a valid Nigerian phone number (e.g. 08012345678).');
       return;
     }
     setLoading(true);
@@ -147,9 +153,17 @@ const Signup: React.FC = () => {
                     onChange={(e) => setContact(e.target.value.replace(/[^0-9]/g, ''))}
                     placeholder="08100000000"
                     maxLength={11}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    className={`w-full px-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
+                      contact.length > 0 && !isValidNigerianPhone(contact)
+                        ? 'border-red-400 bg-red-50'
+                        : 'border-gray-300'
+                    }`}
                   />
-                  <p className="mt-1 text-xs text-gray-400">Use this number to log in — don't forget it.</p>
+                  {contact.length > 0 && !isValidNigerianPhone(contact) ? (
+                    <p className="mt-1 text-xs text-red-500">Must be 11 digits starting with 0 (e.g. 08012345678)</p>
+                  ) : (
+                    <p className="mt-1 text-xs text-gray-400">Use this number to log in — don't forget it.</p>
+                  )}
                 </div>
               )}
 

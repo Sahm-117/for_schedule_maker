@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate, Link } from 'react-router-dom';
-// Force fresh deployment
+
+const isValidNigerianPhone = (value: string) => /^0[7-9][0-1]\d{8}$/.test(value);
+const looksLikePhone = (value: string) => /^[0-9+]/.test(value) && !value.includes('@');
 
 const Login: React.FC = () => {
   const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -15,10 +17,17 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const trimmed = emailOrPhone.trim();
+    if (looksLikePhone(trimmed) && !isValidNigerianPhone(trimmed)) {
+      setError('Enter a valid Nigerian phone number (e.g. 08012345678).');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await login(emailOrPhone.trim().toLowerCase(), password);
+      await login(trimmed.toLowerCase(), password);
       navigate('/');
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || 'Login failed';
