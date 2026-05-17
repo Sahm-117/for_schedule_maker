@@ -339,22 +339,6 @@ const Dashboard: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowResourceHub(true)}
-                title="Resource Hub"
-                className="relative text-gray-500 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100 border border-gray-200"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
-                {newResourceCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-white text-[10px] font-bold">
-                    {newResourceCount > 9 ? '9+' : newResourceCount}
-                  </span>
-                )}
-              </button>
-
               {/* Admin + Tour grouped on desktop */}
               <div className="flex items-center gap-2 sm:gap-0">
                 {isAdmin && (
@@ -386,7 +370,7 @@ const Dashboard: React.FC = () => {
 
               <button
                 onClick={logout}
-                className="text-gray-500 hover:text-gray-700 p-2 rounded-md border border-gray-300 hover:bg-gray-50"
+                className="flex items-center text-gray-500 hover:text-gray-700 p-2 rounded-md border border-gray-300 hover:bg-gray-50"
                 title="Logout"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -455,8 +439,58 @@ const Dashboard: React.FC = () => {
           </div>
         )}
 
+        {newResourceCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowResourceHub(true)}
+            className="w-full flex items-center gap-3 bg-orange-50 border border-orange-300 rounded-lg px-4 py-3 text-left hover:bg-orange-100 transition-colors shadow-sm"
+          >
+            <span className="flex-shrink-0 flex h-9 w-9 items-center justify-center rounded-full bg-orange-500 text-white animate-bounce">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-orange-900">
+                {newResourceCount === 1 ? '1 new resource' : `${newResourceCount} new resources`} added to the Resource Hub
+              </p>
+              <p className="text-xs text-orange-700">Tap to open and view</p>
+            </div>
+            <svg className="w-5 h-5 text-orange-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        )}
+
         <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 lg:gap-8">
-          <div className="lg:col-span-1 order-1" data-tour="week-selector">
+          <div className="lg:col-span-1 order-1 space-y-4" data-tour="week-selector">
+            <button
+              type="button"
+              onClick={() => setShowResourceHub(true)}
+              className="w-full flex items-center gap-3 bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+            >
+              <div className="relative flex-shrink-0">
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                </div>
+                {newResourceCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-white text-[10px] font-bold animate-pulse">
+                    {newResourceCount > 9 ? '9+' : newResourceCount}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800">Resource Hub</p>
+                <p className={`text-xs ${newResourceCount > 0 ? 'text-orange-600 font-medium' : 'text-gray-500'}`}>
+                  {newResourceCount > 0 ? `${newResourceCount} new` : 'Links & files'}
+                </p>
+              </div>
+              <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
             <WeekSelector
               weeks={weeks}
               selectedWeek={selectedWeek}
@@ -464,29 +498,7 @@ const Dashboard: React.FC = () => {
             />
           </div>
 
-          <div className="lg:col-span-3 order-2 space-y-4" data-tour="schedule-view">
-            {newResourceCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowResourceHub(true)}
-                className="w-full flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 text-left hover:bg-orange-100 transition-colors"
-              >
-                <span className="flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-orange-500 text-white">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-orange-800">
-                    {newResourceCount === 1 ? '1 new resource' : `${newResourceCount} new resources`} in the Resource Hub
-                  </p>
-                  <p className="text-xs text-orange-600">Tap to view</p>
-                </div>
-                <svg className="w-4 h-4 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            )}
+          <div className="lg:col-span-3 order-2" data-tour="schedule-view">
             {selectedWeek ? (
               <ScheduleView
                 week={selectedWeek}
