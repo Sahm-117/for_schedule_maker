@@ -10,10 +10,6 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       strategies: 'injectManifest',
-      injectManifest: {
-        swSrc: 'src/sw.ts',
-        swDest: 'sw.js',
-      },
       manifest: {
         name: 'FOF IKD Schedule',
         short_name: 'FOF Schedule',
