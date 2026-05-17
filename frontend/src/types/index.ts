@@ -10,7 +10,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'ADMIN' | 'SUPPORT';
+  role: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT';
   createdAt?: string;
   updatedAt?: string;
   labels?: Label[];
@@ -79,7 +79,7 @@ export interface TelegramNotificationEvent {
   event: 'CHANGE_REQUEST_CREATED' | 'CHANGE_APPROVED' | 'CHANGE_REJECTED' | 'DAILY_DIGEST';
   changeType?: 'ADD' | 'EDIT' | 'DELETE';
   actorName?: string;
-  actorRole?: 'ADMIN' | 'SUPPORT' | 'SYSTEM';
+  actorRole?: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT' | 'SYSTEM';
   requestId?: string;
   weekId?: number;
   weekNumber?: number;

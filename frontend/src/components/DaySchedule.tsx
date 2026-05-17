@@ -13,6 +13,7 @@ interface DayScheduleProps {
   onEditActivity: (activity: Activity, day?: Day) => void;
   onRefresh: () => void;
   isAdmin: boolean;
+  canEdit?: boolean;
   weekNumber: number;
   isExpanded: boolean;
   onToggleExpansion: () => void;
@@ -26,6 +27,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   onEditActivity,
   onRefresh,
   isAdmin,
+  canEdit = false,
   weekNumber,
   isExpanded,
   onToggleExpansion,
@@ -217,16 +219,18 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
               </span>
             )}
 
-            <button
-              onClick={onAddActivity}
-              className="inline-flex items-center px-3 py-1 border border-primary text-primary bg-white rounded-md hover:bg-primary/5 transition-colors text-sm"
-            >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              <span className="hidden sm:inline">Add Activity</span>
-              <span className="sm:hidden">Add</span>
-            </button>
+            {(isAdmin || canEdit) && (
+              <button
+                onClick={onAddActivity}
+                className="inline-flex items-center px-3 py-1 border border-primary text-primary bg-white rounded-md hover:bg-primary/5 transition-colors text-sm"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                <span className="hidden sm:inline">Add Activity</span>
+                <span className="sm:hidden">Add</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -278,7 +282,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
                         onMoveDown={() => handleMoveActivity(activity, 'down')}
                         canMoveUp={canMoveUpSameTime}
                         canMoveDown={canMoveDownSameTime}
-                        isAdmin={isAdmin}
+                        isAdmin={isAdmin || canEdit}
                       />
                     );
                   })
@@ -290,12 +294,14 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
                     <p className="text-sm text-gray-500">
                       No {period.label.toLowerCase()} activities scheduled
                     </p>
-                    <button
-                      onClick={onAddActivity}
-                      className="mt-2 text-primary hover:text-primary-dark text-sm font-medium"
-                    >
-                      Add the first activity
-                    </button>
+                    {(isAdmin || canEdit) && (
+                      <button
+                        onClick={onAddActivity}
+                        className="mt-2 text-primary hover:text-primary-dark text-sm font-medium"
+                      >
+                        Add the first activity
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

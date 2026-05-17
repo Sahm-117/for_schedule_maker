@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isAdmin: boolean;
+  isSopPreparer: boolean;
   userLabelIds: string[];
 }
 
@@ -31,7 +32,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [userLabelIds, setUserLabelIds] = useState<string[]>([]);
 
   const fetchUserLabels = async (userId: string, role: string) => {
-    if (role === 'ADMIN') {
+    if (role !== 'SUPPORT') {
       setUserLabelIds([]);
       return;
     }
@@ -91,6 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     isAdmin: user?.role === 'ADMIN',
+    isSopPreparer: user?.role === 'SOP_PREPARER',
     userLabelIds,
   };
 

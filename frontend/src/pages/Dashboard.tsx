@@ -15,7 +15,7 @@ import AdminActionsSheet from '../components/AdminActionsSheet';
 import NotificationSettings from '../components/NotificationSettings';
 
 const Dashboard: React.FC = () => {
-  const { user, logout, isAdmin, userLabelIds } = useAuth();
+  const { user, logout, isAdmin, isSopPreparer, userLabelIds } = useAuth();
   usePushNotifications(user?.id, user?.role);
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<Week | null>(null);
@@ -35,7 +35,7 @@ const Dashboard: React.FC = () => {
   const [digestCursor, setDigestCursor] = useState<DailyDigestCursor | null>(null);
   const [digestActionLabel, setDigestActionLabel] = useState<'Send Digest Now' | 'Restart Digest'>('Send Digest Now');
   const [realtimeHealthy, setRealtimeHealthy] = useState(false);
-  const { startTour } = useTour(isAdmin, loading);
+  const { startTour } = useTour(isAdmin, isSopPreparer, loading);
 
   const refreshTimeoutRef = useRef<number | null>(null);
 
@@ -109,7 +109,7 @@ const Dashboard: React.FC = () => {
 
         if (isAdmin) {
           await Promise.all([loadDigestStatus(), loadGlobalPendingChanges()]);
-        } else {
+        } else if (isSopPreparer) {
           await loadRejectedChanges();
         }
       } catch (error) {
@@ -129,12 +129,12 @@ const Dashboard: React.FC = () => {
   }, [isAdmin, loadDigestStatus, loadGlobalPendingChanges, loadRejectedChanges, loadWeeks]);
 
   useEffect(() => {
-    if (isAdmin || !selectedWeek) return;
+    if (!isSopPreparer || !selectedWeek) return;
 
     loadWeekPendingChanges(selectedWeek.id).catch((error) => {
       console.error('Failed to load week pending changes:', error);
     });
-  }, [isAdmin, selectedWeek, loadWeekPendingChanges]);
+  }, [isSopPreparer, selectedWeek, loadWeekPendingChanges]);
 
   useEffect(() => {
     if (!isAdmin || !(supabase as any)) return;
@@ -184,7 +184,7 @@ const Dashboard: React.FC = () => {
       const response = await weeksApi.getById(weekId);
       setSelectedWeek(response.week);
 
-      if (!isAdmin) {
+      if (isSopPreparer) {
         await loadWeekPendingChanges(response.week.id);
       }
     } catch (error) {
@@ -320,8 +320,12 @@ const Dashboard: React.FC = () => {
                 alt="The Covenant Nation"
                 className="ml-3 h-8 w-8 rounded bg-white p-1 border border-gray-200 object-contain shrink-0"
               />
-              <span className={`ml-2 sm:ml-3 px-2 py-1 text-xs font-semibold rounded-full ${isAdmin ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
-                {isAdmin ? 'Admin' : 'SOP Preparer'}
+              <span className={`ml-2 sm:ml-3 px-2 py-1 text-xs font-semibold rounded-full ${
+                isAdmin ? 'bg-orange-100 text-orange-700'
+                : isSopPreparer ? 'bg-indigo-100 text-indigo-700'
+                : 'bg-blue-100 text-blue-700'
+              }`}>
+                {isAdmin ? 'Admin' : isSopPreparer ? 'SOP Preparer' : 'Support'}
               </span>
             </div>
 
@@ -392,7 +396,7 @@ const Dashboard: React.FC = () => {
         </div>
       </header>
 
-      {!isAdmin && unreadCount > 0 && (
+      {isSopPreparer && unreadCount > 0 && (
         <RejectedChangesNotification
           rejectedChanges={rejectedChanges}
           unreadCount={unreadCount}
@@ -431,7 +435,8 @@ const Dashboard: React.FC = () => {
                 onWeekUpdate={loadWeeks}
                 onPendingChangesRefresh={handlePendingChangesRefresh}
                 isAdmin={isAdmin}
-                filterLabelIds={isAdmin ? undefined : userLabelIds}
+                canEdit={isAdmin || isSopPreparer}
+                filterLabelIds={isAdmin || isSopPreparer ? undefined : userLabelIds}
               />
             ) : (
               <div className="bg-white rounded-lg shadow p-8 text-center">

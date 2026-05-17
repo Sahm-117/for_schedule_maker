@@ -28,7 +28,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
     email: '',
     phone: '',
     password: '',
-    role: 'SUPPORT' as 'ADMIN' | 'SUPPORT',
+    role: 'SUPPORT' as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT',
   });
 
   useEffect(() => {
@@ -143,7 +143,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: 'ADMIN' | 'SUPPORT') => {
+  const handleRoleChange = async (userId: string, newRole: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT') => {
     setLoading(true);
     setError('');
     setSuccess('');
@@ -249,10 +249,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
                       <select
                         value={newUser.role}
-                        onChange={(e) => setNewUser({ ...newUser, role: e.target.value as 'ADMIN' | 'SUPPORT' })}
+                        onChange={(e) => setNewUser({ ...newUser, role: e.target.value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT' })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
                       >
-                        <option value="SUPPORT">SOP Preparer</option>
+                        <option value="SUPPORT">Support</option>
+                        <option value="SOP_PREPARER">SOP Preparer</option>
                         <option value="ADMIN">Admin</option>
                       </select>
                     </div>
@@ -321,11 +322,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <select
                             value={user.role}
-                            onChange={(e) => handleRoleChange(user.id, e.target.value as 'ADMIN' | 'SUPPORT')}
+                            onChange={(e) => handleRoleChange(user.id, e.target.value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT')}
                             className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-primary focus:border-primary"
                             disabled={loading}
                           >
                             <option value="SUPPORT">Support</option>
+                            <option value="SOP_PREPARER">SOP Preparer</option>
                             <option value="ADMIN">Admin</option>
                           </select>
                         </td>
@@ -393,9 +395,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      selectedUser.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                      selectedUser.role === 'ADMIN' ? 'bg-orange-100 text-orange-700'
+                      : selectedUser.role === 'SOP_PREPARER' ? 'bg-indigo-100 text-indigo-700'
+                      : 'bg-blue-100 text-blue-700'
                     }`}>
-                      {selectedUser.role === 'ADMIN' ? 'Admin' : 'SOP Preparer'}
+                      {selectedUser.role === 'ADMIN' ? 'Admin' : selectedUser.role === 'SOP_PREPARER' ? 'SOP Preparer' : 'Support'}
                     </span>
                   </div>
                 </div>

@@ -4,7 +4,7 @@ import 'driver.js/dist/driver.css';
 
 const TOUR_KEY = 'fof_tour_done';
 
-export function useTour(isAdmin: boolean, loading: boolean) {
+export function useTour(isAdmin: boolean, isSopPreparer: boolean, loading: boolean) {
   const started = useRef(false);
 
   const startTour = (force = false) => {
@@ -65,12 +65,51 @@ export function useTour(isAdmin: boolean, loading: boolean) {
             },
           },
         ]
+      : isSopPreparer
+      ? [
+          {
+            element: 'header',
+            popover: {
+              title: 'Welcome, SOP Preparer!',
+              description: 'You can view the full programme schedule and submit change requests for admin approval.',
+              side: 'bottom' as const,
+              align: 'start' as const,
+            },
+          },
+          {
+            element: '[data-tour="week-selector"]',
+            popover: {
+              title: 'Week Selector',
+              description: 'Browse all 8 weeks of the FOF programme here.',
+              side: 'right' as const,
+              align: 'start' as const,
+            },
+          },
+          {
+            element: '[data-tour="schedule-view"]',
+            popover: {
+              title: 'Full Schedule',
+              description: "You see all activities. Click the edit or delete icon on any activity to propose a change — it goes to admin for approval.",
+              side: 'left' as const,
+              align: 'start' as const,
+            },
+          },
+          {
+            element: '[data-tour="export-week"]',
+            popover: {
+              title: 'Export Schedule',
+              description: 'Export the full week or all weeks as a PDF.',
+              side: 'bottom' as const,
+              align: 'end' as const,
+            },
+          },
+        ]
       : [
           {
             element: 'header',
             popover: {
-              title: 'Welcome to FOF SOP Manager',
-              description: 'This is your personal schedule view. You only see activities assigned to your support group.',
+              title: 'Welcome to FOF SOP Manager!',
+              description: 'This is your personal schedule. You only see activities assigned to your support group.',
               side: 'bottom' as const,
               align: 'start' as const,
             },
@@ -87,8 +126,8 @@ export function useTour(isAdmin: boolean, loading: boolean) {
           {
             element: '[data-tour="schedule-view"]',
             popover: {
-              title: 'Your Schedule',
-              description: 'Your activities are shown here. Only activities tagged with your support group appear.',
+              title: 'Your Activities',
+              description: 'Only activities tagged with your support group appear here.',
               side: 'left' as const,
               align: 'start' as const,
             },
@@ -124,7 +163,6 @@ export function useTour(isAdmin: boolean, loading: boolean) {
     if (loading || started.current) return;
     if (localStorage.getItem(TOUR_KEY)) return;
     started.current = true;
-    // slight delay so DOM elements have rendered
     const t = setTimeout(() => startTour(false), 800);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps

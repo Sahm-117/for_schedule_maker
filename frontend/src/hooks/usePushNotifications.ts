@@ -14,7 +14,7 @@ export const usePushNotifications = (userId: string | undefined, role: string | 
   const attempted = useRef(false)
 
   useEffect(() => {
-    if (!userId || role === 'ADMIN' || attempted.current) return
+    if (!userId || role !== 'SUPPORT' || attempted.current) return
     if (!VAPID_PUBLIC_KEY) return
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
 

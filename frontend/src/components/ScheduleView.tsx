@@ -13,6 +13,7 @@ interface ScheduleViewProps {
   onWeekUpdate: () => void;
   onPendingChangesRefresh: () => void;
   isAdmin: boolean;
+  canEdit?: boolean;
   filterLabelIds?: string[];
 }
 
@@ -23,6 +24,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   onWeekUpdate,
   onPendingChangesRefresh,
   isAdmin,
+  canEdit = false,
   filterLabelIds,
 }) => {
   const { userLabelIds } = useAuth();
@@ -154,7 +156,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               </span>
             )}
 
-            {isAdmin ? (
+            {(isAdmin || canEdit) ? (
               <>
                 <button
                   data-tour="export-week"
@@ -243,6 +245,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               onEditActivity={handleEditActivity}
               onRefresh={handleRefresh}
               isAdmin={isAdmin}
+              canEdit={canEdit}
               weekNumber={week.weekNumber}
               isExpanded={expandedDays.has(day.id)}
               onToggleExpansion={() => toggleDayExpansion(day.id)}
