@@ -22,6 +22,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
   const [showPasswordInForm, setShowPasswordInForm] = useState(false);
 
   const [newUserLabelIds, setNewUserLabelIds] = useState<string[]>([]);
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState('');
+  const [resetPasswordSaving, setResetPasswordSaving] = useState(false);
 
   const [newUser, setNewUser] = useState({
     name: '',
@@ -123,6 +126,25 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (userId: string) => {
+    if (resetPasswordValue.length < 6) {
+      setError('New password must be at least 6 characters.');
+      return;
+    }
+    setResetPasswordSaving(true);
+    setError('');
+    try {
+      await usersApi.update(userId, { password: resetPasswordValue });
+      setSuccess('Password reset successfully.');
+      setResetPasswordUserId(null);
+      setResetPasswordValue('');
+    } catch (err: any) {
+      setError(err.message || 'Failed to reset password.');
+    } finally {
+      setResetPasswordSaving(false);
     }
   };
 
@@ -334,9 +356,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
+                        <td className="px-6 py-4 text-right text-sm space-x-2">
                           <button onClick={() => openUserDetails(user)} className="text-blue-600 hover:text-blue-900">
                             Manage
+                          </button>
+                          <button
+                            onClick={() => { setResetPasswordUserId(user.id); setResetPasswordValue(''); setError(''); }}
+                            className="text-orange-500 hover:text-orange-700"
+                          >
+                            Reset PW
                           </button>
                           <button
                             onClick={() => handleDeleteUser(user.id, user.name)}
@@ -345,6 +373,30 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose }) => {
                           >
                             Delete
                           </button>
+                          {resetPasswordUserId === user.id && (
+                            <div className="mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="text"
+                                value={resetPasswordValue}
+                                onChange={(e) => setResetPasswordValue(e.target.value)}
+                                placeholder="New password (min 6)"
+                                className="text-sm border border-gray-300 rounded px-2 py-1 w-40 focus:outline-none focus:ring-1 focus:ring-primary"
+                              />
+                              <button
+                                onClick={() => handleResetPassword(user.id)}
+                                disabled={resetPasswordSaving}
+                                className="text-xs px-2 py-1 bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50"
+                              >
+                                {resetPasswordSaving ? '...' : 'Save'}
+                              </button>
+                              <button
+                                onClick={() => { setResetPasswordUserId(null); setResetPasswordValue(''); }}
+                                className="text-xs text-gray-400 hover:text-gray-600"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}

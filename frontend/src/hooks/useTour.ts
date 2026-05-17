@@ -3,8 +3,9 @@ import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 
 const TOUR_KEY = 'fof_tour_done';
+const PROMPTED_KEY = 'fof_notif_prompted';
 
-export function useTour(isAdmin: boolean, isSopPreparer: boolean, loading: boolean) {
+export function useTour(isAdmin: boolean, isSopPreparer: boolean, loading: boolean, notifPromptShowing: boolean = false) {
   const started = useRef(false);
 
   const startTour = (force = false) => {
@@ -160,13 +161,14 @@ export function useTour(isAdmin: boolean, isSopPreparer: boolean, loading: boole
   };
 
   useEffect(() => {
-    if (loading || started.current) return;
+    if (loading || started.current || notifPromptShowing) return;
     if (localStorage.getItem(TOUR_KEY)) return;
+    if (!localStorage.getItem(PROMPTED_KEY)) return;
     started.current = true;
     const t = setTimeout(() => startTour(false), 800);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading]);
+  }, [loading, notifPromptShowing]);
 
   return { startTour: () => startTour(true) };
 }

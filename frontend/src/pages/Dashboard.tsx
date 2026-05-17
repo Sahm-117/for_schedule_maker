@@ -43,7 +43,7 @@ const Dashboard: React.FC = () => {
   const [digestCursor, setDigestCursor] = useState<DailyDigestCursor | null>(null);
   const [digestActionLabel, setDigestActionLabel] = useState<'Send Digest Now' | 'Restart Digest'>('Send Digest Now');
   const [realtimeHealthy, setRealtimeHealthy] = useState(false);
-  const { startTour } = useTour(isAdmin, isSopPreparer, loading);
+  const { startTour } = useTour(isAdmin, isSopPreparer, loading, showPrompt);
 
   const refreshTimeoutRef = useRef<number | null>(null);
 
