@@ -67,16 +67,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return;
     }
 
+    setAuthToken(token);
+
     try {
-      setAuthToken(token);
       const response = await authApi.getMe();
       localStorage.setItem('user', JSON.stringify(response.user));
       setUser(response.user);
       await fetchUserLabels(response.user.id, response.user.role);
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      clearAuthToken();
-      localStorage.removeItem('user');
+    } catch {
+      // Network/DB unavailable — restore from cache so PWA stays signed in
+      const cached = localStorage.getItem('user');
+      if (cached) {
+        try {
+          const cachedUser = JSON.parse(cached);
+          setUser(cachedUser);
+          await fetchUserLabels(cachedUser.id, cachedUser.role);
+        } catch {
+          clearAuthToken();
+          localStorage.removeItem('user');
+        }
+      } else {
+        clearAuthToken();
+      }
     } finally {
       setLoading(false);
     }
