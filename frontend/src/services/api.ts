@@ -15,6 +15,7 @@ import {
   usersApi as supabaseUsersApi,
   pushSubscriptionsApi as supabasePushSubscriptionsApi,
   notificationSettingsApi as supabaseNotificationSettingsApi,
+  announcementsApi as supabaseAnnouncementsApi,
   setAuthToken as supabaseSetAuthToken,
   clearAuthToken as supabaseClearAuthToken,
 } from './supabase-api';
@@ -285,6 +286,11 @@ export const pushSubscriptionsApi = USE_SUPABASE ? supabasePushSubscriptionsApi 
 export const notificationSettingsApi = USE_SUPABASE ? supabaseNotificationSettingsApi : {
   async get(): Promise<{ remindBeforeMinutes: number[] }> { return { remindBeforeMinutes: [60] }; },
   async set(minutes: number[]): Promise<{ remindBeforeMinutes: number[] }> { return { remindBeforeMinutes: minutes }; },
+};
+
+export const announcementsApi = USE_SUPABASE ? supabaseAnnouncementsApi : {
+  async send(_subject: string, _body: string, _sentBy: string): Promise<{ sent: number }> { return { sent: 0 }; },
+  async getHistory(): Promise<{ announcements: import('../types').Announcement[] }> { return { announcements: [] }; },
 };
 
 export const digestApi = USE_SUPABASE ? supabaseDigestApi : {

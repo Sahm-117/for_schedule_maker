@@ -213,6 +213,16 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
           </button>
 
           <div className="flex items-center gap-2">
+            {!isExpanded && (() => {
+              const visibleCount = filterLabelIds && filterLabelIds.length > 0
+                ? day.activities.filter((a) => a.labels?.some((l) => filterLabelIds.includes(l.id))).length
+                : day.activities.length;
+              return visibleCount > 0 ? (
+                <span className="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold">
+                  {visibleCount}
+                </span>
+              ) : null;
+            })()}
             {getAddPendingChanges().length > 0 && (
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                 {getAddPendingChanges().length} pending

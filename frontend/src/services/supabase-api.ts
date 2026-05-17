@@ -1575,6 +1575,26 @@ export const notificationSettingsApi = {
   },
 };
 
+export const announcementsApi = {
+  async send(subject: string, body: string, sentBy: string): Promise<{ sent: number }> {
+    const { data, error } = await supabase.functions.invoke('send-announcement', {
+      body: { subject, body, sentBy },
+    });
+    if (error) throw new Error(error.message);
+    return { sent: (data as any)?.sent ?? 0 };
+  },
+
+  async getHistory(): Promise<{ announcements: import('../types').Announcement[] }> {
+    const { data, error } = await supabase
+      .from('Announcement')
+      .select('*')
+      .order('sentAt', { ascending: false })
+      .limit(20);
+    if (error) throw new Error(error.message);
+    return { announcements: (data as any[]) ?? [] };
+  },
+};
+
 // Auth token management (mock for now)
 export const setAuthToken = (token: string) => {
   localStorage.setItem('accessToken', token);

@@ -92,6 +92,14 @@ export interface TelegramNotificationEvent {
   pdfUrl?: string;
 }
 
+export interface Announcement {
+  id: string;
+  subject: string;
+  body: string;
+  sentAt: string;
+  sentBy?: string;
+}
+
 export interface DailyDigestCursor {
   weekNumber: number;
   dayName: string;

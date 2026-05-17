@@ -13,6 +13,8 @@ import LabelManagement from '../components/LabelManagement';
 import PendingChangesPanel from '../components/PendingChangesPanel';
 import AdminActionsSheet from '../components/AdminActionsSheet';
 import NotificationSettings from '../components/NotificationSettings';
+import AnnouncementsModal from '../components/AnnouncementsModal';
+import PWAInstallBanner from '../components/PWAInstallBanner';
 
 const Dashboard: React.FC = () => {
   const { user, logout, isAdmin, isSopPreparer, userLabelIds } = useAuth();
@@ -28,6 +30,7 @@ const Dashboard: React.FC = () => {
   const [showLabelManagement, setShowLabelManagement] = useState(false);
   const [showAdminActions, setShowAdminActions] = useState(false);
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+  const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [digestSending, setDigestSending] = useState(false);
   const [digestEnabled, setDigestEnabled] = useState(true);
   const [digestToggleLoading, setDigestToggleLoading] = useState(false);
@@ -459,6 +462,7 @@ const Dashboard: React.FC = () => {
         onOpenLabels={() => setShowLabelManagement(true)}
         onOpenUsers={() => setShowUserManagement(true)}
         onOpenNotificationSettings={() => setShowNotificationSettings(true)}
+        onOpenAnnouncements={() => setShowAnnouncements(true)}
       />
 
       <UserManagement
@@ -475,6 +479,13 @@ const Dashboard: React.FC = () => {
         isOpen={showNotificationSettings}
         onClose={() => setShowNotificationSettings(false)}
       />
+
+      <AnnouncementsModal
+        isOpen={showAnnouncements}
+        onClose={() => setShowAnnouncements(false)}
+      />
+
+      <PWAInstallBanner />
     </div>
   );
 };

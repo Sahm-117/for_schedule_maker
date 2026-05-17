@@ -12,6 +12,7 @@ interface AdminActionsSheetProps {
   onOpenLabels: () => void;
   onOpenUsers: () => void;
   onOpenNotificationSettings: () => void;
+  onOpenAnnouncements: () => void;
 }
 
 const AdminActionsSheet: React.FC<AdminActionsSheetProps> = ({
@@ -26,6 +27,7 @@ const AdminActionsSheet: React.FC<AdminActionsSheetProps> = ({
   onOpenLabels,
   onOpenUsers,
   onOpenNotificationSettings,
+  onOpenAnnouncements,
 }) => {
   if (!isOpen) return null;
 
@@ -120,6 +122,17 @@ const AdminActionsSheet: React.FC<AdminActionsSheetProps> = ({
             className="w-full inline-flex items-center justify-center h-11 px-4 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50"
           >
             Notification Settings
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onOpenAnnouncements();
+              onClose();
+            }}
+            className="w-full inline-flex items-center justify-center h-11 px-4 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50"
+          >
+            📢 Announcements
           </button>
         </div>
       </div>
