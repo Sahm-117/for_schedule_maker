@@ -9,6 +9,7 @@ export interface Label {
 export interface User {
   id: string;
   email: string;
+  phone?: string;
   name: string;
   role: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT';
   createdAt?: string;

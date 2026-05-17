@@ -2,14 +2,23 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../services/api';
 
+type ContactMethod = 'email' | 'phone';
+
 const Signup: React.FC = () => {
+  const [contactMethod, setContactMethod] = useState<ContactMethod>('email');
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [contact, setContact] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+
+  const handleMethodSwitch = (method: ContactMethod) => {
+    setContactMethod(method);
+    setContact('');
+    setError('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,9 +27,17 @@ const Signup: React.FC = () => {
       setError('Password must be at least 6 characters.');
       return;
     }
+    if (!contact.trim()) {
+      setError(`Please enter your ${contactMethod === 'email' ? 'email address' : 'phone number'}.`);
+      return;
+    }
     setLoading(true);
     try {
-      await authApi.register({ name: name.trim(), email: email.trim().toLowerCase(), password, role: 'SUPPORT' });
+      const payload =
+        contactMethod === 'email'
+          ? { name: name.trim(), email: contact.trim().toLowerCase(), password, role: 'SUPPORT' as const }
+          : { name: name.trim(), phone: contact.trim(), password, role: 'SUPPORT' as const };
+      await authApi.register(payload);
       setDone(true);
     } catch (err: any) {
       setError(err.message || 'Sign up failed. Please try again.');
@@ -35,7 +52,7 @@ const Signup: React.FC = () => {
         <div className="flex justify-center">
           <img src="/logo-mark.png" alt="FOF Ops" className="h-16 w-16 rounded-xl border border-gray-200 p-2 bg-white object-contain" />
         </div>
-        <h2 className="mt-4 text-center text-2xl font-bold text-gray-900">FOF Ops — Support Sign Up</h2>
+        <h2 className="mt-4 text-center text-2xl font-bold text-gray-900">FOF IKD Ops</h2>
         <p className="mt-1 text-center text-sm text-gray-500">Create your Support account</p>
       </div>
 
@@ -49,7 +66,7 @@ const Signup: React.FC = () => {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900">Account created!</h3>
-              <p className="text-sm text-gray-500">You can now log in with your email and password.</p>
+              <p className="text-sm text-gray-500">You can now log in with your {contactMethod === 'email' ? 'email' : 'phone number'} and password.</p>
               <Link
                 to="/login"
                 className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark"
@@ -65,6 +82,35 @@ const Signup: React.FC = () => {
                 </div>
               )}
 
+              {/* Contact method toggle */}
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Sign up with</p>
+                <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => handleMethodSwitch('email')}
+                    className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                      contactMethod === 'email'
+                        ? 'bg-primary text-white'
+                        : 'bg-white text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    Email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMethodSwitch('phone')}
+                    className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                      contactMethod === 'phone'
+                        ? 'bg-primary text-white'
+                        : 'bg-white text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    Phone Number
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                 <input
@@ -77,17 +123,32 @@ const Signup: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
+              {contactMethod === 'email' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                  <input
+                    type="tel"
+                    required
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
+                    placeholder="+234 800 000 0000"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">Use this number to log in — don't forget it.</p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
@@ -123,9 +184,9 @@ const Signup: React.FC = () => {
                 {loading ? 'Creating account...' : 'Create Account'}
               </button>
 
-              <p className="text-center text-sm text-gray-500">
+              <p className="text-center text-xs text-gray-400">
                 Already have an account?{' '}
-                <Link to="/login" className="text-primary font-medium hover:underline">Log in</Link>
+                <Link to="/login" className="text-primary hover:underline">Log in</Link>
               </p>
             </form>
           )}

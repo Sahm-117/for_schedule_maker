@@ -161,35 +161,32 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
                 <button
                   data-tour="export-week"
                   onClick={handleExportWeek}
-                  className="inline-flex items-center px-2 sm:px-4 py-2 border border-green-200 text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-sm"
+                  className="inline-flex items-center justify-center w-9 h-9 border border-green-200 text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
                   title="Export Week"
                 >
-                  <svg className="w-4 h-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <span className="hidden sm:inline">Export Week</span>
                 </button>
 
                 <button
                   onClick={handleExportAllWeeks}
-                  className="inline-flex items-center px-2 sm:px-4 py-2 border border-blue-200 text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-sm"
+                  className="inline-flex items-center justify-center w-9 h-9 border border-blue-200 text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                   title="Export All Weeks"
                 >
-                  <svg className="w-4 h-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <span className="hidden sm:inline">Export All</span>
                 </button>
 
                 <button
                   onClick={handleCrossWeekActivity}
-                  className="inline-flex items-center px-2 sm:px-4 py-2 border border-primary text-primary bg-white rounded-lg hover:bg-primary/5 transition-colors text-sm"
+                  className="inline-flex items-center justify-center w-9 h-9 border border-primary text-primary bg-white rounded-lg hover:bg-primary/5 transition-colors"
                   title="Add Cross-Week Activity"
                 >
-                  <svg className="w-4 h-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
-                  <span className="hidden sm:inline">Cross-Week</span>
                 </button>
               </>
             ) : (

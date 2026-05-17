@@ -167,19 +167,18 @@ export const initializeAuth = async () => {
 
 // Auth API using Supabase Auth
 export const authApi = {
-  async login(email: string, password: string): Promise<AuthResponse> {
-    // Simple auth for now - in production you'd verify against hashed passwords
+  async login(identifier: string, password: string): Promise<AuthResponse> {
+    const normalized = identifier.trim().toLowerCase();
     const { data: users, error } = await supabase
       .from('User')
       .select('*')
-      .eq('email', email)
+      .or(`email.eq.${normalized},phone.eq.${normalized}`)
       .single();
 
     if (error || !users) {
       throw new Error('Invalid credentials');
     }
 
-    // For demo purposes, accept any password (you'd verify hash in production)
     return {
       user: users,
       accessToken: `mock_token_${users.id}`,
@@ -188,17 +187,19 @@ export const authApi = {
   },
 
   async register(userData: {
-    email: string;
+    email?: string;
+    phone?: string;
     name: string;
     password: string;
-    role?: 'ADMIN' | 'SUPPORT'
+    role?: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT'
   }): Promise<{ user: User }> {
     const { data, error } = await supabase
       .from('User')
       .insert([{
-        email: userData.email,
+        ...(userData.email ? { email: userData.email.trim().toLowerCase() } : {}),
+        ...(userData.phone ? { phone: userData.phone.trim() } : {}),
         name: userData.name,
-        password_hash: `hashed_${userData.password}`, // Simple hash for demo
+        password_hash: `hashed_${userData.password}`,
         role: userData.role || 'SUPPORT',
       }])
       .select()

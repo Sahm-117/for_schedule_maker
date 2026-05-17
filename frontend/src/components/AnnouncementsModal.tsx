@@ -16,12 +16,14 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({ isOpen, onClose
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [history, setHistory] = useState<Announcement[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(4);
 
   const SUBJECT_MAX = 80;
   const BODY_MAX = 200;
 
   useEffect(() => {
     if (!isOpen) return;
+    setVisibleCount(4);
     setLoadingHistory(true);
     announcementsApi.getHistory()
       .then((res) => setHistory(res.announcements))
@@ -128,8 +130,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({ isOpen, onClose
             ) : history.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-6">No announcements sent yet</p>
             ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {history.map((a) => (
+              <div className="space-y-2">
+                {history.slice(0, visibleCount).map((a) => (
                   <div key={a.id} className="border border-gray-100 rounded-xl p-3 bg-gray-50">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-medium text-gray-900 truncate">{a.subject}</p>
@@ -140,6 +142,15 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({ isOpen, onClose
                     <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{a.body}</p>
                   </div>
                 ))}
+                {visibleCount < history.length && (
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((c) => c + 4)}
+                    className="w-full py-2 text-xs text-primary hover:underline"
+                  >
+                    Load more
+                  </button>
+                )}
               </div>
             )}
           </div>

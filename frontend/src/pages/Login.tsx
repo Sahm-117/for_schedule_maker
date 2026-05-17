@@ -18,7 +18,7 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      await login(emailOrPhone, password);
+      await login(emailOrPhone.trim().toLowerCase(), password);
       navigate('/');
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || 'Login failed';
@@ -63,10 +63,10 @@ const Login: React.FC = () => {
           </div>
 
           <h2 className="text-3xl font-extrabold text-gray-900">
-            FOF IKD - SOP Manager
+            FOF IKD Ops
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Foundation of Faith Programme Schedule Management
+            Foundation of Faith Programme
           </p>
         </div>
 
@@ -147,9 +147,9 @@ const Login: React.FC = () => {
           </div>
 
           <div className="text-center">
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-400">
               Support staff?{' '}
-              <Link to="/signup" className="text-primary font-medium hover:underline">
+              <Link to="/signup" className="text-primary hover:underline">
                 Create an account
               </Link>
             </p>

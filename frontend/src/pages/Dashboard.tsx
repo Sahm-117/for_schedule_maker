@@ -315,16 +315,13 @@ const Dashboard: React.FC = () => {
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
-                FOF IKD - SOP Manager
-              </h1>
+            <div className="flex items-center gap-2">
               <img
                 src="/logo-mark.png"
-                alt="The Covenant Nation"
-                className="ml-3 h-8 w-8 rounded bg-white p-1 border border-gray-200 object-contain shrink-0"
+                alt="FOF Ops"
+                className="h-9 w-9 rounded-lg bg-white p-1 border border-gray-200 object-contain shrink-0"
               />
-              <span className={`ml-2 sm:ml-3 px-2 py-1 text-xs font-semibold rounded-full ${
+              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                 isAdmin ? 'bg-orange-100 text-orange-700'
                 : isSopPreparer ? 'bg-indigo-100 text-indigo-700'
                 : 'bg-blue-100 text-blue-700'
