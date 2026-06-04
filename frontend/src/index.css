@@ -1,13 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  --color-primary: #FF914D;
-  --color-primary-dark: #e8822e;
+  color: #1f2937;
+  background:
+    radial-gradient(circle at top left, rgba(255, 145, 77, 0.12), transparent 32%),
+    linear-gradient(180deg, #fff8f3 0%, #f7f8fb 38%, #f4f6fb 100%);
+  --color-primary: #ff914d;
+  --color-primary-dark: #e5822d;
+  --color-primary-soft: #fff1e6;
+  --color-ink: #1f2937;
+  --color-muted: #6b7280;
+  --color-border: #e5e7eb;
+  --shadow-soft: 0 20px 45px -28px rgba(17, 24, 39, 0.28);
+  --shadow-card: 0 16px 40px -28px rgba(17, 24, 39, 0.24);
 }
 
 html {
@@ -15,6 +27,7 @@ html {
 }
 
 * {
+  box-sizing: border-box;
   transition-property: color, background-color, border-color, opacity, box-shadow, transform;
   transition-duration: 150ms;
   transition-timing-function: ease-in-out;
@@ -23,5 +36,45 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #f9fafb;
+  color: var(--color-ink);
+  background:
+    radial-gradient(circle at top left, rgba(255, 145, 77, 0.12), transparent 32%),
+    linear-gradient(180deg, #fff8f3 0%, #f7f8fb 38%, #f4f6fb 100%);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+@layer components {
+  .app-shell-bg {
+    background:
+      radial-gradient(circle at top left, rgba(255, 145, 77, 0.12), transparent 32%),
+      linear-gradient(180deg, #fff8f3 0%, #f7f8fb 38%, #f4f6fb 100%);
+  }
+
+  .surface-card {
+    @apply rounded-3xl border border-white/70 bg-white/90 backdrop-blur-sm;
+    box-shadow: var(--shadow-card);
+  }
+
+  .surface-muted {
+    @apply rounded-2xl border border-orange-100 bg-orange-50/70;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl;
+  }
+
+  .page-subtitle {
+    @apply mt-1 text-sm text-gray-500 sm:text-base;
+  }
+
+  .nav-pill {
+    @apply flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium text-gray-600 hover:bg-orange-50 hover:text-primary;
+  }
+
+  .nav-pill-active {
+    @apply bg-primary text-white shadow-lg shadow-orange-200;
+  }
 }

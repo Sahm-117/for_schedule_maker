@@ -6,9 +6,10 @@ import type { Announcement } from '../types';
 interface AnnouncementsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  embedded?: boolean;
 }
 
-const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({ isOpen, onClose }) => {
+const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({ isOpen, onClose, embedded = false }) => {
   const { user } = useAuth();
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -21,15 +22,17 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({ isOpen, onClose
   const SUBJECT_MAX = 80;
   const BODY_MAX = 200;
 
+  const shouldRender = embedded || isOpen;
+
   useEffect(() => {
-    if (!isOpen) return;
+    if (!shouldRender) return;
     setVisibleCount(4);
     setLoadingHistory(true);
     announcementsApi.getHistory()
       .then((res) => setHistory(res.announcements))
       .catch(() => {})
       .finally(() => setLoadingHistory(false));
-  }, [isOpen]);
+  }, [shouldRender]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,31 +53,31 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({ isOpen, onClose
     }
   };
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-xl">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-5">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Announcements</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Send a push notification to all Support users</p>
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+  const content = (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-5">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Announcements</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Send a push notification to all Support users</p>
+        </div>
+        {!embedded && (
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
 
-          {status && (
-            <div className={`mb-4 p-3 rounded-lg text-sm ${
-              status.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-            }`}>
-              {status.message}
-            </div>
-          )}
+      {status && (
+        <div className={`mb-4 p-3 rounded-lg text-sm ${
+          status.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+        }`}>
+          {status.message}
+        </div>
+      )}
 
           <form onSubmit={handleSend} className="space-y-3 mb-6">
             <div>
@@ -155,12 +158,22 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({ isOpen, onClose
             )}
           </div>
 
-          <div className="flex justify-end pt-5 border-t mt-5">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50">
-              Close
-            </button>
-          </div>
+      {!embedded && (
+        <div className="flex justify-end pt-5 border-t mt-5">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50">
+            Close
+          </button>
         </div>
+      )}
+    </div>
+  );
+
+  return embedded ? (
+    <div className="surface-card overflow-hidden">{content}</div>
+  ) : (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-xl">
+        {content}
       </div>
     </div>
   );

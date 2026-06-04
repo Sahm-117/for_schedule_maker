@@ -268,6 +268,14 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
     const response = await api.delete(`/users/${userId}`);
     return response.data;
   },
+
+  async getUserLabels(_userId: string): Promise<{ labels: Label[] }> {
+    return { labels: [] };
+  },
+
+  async setUserLabels(_userId: string, _labelIds: string[]): Promise<{ message: string }> {
+    return { message: 'Not supported' };
+  },
 };
 
 export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {

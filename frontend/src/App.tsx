@@ -3,10 +3,23 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './hooks/useAuth';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
+import AppShell from './components/AppShell';
+import { AppDataProvider } from './context/AppDataContext';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import Dashboard from './pages/Dashboard';
 import SopDownload from './pages/SopDownload';
+import RootRedirect from './pages/RootRedirect';
+import AdminDashboardPage from './pages/AdminDashboardPage';
+import AdminSchedulePage from './pages/AdminSchedulePage';
+import AdminApprovalsPage from './pages/AdminApprovalsPage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminAnnouncementsPage from './pages/AdminAnnouncementsPage';
+import AdminResourcesPage from './pages/AdminResourcesPage';
+import AdminSettingsPage from './pages/AdminSettingsPage';
+import SupportHomePage from './pages/SupportHomePage';
+import SupportSchedulePage from './pages/SupportSchedulePage';
+import SupportResourcesPage from './pages/SupportResourcesPage';
+import SupportProfilePage from './pages/SupportProfilePage';
 
 function App() {
   return (
@@ -15,17 +28,31 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/sop-download" element={<SopDownload />} />
           <Route
-            path="/"
             element={
               <ErrorBoundary>
                 <ProtectedRoute>
-                  <Dashboard />
+                  <AppDataProvider>
+                    <AppShell />
+                  </AppDataProvider>
                 </ProtectedRoute>
               </ErrorBoundary>
             }
-          />
+          >
+            <Route index element={<RootRedirect />} />
+            <Route path="/dashboard" element={<AdminDashboardPage />} />
+            <Route path="/schedule" element={<AdminSchedulePage />} />
+            <Route path="/approvals" element={<AdminApprovalsPage />} />
+            <Route path="/users" element={<AdminUsersPage />} />
+            <Route path="/announcements" element={<AdminAnnouncementsPage />} />
+            <Route path="/resources" element={<AdminResourcesPage />} />
+            <Route path="/settings" element={<AdminSettingsPage />} />
+            <Route path="/support" element={<SupportHomePage />} />
+            <Route path="/support/schedule" element={<SupportSchedulePage />} />
+            <Route path="/support/resources" element={<SupportResourcesPage />} />
+            <Route path="/support/profile" element={<SupportProfilePage />} />
+            <Route path="/sop-download" element={<SopDownload />} />
+          </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>

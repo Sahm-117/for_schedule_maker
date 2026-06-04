@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LinkedIn Post — FOF IKD Ops</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #FF914D;
+      --primary-dark: #E5822D;
+      --primary-light: #FFF0E8;
+      --text: #1a1a2e;
+      --text-secondary: #5a5a7a;
+      --border: #e8e0d8;
+      --white: #ffffff;
+      --bg: #f4f2ef; /* LinkedIn-ish background */
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 40px 16px 80px;
+      line-height: 1.75;
+    }
+
+    .page-label {
+      max-width: 680px;
+      margin: 0 auto 20px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--text-secondary);
+    }
+
+    /* LinkedIn post card */
+    .post-card {
+      max-width: 680px;
+      margin: 0 auto;
+      background: var(--white);
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    /* Profile row */
+    .profile-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 20px 20px 0;
+    }
+    .avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .profile-info { flex: 1; }
+    .profile-name { font-size: 0.92rem; font-weight: 700; color: var(--text); }
+    .profile-title { font-size: 0.78rem; color: var(--text-secondary); }
+    .profile-meta { font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; }
+
+    /* Post body */
+    .post-body {
+      padding: 16px 20px 0;
+      font-size: 0.92rem;
+      color: var(--text);
+    }
+    .post-body p { margin-bottom: 14px; }
+    .post-body .hook {
+      font-size: 1.05rem;
+      font-weight: 600;
+      line-height: 1.5;
+      margin-bottom: 18px;
+      color: var(--text);
+    }
+    .post-body .divider-line {
+      border: none;
+      border-top: 1.5px solid var(--border);
+      margin: 20px 0;
+    }
+    .post-body .highlight {
+      background: var(--primary-light);
+      border-left: 3px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin: 16px 0;
+      font-size: 0.9rem;
+      color: #5a3a1a;
+    }
+    .post-body .section-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 6px;
+      margin-top: 18px;
+      color: var(--text);
+    }
+    .post-body .emoji-list {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .post-body .emoji-list li {
+      font-size: 0.89rem;
+      color: var(--text-secondary);
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .post-body .emoji-list li .em { flex-shrink: 0; }
+    .hashtags {
+      color: #0a66c2;
+      font-size: 0.88rem;
+      font-weight: 500;
+      margin-top: 6px;
+      margin-bottom: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .hashtags span { cursor: pointer; }
+    .hashtags span:hover { text-decoration: underline; }
+    .question-cta {
+      background: linear-gradient(135deg, var(--primary-light), #fff8f3);
+      border: 1.5px solid var(--primary);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin: 18px 0 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--primary-dark);
+    }
+    .question-cta p { margin: 0; color: var(--primary-dark); }
+
+    /* Post image/banner */
+    .post-banner {
+      margin: 14px 0 0;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      padding: 32px 28px;
+      color: white;
+      text-align: center;
+    }
+    .post-banner h2 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .post-banner p {
+      font-size: 0.88rem;
+      opacity: 0.85;
+      margin: 0;
+      font-weight: 300;
+    }
+    .post-banner .badge-row {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .post-banner .badge {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 100px;
+      padding: 5px 14px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* Reactions / actions row */
+    .post-actions {
+      border-top: 1px solid var(--border);
+      padding: 8px 12px;
+      display: flex;
+      gap: 0;
+    }
+    .action-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 4px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-family: 'Poppins', sans-serif;
+    }
+    .action-btn:hover { background: #f0ede8; color: var(--text); }
+
+    /* Note below post */
+    .post-note {
+      max-width: 680px;
+      margin: 24px auto 0;
+      background: white;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 20px 22px;
+    }
+    .post-note h3 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+    .note-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+      font-size: 0.86rem;
+      color: var(--text-secondary);
+    }
+    .note-item .dot {
+      flex-shrink: 0;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-label">LinkedIn Post Draft — FOF IKD Ops · May 2026</div>
+
+<div class="post-card">
+
+  <!-- Profile -->
+  <div class="profile-row">
+    <div class="avatar">O</div>
+    <div class="profile-info">
+      <div class="profile-name">Olamide Iroja</div>
+      <div class="profile-title">Product Manager · Building things that matter</div>
+      <div class="profile-meta">Now · 🌐</div>
+    </div>
+  </div>
+
+  <!-- Banner image -->
+  <div class="post-banner">
+    <h2>FOF IKD Ops</h2>
+    <p>From WhatsApp screenshots to a real product. Built with AI in weeks, not months.</p>
+    <div class="badge-row">
+      <span class="badge">Programme Scheduling</span>
+      <span class="badge">PWA</span>
+      <span class="badge">AI-Assisted Build</span>
+    </div>
+  </div>
+
+  <!-- Post body -->
+  <div class="post-body">
+
+    <p class="hook">
+      A few months ago, our church programme team was coordinating a full 8-week discipleship schedule through WhatsApp screenshots and a shared spreadsheet that nobody trusted.
+    </p>
+
+    <p>
+      Last-minute changes meant someone had to update the spreadsheet, screenshot it, and blast it to 30+ people in a chat — hoping they'd all see it before the next session. Spoiler: they didn't always.
+    </p>
+
+    <p>
+      So I did what product managers do — I asked <em>what if there was a better way</em>?
+    </p>
+
+    <hr class="divider-line" />
+
+    <div class="highlight">
+      What I built: <strong>FOF IKD Ops</strong> — a mobile-first web app where the programme team can view the live schedule, get push notifications when something changes, and submit edits through a proper approval workflow. Installable on any phone, works offline.
+    </div>
+
+    <p class="section-title">Here's the part that surprises people:</p>
+
+    <p>
+      I don't have a traditional software background. I'm a Product Manager. What changed is that I leaned into AI as a genuine collaborator, not just a search engine.
+    </p>
+
+    <ul class="emoji-list">
+      <li><span class="em">🧠</span><span>I described the problem — the schedule chaos, the specific roles and permissions needed, the "someone is always out of the loop" frustration — and we worked through the solution design together.</span></li>
+      <li><span class="em">💬</span><span>When something broke (and things broke), I didn't just paste the error and wait. I explained <em>what I expected to happen</em> vs. what was happening. That context made all the difference.</span></li>
+      <li><span class="em">🚀</span><span>When I hit a wall with a database permissions issue that was breaking everything, we diagnosed it together in minutes. It would have taken me days alone.</span></li>
+    </ul>
+
+    <p>
+      The result? A product that the team actually uses. Push notifications go out when schedules change. The team lead approves edits before they go live. Everything lives in one place, accessible from any phone.
+    </p>
+
+    <hr class="divider-line" />
+
+    <p class="section-title">What I learned about working with AI:</p>
+
+    <ul class="emoji-list">
+      <li><span class="em">✅</span><span>The more context you give, the better the output. Vague prompts → vague solutions.</span></li>
+      <li><span class="em">✅</span><span>You still need to own the decisions. AI is a very capable collaborator, not a replacement for judgment.</span></li>
+      <li><span class="em">✅</span><span>It levels the playing field. I shipped something I couldn't have built in a year on my own — in weeks.</span></li>
+    </ul>
+
+    <p>
+      This isn't about replacing anyone. It's about expanding what's possible when you have a clear problem and the willingness to iterate fast.
+    </p>
+
+    <hr class="divider-line" />
+
+    <div class="question-cta">
+      <p>💬 I'm curious — outside of work, how are you using AI? Not for presentations or emails, but for the random, creative, <em>personal</em> things. Tell me in the comments — I genuinely want to know.</p>
+    </div>
+
+    <p style="font-size:0.88rem; color: var(--text-secondary); margin-top: 16px;">
+      If you're a PM or a non-technical builder thinking about doing something like this — my DMs are open. Happy to share what worked and what sent me chasing my tail for three days.
+    </p>
+
+    <div class="hashtags">
+      <span>#ProductManagement</span>
+      <span>#AITools</span>
+      <span>#BuildingInPublic</span>
+      <span>#PWA</span>
+      <span>#Innovation</span>
+      <span>#Shipping</span>
+      <span>#NonTechnicalBuilder</span>
+    </div>
+
+  </div>
+
+  <!-- Actions row (mock) -->
+  <div class="post-actions">
+    <button class="action-btn">👍 Like</button>
+    <button class="action-btn">💬 Comment</button>
+    <button class="action-btn">🔁 Repost</button>
+    <button class="action-btn">📤 Send</button>
+  </div>
+
+</div>
+
+<!-- Notes for the author -->
+<div class="post-note">
+  <h3>Tips before you post</h3>
+  <div class="note-item">
+    <div class="dot"></div>
+    <span>Add 1–2 screenshots of the actual app. LinkedIn posts with images get significantly more reach. A before/after is even better — screenshot the WhatsApp chaos alongside the clean app UI.</span>
+  </div>
+  <div class="note-item">
+    <div class="dot"></div>
+    <span>Post on a Tuesday or Wednesday morning (9–11am). LinkedIn engagement peaks mid-week mornings.</span>
+  </div>
+  <div class="note-item">
+    <div class="dot"></div>
+    <span>The question at the end ("how are you using AI outside work?") is intentional — it invites comments without making the post a survey. Keep it.</span>
+  </div>
+  <div class="note-item">
+    <div class="dot"></div>
+    <span>If you get traction, follow up with a second post a week later: "I asked how you use AI outside work — here's what 40 people told me." That follow-up post writes itself from the comments.</span>
+  </div>
+  <div class="note-item">
+    <div class="dot"></div>
+    <span>You can trim this down if it feels long for your audience. The core is paragraphs 1–4 and the question. Everything else is supporting detail.</span>
+  </div>
+</div>
+
+</body>
+</html>

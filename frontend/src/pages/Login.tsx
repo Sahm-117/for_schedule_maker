@@ -28,7 +28,8 @@ const Login: React.FC = () => {
 
     try {
       await login(trimmed.toLowerCase(), password);
-      navigate('/');
+      const cachedUser = JSON.parse(localStorage.getItem('user') || 'null');
+      navigate(cachedUser?.role === 'SUPPORT' ? '/support' : '/dashboard');
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || 'Login failed';
 

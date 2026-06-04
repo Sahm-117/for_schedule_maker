@@ -9,6 +9,7 @@ interface ResourceHubModalProps {
   isOpen: boolean;
   onClose: () => void;
   onViewed?: () => void;
+  embedded?: boolean;
 }
 
 type AddMode = 'link' | 'file';
@@ -55,7 +56,7 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, onViewed }) => {
+const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, onViewed, embedded = false }) => {
   const { user, isAdmin } = useAuth();
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(false);
@@ -79,15 +80,17 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
       .finally(() => setLoading(false));
   };
 
+  const shouldRender = embedded || isOpen;
+
   useEffect(() => {
-    if (!isOpen) return;
+    if (!shouldRender) return;
     setShowAdd(false);
     setError('');
     load();
     // Mark as seen
     localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString());
     onViewed?.();
-  }, [isOpen]);
+  }, [shouldRender]);
 
   const resetForm = () => {
     setTitle('');
@@ -143,38 +146,38 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
     finally { setDeletingId(null); }
   };
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Resource Hub</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Guides, links, and files for the team</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {isAdmin && !showAdd && (
-              <button
-                onClick={() => { setShowAdd(true); resetForm(); }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                </svg>
-                Add
-              </button>
-            )}
+  const content = (
+    <>
+      <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Resource Hub</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Guides, links, and files for the team</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {isAdmin && !showAdd && (
+            <button
+              onClick={() => { setShowAdd(true); resetForm(); }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Add
+            </button>
+          )}
+          {!embedded && (
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-          </div>
+          )}
         </div>
+      </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+      <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Add form */}
           {showAdd && (
             <form onSubmit={handleAdd} className="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50">
@@ -343,7 +346,16 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
               ))}
             </div>
           )}
-        </div>
+      </div>
+    </>
+  );
+
+  return embedded ? (
+    <div className="surface-card flex min-h-[32rem] flex-col overflow-hidden">{content}</div>
+  ) : (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-xl">
+        {content}
       </div>
     </div>
   );
