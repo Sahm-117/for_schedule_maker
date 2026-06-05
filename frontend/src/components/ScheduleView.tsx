@@ -3,7 +3,7 @@ import type { Week, Day, Activity, PendingChange } from '../types';
 import DaySchedule from './DaySchedule';
 import ActivityModal from './ActivityModal';
 import CrossWeekModal from './CrossWeekModal';
-import { exportWeekToPDF, exportAllWeeksToPDF } from '../utils/pdfExport';
+import { exportWeekToPDF } from '../utils/pdfExport';
 import { useAuth } from '../hooks/useAuth';
 
 interface ScheduleViewProps {
@@ -15,6 +15,11 @@ interface ScheduleViewProps {
   isAdmin: boolean;
   canEdit?: boolean;
   filterLabelIds?: string[];
+  showInlineAdminActions?: boolean;
+  externalAddDayId?: number | null;
+  onExternalAddHandled?: () => void;
+  externalCrossWeekRequest?: number;
+  onExternalCrossWeekHandled?: () => void;
 }
 
 const ScheduleView: React.FC<ScheduleViewProps> = ({
@@ -26,6 +31,11 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   isAdmin,
   canEdit = false,
   filterLabelIds,
+  showInlineAdminActions = true,
+  externalAddDayId,
+  onExternalAddHandled,
+  externalCrossWeekRequest,
+  onExternalCrossWeekHandled,
 }) => {
   const { userLabelIds } = useAuth();
   const [selectedDay, setSelectedDay] = useState<Day | null>(null);
@@ -41,6 +51,22 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
       setExpandedDays(new Set([week.days[0].id]));
     }
   }, [week.id, week.days]);
+
+  useEffect(() => {
+    if (externalAddDayId == null) return;
+    const targetDay = week.days.find((day) => day.id === externalAddDayId);
+    if (!targetDay) return;
+    setSelectedDay(targetDay);
+    setEditingActivity(null);
+    setActivityModalOpen(true);
+    onExternalAddHandled?.();
+  }, [externalAddDayId, onExternalAddHandled, week.days]);
+
+  useEffect(() => {
+    if (!externalCrossWeekRequest) return;
+    setCrossWeekModalOpen(true);
+    onExternalCrossWeekHandled?.();
+  }, [externalCrossWeekRequest, onExternalCrossWeekHandled]);
 
   const filterActivities = (activities: Activity[]): Activity[] => {
     if (!isFiltered || filterLabelIds.length === 0) return activities;
@@ -85,22 +111,6 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   const handleRefresh = () => {
     onWeekUpdate();
     onPendingChangesRefresh();
-  };
-
-  const handleExportWeek = async () => {
-    try {
-      await exportWeekToPDF(week, { includeEmptyDays: false });
-    } catch (error) {
-      console.error('Failed to export week:', error);
-    }
-  };
-
-  const handleExportAllWeeks = async () => {
-    try {
-      await exportAllWeeksToPDF(weeks, { includeEmptyDays: false });
-    } catch (error) {
-      console.error('Failed to export all weeks:', error);
-    }
   };
 
   const handleExportMySchedule = async () => {
@@ -157,31 +167,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         </div>
 
         {/* Action buttons below title */}
-        {(isAdmin || canEdit) ? (
+        {(isAdmin || canEdit) && showInlineAdminActions ? (
           <div className="flex flex-col gap-2 mt-3">
-            {/* Export Week + Export All side by side */}
-            <div className="flex gap-2">
-              <button
-                data-tour="export-week"
-                onClick={handleExportWeek}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 border border-green-200 text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
-              >
-                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Export Week
-              </button>
-              <button
-                onClick={handleExportAllWeeks}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 border border-blue-200 text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
-              >
-                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Export All
-              </button>
-            </div>
-            {/* Cross-week full width */}
             <button
               onClick={handleCrossWeekActivity}
               className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 border border-primary text-primary bg-white rounded-lg hover:bg-primary/5 transition-colors text-sm font-medium"

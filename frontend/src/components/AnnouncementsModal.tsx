@@ -7,9 +7,17 @@ interface AnnouncementsModalProps {
   isOpen: boolean;
   onClose: () => void;
   embedded?: boolean;
+  showComposer?: boolean;
+  showHistory?: boolean;
 }
 
-const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({ isOpen, onClose, embedded = false }) => {
+const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
+  isOpen,
+  onClose,
+  embedded = false,
+  showComposer = true,
+  showHistory = true,
+}) => {
   const { user } = useAuth();
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -79,7 +87,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({ isOpen, onClose
         </div>
       )}
 
-          <form onSubmit={handleSend} className="space-y-3 mb-6">
+      {showComposer && (
+        <form onSubmit={handleSend} className={`space-y-3 ${showHistory ? 'mb-6' : 'mb-0'}`}>
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="text-sm font-medium text-gray-700">Subject</label>
@@ -121,10 +130,11 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({ isOpen, onClose
             >
               {sending ? 'Sending...' : '📢 Send Announcement'}
             </button>
-          </form>
+        </form>
+      )}
 
-          {/* History */}
-          <div>
+      {showHistory && (
+        <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-3">History</h3>
             {loadingHistory ? (
               <div className="text-center py-6">
@@ -156,7 +166,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({ isOpen, onClose
                 )}
               </div>
             )}
-          </div>
+        </div>
+      )}
 
       {!embedded && (
         <div className="flex justify-end pt-5 border-t mt-5">
@@ -171,8 +182,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({ isOpen, onClose
   return embedded ? (
     <div className="surface-card overflow-hidden">{content}</div>
   ) : (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50 p-0 sm:items-center sm:justify-center sm:p-4">
+      <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-xl sm:max-w-lg sm:rounded-2xl">
         {content}
       </div>
     </div>

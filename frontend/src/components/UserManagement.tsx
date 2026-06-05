@@ -7,13 +7,20 @@ interface UserManagementProps {
   isOpen: boolean;
   onClose: () => void;
   embedded?: boolean;
+  showUserList?: boolean;
+  showCreateForm?: boolean;
 }
 
-const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose, embedded = false }) => {
+const UserManagement: React.FC<UserManagementProps> = ({
+  isOpen,
+  onClose,
+  embedded = false,
+  showUserList = true,
+  showCreateForm = true,
+}) => {
   const [users, setUsers] = useState<User[]>([]);
   const [allLabels, setAllLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showAddUser, setShowAddUser] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -27,6 +34,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose, embedd
   const [resetPasswordValue, setResetPasswordValue] = useState('');
   const [resetPasswordSaving, setResetPasswordSaving] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | User['role']>('ALL');
 
   const [newUser, setNewUser] = useState({
     name: '',
@@ -39,11 +48,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose, embedd
   const shouldRender = embedded || isOpen;
 
   useEffect(() => {
-    if (shouldRender) {
+    if (shouldRender && showUserList) {
       loadUsers();
+    }
+    if (shouldRender && (showUserList || showCreateForm)) {
       loadLabels();
     }
-  }, [shouldRender]);
+  }, [shouldRender, showCreateForm, showUserList]);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -118,9 +129,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose, embedd
       setSuccess('User created successfully');
       setNewUser({ name: '', email: '', phone: '', password: '', role: 'SUPPORT' });
       setNewUserLabelIds([]);
-      setShowAddUser(false);
       setShowPasswordInForm(false);
-      loadUsers();
+      if (showUserList) {
+        loadUsers();
+      }
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || 'Failed to create user';
       if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
@@ -161,7 +173,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose, embedd
       await usersApi.delete(userId);
       setSuccess('User deleted successfully');
       if (selectedUser?.id === userId) setSelectedUser(null);
-      loadUsers();
+      if (showUserList) {
+        loadUsers();
+      }
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to delete user');
     } finally {
@@ -176,7 +190,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose, embedd
     try {
       await usersApi.update(userId, { role: newRole });
       setSuccess('User role updated successfully');
-      loadUsers();
+      if (showUserList) {
+        loadUsers();
+      }
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to update user role');
     } finally {
@@ -186,11 +202,132 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose, embedd
 
   if (!shouldRender) return null;
 
+  const filteredUsers = users.filter((user) => {
+    const matchesRole = roleFilter === 'ALL' || user.role === roleFilter;
+    const haystack = [user.name, user.email, user.phone].filter(Boolean).join(' ').toLowerCase();
+    const matchesSearch = searchQuery.trim().length === 0 || haystack.includes(searchQuery.trim().toLowerCase());
+    return matchesRole && matchesSearch;
+  });
+
+  const renderCreateForm = () => (
+    <div className={showUserList ? 'mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4' : ''}>
+      {showUserList && <h4 className="mb-3 text-md font-medium">Add New User</h4>}
+      <form onSubmit={handleAddUser} className="space-y-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Name *</label>
+            <input
+              type="text"
+              value={newUser.name}
+              onChange={(e) => setNewUser((prev) => ({ ...prev, name: e.target.value }))}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-primary"
+              required
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
+            <input
+              type="email"
+              value={newUser.email}
+              onChange={(e) => setNewUser((prev) => ({ ...prev, email: e.target.value }))}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-primary"
+              placeholder="user@example.com"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Phone Number</label>
+            <input
+              type="tel"
+              value={newUser.phone}
+              onChange={(e) => setNewUser((prev) => ({ ...prev, phone: e.target.value }))}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-primary"
+              placeholder="+1234567890"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Password *</label>
+            <div className="relative">
+              <input
+                type={showPasswordInForm ? 'text' : 'password'}
+                value={newUser.password}
+                onChange={(e) => setNewUser((prev) => ({ ...prev, password: e.target.value }))}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 pr-10 focus:border-primary focus:outline-none focus:ring-primary"
+                required
+                minLength={6}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPasswordInForm(!showPasswordInForm)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Role *</label>
+            <select
+              value={newUser.role}
+              onChange={(e) => setNewUser((prev) => ({ ...prev, role: e.target.value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT' }))}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-primary"
+            >
+              <option value="SUPPORT">Support</option>
+              <option value="SOP_PREPARER">SOP Preparer</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </div>
+        </div>
+        {newUser.role === 'SUPPORT' && allLabels.length > 0 && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Support Groups</label>
+            <div className="max-h-36 space-y-2 overflow-y-auto rounded-md border border-gray-200 bg-white p-3">
+              {allLabels.map((label) => (
+                <label key={label.id} className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={newUserLabelIds.includes(label.id)}
+                    onChange={() =>
+                      setNewUserLabelIds((prev) =>
+                        prev.includes(label.id)
+                          ? prev.filter((id) => id !== label.id)
+                          : [...prev, label.id]
+                      )
+                    }
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <LabelChip name={label.name} color={label.color} size="sm" />
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="mt-2 text-sm text-gray-500">* Required. Either email or phone must be provided.</div>
+        <div className="flex justify-end gap-2">
+          {!embedded && (
+            <button type="button" onClick={onClose} className="rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50">
+              Cancel
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={loading || !newUser.name || (!newUser.email && !newUser.phone) || !newUser.password}
+            className="rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
+          >
+            {loading ? 'Creating...' : 'Create User'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+
   const content = (
     <>
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">User Management</h2>
+          <h2 className="text-xl font-semibold">{showUserList ? 'User Management' : 'Create User'}</h2>
           {!embedded && (
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,139 +340,48 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose, embedd
         {error && <div className="mb-4 text-red-600 text-sm bg-red-50 p-3 rounded">{error}</div>}
         {success && <div className="mb-4 text-green-600 text-sm bg-green-50 p-3 rounded">{success}</div>}
 
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Users ({users.length})</h3>
-              <button
-                onClick={() => setShowAddUser(!showAddUser)}
-                className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark"
-              >
-                {showAddUser ? 'Cancel' : 'Add User'}
-              </button>
+        {showCreateForm && showUserList && !embedded && renderCreateForm()}
+        {showCreateForm && !showUserList && renderCreateForm()}
+
+        {showUserList && (
+          <>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-lg font-medium">Users ({filteredUsers.length})</h3>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search users"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-primary sm:w-64"
+                />
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value as 'ALL' | User['role'])}
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-primary"
+                >
+                  <option value="ALL">All roles</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="SOP_PREPARER">SOP Preparer</option>
+                  <option value="SUPPORT">Support</option>
+                </select>
+              </div>
             </div>
 
-            {showAddUser && (
-              <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                <h4 className="text-md font-medium mb-3">Add New User</h4>
-                <form onSubmit={handleAddUser} className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-                      <input
-                        type="text"
-                        value={newUser.name}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                      <input
-                        type="email"
-                        value={newUser.email}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                        placeholder="user@example.com"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                      <input
-                        type="tel"
-                        value={newUser.phone}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, phone: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                        placeholder="+1234567890"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                      <div className="relative">
-                        <input
-                          type={showPasswordInForm ? 'text' : 'password'}
-                          value={newUser.password}
-                          onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
-                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                          required
-                          minLength={6}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPasswordInForm(!showPasswordInForm)}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-                      <select
-                        value={newUser.role}
-                        onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT' }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                      >
-                        <option value="SUPPORT">Support</option>
-                        <option value="SOP_PREPARER">SOP Preparer</option>
-                        <option value="ADMIN">Admin</option>
-                      </select>
-                    </div>
-                  </div>
-                  {newUser.role === 'SUPPORT' && allLabels.length > 0 && (
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Support Groups</label>
-                      <div className="border border-gray-200 rounded-md p-3 space-y-2 max-h-36 overflow-y-auto bg-white">
-                        {allLabels.map((label) => (
-                          <label key={label.id} className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={newUserLabelIds.includes(label.id)}
-                              onChange={() =>
-                                setNewUserLabelIds((prev) =>
-                                  prev.includes(label.id)
-                                    ? prev.filter((id) => id !== label.id)
-                                    : [...prev, label.id]
-                                )
-                              }
-                              className="rounded border-gray-300 text-primary focus:ring-primary"
-                            />
-                            <LabelChip name={label.name} color={label.color} size="sm" />
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="text-sm text-gray-500 mt-2">* Required. Either email or phone must be provided.</div>
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={loading || !newUser.name || (!newUser.email && !newUser.phone) || !newUser.password}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
-                    >
-                      {loading ? 'Creating...' : 'Create User'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
-            {loading && !showAddUser ? (
+            {loading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                 <p className="mt-2 text-gray-600">Loading users...</p>
               </div>
             ) : (
               <div>
-                {users.length === 0 && !loading && (
+                {filteredUsers.length === 0 && !loading && (
                   <div className="text-center py-8 text-gray-500">No users found</div>
                 )}
 
                 {/* Mobile cards */}
                 <div className="sm:hidden space-y-3">
-                  {users.map((user) => (
+                  {filteredUsers.map((user) => (
                     <div key={user.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
@@ -432,7 +478,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose, embedd
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {users.map((user) => (
+                      {filteredUsers.map((user) => (
                         <tr key={user.id}>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-medium text-gray-900">{user.name}</div>
@@ -500,8 +546,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose, embedd
                 </div>
               </div>
             )}
+          </>
+        )}
 
-        {!embedded && (
+        {!embedded && showUserList && (
           <div className="flex justify-end pt-4 border-t mt-6">
             <button onClick={onClose} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">
               Close
@@ -519,8 +567,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ isOpen, onClose, embedd
           {content}
         </div>
       ) : (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-end bg-black/50 p-0 sm:items-center sm:justify-center sm:p-4">
+          <div className={`w-full overflow-y-auto bg-white shadow-xl ${showUserList ? 'max-h-[92vh] rounded-t-3xl sm:max-w-4xl sm:rounded-2xl' : 'max-h-[92vh] rounded-t-3xl sm:max-w-2xl sm:rounded-2xl'}`}>
             {content}
           </div>
         </div>

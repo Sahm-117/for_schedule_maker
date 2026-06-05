@@ -84,6 +84,11 @@ const AppShell: React.FC = () => {
       return true;
     });
   }, [isAdmin, isSopPreparer, isSupport]);
+  const mobileNavItems = useMemo(() => {
+    if (isSupport) return supportNav;
+    const mobileAdminRoutes = new Set(['/dashboard', '/schedule', '/approvals', '/resources']);
+    return navItems.filter((item) => mobileAdminRoutes.has(item.to));
+  }, [isSupport, navItems]);
 
   const currentLabel = isAdmin ? 'Admin' : isSopPreparer ? 'SOP Preparer' : 'Support';
 
@@ -247,8 +252,8 @@ const AppShell: React.FC = () => {
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-orange-100 bg-white/95 px-2 py-2 backdrop-blur lg:hidden">
-        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(Math.max(navItems.length, 1), 5)}, minmax(0, 1fr))` }}>
-          {navItems.slice(0, 5).map((item) => {
+        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(Math.max(mobileNavItems.length, 1), 5)}, minmax(0, 1fr))` }}>
+          {mobileNavItems.map((item) => {
             const active = isNavActive(location.pathname, item.to);
             return (
               <NavLink
