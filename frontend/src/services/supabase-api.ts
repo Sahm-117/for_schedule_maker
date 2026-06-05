@@ -589,6 +589,35 @@ export const cohortsApi = {
     };
   },
 
+  async deleteLatestWeek(cohortId: string): Promise<{ deletedWeekNumber: number }> {
+    const { data: latestWeeks, error: weeksError } = await supabase
+      .from('Week')
+      .select('id, weekNumber')
+      .eq('cohortId', cohortId)
+      .order('weekNumber', { ascending: false })
+      .limit(1);
+
+    if (weeksError) throw new Error(weeksError.message);
+
+    const latestWeek = (latestWeeks || [])[0] as { id: number; weekNumber: number } | undefined;
+    if (!latestWeek) {
+      throw new Error('No weeks found for this cohort.');
+    }
+
+    if (latestWeek.weekNumber <= 1) {
+      throw new Error('Week 1 cannot be removed.');
+    }
+
+    const { error: deleteError } = await supabase
+      .from('Week')
+      .delete()
+      .eq('id', latestWeek.id);
+
+    if (deleteError) throw new Error(deleteError.message);
+
+    return { deletedWeekNumber: latestWeek.weekNumber };
+  },
+
   async getMembers(cohortId: string): Promise<{ users: User[] }> {
     const { data, error } = await supabase
       .from('UserCohort')
