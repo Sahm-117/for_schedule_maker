@@ -1401,6 +1401,14 @@ export const digestApi = {
   },
 };
 
+const normalizeSupportCompletionError = (error: any): Error => {
+  if ((error as any)?.code === '42P01' || error?.message?.includes('SupportActivityCompletion')) {
+    return new Error('Support completion is not active in the database yet. Apply the latest Supabase migration to enable mark-done persistence.');
+  }
+
+  return new Error(error?.message || 'Support completion request failed.');
+};
+
 export const supportActivityCompletionsApi = {
   async getMineForWeek(weekId: number, userId: string): Promise<{ completions: SupportActivityCompletion[] }> {
     const { data: days, error: daysError } = await supabase
@@ -1438,7 +1446,7 @@ export const supportActivityCompletionsApi = {
       .in('activityId', activityIds);
 
     if (error) {
-      throw new Error(error.message);
+      throw normalizeSupportCompletionError(error);
     }
 
     return {
@@ -1486,7 +1494,7 @@ export const supportActivityCompletionsApi = {
       .in('activityId', activityIds);
 
     if (error) {
-      throw new Error(error.message);
+      throw normalizeSupportCompletionError(error);
     }
 
     return {
@@ -1514,7 +1522,7 @@ export const supportActivityCompletionsApi = {
       .single();
 
     if (error || !data) {
-      throw new Error(error?.message || 'Failed to mark activity done');
+      throw normalizeSupportCompletionError(error);
     }
 
     return {
@@ -1535,7 +1543,7 @@ export const supportActivityCompletionsApi = {
       .eq('userId', userId);
 
     if (error) {
-      throw new Error(error.message);
+      throw normalizeSupportCompletionError(error);
     }
 
     return { message: 'Activity marked as not done' };

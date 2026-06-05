@@ -22,6 +22,7 @@ const SupportSchedulePage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'today' | 'upcoming' | 'week'>('today');
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
   const [completionSavingIds, setCompletionSavingIds] = useState<number[]>([]);
+  const [completionError, setCompletionError] = useState('');
 
   if (user?.role !== 'SUPPORT') {
     return <Navigate to="/schedule" replace />;
@@ -34,12 +35,14 @@ const SupportSchedulePage: React.FC = () => {
     supportActivityCompletionsApi.getMineForWeek(selectedWeek.id, user.id)
       .then((response) => {
         if (!cancelled) {
+          setCompletionError('');
           setCompletions(response.completions);
         }
       })
       .catch((error) => {
         console.warn('Failed to load support completions:', error);
         if (!cancelled) {
+          setCompletionError(error instanceof Error ? error.message : 'Support completion could not be loaded right now.');
           setCompletions([]);
         }
       });
@@ -73,6 +76,7 @@ const SupportSchedulePage: React.FC = () => {
   const handleToggleCompleted = async (activityId: number, nextValue: boolean) => {
     if (!user) return;
     setCompletionSavingIds((prev) => [...prev, activityId]);
+    setCompletionError('');
     try {
       if (nextValue) {
         const response = await supportActivityCompletionsApi.markDone(activityId, user.id);
@@ -86,6 +90,7 @@ const SupportSchedulePage: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to update activity completion:', error);
+      setCompletionError(error instanceof Error ? error.message : 'Support completion could not be updated right now.');
     } finally {
       setCompletionSavingIds((prev) => prev.filter((id) => id !== activityId));
     }
@@ -119,6 +124,12 @@ const SupportSchedulePage: React.FC = () => {
         subtitle="Focus on today first, then switch to upcoming days or the full week when you need more context."
         action={scheduleAction}
       />
+
+      {completionError && (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {completionError}
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
         <WeekSelector
