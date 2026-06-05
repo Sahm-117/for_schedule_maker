@@ -28,6 +28,7 @@ interface ScheduleViewProps {
   onToggleCompleted?: (activityId: number, nextValue: boolean) => void;
   noActivitiesTitle?: string;
   noActivitiesText?: string;
+  compactHeader?: boolean;
 }
 
 const ScheduleView: React.FC<ScheduleViewProps> = ({
@@ -52,6 +53,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   onToggleCompleted,
   noActivitiesTitle,
   noActivitiesText,
+  compactHeader = false,
 }) => {
   const { userLabelIds } = useAuth();
   const [selectedDay, setSelectedDay] = useState<Day | null>(null);
@@ -167,19 +169,24 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+      <div className={`bg-white shadow ${compactHeader ? 'rounded-3xl border border-orange-100 p-4 sm:p-5' : 'rounded-lg p-4 sm:p-6'}`}>
         {/* Title row */}
-        <div className="flex items-start justify-between gap-2 mb-3">
+        <div className={`flex items-start justify-between gap-3 ${compactHeader ? 'mb-1' : 'mb-3'}`}>
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+            <h2 className={`${compactHeader ? 'text-lg sm:text-xl' : 'text-xl sm:text-2xl'} font-bold text-gray-900`}>
               {isPersonalView ? 'My Schedule' : 'Week ' + week.weekNumber + ' Schedule'}
             </h2>
-            <p className="text-gray-600 mt-0.5 text-sm sm:text-base">
-              Foundation of Faith Programme — Week {week.weekNumber}
-            </p>
+            {!compactHeader && (
+              <p className="text-gray-600 mt-0.5 text-sm sm:text-base">
+                Foundation of Faith Programme — Week {week.weekNumber}
+              </p>
+            )}
+            {compactHeader && (
+              <p className="mt-1 text-sm text-gray-500">Tap a day to expand its schedule, approvals, and activity stack.</p>
+            )}
           </div>
           {pendingChanges.length > 0 && (
-            <span className="inline-flex items-center px-2.5 py-1 border border-orange-200 text-orange-700 bg-orange-50 rounded-lg text-xs flex-shrink-0">
+            <span className={`inline-flex items-center border border-orange-200 text-orange-700 bg-orange-50 text-xs flex-shrink-0 ${compactHeader ? 'rounded-full px-3 py-1.5' : 'rounded-lg px-2.5 py-1'}`}>
               {pendingChanges.length} pending
             </span>
           )}
@@ -199,7 +206,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             </button>
           </div>
         ) : (
-          <div className="mt-3">
+          <div className={compactHeader ? 'mt-2' : 'mt-3'}>
             <button
               data-tour="export-my-schedule"
               onClick={handleExportMySchedule}

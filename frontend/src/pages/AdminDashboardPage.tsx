@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, NavLink } from 'react-router-dom';
+import AdminCompletionOverviewDrawer from '../components/AdminCompletionOverviewDrawer';
 import ActivityText from '../components/ActivityText';
 import LabelChip from '../components/LabelChip';
 import PageHeader from '../components/PageHeader';
@@ -18,6 +19,7 @@ const AdminDashboardPage: React.FC = () => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
+  const [overviewOpen, setOverviewOpen] = useState(false);
 
   useEffect(() => {
     resourcesApi.getAll().then((res) => setResources(res.resources)).catch(() => {});
@@ -125,7 +127,16 @@ const AdminDashboardPage: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900">Today&apos;s activity snapshot</h3>
               <p className="text-sm text-gray-500">{todaysDay ? `${todaysDay.dayName} in Week ${activeWeek?.weekNumber}` : 'No active day selected'}</p>
             </div>
-            <NavLink to="/schedule" className="text-sm font-semibold text-primary hover:text-primary-dark">Open schedule</NavLink>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setOverviewOpen(true)}
+                className="rounded-full border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-primary hover:bg-orange-100"
+              >
+                Completion overview
+              </button>
+              <NavLink to="/schedule" className="text-sm font-semibold text-primary hover:text-primary-dark">Open schedule</NavLink>
+            </div>
           </div>
           <div className="space-y-3">
             {todayActivities.length === 0 ? (
@@ -207,6 +218,16 @@ const AdminDashboardPage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      <AdminCompletionOverviewDrawer
+        open={overviewOpen}
+        onClose={() => setOverviewOpen(false)}
+        activities={todayActivities}
+        users={users}
+        completions={completions}
+        heading={todaysDay ? `${todaysDay.dayName} overview` : 'Today overview'}
+        subheading={activeWeek ? `Week ${activeWeek.weekNumber} support completion and pending follow-through.` : 'Support completion and pending follow-through.'}
+      />
     </div>
   );
 };

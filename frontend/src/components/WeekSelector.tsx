@@ -1,61 +1,71 @@
 import React from 'react';
 import type { Week } from '../types';
+import AppSelect from './AppSelect';
 
 interface WeekSelectorProps {
   weeks: Week[];
   selectedWeek: Week | null;
   onWeekSelect: (weekId: number) => void;
+  compact?: boolean;
 }
 
 const WeekSelector: React.FC<WeekSelectorProps> = ({
   weeks,
   selectedWeek,
   onWeekSelect,
+  compact = false,
 }) => {
+  const options = weeks.map((week) => ({
+    value: String(week.id),
+    label: `Week ${week.weekNumber}`,
+    meta: `${week.days.length} days`,
+  }));
+
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="p-3 sm:p-4 border-b border-gray-200">
-        <h2 className="text-base sm:text-lg font-medium text-gray-900">Program Weeks</h2>
-        <p className="text-xs sm:text-sm text-gray-500">Select a week to view schedule</p>
+    <div className={`bg-white shadow ${compact ? 'rounded-3xl border border-orange-100' : 'rounded-lg'}`}>
+      <div className={`${compact ? 'border-b border-orange-100 px-4 py-4' : 'border-b border-gray-200 p-3 sm:p-4'}`}>
+        <h2 className={`${compact ? 'text-sm font-semibold uppercase tracking-[0.12em] text-gray-500' : 'text-base sm:text-lg font-medium text-gray-900'}`}>
+          {compact ? 'Week Focus' : 'Program Weeks'}
+        </h2>
+        <p className={`${compact ? 'mt-1 text-sm font-semibold text-gray-900' : 'text-xs sm:text-sm text-gray-500'}`}>
+          {compact ? 'Choose the week you want to manage.' : 'Select a week to view schedule'}
+        </p>
       </div>
 
-      <div className="p-3 sm:p-4">
-        {/* Mobile Dropdown */}
-        <div className="block sm:hidden">
-          <select
-            value={selectedWeek?.id || ''}
-            onChange={(e) => onWeekSelect(parseInt(e.target.value))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary focus:border-primary bg-white"
-          >
-            <option value="" disabled>Select a week</option>
-            {weeks.map((week) => (
-              <option key={week.id} value={week.id}>
-                Week {week.weekNumber} ({week.days.length} days)
-              </option>
-            ))}
-          </select>
+      <div className={`${compact ? 'p-4' : 'p-3 sm:p-4'}`}>
+        <div className={compact ? 'block' : 'block sm:hidden'}>
+          <AppSelect
+            value={selectedWeek ? String(selectedWeek.id) : ''}
+            onChange={(nextValue) => onWeekSelect(parseInt(nextValue, 10))}
+            options={options}
+            placeholder="Select a week"
+            compact={compact}
+          />
         </div>
 
-        {/* Desktop List */}
-        <div className="hidden sm:block space-y-2">
+        <div className={`${compact ? 'mt-4 hidden grid-cols-2 gap-2 sm:grid sm:grid-cols-3' : 'hidden sm:block space-y-2'}`}>
           {weeks.map((week) => (
             <button
               key={week.id}
               onClick={() => onWeekSelect(week.id)}
-              className={`w-full text-left px-3 sm:px-4 py-2 sm:py-3 rounded-lg border transition-colors ${
+              className={`w-full text-left transition-colors ${
                 selectedWeek?.id === week.id
-                  ? 'border-primary bg-primary/5 text-primary font-medium'
-                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700'
+                  ? compact
+                    ? 'rounded-2xl border border-primary bg-primary text-white shadow-lg shadow-orange-200/50'
+                    : 'rounded-lg border border-primary bg-primary/5 text-primary font-medium'
+                  : compact
+                    ? 'rounded-2xl border border-orange-100 bg-orange-50/35 text-gray-700 hover:border-orange-200 hover:bg-orange-50'
+                    : 'rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-sm sm:text-base">Week {week.weekNumber}</span>
+              <div className={`flex items-center justify-between ${compact ? 'px-3 py-3' : 'px-3 sm:px-4 py-2 sm:py-3'}`}>
+                <span className={compact ? 'text-sm font-semibold' : 'text-sm sm:text-base'}>Week {week.weekNumber}</span>
                 <div className="flex items-center space-x-1 sm:space-x-2">
-                  <span className="text-xs text-gray-500">
+                  <span className={`text-xs ${selectedWeek?.id === week.id && compact ? 'text-white/80' : 'text-gray-500'}`}>
                     {week.days.length} days
                   </span>
                   {selectedWeek?.id === week.id && (
-                    <svg className="w-3 h-3 sm:w-4 sm:h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className={`w-3 h-3 sm:w-4 sm:h-4 ${compact ? 'text-white' : 'text-primary'}`} fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   )}

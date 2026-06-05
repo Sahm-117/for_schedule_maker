@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
+import AppSelect from '../components/AppSelect';
 import PageHeader from '../components/PageHeader';
 import ScheduleView from '../components/ScheduleView';
 import WeekSelector from '../components/WeekSelector';
@@ -62,19 +63,28 @@ const AdminSchedulePage: React.FC = () => {
     await exportDayToPDF(selectedWeek, day, { includeEmptyDays: false });
   };
 
+  const groupOptions = [
+    { value: '', label: 'All support groups', meta: 'Show every assigned activity' },
+    ...supportGroups.map((group) => ({
+      value: group.id,
+      label: group.name,
+      meta: 'Support group filter',
+    })),
+  ];
+
   const headerAction = selectedWeek && canManageSchedule ? (
     <div className="flex flex-wrap items-center justify-end gap-2">
       <button
         type="button"
         onClick={() => setShowDayAddPicker(true)}
-        className="inline-flex h-11 items-center justify-center rounded-2xl border border-primary px-4 text-sm font-semibold text-primary hover:bg-primary/5"
+        className="inline-flex h-10 items-center justify-center rounded-full border border-primary px-4 text-sm font-semibold text-primary hover:bg-primary/5"
       >
         Add Activity
       </button>
       <button
         type="button"
         onClick={() => setCrossWeekRequest((prev) => prev + 1)}
-        className="inline-flex h-11 items-center justify-center rounded-2xl border border-orange-200 px-4 text-sm font-semibold text-gray-700 hover:bg-orange-50"
+        className="inline-flex h-10 items-center justify-center rounded-full border border-orange-200 px-4 text-sm font-semibold text-gray-700 hover:bg-orange-50"
       >
         Cross-Week
       </button>
@@ -82,7 +92,7 @@ const AdminSchedulePage: React.FC = () => {
         <button
           type="button"
           onClick={() => setShowExportMenu((prev) => !prev)}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark"
         >
           Export
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,36 +143,51 @@ const AdminSchedulePage: React.FC = () => {
         action={headerAction}
       />
 
-      <div className="grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
-        <div className="space-y-4">
-          <WeekSelector
-            weeks={weeks}
-            selectedWeek={selectedWeek}
-            onWeekSelect={(weekId) => {
-              void handleWeekSelect(weekId);
-            }}
-          />
-          {isAdmin && (
-            <div className="surface-card p-4">
-              <h3 className="text-sm font-semibold text-gray-900">Support Group Filter</h3>
-              <p className="mt-1 text-xs text-gray-500">View one support group’s exact assignments for this selected week.</p>
-              <select
+      <div className="mb-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr_0.8fr]">
+        <WeekSelector
+          weeks={weeks}
+          selectedWeek={selectedWeek}
+          compact
+          onWeekSelect={(weekId) => {
+            void handleWeekSelect(weekId);
+          }}
+        />
+        {isAdmin && (
+          <div className="surface-card rounded-3xl border border-orange-100 p-4">
+            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Support Group</p>
+            <p className="mt-1 text-sm font-semibold text-gray-900">Filter assignments fast</p>
+            <p className="mt-1 text-xs text-gray-500">See one support group’s exact workload without opening the native browser picker.</p>
+            <div className="mt-4">
+              <AppSelect
                 value={selectedSupportGroupId}
-                onChange={(e) => setSelectedSupportGroupId(e.target.value)}
-                className="mt-3 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-primary"
-              >
-                <option value="">All support groups</option>
-                {supportGroups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedSupportGroupId}
+                options={groupOptions}
+                placeholder="All support groups"
+                compact
+              />
             </div>
-          )}
+          </div>
+        )}
+        <div className="surface-card rounded-3xl border border-orange-100 bg-gradient-to-br from-white via-orange-50/60 to-white p-4">
+          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Focus</p>
+          <p className="mt-1 text-sm font-semibold text-gray-900">
+            {selectedWeek ? `Week ${selectedWeek.weekNumber} command view` : 'Select a week'}
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <QuickMetric
+              label="Visible days"
+              value={selectedWeek?.days.length ?? 0}
+            />
+            <QuickMetric
+              label="Support filter"
+              value={selectedSupportGroupId ? '1 active' : 'All'}
+            />
+          </div>
         </div>
+      </div>
 
-        <div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)]">
+        <div className="space-y-4">
           {selectedWeek ? (
             <ScheduleView
               week={selectedWeek}
@@ -174,6 +199,7 @@ const AdminSchedulePage: React.FC = () => {
               canEdit={isAdmin || isSopPreparer}
               filterLabelIds={selectedSupportGroupId ? [selectedSupportGroupId] : (isAdmin || isSopPreparer ? undefined : userLabelIds)}
               showInlineAdminActions={false}
+              compactHeader
               externalAddDayId={headerAddDayId}
               onExternalAddHandled={() => setHeaderAddDayId(null)}
               externalCrossWeekRequest={crossWeekRequest}
@@ -252,5 +278,12 @@ const AdminSchedulePage: React.FC = () => {
     </div>
   );
 };
+
+const QuickMetric: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+  <div className="rounded-2xl border border-white bg-white/85 px-3 py-3 shadow-sm">
+    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">{label}</p>
+    <p className="mt-1 text-lg font-bold text-gray-900">{value}</p>
+  </div>
+);
 
 export default AdminSchedulePage;
