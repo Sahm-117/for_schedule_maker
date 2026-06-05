@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
+import AppSelect from './AppSelect';
 import RejectedChangesNotification from './RejectedChangesNotification';
 import NotificationPromptModal from './NotificationPromptModal';
 import PWAInstallBanner from './PWAInstallBanner';
@@ -25,6 +26,7 @@ const ICONS = {
   schedule: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></IconBox>,
   approvals: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 12l2 2 4-4m5 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></IconBox>,
   overview: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 19h16M6 16V8m6 8V5m6 11v-6" /></svg></IconBox>,
+  cohorts: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5 5.15 5 3.067 5.865 2 7.2v11.547C3.067 17.412 5.15 16.547 7.5 16.547c1.746 0 3.332.477 4.5 1.253m0-11.547C13.168 5.477 14.754 5 16.5 5c2.35 0 4.433.865 5.5 2.2v11.547c-1.067-1.335-3.15-2.2-5.5-2.2-1.746 0-3.332.477-4.5 1.253" /></svg></IconBox>,
   users: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2a5 5 0 00-10 0v2m10-8a4 4 0 10-8 0 4 4 0 008 0zm6 2a4 4 0 11-8 0 4 4 0 018 0z" /></svg></IconBox>,
   megaphone: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M11 5 6 9H3v6h3l5 4V5Zm0 0h4a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4h-4" /></svg></IconBox>,
   resources: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M19 11H5m14 0a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2m14 0V9a2 2 0 0 0-2-2M5 11V9a2 2 0 0 1 2-2m0 0V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2M7 7h10" /></svg></IconBox>,
@@ -37,6 +39,7 @@ const adminNav: NavItem[] = [
   { to: '/schedule', label: 'Schedule', icon: ICONS.schedule },
   { to: '/approvals', label: 'Approvals', icon: ICONS.approvals },
   { to: '/activity-overview', label: 'Activity Overview', icon: ICONS.overview, adminOnly: true },
+  { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
   { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
   { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
   { to: '/resources', label: 'Resources', icon: ICONS.resources },
@@ -70,6 +73,9 @@ const isNavActive = (pathname: string, to: string) => {
 const AppShell: React.FC = () => {
   const { user, isAdmin, isSopPreparer, logout } = useAuth();
   const {
+    cohorts,
+    activeCohort,
+    setActiveCohort,
     rejectedChanges,
     unreadCount,
     refreshRejectedChanges,
@@ -99,6 +105,11 @@ const AppShell: React.FC = () => {
   }, [isSupport, navItems]);
 
   const currentLabel = isAdmin ? 'Admin' : isSopPreparer ? 'SOP Preparer' : 'Support';
+  const cohortOptions = cohorts.map((cohort) => ({
+    value: cohort.id,
+    label: cohort.name,
+    meta: cohort.startDate && cohort.endDate ? `${cohort.startDate} to ${cohort.endDate}` : 'No dates set',
+  }));
 
   const detailTone = realtimeHealthy
     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -183,6 +194,21 @@ const AppShell: React.FC = () => {
               </button>
             </div>
             <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
+              {cohortOptions.length > 0 && (
+                <div className="mb-4 rounded-3xl border border-orange-100 bg-orange-50/45 p-3">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Active Cohort</p>
+                  <AppSelect
+                    value={activeCohort?.id || ''}
+                    onChange={(cohortId) => {
+                      void setActiveCohort(cohortId);
+                      setOpen(false);
+                    }}
+                    options={cohortOptions}
+                    placeholder="Choose cohort"
+                    compact
+                  />
+                </div>
+              )}
               {navItems.map((item) => {
                 const active = isNavActive(location.pathname, item.to);
                 return (
@@ -224,6 +250,11 @@ const AppShell: React.FC = () => {
               <p className="truncate text-sm font-semibold text-gray-900">{user?.name}</p>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
                 <span className="rounded-full bg-orange-100 px-2.5 py-1 font-semibold text-orange-700">{currentLabel}</span>
+                {activeCohort && (
+                  <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">
+                    {activeCohort.name}
+                  </span>
+                )}
                 {!isSupport && (
                   <span className={`rounded-full border px-2.5 py-1 ${detailTone}`}>
                     {realtimeHealthy ? 'Live sync' : 'Polling fallback'}
@@ -243,6 +274,19 @@ const AppShell: React.FC = () => {
             </div>
 
             <div className="hidden items-center gap-3 sm:flex">
+              {cohortOptions.length > 0 && (
+                <div className="w-64">
+                  <AppSelect
+                    value={activeCohort?.id || ''}
+                    onChange={(cohortId) => {
+                      void setActiveCohort(cohortId);
+                    }}
+                    options={cohortOptions}
+                    placeholder="Choose cohort"
+                    compact
+                  />
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => navigate(isSupport ? '/support/resources' : '/resources')}

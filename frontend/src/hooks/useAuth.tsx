@@ -10,6 +10,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isSopPreparer: boolean;
   userLabelIds: string[];
+  userCohortIds: string[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +31,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [userLabelIds, setUserLabelIds] = useState<string[]>([]);
+  const [userCohortIds, setUserCohortIds] = useState<string[]>([]);
 
   const fetchUserLabels = async (userId: string, role: string) => {
     if (role !== 'SUPPORT') {
@@ -44,6 +46,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const fetchUserCohorts = async (userId: string, role: string) => {
+    if (role !== 'SUPPORT') {
+      setUserCohortIds([]);
+      return;
+    }
+    try {
+      const response = await usersApi.getUserCohorts(userId);
+      setUserCohortIds(response.cohorts.map((cohort) => cohort.id));
+    } catch {
+      setUserCohortIds([]);
+    }
+  };
+
   const login = async (email: string, password: string) => {
     const response = await authApi.login(email, password);
     setAuthToken(response.accessToken);
@@ -51,6 +66,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.setItem('user', JSON.stringify(response.user));
     setUser(response.user);
     await fetchUserLabels(response.user.id, response.user.role);
+    await fetchUserCohorts(response.user.id, response.user.role);
   };
 
   const logout = () => {
@@ -58,6 +74,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('user');
     setUser(null);
     setUserLabelIds([]);
+    setUserCohortIds([]);
   };
 
   const checkAuth = async () => {
@@ -74,6 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(response.user));
       setUser(response.user);
       await fetchUserLabels(response.user.id, response.user.role);
+      await fetchUserCohorts(response.user.id, response.user.role);
     } catch {
       // Network/DB unavailable — restore from cache so PWA stays signed in
       const cached = localStorage.getItem('user');
@@ -82,6 +100,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const cachedUser = JSON.parse(cached);
           setUser(cachedUser);
           await fetchUserLabels(cachedUser.id, cachedUser.role);
+          await fetchUserCohorts(cachedUser.id, cachedUser.role);
         } catch {
           clearAuthToken();
           localStorage.removeItem('user');
@@ -106,6 +125,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAdmin: user?.role === 'ADMIN',
     isSopPreparer: user?.role === 'SOP_PREPARER',
     userLabelIds,
+    userCohortIds,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

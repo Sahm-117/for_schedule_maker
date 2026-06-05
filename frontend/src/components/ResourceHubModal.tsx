@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { resourcesApi, announcementsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { useAppData } from '../context/AppDataContext';
 import type { Resource } from '../types';
 
 const LAST_SEEN_KEY = 'fof_resources_last_seen';
@@ -58,6 +59,7 @@ function formatBytes(bytes: number) {
 
 const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, onViewed, embedded = false }) => {
   const { user, isAdmin } = useAuth();
+  const { activeCohort } = useAppData();
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -122,6 +124,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
             'New resource added',
             `"${title.trim()}" has been added to the Resource Hub. Open the app to view it.`,
             user.id,
+            { scope: 'ACTIVE_COHORT', cohortId: activeCohort?.id || null },
           );
         } catch {
           // notification failure is non-blocking

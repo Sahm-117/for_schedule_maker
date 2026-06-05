@@ -1,10 +1,11 @@
 import axios from 'axios';
-import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label, DailyDigestFunctionResponse, SupportActivityCompletion } from '../types';
+import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label, DailyDigestFunctionResponse, SupportActivityCompletion, Cohort } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
 
 // Import Supabase API
 import {
   authApi as supabaseAuthApi,
+  cohortsApi as supabaseCohortsApi,
   weeksApi as supabaseWeeksApi,
   activitiesApi as supabaseActivitiesApi,
   labelsApi as supabaseLabelsApi,
@@ -103,18 +104,33 @@ export const authApi = USE_SUPABASE ? supabaseAuthApi : {
 
 // Weeks API
 export const weeksApi = USE_SUPABASE ? supabaseWeeksApi : {
-  async getAll(): Promise<{ weeks: Week[] }> {
+  async getAll(_cohortId?: string): Promise<{ weeks: Week[] }> {
     const response = await api.get('/weeks');
     return response.data;
   },
 
-  async getById(weekId: number): Promise<{ week: Week; pendingChanges: PendingChange[] }> {
+  async getById(weekId: number, _cohortId?: string): Promise<{ week: Week; pendingChanges: PendingChange[] }> {
     const response = await api.get(`/weeks/${weekId}`);
     return {
       ...response.data,
       pendingChanges: normalizePendingChanges(response.data.pendingChanges || []),
     };
   },
+};
+
+export const cohortsApi = USE_SUPABASE ? supabaseCohortsApi : {
+  async getAll(): Promise<{ cohorts: Cohort[] }> { return { cohorts: [] }; },
+  async createFromCurrent(_input: {
+    name: string;
+    description?: string;
+    startDate?: string | null;
+    endDate?: string | null;
+    sourceCohortId: string;
+  }): Promise<{ cohort: Cohort }> { throw new Error('Cohorts are only available in Supabase mode.'); },
+  async update(_cohortId: string, _input: any): Promise<{ cohort: Cohort }> { throw new Error('Cohorts are only available in Supabase mode.'); },
+  async addWeek(_cohortId: string): Promise<{ week: Week }> { throw new Error('Cohorts are only available in Supabase mode.'); },
+  async getMembers(_cohortId: string): Promise<{ users: User[] }> { return { users: [] }; },
+  async setMembers(_cohortId: string, _userIds: string[]): Promise<{ message: string }> { return { message: 'Not supported' }; },
 };
 
 // Activities API
@@ -274,6 +290,10 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
     return { labels: [] };
   },
 
+  async getUserCohorts(_userId: string): Promise<{ cohorts: Cohort[] }> {
+    return { cohorts: [] };
+  },
+
   async setUserLabels(_userId: string, _labelIds: string[]): Promise<{ message: string }> {
     return { message: 'Not supported' };
   },
@@ -314,8 +334,13 @@ export const notificationSettingsApi = USE_SUPABASE ? supabaseNotificationSettin
 };
 
 export const announcementsApi = USE_SUPABASE ? supabaseAnnouncementsApi : {
-  async send(_subject: string, _body: string, _sentBy: string): Promise<{ sent: number }> { return { sent: 0 }; },
-  async getHistory(): Promise<{ announcements: import('../types').Announcement[] }> { return { announcements: [] }; },
+  async send(_subject: string, _body: string, _sentBy: string, _options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null }): Promise<{ sent: number }> { return { sent: 0 }; },
+  async getHistory(_options?: {
+    cohortId?: string | null;
+    userId?: string;
+    isAdmin?: boolean;
+    accessibleCohortIds?: string[];
+  }): Promise<{ announcements: import('../types').Announcement[] }> { return { announcements: [] }; },
 };
 
 export const resourcesApi = USE_SUPABASE ? supabaseResourcesApi : {

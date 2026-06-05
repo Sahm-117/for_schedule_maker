@@ -4,7 +4,14 @@
  * Called by the admin frontend to broadcast a push notification to all
  * subscribed users and record the announcement in the Announcement table.
  *
- * POST body: { subject: string, body: string, sentBy: string (userId) }
+ * POST body:
+ * {
+ *   subject: string,
+ *   body: string,
+ *   sentBy: string (userId),
+ *   scope?: 'ACTIVE_COHORT' | 'ALL_USERS',
+ *   cohortId?: string | null
+ * }
  *
  * Required Supabase secrets:
  *   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
@@ -45,10 +52,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { subject, body, sentBy } = await req.json() as {
+    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null } = await req.json() as {
       subject: string
       body: string
       sentBy?: string
+      scope?: 'ACTIVE_COHORT' | 'ALL_USERS'
+      cohortId?: string | null
     }
 
     if (!subject || !body) {
@@ -58,10 +67,17 @@ Deno.serve(async (req) => {
       })
     }
 
+    if (scope === 'ACTIVE_COHORT' && !cohortId) {
+      return new Response(JSON.stringify({ ok: false, error: 'cohortId is required for ACTIVE_COHORT announcements' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     // 1. Record the announcement
     const { data: announcement, error: insertError } = await supabase
       .from('Announcement')
-      .insert([{ subject, body, sentBy: sentBy || null }])
+      .insert([{ subject, body, sentBy: sentBy || null, scope, cohortId }])
       .select('id')
       .single()
 
@@ -70,9 +86,35 @@ Deno.serve(async (req) => {
     }
 
     // 2. Fetch all push subscriptions
-    const { data: subs } = await supabase
+    let subscriptionQuery = supabase
       .from('PushSubscription')
       .select('userId, endpoint, p256dh, auth')
+
+    if (scope === 'ACTIVE_COHORT' && cohortId) {
+      const { data: memberships, error: membershipError } = await supabase
+        .from('UserCohort')
+        .select('userId')
+        .eq('cohortId', cohortId)
+
+      if (membershipError) {
+        throw new Error(membershipError.message)
+      }
+
+      const cohortUserIds = Array.from(new Set((memberships || []).map((row: any) => row.userId).filter(Boolean)))
+      if (cohortUserIds.length === 0) {
+        return new Response(JSON.stringify({ ok: true, sent: 0 }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      subscriptionQuery = subscriptionQuery.in('userId', cohortUserIds)
+    }
+
+    const { data: subs, error: subsError } = await subscriptionQuery
+
+    if (subsError) {
+      throw new Error(subsError.message)
+    }
 
     if (!subs || subs.length === 0) {
       return new Response(JSON.stringify({ ok: true, sent: 0 }), {
@@ -86,6 +128,8 @@ Deno.serve(async (req) => {
       body: `${subject}: ${body}`,
       icon: '/icon-192.png',
       tag: `fof-announcement-${announcement.id}`,
+      cohortId,
+      scope,
     })
 
     // 4. Send to each subscription

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { announcementsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { useAppData } from '../context/AppDataContext';
 import type { Announcement } from '../types';
 
 interface AnnouncementsModalProps {
@@ -18,9 +19,11 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   showComposer = true,
   showHistory = true,
 }) => {
-  const { user } = useAuth();
+  const { user, isAdmin, userCohortIds } = useAuth();
+  const { activeCohort } = useAppData();
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [scope, setScope] = useState<'ACTIVE_COHORT' | 'ALL_USERS'>('ACTIVE_COHORT');
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [history, setHistory] = useState<Announcement[]>([]);
@@ -35,12 +38,18 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   useEffect(() => {
     if (!shouldRender) return;
     setVisibleCount(4);
+    setScope('ACTIVE_COHORT');
     setLoadingHistory(true);
-    announcementsApi.getHistory()
+    announcementsApi.getHistory({
+      cohortId: activeCohort?.id || null,
+      userId: user?.id,
+      isAdmin,
+      accessibleCohortIds: userCohortIds,
+    })
       .then((res) => setHistory(res.announcements))
       .catch(() => {})
       .finally(() => setLoadingHistory(false));
-  }, [shouldRender]);
+  }, [activeCohort?.id, isAdmin, shouldRender, user?.id, userCohortIds]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,11 +57,19 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     setSending(true);
     setStatus(null);
     try {
-      const { sent } = await announcementsApi.send(subject.trim(), body.trim(), user.id);
+      const { sent } = await announcementsApi.send(subject.trim(), body.trim(), user.id, {
+        scope,
+        cohortId: scope === 'ACTIVE_COHORT' ? activeCohort?.id || null : null,
+      });
       setStatus({ type: 'success', message: `Sent to ${sent} device${sent !== 1 ? 's' : ''}.` });
       setSubject('');
       setBody('');
-      const res = await announcementsApi.getHistory();
+      const res = await announcementsApi.getHistory({
+        cohortId: activeCohort?.id || null,
+        userId: user.id,
+        isAdmin,
+        accessibleCohortIds: userCohortIds,
+      });
       setHistory(res.announcements);
     } catch {
       setStatus({ type: 'error', message: 'Failed to send announcement. Please try again.' });
@@ -68,7 +85,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       <div className="flex justify-between items-center mb-5">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Announcements</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Send a push notification to all Support users</p>
+          <p className="text-xs text-gray-500 mt-0.5">Send a push notification to the active cohort or all support users.</p>
         </div>
         {!embedded && (
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100">
@@ -89,6 +106,32 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
 
       {showComposer && (
         <form onSubmit={handleSend} className={`space-y-3 ${showHistory ? 'mb-6' : 'mb-0'}`}>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Audience</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setScope('ACTIVE_COHORT')}
+                  className={`rounded-xl border px-3 py-2 text-sm font-semibold ${scope === 'ACTIVE_COHORT' ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Active Cohort
+                  <span className="mt-1 block text-[11px] font-medium text-gray-500">
+                    {activeCohort?.name || 'No active cohort'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScope('ALL_USERS')}
+                  className={`rounded-xl border px-3 py-2 text-sm font-semibold ${scope === 'ALL_USERS' ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                >
+                  All Users
+                  <span className="mt-1 block text-[11px] font-medium text-gray-500">
+                    Global blast
+                  </span>
+                </button>
+              </div>
+            </div>
+
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="text-sm font-medium text-gray-700">Subject</label>
@@ -147,7 +190,12 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                 {history.slice(0, visibleCount).map((a) => (
                   <div key={a.id} className="border border-gray-100 rounded-xl p-3 bg-gray-50">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium text-gray-900 truncate">{a.subject}</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{a.subject}</p>
+                        <p className="mt-0.5 text-[11px] text-gray-400">
+                          {a.scope === 'ALL_USERS' ? 'All Users' : a.cohortName || 'Active Cohort'}
+                        </p>
+                      </div>
                       <span className="text-xs text-gray-400 flex-shrink-0">
                         {new Date(a.sentAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </span>

@@ -13,7 +13,7 @@ const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(n
 
 const AdminDashboardPage: React.FC = () => {
   const { user, isAdmin } = useAuth();
-  const { weeks, selectedWeek, globalPendingChanges, realtimeHealthy, digestEnabled, newResourceCount } = useAppData();
+  const { activeCohort, weeks, selectedWeek, globalPendingChanges, realtimeHealthy, digestEnabled, newResourceCount } = useAppData();
   const [users, setUsers] = useState<User[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -21,7 +21,7 @@ const AdminDashboardPage: React.FC = () => {
 
   useEffect(() => {
     resourcesApi.getAll().then((res) => setResources(res.resources)).catch(() => {});
-    announcementsApi.getHistory().then((res) => setAnnouncements(res.announcements.slice(0, 3))).catch(() => {});
+    announcementsApi.getHistory({ isAdmin: true, cohortId: activeCohort?.id || null }).then((res) => setAnnouncements(res.announcements.slice(0, 3))).catch(() => {});
     if (isAdmin) {
       usersApi.getAll()
         .then(async (res) => {
@@ -46,7 +46,7 @@ const AdminDashboardPage: React.FC = () => {
         })
         .catch(() => {});
     }
-  }, [isAdmin]);
+  }, [activeCohort?.id, isAdmin]);
 
   const activeWeek = selectedWeek || weeks[0] || null;
   useEffect(() => {
@@ -88,7 +88,7 @@ const AdminDashboardPage: React.FC = () => {
         subtitle="Operational overview for schedule updates, team readiness, and shared resources."
         action={activeWeek ? (
           <div className="surface-muted px-4 py-3 text-sm text-gray-700">
-            <span className="font-semibold text-gray-900">Active focus:</span> Week {activeWeek.weekNumber}
+            <span className="font-semibold text-gray-900">Active focus:</span> {activeCohort?.name ? `${activeCohort.name} • ` : ''}Week {activeWeek.weekNumber}
           </div>
         ) : null}
       />

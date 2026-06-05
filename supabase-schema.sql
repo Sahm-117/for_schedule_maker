@@ -2,9 +2,10 @@
 -- Copy and paste this into Supabase SQL Editor
 
 -- Create custom types (enums)
-CREATE TYPE "Role" AS ENUM ('ADMIN', 'SUPPORT');
+CREATE TYPE "Role" AS ENUM ('ADMIN', 'SOP_PREPARER', 'SUPPORT');
 CREATE TYPE "Period" AS ENUM ('MORNING', 'AFTERNOON', 'EVENING');
 CREATE TYPE "ChangeType" AS ENUM ('ADD', 'EDIT', 'DELETE');
+CREATE TYPE "AnnouncementScope" AS ENUM ('ACTIVE_COHORT', 'ALL_USERS');
 
 -- Users table
 CREATE TABLE "User" (
@@ -17,10 +18,23 @@ CREATE TABLE "User" (
     "updatedAt" TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE "Cohort" (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    description TEXT,
+    "startDate" DATE,
+    "endDate" DATE,
+    status TEXT NOT NULL DEFAULT 'ACTIVE',
+    "createdAt" TIMESTAMP DEFAULT NOW(),
+    "updatedAt" TIMESTAMP DEFAULT NOW()
+);
+
 -- Weeks table
 CREATE TABLE "Week" (
     id SERIAL PRIMARY KEY,
-    "weekNumber" INTEGER UNIQUE NOT NULL
+    "cohortId" UUID NOT NULL REFERENCES "Cohort"(id) ON DELETE CASCADE,
+    "weekNumber" INTEGER NOT NULL,
+    UNIQUE("cohortId", "weekNumber")
 );
 
 -- Days table
@@ -47,6 +61,13 @@ CREATE TABLE "SupportActivityCompletion" (
     "userId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
     "completedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE("activityId", "userId")
+);
+
+CREATE TABLE "UserCohort" (
+    "userId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+    "cohortId" UUID NOT NULL REFERENCES "Cohort"(id) ON DELETE CASCADE,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY ("userId", "cohortId")
 );
 
 -- Labels table (admin-managed)
@@ -102,17 +123,34 @@ CREATE TABLE "AppSetting" (
     "updatedAt" TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS "Announcement" (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  subject TEXT NOT NULL,
+  body TEXT NOT NULL,
+  "sentAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "sentBy" UUID REFERENCES "User"(id) ON DELETE SET NULL,
+  scope "AnnouncementScope" NOT NULL DEFAULT 'ACTIVE_COHORT',
+  "cohortId" UUID REFERENCES "Cohort"(id) ON DELETE SET NULL
+);
+
 -- Create indexes for better performance
 CREATE INDEX idx_activity_day_order ON "Activity"("dayId", "orderIndex");
 CREATE INDEX idx_supportactivitycompletion_user ON "SupportActivityCompletion"("userId");
 CREATE INDEX idx_supportactivitycompletion_activity ON "SupportActivityCompletion"("activityId");
+CREATE INDEX idx_week_cohort ON "Week"("cohortId");
+CREATE INDEX idx_usercohort_cohort ON "UserCohort"("cohortId");
+CREATE INDEX idx_announcement_cohort ON "Announcement"("cohortId");
 
 -- Insert default admin user (password: admin123)
 INSERT INTO "User" (email, name, password_hash, role) VALUES
 ('admin@fof.com', 'Admin User', '$2b$10$8K1p/a9DLyfoaYJ8c7F1sO5.JxUn9UyO8LqFWF/iQ5.rHYnGb6DSa', 'ADMIN');
 
--- Insert sample week
-INSERT INTO "Week" ("weekNumber") VALUES (1);
+-- Insert default cohort and sample week
+INSERT INTO "Cohort" (name, description, status)
+VALUES ('Current Cohort', 'Default seeded cohort', 'ACTIVE');
+
+INSERT INTO "Week" ("cohortId", "weekNumber")
+SELECT id, 1 FROM "Cohort" WHERE name = 'Current Cohort' LIMIT 1;
 
 -- Insert days for week 1
 INSERT INTO "Day" ("weekId", "dayName") VALUES
@@ -130,11 +168,14 @@ ALTER TABLE "Week" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Day" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Activity" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "SupportActivityCompletion" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Cohort" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "UserCohort" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Label" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ActivityLabel" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "PendingChange" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "RejectedChange" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "AppSetting" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Announcement" ENABLE ROW LEVEL SECURITY;
 
 -- Create policies (allow all for now - you can tighten security later)
 CREATE POLICY "Allow all operations" ON "User" FOR ALL USING (true);
@@ -142,11 +183,14 @@ CREATE POLICY "Allow all operations" ON "Week" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "Day" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "Activity" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "SupportActivityCompletion" FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON "Cohort" FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON "UserCohort" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "Label" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "ActivityLabel" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "PendingChange" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "RejectedChange" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "AppSetting" FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON "Announcement" FOR ALL USING (true);
 
 -- Default app settings
 INSERT INTO "AppSetting" ("settingKey", value)

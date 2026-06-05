@@ -1,13 +1,18 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { digestApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, weeksApi } from '../services/api';
-import type { DailyDigestCursor, DailyDigestFunctionResponse, PendingChange, RejectedChange, Week } from '../types';
+import { cohortsApi, digestApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, weeksApi } from '../services/api';
+import type { Cohort, DailyDigestCursor, DailyDigestFunctionResponse, PendingChange, RejectedChange, Week } from '../types';
 
 const LAST_SEEN_KEY = 'fof_resources_last_seen';
+const ACTIVE_COHORT_KEY = 'fof_active_cohort_id';
 
 interface AppDataContextType {
   loading: boolean;
+  cohorts: Cohort[];
+  activeCohort: Cohort | null;
+  setActiveCohort: (cohortId: string) => Promise<void>;
+  reloadCohorts: () => Promise<void>;
   weeks: Week[];
   selectedWeek: Week | null;
   handleWeekSelect: (weekId: number) => Promise<void>;
@@ -45,7 +50,9 @@ export const useAppData = () => {
 };
 
 export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAdmin, isSopPreparer } = useAuth();
+  const { user, isAdmin, isSopPreparer, userCohortIds } = useAuth();
+  const [cohorts, setCohorts] = useState<Cohort[]>([]);
+  const [activeCohort, setActiveCohortState] = useState<Cohort | null>(null);
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<Week | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,17 +71,48 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const refreshTimeoutRef = useRef<number | null>(null);
 
-  const loadWeeks = useCallback(async () => {
-    const response = await weeksApi.getAll();
+  const getAccessibleCohorts = useCallback((allCohorts: Cohort[]) => {
+    if (isAdmin || isSopPreparer) return allCohorts;
+    return allCohorts.filter((cohort) => userCohortIds.includes(cohort.id));
+  }, [isAdmin, isSopPreparer, userCohortIds]);
+
+  const applyActiveCohort = useCallback((allCohorts: Cohort[]) => {
+    const accessible = getAccessibleCohorts(allCohorts);
+    const persisted = localStorage.getItem(ACTIVE_COHORT_KEY);
+    const next = (persisted ? accessible.find((cohort) => cohort.id === persisted) : null) || accessible[0] || null;
+    setCohorts(accessible);
+    setActiveCohortState(next);
+    if (next) {
+      localStorage.setItem(ACTIVE_COHORT_KEY, next.id);
+    } else {
+      localStorage.removeItem(ACTIVE_COHORT_KEY);
+    }
+    return next;
+  }, [getAccessibleCohorts]);
+
+  const loadCohorts = useCallback(async () => {
+    const response = await cohortsApi.getAll();
+    return applyActiveCohort(response.cohorts);
+  }, [applyActiveCohort]);
+
+  const loadWeeksForCohort = useCallback(async (cohortId?: string | null) => {
+    if (!cohortId) {
+      setWeeks([]);
+      setSelectedWeek(null);
+      return [] as Week[];
+    }
+
+    const response = await weeksApi.getAll(cohortId);
     setWeeks(response.weeks);
     setSelectedWeek((prev) => {
       if (response.weeks.length === 0) return null;
-      if (prev) {
+      if (prev && prev.cohortId === cohortId) {
         return response.weeks.find((week) => week.id === prev.id) || response.weeks[0];
       }
       const week1 = response.weeks.find((week) => week.weekNumber === 1);
       return week1 || response.weeks[0];
     });
+    return response.weeks;
   }, []);
 
   const loadRejectedChanges = useCallback(async () => {
@@ -83,9 +121,13 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setUnreadCount(response.unreadCount);
   }, []);
 
-  const loadGlobalPendingChanges = useCallback(async () => {
+  const loadGlobalPendingChanges = useCallback(async (cohortWeekIds?: number[]) => {
     const response = await pendingChangesApi.getAll();
-    setGlobalPendingChanges(response.pendingChanges);
+    if (!cohortWeekIds || cohortWeekIds.length === 0) {
+      setGlobalPendingChanges(response.pendingChanges);
+      return;
+    }
+    setGlobalPendingChanges(response.pendingChanges.filter((change) => cohortWeekIds.includes(change.weekId)));
   }, []);
 
   const loadWeekPendingChanges = useCallback(async (weekId: number) => {
@@ -117,8 +159,11 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const refreshAdminData = useCallback(() => {
-    void Promise.all([loadWeeks(), loadGlobalPendingChanges()]);
-  }, [loadGlobalPendingChanges, loadWeeks]);
+    if (!activeCohort) return;
+    void loadWeeksForCohort(activeCohort.id).then((loadedWeeks) => {
+      void loadGlobalPendingChanges(loadedWeeks.map((week) => week.id));
+    });
+  }, [activeCohort, loadGlobalPendingChanges, loadWeeksForCohort]);
 
   const scheduleAdminRefresh = useCallback(() => {
     if (refreshTimeoutRef.current) {
@@ -135,10 +180,11 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const initialize = async () => {
       setLoading(true);
       try {
-        await loadWeeks();
+        const resolvedCohort = await loadCohorts();
+        const loadedWeeks = await loadWeeksForCohort(resolvedCohort?.id);
 
         if (isAdmin) {
-          await Promise.all([loadDigestStatus(), loadGlobalPendingChanges()]);
+          await Promise.all([loadDigestStatus(), loadGlobalPendingChanges(loadedWeeks.map((week) => week.id))]);
         } else if (isSopPreparer) {
           await loadRejectedChanges();
         }
@@ -162,7 +208,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, isSopPreparer, loadDigestStatus, loadGlobalPendingChanges, loadRejectedChanges, loadWeeks, refreshResourceCount, user]);
+  }, [isAdmin, isSopPreparer, loadCohorts, loadDigestStatus, loadGlobalPendingChanges, loadRejectedChanges, loadWeeksForCohort, refreshResourceCount, user]);
 
   useEffect(() => {
     if (!isSopPreparer || !selectedWeek) return;
@@ -177,12 +223,9 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const channel = (supabase as any)
       .channel(`dashboard-sync-${Date.now()}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'PendingChange' }, () => {
-        scheduleAdminRefresh();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Activity' }, () => {
-        scheduleAdminRefresh();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'PendingChange' }, scheduleAdminRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Activity' }, scheduleAdminRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Week' }, scheduleAdminRefresh)
       .subscribe((status: string) => {
         if (status === 'SUBSCRIBED') {
           setRealtimeHealthy(true);
@@ -205,19 +248,15 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     if (!isAdmin || realtimeHealthy) return;
-
     const intervalId = window.setInterval(() => {
       refreshAdminData();
     }, 15000);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
+    return () => window.clearInterval(intervalId);
   }, [isAdmin, realtimeHealthy, refreshAdminData]);
 
   const handleWeekSelect = useCallback(async (weekId: number) => {
     try {
-      const response = await weeksApi.getById(weekId);
+      const response = await weeksApi.getById(weekId, activeCohort?.id);
       setSelectedWeek(response.week);
 
       if (isSopPreparer) {
@@ -226,7 +265,24 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch (error) {
       console.error('Failed to load week:', error);
     }
-  }, [isSopPreparer, loadWeekPendingChanges]);
+  }, [activeCohort?.id, isSopPreparer, loadWeekPendingChanges]);
+
+  const setActiveCohort = useCallback(async (cohortId: string) => {
+    const next = cohorts.find((cohort) => cohort.id === cohortId) || null;
+    setActiveCohortState(next);
+    if (next) {
+      localStorage.setItem(ACTIVE_COHORT_KEY, next.id);
+      const loadedWeeks = await loadWeeksForCohort(next.id);
+      if (isAdmin) {
+        await loadGlobalPendingChanges(loadedWeeks.map((week) => week.id));
+      }
+    } else {
+      localStorage.removeItem(ACTIVE_COHORT_KEY);
+      setWeeks([]);
+      setSelectedWeek(null);
+      setGlobalPendingChanges([]);
+    }
+  }, [cohorts, isAdmin, loadGlobalPendingChanges, loadWeeksForCohort]);
 
   const handleToggleDigest = useCallback(async () => {
     const nextValue = !digestEnabled;
@@ -300,14 +356,14 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const refreshPendingChanges = useCallback(async () => {
     if (isAdmin) {
-      await loadGlobalPendingChanges();
+      await loadGlobalPendingChanges(weeks.map((week) => week.id));
       return;
     }
 
     if (selectedWeek) {
       await loadWeekPendingChanges(selectedWeek.id);
     }
-  }, [isAdmin, loadGlobalPendingChanges, loadWeekPendingChanges, selectedWeek]);
+  }, [isAdmin, loadGlobalPendingChanges, loadWeekPendingChanges, selectedWeek, weeks]);
 
   const handlePendingApprove = useCallback((changeIds?: string[]) => {
     if (changeIds && changeIds.length > 0) {
@@ -328,12 +384,20 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setNewResourceCount(0);
   }, []);
 
+  const reloadWeeks = useCallback(async () => {
+    await loadWeeksForCohort(activeCohort?.id);
+  }, [activeCohort?.id, loadWeeksForCohort]);
+
   const value = useMemo<AppDataContextType>(() => ({
     loading,
+    cohorts,
+    activeCohort,
+    setActiveCohort,
+    reloadCohorts: loadCohorts,
     weeks,
     selectedWeek,
     handleWeekSelect,
-    reloadWeeks: loadWeeks,
+    reloadWeeks,
     rejectedChanges,
     unreadCount,
     refreshRejectedChanges: loadRejectedChanges,
@@ -355,6 +419,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refreshResourceCount,
     markResourcesViewed,
   }), [
+    activeCohort,
+    cohorts,
     digestActionLabel,
     digestCursor,
     digestEnabled,
@@ -368,7 +434,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     handleToggleDigest,
     handleWeekSelect,
     loadRejectedChanges,
-    loadWeeks,
     loading,
     markResourcesViewed,
     newResourceCount,
@@ -377,7 +442,10 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refreshPendingChanges,
     refreshResourceCount,
     rejectedChanges,
+    reloadWeeks,
+    loadCohorts,
     selectedWeek,
+    setActiveCohort,
     unreadCount,
     weeks,
   ]);

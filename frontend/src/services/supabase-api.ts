@@ -2,6 +2,8 @@ import { supabase } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import type {
   User,
+  Cohort,
+  UserCohort,
   Week,
   Day,
   Activity,
@@ -22,6 +24,7 @@ import { sendTelegramNotificationBestEffort } from './telegramNotifications';
 let currentSession: Session | null = null;
 const weekNumberCache = new Map<number, number>();
 const DAILY_DIGEST_ENABLED_KEY = 'daily_digest_enabled';
+const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const parseDailyDigestEnabled = (value: unknown): boolean => {
   if (typeof value === 'boolean') return value;
@@ -159,6 +162,44 @@ const notifyTelegramBestEffort = (payload: TelegramNotificationEvent): void => {
   sendTelegramNotificationBestEffort(payload, { timeoutMs: 2500 });
 };
 
+const mapWeekRow = (week: any): Week => {
+  const sortedDays = (week.Day || []).sort((a: any, b: any) => DAY_ORDER.indexOf(a.dayName) - DAY_ORDER.indexOf(b.dayName));
+
+  return {
+    id: week.id,
+    cohortId: week.cohortId,
+    weekNumber: week.weekNumber,
+    days: sortedDays.map((day: any) => ({
+      id: day.id,
+      weekId: day.weekId,
+      dayName: day.dayName,
+      activities: (day.Activity || []).map((activity: any) => ({
+        id: activity.id,
+        dayId: activity.dayId,
+        time: activity.time,
+        description: activity.description,
+        period: activity.period,
+        orderIndex: activity.orderIndex,
+        day: {
+          id: day.id,
+          weekId: day.weekId,
+          dayName: day.dayName,
+        },
+        labels: ((activity.ActivityLabel || []) as any[])
+          .map((al: any) => al?.Label)
+          .filter(Boolean)
+          .map((l: any) => ({
+            id: l.id,
+            name: l.name,
+            color: l.color,
+            createdAt: l.createdAt,
+            updatedAt: l.updatedAt,
+          }) as Label),
+      })),
+    })),
+  };
+};
+
 // Initialize session from Supabase
 export const initializeAuth = async () => {
   const { data: { session } } = await supabase.auth.getSession();
@@ -268,8 +309,8 @@ export const authApi = {
 
 // Weeks API
 export const weeksApi = {
-  async getAll(): Promise<{ weeks: Week[] }> {
-    const { data, error } = await supabase
+  async getAll(cohortId?: string): Promise<{ weeks: Week[] }> {
+    let query = supabase
       .from('Week')
       .select(`
         *,
@@ -285,55 +326,24 @@ export const weeksApi = {
       `)
       .order('weekNumber');
 
+    if (cohortId) {
+      query = query.eq('cohortId', cohortId);
+    }
+
+    const { data, error } = await query;
+
     if (error) {
       throw new Error(error.message);
     }
 
-    // Transform Supabase data to match app types
-    const weeks: Week[] = (data || []).map((week: any) => {
-      // Define day order (FOF weeks start on Sunday)
-      const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-      // Sort days according to FOF week order
-      const sortedDays = (week.Day || []).sort((a: any, b: any) => {
-        return dayOrder.indexOf(a.dayName) - dayOrder.indexOf(b.dayName);
-      });
-
-      return {
-        id: week.id,
-        weekNumber: week.weekNumber,
-        days: sortedDays.map((day: any) => ({
-          id: day.id,
-          weekId: day.weekId,
-          dayName: day.dayName,
-          activities: (day.Activity || []).map((activity: any) => ({
-            id: activity.id,
-            dayId: activity.dayId,
-            time: activity.time,
-            description: activity.description,
-            period: activity.period,
-            orderIndex: activity.orderIndex,
-            labels: ((activity.ActivityLabel || []) as any[])
-              .map((al: any) => al?.Label)
-              .filter(Boolean)
-              .map((l: any) => ({
-                id: l.id,
-                name: l.name,
-                color: l.color,
-                createdAt: l.createdAt,
-                updatedAt: l.updatedAt,
-              }) as Label),
-          })),
-        })),
-      };
-    });
+    const weeks: Week[] = (data || []).map((week: any) => mapWeekRow(week));
 
     return { weeks };
   },
 
-  async getById(weekId: number): Promise<{ week: Week; pendingChanges: PendingChange[] }> {
+  async getById(weekId: number, cohortId?: string): Promise<{ week: Week; pendingChanges: PendingChange[] }> {
     // Get week with days and activities
-    const { data: weekData, error: weekError } = await supabase
+    let weekQuery = supabase
       .from('Week')
       .select(`
         *,
@@ -347,8 +357,13 @@ export const weeksApi = {
           )
         )
       `)
-      .eq('id', weekId)
-      .single();
+      .eq('id', weekId);
+
+    if (cohortId) {
+      weekQuery = weekQuery.eq('cohortId', cohortId);
+    }
+
+    const { data: weekData, error: weekError } = await weekQuery.single();
 
     if (weekError) {
       throw new Error(weekError.message);
@@ -367,44 +382,253 @@ export const weeksApi = {
       throw new Error(changesError.message);
     }
 
-    // Transform week data
-    const dayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const sortedDays = (weekData.Day || []).sort((a: any, b: any) => {
-      return dayOrder.indexOf(a.dayName) - dayOrder.indexOf(b.dayName);
-    });
-
-    const week: Week = {
-      id: weekData.id,
-      weekNumber: weekData.weekNumber,
-      days: sortedDays.map((day: any) => ({
-        id: day.id,
-        weekId: day.weekId,
-        dayName: day.dayName,
-        activities: (day.Activity || []).map((activity: any) => ({
-          id: activity.id,
-          dayId: activity.dayId,
-          time: activity.time,
-          description: activity.description,
-          period: activity.period,
-          orderIndex: activity.orderIndex,
-          labels: ((activity.ActivityLabel || []) as any[])
-            .map((al: any) => al?.Label)
-            .filter(Boolean)
-            .map((l: any) => ({
-              id: l.id,
-              name: l.name,
-              color: l.color,
-              createdAt: l.createdAt,
-              updatedAt: l.updatedAt,
-            }) as Label),
-        })),
-      })),
-    };
+    const week: Week = mapWeekRow(weekData);
 
     // Transform pending changes data
     const pendingChanges = normalizePendingChanges((pendingChangesData || []) as unknown[]);
 
     return { week, pendingChanges };
+  },
+};
+
+export const cohortsApi = {
+  async getAll(): Promise<{ cohorts: Cohort[] }> {
+    const { data, error } = await supabase
+      .from('Cohort')
+      .select('*')
+      .order('createdAt', { ascending: true });
+
+    if (error) throw new Error(error.message);
+
+    return {
+      cohorts: ((data || []) as any[]).map((row) => ({
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        startDate: row.startDate,
+        endDate: row.endDate,
+        status: row.status,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      })),
+    };
+  },
+
+  async createFromCurrent(input: {
+    name: string;
+    description?: string;
+    startDate?: string | null;
+    endDate?: string | null;
+    sourceCohortId: string;
+  }): Promise<{ cohort: Cohort }> {
+    const { data: cohortRow, error: cohortError } = await supabase
+      .from('Cohort')
+      .insert([{
+        name: input.name,
+        description: input.description || null,
+        startDate: input.startDate || null,
+        endDate: input.endDate || null,
+        status: 'ACTIVE',
+      }])
+      .select('*')
+      .single();
+
+    if (cohortError || !cohortRow) {
+      throw new Error(cohortError?.message || 'Failed to create cohort');
+    }
+
+    const sourceWeeksResponse = await weeksApi.getAll(input.sourceCohortId);
+    for (const sourceWeek of sourceWeeksResponse.weeks) {
+      const { data: newWeek, error: weekError } = await supabase
+        .from('Week')
+        .insert([{
+          cohortId: cohortRow.id,
+          weekNumber: sourceWeek.weekNumber,
+        }])
+        .select('id')
+        .single();
+
+      if (weekError || !newWeek) {
+        throw new Error(weekError?.message || `Failed to clone Week ${sourceWeek.weekNumber}`);
+      }
+
+      const dayIdMap = new Map<number, number>();
+      for (const dayName of DAY_ORDER) {
+        const sourceDay = sourceWeek.days.find((day) => day.dayName === dayName);
+        const { data: newDay, error: dayError } = await supabase
+          .from('Day')
+          .insert([{
+            weekId: (newWeek as any).id,
+            dayName,
+          }])
+          .select('id')
+          .single();
+
+        if (dayError || !newDay) {
+          throw new Error(dayError?.message || `Failed to clone ${dayName}`);
+        }
+
+        if (sourceDay) {
+          dayIdMap.set(sourceDay.id, (newDay as any).id as number);
+        }
+      }
+
+      for (const sourceDay of sourceWeek.days) {
+        for (const activity of sourceDay.activities) {
+          const clonedDayId = dayIdMap.get(sourceDay.id);
+          if (!clonedDayId) continue;
+
+          const { data: newActivity, error: activityError } = await supabase
+            .from('Activity')
+            .insert([{
+              dayId: clonedDayId,
+              time: activity.time,
+              description: activity.description,
+              period: activity.period,
+              orderIndex: activity.orderIndex,
+            }])
+            .select('id')
+            .single();
+
+          if (activityError || !newActivity) {
+            throw new Error(activityError?.message || `Failed to clone activity ${activity.description}`);
+          }
+
+          const labelIds = (activity.labels || []).map((label) => label.id);
+          if (labelIds.length > 0) {
+            const { error: labelJoinError } = await supabase
+              .from('ActivityLabel')
+              .insert(labelIds.map((labelId) => ({
+                activityId: (newActivity as any).id as number,
+                labelId,
+              })));
+            if (labelJoinError) {
+              throw new Error(labelJoinError.message);
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      cohort: {
+        id: cohortRow.id,
+        name: cohortRow.name,
+        description: cohortRow.description,
+        startDate: cohortRow.startDate,
+        endDate: cohortRow.endDate,
+        status: cohortRow.status,
+        createdAt: cohortRow.createdAt,
+        updatedAt: cohortRow.updatedAt,
+      },
+    };
+  },
+
+  async update(cohortId: string, input: {
+    name?: string;
+    description?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    status?: 'ACTIVE' | 'ARCHIVED';
+  }): Promise<{ cohort: Cohort }> {
+    const { data, error } = await supabase
+      .from('Cohort')
+      .update({
+        ...input,
+        updatedAt: new Date().toISOString(),
+      })
+      .eq('id', cohortId)
+      .select('*')
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to update cohort');
+    return { cohort: data as Cohort };
+  },
+
+  async addWeek(cohortId: string): Promise<{ week: Week }> {
+    const { data: latestWeeks, error: weeksError } = await supabase
+      .from('Week')
+      .select('weekNumber')
+      .eq('cohortId', cohortId)
+      .order('weekNumber', { ascending: false })
+      .limit(1);
+
+    if (weeksError) throw new Error(weeksError.message);
+
+    const nextWeekNumber = (((latestWeeks || [])[0] as any)?.weekNumber as number | undefined || 0) + 1;
+    const { data: newWeek, error: weekError } = await supabase
+      .from('Week')
+      .insert([{ cohortId, weekNumber: nextWeekNumber }])
+      .select('*')
+      .single();
+
+    if (weekError || !newWeek) throw new Error(weekError?.message || 'Failed to create week');
+
+    const { data: newDays, error: daysError } = await supabase
+      .from('Day')
+      .insert(DAY_ORDER.map((dayName) => ({
+        weekId: (newWeek as any).id,
+        dayName,
+      })))
+      .select('*');
+
+    if (daysError) throw new Error(daysError.message);
+
+    return {
+      week: {
+        id: (newWeek as any).id,
+        cohortId,
+        weekNumber: (newWeek as any).weekNumber,
+        days: ((newDays || []) as any[]).sort((a, b) => DAY_ORDER.indexOf(a.dayName) - DAY_ORDER.indexOf(b.dayName)).map((day) => ({
+          id: day.id,
+          weekId: day.weekId,
+          dayName: day.dayName,
+          activities: [],
+        })),
+      },
+    };
+  },
+
+  async getMembers(cohortId: string): Promise<{ users: User[] }> {
+    const { data, error } = await supabase
+      .from('UserCohort')
+      .select('userId, User(*)')
+      .eq('cohortId', cohortId);
+
+    if (error) throw new Error(error.message);
+
+    return {
+      users: ((data || []) as any[])
+        .map((row) => row.User)
+        .filter(Boolean)
+        .map((member: any) => ({
+          id: member.id,
+          email: member.email,
+          phone: member.phone,
+          name: member.name,
+          role: member.role,
+          createdAt: member.createdAt,
+          updatedAt: member.updatedAt,
+        }) as User),
+    };
+  },
+
+  async setMembers(cohortId: string, userIds: string[]): Promise<{ message: string }> {
+    const { error: deleteError } = await supabase
+      .from('UserCohort')
+      .delete()
+      .eq('cohortId', cohortId);
+
+    if (deleteError) throw new Error(deleteError.message);
+
+    if (userIds.length === 0) return { message: 'Cohort members cleared' };
+
+    const { error: insertError } = await supabase
+      .from('UserCohort')
+      .insert(userIds.map((userId) => ({ userId, cohortId })));
+
+    if (insertError) throw new Error(insertError.message);
+    return { message: 'Cohort members updated' };
   },
 };
 
@@ -1601,6 +1825,31 @@ export const usersApi = {
     return { labels };
   },
 
+  async getUserCohorts(userId: string): Promise<{ cohorts: Cohort[] }> {
+    const { data, error } = await supabase
+      .from('UserCohort')
+      .select('Cohort(*)')
+      .eq('userId', userId);
+
+    if (error) throw new Error(error.message);
+
+    return {
+      cohorts: ((data || []) as any[])
+        .map((row: any) => row.Cohort)
+        .filter(Boolean)
+        .map((cohort: any) => ({
+          id: cohort.id,
+          name: cohort.name,
+          description: cohort.description,
+          startDate: cohort.startDate,
+          endDate: cohort.endDate,
+          status: cohort.status,
+          createdAt: cohort.createdAt,
+          updatedAt: cohort.updatedAt,
+        }) as Cohort),
+    };
+  },
+
   async setUserLabels(userId: string, labelIds: string[]): Promise<{ message: string }> {
     const { error: delError } = await supabase
       .from('UserLabel')
@@ -1731,22 +1980,61 @@ export const notificationSettingsApi = {
 };
 
 export const announcementsApi = {
-  async send(subject: string, body: string, sentBy: string): Promise<{ sent: number }> {
+  async send(
+    subject: string,
+    body: string,
+    sentBy: string,
+    options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null }
+  ): Promise<{ sent: number }> {
     const { data, error } = await supabase.functions.invoke('send-announcement', {
-      body: { subject, body, sentBy },
+      body: {
+        subject,
+        body,
+        sentBy,
+        scope: options?.scope || 'ACTIVE_COHORT',
+        cohortId: options?.cohortId || null,
+      },
     });
     if (error) throw new Error(error.message);
     return { sent: (data as any)?.sent ?? 0 };
   },
 
-  async getHistory(): Promise<{ announcements: import('../types').Announcement[] }> {
-    const { data, error } = await supabase
+  async getHistory(options?: {
+    cohortId?: string | null;
+    userId?: string;
+    isAdmin?: boolean;
+    accessibleCohortIds?: string[];
+  }): Promise<{ announcements: import('../types').Announcement[] }> {
+    let query = supabase
       .from('Announcement')
       .select('*')
       .order('sentAt', { ascending: false })
       .limit(20);
+
+    if (!options?.isAdmin) {
+      const accessibleIds = options?.accessibleCohortIds || [];
+      if (options?.cohortId) {
+        query = query.or(`scope.eq.ALL_USERS,cohortId.eq.${options.cohortId}`);
+      } else if (accessibleIds.length > 0) {
+        query = query.or(`scope.eq.ALL_USERS,cohortId.in.(${accessibleIds.join(',')})`);
+      } else {
+        query = query.eq('scope', 'ALL_USERS');
+      }
+    }
+
+    const { data, error } = await query;
     if (error) throw new Error(error.message);
-    return { announcements: (data as any[]) ?? [] };
+    return {
+      announcements: ((data as any[]) ?? []).map((row: any) => ({
+        id: row.id,
+        subject: row.subject,
+        body: row.body,
+        sentAt: row.sentAt,
+        sentBy: row.sentBy,
+        scope: row.scope,
+        cohortId: row.cohortId,
+      })),
+    };
   },
 };
 

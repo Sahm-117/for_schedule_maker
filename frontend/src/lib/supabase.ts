@@ -18,13 +18,23 @@ export interface User {
   id: string
   email: string
   name: string
-  role: 'ADMIN' | 'SUPPORT'
+  role: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT'
   createdAt: string
   updatedAt: string
 }
 
+export interface Cohort {
+  id: string
+  name: string
+  description?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  status?: 'ACTIVE' | 'ARCHIVED'
+}
+
 export interface Week {
   id: number
+  cohortId: string
   weekNumber: number
 }
 

@@ -11,13 +11,19 @@ import type { Announcement } from '../types';
 import { getCurrentProgramDayName } from '../utils/schedule';
 
 const SupportHomePage: React.FC = () => {
-  const { user, userLabelIds } = useAuth();
-  const { selectedWeek, weeks, newResourceCount } = useAppData();
+  const { user, userLabelIds, userCohortIds } = useAuth();
+  const { activeCohort, selectedWeek, weeks, newResourceCount } = useAppData();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   useEffect(() => {
-    announcementsApi.getHistory().then((res) => setAnnouncements(res.announcements.slice(0, 3))).catch(() => {});
-  }, []);
+    if (!user) return;
+    announcementsApi.getHistory({
+      cohortId: activeCohort?.id || null,
+      userId: user.id,
+      isAdmin: false,
+      accessibleCohortIds: userCohortIds,
+    }).then((res) => setAnnouncements(res.announcements.slice(0, 3))).catch(() => {});
+  }, [activeCohort?.id, user, userCohortIds]);
 
   if (user?.role !== 'SUPPORT') {
     return <Navigate to="/dashboard" replace />;
@@ -39,7 +45,7 @@ const SupportHomePage: React.FC = () => {
     <div>
       <PageHeader
         title="Support Home"
-        subtitle="Your assigned schedule, updates, and shared resources in one place."
+        subtitle={activeCohort ? `${activeCohort.name} workspace with your assigned schedule, updates, and shared resources.` : 'Your assigned schedule, updates, and shared resources in one place.'}
       />
 
       <section className="surface-card mb-6 overflow-hidden bg-gradient-to-br from-slate-900 to-slate-700 text-white">

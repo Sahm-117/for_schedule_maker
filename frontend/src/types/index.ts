@@ -27,6 +27,24 @@ export interface User {
   createdAt?: string;
   updatedAt?: string;
   labels?: Label[];
+  cohortIds?: string[];
+}
+
+export interface Cohort {
+  id: string;
+  name: string;
+  description?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  status?: 'ACTIVE' | 'ARCHIVED';
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface UserCohort {
+  userId: string;
+  cohortId: string;
+  createdAt?: string;
 }
 
 export interface Activity {
@@ -50,6 +68,7 @@ export interface Day {
 
 export interface Week {
   id: number;
+  cohortId: string;
   weekNumber: number;
   days: Day[];
 }
@@ -118,6 +137,9 @@ export interface Announcement {
   body: string;
   sentAt: string;
   sentBy?: string;
+  scope?: 'ACTIVE_COHORT' | 'ALL_USERS';
+  cohortId?: string | null;
+  cohortName?: string | null;
 }
 
 export interface DailyDigestCursor {
