@@ -13,6 +13,7 @@ interface AppSelectProps {
   placeholder: string;
   label?: string;
   compact?: boolean;
+  className?: string;
 }
 
 const AppSelect: React.FC<AppSelectProps> = ({
@@ -22,6 +23,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
   placeholder,
   label,
   compact = false,
+  className = '',
 }) => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -43,7 +45,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
   }, []);
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className={`relative ${open ? 'z-40' : 'z-10'} ${className}`}>
       {label && (
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">
           {label}

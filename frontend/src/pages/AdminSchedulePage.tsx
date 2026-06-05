@@ -1,13 +1,14 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
+import AdminCompletionOverviewDrawer from '../components/AdminCompletionOverviewDrawer';
 import AppSelect from '../components/AppSelect';
 import PageHeader from '../components/PageHeader';
 import ScheduleView from '../components/ScheduleView';
 import WeekSelector from '../components/WeekSelector';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { labelsApi } from '../services/api';
-import type { Day, Label } from '../types';
+import { labelsApi, supportActivityCompletionsApi, usersApi } from '../services/api';
+import type { Activity, Day, Label, SupportActivityCompletion, User } from '../types';
 import { exportAllWeeksToPDF, exportDayToPDF, exportWeekToPDF } from '../utils/pdfExport';
 
 const AdminSchedulePage: React.FC = () => {
@@ -28,6 +29,10 @@ const AdminSchedulePage: React.FC = () => {
   const [crossWeekRequest, setCrossWeekRequest] = React.useState(0);
   const [supportGroups, setSupportGroups] = React.useState<Label[]>([]);
   const [selectedSupportGroupId, setSelectedSupportGroupId] = React.useState('');
+  const [supportUsers, setSupportUsers] = React.useState<User[]>([]);
+  const [selectedSupportUserId, setSelectedSupportUserId] = React.useState('');
+  const [showOverviewDrawer, setShowOverviewDrawer] = React.useState(false);
+  const [completions, setCompletions] = React.useState<SupportActivityCompletion[]>([]);
 
   React.useEffect(() => {
     if (!isAdmin) return;
@@ -35,6 +40,40 @@ const AdminSchedulePage: React.FC = () => {
       .then((response) => setSupportGroups(response.labels))
       .catch((error) => console.warn('Failed to load support groups for filter:', error));
   }, [isAdmin]);
+
+  React.useEffect(() => {
+    if (!isAdmin) return;
+    usersApi.getAll()
+      .then(async (response) => {
+        const onlySupportUsers = response.users.filter((member) => member.role === 'SUPPORT');
+        const usersWithLabels = await Promise.all(
+          onlySupportUsers.map(async (member) => {
+            try {
+              const labelsResponse = await usersApi.getUserLabels(member.id);
+              return { ...member, labels: labelsResponse.labels };
+            } catch {
+              return { ...member, labels: [] };
+            }
+          })
+        );
+        setSupportUsers(usersWithLabels);
+      })
+      .catch((error) => console.warn('Failed to load support users:', error));
+  }, [isAdmin]);
+
+  React.useEffect(() => {
+    if (!selectedWeek || !isAdmin) {
+      setCompletions([]);
+      return;
+    }
+
+    supportActivityCompletionsApi.getByWeek(selectedWeek.id)
+      .then((response) => setCompletions(response.completions))
+      .catch((error) => {
+        console.warn('Failed to load support completions for overview:', error);
+        setCompletions([]);
+      });
+  }, [isAdmin, selectedWeek]);
 
   if (user?.role === 'SUPPORT') {
     return <Navigate to="/support/schedule" replace />;
@@ -72,8 +111,70 @@ const AdminSchedulePage: React.FC = () => {
     })),
   ];
 
+  const filteredSupportUsers = React.useMemo(() => {
+    if (!selectedSupportGroupId) return supportUsers;
+    return supportUsers.filter((member) => member.labels?.some((label) => label.id === selectedSupportGroupId));
+  }, [selectedSupportGroupId, supportUsers]);
+
+  React.useEffect(() => {
+    if (selectedSupportUserId && !filteredSupportUsers.some((member) => member.id === selectedSupportUserId)) {
+      setSelectedSupportUserId('');
+    }
+  }, [filteredSupportUsers, selectedSupportUserId]);
+
+  const supportUserOptions = [
+    { value: '', label: 'All support users', meta: 'Show the full support team' },
+    ...filteredSupportUsers.map((member) => ({
+      value: member.id,
+      label: member.name,
+      meta: member.labels?.map((label) => label.name).join(' • ') || 'No support groups yet',
+    })),
+  ];
+
+  const selectedSupportUser = supportUsers.find((member) => member.id === selectedSupportUserId) || null;
+  const effectiveFilterLabelIds = React.useMemo(() => {
+    const userGroupIds = selectedSupportUser?.labels?.map((label) => label.id) || [];
+
+    if (selectedSupportUserId && selectedSupportGroupId) {
+      return userGroupIds.includes(selectedSupportGroupId) ? [selectedSupportGroupId] : [];
+    }
+
+    if (selectedSupportUserId) {
+      return userGroupIds;
+    }
+
+    if (selectedSupportGroupId) {
+      return [selectedSupportGroupId];
+    }
+
+    return undefined;
+  }, [selectedSupportGroupId, selectedSupportUser, selectedSupportUserId]);
+
+  const overviewActivities = React.useMemo(() => {
+    if (!selectedWeek) return [] as Activity[];
+    const rawActivities = selectedWeek.days.flatMap((day) => day.activities.map((activity) => ({
+      ...activity,
+      day,
+    })));
+
+    if (!effectiveFilterLabelIds) return rawActivities;
+
+    return rawActivities.filter((activity) =>
+      activity.labels?.some((label) => effectiveFilterLabelIds.includes(label.id))
+    );
+  }, [effectiveFilterLabelIds, selectedWeek]);
+
   const headerAction = selectedWeek && canManageSchedule ? (
     <div className="flex flex-wrap items-center justify-end gap-2">
+      {isAdmin && (
+        <button
+          type="button"
+          onClick={() => setShowOverviewDrawer(true)}
+          className="inline-flex h-10 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
+        >
+          Overview
+        </button>
+      )}
       <button
         type="button"
         onClick={() => setShowDayAddPicker(true)}
@@ -148,12 +249,13 @@ const AdminSchedulePage: React.FC = () => {
           weeks={weeks}
           selectedWeek={selectedWeek}
           compact
+          className="relative z-30"
           onWeekSelect={(weekId) => {
             void handleWeekSelect(weekId);
           }}
         />
         {isAdmin && (
-          <div className="surface-card rounded-3xl border border-orange-100 p-4">
+          <div className="surface-card relative z-20 rounded-3xl border border-orange-100 p-4">
             <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Support Group</p>
             <p className="mt-1 text-sm font-semibold text-gray-900">Filter assignments fast</p>
             <p className="mt-1 text-xs text-gray-500">See one support group’s exact workload without opening the native browser picker.</p>
@@ -166,9 +268,19 @@ const AdminSchedulePage: React.FC = () => {
                 compact
               />
             </div>
+            <div className="mt-4">
+              <AppSelect
+                value={selectedSupportUserId}
+                onChange={setSelectedSupportUserId}
+                options={supportUserOptions}
+                placeholder="All support users"
+                compact
+                label="Support person"
+              />
+            </div>
           </div>
         )}
-        <div className="surface-card rounded-3xl border border-orange-100 bg-gradient-to-br from-white via-orange-50/60 to-white p-4">
+        <div className="surface-card relative z-0 rounded-3xl border border-orange-100 bg-gradient-to-br from-white via-orange-50/60 to-white p-4">
           <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Focus</p>
           <p className="mt-1 text-sm font-semibold text-gray-900">
             {selectedWeek ? `Week ${selectedWeek.weekNumber} command view` : 'Select a week'}
@@ -181,6 +293,10 @@ const AdminSchedulePage: React.FC = () => {
             <QuickMetric
               label="Support filter"
               value={selectedSupportGroupId ? '1 active' : 'All'}
+            />
+            <QuickMetric
+              label="Support user"
+              value={selectedSupportUser ? selectedSupportUser.name.split(' ')[0] : 'All'}
             />
           </div>
         </div>
@@ -197,7 +313,7 @@ const AdminSchedulePage: React.FC = () => {
               onPendingChangesRefresh={refreshPendingChanges}
               isAdmin={isAdmin}
               canEdit={isAdmin || isSopPreparer}
-              filterLabelIds={selectedSupportGroupId ? [selectedSupportGroupId] : (isAdmin || isSopPreparer ? undefined : userLabelIds)}
+              filterLabelIds={effectiveFilterLabelIds ?? (isAdmin || isSopPreparer ? undefined : userLabelIds)}
               showInlineAdminActions={false}
               compactHeader
               externalAddDayId={headerAddDayId}
@@ -210,6 +326,25 @@ const AdminSchedulePage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {isAdmin && selectedWeek && (
+        <AdminCompletionOverviewDrawer
+          open={showOverviewDrawer}
+          onClose={() => setShowOverviewDrawer(false)}
+          activities={overviewActivities}
+          users={supportUsers}
+          completions={completions}
+          selectedUserId={selectedSupportUserId || undefined}
+          heading={`Week ${selectedWeek.weekNumber} completion overview`}
+          subheading={
+            selectedSupportUser
+              ? `Tracking done versus pending tasks for ${selectedSupportUser.name}.`
+              : selectedSupportGroupId
+                ? 'Tracking done versus pending tasks for the selected support group.'
+                : 'Tracking done versus pending tasks for the full selected week.'
+          }
+        />
+      )}
 
       {showDayAddPicker && selectedWeek && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/50 p-0 sm:items-center sm:justify-center sm:p-4">

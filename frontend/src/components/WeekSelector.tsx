@@ -7,6 +7,7 @@ interface WeekSelectorProps {
   selectedWeek: Week | null;
   onWeekSelect: (weekId: number) => void;
   compact?: boolean;
+  className?: string;
 }
 
 const WeekSelector: React.FC<WeekSelectorProps> = ({
@@ -14,6 +15,7 @@ const WeekSelector: React.FC<WeekSelectorProps> = ({
   selectedWeek,
   onWeekSelect,
   compact = false,
+  className = '',
 }) => {
   const options = weeks.map((week) => ({
     value: String(week.id),
@@ -22,7 +24,7 @@ const WeekSelector: React.FC<WeekSelectorProps> = ({
   }));
 
   return (
-    <div className={`bg-white shadow ${compact ? 'rounded-3xl border border-orange-100' : 'rounded-lg'}`}>
+    <div className={`bg-white shadow ${compact ? 'rounded-3xl border border-orange-100' : 'rounded-lg'} ${className}`}>
       <div className={`${compact ? 'border-b border-orange-100 px-4 py-4' : 'border-b border-gray-200 p-3 sm:p-4'}`}>
         <h2 className={`${compact ? 'text-sm font-semibold uppercase tracking-[0.12em] text-gray-500' : 'text-base sm:text-lg font-medium text-gray-900'}`}>
           {compact ? 'Week Focus' : 'Program Weeks'}

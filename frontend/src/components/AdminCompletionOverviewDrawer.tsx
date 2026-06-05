@@ -12,6 +12,7 @@ interface AdminCompletionOverviewDrawerProps {
   completions: SupportActivityCompletion[];
   heading: string;
   subheading: string;
+  selectedUserId?: string;
 }
 
 const AdminCompletionOverviewDrawer: React.FC<AdminCompletionOverviewDrawerProps> = ({
@@ -22,6 +23,7 @@ const AdminCompletionOverviewDrawer: React.FC<AdminCompletionOverviewDrawerProps
   completions,
   heading,
   subheading,
+  selectedUserId,
 }) => {
   const completionsByActivity = useMemo(() => {
     const map = new Map<number, SupportActivityCompletion[]>();
@@ -38,7 +40,7 @@ const AdminCompletionOverviewDrawer: React.FC<AdminCompletionOverviewDrawerProps
       const activityLabelIds = new Set((activity.labels || []).map((label) => label.id));
       const assignedSupports = users.filter((member) =>
         member.role === 'SUPPORT' && member.labels?.some((label) => activityLabelIds.has(label.id))
-      );
+      ).filter((member) => !selectedUserId || member.id === selectedUserId);
       const completedUserIds = new Set((completionsByActivity.get(activity.id) || []).map((item) => item.userId));
 
       return {
@@ -57,7 +59,7 @@ const AdminCompletionOverviewDrawer: React.FC<AdminCompletionOverviewDrawerProps
       totalAssigned,
       totalCompleted,
     };
-  }, [activities, completionsByActivity, users]);
+  }, [activities, completionsByActivity, selectedUserId, users]);
 
   if (!open) return null;
 
@@ -96,7 +98,9 @@ const AdminCompletionOverviewDrawer: React.FC<AdminCompletionOverviewDrawerProps
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-900"><ActivityText text={activity.description} /></p>
-                  <p className="mt-1 text-xs text-gray-500">{activity.time}</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {activity.day?.dayName ? `${activity.day.dayName} • ` : ''}{activity.time}
+                  </p>
                 </div>
                 <PeriodBadge period={activity.period} compact />
               </div>
