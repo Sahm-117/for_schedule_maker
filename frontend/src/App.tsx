@@ -16,6 +16,7 @@ import AdminUsersPage from './pages/AdminUsersPage';
 import AdminAnnouncementsPage from './pages/AdminAnnouncementsPage';
 import AdminResourcesPage from './pages/AdminResourcesPage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
+import ActivityOverviewPage from './pages/ActivityOverviewPage';
 import SupportHomePage from './pages/SupportHomePage';
 import SupportSchedulePage from './pages/SupportSchedulePage';
 import SupportResourcesPage from './pages/SupportResourcesPage';
@@ -47,6 +48,7 @@ function App() {
             <Route path="/announcements" element={<AdminAnnouncementsPage />} />
             <Route path="/resources" element={<AdminResourcesPage />} />
             <Route path="/settings" element={<AdminSettingsPage />} />
+            <Route path="/activity-overview" element={<ActivityOverviewPage />} />
             <Route path="/support" element={<SupportHomePage />} />
             <Route path="/support/schedule" element={<SupportSchedulePage />} />
             <Route path="/support/resources" element={<SupportResourcesPage />} />
