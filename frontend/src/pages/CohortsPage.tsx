@@ -51,6 +51,18 @@ const CohortsPage: React.FC = () => {
       .catch(() => setMemberIds([]));
   }, [selectedCohortId]);
 
+  const selectedCohort = cohorts.find((cohort) => cohort.id === selectedCohortId) || null;
+  const cohortOptions = cohorts.map((cohort) => ({
+    value: cohort.id,
+    label: cohort.name,
+    meta: cohort.startDate && cohort.endDate ? `${cohort.startDate} → ${cohort.endDate}` : 'No dates yet',
+  }));
+
+  const sortedSupportUsers = useMemo(
+    () => [...supportUsers].sort((a, b) => a.name.localeCompare(b.name)),
+    [supportUsers]
+  );
+
   useEffect(() => {
     if (!selectedCohort) {
       setCohortDraft({ name: '', description: '', startDate: '', endDate: '' });
@@ -63,18 +75,6 @@ const CohortsPage: React.FC = () => {
       endDate: selectedCohort.endDate || '',
     });
   }, [selectedCohortId, selectedCohort]);
-
-  const selectedCohort = cohorts.find((cohort) => cohort.id === selectedCohortId) || null;
-  const cohortOptions = cohorts.map((cohort) => ({
-    value: cohort.id,
-    label: cohort.name,
-    meta: cohort.startDate && cohort.endDate ? `${cohort.startDate} → ${cohort.endDate}` : 'No dates yet',
-  }));
-
-  const sortedSupportUsers = useMemo(
-    () => [...supportUsers].sort((a, b) => a.name.localeCompare(b.name)),
-    [supportUsers]
-  );
 
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
