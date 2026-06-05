@@ -19,7 +19,7 @@ const AdminSettingsPage: React.FC = () => {
     <div>
       <PageHeader
         title="Settings"
-        subtitle="Control digest behavior, notification timings, and support group labels."
+        subtitle="Control digest behavior, notification timings, and support groups."
       />
 
       <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_1fr]">

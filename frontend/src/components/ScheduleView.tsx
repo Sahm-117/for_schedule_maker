@@ -20,6 +20,14 @@ interface ScheduleViewProps {
   onExternalAddHandled?: () => void;
   externalCrossWeekRequest?: number;
   onExternalCrossWeekHandled?: () => void;
+  isPersonalView?: boolean;
+  visibleDayNames?: string[];
+  hideEmptyPeriods?: boolean;
+  completedActivityIds?: number[];
+  completableActivityIds?: number[];
+  onToggleCompleted?: (activityId: number, nextValue: boolean) => void;
+  noActivitiesTitle?: string;
+  noActivitiesText?: string;
 }
 
 const ScheduleView: React.FC<ScheduleViewProps> = ({
@@ -36,6 +44,14 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   onExternalAddHandled,
   externalCrossWeekRequest,
   onExternalCrossWeekHandled,
+  isPersonalView = false,
+  visibleDayNames,
+  hideEmptyPeriods = false,
+  completedActivityIds = [],
+  completableActivityIds = [],
+  onToggleCompleted,
+  noActivitiesTitle,
+  noActivitiesText,
 }) => {
   const { userLabelIds } = useAuth();
   const [selectedDay, setSelectedDay] = useState<Day | null>(null);
@@ -76,6 +92,9 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   };
 
   const visibleDays = week.days.filter((day) => {
+    if (Array.isArray(visibleDayNames) && visibleDayNames.length > 0 && !visibleDayNames.includes(day.dayName)) {
+      return false;
+    }
     if (!isFiltered) return true;
     return filterActivities(day.activities).length > 0;
   });
@@ -153,7 +172,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         <div className="flex items-start justify-between gap-2 mb-3">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-              {isFiltered ? 'My Schedule' : 'Week ' + week.weekNumber + ' Schedule'}
+              {isPersonalView ? 'My Schedule' : 'Week ' + week.weekNumber + ' Schedule'}
             </h2>
             <p className="text-gray-600 mt-0.5 text-sm sm:text-base">
               Foundation of Faith Programme — Week {week.weekNumber}
@@ -216,8 +235,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <h3 className="text-base font-semibold text-gray-900 mb-1">No activities for you this week</h3>
-          <p className="text-sm text-gray-500">No activities tagged with your support group were found for Week {week.weekNumber}. Check back later or browse other weeks.</p>
+          <h3 className="text-base font-semibold text-gray-900 mb-1">{noActivitiesTitle || 'No activities for you in this view'}</h3>
+          <p className="text-sm text-gray-500">{noActivitiesText || `No activities tagged with your support group were found for Week ${week.weekNumber}. Check back later or browse other days.`}</p>
         </div>
       )}
 
@@ -237,6 +256,10 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               isExpanded={expandedDays.has(day.id)}
               onToggleExpansion={() => toggleDayExpansion(day.id)}
               filterLabelIds={filterLabelIds}
+              hideEmptyPeriods={hideEmptyPeriods}
+              completedActivityIds={completedActivityIds}
+              completableActivityIds={completableActivityIds}
+              onToggleCompleted={onToggleCompleted}
             />
           ))}
         </div>

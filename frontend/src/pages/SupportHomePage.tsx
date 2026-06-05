@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, NavLink } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import ActivityText from '../components/ActivityText';
+import LabelChip from '../components/LabelChip';
+import { PeriodBadge } from '../components/PeriodIcon';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { announcementsApi } from '../services/api';
 import type { Announcement } from '../types';
+import { getCurrentProgramDayName } from '../utils/schedule';
 
 const SupportHomePage: React.FC = () => {
   const { user, userLabelIds } = useAuth();
@@ -20,6 +24,7 @@ const SupportHomePage: React.FC = () => {
   }
 
   const activeWeek = selectedWeek || weeks[0] || null;
+  const todayName = getCurrentProgramDayName();
   const myActivities = useMemo(() => {
     if (!activeWeek || userLabelIds.length === 0) return [];
     return activeWeek.days.flatMap((day) =>
@@ -28,6 +33,7 @@ const SupportHomePage: React.FC = () => {
         .map((activity) => ({ ...activity, dayName: day.dayName })),
     );
   }, [activeWeek, userLabelIds]);
+  const todayActivities = myActivities.filter((activity) => activity.dayName === todayName);
 
   return (
     <div>
@@ -47,7 +53,7 @@ const SupportHomePage: React.FC = () => {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Metric title="My Activities" value={myActivities.length} />
-            <Metric title="My Labels" value={userLabelIds.length} />
+            <Metric title="My Support Groups" value={userLabelIds.length} />
             <Metric title="New Resources" value={newResourceCount} />
             <Metric title="Announcements" value={announcements.length} />
           </div>
@@ -59,20 +65,29 @@ const SupportHomePage: React.FC = () => {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">My schedule highlights</h3>
-              <p className="text-sm text-gray-500">{activeWeek ? `Week ${activeWeek.weekNumber}` : 'No week selected'}</p>
+              <p className="text-sm text-gray-500">{activeWeek ? `${todayName} in Week ${activeWeek.weekNumber}` : 'No week selected'}</p>
             </div>
             <NavLink to="/support/schedule" className="text-sm font-semibold text-primary hover:text-primary-dark">Open schedule</NavLink>
           </div>
           <div className="space-y-3">
-            {myActivities.length === 0 ? (
+            {todayActivities.length === 0 ? (
               <EmptyState text={userLabelIds.length === 0 ? 'You have not been assigned to any support group yet.' : 'No matching activities were found in the current week.'} />
-            ) : myActivities.slice(0, 6).map((activity) => (
-              <div key={`${activity.id}-${activity.dayName}`} className="surface-muted flex items-center justify-between gap-4 px-4 py-4">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{activity.description}</p>
-                  <p className="mt-1 text-xs text-gray-500">{activity.dayName} • {activity.time}</p>
+            ) : todayActivities.slice(0, 6).map((activity) => (
+              <div key={`${activity.id}-${activity.dayName}`} className="surface-muted rounded-2xl px-4 py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900"><ActivityText text={activity.description} /></p>
+                    <p className="mt-1 text-xs text-gray-500">{activity.dayName} • {activity.time}</p>
+                  </div>
+                  <PeriodBadge period={activity.period} compact />
                 </div>
-                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-600">{activity.period}</span>
+                {activity.labels && activity.labels.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {activity.labels.map((label) => (
+                      <LabelChip key={label.id} name={label.name} color={label.color} size="sm" />
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

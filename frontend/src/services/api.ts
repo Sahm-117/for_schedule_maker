@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label, DailyDigestFunctionResponse } from '../types';
+import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label, DailyDigestFunctionResponse, SupportActivityCompletion } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
 
 // Import Supabase API
@@ -13,6 +13,7 @@ import {
   pendingChangesApi as supabasePendingChangesApi,
   rejectedChangesApi as supabaseRejectedChangesApi,
   usersApi as supabaseUsersApi,
+  supportActivityCompletionsApi as supabaseSupportActivityCompletionsApi,
   pushSubscriptionsApi as supabasePushSubscriptionsApi,
   notificationSettingsApi as supabaseNotificationSettingsApi,
   announcementsApi as supabaseAnnouncementsApi,
@@ -275,6 +276,21 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
 
   async setUserLabels(_userId: string, _labelIds: string[]): Promise<{ message: string }> {
     return { message: 'Not supported' };
+  },
+};
+
+export const supportActivityCompletionsApi = USE_SUPABASE ? supabaseSupportActivityCompletionsApi : {
+  async getMineForWeek(_weekId: number, _userId: string): Promise<{ completions: SupportActivityCompletion[] }> {
+    return { completions: [] };
+  },
+  async getByWeek(_weekId: number): Promise<{ completions: SupportActivityCompletion[] }> {
+    return { completions: [] };
+  },
+  async markDone(_activityId: number, _userId: string): Promise<{ completion: SupportActivityCompletion }> {
+    throw new Error('Support activity completion is only available in Supabase mode.');
+  },
+  async markUndone(_activityId: number, _userId: string): Promise<{ message: string }> {
+    throw new Error('Support activity completion is only available in Supabase mode.');
   },
 };
 

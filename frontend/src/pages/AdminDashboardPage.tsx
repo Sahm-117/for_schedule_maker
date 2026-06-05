@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, NavLink } from 'react-router-dom';
+import ActivityText from '../components/ActivityText';
+import LabelChip from '../components/LabelChip';
 import PageHeader from '../components/PageHeader';
+import { PeriodBadge } from '../components/PeriodIcon';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, resourcesApi, usersApi } from '../services/api';
-import type { Announcement, Resource, User } from '../types';
+import { announcementsApi, resourcesApi, supportActivityCompletionsApi, usersApi } from '../services/api';
+import type { Activity, Announcement, Resource, SupportActivityCompletion, User } from '../types';
 
 const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
 
@@ -14,16 +17,49 @@ const AdminDashboardPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
 
   useEffect(() => {
     resourcesApi.getAll().then((res) => setResources(res.resources)).catch(() => {});
     announcementsApi.getHistory().then((res) => setAnnouncements(res.announcements.slice(0, 3))).catch(() => {});
     if (isAdmin) {
-      usersApi.getAll().then((res) => setUsers(res.users)).catch(() => {});
+      usersApi.getAll()
+        .then(async (res) => {
+          const supportUsers = res.users.filter((member) => member.role === 'SUPPORT');
+          const labelResponses = await Promise.all(
+            supportUsers.map(async (member) => {
+              try {
+                const labelsResponse = await usersApi.getUserLabels(member.id);
+                return {
+                  ...member,
+                  labels: labelsResponse.labels,
+                };
+              } catch {
+                return {
+                  ...member,
+                  labels: [],
+                };
+              }
+            })
+          );
+          setUsers(labelResponses);
+        })
+        .catch(() => {});
     }
   }, [isAdmin]);
 
   const activeWeek = selectedWeek || weeks[0] || null;
+  useEffect(() => {
+    if (!activeWeek || !isAdmin) {
+      setCompletions([]);
+      return;
+    }
+
+    supportActivityCompletionsApi.getByWeek(activeWeek.id)
+      .then((response) => setCompletions(response.completions))
+      .catch(() => setCompletions([]));
+  }, [activeWeek, isAdmin]);
+
   const todaysDay = useMemo(() => {
     if (!activeWeek) return null;
     return activeWeek.days.find((day) => day.dayName === todayName) || activeWeek.days.find((day) => day.activities.length > 0) || activeWeek.days[0] || null;
@@ -31,6 +67,15 @@ const AdminDashboardPage: React.FC = () => {
 
   const supportCount = users.filter((member) => member.role === 'SUPPORT').length;
   const todayActivities = todaysDay?.activities || [];
+  const completionsByActivity = useMemo(() => {
+    const map = new Map<number, SupportActivityCompletion[]>();
+    completions.forEach((completion) => {
+      const current = map.get(completion.activityId) || [];
+      current.push(completion);
+      map.set(completion.activityId, current);
+    });
+    return map;
+  }, [completions]);
 
   if (user?.role === 'SUPPORT') {
     return <Navigate to="/support" replace />;
@@ -86,14 +131,31 @@ const AdminDashboardPage: React.FC = () => {
             {todayActivities.length === 0 ? (
               <EmptyState text="No activities are scheduled in the current focus day." />
             ) : todayActivities.slice(0, 5).map((activity) => (
-              <div key={activity.id} className="surface-muted flex items-start justify-between gap-4 px-4 py-4">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{activity.description}</p>
-                  <p className="mt-1 text-xs text-gray-500">{activity.time} • {activity.period}</p>
+              <div key={activity.id} className="surface-muted rounded-2xl px-4 py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900"><ActivityText text={activity.description} /></p>
+                    <p className="mt-1 text-xs text-gray-500">{activity.time}</p>
+                  </div>
+                  <PeriodBadge period={activity.period} compact />
                 </div>
-                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-600">
-                  {activity.labels?.length ? `${activity.labels.length} label${activity.labels.length === 1 ? '' : 's'}` : 'Open'}
-                </span>
+                <AdminActivityCompletionStatus
+                  activity={activity}
+                  users={users}
+                  completions={completionsByActivity.get(activity.id) || []}
+                />
+                {activity.labels && activity.labels.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {activity.labels.map((label) => (
+                      <LabelChip key={label.id} name={label.name} color={label.color} size="sm" />
+                    ))}
+                  </div>
+                )}
+                {(!activity.labels || activity.labels.length === 0) && (
+                  <div className="mt-3">
+                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-600">Open</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -169,5 +231,60 @@ const EmptyState: React.FC<{ text: string }> = ({ text }) => (
     {text}
   </div>
 );
+
+const AdminActivityCompletionStatus: React.FC<{
+  activity: Activity;
+  users: User[];
+  completions: SupportActivityCompletion[];
+}> = ({ activity, users, completions }) => {
+  const activityLabelIds = new Set((activity.labels || []).map((label) => label.id));
+  const assignedSupports = users.filter((member) =>
+    member.role === 'SUPPORT'
+    && member.labels?.some((label) => activityLabelIds.has(label.id))
+  );
+  const completedUserIds = new Set(completions.map((completion) => completion.userId));
+  const completedCount = assignedSupports.filter((member) => completedUserIds.has(member.id)).length;
+
+  if ((activity.labels || []).length === 0) {
+    return (
+      <div className="mt-3 rounded-2xl border border-dashed border-gray-200 bg-white/70 px-3 py-3 text-xs text-gray-500">
+        No support group is assigned to this activity yet.
+      </div>
+    );
+  }
+
+  if (assignedSupports.length === 0) {
+    return (
+      <div className="mt-3 rounded-2xl border border-dashed border-gray-200 bg-white/70 px-3 py-3 text-xs text-gray-500">
+        No support users are assigned to the selected support groups for this activity.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-2xl border border-emerald-100 bg-white/80 px-3 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Support completion</p>
+        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${completedCount === assignedSupports.length ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+          {completedCount}/{assignedSupports.length} completed
+        </span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {assignedSupports.map((member) => {
+          const completed = completedUserIds.has(member.id);
+          return (
+            <span
+              key={member.id}
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${completed ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-gray-100 text-gray-600 ring-1 ring-gray-200'}`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${completed ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+              {member.name}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export default AdminDashboardPage;

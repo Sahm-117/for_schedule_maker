@@ -41,6 +41,14 @@ CREATE TABLE "Activity" (
     "orderIndex" INTEGER NOT NULL
 );
 
+CREATE TABLE "SupportActivityCompletion" (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "activityId" INTEGER NOT NULL REFERENCES "Activity"(id) ON DELETE CASCADE,
+    "userId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+    "completedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE("activityId", "userId")
+);
+
 -- Labels table (admin-managed)
 CREATE TABLE "Label" (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -96,6 +104,8 @@ CREATE TABLE "AppSetting" (
 
 -- Create indexes for better performance
 CREATE INDEX idx_activity_day_order ON "Activity"("dayId", "orderIndex");
+CREATE INDEX idx_supportactivitycompletion_user ON "SupportActivityCompletion"("userId");
+CREATE INDEX idx_supportactivitycompletion_activity ON "SupportActivityCompletion"("activityId");
 
 -- Insert default admin user (password: admin123)
 INSERT INTO "User" (email, name, password_hash, role) VALUES
@@ -119,6 +129,7 @@ ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Week" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Day" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Activity" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "SupportActivityCompletion" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Label" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ActivityLabel" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "PendingChange" ENABLE ROW LEVEL SECURITY;
@@ -130,6 +141,7 @@ CREATE POLICY "Allow all operations" ON "User" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "Week" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "Day" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "Activity" FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON "SupportActivityCompletion" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "Label" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "ActivityLabel" FOR ALL USING (true);
 CREATE POLICY "Allow all operations" ON "PendingChange" FOR ALL USING (true);

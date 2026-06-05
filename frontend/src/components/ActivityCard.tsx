@@ -2,6 +2,8 @@ import React from 'react';
 import type { Activity, PendingChange } from '../types';
 import { formatTimeForDisplay } from '../utils/time';
 import LabelChip from './LabelChip';
+import ActivityText from './ActivityText';
+import { PeriodBadge } from './PeriodIcon';
 
 interface ActivityCardProps {
   activity: Activity;
@@ -13,6 +15,9 @@ interface ActivityCardProps {
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   isAdmin: boolean;  // true = show edit/delete buttons
+  isCompleted?: boolean;
+  canToggleCompleted?: boolean;
+  onToggleCompleted?: (nextValue: boolean) => void;
 }
 
 const ActivityCard: React.FC<ActivityCardProps> = ({
@@ -25,34 +30,59 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   canMoveUp = false,
   canMoveDown = false,
   isAdmin,
+  isCompleted = false,
+  canToggleCompleted = false,
+  onToggleCompleted,
 }) => {
   const editPendingChange = pendingChanges.find(change => change.changeType === 'EDIT');
   const deletePendingChange = pendingChanges.find(change => change.changeType === 'DELETE');
 
   return (
-    <div className={`bg-white border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow ${
+    <div className={`bg-white border rounded-2xl p-3 sm:p-4 hover:shadow-md transition-shadow ${
       deletePendingChange ? 'border-red-200 bg-red-50' :
       editPendingChange ? 'border-orange-200 bg-orange-50' :
-      'border-gray-200'
+      isCompleted ? 'border-emerald-200 bg-emerald-50/40' : 'border-orange-100'
     }`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2">
-            <span className="text-sm font-medium text-gray-900">
+          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold text-gray-900">
               {formatTimeForDisplay(activity.time)}
-            </span>
-            {pendingChanges.length > 0 && (
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                deletePendingChange ? 'bg-red-100 text-red-800' :
-                'bg-orange-100 text-orange-800'
-              }`}>
-                {deletePendingChange ? 'Delete Pending' : 'Edit Pending'}
               </span>
+              <PeriodBadge period={activity.period} compact />
+              {pendingChanges.length > 0 && (
+                <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                  deletePendingChange ? 'bg-red-100 text-red-800' :
+                  'bg-orange-100 text-orange-800'
+                }`}>
+                  {deletePendingChange ? 'Delete Pending' : 'Edit Pending'}
+                </span>
+              )}
+            </div>
+            {onToggleCompleted && (
+              <button
+                type="button"
+                onClick={() => onToggleCompleted(!isCompleted)}
+                disabled={!canToggleCompleted}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  isCompleted
+                    ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
+                    : 'border-gray-200 bg-white text-gray-600'
+                } ${canToggleCompleted ? 'hover:border-emerald-300 hover:bg-emerald-50' : 'cursor-not-allowed opacity-50'}`}
+              >
+                <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full border ${isCompleted ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 bg-white text-transparent'}`}>
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="m5 13 4 4L19 7" />
+                  </svg>
+                </span>
+                {isCompleted ? 'Done' : 'Mark done'}
+              </button>
             )}
           </div>
 
-          <p className={`text-gray-700 ${deletePendingChange ? 'line-through text-gray-500' : ''}`}>
-            {activity.description}
+          <p className={`text-gray-800 ${deletePendingChange ? 'line-through text-gray-500' : ''}`}>
+            <ActivityText text={activity.description} />
           </p>
 
           {Array.isArray(activity.labels) && activity.labels.length > 0 && (

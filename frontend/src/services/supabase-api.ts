@@ -6,6 +6,7 @@ import type {
   Day,
   Activity,
   Label,
+  SupportActivityCompletion,
   PendingChange,
   RejectedChange,
   AuthResponse,
@@ -1400,6 +1401,147 @@ export const digestApi = {
   },
 };
 
+export const supportActivityCompletionsApi = {
+  async getMineForWeek(weekId: number, userId: string): Promise<{ completions: SupportActivityCompletion[] }> {
+    const { data: days, error: daysError } = await supabase
+      .from('Day')
+      .select('id')
+      .eq('weekId', weekId);
+
+    if (daysError) {
+      throw new Error(daysError.message);
+    }
+
+    const dayIds = ((days || []) as Array<{ id: number }>).map((day) => day.id);
+    if (dayIds.length === 0) {
+      return { completions: [] };
+    }
+
+    const { data: activities, error: activitiesError } = await supabase
+      .from('Activity')
+      .select('id')
+      .in('dayId', dayIds);
+
+    if (activitiesError) {
+      throw new Error(activitiesError.message);
+    }
+
+    const activityIds = ((activities || []) as Array<{ id: number }>).map((activity) => activity.id);
+    if (activityIds.length === 0) {
+      return { completions: [] };
+    }
+
+    const { data, error } = await supabase
+      .from('SupportActivityCompletion')
+      .select('*')
+      .eq('userId', userId)
+      .in('activityId', activityIds);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return {
+      completions: ((data || []) as any[]).map((row) => ({
+        id: row.id,
+        activityId: row.activityId,
+        userId: row.userId,
+        completedAt: row.completedAt,
+      }) as SupportActivityCompletion),
+    };
+  },
+
+  async getByWeek(weekId: number): Promise<{ completions: SupportActivityCompletion[] }> {
+    const { data: days, error: daysError } = await supabase
+      .from('Day')
+      .select('id')
+      .eq('weekId', weekId);
+
+    if (daysError) {
+      throw new Error(daysError.message);
+    }
+
+    const dayIds = ((days || []) as Array<{ id: number }>).map((day) => day.id);
+    if (dayIds.length === 0) {
+      return { completions: [] };
+    }
+
+    const { data: activities, error: activitiesError } = await supabase
+      .from('Activity')
+      .select('id')
+      .in('dayId', dayIds);
+
+    if (activitiesError) {
+      throw new Error(activitiesError.message);
+    }
+
+    const activityIds = ((activities || []) as Array<{ id: number }>).map((activity) => activity.id);
+    if (activityIds.length === 0) {
+      return { completions: [] };
+    }
+
+    const { data, error } = await supabase
+      .from('SupportActivityCompletion')
+      .select('*')
+      .in('activityId', activityIds);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return {
+      completions: ((data || []) as any[]).map((row) => ({
+        id: row.id,
+        activityId: row.activityId,
+        userId: row.userId,
+        completedAt: row.completedAt,
+      }) as SupportActivityCompletion),
+    };
+  },
+
+  async markDone(activityId: number, userId: string): Promise<{ completion: SupportActivityCompletion }> {
+    const { data, error } = await supabase
+      .from('SupportActivityCompletion')
+      .upsert(
+        [{
+          activityId,
+          userId,
+          completedAt: new Date().toISOString(),
+        }],
+        { onConflict: 'activityId,userId' }
+      )
+      .select()
+      .single();
+
+    if (error || !data) {
+      throw new Error(error?.message || 'Failed to mark activity done');
+    }
+
+    return {
+      completion: {
+        id: (data as any).id,
+        activityId: (data as any).activityId,
+        userId: (data as any).userId,
+        completedAt: (data as any).completedAt,
+      },
+    };
+  },
+
+  async markUndone(activityId: number, userId: string): Promise<{ message: string }> {
+    const { error } = await supabase
+      .from('SupportActivityCompletion')
+      .delete()
+      .eq('activityId', activityId)
+      .eq('userId', userId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { message: 'Activity marked as not done' };
+  },
+};
+
 // Users API
 export const usersApi = {
   async getAll(): Promise<{ users: User[] }> {
@@ -1474,7 +1616,7 @@ export const usersApi = {
     name?: string;
     email?: string;
     password?: string;
-    role?: 'ADMIN' | 'SUPPORT';
+    role?: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT';
   }): Promise<{ user: User }> {
     const finalUpdateData: any = { ...updateData };
 

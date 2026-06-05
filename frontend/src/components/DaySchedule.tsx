@@ -5,6 +5,7 @@ import ActivityCard from './ActivityCard';
 import ConfirmationModal from './ConfirmationModal';
 import { useAuth } from '../hooks/useAuth';
 import { compareTimeStrings, parseTimeToMinutes } from '../utils/time';
+import PeriodIcon, { getPeriodStyle } from './PeriodIcon';
 
 interface DayScheduleProps {
   day: Day;
@@ -18,6 +19,10 @@ interface DayScheduleProps {
   isExpanded: boolean;
   onToggleExpansion: () => void;
   filterLabelIds?: string[];
+  hideEmptyPeriods?: boolean;
+  completedActivityIds?: number[];
+  completableActivityIds?: number[];
+  onToggleCompleted?: (activityId: number, nextValue: boolean) => void;
 }
 
 const DaySchedule: React.FC<DayScheduleProps> = ({
@@ -32,6 +37,10 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   isExpanded,
   onToggleExpansion,
   filterLabelIds,
+  hideEmptyPeriods = false,
+  completedActivityIds = [],
+  completableActivityIds = [],
+  onToggleCompleted,
 }) => {
   const { user } = useAuth();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -180,9 +189,9 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   };
 
   const periods = [
-    { name: 'MORNING', label: 'Morning', icon: '🌅' },
-    { name: 'AFTERNOON', label: 'Afternoon', icon: '☀️' },
-    { name: 'EVENING', label: 'Evening', icon: '🌆' },
+    { name: 'MORNING', label: 'Morning' },
+    { name: 'AFTERNOON', label: 'Afternoon' },
+    { name: 'EVENING', label: 'Evening' },
   ] as const;
 
   return (
@@ -248,18 +257,24 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
       {/* Period Sections - Only show when expanded */}
       {isExpanded && (
         <div className="p-3 sm:p-4 space-y-4 sm:space-y-6">
-        {periods.map((period) => {
+          {periods.map((period) => {
           const activities = getPeriodActivities(period.name);
+          if (hideEmptyPeriods && activities.length === 0) {
+            return null;
+          }
+          const style = getPeriodStyle(period.name);
 
           return (
             <div key={period.name} className="space-y-3">
               {/* Period Header */}
               <div className="flex items-center space-x-2">
-                <span className="text-base sm:text-lg">{period.icon}</span>
-                <h4 className="text-sm sm:text-md font-medium text-gray-800">
+                <span className={`inline-flex items-center justify-center rounded-full border ${style.bg} ${style.border} ${style.text} h-7 w-7`}>
+                  <PeriodIcon period={period.name} className="h-4 w-4" />
+                </span>
+                <h4 className={`text-sm sm:text-md font-semibold ${style.text}`}>
                   {period.label}
                 </h4>
-                <div className="flex-1 border-t border-gray-200"></div>
+                <div className={`flex-1 border-t ${style.border}`}></div>
                 <span className="text-xs text-gray-500">
                   {activities.length} activit{activities.length !== 1 ? 'ies' : 'y'}
                 </span>
@@ -293,6 +308,9 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
                         canMoveUp={canMoveUpSameTime}
                         canMoveDown={canMoveDownSameTime}
                         isAdmin={isAdmin || canEdit}
+                        isCompleted={completedActivityIds.includes(activity.id)}
+                        canToggleCompleted={completableActivityIds.includes(activity.id)}
+                        onToggleCompleted={onToggleCompleted ? (nextValue) => onToggleCompleted(activity.id, nextValue) : undefined}
                       />
                     );
                   })

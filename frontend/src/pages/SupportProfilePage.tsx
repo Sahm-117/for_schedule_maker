@@ -1,15 +1,25 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import LabelChip from '../components/LabelChip';
 import PageHeader from '../components/PageHeader';
+import { usersApi } from '../services/api';
+import type { Label } from '../types';
 import NotificationSettings from '../components/NotificationSettings';
 import { useAuth } from '../hooks/useAuth';
 
 const SupportProfilePage: React.FC = () => {
   const { user, userLabelIds } = useAuth();
+  const [supportGroups, setSupportGroups] = useState<Label[]>([]);
 
   if (user?.role !== 'SUPPORT') {
     return <Navigate to="/settings" replace />;
   }
+
+  useEffect(() => {
+    usersApi.getUserLabels(user.id)
+      .then((response) => setSupportGroups(response.labels))
+      .catch(() => setSupportGroups([]));
+  }, [user.id]);
 
   return (
     <div>
@@ -32,7 +42,17 @@ const SupportProfilePage: React.FC = () => {
 
           <div className="mt-6 space-y-3">
             <InfoRow label="Role" value={user.role} />
-            <InfoRow label="Support labels" value={`${userLabelIds.length}`} />
+            <InfoRow
+              label="Support groups"
+              value={userLabelIds.length === 0 ? 'None assigned' : undefined}
+              content={supportGroups.length > 0 ? (
+                <div className="flex flex-wrap justify-end gap-1.5">
+                  {supportGroups.map((group) => (
+                    <LabelChip key={group.id} name={group.name} color={group.color} size="sm" />
+                  ))}
+                </div>
+              ) : undefined}
+            />
             <InfoRow label="Account type" value="Production user" />
           </div>
         </div>
@@ -43,10 +63,10 @@ const SupportProfilePage: React.FC = () => {
   );
 };
 
-const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+const InfoRow: React.FC<{ label: string; value?: string; content?: React.ReactNode }> = ({ label, value, content }) => (
   <div className="surface-muted flex items-center justify-between px-4 py-3">
     <span className="text-sm text-gray-500">{label}</span>
-    <span className="text-sm font-semibold text-gray-900">{value}</span>
+    {content || <span className="text-sm font-semibold text-gray-900">{value}</span>}
   </div>
 );
 

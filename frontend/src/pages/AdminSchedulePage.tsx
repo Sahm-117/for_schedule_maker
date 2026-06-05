@@ -5,7 +5,8 @@ import ScheduleView from '../components/ScheduleView';
 import WeekSelector from '../components/WeekSelector';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import type { Day } from '../types';
+import { labelsApi } from '../services/api';
+import type { Day, Label } from '../types';
 import { exportAllWeeksToPDF, exportDayToPDF, exportWeekToPDF } from '../utils/pdfExport';
 
 const AdminSchedulePage: React.FC = () => {
@@ -24,6 +25,15 @@ const AdminSchedulePage: React.FC = () => {
   const [headerAddDayId, setHeaderAddDayId] = React.useState<number | null>(null);
   const [showDayAddPicker, setShowDayAddPicker] = React.useState(false);
   const [crossWeekRequest, setCrossWeekRequest] = React.useState(0);
+  const [supportGroups, setSupportGroups] = React.useState<Label[]>([]);
+  const [selectedSupportGroupId, setSelectedSupportGroupId] = React.useState('');
+
+  React.useEffect(() => {
+    if (!isAdmin) return;
+    labelsApi.getAll()
+      .then((response) => setSupportGroups(response.labels))
+      .catch((error) => console.warn('Failed to load support groups for filter:', error));
+  }, [isAdmin]);
 
   if (user?.role === 'SUPPORT') {
     return <Navigate to="/support/schedule" replace />;
@@ -132,6 +142,24 @@ const AdminSchedulePage: React.FC = () => {
               void handleWeekSelect(weekId);
             }}
           />
+          {isAdmin && (
+            <div className="surface-card p-4">
+              <h3 className="text-sm font-semibold text-gray-900">Support Group Filter</h3>
+              <p className="mt-1 text-xs text-gray-500">View one support group’s exact assignments for this selected week.</p>
+              <select
+                value={selectedSupportGroupId}
+                onChange={(e) => setSelectedSupportGroupId(e.target.value)}
+                className="mt-3 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-primary"
+              >
+                <option value="">All support groups</option>
+                {supportGroups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div>
@@ -144,7 +172,7 @@ const AdminSchedulePage: React.FC = () => {
               onPendingChangesRefresh={refreshPendingChanges}
               isAdmin={isAdmin}
               canEdit={isAdmin || isSopPreparer}
-              filterLabelIds={isAdmin || isSopPreparer ? undefined : userLabelIds}
+              filterLabelIds={selectedSupportGroupId ? [selectedSupportGroupId] : (isAdmin || isSopPreparer ? undefined : userLabelIds)}
               showInlineAdminActions={false}
               externalAddDayId={headerAddDayId}
               onExternalAddHandled={() => setHeaderAddDayId(null)}

@@ -418,7 +418,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                   onClick={() => { openUserDetails(user); setOpenMenuId(null); }}
                                   className="w-full text-left px-4 py-2.5 text-sm text-blue-600 hover:bg-gray-50"
                                 >
-                                  Manage labels
+                                  Manage support groups
                                 </button>
                                 <button
                                   onClick={() => { setResetPasswordUserId(user.id); setResetPasswordValue(''); setError(''); setOpenMenuId(null); }}

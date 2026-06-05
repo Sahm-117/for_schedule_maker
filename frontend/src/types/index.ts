@@ -54,6 +54,13 @@ export interface Week {
   days: Day[];
 }
 
+export interface SupportActivityCompletion {
+  id: string;
+  activityId: number;
+  userId: string;
+  completedAt: string;
+}
+
 export interface PendingChange {
   id: string;
   weekId: number;

@@ -57,7 +57,13 @@ const MobileBadge: React.FC<{ count: number }> = ({ count }) => {
   );
 };
 
-const isNavActive = (pathname: string, to: string) => pathname === to || pathname.startsWith(`${to}/`);
+const isNavActive = (pathname: string, to: string) => {
+  if (to === '/support' || to === '/dashboard') {
+    return pathname === to;
+  }
+
+  return pathname === to || pathname.startsWith(`${to}/`);
+};
 
 const AppShell: React.FC = () => {
   const { user, isAdmin, isSopPreparer, logout } = useAuth();
@@ -192,6 +198,15 @@ const AppShell: React.FC = () => {
                 );
               })}
             </nav>
+            <div className="border-t border-orange-100 px-4 py-4">
+              <button
+                type="button"
+                onClick={logout}
+                className="flex w-full items-center justify-center rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-orange-50"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       )}
