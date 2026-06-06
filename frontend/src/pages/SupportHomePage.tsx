@@ -64,7 +64,7 @@ const SupportHomePage: React.FC = () => {
           <div className="grid grid-cols-2 gap-3">
             <Metric title="My Activities" value={myActivities.length} to="/support/schedule" detail={activeWeek ? `Week ${activeWeek.weekNumber}` : 'Open schedule'} />
             <Metric title="My Support Groups" value={userLabelIds.length} to="/support/profile" detail="View profile" />
-            <Metric title="Resources" value={resourceCount} to="/support/resources" detail={newResourceCount > 0 ? `+${newResourceCount} new since your last visit` : 'Browse the resource hub'} />
+            <Metric title="Resources" value={resourceCount} to="/support/resources" detail={newResourceCount > 0 ? `+${newResourceCount} new since your last visit` : 'Open the Resource Hub'} />
             <Metric title="Announcements" value={announcements.length} to="/support/announcements" detail="Open updates" />
           </div>
         </div>
@@ -127,7 +127,7 @@ const SupportHomePage: React.FC = () => {
           <div className="surface-card p-6">
             <h3 className="text-lg font-semibold text-gray-900">Quick links</h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <QuickLink to="/support/resources" label="Browse resources" />
+              <QuickLink to="/support/resources" label="Browse Resource Hub" />
               <QuickLink to="/support/announcements" label="View announcements" />
               <QuickLink to="/support/profile" label="Profile & alerts" />
             </div>
