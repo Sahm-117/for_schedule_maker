@@ -28,9 +28,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [selectedUserLabels, setSelectedUserLabels] = useState<Label[]>([]);
   const [labelEditIds, setLabelEditIds] = useState<string[]>([]);
   const [savingLabels, setSavingLabels] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [showPasswordInForm, setShowPasswordInForm] = useState(false);
 
   const [newUserLabelIds, setNewUserLabelIds] = useState<string[]>([]);
+  const [selectedUserDraft, setSelectedUserDraft] = useState({
+    name: '',
+    email: '',
+    phone: '',
+  });
   const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
   const [resetPasswordValue, setResetPasswordValue] = useState('');
   const [resetPasswordSaving, setResetPasswordSaving] = useState(false);
@@ -80,6 +86,11 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
   const openUserDetails = async (user: User) => {
     setSelectedUser(user);
+    setSelectedUserDraft({
+      name: user.name,
+      email: user.email || '',
+      phone: user.phone || '',
+    });
     setSelectedUserLabels([]);
     setLabelEditIds([]);
     try {
@@ -88,6 +99,29 @@ const UserManagement: React.FC<UserManagementProps> = ({
       setLabelEditIds(response.labels.map((l) => l.id));
     } catch {
       // non-critical
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!selectedUser) return;
+    const nextName = selectedUserDraft.name.trim();
+    if (!nextName) {
+      setError('Name is required.');
+      return;
+    }
+
+    setSavingProfile(true);
+    setError('');
+    setSuccess('');
+    try {
+      const response = await usersApi.update(selectedUser.id, { name: nextName });
+      setSelectedUser(response.user);
+      setUsers((prev) => prev.map((entry) => (entry.id === selectedUser.id ? { ...entry, ...response.user } : entry)));
+      setSuccess('User profile updated.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to update user profile.');
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -622,11 +656,16 @@ const UserManagement: React.FC<UserManagementProps> = ({
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">{selectedUser.name}</div>
+                  <input
+                    type="text"
+                    value={selectedUserDraft.name}
+                    onChange={(e) => setSelectedUserDraft((prev) => ({ ...prev, name: e.target.value }))}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-primary"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email/Phone</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">{selectedUser.email}</div>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">{selectedUser.email || selectedUser.phone || 'N/A'}</div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
@@ -709,6 +748,13 @@ const UserManagement: React.FC<UserManagementProps> = ({
               </div>
 
               <div className="flex justify-end pt-6 border-t mt-6">
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={savingProfile}
+                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50 mr-2"
+                >
+                  {savingProfile ? 'Saving...' : 'Save Changes'}
+                </button>
                 <button
                   onClick={() => setSelectedUser(null)}
                   className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
