@@ -1,11 +1,46 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const PWAUpdateBanner: React.FC = () => {
+  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
-  } = useRegisterSW();
+  } = useRegisterSW({
+    onRegistered: (workerRegistration) => {
+      setRegistration(workerRegistration ?? null);
+    },
+  });
+
+  useEffect(() => {
+    if (!registration) return undefined;
+
+    const checkForUpdates = () => {
+      void registration.update().catch(() => {
+        // Best-effort only. If the browser declines the check, keep the app usable.
+      });
+    };
+
+    const intervalId = window.setInterval(checkForUpdates, 60_000);
+    const handleFocus = () => checkForUpdates();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkForUpdates();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Trigger one immediate check after registration is known.
+    checkForUpdates();
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [registration]);
 
   if (!needRefresh) return null;
 
