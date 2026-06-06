@@ -2045,38 +2045,53 @@ export const announcementsApi = {
     isAdmin?: boolean;
     accessibleCohortIds?: string[];
   }): Promise<{ announcements: import('../types').Announcement[] }> {
-    const globalOrLegacyScope = 'scope.eq.ALL_USERS,scope.is.null';
-    let query = supabase
+    const { data, error } = await supabase
       .from('Announcement')
-      .select('*')
+      .select(`
+        *,
+        Cohort (
+          name
+        )
+      `)
       .order('sentAt', { ascending: false })
-      .limit(50);
+      .limit(200);
 
-    if (options?.isAdmin && options?.cohortId) {
-      query = query.or(`${globalOrLegacyScope},cohortId.eq.${options.cohortId}`);
-    } else if (!options?.isAdmin) {
-      const accessibleIds = options?.accessibleCohortIds || [];
-      if (options?.cohortId) {
-        query = query.or(`${globalOrLegacyScope},cohortId.eq.${options.cohortId}`);
-      } else if (accessibleIds.length > 0) {
-        query = query.or(`${globalOrLegacyScope},cohortId.in.(${accessibleIds.join(',')})`);
-      } else {
-        query = query.or(globalOrLegacyScope);
-      }
-    }
-
-    const { data, error } = await query;
     if (error) throw new Error(error.message);
+
+    const allAnnouncements = ((data as any[]) ?? []).map((row: any) => ({
+      id: row.id,
+      subject: row.subject,
+      body: row.body,
+      sentAt: row.sentAt,
+      sentBy: row.sentBy,
+      scope: row.scope,
+      cohortId: row.cohortId,
+      cohortName: row.Cohort?.name || null,
+    }));
+
+    const isGlobal = (row: { scope?: string | null; cohortId?: string | null }) =>
+      row.scope === 'ALL_USERS' || row.scope == null || row.cohortId == null;
+
+    const announcements = allAnnouncements.filter((row) => {
+      if (options?.isAdmin) {
+        if (!options.cohortId) return true;
+        return isGlobal(row) || row.cohortId === options.cohortId;
+      }
+
+      if (options?.cohortId) {
+        return isGlobal(row) || row.cohortId === options.cohortId;
+      }
+
+      const accessibleIds = options?.accessibleCohortIds || [];
+      if (accessibleIds.length > 0) {
+        return isGlobal(row) || accessibleIds.includes(row.cohortId || '');
+      }
+
+      return isGlobal(row);
+    });
+
     return {
-      announcements: ((data as any[]) ?? []).map((row: any) => ({
-        id: row.id,
-        subject: row.subject,
-        body: row.body,
-        sentAt: row.sentAt,
-        sentBy: row.sentBy,
-        scope: row.scope,
-        cohortId: row.cohortId,
-      })),
+      announcements,
     };
   },
 };
