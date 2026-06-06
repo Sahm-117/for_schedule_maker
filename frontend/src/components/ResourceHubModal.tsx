@@ -72,6 +72,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [notifyUsers, setNotifyUsers] = useState(false);
+  const [notifyScope, setNotifyScope] = useState<'ACTIVE_COHORT' | 'ALL_USERS'>('ACTIVE_COHORT');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = () => {
@@ -101,6 +102,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
     setFile(null);
     setError('');
     setNotifyUsers(false);
+    setNotifyScope('ACTIVE_COHORT');
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -127,7 +129,10 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
             'New resource added',
             `"${title.trim()}" has been added to the Resource Hub. Open the app to view it.`,
             user.id,
-            { scope: 'ACTIVE_COHORT', cohortId: activeCohort?.id || null },
+            {
+              scope: notifyScope,
+              cohortId: notifyScope === 'ACTIVE_COHORT' ? activeCohort?.id || null : null,
+            },
           );
         } catch {
           // notification failure is non-blocking
@@ -247,6 +252,34 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
               <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${notifyUsers ? 'translate-x-6' : 'translate-x-1'}`} />
             </span>
           </button>
+
+          {notifyUsers && (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Audience</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNotifyScope('ACTIVE_COHORT')}
+                  className={`rounded-xl border px-3 py-2 text-sm font-semibold ${notifyScope === 'ACTIVE_COHORT' ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Active Cohort
+                  <span className="mt-1 block text-[11px] font-medium text-gray-500">
+                    {activeCohort?.name || 'No active cohort'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotifyScope('ALL_USERS')}
+                  className={`rounded-xl border px-3 py-2 text-sm font-semibold ${notifyScope === 'ALL_USERS' ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                >
+                  All Users
+                  <span className="mt-1 block text-[11px] font-medium text-gray-500">
+                    Global blast
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 border-t pt-4">
             <button
