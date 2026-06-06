@@ -20,7 +20,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   showHistory = true,
 }) => {
   const { user, isAdmin, userCohortIds } = useAuth();
-  const { activeCohort } = useAppData();
+  const { activeCohort, liveRevision } = useAppData();
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [scope, setScope] = useState<'ACTIVE_COHORT' | 'ALL_USERS'>('ACTIVE_COHORT');
@@ -49,7 +49,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       .then((res) => setHistory(res.announcements))
       .catch(() => {})
       .finally(() => setLoadingHistory(false));
-  }, [activeCohort?.id, isAdmin, shouldRender, user?.id, userCohortIds]);
+  }, [activeCohort?.id, isAdmin, liveRevision, shouldRender, user?.id, userCohortIds]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();

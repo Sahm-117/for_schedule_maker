@@ -13,7 +13,7 @@ const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(n
 
 const AdminDashboardPage: React.FC = () => {
   const { user, isAdmin, isSopPreparer } = useAuth();
-  const { activeCohort, weeks, selectedWeek, globalPendingChanges, realtimeHealthy, digestEnabled, newResourceCount } = useAppData();
+  const { activeCohort, weeks, selectedWeek, globalPendingChanges, realtimeHealthy, digestEnabled, newResourceCount, liveRevision } = useAppData();
   const [users, setUsers] = useState<User[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -46,7 +46,7 @@ const AdminDashboardPage: React.FC = () => {
         })
         .catch(() => {});
     }
-  }, [activeCohort?.id, isAdmin]);
+  }, [activeCohort?.id, isAdmin, liveRevision]);
 
   const activeWeek = selectedWeek || weeks[0] || null;
   useEffect(() => {
@@ -58,7 +58,7 @@ const AdminDashboardPage: React.FC = () => {
     supportActivityCompletionsApi.getByWeek(activeWeek.id)
       .then((response) => setCompletions(response.completions))
       .catch(() => setCompletions([]));
-  }, [activeWeek, isAdmin]);
+  }, [activeWeek, isAdmin, liveRevision]);
 
   const todaysDay = useMemo(() => {
     if (!activeWeek) return null;

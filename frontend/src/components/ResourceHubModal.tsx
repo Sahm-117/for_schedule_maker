@@ -59,7 +59,7 @@ function formatBytes(bytes: number) {
 
 const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, onViewed, embedded = false }) => {
   const { user, isAdmin } = useAuth();
-  const { activeCohort } = useAppData();
+  const { activeCohort, liveRevision } = useAppData();
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -93,7 +93,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
     // Mark as seen
     localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString());
     onViewed?.();
-  }, [shouldRender]);
+  }, [liveRevision, onViewed, shouldRender]);
 
   const resetForm = () => {
     setTitle('');

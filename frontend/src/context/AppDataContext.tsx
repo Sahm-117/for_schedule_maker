@@ -9,6 +9,7 @@ const ACTIVE_COHORT_KEY = 'fof_active_cohort_id';
 
 interface AppDataContextType {
   loading: boolean;
+  liveRevision: number;
   cohorts: Cohort[];
   activeCohort: Cohort | null;
   setActiveCohort: (cohortId: string) => Promise<void>;
@@ -68,6 +69,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [digestCursor, setDigestCursor] = useState<DailyDigestCursor | null>(null);
   const [digestActionLabel, setDigestActionLabel] = useState<'Send Digest Now' | 'Restart Digest'>('Send Digest Now');
   const [realtimeHealthy, setRealtimeHealthy] = useState(false);
+  const [liveRevision, setLiveRevision] = useState(0);
 
   const refreshTimeoutRef = useRef<number | null>(null);
 
@@ -158,21 +160,61 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setNewResourceCount(count);
   }, []);
 
-  const refreshAdminData = useCallback(() => {
-    if (!activeCohort) return;
-    void loadWeeksForCohort(activeCohort.id).then((loadedWeeks) => {
-      void loadGlobalPendingChanges(loadedWeeks.map((week) => week.id));
-    });
-  }, [activeCohort, loadGlobalPendingChanges, loadWeeksForCohort]);
+  const bumpLiveRevision = useCallback(() => {
+    setLiveRevision((prev) => prev + 1);
+  }, []);
 
-  const scheduleAdminRefresh = useCallback(() => {
+  const refreshWorkspaceData = useCallback(() => {
+    void (async () => {
+      try {
+        const resolvedCohort = await loadCohorts();
+        const loadedWeeks = await loadWeeksForCohort(resolvedCohort?.id ?? activeCohort?.id ?? null);
+
+        if (isAdmin) {
+          await Promise.all([
+            loadDigestStatus(),
+            loadGlobalPendingChanges(loadedWeeks.map((week) => week.id)),
+          ]);
+        } else if (isSopPreparer) {
+          await loadRejectedChanges();
+        }
+
+        if (isSopPreparer && selectedWeek) {
+          const matchingWeek = loadedWeeks.find((week) => week.id === selectedWeek.id);
+          if (matchingWeek) {
+            await loadWeekPendingChanges(matchingWeek.id);
+          }
+        }
+
+        await refreshResourceCount();
+        bumpLiveRevision();
+      } catch (error) {
+        console.error('Failed to refresh workspace data:', error);
+      }
+    })();
+  }, [
+    activeCohort?.id,
+    bumpLiveRevision,
+    isAdmin,
+    isSopPreparer,
+    loadCohorts,
+    loadDigestStatus,
+    loadGlobalPendingChanges,
+    loadRejectedChanges,
+    loadWeekPendingChanges,
+    loadWeeksForCohort,
+    refreshResourceCount,
+    selectedWeek,
+  ]);
+
+  const scheduleWorkspaceRefresh = useCallback(() => {
     if (refreshTimeoutRef.current) {
       window.clearTimeout(refreshTimeoutRef.current);
     }
     refreshTimeoutRef.current = window.setTimeout(() => {
-      refreshAdminData();
+      refreshWorkspaceData();
     }, 300);
-  }, [refreshAdminData]);
+  }, [refreshWorkspaceData]);
 
   useEffect(() => {
     let cancelled = false;
@@ -219,13 +261,20 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [isSopPreparer, loadWeekPendingChanges, selectedWeek]);
 
   useEffect(() => {
-    if (!isAdmin || !(supabase as any)) return;
+    if (!user || !(supabase as any)) return;
 
     const channel = (supabase as any)
-      .channel(`dashboard-sync-${Date.now()}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'PendingChange' }, scheduleAdminRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Activity' }, scheduleAdminRefresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Week' }, scheduleAdminRefresh)
+      .channel(`app-sync-${user.id}-${Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'PendingChange' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Activity' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Week' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Resource' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Announcement' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Cohort' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'UserCohort' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'UserLabel' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'SupportActivityCompletion' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'AppSetting' }, scheduleWorkspaceRefresh)
       .subscribe((status: string) => {
         if (status === 'SUBSCRIBED') {
           setRealtimeHealthy(true);
@@ -244,15 +293,15 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setRealtimeHealthy(false);
       (supabase as any).removeChannel(channel);
     };
-  }, [isAdmin, scheduleAdminRefresh]);
+  }, [scheduleWorkspaceRefresh, user]);
 
   useEffect(() => {
-    if (!isAdmin || realtimeHealthy) return;
+    if (!user || realtimeHealthy) return;
     const intervalId = window.setInterval(() => {
-      refreshAdminData();
+      refreshWorkspaceData();
     }, 15000);
     return () => window.clearInterval(intervalId);
-  }, [isAdmin, realtimeHealthy, refreshAdminData]);
+  }, [realtimeHealthy, refreshWorkspaceData, user]);
 
   const handleWeekSelect = useCallback(async (weekId: number) => {
     try {
@@ -369,15 +418,15 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (changeIds && changeIds.length > 0) {
       setGlobalPendingChanges((prev) => prev.filter((change) => !changeIds.includes(change.id)));
     }
-    refreshAdminData();
-  }, [refreshAdminData]);
+    refreshWorkspaceData();
+  }, [refreshWorkspaceData]);
 
   const handlePendingReject = useCallback((changeIds?: string[]) => {
     if (changeIds && changeIds.length > 0) {
       setGlobalPendingChanges((prev) => prev.filter((change) => !changeIds.includes(change.id)));
     }
-    refreshAdminData();
-  }, [refreshAdminData]);
+    refreshWorkspaceData();
+  }, [refreshWorkspaceData]);
 
   const markResourcesViewed = useCallback(() => {
     localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString());
@@ -390,6 +439,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const value = useMemo<AppDataContextType>(() => ({
     loading,
+    liveRevision,
     cohorts,
     activeCohort,
     setActiveCohort,
@@ -433,6 +483,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     handleSendDigestNow,
     handleToggleDigest,
     handleWeekSelect,
+    liveRevision,
     loadRejectedChanges,
     loading,
     markResourcesViewed,

@@ -12,7 +12,7 @@ import { getCurrentProgramDayName } from '../utils/schedule';
 
 const SupportHomePage: React.FC = () => {
   const { user, userLabelIds, userCohortIds } = useAuth();
-  const { activeCohort, selectedWeek, weeks, newResourceCount } = useAppData();
+  const { activeCohort, selectedWeek, weeks, newResourceCount, liveRevision } = useAppData();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   useEffect(() => {
@@ -23,7 +23,7 @@ const SupportHomePage: React.FC = () => {
       isAdmin: false,
       accessibleCohortIds: userCohortIds,
     }).then((res) => setAnnouncements(res.announcements.slice(0, 3))).catch(() => {});
-  }, [activeCohort?.id, user, userCohortIds]);
+  }, [activeCohort?.id, liveRevision, user, userCohortIds]);
 
   if (user?.role !== 'SUPPORT') {
     return <Navigate to="/dashboard" replace />;

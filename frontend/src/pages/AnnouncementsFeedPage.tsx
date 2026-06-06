@@ -8,7 +8,7 @@ import type { Announcement } from '../types';
 
 const AnnouncementsFeedPage: React.FC = () => {
   const { user, isAdmin, isSopPreparer, userCohortIds } = useAuth();
-  const { activeCohort } = useAppData();
+  const { activeCohort, liveRevision } = useAppData();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,7 +24,7 @@ const AnnouncementsFeedPage: React.FC = () => {
       .then((res) => setAnnouncements(res.announcements))
       .catch(() => setAnnouncements([]))
       .finally(() => setLoading(false));
-  }, [activeCohort?.id, isAdmin, isSopPreparer, user?.id, userCohortIds]);
+  }, [activeCohort?.id, isAdmin, isSopPreparer, liveRevision, user?.id, userCohortIds]);
 
   if (!user) return null;
 

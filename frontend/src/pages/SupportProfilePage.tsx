@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import LabelChip from '../components/LabelChip';
 import PageHeader from '../components/PageHeader';
+import { useAppData } from '../context/AppDataContext';
 import { usersApi } from '../services/api';
 import type { Label } from '../types';
 import NotificationSettings from '../components/NotificationSettings';
@@ -10,6 +11,7 @@ import { useAuth } from '../hooks/useAuth';
 const SupportProfilePage: React.FC = () => {
   const { user, userLabelIds } = useAuth();
   const [supportGroups, setSupportGroups] = useState<Label[]>([]);
+  const { liveRevision } = useAppData();
 
   if (user?.role !== 'SUPPORT') {
     return <Navigate to="/settings" replace />;
@@ -19,7 +21,7 @@ const SupportProfilePage: React.FC = () => {
     usersApi.getUserLabels(user.id)
       .then((response) => setSupportGroups(response.labels))
       .catch(() => setSupportGroups([]));
-  }, [user.id]);
+  }, [liveRevision, user.id]);
 
   return (
     <div>
