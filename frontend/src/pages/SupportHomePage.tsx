@@ -103,6 +103,7 @@ const SupportHomePage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900">Recent announcements</h3>
                 <p className="text-sm text-gray-500">Updates from the programme team.</p>
               </div>
+              <NavLink to="/support/announcements" className="text-sm font-semibold text-primary hover:text-primary-dark">View all</NavLink>
             </div>
             <div className="space-y-3">
               {announcements.length === 0 ? (
@@ -120,6 +121,7 @@ const SupportHomePage: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900">Quick links</h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <QuickLink to="/support/resources" label="Browse resources" />
+              <QuickLink to="/support/announcements" label="View announcements" />
               <QuickLink to="/support/profile" label="Profile & alerts" />
             </div>
           </div>

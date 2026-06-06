@@ -12,7 +12,7 @@ import type { Activity, Announcement, Resource, SupportActivityCompletion, User 
 const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
 
 const AdminDashboardPage: React.FC = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isSopPreparer } = useAuth();
   const { activeCohort, weeks, selectedWeek, globalPendingChanges, realtimeHealthy, digestEnabled, newResourceCount } = useAppData();
   const [users, setUsers] = useState<User[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -200,7 +200,9 @@ const AdminDashboardPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900">Recent announcements</h3>
                 <p className="text-sm text-gray-500">Latest messages sent to support teams.</p>
               </div>
-              {isAdmin && <NavLink to="/announcements" className="text-sm font-semibold text-primary hover:text-primary-dark">Manage</NavLink>}
+              <NavLink to={isAdmin ? '/announcements' : '/team-announcements'} className="text-sm font-semibold text-primary hover:text-primary-dark">
+                {isAdmin ? 'Manage' : 'View all'}
+              </NavLink>
             </div>
             <div className="space-y-3">
               {announcements.length === 0 ? (

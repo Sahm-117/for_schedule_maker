@@ -2034,20 +2034,23 @@ export const announcementsApi = {
     isAdmin?: boolean;
     accessibleCohortIds?: string[];
   }): Promise<{ announcements: import('../types').Announcement[] }> {
+    const globalOrLegacyScope = 'scope.eq.ALL_USERS,scope.is.null';
     let query = supabase
       .from('Announcement')
       .select('*')
       .order('sentAt', { ascending: false })
-      .limit(20);
+      .limit(50);
 
-    if (!options?.isAdmin) {
+    if (options?.isAdmin && options?.cohortId) {
+      query = query.or(`${globalOrLegacyScope},cohortId.eq.${options.cohortId}`);
+    } else if (!options?.isAdmin) {
       const accessibleIds = options?.accessibleCohortIds || [];
       if (options?.cohortId) {
-        query = query.or(`scope.eq.ALL_USERS,cohortId.eq.${options.cohortId}`);
+        query = query.or(`${globalOrLegacyScope},cohortId.eq.${options.cohortId}`);
       } else if (accessibleIds.length > 0) {
-        query = query.or(`scope.eq.ALL_USERS,cohortId.in.(${accessibleIds.join(',')})`);
+        query = query.or(`${globalOrLegacyScope},cohortId.in.(${accessibleIds.join(',')})`);
       } else {
-        query = query.eq('scope', 'ALL_USERS');
+        query = query.or(globalOrLegacyScope);
       }
     }
 

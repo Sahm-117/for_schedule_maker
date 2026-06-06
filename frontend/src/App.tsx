@@ -16,6 +16,7 @@ import AdminUsersPage from './pages/AdminUsersPage';
 import AdminAnnouncementsPage from './pages/AdminAnnouncementsPage';
 import AdminResourcesPage from './pages/AdminResourcesPage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
+import AnnouncementsFeedPage from './pages/AnnouncementsFeedPage';
 import ActivityOverviewPage from './pages/ActivityOverviewPage';
 import CohortsPage from './pages/CohortsPage';
 import SupportHomePage from './pages/SupportHomePage';
@@ -47,6 +48,7 @@ function App() {
             <Route path="/approvals" element={<AdminApprovalsPage />} />
             <Route path="/users" element={<AdminUsersPage />} />
             <Route path="/announcements" element={<AdminAnnouncementsPage />} />
+            <Route path="/team-announcements" element={<AnnouncementsFeedPage />} />
             <Route path="/resources" element={<AdminResourcesPage />} />
             <Route path="/settings" element={<AdminSettingsPage />} />
             <Route path="/activity-overview" element={<ActivityOverviewPage />} />
@@ -54,6 +56,7 @@ function App() {
             <Route path="/support" element={<SupportHomePage />} />
             <Route path="/support/schedule" element={<SupportSchedulePage />} />
             <Route path="/support/resources" element={<SupportResourcesPage />} />
+            <Route path="/support/announcements" element={<AnnouncementsFeedPage />} />
             <Route path="/support/profile" element={<SupportProfilePage />} />
             <Route path="/sop-download" element={<SopDownload />} />
           </Route>
