@@ -337,6 +337,7 @@ export const notificationSettingsApi = USE_SUPABASE ? supabaseNotificationSettin
 
 export const announcementsApi = USE_SUPABASE ? supabaseAnnouncementsApi : {
   async send(_subject: string, _body: string, _sentBy: string, _options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null }): Promise<{ sent: number }> { return { sent: 0 }; },
+  async delete(_announcementId: string): Promise<{ message: string }> { return { message: 'Not supported' }; },
   async getHistory(_options?: {
     cohortId?: string | null;
     userId?: string;

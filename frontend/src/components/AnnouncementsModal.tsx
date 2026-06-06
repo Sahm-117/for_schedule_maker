@@ -25,6 +25,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   const [body, setBody] = useState('');
   const [scope, setScope] = useState<'ACTIVE_COHORT' | 'ALL_USERS'>('ACTIVE_COHORT');
   const [sending, setSending] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [history, setHistory] = useState<Announcement[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -75,6 +76,24 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       setStatus({ type: 'error', message: 'Failed to send announcement. Please try again.' });
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleDelete = async (announcement: Announcement) => {
+    if (!isAdmin) return;
+    const confirmed = window.confirm(`Delete "${announcement.subject}"? This will remove it from announcement history and support-facing feeds.`);
+    if (!confirmed) return;
+
+    setDeletingId(announcement.id);
+    setStatus(null);
+    try {
+      await announcementsApi.delete(announcement.id);
+      setHistory((prev) => prev.filter((item) => item.id !== announcement.id));
+      setStatus({ type: 'success', message: 'Announcement deleted.' });
+    } catch {
+      setStatus({ type: 'error', message: 'Failed to delete announcement. Please try again.' });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -196,9 +215,25 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                           {a.scope === 'ALL_USERS' ? 'All Users' : a.cohortName || 'Active Cohort'}
                         </p>
                       </div>
-                      <span className="text-xs text-gray-400 flex-shrink-0">
-                        {new Date(a.sentAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                      <div className="flex items-start gap-2 flex-shrink-0">
+                        <span className="text-xs text-gray-400">
+                          {new Date(a.sentAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => void handleDelete(a)}
+                            disabled={deletingId === a.id}
+                            className="rounded-lg p-1 text-rose-500 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                            title="Delete announcement"
+                            aria-label={`Delete ${a.subject}`}
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7 18.133 19.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{a.body}</p>
                   </div>

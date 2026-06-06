@@ -2039,6 +2039,17 @@ export const announcementsApi = {
     return { sent: (data as any)?.sent ?? 0 };
   },
 
+  async delete(announcementId: string): Promise<{ message: string }> {
+    const { error } = await supabase
+      .from('Announcement')
+      .delete()
+      .eq('id', announcementId);
+
+    if (error) throw new Error(error.message);
+
+    return { message: 'Announcement deleted.' };
+  },
+
   async getHistory(options?: {
     cohortId?: string | null;
     userId?: string;
