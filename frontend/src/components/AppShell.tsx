@@ -71,7 +71,7 @@ const isNavActive = (pathname: string, to: string) => {
 };
 
 const AppShell: React.FC = () => {
-  const { user, isAdmin, isSopPreparer, logout } = useAuth();
+  const { user, isAdmin, isSopPreparer, logout, userLabels } = useAuth();
   const {
     cohorts,
     activeCohort,
@@ -105,7 +105,8 @@ const AppShell: React.FC = () => {
     return navItems.filter((item) => mobileAdminRoutes.has(item.to));
   }, [isSupport, navItems]);
 
-  const currentLabel = isAdmin ? 'Admin' : isSopPreparer ? 'SOP Preparer' : 'Support';
+  const supportLabel = userLabels[0]?.name || 'Support';
+  const currentLabel = isAdmin ? 'Admin' : isSopPreparer ? 'SOP Preparer' : supportLabel;
   const formatDateLabel = (value?: string | null) => {
     if (!value) return null;
     const date = new Date(`${value}T12:00:00`);

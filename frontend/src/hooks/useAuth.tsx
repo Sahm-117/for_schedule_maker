@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authApi, setAuthToken, clearAuthToken, usersApi } from '../services/api';
-import type { User } from '../types';
+import type { Label, User } from '../types';
 
 interface AuthContextType {
   user: User | null;
@@ -10,6 +10,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isSopPreparer: boolean;
   userLabelIds: string[];
+  userLabels: Label[];
   userCohortIds: string[];
 }
 
@@ -31,18 +32,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [userLabelIds, setUserLabelIds] = useState<string[]>([]);
+  const [userLabels, setUserLabels] = useState<Label[]>([]);
   const [userCohortIds, setUserCohortIds] = useState<string[]>([]);
 
   const fetchUserLabels = async (userId: string, role: string) => {
     if (role !== 'SUPPORT') {
       setUserLabelIds([]);
+      setUserLabels([]);
       return;
     }
     try {
       const response = await usersApi.getUserLabels(userId);
       setUserLabelIds(response.labels.map((l) => l.id));
+      setUserLabels(response.labels);
     } catch {
       setUserLabelIds([]);
+      setUserLabels([]);
     }
   };
 
@@ -74,6 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('user');
     setUser(null);
     setUserLabelIds([]);
+    setUserLabels([]);
     setUserCohortIds([]);
   };
 
@@ -125,6 +131,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAdmin: user?.role === 'ADMIN',
     isSopPreparer: user?.role === 'SOP_PREPARER',
     userLabelIds,
+    userLabels,
     userCohortIds,
   };
 
