@@ -120,8 +120,8 @@ const SupportSchedulePage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="My Schedule"
-        subtitle="Focus on today first, then switch to upcoming days or the full week when you need more context."
+        title={`${user.name.split(' ')[0]}'s Schedule`}
+        subtitle="Start with today, then look ahead whenever you want a fuller view of your week."
         action={scheduleAction}
       />
 

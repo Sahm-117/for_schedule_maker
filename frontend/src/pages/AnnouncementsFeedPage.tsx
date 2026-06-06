@@ -37,8 +37,8 @@ const AnnouncementsFeedPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="Announcements"
-        subtitle={activeCohort ? `Messages sent to ${activeCohort.name} and global team announcements.` : 'Messages sent to your team and global announcements.'}
+        title={user.role === 'SUPPORT' ? 'Your Announcements' : 'Announcements'}
+        subtitle={activeCohort ? `These are the updates shared with ${activeCohort.name}, plus anything sent to everyone.` : 'These are the updates shared with your team, plus anything sent to everyone.'}
         action={(
           <NavLink
             to={backTo}

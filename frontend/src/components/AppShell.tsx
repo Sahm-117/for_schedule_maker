@@ -145,7 +145,7 @@ const AppShell: React.FC = () => {
             </div>
             <div>
               <p className="text-base font-bold text-gray-900">FOF IKD Ops</p>
-              <p className="text-xs text-gray-500">{isSupport ? 'Support workspace' : 'Operations console'}</p>
+              <p className="text-xs text-gray-500">{isSupport ? `${user?.name?.split(' ')[0] || 'Your'}'s workspace` : 'Operations console'}</p>
             </div>
           </button>
         </div>
@@ -193,10 +193,10 @@ const AppShell: React.FC = () => {
           <button type="button" className="absolute inset-0 bg-slate-900/45" onClick={() => setOpen(false)} />
           <div className="surface-card relative m-4 flex w-80 flex-col overflow-hidden">
             <div className="flex items-center justify-between border-b border-orange-100 px-5 py-5">
-              <div>
-                <p className="text-base font-bold text-gray-900">FOF IKD Ops</p>
-                <p className="text-xs text-gray-500">{isSupport ? 'Support workspace' : 'Operations console'}</p>
-              </div>
+            <div>
+              <p className="text-base font-bold text-gray-900">FOF IKD Ops</p>
+              <p className="text-xs text-gray-500">{isSupport ? `${user?.name?.split(' ')[0] || 'Your'}'s workspace` : 'Operations console'}</p>
+            </div>
               <button type="button" onClick={() => setOpen(false)} className="rounded-xl p-2 text-gray-400 hover:bg-orange-50 hover:text-gray-700">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18 18 6M6 6l12 12" /></svg>
               </button>

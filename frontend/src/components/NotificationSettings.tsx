@@ -122,7 +122,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
   const content = (
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">Notification Timing</h3>
+        <h3 className="text-lg font-semibold">Reminder Preferences</h3>
         {!embedded && (
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,22 +133,28 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
       </div>
 
       <p className="text-sm text-gray-500 mb-4">
-        Choose when supports receive push reminders before their assigned activities. Multiple times can be selected.
+        Pick when you would like reminder nudges before your assigned activities. You can choose more than one.
       </p>
       {embedded ? (
         <>
           <div className="rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-4">
-            <p className="text-sm font-semibold text-gray-900">Current reminder windows</p>
-            <p className="mt-1 text-sm text-gray-500">{summary || 'No reminder windows selected yet.'}</p>
-          </div>
-          <div className="mt-4 flex justify-end">
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className="rounded-full border border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/5"
-            >
-              Edit
-            </button>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Your reminder plan</p>
+                <p className="mt-1 text-sm text-gray-500">{summary || 'No reminder times selected yet.'}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="rounded-full border border-primary p-2 text-primary hover:bg-primary/5"
+                aria-label="Edit reminder preferences"
+                title="Edit reminder preferences"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m15.232 5.232 3.536 3.536M9 11l6.232-6.232a2.5 2.5 0 1 1 3.536 3.536L12.536 14.5A4 4 0 0 1 10.7 15.6L7 17l1.4-3.7a4 4 0 0 1 1.1-1.836Z" />
+                </svg>
+              </button>
+            </div>
           </div>
         </>
       ) : editor}
@@ -163,7 +169,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
           <div className="w-full overflow-y-auto rounded-t-3xl bg-white shadow-xl sm:max-w-lg sm:rounded-2xl">
             <div className="p-6">
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Edit Notification Timing</h3>
+                <h3 className="text-lg font-semibold">Edit Reminder Preferences</h3>
                 <button onClick={() => setEditing(false)} className="text-gray-400 hover:text-gray-600">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />

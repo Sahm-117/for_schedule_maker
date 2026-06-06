@@ -24,8 +24,8 @@ const SupportProfilePage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="Profile & Preferences"
-        subtitle="Review your account details and control notification timing."
+        title={`${user.name.split(' ')[0]}'s Profile`}
+        subtitle="See your support groups, keep your details in view, and choose how you want reminders to reach you."
       />
 
       <div className="mb-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
@@ -53,7 +53,6 @@ const SupportProfilePage: React.FC = () => {
                 </div>
               ) : undefined}
             />
-            <InfoRow label="Account type" value="Production user" />
           </div>
         </div>
 

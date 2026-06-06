@@ -44,8 +44,8 @@ const SupportHomePage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="Support Home"
-        subtitle={activeCohort ? activeCohort.name : undefined}
+        title={`Welcome back, ${user.name.split(' ')[0]}`}
+        subtitle={activeCohort ? `${activeCohort.name} is active right now. Here is what is lined up for you.` : 'Here is what is lined up for you today.'}
       />
 
       <section className="surface-card mb-6 overflow-hidden bg-gradient-to-br from-slate-900 to-slate-700 text-white">
@@ -101,7 +101,7 @@ const SupportHomePage: React.FC = () => {
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Recent announcements</h3>
-                <p className="text-sm text-gray-500">Updates from the programme team.</p>
+                <p className="text-sm text-gray-500">Messages meant for you and your team.</p>
               </div>
               <NavLink to="/support/announcements" className="text-sm font-semibold text-primary hover:text-primary-dark">View all</NavLink>
             </div>
