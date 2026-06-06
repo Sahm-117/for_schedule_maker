@@ -61,18 +61,22 @@ const CohortsPage: React.FC = () => {
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [weekCounts, setWeekCounts] = useState<Record<string, number>>({});
   const [status, setStatus] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const [savingCreate, setSavingCreate] = useState(false);
   const [savingDetails, setSavingDetails] = useState(false);
   const [savingMembers, setSavingMembers] = useState(false);
   const [weekActionPending, setWeekActionPending] = useState(false);
+  const [deletingCohort, setDeletingCohort] = useState(false);
 
   const [createForm, setCreateForm] = useState<CohortFormState>(emptyForm);
   const [detailsForm, setDetailsForm] = useState<CohortFormState>(emptyForm);
+  const [cohortToDelete, setCohortToDelete] = useState<Cohort | null>(null);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -149,12 +153,18 @@ const CohortsPage: React.FC = () => {
   const olderCohorts = useMemo(() => {
     return cohorts
       .filter((cohort) => cohort.id !== activeCohort?.id)
+      .filter((cohort) => showArchived || cohort.status !== 'ARCHIVED')
       .sort((a, b) => {
         const left = a.startDate || a.createdAt || '';
         const right = b.startDate || b.createdAt || '';
         return left.localeCompare(right);
       });
-  }, [activeCohort?.id, cohorts]);
+  }, [activeCohort?.id, cohorts, showArchived]);
+
+  const archivedOlderCohortCount = useMemo(
+    () => cohorts.filter((cohort) => cohort.id !== activeCohort?.id && cohort.status === 'ARCHIVED').length,
+    [activeCohort?.id, cohorts],
+  );
 
   const cohortOptions = cohorts.map((cohort) => ({
     value: cohort.id,
@@ -182,6 +192,12 @@ const CohortsPage: React.FC = () => {
     setSelectedCohortId(cohort.id);
     setStatus('');
     setMembersOpen(true);
+  };
+
+  const openDeleteModal = (cohort: Cohort) => {
+    setCohortToDelete(cohort);
+    setStatus('');
+    setDeleteOpen(true);
   };
 
   const handleCreateCohort = async (event: React.FormEvent) => {
@@ -289,6 +305,54 @@ const CohortsPage: React.FC = () => {
     }
   };
 
+  const handleArchiveToggle = async (cohort: Cohort) => {
+    setStatus('');
+    try {
+      await cohortsApi.update(cohort.id, {
+        status: cohort.status === 'ARCHIVED' ? 'ACTIVE' : 'ARCHIVED',
+      });
+      await reloadCohorts();
+      setStatus(
+        cohort.status === 'ARCHIVED'
+          ? `${cohort.name} is active again.`
+          : `${cohort.name} was archived. It will stay hidden unless archived cohorts are shown.`,
+      );
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Failed to update cohort status.');
+    }
+  };
+
+  const handleDeleteCohort = async () => {
+    if (!cohortToDelete) return;
+    const remainingCohorts = cohorts.filter((cohort) => cohort.id !== cohortToDelete.id);
+    if (remainingCohorts.length === 0) {
+      setStatus('At least one cohort must remain in the workspace.');
+      return;
+    }
+
+    const fallbackCohort = remainingCohorts.find((cohort) => cohort.status !== 'ARCHIVED') || remainingCohorts[0];
+
+    setDeletingCohort(true);
+    setStatus('');
+    try {
+      await cohortsApi.delete(cohortToDelete.id);
+      await reloadCohorts();
+      if (activeCohort?.id === cohortToDelete.id && fallbackCohort) {
+        await setActiveCohort(fallbackCohort.id);
+        await reloadWeeks();
+      }
+      setDeleteOpen(false);
+      setCohortToDelete(null);
+      setStatus(`${cohortToDelete.name} was permanently deleted.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Failed to delete cohort.');
+    } finally {
+      setDeletingCohort(false);
+    }
+  };
+
+  const canDeleteSelectedCohort = !!cohortToDelete && cohorts.length > 1;
+
   const headerAction = (
     <button
       type="button"
@@ -303,7 +367,7 @@ const CohortsPage: React.FC = () => {
     <div>
       <PageHeader
         title="Cohorts"
-        subtitle="Keep the current cohort in view, manage week counts openly, and browse older cohorts in a cleaner table-first layout."
+        subtitle="Keep the current cohort in view, archive older cohorts instead of exposing them by default, and only use delete when you truly want to erase the cohort history."
         action={headerAction}
       />
 
@@ -363,6 +427,13 @@ const CohortsPage: React.FC = () => {
             <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
               <button
                 type="button"
+                onClick={() => void handleArchiveToggle(activeCohort)}
+                className="rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                {activeCohort.status === 'ARCHIVED' ? 'Unarchive' : 'Archive'}
+              </button>
+              <button
+                type="button"
                 onClick={() => openDetailsModal(activeCohort)}
                 className="rounded-full border border-orange-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-orange-50"
               >
@@ -375,6 +446,13 @@ const CohortsPage: React.FC = () => {
               >
                 Members
               </button>
+              <button
+                type="button"
+                onClick={() => openDeleteModal(activeCohort)}
+                className="rounded-full border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </section>
@@ -385,11 +463,24 @@ const CohortsPage: React.FC = () => {
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Older Cohorts</p>
             <h2 className="mt-1 text-xl font-bold text-gray-900">Cohort table</h2>
-            <p className="mt-1 text-sm text-gray-500">Previous and parallel cohorts stay visible here in chronological order.</p>
+            <p className="mt-1 text-sm text-gray-500">Previous and parallel cohorts stay visible here in chronological order. Archived cohorts stay tucked away unless you ask to see them.</p>
           </div>
-          <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
-            {olderCohorts.length} cohort{olderCohorts.length === 1 ? '' : 's'}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowArchived((prev) => !prev)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                showArchived
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              {showArchived ? 'Hide Archived' : `Show Archived${archivedOlderCohortCount ? ` (${archivedOlderCohortCount})` : ''}`}
+            </button>
+            <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
+              {olderCohorts.length} visible
+            </span>
+          </div>
         </div>
 
         <div className="hidden lg:block">
@@ -451,6 +542,20 @@ const CohortsPage: React.FC = () => {
                 >
                   Members
                 </button>
+                <button
+                  type="button"
+                  onClick={() => void handleArchiveToggle(cohort)}
+                  className="rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  {cohort.status === 'ARCHIVED' ? 'Unarchive' : 'Archive'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openDeleteModal(cohort)}
+                  className="rounded-full border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                >
+                  Delete
+                </button>
               </div>
             </div>
           ))}
@@ -510,12 +615,26 @@ const CohortsPage: React.FC = () => {
                 >
                   Members
                 </button>
+                <button
+                  type="button"
+                  onClick={() => void handleArchiveToggle(cohort)}
+                  className="rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  {cohort.status === 'ARCHIVED' ? 'Unarchive' : 'Archive'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openDeleteModal(cohort)}
+                  className="rounded-full border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                >
+                  Delete
+                </button>
               </div>
             </article>
           ))}
           {olderCohorts.length === 0 && (
             <div className="rounded-3xl border border-dashed border-orange-200 bg-orange-50/50 px-4 py-10 text-center text-sm text-gray-500">
-              No older cohorts yet.
+              {archivedOlderCohortCount > 0 && !showArchived ? 'No visible older cohorts. Turn on archived cohorts to review them.' : 'No older cohorts yet.'}
             </div>
           )}
         </div>
@@ -633,6 +752,22 @@ const CohortsPage: React.FC = () => {
                 >
                   Remove Last Week
                 </button>
+                <button
+                  type="button"
+                  onClick={() => selectedCohort && void handleArchiveToggle(selectedCohort)}
+                  disabled={!selectedCohort}
+                  className="rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {selectedCohort?.status === 'ARCHIVED' ? 'Unarchive' : 'Archive'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectedCohort && openDeleteModal(selectedCohort)}
+                  disabled={!selectedCohort}
+                  className="rounded-full border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                >
+                  Delete Cohort
+                </button>
               </div>
             </div>
           </div>
@@ -746,6 +881,76 @@ const CohortsPage: React.FC = () => {
               className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
             >
               {savingMembers ? 'Saving...' : 'Save Members'}
+            </button>
+          </div>
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        isOpen={deleteOpen}
+        title="Delete Cohort"
+        subtitle={cohortToDelete ? `Deleting ${cohortToDelete.name} is permanent. Archive is usually the safer choice.` : 'Delete the selected cohort.'}
+        onClose={() => {
+          if (deletingCohort) return;
+          setDeleteOpen(false);
+          setCohortToDelete(null);
+        }}
+      >
+        <div className="space-y-4">
+          <div className="rounded-3xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900">
+            <p className="font-semibold">Delete removes live cohort data.</p>
+            <p className="mt-2">If you only want this cohort out of the main view, archive it instead. Archived cohorts stay preserved and can be restored later with the archived filter.</p>
+          </div>
+
+          <div className="rounded-3xl border border-rose-100 bg-rose-50/50 p-4">
+            <p className="text-sm font-semibold text-gray-900">This delete will remove:</p>
+            <ul className="mt-3 space-y-2 text-sm text-gray-600">
+              <li>All weeks, days, and activities inside this cohort</li>
+              <li>Support membership assignments tied to this cohort</li>
+              <li>Support completion history tied to this cohort’s activities</li>
+              <li>Any schedule data that depends on those cohort weeks and activities</li>
+            </ul>
+            <p className="mt-3 text-sm text-gray-600">
+              Sent announcements remain in history, but any direct link back to this cohort will be removed.
+            </p>
+          </div>
+
+          {!canDeleteSelectedCohort && (
+            <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-sm text-gray-700">
+              At least one cohort must remain. Create or keep another cohort before deleting this one.
+            </div>
+          )}
+
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (!cohortToDelete) return;
+                void handleArchiveToggle(cohortToDelete);
+                setDeleteOpen(false);
+                setCohortToDelete(null);
+              }}
+              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Archive Instead
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteOpen(false);
+                setCohortToDelete(null);
+              }}
+              className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDeleteCohort()}
+              disabled={!canDeleteSelectedCohort || deletingCohort}
+              className="rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
+            >
+              {deletingCohort ? 'Deleting...' : 'Delete Permanently'}
             </button>
           </div>
         </div>

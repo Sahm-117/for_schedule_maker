@@ -618,6 +618,17 @@ export const cohortsApi = {
     return { deletedWeekNumber: latestWeek.weekNumber };
   },
 
+  async delete(cohortId: string): Promise<{ message: string }> {
+    const { error } = await supabase
+      .from('Cohort')
+      .delete()
+      .eq('id', cohortId);
+
+    if (error) throw new Error(error.message);
+
+    return { message: 'Cohort deleted.' };
+  },
+
   async getMembers(cohortId: string): Promise<{ users: User[] }> {
     const { data, error } = await supabase
       .from('UserCohort')
