@@ -114,7 +114,7 @@ const AdminDashboardPage: React.FC = () => {
       <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SummaryCard title="Weeks Loaded" value={weeks.length} detail="Programme structure currently available" />
         <SummaryCard title="Today’s Activities" value={todayActivities.length} detail={todaysDay ? `${todaysDay.dayName} in Week ${activeWeek?.weekNumber}` : 'No day selected'} />
-        <SummaryCard title="New Resources" value={newResourceCount} detail="Unread additions waiting in the hub" />
+        <SummaryCard title="Resources" value={resources.length} detail={newResourceCount > 0 ? `+${newResourceCount} new since the last check` : 'No new additions right now'} />
         <SummaryCard title="System State" value={realtimeHealthy ? 'Live' : 'Polling'} detail={digestEnabled ? 'Digest enabled' : 'Digest paused'} />
       </section>
 

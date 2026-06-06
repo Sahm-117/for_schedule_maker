@@ -6,7 +6,7 @@ import LabelChip from '../components/LabelChip';
 import { PeriodBadge } from '../components/PeriodIcon';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi } from '../services/api';
+import { announcementsApi, resourcesApi } from '../services/api';
 import type { Announcement } from '../types';
 import { getCurrentProgramDayName } from '../utils/schedule';
 
@@ -14,6 +14,7 @@ const SupportHomePage: React.FC = () => {
   const { user, userLabelIds, userCohortIds } = useAuth();
   const { activeCohort, selectedWeek, weeks, newResourceCount, liveRevision } = useAppData();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [resourceCount, setResourceCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -24,6 +25,12 @@ const SupportHomePage: React.FC = () => {
       accessibleCohortIds: userCohortIds,
     }).then((res) => setAnnouncements(res.announcements.slice(0, 3))).catch(() => {});
   }, [activeCohort?.id, liveRevision, user, userCohortIds]);
+
+  useEffect(() => {
+    resourcesApi.getAll()
+      .then((res) => setResourceCount(res.resources.length))
+      .catch(() => setResourceCount(0));
+  }, [liveRevision]);
 
   if (user?.role !== 'SUPPORT') {
     return <Navigate to="/dashboard" replace />;
@@ -55,10 +62,10 @@ const SupportHomePage: React.FC = () => {
             <h2 className="mt-2 text-3xl font-bold tracking-tight">{user.name}</h2>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Metric title="My Activities" value={myActivities.length} />
-            <Metric title="My Support Groups" value={userLabelIds.length} />
-            <Metric title="New Resources" value={newResourceCount} />
-            <Metric title="Announcements" value={announcements.length} />
+            <Metric title="My Activities" value={myActivities.length} to="/support/schedule" detail={activeWeek ? `Week ${activeWeek.weekNumber}` : 'Open schedule'} />
+            <Metric title="My Support Groups" value={userLabelIds.length} to="/support/profile" detail="View profile" />
+            <Metric title="Resources" value={resourceCount} to="/support/resources" detail={newResourceCount > 0 ? `+${newResourceCount} new since your last visit` : 'Browse the resource hub'} />
+            <Metric title="Announcements" value={announcements.length} to="/support/announcements" detail="Open updates" />
           </div>
         </div>
       </section>
@@ -131,11 +138,12 @@ const SupportHomePage: React.FC = () => {
   );
 };
 
-const Metric: React.FC<{ title: string; value: React.ReactNode }> = ({ title, value }) => (
-  <div className="rounded-2xl bg-white/10 px-4 py-4 backdrop-blur-sm">
+const Metric: React.FC<{ title: string; value: React.ReactNode; to: string; detail: string }> = ({ title, value, to, detail }) => (
+  <NavLink to={to} className="rounded-2xl bg-white/10 px-4 py-4 backdrop-blur-sm transition hover:bg-white/15">
     <p className="text-xs uppercase tracking-wide text-white/70">{title}</p>
     <p className="mt-2 text-2xl font-bold text-white">{value}</p>
-  </div>
+    <p className="mt-2 text-xs text-white/70">{detail}</p>
+  </NavLink>
 );
 
 const EmptyState: React.FC<{ text: string }> = ({ text }) => (
