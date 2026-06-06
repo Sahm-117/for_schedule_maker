@@ -22,8 +22,13 @@ const emptyForm = (): CohortFormState => ({
 });
 
 const formatDateRange = (startDate?: string | null, endDate?: string | null) => {
-  const start = startDate || 'No start';
-  const end = endDate || 'No end';
+  const formatDate = (value?: string | null) => {
+    if (!value) return null;
+    const date = new Date(`${value}T12:00:00`);
+    return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+  };
+  const start = formatDate(startDate) || 'No start';
+  const end = formatDate(endDate) || 'No end';
   return `${start} to ${end}`;
 };
 

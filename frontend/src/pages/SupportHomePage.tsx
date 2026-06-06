@@ -45,7 +45,7 @@ const SupportHomePage: React.FC = () => {
     <div>
       <PageHeader
         title="Support Home"
-        subtitle={activeCohort ? `${activeCohort.name} workspace with your assigned schedule, updates, and shared resources.` : 'Your assigned schedule, updates, and shared resources in one place.'}
+        subtitle={activeCohort ? activeCohort.name : undefined}
       />
 
       <section className="surface-card mb-6 overflow-hidden bg-gradient-to-br from-slate-900 to-slate-700 text-white">
@@ -53,9 +53,6 @@ const SupportHomePage: React.FC = () => {
           <div>
             <p className="text-sm text-white/75">Welcome back</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight">{user.name}</h2>
-            <p className="mt-3 max-w-xl text-sm text-white/80">
-              Stay focused on what matters this week. Your workspace keeps your filtered schedule, fresh resources, and recent team notices close by.
-            </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Metric title="My Activities" value={myActivities.length} />

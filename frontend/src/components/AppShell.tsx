@@ -81,6 +81,7 @@ const AppShell: React.FC = () => {
     refreshRejectedChanges,
     globalPendingChanges,
     realtimeHealthy,
+    digestEnabled,
     digestCursor,
     newResourceCount,
   } = useAppData();
@@ -105,10 +106,17 @@ const AppShell: React.FC = () => {
   }, [isSupport, navItems]);
 
   const currentLabel = isAdmin ? 'Admin' : isSopPreparer ? 'SOP Preparer' : 'Support';
+  const formatDateLabel = (value?: string | null) => {
+    if (!value) return null;
+    const date = new Date(`${value}T12:00:00`);
+    return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+  };
   const cohortOptions = cohorts.map((cohort) => ({
     value: cohort.id,
     label: cohort.name,
-    meta: cohort.startDate && cohort.endDate ? `${cohort.startDate} to ${cohort.endDate}` : 'No dates set',
+    meta: cohort.startDate && cohort.endDate
+      ? `${formatDateLabel(cohort.startDate)} to ${formatDateLabel(cohort.endDate)}`
+      : 'No dates set',
   }));
 
   const detailTone = realtimeHealthy
@@ -265,7 +273,7 @@ const AppShell: React.FC = () => {
                     Pending approvals: {globalPendingChanges.length}
                   </span>
                 )}
-                {digestCursor && !isSupport && (
+                {digestEnabled && digestCursor && !isSupport && (
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">
                     {digestCursor.completed ? 'Digest completed' : `Digest: Week ${digestCursor.weekNumber} • ${digestCursor.dayName}`}
                   </span>

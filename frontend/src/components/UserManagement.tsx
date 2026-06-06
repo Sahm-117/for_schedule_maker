@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usersApi, authApi, labelsApi } from '../services/api';
 import type { User, Label } from '../types';
+import AppSelect from './AppSelect';
 import LabelChip from './LabelChip';
 
 interface UserManagementProps {
@@ -126,13 +127,13 @@ const UserManagement: React.FC<UserManagementProps> = ({
       if (newUser.role === 'SUPPORT' && newUserLabelIds.length > 0 && created?.user?.id) {
         await usersApi.setUserLabels(created.user.id, newUserLabelIds);
       }
+      if (created?.user) {
+        setUsers((prev) => [created.user, ...prev.filter((entry) => entry.id !== created.user.id)]);
+      }
       setSuccess('User created successfully');
       setNewUser({ name: '', email: '', phone: '', password: '', role: 'SUPPORT' });
       setNewUserLabelIds([]);
       setShowPasswordInForm(false);
-      if (showUserList) {
-        loadUsers();
-      }
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || 'Failed to create user';
       if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
@@ -171,11 +172,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setSuccess('');
     try {
       await usersApi.delete(userId);
+      setUsers((prev) => prev.filter((entry) => entry.id !== userId));
       setSuccess('User deleted successfully');
       if (selectedUser?.id === userId) setSelectedUser(null);
-      if (showUserList) {
-        loadUsers();
-      }
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to delete user');
     } finally {
@@ -189,10 +188,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setSuccess('');
     try {
       await usersApi.update(userId, { role: newRole });
+      setUsers((prev) => prev.map((entry) => (entry.id === userId ? { ...entry, role: newRole } : entry)));
       setSuccess('User role updated successfully');
-      if (showUserList) {
-        loadUsers();
-      }
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to update user role');
     } finally {
@@ -269,15 +266,17 @@ const UserManagement: React.FC<UserManagementProps> = ({
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Role *</label>
-            <select
+            <AppSelect
               value={newUser.role}
-              onChange={(e) => setNewUser((prev) => ({ ...prev, role: e.target.value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT' }))}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-primary"
-            >
-              <option value="SUPPORT">Support</option>
-              <option value="SOP_PREPARER">SOP Preparer</option>
-              <option value="ADMIN">Admin</option>
-            </select>
+              onChange={(value) => setNewUser((prev) => ({ ...prev, role: value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT' }))}
+              options={[
+                { value: 'SUPPORT', label: 'Support' },
+                { value: 'SOP_PREPARER', label: 'SOP Preparer' },
+                { value: 'ADMIN', label: 'Admin' },
+              ]}
+              placeholder="Choose role"
+              compact
+            />
           </div>
         </div>
         {newUser.role === 'SUPPORT' && allLabels.length > 0 && (
@@ -355,16 +354,20 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   placeholder="Search users"
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-primary sm:w-64"
                 />
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value as 'ALL' | User['role'])}
-                  className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-primary"
-                >
-                  <option value="ALL">All roles</option>
-                  <option value="ADMIN">Admin</option>
-                  <option value="SOP_PREPARER">SOP Preparer</option>
-                  <option value="SUPPORT">Support</option>
-                </select>
+                <div className="sm:w-56">
+                  <AppSelect
+                    value={roleFilter}
+                    onChange={(value) => setRoleFilter(value as 'ALL' | User['role'])}
+                    options={[
+                      { value: 'ALL', label: 'All roles' },
+                      { value: 'ADMIN', label: 'Admin' },
+                      { value: 'SOP_PREPARER', label: 'SOP Preparer' },
+                      { value: 'SUPPORT', label: 'Support' },
+                    ]}
+                    placeholder="All roles"
+                    compact
+                  />
+                </div>
               </div>
             </div>
 
@@ -393,23 +396,26 @@ const UserManagement: React.FC<UserManagementProps> = ({
                         </div>
                         {/* Role selector + hamburger */}
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <select
-                            value={user.role}
-                            onChange={(e) => handleRoleChange(user.id, e.target.value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT')}
-                            className="text-xs border border-gray-300 rounded-md px-1.5 py-1 focus:outline-none focus:ring-primary focus:border-primary"
-                            disabled={loading}
-                          >
-                            <option value="SUPPORT">Support</option>
-                            <option value="SOP_PREPARER">SOP Preparer</option>
-                            <option value="ADMIN">Admin</option>
-                          </select>
+                          <div className="w-28">
+                            <AppSelect
+                              value={user.role}
+                              onChange={(value) => handleRoleChange(user.id, value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT')}
+                              options={[
+                                { value: 'SUPPORT', label: 'Support' },
+                                { value: 'SOP_PREPARER', label: 'SOP Preparer' },
+                                { value: 'ADMIN', label: 'Admin' },
+                              ]}
+                              placeholder="Role"
+                              compact
+                            />
+                          </div>
                           <div className="relative">
                             <button
                               onClick={() => setOpenMenuId(openMenuId === user.id ? null : user.id)}
                               className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
                             >
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7h16M4 12h16M4 17h16" />
                               </svg>
                             </button>
                             {openMenuId === user.id && (
@@ -418,7 +424,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                   onClick={() => { openUserDetails(user); setOpenMenuId(null); }}
                                   className="w-full text-left px-4 py-2.5 text-sm text-blue-600 hover:bg-gray-50"
                                 >
-                                  Manage support groups
+                                  Manage
                                 </button>
                                 <button
                                   onClick={() => { setResetPasswordUserId(user.id); setResetPasswordValue(''); setError(''); setOpenMenuId(null); }}
@@ -485,35 +491,57 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             <div className="text-sm text-gray-500">{user.email || user.phone}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <select
-                              value={user.role}
-                              onChange={(e) => handleRoleChange(user.id, e.target.value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT')}
-                              className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-primary focus:border-primary"
-                              disabled={loading}
-                            >
-                              <option value="SUPPORT">Support</option>
-                              <option value="SOP_PREPARER">SOP Preparer</option>
-                              <option value="ADMIN">Admin</option>
-                            </select>
+                            <div className="w-44">
+                              <AppSelect
+                                value={user.role}
+                                onChange={(value) => handleRoleChange(user.id, value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT')}
+                                options={[
+                                  { value: 'SUPPORT', label: 'Support' },
+                                  { value: 'SOP_PREPARER', label: 'SOP Preparer' },
+                                  { value: 'ADMIN', label: 'Admin' },
+                                ]}
+                                placeholder="Role"
+                                compact
+                              />
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                           </td>
-                          <td className="px-6 py-4 text-right text-sm space-x-2">
-                            <button onClick={() => openUserDetails(user)} className="text-blue-600 hover:text-blue-900">Manage</button>
-                            <button
-                              onClick={() => { setResetPasswordUserId(user.id); setResetPasswordValue(''); setError(''); }}
-                              className="text-orange-500 hover:text-orange-700"
-                            >
-                              Reset PW
-                            </button>
-                            <button
-                              onClick={() => handleDeleteUser(user.id, user.name)}
-                              disabled={loading}
-                              className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                            >
-                              Delete
-                            </button>
+                          <td className="px-6 py-4 text-right text-sm">
+                            <div className="relative inline-flex">
+                              <button
+                                onClick={() => setOpenMenuId(openMenuId === user.id ? null : user.id)}
+                                className="rounded-xl border border-orange-100 p-2 text-gray-500 hover:bg-orange-50 hover:text-gray-700"
+                              >
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7h16M4 12h16M4 17h16" />
+                                </svg>
+                              </button>
+                              {openMenuId === user.id && (
+                                <div className="absolute right-0 top-12 z-20 w-44 rounded-2xl border border-gray-200 bg-white py-1 shadow-lg">
+                                  <button
+                                    onClick={() => { openUserDetails(user); setOpenMenuId(null); }}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-gray-50"
+                                  >
+                                    Manage
+                                  </button>
+                                  <button
+                                    onClick={() => { setResetPasswordUserId(user.id); setResetPasswordValue(''); setError(''); setOpenMenuId(null); }}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-orange-500 hover:bg-gray-50"
+                                  >
+                                    Reset password
+                                  </button>
+                                  <button
+                                    onClick={() => { handleDeleteUser(user.id, user.name); setOpenMenuId(null); }}
+                                    disabled={loading}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-gray-50 disabled:opacity-50"
+                                  >
+                                    Delete user
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                             {resetPasswordUserId === user.id && (
                               <div className="mt-2 flex items-center gap-2">
                                 <input

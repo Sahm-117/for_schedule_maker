@@ -3,6 +3,7 @@ import { activitiesApi, labelsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import type { Week, Label } from '../types';
 import LabelChip from './LabelChip';
+import AppSelect from './AppSelect';
 
 interface CrossWeekModalProps {
   isOpen: boolean;
@@ -307,15 +308,16 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Period
               </label>
-              <select
+              <AppSelect
                 value={period}
-                onChange={(e) => setPeriod(e.target.value as 'MORNING' | 'AFTERNOON' | 'EVENING')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-              >
-                <option value="MORNING">Morning</option>
-                <option value="AFTERNOON">Afternoon</option>
-                <option value="EVENING">Evening</option>
-              </select>
+                onChange={(value) => setPeriod(value as 'MORNING' | 'AFTERNOON' | 'EVENING')}
+                options={[
+                  { value: 'MORNING', label: 'Morning' },
+                  { value: 'AFTERNOON', label: 'Afternoon' },
+                  { value: 'EVENING', label: 'Evening' },
+                ]}
+                placeholder="Choose period"
+              />
             </div>
 
             <div>

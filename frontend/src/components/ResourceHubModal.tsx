@@ -110,13 +110,16 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
     setSaving(true);
     setError('');
     try {
+      let createdResource: Resource | null = null;
       if (addMode === 'link') {
         let finalUrl = url.trim();
         if (finalUrl && !finalUrl.startsWith('http')) finalUrl = 'https://' + finalUrl;
-        await resourcesApi.addLink({ title: title.trim(), description: description.trim() || undefined, url: finalUrl, addedBy: user.id });
+        const response = await resourcesApi.addLink({ title: title.trim(), description: description.trim() || undefined, url: finalUrl, addedBy: user.id });
+        createdResource = response.resource;
       } else {
         if (!file) { setError('Please select a file.'); setSaving(false); return; }
-        await resourcesApi.uploadFile({ title: title.trim(), description: description.trim() || undefined, file, addedBy: user.id });
+        const response = await resourcesApi.uploadFile({ title: title.trim(), description: description.trim() || undefined, file, addedBy: user.id });
+        createdResource = response.resource;
       }
       if (notifyUsers && user) {
         try {
@@ -132,7 +135,11 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
       }
       resetForm();
       setShowAdd(false);
-      load();
+      if (createdResource) {
+        setResources((prev) => [createdResource as Resource, ...prev.filter((item) => item.id !== createdResource?.id)]);
+      } else {
+        load();
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to add resource.');
     } finally {
@@ -151,6 +158,117 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
 
   if (!shouldRender) return null;
 
+  const addModal = isAdmin && showAdd ? (
+    <div className="fixed inset-0 z-[70] flex items-end bg-black/50 p-0 sm:items-center sm:justify-center sm:p-4">
+      <div className="w-full overflow-y-auto rounded-t-3xl bg-white shadow-xl sm:max-w-lg sm:rounded-2xl">
+        <form onSubmit={handleAdd} className="space-y-4 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Add Resource</h3>
+              <p className="mt-1 text-sm text-gray-500">Upload a file or add a link without leaving the resource page.</p>
+            </div>
+            <button type="button" onClick={() => { setShowAdd(false); resetForm(); }} className="text-gray-400 hover:text-gray-600">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex overflow-hidden rounded-2xl border border-gray-200">
+            <button
+              type="button"
+              onClick={() => setAddMode('link')}
+              className={`flex-1 py-2 text-sm font-semibold transition-colors ${addMode === 'link' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+            >
+              Link
+            </button>
+            <button
+              type="button"
+              onClick={() => setAddMode('file')}
+              className={`flex-1 py-2 text-sm font-semibold transition-colors ${addMode === 'file' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+            >
+              File
+            </button>
+          </div>
+
+          <input
+            type="text"
+            required
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Title"
+            maxLength={80}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Short description (optional)"
+            maxLength={120}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+
+          {addMode === 'link' ? (
+            <input
+              type="text"
+              required
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://..."
+              className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          ) : (
+            <div>
+              <input
+                ref={fileRef}
+                type="file"
+                required
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.pptx,.zip"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                className="w-full text-sm text-gray-500 file:mr-3 file:rounded-xl file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary-dark"
+              />
+              <p className="mt-1 text-xs text-gray-400">PDF, Word, Excel, PowerPoint, images, ZIP</p>
+            </div>
+          )}
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <button
+            type="button"
+            onClick={() => setNotifyUsers((prev) => !prev)}
+            className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition ${
+              notifyUsers ? 'border-primary bg-orange-50/60' : 'border-gray-200 bg-white hover:bg-gray-50'
+            }`}
+          >
+            <span className="text-sm font-semibold text-gray-800">Notify active cohort</span>
+            <span className={`relative inline-flex h-7 w-12 items-center rounded-full transition ${notifyUsers ? 'bg-primary' : 'bg-slate-200'}`}>
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${notifyUsers ? 'translate-x-6' : 'translate-x-1'}`} />
+            </span>
+          </button>
+
+          <div className="flex justify-end gap-2 border-t pt-4">
+            <button
+              type="button"
+              onClick={() => { setShowAdd(false); resetForm(); }}
+              className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
+            >
+              {saving ? 'Adding...' : 'Add Resource'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  ) : null;
+
   const content = (
     <>
       <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
@@ -159,7 +277,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
           <p className="text-xs text-gray-500 mt-0.5">Guides, links, and files for the team</p>
         </div>
         <div className="flex items-center gap-2">
-          {isAdmin && !showAdd && (
+          {isAdmin && (
             <button
               onClick={() => { setShowAdd(true); resetForm(); }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark"
@@ -181,110 +299,6 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {/* Add form */}
-          {showAdd && (
-            <form onSubmit={handleAdd} className="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-800">New Resource</p>
-                <button type="button" onClick={() => { setShowAdd(false); resetForm(); }} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
-              </div>
-
-              {/* Type toggle */}
-              <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setAddMode('link')}
-                  className={`flex-1 py-1.5 text-xs font-medium transition-colors ${addMode === 'link' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
-                >
-                  🔗 Link / URL
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAddMode('file')}
-                  className={`flex-1 py-1.5 text-xs font-medium transition-colors ${addMode === 'file' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
-                >
-                  📎 Upload File
-                </button>
-              </div>
-
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Title (e.g. Role Guide)"
-                maxLength={80}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Short description (optional)"
-                maxLength={120}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-
-              {addMode === 'link' ? (
-                <input
-                  type="text"
-                  required
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              ) : (
-                <div>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    required
-                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.pptx,.zip"
-                    onChange={(e) => setFile(e.target.files?.[0] || null)}
-                    className="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-dark"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">PDF, Word, Excel, PowerPoint, images, ZIP</p>
-                </div>
-              )}
-
-              {error && <p className="text-xs text-red-600">{error}</p>}
-
-              {/* Notify toggle */}
-              <label className={`flex items-center justify-between px-3 py-2.5 rounded-lg border cursor-pointer select-none transition-colors ${
-                notifyUsers ? 'bg-orange-50 border-primary' : 'bg-white border-gray-200'
-              }`}>
-                <span className={`flex items-center gap-2 text-sm font-medium ${notifyUsers ? 'text-orange-900' : 'text-gray-600'}`}>
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                  Notify all users
-                </span>
-                <input
-                  type="checkbox"
-                  checked={notifyUsers}
-                  onChange={(e) => setNotifyUsers(e.target.checked)}
-                  className="sr-only"
-                />
-                <span
-                  aria-hidden="true"
-                  style={{ width: 40, height: 22, flexShrink: 0, borderRadius: 11, backgroundColor: notifyUsers ? '#FF914D' : '#D1D5DB', position: 'relative', display: 'inline-block', transition: 'background-color 0.2s' }}
-                >
-                  <span style={{ position: 'absolute', top: 3, left: notifyUsers ? 21 : 3, width: 16, height: 16, borderRadius: '50%', backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)', transition: 'left 0.2s' }} />
-                </span>
-              </label>
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark disabled:opacity-50"
-              >
-                {saving ? 'Adding...' : 'Add Resource'}
-              </button>
-            </form>
-          )}
-
           {/* Resource list */}
           {loading ? (
             <div className="flex justify-center py-10">
@@ -354,13 +368,19 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
   );
 
   return embedded ? (
-    <div className="surface-card flex min-h-[32rem] flex-col overflow-hidden">{content}</div>
+    <>
+      <div className="surface-card flex min-h-[32rem] flex-col overflow-hidden">{content}</div>
+      {addModal}
+    </>
   ) : (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-xl">
-        {content}
+    <>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-xl">
+          {content}
+        </div>
       </div>
-    </div>
+      {addModal}
+    </>
   );
 };
 

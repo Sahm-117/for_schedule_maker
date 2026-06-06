@@ -173,6 +173,7 @@ const ActivityOverviewPage: React.FC = () => {
 
   const totalAssigned = activitySummaries.reduce((sum, item) => sum + item.assignedSupports.length, 0);
   const totalCompleted = activitySummaries.reduce((sum, item) => sum + item.doneSupports.length, 0);
+  const hasActiveFilters = Boolean(selectedDayName || selectedSupportGroupId || selectedSupportUserId);
 
   if (user?.role === 'SUPPORT') {
     return <Navigate to="/support" replace />;
@@ -203,8 +204,24 @@ const ActivityOverviewPage: React.FC = () => {
         />
 
         <div className="surface-card relative z-20 rounded-3xl border border-orange-100 p-4">
-          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Filters</p>
-          <p className="mt-1 text-sm font-semibold text-gray-900">Shape the overview</p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Filters</p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">Shape the overview</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedDayName('');
+                setSelectedSupportGroupId('');
+                setSelectedSupportUserId('');
+              }}
+              disabled={!hasActiveFilters}
+              className="rounded-full border border-orange-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-orange-50 disabled:opacity-40"
+            >
+              Reset filters
+            </button>
+          </div>
           <div className="mt-4 space-y-4">
             <AppSelect
               value={selectedDayName}
