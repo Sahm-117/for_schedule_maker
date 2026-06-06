@@ -27,6 +27,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedUserLabels, setSelectedUserLabels] = useState<Label[]>([]);
   const [labelEditIds, setLabelEditIds] = useState<string[]>([]);
+  const [editingLabels, setEditingLabels] = useState(false);
   const [savingLabels, setSavingLabels] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [showPasswordInForm, setShowPasswordInForm] = useState(false);
@@ -91,6 +92,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       email: user.email || '',
       phone: user.phone || '',
     });
+    setEditingLabels(false);
     setSelectedUserLabels([]);
     setLabelEditIds([]);
     try {
@@ -133,6 +135,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     try {
       await usersApi.setUserLabels(selectedUser.id, labelEditIds);
       setSelectedUserLabels(allLabels.filter((l) => labelEditIds.includes(l.id)));
+      setEditingLabels(false);
       setSuccess('Support groups updated');
     } catch {
       setError('Failed to update support groups');
@@ -693,56 +696,85 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 {/* Support Group Assignment */}
                 {selectedUser.role === 'SUPPORT' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Support Groups (Labels)
-                    </label>
-                    <p className="text-xs text-gray-500 mb-2">
-                      This user will only see activities tagged with these groups.
-                    </p>
-
-                    {/* Current labels preview */}
-                    {selectedUserLabels.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-3">
-                        {selectedUserLabels.map((l) => (
-                          <LabelChip key={l.id} name={l.name} color={l.color} size="md" />
-                        ))}
+                    <div className="mb-2 flex items-start justify-between gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Support Groups
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1">
+                          This user will only see activities tagged with these groups.
+                        </p>
                       </div>
-                    )}
-
-                    {/* Label checkboxes */}
-                    {allLabels.length > 0 ? (
-                      <div className="border border-gray-200 rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
-                        {allLabels.map((label) => (
-                          <label key={label.id} className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={labelEditIds.includes(label.id)}
-                              onChange={() => toggleLabelEdit(label.id)}
-                              className="rounded border-gray-300 text-primary focus:ring-primary"
-                            />
-                            <LabelChip name={label.name} color={label.color} size="sm" />
-                          </label>
-                        ))}
+                      <button
+                        type="button"
+                        onClick={() => setEditingLabels(true)}
+                        className="rounded-full border border-primary p-2 text-primary hover:bg-primary/5"
+                        aria-label="Edit support groups"
+                        title="Edit support groups"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m15.232 5.232 3.536 3.536M9 11l6.232-6.232a2.5 2.5 0 1 1 3.536 3.536L12.536 14.5A4 4 0 0 1 10.7 15.6L7 17l1.4-3.7a4 4 0 0 1 1.1-1.836Z" />
+                        </svg>
+                      </button>
+                    </div>
+                    {!editingLabels ? (
+                      <div className="rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-4">
+                        {selectedUserLabels.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {selectedUserLabels.map((label) => (
+                              <LabelChip key={label.id} name={label.name} color={label.color} size="md" />
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500">No support groups selected yet.</p>
+                        )}
                       </div>
+                    ) : allLabels.length > 0 ? (
+                      <>
+                        <div className="border border-gray-200 rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+                          {allLabels.map((label) => (
+                            <label key={label.id} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={labelEditIds.includes(label.id)}
+                                onChange={() => toggleLabelEdit(label.id)}
+                                className="rounded border-gray-300 text-primary focus:ring-primary"
+                              />
+                              <LabelChip name={label.name} color={label.color} size="sm" />
+                            </label>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-3">
+                          <button
+                            onClick={handleSaveLabels}
+                            disabled={savingLabels}
+                            className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark disabled:opacity-50"
+                          >
+                            {savingLabels ? 'Saving...' : 'Save Groups'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setLabelEditIds([])}
+                            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+                          >
+                            Clear All
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLabelEditIds(selectedUserLabels.map((label) => label.id));
+                              setEditingLabels(false);
+                            }}
+                            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </>
                     ) : (
                       <p className="text-sm text-gray-400 italic">No labels created yet. Create labels first.</p>
                     )}
-
-                    <div className="flex items-center gap-2 mt-3">
-                      <button
-                        onClick={handleSaveLabels}
-                        disabled={savingLabels}
-                        className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark disabled:opacity-50"
-                      >
-                        {savingLabels ? 'Saving...' : 'Save Groups'}
-                      </button>
-                      <button
-                        onClick={() => setLabelEditIds([])}
-                        className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md text-sm hover:bg-gray-50"
-                      >
-                        Clear All
-                      </button>
-                    </div>
                   </div>
                 )}
               </div>
