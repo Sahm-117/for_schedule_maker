@@ -115,22 +115,33 @@ const SupportFollowUpsPage: React.FC = () => {
       {registrationLink && (
         <div className="mb-5 flex flex-wrap items-center gap-3 rounded-3xl border border-sky-100 bg-sky-50/60 px-4 py-3">
           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-sky-700">Registration link</span>
-          <span className="min-w-0 flex-1 truncate text-sm text-sky-900">{registrationLink}</span>
-          <button
-            type="button"
-            onClick={handleCopyLink}
-            className="rounded-2xl border border-sky-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-sky-700 transition hover:bg-sky-100 active:scale-95"
-          >
-            {copied ? 'Copied!' : 'Copy'}
-          </button>
-          <a
-            href={registrationLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-2xl bg-sky-600 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-700 active:scale-95"
-          >
-            Open
-          </a>
+          <div className="group relative inline-flex">
+            <span className="inline-flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-sky-200 text-[10px] font-bold text-sky-800 transition hover:bg-sky-300" title={registrationLink}>
+              i
+            </span>
+            <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 group-hover:block group-active:block sm:group-hover:block">
+              <div className="max-w-[280px] whitespace-pre-wrap rounded-2xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg break-all">
+                {registrationLink}
+              </div>
+            </div>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="rounded-2xl border border-sky-200 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 transition hover:bg-sky-100 active:scale-95"
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+            <a
+              href={registrationLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-2xl bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-700 active:scale-95"
+            >
+              Open
+            </a>
+          </div>
         </div>
       )}
 
