@@ -453,16 +453,15 @@ const AdminFollowUpsPage: React.FC = () => {
       />
 
       {showFilterPanel && createPortal(
-        <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center" onPointerDown={() => setShowFilterPanel(false)}>
+        <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center">
           <div className="absolute inset-0 bg-slate-900/35" />
           <div
             className="relative mb-0 w-full max-w-md rounded-t-[28px] bg-white p-6 pb-8 shadow-[0_-8px_40px_rgba(15,23,42,0.15)] sm:mb-0 sm:rounded-[28px]"
-            onPointerDown={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-gray-200 sm:hidden" />
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Filters</h3>
-              <button type="button" onPointerDown={() => setShowFilterPanel(false)} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+              <button type="button" onClick={(e) => { e.stopPropagation(); setShowFilterPanel(false); }} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -476,7 +475,7 @@ const AdminFollowUpsPage: React.FC = () => {
                       <button
                         key={opt.value}
                         type="button"
-                        onPointerDown={() => togglePill(group.key as keyof FilterState, opt.value)}
+                        onClick={(e) => { e.stopPropagation(); togglePill(group.key as keyof FilterState, opt.value); }}
                         className={pillBtn(draft[group.key as keyof FilterState] === opt.value)}
                       >
                         {opt.label}
@@ -490,7 +489,7 @@ const AdminFollowUpsPage: React.FC = () => {
                 <span className="text-sm font-semibold text-gray-700">Show archived contacts</span>
                 <button
                   type="button"
-                  onPointerDown={() => setDraft((prev) => ({ ...prev, archived: !prev.archived }))}
+                  onClick={(e) => { e.stopPropagation(); setDraft((prev) => ({ ...prev, archived: !prev.archived })); }}
                   className={`relative h-6 w-11 rounded-full transition ${draft.archived ? 'bg-primary' : 'bg-gray-300'}`}
                 >
                   <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${draft.archived ? 'translate-x-5' : ''}`} />
@@ -501,14 +500,14 @@ const AdminFollowUpsPage: React.FC = () => {
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
-                onPointerDown={clearFilters}
+                onClick={(e) => { e.stopPropagation(); clearFilters(); }}
                 className="flex-1 rounded-2xl border border-orange-200 bg-white py-3 text-sm font-semibold text-gray-600 transition hover:bg-orange-50 active:scale-[0.98]"
               >
                 Clear filters
               </button>
               <button
                 type="button"
-                onPointerDown={applyFilters}
+                onClick={(e) => { e.stopPropagation(); applyFilters(); }}
                 className="flex-1 rounded-2xl bg-primary py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark active:scale-[0.98]"
               >
                 Apply

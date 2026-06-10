@@ -357,7 +357,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center" onClick={() => setAdjustingCount(null)}>
           <div className="absolute inset-0 bg-slate-900/35" />
           <div ref={stepperRef} className="relative mb-20 w-[90vw] max-w-[300px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0" onClick={(e) => e.stopPropagation()}>
-            <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Follow-up count</p>
+            <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">How many times have you followed up?</p>
             <p className="mb-4 truncate text-center text-sm font-semibold text-gray-900">{adjustingCount.fullName}</p>
             <div className="flex items-center justify-center gap-5">
               <button
