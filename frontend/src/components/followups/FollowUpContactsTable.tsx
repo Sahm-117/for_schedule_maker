@@ -107,7 +107,6 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     if (!adjustingCount) return;
     const newCount = Math.max(0, adjustingCount.followUpCount + delta);
     onFieldChange(adjustingCount, { followUpCount: newCount });
-    setAdjustingCount(null);
   };
 
   if (contacts.length === 0) {
@@ -316,6 +315,13 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                 +
               </button>
             </div>
+            <button
+              type="button"
+              onClick={() => setAdjustingCount(null)}
+              className="mx-auto mt-5 block rounded-2xl bg-gray-100 px-6 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 active:scale-95"
+            >
+              Done
+            </button>
           </div>
         </div>,
         document.body
