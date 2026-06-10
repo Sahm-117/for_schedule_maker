@@ -34,6 +34,7 @@ const AdminFollowUpsPage: React.FC = () => {
   const [issues, setIssues] = useState<FollowUpIssue[]>([]);
   const [registrationLink, setRegistrationLink] = useState('');
   const [cohortFilter, setCohortFilter] = useState('');
+  const [ownerFilter, setOwnerFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -78,10 +79,12 @@ const AdminFollowUpsPage: React.FC = () => {
   const filteredContacts = useMemo(() => {
     return contacts.filter((c) => {
       if (cohortFilter && c.cohortId !== cohortFilter) return false;
+      if (ownerFilter === '__unassigned__' && c.ownerId) return false;
+      if (ownerFilter && ownerFilter !== '__unassigned__' && c.ownerId !== ownerFilter) return false;
       if (showArchived) return !!c.archivedAt;
       return !c.archivedAt;
     });
-  }, [contacts, cohortFilter, showArchived]);
+  }, [contacts, cohortFilter, ownerFilter, showArchived]);
 
   const dashboardContacts = useMemo(
     () => (cohortFilter ? contacts.filter((c) => c.cohortId === cohortFilter) : contacts),
@@ -184,6 +187,21 @@ const AdminFollowUpsPage: React.FC = () => {
                 compact
               />
             </div>
+            {tab === 'contacts' && (
+              <div className="w-52">
+                <AppSelect
+                  value={ownerFilter}
+                  onChange={setOwnerFilter}
+                  options={[
+                    { value: '', label: 'All owners' },
+                    { value: '__unassigned__', label: 'Unassigned' },
+                    ...owners.map((o) => ({ value: o.id, label: o.name })),
+                  ]}
+                  placeholder="All owners"
+                  compact
+                />
+              </div>
+            )}
             {tab === 'contacts' && (
               <button
                 type="button"
