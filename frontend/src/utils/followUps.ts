@@ -130,9 +130,9 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       stillOpen: 0,
     };
     row.assigned += 1;
-    if (c.messageStatus === 'SENT' || c.callStatus === 'CALLED') row.contacted += 1;
+    if (c.replyStatus === 'REPLIED' || c.callStatus === 'CALLED' || c.callStatus === 'MISSED_CALL' || c.callStatus === 'NOT_APPLICABLE') row.contacted += 1;
     if (c.registrationStatus === 'REGISTERED') row.registered += 1;
-    if (!isTerminalFollowUpContact(c)) row.stillOpen += 1;
+    if (c.replyStatus !== 'REPLIED' && c.registrationStatus !== 'REGISTERED') row.stillOpen += 1;
     map.set(key, row);
   }
   return Array.from(map.values()).sort((a, b) => b.assigned - a.assigned);
