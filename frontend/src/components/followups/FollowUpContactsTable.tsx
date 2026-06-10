@@ -299,7 +299,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               <button
                 type="button"
                 disabled={adjustingCount.followUpCount <= 0}
-                onClick={() => handleStepperChange(-1)}
+                onPointerDown={(e) => { e.preventDefault(); handleStepperChange(-1); }}
                 className="grid h-12 w-12 place-items-center rounded-2xl bg-orange-100 text-2xl font-bold text-primary shadow-sm transition active:scale-95 hover:bg-orange-200 disabled:opacity-30 disabled:active:scale-100"
               >
                 −
@@ -309,7 +309,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               </span>
               <button
                 type="button"
-                onClick={() => handleStepperChange(1)}
+                onPointerDown={(e) => { e.preventDefault(); handleStepperChange(1); }}
                 className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-2xl font-bold text-white shadow-sm transition active:scale-95 hover:bg-primary-dark"
               >
                 +
