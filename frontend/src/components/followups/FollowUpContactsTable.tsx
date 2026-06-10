@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { FollowUpContact, User } from '../../types';
 import AppSelect from '../AppSelect';
+import AppOverflowMenu from '../AppOverflowMenu';
 import FollowUpStatusPill from './FollowUpStatusPill';
 import {
   MESSAGE_STATUS_META,
@@ -88,22 +89,14 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   );
 
   const actions = (contact: FollowUpContact) => (
-    <div className="flex items-center justify-end gap-0.5">
-      <button type="button" onClick={() => onMessage(contact)} className="rounded-xl px-2 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50" title="Send WhatsApp message">
-        Message
-      </button>
-      <button type="button" onClick={() => onLogContact(contact)} className="rounded-xl px-2 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50" title="Log a contact attempt (bumps count + date)">
-        Log
-      </button>
-      <button type="button" onClick={() => onEdit(contact)} className="rounded-xl px-2 py-1.5 text-xs font-semibold text-primary hover:bg-orange-50">
-        Edit
-      </button>
-      {canAssign && onDelete && (
-        <button type="button" onClick={() => onDelete(contact)} className="rounded-xl px-2 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">
-          Delete
-        </button>
-      )}
-    </div>
+    <AppOverflowMenu
+      items={[
+        { label: 'Send message', onClick: () => onMessage(contact) },
+        { label: 'Log contact', onClick: () => onLogContact(contact) },
+        { label: 'Edit contact', onClick: () => onEdit(contact) },
+        ...(canAssign && onDelete ? [{ label: 'Delete contact', onClick: () => onDelete(contact), tone: 'danger' as const }] : []),
+      ]}
+    />
   );
 
   if (contacts.length === 0) {
@@ -158,7 +151,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               <th className="px-4 py-3">Next action</th>
               <th className="px-4 py-3">Due</th>
               <th className="px-4 py-3">Follow-ups</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+              <th className="w-16 px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -216,7 +209,11 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                   <p className="text-xs text-gray-600">{contact.followUpCount}×</p>
                   {contact.lastContactDate && <p className="mt-0.5 text-[11px] text-gray-400">{dateLabel(contact.lastContactDate)}</p>}
                 </td>
-                <td className="px-4 py-3.5">{actions(contact)}</td>
+                <td className="px-4 py-3.5">
+                  <div className="flex justify-end">
+                    {actions(contact)}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -284,19 +281,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               >
                 Send message
               </button>
-              <div className="flex items-center gap-0.5">
-                <button type="button" onClick={() => onLogContact(contact)} className="rounded-xl px-2 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50">
-                  Log
-                </button>
-                <button type="button" onClick={() => onEdit(contact)} className="rounded-xl px-2 py-1.5 text-xs font-semibold text-primary hover:bg-orange-50">
-                  Edit
-                </button>
-                {canAssign && onDelete && (
-                  <button type="button" onClick={() => onDelete(contact)} className="rounded-xl px-2 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">
-                    Delete
-                  </button>
-                )}
-              </div>
+              {actions(contact)}
             </div>
           </div>
         ))}

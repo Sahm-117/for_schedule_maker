@@ -28,6 +28,28 @@ const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@fof.com'
 
 webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 
+const TERMINAL_REGISTRATION_STATUSES = new Set(['NOT_INTERESTED', 'NOT_A_TCN_MEMBER'])
+
+const getLagosDateParts = (date: Date) => {
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Lagos',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+
+  const parts = formatter.formatToParts(date)
+  const read = (type: string) => parts.find((part) => part.type === type)?.value || ''
+  return {
+    isoDate: `${read('year')}-${read('month')}-${read('day')}`,
+    hour: Number(read('hour')),
+    minute: Number(read('minute')),
+  }
+}
+
 const parseTime = (timeStr: string): number | null => {
   // Handles "06:00 AM", "14:30", "6:00 AM" etc.
   const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i)
@@ -151,11 +173,12 @@ Deno.serve(async (_req) => {
     // 7. Follow-up due-date reminders — one push per contact per due date.
     //    dueReminderSentAt acts as the dedupe guard across 10-minute cron runs;
     //    changing a contact's due date resets it to null (re-arms the reminder).
-    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const lagosNow = getLagosDateParts(now)
+    const todayISO = lagosNow.isoDate
 
     const { data: dueContacts } = await supabase
       .from('FollowUpContact')
-      .select('id, fullName, nextAction, dueDate, ownerId')
+      .select('id, fullName, nextAction, dueDate, ownerId, registrationStatus')
       .lte('dueDate', todayISO)
       .is('archivedAt', null)
       .is('dueReminderSentAt', null)
@@ -168,7 +191,9 @@ Deno.serve(async (_req) => {
       CLOSE: 'Close',
     }
 
-    for (const contact of (dueContacts || []) as any[]) {
+    for (const contact of ((dueContacts || []) as any[]).filter((row) =>
+      row.nextAction !== 'CLOSE' && !TERMINAL_REGISTRATION_STATUSES.has(row.registrationStatus)
+    )) {
       const { data: subs } = await supabase
         .from('PushSubscription')
         .select('userId, endpoint, p256dh, auth')
@@ -206,6 +231,80 @@ Deno.serve(async (_req) => {
         .from('FollowUpContact')
         .update({ dueReminderSentAt: now.toISOString() })
         .eq('id', contact.id)
+    }
+
+    // 8:00 AM WAT owner reminder — once per owner per day for open follow-ups.
+    if (lagosNow.hour === 8 && lagosNow.minute < 10) {
+      const { data: openContacts } = await supabase
+        .from('FollowUpContact')
+        .select('id, ownerId, fullName, nextAction, registrationStatus')
+        .is('archivedAt', null)
+        .not('ownerId', 'is', null)
+
+      const eligibleContacts = ((openContacts || []) as any[]).filter((contact) =>
+        contact.nextAction !== 'CLOSE' && !TERMINAL_REGISTRATION_STATUSES.has(contact.registrationStatus)
+      )
+
+      const ownerIds = Array.from(new Set(eligibleContacts.map((contact) => contact.ownerId).filter(Boolean)))
+
+      if (ownerIds.length > 0) {
+        const { data: owners } = await supabase
+          .from('User')
+          .select('id, role')
+          .in('id', ownerIds)
+          .neq('role', 'ADMIN')
+
+        const eligibleOwnerIds = new Set((owners || []).map((owner: any) => owner.id))
+
+        for (const ownerId of ownerIds) {
+          if (!eligibleOwnerIds.has(ownerId)) continue
+
+          const { error: logError } = await supabase
+            .from('FollowUpOwnerReminderLog')
+            .insert([{
+              userId: ownerId,
+              reminderDate: todayISO,
+              kind: 'OPEN_CONTACTS_8AM',
+            }])
+
+          if (logError) {
+            if (logError.code === '23505') continue
+            throw new Error(logError.message)
+          }
+
+          const contactCount = eligibleContacts.filter((contact) => contact.ownerId === ownerId).length
+          const { data: subs } = await supabase
+            .from('PushSubscription')
+            .select('userId, endpoint, p256dh, auth')
+            .eq('userId', ownerId)
+
+          const payload = JSON.stringify({
+            title: 'Follow-ups need attention',
+            body: `You still have ${contactCount} follow-up contact${contactCount === 1 ? '' : 's'} to check today. Check in so no one slips through.`,
+            icon: '/icon-192.png',
+            tag: `fof-followup-owner-reminder-${ownerId}-${todayISO}`,
+          })
+
+          for (const sub of (subs || []) as any[]) {
+            const pushSub = {
+              endpoint: sub.endpoint,
+              keys: { p256dh: sub.p256dh, auth: sub.auth },
+            }
+            try {
+              await webPush.sendNotification(pushSub, payload)
+              notified.push(sub.userId)
+            } catch (err: any) {
+              if (err?.statusCode === 410) {
+                await supabase
+                  .from('PushSubscription')
+                  .delete()
+                  .eq('userId', sub.userId)
+                  .eq('endpoint', sub.endpoint)
+              }
+            }
+          }
+        }
+      }
     }
 
     return new Response(

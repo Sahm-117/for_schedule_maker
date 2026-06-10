@@ -146,7 +146,7 @@ export interface Announcement {
 export type FollowUpMessageStatus = 'NOT_SENT' | 'SENT';
 export type FollowUpReplyStatus = 'NO_REPLY' | 'REPLIED' | 'NEEDS_REMINDER';
 export type FollowUpCallStatus = 'NOT_CALLED' | 'CALLED' | 'MISSED_CALL' | 'CALL_BACK_LATER' | 'NOT_APPLICABLE';
-export type FollowUpRegistrationStatus = 'NOT_REGISTERED' | 'PENDING_CONFIRMATION' | 'REGISTERED' | 'STILL_THINKING' | 'NOT_INTERESTED';
+export type FollowUpRegistrationStatus = 'NOT_REGISTERED' | 'PENDING_CONFIRMATION' | 'REGISTERED' | 'STILL_THINKING' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER';
 export type FollowUpNextAction = 'SEND_MESSAGE' | 'SEND_REMINDER' | 'CALL' | 'CLOSE';
 export type IssueStatus = 'OPEN' | 'RESOLVED';
 
@@ -187,6 +187,7 @@ export type FollowUpContactUpdate = Partial<Pick<
   | 'registrationStatus'
   | 'nextAction'
   | 'lastContactDate'
+  | 'followUpCount'
   | 'notes'
   | 'cohortId'
   | 'dueDate'

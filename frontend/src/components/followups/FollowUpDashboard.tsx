@@ -27,7 +27,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
         <MetricCard label="Interested, not registered" value={m.interestedNotRegistered} tone="text-violet-700" />
         <MetricCard label="Pending confirmation" value={m.pendingConfirmation} tone="text-amber-700" />
         <MetricCard label="Still thinking" value={m.stillThinking} tone="text-violet-700" />
-        <MetricCard label="Not interested" value={m.notInterested} tone="text-rose-700" />
+        <MetricCard label="Not interested / not a TCN member" value={m.notInterested} tone="text-rose-700" />
       </div>
 
       <div className="surface-card overflow-hidden rounded-3xl">

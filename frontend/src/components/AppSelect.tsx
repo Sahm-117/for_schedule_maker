@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 type SelectOption = {
   value: string;
@@ -27,6 +28,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
 
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value) || null,
@@ -44,8 +46,33 @@ const AppSelect: React.FC<AppSelectProps> = ({
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, []);
 
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const updatePosition = () => {
+      const rect = rootRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setMenuStyle({
+        position: 'fixed',
+        top: rect.bottom + 6,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 100,
+      });
+    };
+
+    updatePosition();
+
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [open]);
+
   return (
-    <div ref={rootRef} className={`relative overflow-visible ${open ? 'z-[90]' : 'z-10'} ${className}`}>
+    <div ref={rootRef} className={`relative ${open ? 'z-[90]' : 'z-10'} ${className}`}>
       {label && (
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">
           {label}
@@ -73,8 +100,8 @@ const AppSelect: React.FC<AppSelectProps> = ({
         </span>
       </button>
 
-      {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+0.4rem)] z-[100] overflow-hidden rounded-[24px] border border-orange-100 bg-white p-1.5 shadow-[0_28px_80px_rgba(15,23,42,0.18)]">
+      {open && typeof document !== 'undefined' && createPortal(
+        <div style={menuStyle} className="overflow-hidden rounded-[24px] border border-orange-100 bg-white p-1.5 shadow-[0_28px_80px_rgba(15,23,42,0.18)]">
           <div className="max-h-72 overflow-y-auto">
             {options.map((option) => {
               const selected = option.value === value;
@@ -105,7 +132,8 @@ const AppSelect: React.FC<AppSelectProps> = ({
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

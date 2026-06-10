@@ -2283,6 +2283,28 @@ const notifyFollowUpAssignment = (ownerId: string, contactNames: string[]) => {
     .catch(() => undefined);
 };
 
+const getTerminalFollowUpReason = (contact: {
+  nextAction?: string | null;
+  registrationStatus?: string | null;
+}): 'CLOSE' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | null => {
+  if (contact.nextAction === 'CLOSE') return 'CLOSE';
+  if (contact.registrationStatus === 'NOT_INTERESTED') return 'NOT_INTERESTED';
+  if (contact.registrationStatus === 'NOT_A_TCN_MEMBER') return 'NOT_A_TCN_MEMBER';
+  return null;
+};
+
+const notifyFollowUpTerminalStatus = (
+  contactId: string,
+  actorId: string,
+  terminalState: 'CLOSE' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER'
+) => {
+  void supabase.functions
+    .invoke('notify-followup-terminal-status', {
+      body: { contactId, actorId, terminalState },
+    })
+    .catch(() => undefined);
+};
+
 export const followUpContactsApi = {
   async getAll(options?: {
     cohortId?: string | null;
@@ -2332,6 +2354,16 @@ export const followUpContactsApi = {
 
   async update(contactId: string, input: FollowUpContactInput): Promise<{ contact: import('../types').FollowUpContact }> {
     const { previousOwnerId, ...fields } = input;
+    const { data: current, error: currentError } = await supabase
+      .from('FollowUpContact')
+      .select('id, nextAction, registrationStatus')
+      .eq('id', contactId)
+      .single();
+
+    if (currentError || !current) {
+      throw new Error(currentError?.message || 'Contact not found');
+    }
+
     const patch: Record<string, unknown> = { ...fields, updatedAt: new Date().toISOString() };
 
     if (fields.nextAction === 'CLOSE') {
@@ -2357,6 +2389,19 @@ export const followUpContactsApi = {
     if (fields.ownerId && fields.ownerId !== previousOwnerId) {
       notifyFollowUpAssignment(fields.ownerId, [contact.fullName]);
     }
+
+    const actor = getCurrentUserFromStorage();
+    const previousTerminalReason = getTerminalFollowUpReason(current as any);
+    const nextTerminalReason = getTerminalFollowUpReason(contact);
+    if (
+      actor?.id &&
+      actor.role !== 'ADMIN' &&
+      nextTerminalReason &&
+      nextTerminalReason !== previousTerminalReason
+    ) {
+      notifyFollowUpTerminalStatus(contact.id, actor.id, nextTerminalReason);
+    }
+
     return { contact };
   },
 

@@ -35,6 +35,8 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
   const [ownerId, setOwnerId] = useState('');
   const [cohortId, setCohortId] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [lastContactDate, setLastContactDate] = useState('');
+  const [followUpCount, setFollowUpCount] = useState('0');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -47,6 +49,8 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
     setOwnerId(contact?.ownerId || '');
     setCohortId(contact?.cohortId || defaultCohortId || '');
     setDueDate(contact?.dueDate || '');
+    setLastContactDate(contact?.lastContactDate || '');
+    setFollowUpCount(String(contact?.followUpCount ?? 0));
     setNotes(contact?.notes || '');
     setError('');
   }, [isOpen, contact, defaultCohortId]);
@@ -58,6 +62,13 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
       setError('Full name is required.');
       return;
     }
+    if (contact) {
+      const parsedCount = Number(followUpCount);
+      if (!Number.isInteger(parsedCount) || parsedCount < 0) {
+        setError('Follow-up count must be a non-negative whole number.');
+        return;
+      }
+    }
     setSaving(true);
     setError('');
     try {
@@ -68,6 +79,8 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
         ownerId: canEditOwner ? (ownerId || null) : undefined,
         cohortId: cohortId || null,
         dueDate: dueDate || null,
+        lastContactDate: contact ? (lastContactDate || null) : undefined,
+        followUpCount: contact ? Number(followUpCount) : undefined,
         notes: notes.trim() || null,
       };
       if (contact) {
@@ -150,6 +163,25 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
           <input type="date" className={inputClass} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           <p className="mt-1 text-xs text-gray-400">The assigned support gets a push reminder when this date arrives.</p>
         </div>
+        {contact && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Follow-up count</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                className={inputClass}
+                value={followUpCount}
+                onChange={(e) => setFollowUpCount(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Last contact date</label>
+              <input type="date" className={inputClass} value={lastContactDate} onChange={(e) => setLastContactDate(e.target.value)} />
+            </div>
+          </div>
+        )}
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</label>
           <textarea className={`${inputClass} min-h-[80px]`} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything worth remembering" />
