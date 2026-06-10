@@ -6,7 +6,7 @@ import LabelChip from '../components/LabelChip';
 import { PeriodBadge } from '../components/PeriodIcon';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, resourcesApi } from '../services/api';
+import { announcementsApi, followUpContactsApi, resourcesApi } from '../services/api';
 import type { Announcement } from '../types';
 import { getCurrentProgramDayName } from '../utils/schedule';
 
@@ -15,6 +15,7 @@ const SupportHomePage: React.FC = () => {
   const { activeCohort, selectedWeek, weeks, newResourceCount, liveRevision } = useAppData();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [resourceCount, setResourceCount] = useState(0);
+  const [followUpCount, setFollowUpCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -31,6 +32,24 @@ const SupportHomePage: React.FC = () => {
       .then((res) => setResourceCount(res.resources.length))
       .catch(() => setResourceCount(0));
   }, [liveRevision]);
+
+  useEffect(() => {
+    if (!user) return;
+    followUpContactsApi.getAll({ ownerId: user.id })
+      .then((res) => {
+        const active = res.data.filter((c) => {
+          if (c.nextAction === 'CLOSE') return false;
+          if (c.registrationStatus === 'NOT_INTERESTED' || c.registrationStatus === 'NOT_A_TCN_MEMBER') return false;
+          return true;
+        });
+        setFollowUpCount(active.length);
+      })
+      .catch(() => setFollowUpCount(0));
+  }, [user, liveRevision]);
+
+  const isCohortActive = activeCohort?.startDate && activeCohort?.endDate
+    ? new Date() >= new Date(activeCohort.startDate) && new Date() <= new Date(activeCohort.endDate)
+    : false;
 
   if (user?.role !== 'SUPPORT') {
     return <Navigate to="/dashboard" replace />;
@@ -63,7 +82,11 @@ const SupportHomePage: React.FC = () => {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Metric title="My Activities" value={myActivities.length} to="/support/schedule" detail={activeWeek ? `Week ${activeWeek.weekNumber}` : 'Open schedule'} />
-            <Metric title="My Support Groups" value={userLabelIds.length} to="/support/profile" detail="View profile" />
+            {isCohortActive ? (
+              <Metric title="My Support Groups" value={userLabelIds.length} to="/support/profile" detail="View profile" />
+            ) : (
+              <Metric title="Number of follow ups" value={followUpCount} to="/support/follow-ups" detail={followUpCount > 0 ? `You have ${followUpCount} contact${followUpCount !== 1 ? 's' : ''} to follow up` : 'No pending follow-ups'} />
+            )}
             <Metric title="Resources" value={resourceCount} to="/support/resources" detail={newResourceCount > 0 ? `+${newResourceCount} new since your last visit` : 'Open the Resource Hub'} />
             <Metric title="Announcements" value={announcements.length} to="/support/announcements" detail="Open updates" />
           </div>

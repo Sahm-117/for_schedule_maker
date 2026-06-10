@@ -97,7 +97,7 @@ const AdminFollowUpsPage: React.FC = () => {
   }, [contacts, owners]);
 
   const dashboardContacts = useMemo(
-    () => (cohortFilter ? contacts.filter((c) => c.cohortId === cohortFilter) : contacts),
+    () => contacts.filter((c) => !c.archivedAt).filter((c) => !cohortFilter || c.cohortId === cohortFilter),
     [contacts, cohortFilter]
   );
 
