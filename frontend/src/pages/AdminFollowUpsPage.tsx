@@ -424,6 +424,7 @@ const AdminFollowUpsPage: React.FC = () => {
         cohorts={cohorts}
         defaultCohortId={activeCohort?.id}
         canEditOwner
+        existingContacts={contacts}
       />
 
       <ContactImportModal

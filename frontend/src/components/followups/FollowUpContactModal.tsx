@@ -14,6 +14,7 @@ interface FollowUpContactModalProps {
   cohorts: Cohort[];
   defaultCohortId?: string | null;
   canEditOwner: boolean;
+  existingContacts?: FollowUpContact[];
 }
 
 const inputClass =
@@ -66,6 +67,17 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
       const parsedCount = Number(followUpCount);
       if (!Number.isInteger(parsedCount) || parsedCount < 0) {
         setError('Follow-up count must be a non-negative whole number.');
+        return;
+      }
+    }
+    const normalized = normalizeToIntlPhone(phone);
+    if (normalized && existingContacts) {
+      const match = existingContacts.find(
+        (c) => c.id !== contact?.id && normalizeToIntlPhone(c.phone) === normalized
+      );
+      if (match) {
+        setError(`This phone number already belongs to ${match.fullName}.`);
+        setSaving(false);
         return;
       }
     }

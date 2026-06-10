@@ -352,6 +352,7 @@ const SupportFollowUpsPage: React.FC = () => {
         owners={[]}
         cohorts={cohorts}
         canEditOwner={false}
+        existingContacts={contacts}
       />
 
       <MessageTemplatePicker
