@@ -86,6 +86,16 @@ const AdminFollowUpsPage: React.FC = () => {
     });
   }, [contacts, cohortFilter, ownerFilter, showArchived]);
 
+  const ownerOptionCounts = useMemo(() => {
+    const total = contacts.filter((c) => !c.archivedAt).length;
+    const unassigned = contacts.filter((c) => !c.ownerId && !c.archivedAt).length;
+    const perOwner: Record<string, number> = {};
+    owners.forEach((o) => {
+      perOwner[o.id] = contacts.filter((c) => c.ownerId === o.id && !c.archivedAt).length;
+    });
+    return { total, unassigned, perOwner };
+  }, [contacts, owners]);
+
   const dashboardContacts = useMemo(
     () => (cohortFilter ? contacts.filter((c) => c.cohortId === cohortFilter) : contacts),
     [contacts, cohortFilter]
@@ -188,14 +198,14 @@ const AdminFollowUpsPage: React.FC = () => {
               />
             </div>
             {tab === 'contacts' && (
-              <div className="w-52">
+              <div className="w-56">
                 <AppSelect
                   value={ownerFilter}
                   onChange={setOwnerFilter}
                   options={[
-                    { value: '', label: 'All owners' },
-                    { value: '__unassigned__', label: 'Unassigned' },
-                    ...owners.map((o) => ({ value: o.id, label: o.name })),
+                    { value: '', label: `All owners (${ownerOptionCounts.total})` },
+                    { value: '__unassigned__', label: `Unassigned (${ownerOptionCounts.unassigned})` },
+                    ...owners.map((o) => ({ value: o.id, label: `${o.name} (${ownerOptionCounts.perOwner[o.id] || 0})` })),
                   ]}
                   placeholder="All owners"
                   compact
