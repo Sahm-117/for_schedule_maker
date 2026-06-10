@@ -405,6 +405,7 @@ export const cohortsApi = {
         id: row.id,
         name: row.name,
         description: row.description,
+        venue: row.venue,
         startDate: row.startDate,
         endDate: row.endDate,
         status: row.status,
@@ -417,6 +418,7 @@ export const cohortsApi = {
   async createFromCurrent(input: {
     name: string;
     description?: string;
+    venue?: string | null;
     startDate?: string | null;
     endDate?: string | null;
     sourceCohortId: string;
@@ -426,6 +428,7 @@ export const cohortsApi = {
       .insert([{
         name: input.name,
         description: input.description || null,
+        venue: input.venue || null,
         startDate: input.startDate || null,
         endDate: input.endDate || null,
         status: 'ACTIVE',
@@ -515,6 +518,7 @@ export const cohortsApi = {
         id: cohortRow.id,
         name: cohortRow.name,
         description: cohortRow.description,
+        venue: cohortRow.venue,
         startDate: cohortRow.startDate,
         endDate: cohortRow.endDate,
         status: cohortRow.status,
@@ -527,6 +531,7 @@ export const cohortsApi = {
   async update(cohortId: string, input: {
     name?: string;
     description?: string | null;
+    venue?: string | null;
     startDate?: string | null;
     endDate?: string | null;
     status?: 'ACTIVE' | 'ARCHIVED';
@@ -1918,6 +1923,7 @@ export const usersApi = {
           id: cohort.id,
           name: cohort.name,
           description: cohort.description,
+          venue: cohort.venue,
           startDate: cohort.startDate,
           endDate: cohort.endDate,
           status: cohort.status,
@@ -2256,13 +2262,15 @@ const mapFollowUpContact = (row: any): import('../types').FollowUpContact => ({
   notes: row.notes,
   cohortId: row.cohortId,
   cohortName: row.Cohort?.name || null,
+  cohortVenue: row.Cohort?.venue || null,
+  cohortStartDate: row.Cohort?.startDate || null,
   dueDate: row.dueDate,
   archivedAt: row.archivedAt,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
 
-const FOLLOW_UP_SELECT = '*, owner:User!FollowUpContact_ownerId_fkey(id, name), Cohort(name)';
+const FOLLOW_UP_SELECT = '*, owner:User!FollowUpContact_ownerId_fkey(id, name), Cohort(name, venue, startDate)';
 
 export type FollowUpContactInput = import('../types').FollowUpContactUpdate;
 
@@ -2463,6 +2471,8 @@ const mapFollowUpIssue = (row: any): import('../types').FollowUpIssue => ({
   openedAt: row.openedAt,
   person: row.person,
   issue: row.issue,
+  reportedById: row.reportedById,
+  reportedByName: row.reportedBy?.name || null,
   ownerId: row.ownerId,
   ownerName: row.owner?.name || null,
   neededFrom: row.neededFrom,
@@ -2472,10 +2482,23 @@ const mapFollowUpIssue = (row: any): import('../types').FollowUpIssue => ({
   updatedAt: row.updatedAt,
 });
 
-const ISSUE_SELECT = '*, contact:FollowUpContact(id, fullName), owner:User!FollowUpIssue_ownerId_fkey(id, name)';
+const ISSUE_SELECT = '*, contact:FollowUpContact(id, fullName), owner:User!FollowUpIssue_ownerId_fkey(id, name), reportedBy:User!FollowUpIssue_reportedById_fkey(id, name)';
+
+const notifyFollowUpIssue = (issueId: string, reporterId: string) => {
+  void supabase.functions
+    .invoke('notify-followup-issue', {
+      body: { issueId, reporterId },
+    })
+    .catch(() => undefined);
+};
 
 export const followUpIssuesApi = {
-  async getAll(options?: { contactId?: string; status?: import('../types').IssueStatus }): Promise<{ issues: import('../types').FollowUpIssue[] }> {
+  async getAll(options?: {
+    contactId?: string;
+    status?: import('../types').IssueStatus;
+    reporterId?: string;
+    contactIds?: string[];
+  }): Promise<{ issues: import('../types').FollowUpIssue[] }> {
     let query = supabase
       .from('FollowUpIssue')
       .select(ISSUE_SELECT)
@@ -2483,6 +2506,14 @@ export const followUpIssuesApi = {
 
     if (options?.contactId) query = query.eq('contactId', options.contactId);
     if (options?.status) query = query.eq('status', options.status);
+    if (options?.reporterId && options?.contactIds?.length) {
+      const contactIds = options.contactIds.map((id) => `"${id}"`).join(',');
+      query = query.or(`reportedById.eq.${options.reporterId},contactId.in.(${contactIds})`);
+    } else if (options?.reporterId) {
+      query = query.eq('reportedById', options.reporterId);
+    } else if (options?.contactIds?.length) {
+      query = query.in('contactId', options.contactIds);
+    }
 
     const { data, error } = await query;
     if (error) throw new Error(error.message);
@@ -2493,6 +2524,7 @@ export const followUpIssuesApi = {
     contactId?: string | null;
     person?: string | null;
     issue: string;
+    reportedById?: string | null;
     ownerId?: string | null;
     neededFrom?: string | null;
   }): Promise<{ issue: import('../types').FollowUpIssue }> {
@@ -2503,7 +2535,11 @@ export const followUpIssuesApi = {
       .single();
 
     if (error || !data) throw new Error(error?.message || 'Failed to create issue');
-    return { issue: mapFollowUpIssue(data) };
+    const issue = mapFollowUpIssue(data);
+    if (input.reportedById) {
+      notifyFollowUpIssue(issue.id, input.reportedById);
+    }
+    return { issue };
   },
 
   async update(issueId: string, input: {

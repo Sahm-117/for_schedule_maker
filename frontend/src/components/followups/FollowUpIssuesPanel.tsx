@@ -11,12 +11,23 @@ interface FollowUpIssuesPanelProps {
   onIssuesChanged: (issues: FollowUpIssue[]) => void;
   contacts: FollowUpContact[];
   owners: User[];
+  currentUserId?: string;
+  canResolve?: boolean;
+  canAssignOwner?: boolean;
 }
 
 const inputClass =
   'w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-100';
 
-const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({ issues, onIssuesChanged, contacts, owners }) => {
+const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
+  issues,
+  onIssuesChanged,
+  contacts,
+  owners,
+  currentUserId,
+  canResolve = true,
+  canAssignOwner = true,
+}) => {
   const [showForm, setShowForm] = useState(false);
   const [contactId, setContactId] = useState('');
   const [issueText, setIssueText] = useState('');
@@ -38,7 +49,8 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({ issues, onIss
       const { issue } = await followUpIssuesApi.create({
         contactId: contactId || null,
         issue: issueText.trim(),
-        ownerId: ownerId || null,
+        reportedById: currentUserId || null,
+        ownerId: canAssignOwner ? (ownerId || null) : null,
         neededFrom: neededFrom.trim() || null,
       });
       onIssuesChanged([issue, ...issues]);
@@ -96,12 +108,13 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({ issues, onIss
                   </div>
                   <p className="mt-2 text-sm text-gray-800">{issue.issue}</p>
                   <p className="mt-1 text-xs text-gray-500">
+                    {issue.reportedByName ? `Reported by: ${issue.reportedByName} • ` : ''}
                     {issue.ownerName ? `Owner: ${issue.ownerName}` : 'No owner'}
                     {issue.neededFrom ? ` • Needed from: ${issue.neededFrom}` : ''}
                   </p>
                   {issue.resolution && <p className="mt-2 rounded-2xl bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Resolution: {issue.resolution}</p>}
                 </div>
-                {issue.status === 'OPEN' && (
+                {canResolve && issue.status === 'OPEN' && (
                   <button
                     type="button"
                     onClick={() => { setResolving(issue); setResolution(''); }}
@@ -142,13 +155,15 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({ issues, onIss
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Issue / question</label>
             <textarea className={`${inputClass} min-h-[90px]`} value={issueText} onChange={(e) => setIssueText(e.target.value)} placeholder="What needs answering or unblocking?" />
           </div>
-          <AppSelect
-            label="Owner (optional)"
-            value={ownerId}
-            onChange={setOwnerId}
-            options={[{ value: '', label: 'No owner' }, ...owners.map((o) => ({ value: o.id, label: o.name }))]}
-            placeholder="No owner"
-          />
+          {canAssignOwner && (
+            <AppSelect
+              label="Owner (optional)"
+              value={ownerId}
+              onChange={setOwnerId}
+              options={[{ value: '', label: 'No owner' }, ...owners.map((o) => ({ value: o.id, label: o.name }))]}
+              placeholder="No owner"
+            />
+          )}
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Needed from (optional)</label>
             <input className={inputClass} value={neededFrom} onChange={(e) => setNeededFrom(e.target.value)} placeholder="e.g. Pastor, Admin team" />
@@ -156,24 +171,26 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({ issues, onIss
         </div>
       </ModalShell>
 
-      <ModalShell
-        isOpen={!!resolving}
-        onClose={() => setResolving(null)}
-        title="Resolve issue"
-        footer={(
-          <>
-            <button type="button" onClick={() => setResolving(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
-            <button type="button" onClick={() => { void handleResolve(); }} disabled={saving} className="rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
-              {saving ? 'Saving…' : 'Mark resolved'}
-            </button>
-          </>
-        )}
-      >
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Resolution (optional)</label>
-          <textarea className={`${inputClass} min-h-[90px]`} value={resolution} onChange={(e) => setResolution(e.target.value)} placeholder="How was it resolved?" />
-        </div>
-      </ModalShell>
+      {canResolve && (
+        <ModalShell
+          isOpen={!!resolving}
+          onClose={() => setResolving(null)}
+          title="Resolve issue"
+          footer={(
+            <>
+              <button type="button" onClick={() => setResolving(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
+              <button type="button" onClick={() => { void handleResolve(); }} disabled={saving} className="rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+                {saving ? 'Saving…' : 'Mark resolved'}
+              </button>
+            </>
+          )}
+        >
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Resolution (optional)</label>
+            <textarea className={`${inputClass} min-h-[90px]`} value={resolution} onChange={(e) => setResolution(e.target.value)} placeholder="How was it resolved?" />
+          </div>
+        </ModalShell>
+      )}
     </div>
   );
 };

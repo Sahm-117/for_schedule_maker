@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import type { MessageTemplate } from '../../types';
+import type { MessageTemplate, User } from '../../types';
 import ModalShell from './ModalShell';
 import ConfirmationModal from '../ConfirmationModal';
 import { messageTemplatesApi, settingsApi } from '../../services/api';
+import { buildTemplatePlaceholderSummary } from '../../utils/followUps';
 
 interface MessageBankPanelProps {
   templates: MessageTemplate[];
   onTemplatesChanged: (templates: MessageTemplate[]) => void;
   registrationLink: string;
   onRegistrationLinkChanged: (url: string) => void;
+  readOnly?: boolean;
+  currentUser?: User | null;
 }
 
 const inputClass =
@@ -19,6 +22,8 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
   onTemplatesChanged,
   registrationLink,
   onRegistrationLinkChanged,
+  readOnly = false,
+  currentUser,
 }) => {
   const [editing, setEditing] = useState<MessageTemplate | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -28,12 +33,16 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
   const [deleting, setDeleting] = useState<MessageTemplate | null>(null);
   const [linkDraft, setLinkDraft] = useState(registrationLink);
   const [savingLink, setSavingLink] = useState(false);
+  const [showLinkEditor, setShowLinkEditor] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => setLinkDraft(registrationLink), [registrationLink]);
 
+  const placeholderSummary = buildTemplatePlaceholderSummary(currentUser);
+
   const openForm = (template?: MessageTemplate) => {
+    if (readOnly) return;
     setEditing(template || null);
     setUseCase(template?.useCase || '');
     setBody(template?.body || '');
@@ -81,6 +90,7 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
     try {
       const { url } = await settingsApi.setRegistrationLink(linkDraft.trim());
       onRegistrationLinkChanged(url);
+      setShowLinkEditor(false);
     } finally {
       setSavingLink(false);
     }
@@ -88,54 +98,104 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="surface-card rounded-3xl p-5">
-        <p className="text-sm font-bold text-gray-900">Registration link</p>
-        <p className="mt-0.5 text-xs text-gray-500">Used wherever a template contains {'{{registration_link}}'}.</p>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <input className={inputClass} value={linkDraft} onChange={(e) => setLinkDraft(e.target.value)} placeholder="https://..." />
-          <button
-            type="button"
-            onClick={() => { void handleSaveLink(); }}
-            disabled={savingLink || linkDraft.trim() === registrationLink}
-            className="shrink-0 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
-          >
-            {savingLink ? 'Saving…' : 'Save link'}
-          </button>
+      <div className="surface-card overflow-hidden rounded-3xl p-6">
+        <div className="rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900">Registration link</p>
+              <p className="mt-1 break-all text-sm text-gray-500">
+                {registrationLink || 'Not set yet.'}
+              </p>
+              <p className="mt-2 text-xs text-gray-500">
+                Used wherever a template contains {'{{registration_link}}'}.
+              </p>
+            </div>
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => setShowLinkEditor(true)}
+                className="rounded-full border border-primary p-2 text-primary hover:bg-primary/5"
+                aria-label="Edit registration link"
+                title="Edit registration link"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m15.232 5.232 3.536 3.536M9 11l6.232-6.232a2.5 2.5 0 1 1 3.536 3.536L12.536 14.5A4 4 0 0 1 10.7 15.6L7 17l1.4-3.7a4 4 0 0 1 1.1-1.836Z" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-bold text-gray-900">Templates</p>
-          <p className="text-xs text-gray-500">Placeholders: {'{{first_name}}'}, {'{{full_name}}'}, {'{{registration_link}}'}</p>
+          <p className="text-xs text-gray-500">{placeholderSummary.join(' • ')}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => openForm()}
-          className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark"
-        >
-          Add template
-        </button>
+        {!readOnly && (
+          <button
+            type="button"
+            onClick={() => openForm()}
+            className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark"
+          >
+            Add template
+          </button>
+        )}
       </div>
 
       {templates.length === 0 ? (
-        <p className="rounded-3xl bg-orange-50/60 px-4 py-10 text-center text-sm text-gray-500">No templates yet — add your first WhatsApp message template.</p>
+        <p className="rounded-3xl bg-orange-50/60 px-4 py-10 text-center text-sm text-gray-500">
+          {readOnly ? 'No templates yet. Ask an admin to add them in the Message Bank.' : 'No templates yet — add your first WhatsApp message template.'}
+        </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {templates.map((t) => (
             <div key={t.id} className="surface-card flex flex-col rounded-3xl p-5">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-bold text-gray-900">{t.useCase}</p>
-                <div className="flex shrink-0 gap-1">
-                  <button type="button" onClick={() => openForm(t)} className="rounded-xl px-2.5 py-1 text-xs font-semibold text-primary hover:bg-orange-50">Edit</button>
-                  <button type="button" onClick={() => setDeleting(t)} className="rounded-xl px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button>
-                </div>
+                {!readOnly && (
+                  <div className="flex shrink-0 gap-1">
+                    <button type="button" onClick={() => openForm(t)} className="rounded-xl px-2.5 py-1 text-xs font-semibold text-primary hover:bg-orange-50">Edit</button>
+                    <button type="button" onClick={() => setDeleting(t)} className="rounded-xl px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button>
+                  </div>
+                )}
               </div>
               {t.whenToUse && <p className="mt-1 text-xs font-medium text-amber-700">{t.whenToUse}</p>}
               <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-xs text-gray-600">{t.body}</p>
             </div>
           ))}
         </div>
+      )}
+
+      {!readOnly && (
+        <ModalShell
+          isOpen={showLinkEditor}
+          onClose={() => setShowLinkEditor(false)}
+          title="Edit registration link"
+          footer={(
+            <>
+              <button type="button" onClick={() => setShowLinkEditor(false)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => { void handleSaveLink(); }}
+                disabled={savingLink || linkDraft.trim() === registrationLink}
+                className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
+              >
+                {savingLink ? 'Saving…' : 'Save link'}
+              </button>
+            </>
+          )}
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Registration link</label>
+              <input className={inputClass} value={linkDraft} onChange={(e) => setLinkDraft(e.target.value)} placeholder="https://..." />
+            </div>
+            <p className="text-xs text-gray-500">Used wherever a template contains {'{{registration_link}}'}.</p>
+          </div>
+        </ModalShell>
       )}
 
       <ModalShell

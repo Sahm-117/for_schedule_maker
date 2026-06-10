@@ -22,6 +22,7 @@ CREATE TABLE "Cohort" (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     description TEXT,
+    venue TEXT,
     "startDate" DATE,
     "endDate" DATE,
     status TEXT NOT NULL DEFAULT 'ACTIVE',
@@ -265,6 +266,7 @@ CREATE TABLE IF NOT EXISTS "FollowUpIssue" (
   "openedAt" DATE NOT NULL DEFAULT CURRENT_DATE,
   person TEXT,
   issue TEXT NOT NULL,
+  "reportedById" UUID REFERENCES "User"(id) ON DELETE SET NULL,
   "ownerId" UUID REFERENCES "User"(id) ON DELETE SET NULL,
   "neededFrom" TEXT,
   status "IssueStatus" NOT NULL DEFAULT 'OPEN',
@@ -273,6 +275,7 @@ CREATE TABLE IF NOT EXISTS "FollowUpIssue" (
   "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_followupissue_contact ON "FollowUpIssue"("contactId");
+CREATE INDEX IF NOT EXISTS idx_followupissue_reported_by ON "FollowUpIssue"("reportedById");
 CREATE INDEX IF NOT EXISTS idx_followupissue_status ON "FollowUpIssue"(status);
 
 ALTER TABLE "FollowUpContact" ENABLE ROW LEVEL SECURITY;

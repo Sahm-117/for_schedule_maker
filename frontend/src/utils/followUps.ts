@@ -1,4 +1,5 @@
 import type {
+  User,
   FollowUpContact,
   FollowUpMessageStatus,
   FollowUpReplyStatus,
@@ -130,11 +131,42 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
   return Array.from(map.values()).sort((a, b) => b.assigned - a.assigned);
 };
 
-export const fillTemplate = (body: string, contact: FollowUpContact, registrationLink: string): string =>
+export const formatTemplateDate = (value?: string | null): string => {
+  if (!value) return '';
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+};
+
+export const fillTemplate = (
+  body: string,
+  contact: FollowUpContact,
+  registrationLink: string,
+  senderName?: string | null
+): string =>
   body
     .replaceAll('{{first_name}}', contact.fullName.trim().split(/\s+/)[0] || 'there')
     .replaceAll('{{full_name}}', contact.fullName.trim())
-    .replaceAll('{{registration_link}}', registrationLink || '');
+    .replaceAll('{{registration_link}}', registrationLink || '')
+    .replaceAll('{{user.name}}', senderName?.trim() || '')
+    .replaceAll('{{venue}}', contact.cohortVenue?.trim() || '')
+    .replaceAll('{{start date}}', formatTemplateDate(contact.cohortStartDate));
+
+export const buildTemplatePlaceholderSummary = (user?: User | null): string[] => [
+  '{{first_name}}',
+  '{{full_name}}',
+  '{{registration_link}}',
+  '{{user.name}}',
+  '{{venue}}',
+  '{{start date}}',
+].map((token) => {
+  if (token === '{{user.name}}' && user?.name) return `${token} = ${user.name}`;
+  return token;
+});
 
 export const todayISO = (): string => {
   const d = new Date();

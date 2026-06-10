@@ -24,7 +24,7 @@ import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, MessageTemp
 type Tab = 'overview' | 'contacts' | 'messages' | 'issues';
 
 const AdminFollowUpsPage: React.FC = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const { cohorts, activeCohort } = useAppData();
 
   const [tab, setTab] = useState<Tab>('overview');
@@ -140,15 +140,17 @@ const AdminFollowUpsPage: React.FC = () => {
       <PageHeader
         title="Follow-ups"
         subtitle="Track interested people, assign owners, and move them to registration."
-        action={tab === 'contacts' ? (
+        action={(
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setShowImport(true)}
-              className="inline-flex h-11 items-center justify-center rounded-2xl border border-orange-200 bg-white px-4 text-sm font-semibold text-primary hover:bg-orange-50"
-            >
-              Import
-            </button>
+            {tab === 'contacts' && (
+              <button
+                type="button"
+                onClick={() => setShowImport(true)}
+                className="inline-flex h-11 items-center justify-center rounded-2xl border border-orange-200 bg-white px-4 text-sm font-semibold text-primary hover:bg-orange-50"
+              >
+                Import
+              </button>
+            )}
             <button
               type="button"
               onClick={() => { setEditingContact(null); setShowContactModal(true); }}
@@ -157,7 +159,7 @@ const AdminFollowUpsPage: React.FC = () => {
               Add Contact
             </button>
           </div>
-        ) : undefined}
+        )}
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
@@ -221,6 +223,7 @@ const AdminFollowUpsPage: React.FC = () => {
               onTemplatesChanged={setTemplates}
               registrationLink={registrationLink}
               onRegistrationLinkChanged={setRegistrationLink}
+              currentUser={user}
             />
           )}
           {tab === 'issues' && (
@@ -229,6 +232,7 @@ const AdminFollowUpsPage: React.FC = () => {
               onIssuesChanged={setIssues}
               contacts={contacts}
               owners={owners}
+              currentUserId={user?.id}
             />
           )}
         </>
@@ -265,6 +269,7 @@ const AdminFollowUpsPage: React.FC = () => {
         contact={messagingContact}
         templates={templates}
         registrationLink={registrationLink}
+        currentUserName={user?.name}
         onMessageSent={handleMessageSent}
       />
 

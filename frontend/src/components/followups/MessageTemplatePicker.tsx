@@ -10,6 +10,7 @@ interface MessageTemplatePickerProps {
   contact: FollowUpContact | null;
   templates: MessageTemplate[];
   registrationLink: string;
+  currentUserName?: string | null;
   onMessageSent: (contact: FollowUpContact) => Promise<void> | void;
 }
 
@@ -19,6 +20,7 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
   contact,
   templates,
   registrationLink,
+  currentUserName,
   onMessageSent,
 }) => {
   const [selectedId, setSelectedId] = useState('');
@@ -26,8 +28,8 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
 
   const selected = templates.find((t) => t.id === selectedId) || null;
   const filled = useMemo(
-    () => (selected && contact ? fillTemplate(selected.body, contact, registrationLink) : ''),
-    [selected, contact, registrationLink]
+    () => (selected && contact ? fillTemplate(selected.body, contact, registrationLink, currentUserName) : ''),
+    [selected, contact, registrationLink, currentUserName]
   );
   const waLink = contact && filled ? buildWhatsAppLink(contact.phone, filled) : null;
 

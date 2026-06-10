@@ -27,6 +27,7 @@ export interface Cohort {
   id: string
   name: string
   description?: string | null
+  venue?: string | null
   startDate?: string | null
   endDate?: string | null
   status?: 'ACTIVE' | 'ARCHIVED'

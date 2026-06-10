@@ -10,6 +10,7 @@ import type { Cohort, User } from '../types';
 type CohortFormState = {
   name: string;
   description: string;
+  venue: string;
   startDate: string;
   endDate: string;
 };
@@ -17,6 +18,7 @@ type CohortFormState = {
 const emptyForm = (): CohortFormState => ({
   name: '',
   description: '',
+  venue: '',
   startDate: '',
   endDate: '',
 });
@@ -140,6 +142,7 @@ const CohortsPage: React.FC = () => {
     setDetailsForm({
       name: selectedCohort.name,
       description: selectedCohort.description || '',
+      venue: selectedCohort.venue || '',
       startDate: selectedCohort.startDate || '',
       endDate: selectedCohort.endDate || '',
     });
@@ -209,6 +212,7 @@ const CohortsPage: React.FC = () => {
       await cohortsApi.createFromCurrent({
         name: createForm.name.trim(),
         description: createForm.description.trim() || undefined,
+        venue: createForm.venue.trim() || null,
         startDate: createForm.startDate || null,
         endDate: createForm.endDate || null,
         sourceCohortId: activeCohort.id,
@@ -233,6 +237,7 @@ const CohortsPage: React.FC = () => {
       await cohortsApi.update(selectedCohortId, {
         name: detailsForm.name.trim(),
         description: detailsForm.description.trim() || null,
+        venue: detailsForm.venue.trim() || null,
         startDate: detailsForm.startDate || null,
         endDate: detailsForm.endDate || null,
       });
@@ -385,6 +390,7 @@ const CohortsPage: React.FC = () => {
                 <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Current Cohort</p>
                 <h2 className="mt-2 text-2xl font-bold text-gray-900">{activeCohort.name}</h2>
                 <p className="mt-1 text-sm text-gray-500">{activeCohort.description || 'No cohort description yet.'}</p>
+                <p className="mt-1 text-sm text-gray-500">{activeCohort.venue ? `Venue: ${activeCohort.venue}` : 'Venue not set yet.'}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700">
@@ -397,15 +403,19 @@ const CohortsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid gap-4 px-5 py-5 lg:grid-cols-[1.25fr_0.95fr_1.2fr_auto]">
+          <div className="grid gap-4 px-5 py-5 lg:grid-cols-[1.1fr_0.95fr_0.9fr_1.2fr_auto]">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Window</p>
               <p className="mt-2 text-sm font-semibold text-gray-900">{formatDateRange(activeCohort.startDate, activeCohort.endDate)}</p>
             </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Weeks</p>
-              <p className="mt-2 text-sm font-semibold text-gray-900">{weekCounts[activeCohort.id] || 0} total weeks</p>
-            </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Weeks</p>
+                <p className="mt-2 text-sm font-semibold text-gray-900">{weekCounts[activeCohort.id] || 0} total weeks</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Venue</p>
+                <p className="mt-2 text-sm font-semibold text-gray-900">{activeCohort.venue || 'Not set'}</p>
+              </div>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -496,6 +506,7 @@ const CohortsPage: React.FC = () => {
               <div>
                 <p className="text-sm font-semibold text-gray-900">{cohort.name}</p>
                 <p className="mt-1 text-xs text-gray-500">{cohort.description || 'No cohort description yet.'}</p>
+                {cohort.venue && <p className="mt-1 text-xs text-gray-500">{cohort.venue}</p>}
               </div>
               <div className="text-sm text-gray-600">{formatDateRange(cohort.startDate, cohort.endDate)}</div>
               <div className="text-sm font-semibold text-gray-900">{weekCounts[cohort.id] || 0}</div>
@@ -568,6 +579,7 @@ const CohortsPage: React.FC = () => {
                 <div>
                   <p className="text-base font-semibold text-gray-900">{cohort.name}</p>
                   <p className="mt-1 text-sm text-gray-500">{cohort.description || 'No cohort description yet.'}</p>
+                  {cohort.venue && <p className="mt-1 text-sm text-gray-500">{cohort.venue}</p>}
                 </div>
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                   {cohort.status || 'ACTIVE'}
@@ -575,6 +587,7 @@ const CohortsPage: React.FC = () => {
               </div>
               <div className="mt-4 grid gap-2 text-sm text-gray-600">
                 <p><span className="font-semibold text-gray-900">Window:</span> {formatDateRange(cohort.startDate, cohort.endDate)}</p>
+                <p><span className="font-semibold text-gray-900">Venue:</span> {cohort.venue || 'Not set'}</p>
                 <p><span className="font-semibold text-gray-900">Weeks:</span> {weekCounts[cohort.id] || 0}</p>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -660,6 +673,13 @@ const CohortsPage: React.FC = () => {
             onChange={(event) => setCreateForm((prev) => ({ ...prev, description: event.target.value }))}
             placeholder="Short cohort description"
             rows={3}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
+          />
+          <input
+            type="text"
+            value={createForm.venue}
+            onChange={(event) => setCreateForm((prev) => ({ ...prev, venue: event.target.value }))}
+            placeholder="Venue"
             className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
           />
           <div className="grid gap-3 sm:grid-cols-2">
@@ -786,6 +806,13 @@ const CohortsPage: React.FC = () => {
               onChange={(event) => setDetailsForm((prev) => ({ ...prev, description: event.target.value }))}
               placeholder="Description"
               rows={3}
+              className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
+            />
+            <input
+              type="text"
+              value={detailsForm.venue}
+              onChange={(event) => setDetailsForm((prev) => ({ ...prev, venue: event.target.value }))}
+              placeholder="Venue"
               className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
             />
             <div className="grid gap-3 sm:grid-cols-2">

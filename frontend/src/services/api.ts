@@ -126,6 +126,7 @@ export const cohortsApi = USE_SUPABASE ? supabaseCohortsApi : {
   async createFromCurrent(_input: {
     name: string;
     description?: string;
+    venue?: string | null;
     startDate?: string | null;
     endDate?: string | null;
     sourceCohortId: string;

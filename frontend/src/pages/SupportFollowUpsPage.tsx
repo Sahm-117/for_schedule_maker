@@ -3,20 +3,27 @@ import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import FollowUpContactsTable from '../components/followups/FollowUpContactsTable';
 import FollowUpContactModal from '../components/followups/FollowUpContactModal';
+import MessageBankPanel from '../components/followups/MessageBankPanel';
+import FollowUpIssuesPanel from '../components/followups/FollowUpIssuesPanel';
 import MessageTemplatePicker from '../components/followups/MessageTemplatePicker';
 import { useAuth } from '../hooks/useAuth';
 import {
   followUpContactsApi,
+  followUpIssuesApi,
   messageTemplatesApi,
   settingsApi,
 } from '../services/api';
-import type { FollowUpContact, FollowUpContactUpdate, MessageTemplate } from '../types';
+import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, MessageTemplate } from '../types';
+
+type Tab = 'contacts' | 'messages' | 'issues';
 
 const SupportFollowUpsPage: React.FC = () => {
   const { user } = useAuth();
 
+  const [tab, setTab] = useState<Tab>('contacts');
   const [contacts, setContacts] = useState<FollowUpContact[]>([]);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [issues, setIssues] = useState<FollowUpIssue[]>([]);
   const [registrationLink, setRegistrationLink] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -35,8 +42,10 @@ const SupportFollowUpsPage: React.FC = () => {
         messageTemplatesApi.getAll(),
         settingsApi.getRegistrationLink(),
       ]);
+      const issuesRes = await followUpIssuesApi.getAll();
       setContacts(contactsRes.contacts);
       setTemplates(templatesRes.templates);
+      setIssues(issuesRes.issues);
       setRegistrationLink(linkRes.url);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load your follow-ups.');
@@ -53,6 +62,11 @@ const SupportFollowUpsPage: React.FC = () => {
     () => contacts.filter((c) => (showArchived ? !!c.archivedAt : !c.archivedAt)),
     [contacts, showArchived]
   );
+
+  const visibleIssues = useMemo(() => {
+    const contactIds = new Set(contacts.map((contact) => contact.id));
+    return issues.filter((issue) => issue.reportedById === user?.id || (issue.contactId ? contactIds.has(issue.contactId) : false));
+  }, [contacts, issues, user?.id]);
 
   if (user && user.role !== 'SUPPORT') {
     return <Navigate to="/dashboard" replace />;
@@ -98,20 +112,62 @@ const SupportFollowUpsPage: React.FC = () => {
         )}
       />
 
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        {[
+          { key: 'contacts', label: 'Contacts' },
+          { key: 'messages', label: 'Messages' },
+          { key: 'issues', label: 'Issues' },
+        ].map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setTab(item.key as Tab)}
+            className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${tab === item.key ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-orange-50'}`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
       {loadError && <p className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>}
 
       {loading ? (
         <p className="rounded-3xl bg-orange-50/60 px-4 py-12 text-center text-sm text-gray-500">Loading your follow-ups…</p>
       ) : (
-        <FollowUpContactsTable
-          contacts={visibleContacts}
-          owners={[]}
-          canAssign={false}
-          onFieldChange={(c, patch) => { void handleFieldChange(c, patch); }}
-          onMessage={setMessagingContact}
-          onLogContact={(c) => { void handleLogContact(c); }}
-          onEdit={setEditingContact}
-        />
+        <>
+          {tab === 'contacts' && (
+            <FollowUpContactsTable
+              contacts={visibleContacts}
+              owners={[]}
+              canAssign={false}
+              onFieldChange={(c, patch) => { void handleFieldChange(c, patch); }}
+              onMessage={setMessagingContact}
+              onLogContact={(c) => { void handleLogContact(c); }}
+              onEdit={setEditingContact}
+            />
+          )}
+          {tab === 'messages' && (
+            <MessageBankPanel
+              templates={templates}
+              onTemplatesChanged={() => {}}
+              registrationLink={registrationLink}
+              onRegistrationLinkChanged={() => {}}
+              readOnly
+              currentUser={user}
+            />
+          )}
+          {tab === 'issues' && (
+            <FollowUpIssuesPanel
+              issues={visibleIssues}
+              onIssuesChanged={setIssues}
+              contacts={visibleContacts}
+              owners={[]}
+              currentUserId={user?.id}
+              canResolve={false}
+              canAssignOwner={false}
+            />
+          )}
+        </>
       )}
 
       <FollowUpContactModal
@@ -130,6 +186,7 @@ const SupportFollowUpsPage: React.FC = () => {
         contact={messagingContact}
         templates={templates}
         registrationLink={registrationLink}
+        currentUserName={user?.name}
         onMessageSent={handleMessageSent}
       />
     </div>

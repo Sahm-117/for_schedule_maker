@@ -34,6 +34,7 @@ export interface Cohort {
   id: string;
   name: string;
   description?: string;
+  venue?: string | null;
   startDate?: string | null;
   endDate?: string | null;
   status?: 'ACTIVE' | 'ARCHIVED';
@@ -166,6 +167,8 @@ export interface FollowUpContact {
   notes?: string | null;
   cohortId?: string | null;
   cohortName?: string | null;
+  cohortVenue?: string | null;
+  cohortStartDate?: string | null;
   dueDate?: string | null;
   archivedAt?: string | null;
   createdAt?: string;
@@ -207,6 +210,8 @@ export interface FollowUpIssue {
   openedAt: string;
   person?: string | null;
   issue: string;
+  reportedById?: string | null;
+  reportedByName?: string | null;
   ownerId?: string | null;
   ownerName?: string | null;
   neededFrom?: string | null;
