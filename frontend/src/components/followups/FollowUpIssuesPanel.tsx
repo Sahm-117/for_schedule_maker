@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { FollowUpContact, FollowUpIssue, User } from '../../types';
 import AppSelect from '../AppSelect';
 import AppOverflowMenu from '../AppOverflowMenu';
@@ -18,6 +18,7 @@ interface FollowUpIssuesPanelProps {
   canDelete?: boolean;
   canAssignOwner?: boolean;
   canReply?: boolean;
+  onIssuesOpen?: () => void;
 }
 
 const inputClass =
@@ -33,7 +34,9 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   canDelete = true,
   canAssignOwner = true,
   canReply = true,
+  onIssuesOpen,
 }) => {
+  useEffect(() => { onIssuesOpen?.(); }, [onIssuesOpen]);
   const [showForm, setShowForm] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [contactSearch, setContactSearch] = useState('');

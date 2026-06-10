@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -23,6 +23,25 @@ import {
 } from '../utils/followUps';
 
 type Tab = 'contacts' | 'issues';
+
+const READ_KEY = 'fof_issue_read';
+
+function getReadTimestamps(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(READ_KEY) || '{}');
+  } catch { return {}; }
+}
+
+function markIssueRead(issueId: string) {
+  const map = getReadTimestamps();
+  map[issueId] = new Date().toISOString();
+  localStorage.setItem(READ_KEY, JSON.stringify(map));
+}
+
+function unreadCount(issues: FollowUpIssue[]): number {
+  const map = getReadTimestamps();
+  return issues.filter((i) => i.updatedAt && i.updatedAt > (map[i.id] || '')).length;
+}
 
 function activeFilterCount(reply: string, call: string, reg: string, next: string, archived: boolean): number {
   let n = 0;
@@ -54,31 +73,15 @@ interface FilterState {
 }
 
 const statusGroups: Array<{ key: keyof FilterState; label: string; options: Array<{ value: string; label: string }> }> = [
-  {
-    key: 'reply',
-    label: 'Reply',
-    options: Object.entries(REPLY_STATUS_META).map(([value, meta]) => ({ value, label: meta.label })),
-  },
-  {
-    key: 'call',
-    label: 'Call',
-    options: Object.entries(CALL_STATUS_META).map(([value, meta]) => ({ value, label: meta.label })),
-  },
-  {
-    key: 'reg',
-    label: 'Registration',
-    options: Object.entries(REGISTRATION_STATUS_META).map(([value, meta]) => ({ value, label: meta.label })),
-  },
-  {
-    key: 'next',
-    label: 'Next action',
-    options: Object.entries(NEXT_ACTION_META).map(([value, meta]) => ({ value, label: meta.label })),
-  },
+  { key: 'reply', label: 'Reply', options: Object.entries(REPLY_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
+  { key: 'call', label: 'Call', options: Object.entries(CALL_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
+  { key: 'reg', label: 'Registration', options: Object.entries(REGISTRATION_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
+  { key: 'next', label: 'Next action', options: Object.entries(NEXT_ACTION_META).map(([v, m]) => ({ value: v, label: m.label })) },
 ];
 
 const SupportFollowUpsPage: React.FC = () => {
   const { user } = useAuth();
-  const { cohorts } = useAppData();
+  const { cohorts, liveRevision } = useAppData();
 
   const [tab, setTab] = useState<Tab>('contacts');
   const [contacts, setContacts] = useState<FollowUpContact[]>([]);
@@ -90,6 +93,7 @@ const SupportFollowUpsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const initialLoadRef = useRef(true);
 
   const [filters, setFilters] = useState<FilterState>({ reply: '', call: '', reg: '', next: '', archived: false });
   const [draft, setDraft] = useState<FilterState>({ reply: '', call: '', reg: '', next: '', archived: false });
@@ -99,7 +103,7 @@ const SupportFollowUpsPage: React.FC = () => {
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
-    setLoading(true);
+    if (initialLoadRef.current) setLoading(true);
     setLoadError('');
     try {
       const [contactsRes, templatesRes, linkRes] = await Promise.all([
@@ -116,11 +120,17 @@ const SupportFollowUpsPage: React.FC = () => {
       setLoadError(err instanceof Error ? err.message : 'Failed to load your follow-ups.');
     } finally {
       setLoading(false);
+      initialLoadRef.current = false;
     }
-  }, [user?.id]);
+  }, [user?.id, liveRevision]);
 
   useEffect(() => {
     void loadAll();
+  }, [loadAll]);
+
+  useEffect(() => {
+    const interval = setInterval(() => void loadAll(), 30000);
+    return () => clearInterval(interval);
   }, [loadAll]);
 
   const visibleContacts = useMemo(
@@ -142,6 +152,7 @@ const SupportFollowUpsPage: React.FC = () => {
   }, [contacts, issues, user?.id]);
 
   const filterCount = activeFilterCount(filters.reply, filters.call, filters.reg, filters.next, filters.archived);
+  const unread = unreadCount(visibleIssues);
 
   if (user && user.role !== 'SUPPORT') {
     return <Navigate to="/dashboard" replace />;
@@ -186,7 +197,7 @@ const SupportFollowUpsPage: React.FC = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // fallback: select the text manually
+      // fallback
     }
   };
 
@@ -208,6 +219,13 @@ const SupportFollowUpsPage: React.FC = () => {
 
   const togglePill = (group: keyof FilterState, value: string) => {
     setDraft((prev) => ({ ...prev, [group]: prev[group] === value ? '' : value }));
+  };
+
+  const handleTabChange = (t: Tab) => {
+    setTab(t);
+    if (t === 'issues') {
+      visibleIssues.forEach((i) => markIssueRead(i.id));
+    }
   };
 
   return (
@@ -267,10 +285,15 @@ const SupportFollowUpsPage: React.FC = () => {
           <button
             key={item.key}
             type="button"
-            onClick={() => setTab(item.key as Tab)}
-            className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${tab === item.key ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-orange-50'}`}
+            onClick={() => handleTabChange(item.key as Tab)}
+            className={`relative rounded-2xl px-4 py-2 text-sm font-semibold transition ${tab === item.key ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-orange-50'}`}
           >
             {item.label}
+            {item.key === 'issues' && unread > 0 && tab !== 'issues' && (
+              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold leading-none text-white shadow-sm">
+                {unread}
+              </span>
+            )}
           </button>
         ))}
         <button
@@ -311,6 +334,7 @@ const SupportFollowUpsPage: React.FC = () => {
               contacts={visibleContacts}
               owners={[]}
               currentUserId={user?.id}
+              onIssuesOpen={() => visibleIssues.forEach((i) => markIssueRead(i.id))}
               canResolve
               canDelete
               canAssignOwner={false}
@@ -343,9 +367,7 @@ const SupportFollowUpsPage: React.FC = () => {
       {showFilterPanel && createPortal(
         <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center">
           <div className="absolute inset-0 bg-slate-900/35" />
-          <div
-            className="relative mb-0 w-full max-w-md rounded-t-[28px] bg-white p-6 pb-8 shadow-[0_-8px_40px_rgba(15,23,42,0.15)] sm:mb-0 sm:rounded-[28px]"
-          >
+          <div className="relative mb-0 w-full max-w-md rounded-t-[28px] bg-white p-6 pb-8 shadow-[0_-8px_40px_rgba(15,23,42,0.15)] sm:mb-0 sm:rounded-[28px]">
             <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-gray-200 sm:hidden" />
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Filters</h3>
@@ -353,53 +375,29 @@ const SupportFollowUpsPage: React.FC = () => {
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-
             <div className="mt-5 space-y-5">
               {statusGroups.map((group) => (
                 <div key={group.key}>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{group.label}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {group.options.map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); togglePill(group.key as keyof FilterState, opt.value); }}
-                        className={pillBtn(draft[group.key as keyof FilterState] === opt.value)}
-                      >
+                      <button key={opt.value} type="button" onClick={(e) => { e.stopPropagation(); togglePill(group.key as keyof FilterState, opt.value); }} className={pillBtn(draft[group.key as keyof FilterState] === opt.value)}>
                         {opt.label}
                       </button>
                     ))}
                   </div>
                 </div>
               ))}
-
               <div className="flex items-center justify-between rounded-2xl bg-orange-50/60 px-4 py-3">
                 <span className="text-sm font-semibold text-gray-700">Show archived contacts</span>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setDraft((prev) => ({ ...prev, archived: !prev.archived })); }}
-                  className={`relative h-6 w-11 rounded-full transition ${draft.archived ? 'bg-primary' : 'bg-gray-300'}`}
-                >
+                <button type="button" onClick={(e) => { e.stopPropagation(); setDraft((prev) => ({ ...prev, archived: !prev.archived })); }} className={`relative h-6 w-11 rounded-full transition ${draft.archived ? 'bg-primary' : 'bg-gray-300'}`}>
                   <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${draft.archived ? 'translate-x-5' : ''}`} />
                 </button>
               </div>
             </div>
-
             <div className="mt-6 flex gap-3">
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); clearFilters(); }}
-                className="flex-1 rounded-2xl border border-orange-200 bg-white py-3 text-sm font-semibold text-gray-600 transition hover:bg-orange-50 active:scale-[0.98]"
-              >
-                Clear filters
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); applyFilters(); }}
-                className="flex-1 rounded-2xl bg-primary py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark active:scale-[0.98]"
-              >
-                Apply
-              </button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); clearFilters(); }} className="flex-1 rounded-2xl border border-orange-200 bg-white py-3 text-sm font-semibold text-gray-600 transition hover:bg-orange-50 active:scale-[0.98]">Clear filters</button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); applyFilters(); }} className="flex-1 rounded-2xl bg-primary py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark active:scale-[0.98]">Apply</button>
             </div>
           </div>
         </div>,
