@@ -36,6 +36,7 @@ const AdminFollowUpsPage: React.FC = () => {
   const [cohortFilter, setCohortFilter] = useState('');
   const [ownerFilter, setOwnerFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const [showClosed, setShowClosed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
@@ -82,9 +83,11 @@ const AdminFollowUpsPage: React.FC = () => {
       if (ownerFilter === '__unassigned__' && c.ownerId) return false;
       if (ownerFilter && ownerFilter !== '__unassigned__' && c.ownerId !== ownerFilter) return false;
       if (showArchived) return !!c.archivedAt;
-      return !c.archivedAt;
+      if (!showArchived && c.archivedAt) return false;
+      if (!showClosed && c.nextAction === 'CLOSE') return false;
+      return true;
     });
-  }, [contacts, cohortFilter, ownerFilter, showArchived]);
+  }, [contacts, cohortFilter, ownerFilter, showArchived, showClosed]);
 
   const ownerOptionCounts = useMemo(() => {
     const scoped = cohortFilter ? contacts.filter((c) => c.cohortId === cohortFilter && !c.archivedAt) : contacts.filter((c) => !c.archivedAt);
@@ -98,7 +101,7 @@ const AdminFollowUpsPage: React.FC = () => {
   }, [contacts, owners, cohortFilter]);
 
   const dashboardContacts = useMemo(
-    () => contacts.filter((c) => !c.archivedAt).filter((c) => !cohortFilter || c.cohortId === cohortFilter),
+    () => (cohortFilter ? contacts.filter((c) => c.cohortId === cohortFilter) : contacts),
     [contacts, cohortFilter]
   );
 
@@ -108,6 +111,15 @@ const AdminFollowUpsPage: React.FC = () => {
 
   const handleFieldChange = async (contact: FollowUpContact, patch: FollowUpContactUpdate) => {
     try {
+      if (patch.registrationStatus) {
+        if (patch.registrationStatus === 'REGISTERED') {
+          patch.replyStatus = 'REPLIED';
+          patch.nextAction = 'CLOSE';
+        } else if (patch.registrationStatus === 'NOT_INTERESTED' || patch.registrationStatus === 'NOT_A_TCN_MEMBER') {
+          patch.replyStatus = 'REPLIED';
+          patch.nextAction = 'CLOSE';
+        }
+      }
       const { contact: updated } = await followUpContactsApi.update(contact.id, patch);
       replaceContact(updated);
     } catch {
@@ -212,6 +224,15 @@ const AdminFollowUpsPage: React.FC = () => {
                   compact
                 />
               </div>
+            )}
+            {tab === 'contacts' && (
+              <button
+                type="button"
+                onClick={() => setShowClosed((v) => !v)}
+                className={`rounded-2xl px-3 py-2 text-xs font-semibold ${showClosed ? 'bg-slate-700 text-white' : 'bg-white text-gray-600 hover:bg-orange-50'}`}
+              >
+                {showClosed ? 'Showing closed' : 'Show closed'}
+              </button>
             )}
             {tab === 'contacts' && (
               <button
