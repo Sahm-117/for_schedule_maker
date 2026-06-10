@@ -80,7 +80,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
         cohortId: cohortId || null,
         dueDate: dueDate || null,
         lastContactDate: contact ? (lastContactDate || null) : undefined,
-        followUpCount: contact ? Number(followUpCount) : undefined,
+        followUpCount: Number(followUpCount) || 0,
         notes: notes.trim() || null,
       };
       if (contact) {
