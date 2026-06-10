@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import AppSelect from '../components/AppSelect';
@@ -38,6 +38,7 @@ const AdminFollowUpsPage: React.FC = () => {
   const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const initialLoadRef = useRef(true);
 
   const [showContactModal, setShowContactModal] = useState(false);
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
@@ -46,7 +47,7 @@ const AdminFollowUpsPage: React.FC = () => {
   const [deletingContact, setDeletingContact] = useState<FollowUpContact | null>(null);
 
   const loadAll = useCallback(async () => {
-    setLoading(true);
+    if (initialLoadRef.current) setLoading(true);
     setLoadError('');
     try {
       const [contactsRes, usersRes, templatesRes, issuesRes, linkRes] = await Promise.all([
@@ -65,11 +66,17 @@ const AdminFollowUpsPage: React.FC = () => {
       setLoadError(err instanceof Error ? err.message : 'Failed to load follow-ups.');
     } finally {
       setLoading(false);
+      initialLoadRef.current = false;
     }
   }, [liveRevision]);
 
   useEffect(() => {
     void loadAll();
+  }, [loadAll]);
+
+  useEffect(() => {
+    const interval = setInterval(() => void loadAll(), 30000);
+    return () => clearInterval(interval);
   }, [loadAll]);
 
   const replaceContact = (updated: FollowUpContact) => {
