@@ -95,9 +95,9 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     <AppOverflowMenu
       items={[
         { label: 'Send message', onClick: () => onMessage(contact) },
-        { label: 'Log contact', onClick: () => onLogContact(contact) },
+        { label: 'Log an issue', onClick: () => onLogContact(contact) },
         { label: 'Edit contact', onClick: () => onEdit(contact) },
-        { label: `Adjust count (${contact.followUpCount})`, onClick: () => setAdjustingCount(contact) },
+        { label: `Number of follow ups (${contact.followUpCount})`, onClick: () => setAdjustingCount(contact) },
         ...(canAssign && onDelete ? [{ label: 'Delete contact', onClick: () => onDelete(contact), tone: 'danger' as const }] : []),
       ]}
     />
@@ -293,25 +293,29 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
       {adjustingCount && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center">
           <button type="button" className="absolute inset-0 bg-slate-900/35" onClick={() => setAdjustingCount(null)} aria-label="Close" />
-          <div ref={stepperRef} className="relative mb-20 flex items-center gap-4 rounded-[28px] bg-white px-6 py-4 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0">
-            <button
-              type="button"
-              disabled={adjustingCount.followUpCount <= 0}
-              onClick={() => handleStepperChange(-1)}
-              className="grid h-11 w-11 place-items-center rounded-full bg-orange-100 text-xl font-bold text-primary transition hover:bg-orange-200 disabled:opacity-30"
-            >
-              −
-            </button>
-            <span className="min-w-[3ch] text-center text-2xl font-bold tabular-nums text-gray-900">
-              {adjustingCount.followUpCount}
-            </span>
-            <button
-              type="button"
-              onClick={() => handleStepperChange(1)}
-              className="grid h-11 w-11 place-items-center rounded-full bg-primary text-xl font-bold text-white transition hover:bg-primary-dark"
-            >
-              +
-            </button>
+          <div ref={stepperRef} className="relative mb-20 w-[90vw] max-w-[300px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0">
+            <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Follow-up count</p>
+            <p className="mb-4 truncate text-center text-sm font-semibold text-gray-900">{adjustingCount.fullName}</p>
+            <div className="flex items-center justify-center gap-5">
+              <button
+                type="button"
+                disabled={adjustingCount.followUpCount <= 0}
+                onClick={() => handleStepperChange(-1)}
+                className="grid h-12 w-12 place-items-center rounded-2xl bg-orange-100 text-2xl font-bold text-primary shadow-sm transition active:scale-95 hover:bg-orange-200 disabled:opacity-30 disabled:active:scale-100"
+              >
+                −
+              </button>
+              <span className="min-w-[4ch] text-center text-4xl font-bold tabular-nums tracking-tight text-gray-900">
+                {adjustingCount.followUpCount}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleStepperChange(1)}
+                className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-2xl font-bold text-white shadow-sm transition active:scale-95 hover:bg-primary-dark"
+              >
+                +
+              </button>
+            </div>
           </div>
         </div>,
         document.body
