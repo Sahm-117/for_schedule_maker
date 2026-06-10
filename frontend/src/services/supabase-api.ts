@@ -2314,7 +2314,8 @@ export const followUpContactsApi = {
     let query = supabase
       .from('FollowUpContact')
       .select(FOLLOW_UP_SELECT)
-      .order('createdAt', { ascending: false });
+      .order('createdAt', { ascending: false })
+      .order('id', { ascending: true });
 
     if (options?.cohortId) query = query.eq('cohortId', options.cohortId);
     if (options?.ownerId) query = query.eq('ownerId', options.ownerId);
