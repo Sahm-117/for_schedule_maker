@@ -28,6 +28,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
 
   const selectedOption = useMemo(
@@ -37,9 +38,9 @@ const AppSelect: React.FC<AppSelectProps> = ({
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
+      if (rootRef.current?.contains(event.target as Node)) return;
+      if (menuRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
     };
 
     document.addEventListener('pointerdown', handlePointerDown);
@@ -114,7 +115,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
       </button>
 
       {open && typeof document !== 'undefined' && createPortal(
-        <div style={menuStyle} className="overflow-hidden rounded-[24px] border border-orange-100 bg-white p-1.5 shadow-[0_28px_80px_rgba(15,23,42,0.18)]">
+        <div ref={menuRef} style={menuStyle} className="overflow-hidden rounded-[24px] border border-orange-100 bg-white p-1.5 shadow-[0_28px_80px_rgba(15,23,42,0.18)]">
           <div className="max-h-72 overflow-y-auto">
             {options.map((option) => {
               const selected = option.value === value;
@@ -122,11 +123,8 @@ const AppSelect: React.FC<AppSelectProps> = ({
                 <button
                   key={option.value}
                   type="button"
-                  onPointerDown={(e) => {
-                    e.preventDefault();
-                    onChange(option.value);
-                    setOpen(false);
-                  }}
+                  onPointerDown={() => onChange(option.value)}
+                  onClick={() => setOpen(false)}
                   className={`flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left transition ${
                     selected ? 'bg-orange-50 text-primary' : 'text-gray-700 hover:bg-gray-50'
                   }`}

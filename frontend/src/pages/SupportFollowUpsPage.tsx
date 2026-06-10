@@ -170,6 +170,8 @@ const SupportFollowUpsPage: React.FC = () => {
   };
 
   const openWhatsApp = (contact: FollowUpContact) => {
+    const ok = window.confirm(`Open WhatsApp to message ${contact.fullName.split(' ')[0]}?`);
+    if (!ok) return;
     const link = buildWhatsAppLink(contact.phone, `Hi ${contact.fullName.split(' ')[0]}!`);
     if (link) {
       window.open(link, '_blank', 'noopener');
