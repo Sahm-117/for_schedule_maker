@@ -36,7 +36,6 @@ const AdminFollowUpsPage: React.FC = () => {
   const [cohortFilter, setCohortFilter] = useState('');
   const [ownerFilter, setOwnerFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false);
-  const [showClosed, setShowClosed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
@@ -83,11 +82,9 @@ const AdminFollowUpsPage: React.FC = () => {
       if (ownerFilter === '__unassigned__' && c.ownerId) return false;
       if (ownerFilter && ownerFilter !== '__unassigned__' && c.ownerId !== ownerFilter) return false;
       if (showArchived) return !!c.archivedAt;
-      if (!showArchived && c.archivedAt) return false;
-      if (!showClosed && c.nextAction === 'CLOSE') return false;
-      return true;
+      return !c.archivedAt;
     });
-  }, [contacts, cohortFilter, ownerFilter, showArchived, showClosed]);
+  }, [contacts, cohortFilter, ownerFilter, showArchived]);
 
   const ownerOptionCounts = useMemo(() => {
     const scoped = cohortFilter ? contacts.filter((c) => c.cohortId === cohortFilter && !c.archivedAt) : contacts.filter((c) => !c.archivedAt);
@@ -224,15 +221,6 @@ const AdminFollowUpsPage: React.FC = () => {
                   compact
                 />
               </div>
-            )}
-            {tab === 'contacts' && (
-              <button
-                type="button"
-                onClick={() => setShowClosed((v) => !v)}
-                className={`rounded-2xl px-3 py-2 text-xs font-semibold ${showClosed ? 'bg-slate-700 text-white' : 'bg-white text-gray-600 hover:bg-orange-50'}`}
-              >
-                {showClosed ? 'Showing closed' : 'Show closed'}
-              </button>
             )}
             {tab === 'contacts' && (
               <button

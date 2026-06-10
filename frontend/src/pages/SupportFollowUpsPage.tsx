@@ -25,7 +25,6 @@ const SupportFollowUpsPage: React.FC = () => {
   const [registrationLink, setRegistrationLink] = useState('');
   const [copied, setCopied] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
-  const [showClosed, setShowClosed] = useState(false);
   const [showLinkTip, setShowLinkTip] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -58,13 +57,8 @@ const SupportFollowUpsPage: React.FC = () => {
   }, [loadAll]);
 
   const visibleContacts = useMemo(
-    () => contacts.filter((c) => {
-      if (showArchived) return !!c.archivedAt;
-      if (c.archivedAt) return false;
-      if (!showClosed && c.nextAction === 'CLOSE') return false;
-      return true;
-    }),
-    [contacts, showArchived, showClosed]
+    () => contacts.filter((c) => (showArchived ? !!c.archivedAt : !c.archivedAt)),
+    [contacts, showArchived]
   );
 
   const visibleIssues = useMemo(() => {
@@ -120,22 +114,13 @@ const SupportFollowUpsPage: React.FC = () => {
         title="My Follow-ups"
         subtitle="People assigned to you — update statuses right after each message or call."
         action={(
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setShowClosed((v) => !v)}
-              className={`inline-flex h-11 items-center justify-center rounded-2xl px-4 text-sm font-semibold ${showClosed ? 'bg-slate-700 text-white' : 'border border-orange-200 bg-white text-gray-600 hover:bg-orange-50'}`}
-            >
-              {showClosed ? 'Showing closed' : 'Show closed'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowArchived((v) => !v)}
+          <button
+            type="button"
+            onClick={() => setShowArchived((v) => !v)}
               className={`inline-flex h-11 items-center justify-center rounded-2xl px-4 text-sm font-semibold ${showArchived ? 'bg-slate-700 text-white' : 'border border-orange-200 bg-white text-gray-600 hover:bg-orange-50'}`}
             >
               {showArchived ? 'Showing archived' : 'Show archived'}
-            </button>
-          </div>
+          </button>
         )}
       />
 
