@@ -1,3 +1,4 @@
 | Date | Summary | Branch | Files Changed |
 | --- | --- | --- | --- |
 | 2026-06-06 | V1 admin/support UX alignment, cohorts, support completions, activity overview, personalized support UX, PWA live update checks, and broader realtime refresh wiring. | `main` | `frontend/src/components/*`, `frontend/src/context/AppDataContext.tsx`, `frontend/src/pages/*`, `frontend/src/services/*`, `supabase/migrations/*`, `supabase/functions/send-announcement/index.ts`, `AGENTS.md` |
+| 2026-06-10 | Issues panel overhaul: multi-select contacts with chips, delete/reopen, show closed toggle. Cascading status rules, silent admin refresh, removed message column. | `main` | `frontend/src/pages/AdminFollowUpsPage.tsx`, `frontend/src/pages/SupportFollowUpsPage.tsx`, `frontend/src/components/followups/FollowUpIssuesPanel.tsx`, `frontend/src/components/followups/FollowUpContactsTable.tsx`, `frontend/src/utils/followUps.ts`, `frontend/src/context/AppDataContext.tsx` |

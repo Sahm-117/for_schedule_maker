@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import AppSelect from '../components/AppSelect';
 import FollowUpContactsTable from '../components/followups/FollowUpContactsTable';
 import FollowUpContactModal from '../components/followups/FollowUpContactModal';
 import FollowUpIssuesPanel from '../components/followups/FollowUpIssuesPanel';
@@ -12,6 +13,13 @@ import {
   settingsApi,
 } from '../services/api';
 import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue } from '../types';
+import {
+  REPLY_STATUS_META,
+  CALL_STATUS_META,
+  REGISTRATION_STATUS_META,
+  NEXT_ACTION_META,
+  statusOptions,
+} from '../utils/followUps';
 
 type Tab = 'contacts' | 'issues';
 
@@ -28,6 +36,10 @@ const SupportFollowUpsPage: React.FC = () => {
   const [showLinkTip, setShowLinkTip] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [filterReply, setFilterReply] = useState('');
+  const [filterCall, setFilterCall] = useState('');
+  const [filterReg, setFilterReg] = useState('');
+  const [filterNext, setFilterNext] = useState('');
 
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
   const [messagingContact, setMessagingContact] = useState<FollowUpContact | null>(null);
@@ -57,8 +69,16 @@ const SupportFollowUpsPage: React.FC = () => {
   }, [loadAll]);
 
   const visibleContacts = useMemo(
-    () => contacts.filter((c) => (showArchived ? !!c.archivedAt : !c.archivedAt)),
-    [contacts, showArchived]
+    () => contacts.filter((c) => {
+      if (showArchived) return !!c.archivedAt;
+      if (c.archivedAt) return false;
+      if (filterReply && c.replyStatus !== filterReply) return false;
+      if (filterCall && c.callStatus !== filterCall) return false;
+      if (filterReg && c.registrationStatus !== filterReg) return false;
+      if (filterNext && c.nextAction !== filterNext) return false;
+      return true;
+    }),
+    [contacts, showArchived, filterReply, filterCall, filterReg, filterNext]
   );
 
   const visibleIssues = useMemo(() => {
@@ -181,6 +201,23 @@ const SupportFollowUpsPage: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {tab === 'contacts' && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="w-36">
+            <AppSelect value={filterReply} onChange={setFilterReply} options={[{ value: '', label: 'Reply: all' }, ...statusOptions(REPLY_STATUS_META)]} placeholder="Reply: all" compact />
+          </div>
+          <div className="w-36">
+            <AppSelect value={filterCall} onChange={setFilterCall} options={[{ value: '', label: 'Call: all' }, ...statusOptions(CALL_STATUS_META)]} placeholder="Call: all" compact />
+          </div>
+          <div className="w-44">
+            <AppSelect value={filterReg} onChange={setFilterReg} options={[{ value: '', label: 'Registration: all' }, ...statusOptions(REGISTRATION_STATUS_META)]} placeholder="Registration: all" compact />
+          </div>
+          <div className="w-36">
+            <AppSelect value={filterNext} onChange={setFilterNext} options={[{ value: '', label: 'Next: all' }, ...statusOptions(NEXT_ACTION_META)]} placeholder="Next: all" compact />
+          </div>
+        </div>
+      )}
 
       {loadError && <p className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>}
 

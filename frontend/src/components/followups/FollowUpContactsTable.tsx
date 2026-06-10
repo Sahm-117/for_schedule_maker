@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import type { FollowUpContact, User } from '../../types';
 import AppSelect from '../AppSelect';
 import AppOverflowMenu from '../AppOverflowMenu';
-import FollowUpStatusPill from './FollowUpStatusPill';
 import {
   REPLY_STATUS_META,
   CALL_STATUS_META,
@@ -30,9 +29,6 @@ const dateLabel = (value?: string | null) => {
   const d = new Date(`${value}T12:00:00`);
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(d);
 };
-
-const compactMeta = (primary: string, secondary?: string | null) =>
-  secondary ? `${primary} • ${secondary}` : primary;
 
 const WhatsAppIcon = (
   <svg viewBox="0 0 24 24" fill="currentColor" className="h-full w-full">
@@ -93,12 +89,6 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   };
 
   const ownerOptions = [{ value: '', label: 'Unassigned' }, ...owners.map((o) => ({ value: o.id, label: o.name }))];
-
-  const PhoneIcon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-full w-full">
-      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-    </svg>
-  );
 
   const statusCell = (contact: FollowUpContact, field: string, meta: Record<string, { label: string; tone: string }>, value: string) => (
     <AppSelect
@@ -284,104 +274,79 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
       </div>
 
       {/* Mobile cards */}
-      <div className="space-y-2.5 lg:hidden">
+      <div className="space-y-2 lg:hidden">
         {contacts.map((contact) => (
-          <div key={contact.id} className="surface-card relative overflow-visible rounded-[28px] p-3.5">
-            <div className="flex items-start justify-between gap-3">
+          <div key={contact.id} className="surface-card overflow-hidden rounded-[24px]">
+            {/* Header */}
+            <div className="flex items-start justify-between px-4 pt-3.5">
               <div className="min-w-0 flex-1">
-                <div className="flex items-start gap-2">
+                <div className="flex items-center gap-1">
                   {canAssign && (
-                    <input type="checkbox" checked={selected.has(contact.id)} onChange={() => toggle(contact.id)} className="mt-1 h-4 w-4 rounded border-orange-200 text-primary" />
+                    <input type="checkbox" checked={selected.has(contact.id)} onChange={() => toggle(contact.id)} className="mr-1 h-4 w-4 shrink-0 rounded border-orange-200 text-primary" />
                   )}
-                  <div className="min-w-0">
-                    <p className="truncate text-[17px] font-semibold leading-5 text-gray-900">
-                      {contact.fullName}
-                      <button
-                        type="button"
-                        onClick={() => setViewingInfo(viewingInfo === contact.id ? null : contact.id)}
-                        className="ml-2 inline-flex h-5 w-5 -translate-y-px items-center justify-center rounded-full bg-gray-200 text-[11px] font-bold text-gray-600 transition hover:bg-gray-300"
-                      >
-                        i
-                      </button>
-                      {contact.notes && (
-                        <button
-                          type="button"
-                          onClick={() => { setNotesValue(contact.notes || ''); setEditingNotes(contact); }}
-                          className="ml-2.5 inline-flex h-5 w-5 -translate-y-px items-center justify-center rounded-full bg-amber-200 text-[11px] font-bold text-amber-800 transition hover:bg-amber-300"
-                        >
-                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                        </button>
-                      )}
-                    </p>
-                    {viewingInfo === contact.id && (
-                      <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
-                        <p>{contact.phone || 'No phone'}</p>
-                        {contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
-                      </div>
-                    )}
-                    <div className="mt-0.5 flex items-center gap-1">
-                      {canAssign && (
-                        <span className="text-xs text-gray-500">Owner: {contact.ownerName || 'Unassigned'}</span>
-                      )}
-
-                    </div>
+                  <span className="truncate text-[16px] font-bold leading-5 text-gray-900">{contact.fullName}</span>
+                  <button
+                    type="button"
+                    onClick={() => setViewingInfo(viewingInfo === contact.id ? null : contact.id)}
+                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[11px] font-bold text-gray-600 transition hover:bg-gray-300"
+                  >
+                    i
+                  </button>
+                  {contact.notes && (
+                    <button
+                      type="button"
+                      onClick={() => { setNotesValue(contact.notes || ''); setEditingNotes(contact); }}
+                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-200 text-[11px] font-bold text-amber-800 transition hover:bg-amber-300"
+                    >
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </button>
+                  )}
+                </div>
+                {viewingInfo === contact.id && (
+                  <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
+                    <p>{contact.phone || 'No phone'}</p>
+                    {contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
                   </div>
-                </div>
+                )}
+                {canAssign && contact.ownerName && (
+                  <p className="mt-0.5 text-xs text-gray-500">{contact.ownerName}</p>
+                )}
               </div>
-              <div className="shrink-0 text-right">
-                <span className={`block text-xs font-semibold ${isOverdue(contact) ? 'text-rose-600' : 'text-gray-500'}`}>
-                  {contact.dueDate ? `Due ${dateLabel(contact.dueDate)}` : 'No due date'}
+              <div className="flex shrink-0 items-center gap-1.5">
+                <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${isOverdue(contact) ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {contact.dueDate ? dateLabel(contact.dueDate) : 'No date'}
                 </span>
+                {actions(contact)}
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              <FollowUpStatusPill label={REPLY_STATUS_META[contact.replyStatus].label} tone={REPLY_STATUS_META[contact.replyStatus].tone} />
-              <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
-                <span className="h-2.5 w-2.5">{PhoneIcon}</span>
-                {CALL_STATUS_META[contact.callStatus].label}
-              </span>
-              <FollowUpStatusPill label={REGISTRATION_STATUS_META[contact.registrationStatus].label} tone={REGISTRATION_STATUS_META[contact.registrationStatus].tone} />
+
+            {/* Status dropdowns row */}
+            <div className="mt-2.5 grid grid-cols-2 gap-x-1.5 gap-y-2 px-4">
+              <div>{statusCell(contact, 'replyStatus', REPLY_STATUS_META, contact.replyStatus)}</div>
+              <div>{statusCell(contact, 'callStatus', CALL_STATUS_META, contact.callStatus)}</div>
+              <div>{statusCell(contact, 'registrationStatus', REGISTRATION_STATUS_META, contact.registrationStatus)}</div>
+              <div>{statusCell(contact, 'nextAction', NEXT_ACTION_META, contact.nextAction)}</div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-3">
-              {canAssign && (
-                <div className="col-span-2">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">Owner</p>
-                  <AppSelect
-                    value={contact.ownerId || ''}
-                    onChange={(v) => onFieldChange(contact, { ownerId: v || null, previousOwnerId: contact.ownerId || null })}
-                    options={ownerOptions}
-                    placeholder="Owner"
-                    compact
-                  />
-                </div>
-              )}
-              <div>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">Reply</p>
-                {statusCell(contact, 'replyStatus', REPLY_STATUS_META, contact.replyStatus)}
+
+            {/* Action */}
+            <div className="mt-2.5 border-t border-orange-50 px-4 py-2.5">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => onMessage(contact)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 active:scale-95"
+                >
+                  <span className="h-3.5 w-3.5">{WhatsAppIcon}</span>
+                  Message
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLogContact(contact)}
+                  className="rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-orange-50 active:scale-95"
+                >
+                  Log issue
+                </button>
               </div>
-              <div>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">Call</p>
-                {statusCell(contact, 'callStatus', CALL_STATUS_META, contact.callStatus)}
-              </div>
-              <div>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">Registration</p>
-                {statusCell(contact, 'registrationStatus', REGISTRATION_STATUS_META, contact.registrationStatus)}
-              </div>
-              <div>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">Next</p>
-                {statusCell(contact, 'nextAction', NEXT_ACTION_META, contact.nextAction)}
-              </div>
-            </div>
-            <div className="mt-3 flex items-center justify-between border-t border-orange-50 pt-3">
-              <button
-                type="button"
-                onClick={() => onMessage(contact)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
-              >
-                <span className="h-3.5 w-3.5">{WhatsAppIcon}</span>
-                Send message
-              </button>
-              {actions(contact)}
             </div>
           </div>
         ))}
