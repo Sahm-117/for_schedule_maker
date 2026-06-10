@@ -242,9 +242,6 @@ const CohortsPage: React.FC = () => {
         endDate: detailsForm.endDate || null,
       });
       await reloadCohorts();
-      if (activeCohort?.id === selectedCohortId) {
-        await setActiveCohort(selectedCohortId);
-      }
       setDetailsOpen(false);
       setStatus('Cohort details updated.');
     } catch (error) {
