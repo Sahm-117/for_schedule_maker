@@ -333,7 +333,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               <div className="flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={() => onMessage(contact)}
+                  onPointerDown={() => onMessage(contact)}
                   className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 active:scale-95"
                 >
                   <span className="h-3.5 w-3.5">{WhatsAppIcon}</span>
@@ -341,10 +341,11 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onLogContact(contact)}
-                  className="rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-orange-50 active:scale-95"
+                  onPointerDown={() => setAdjustingCount(contact)}
+                  className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-orange-50 active:scale-95"
                 >
-                  Log issue
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                  {contact.followUpCount}
                 </button>
               </div>
             </div>

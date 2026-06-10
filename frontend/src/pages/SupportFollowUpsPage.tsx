@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
-import AppSelect from '../components/AppSelect';
 import FollowUpContactsTable from '../components/followups/FollowUpContactsTable';
 import FollowUpContactModal from '../components/followups/FollowUpContactModal';
 import FollowUpIssuesPanel from '../components/followups/FollowUpIssuesPanel';
@@ -18,10 +18,61 @@ import {
   CALL_STATUS_META,
   REGISTRATION_STATUS_META,
   NEXT_ACTION_META,
-  statusOptions,
 } from '../utils/followUps';
 
 type Tab = 'contacts' | 'issues';
+
+function activeFilterCount(reply: string, call: string, reg: string, next: string, archived: boolean): number {
+  let n = 0;
+  if (reply) n++;
+  if (call) n++;
+  if (reg) n++;
+  if (next) n++;
+  if (archived) n++;
+  return n;
+}
+
+const pillBtn = (active: boolean) =>
+  `rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95 ${
+    active ? 'bg-primary text-white shadow-sm' : 'border border-orange-100 bg-white text-gray-600 hover:bg-orange-50'
+  }`;
+
+const FilterIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-full w-full">
+    <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+  </svg>
+);
+
+interface FilterState {
+  reply: string;
+  call: string;
+  reg: string;
+  next: string;
+  archived: boolean;
+}
+
+const statusGroups: Array<{ key: keyof FilterState; label: string; options: Array<{ value: string; label: string }> }> = [
+  {
+    key: 'reply',
+    label: 'Reply',
+    options: Object.entries(REPLY_STATUS_META).map(([value, meta]) => ({ value, label: meta.label })),
+  },
+  {
+    key: 'call',
+    label: 'Call',
+    options: Object.entries(CALL_STATUS_META).map(([value, meta]) => ({ value, label: meta.label })),
+  },
+  {
+    key: 'reg',
+    label: 'Registration',
+    options: Object.entries(REGISTRATION_STATUS_META).map(([value, meta]) => ({ value, label: meta.label })),
+  },
+  {
+    key: 'next',
+    label: 'Next action',
+    options: Object.entries(NEXT_ACTION_META).map(([value, meta]) => ({ value, label: meta.label })),
+  },
+];
 
 const SupportFollowUpsPage: React.FC = () => {
   const { user } = useAuth();
@@ -32,14 +83,13 @@ const SupportFollowUpsPage: React.FC = () => {
   const [issues, setIssues] = useState<FollowUpIssue[]>([]);
   const [registrationLink, setRegistrationLink] = useState('');
   const [copied, setCopied] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
   const [showLinkTip, setShowLinkTip] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const [filterReply, setFilterReply] = useState('');
-  const [filterCall, setFilterCall] = useState('');
-  const [filterReg, setFilterReg] = useState('');
-  const [filterNext, setFilterNext] = useState('');
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+
+  const [filters, setFilters] = useState<FilterState>({ reply: '', call: '', reg: '', next: '', archived: false });
+  const [draft, setDraft] = useState<FilterState>({ reply: '', call: '', reg: '', next: '', archived: false });
 
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
   const [messagingContact, setMessagingContact] = useState<FollowUpContact | null>(null);
@@ -70,21 +120,23 @@ const SupportFollowUpsPage: React.FC = () => {
 
   const visibleContacts = useMemo(
     () => contacts.filter((c) => {
-      if (showArchived) return !!c.archivedAt;
+      if (filters.archived) return !!c.archivedAt;
       if (c.archivedAt) return false;
-      if (filterReply && c.replyStatus !== filterReply) return false;
-      if (filterCall && c.callStatus !== filterCall) return false;
-      if (filterReg && c.registrationStatus !== filterReg) return false;
-      if (filterNext && c.nextAction !== filterNext) return false;
+      if (filters.reply && c.replyStatus !== filters.reply) return false;
+      if (filters.call && c.callStatus !== filters.call) return false;
+      if (filters.reg && c.registrationStatus !== filters.reg) return false;
+      if (filters.next && c.nextAction !== filters.next) return false;
       return true;
     }),
-    [contacts, showArchived, filterReply, filterCall, filterReg, filterNext]
+    [contacts, filters]
   );
 
   const visibleIssues = useMemo(() => {
     const contactIds = new Set(contacts.map((contact) => contact.id));
     return issues.filter((issue) => issue.reportedById === user?.id || (issue.contactId ? contactIds.has(issue.contactId) : false));
   }, [contacts, issues, user?.id]);
+
+  const filterCount = activeFilterCount(filters.reply, filters.call, filters.reg, filters.next, filters.archived);
 
   if (user && user.role !== 'SUPPORT') {
     return <Navigate to="/dashboard" replace />;
@@ -128,19 +180,44 @@ const SupportFollowUpsPage: React.FC = () => {
     }
   };
 
+  const openFilterPanel = () => {
+    setDraft({ ...filters });
+    setShowFilterPanel(true);
+  };
+
+  const applyFilters = () => {
+    setFilters({ ...draft });
+    setShowFilterPanel(false);
+  };
+
+  const clearFilters = () => {
+    setDraft({ reply: '', call: '', reg: '', next: '', archived: false });
+  };
+
+  const togglePill = (group: keyof FilterState, value: string) => {
+    setDraft((prev) => ({ ...prev, [group]: prev[group] === value ? '' : value }));
+  };
+
   return (
     <div>
       <PageHeader
         title="My Follow-ups"
         subtitle="People assigned to you — update statuses right after each message or call."
         action={(
-          <button
-            type="button"
-            onClick={() => setShowArchived((v) => !v)}
-              className={`inline-flex h-11 items-center justify-center rounded-2xl px-4 text-sm font-semibold ${showArchived ? 'bg-slate-700 text-white' : 'border border-orange-200 bg-white text-gray-600 hover:bg-orange-50'}`}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onPointerDown={openFilterPanel}
+              className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-orange-200 bg-white text-gray-600 hover:bg-orange-50"
             >
-              {showArchived ? 'Showing archived' : 'Show archived'}
-          </button>
+              <span className="h-5 w-5">{FilterIcon}</span>
+              {filterCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold leading-none text-white shadow-sm">
+                  {filterCount}
+                </span>
+              )}
+            </button>
+          </div>
         )}
       />
 
@@ -202,23 +279,6 @@ const SupportFollowUpsPage: React.FC = () => {
         ))}
       </div>
 
-      {tab === 'contacts' && (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <div className="w-36">
-            <AppSelect value={filterReply} onChange={setFilterReply} options={[{ value: '', label: 'Reply: all' }, ...statusOptions(REPLY_STATUS_META)]} placeholder="Reply: all" compact />
-          </div>
-          <div className="w-36">
-            <AppSelect value={filterCall} onChange={setFilterCall} options={[{ value: '', label: 'Call: all' }, ...statusOptions(CALL_STATUS_META)]} placeholder="Call: all" compact />
-          </div>
-          <div className="w-44">
-            <AppSelect value={filterReg} onChange={setFilterReg} options={[{ value: '', label: 'Registration: all' }, ...statusOptions(REGISTRATION_STATUS_META)]} placeholder="Registration: all" compact />
-          </div>
-          <div className="w-36">
-            <AppSelect value={filterNext} onChange={setFilterNext} options={[{ value: '', label: 'Next: all' }, ...statusOptions(NEXT_ACTION_META)]} placeholder="Next: all" compact />
-          </div>
-        </div>
-      )}
-
       {loadError && <p className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>}
 
       {loading ? (
@@ -259,6 +319,73 @@ const SupportFollowUpsPage: React.FC = () => {
         cohorts={cohorts}
         canEditOwner={false}
       />
+
+      {showFilterPanel && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center" onPointerDown={() => setShowFilterPanel(false)}>
+          <div className="absolute inset-0 bg-slate-900/35" />
+          <div
+            className="relative mb-0 w-full max-w-md rounded-t-[28px] bg-white p-6 pb-8 shadow-[0_-8px_40px_rgba(15,23,42,0.15)] sm:mb-0 sm:rounded-[28px]"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-gray-200 sm:hidden" />
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Filters</h3>
+              <button type="button" onPointerDown={() => setShowFilterPanel(false)} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-5">
+              {statusGroups.map((group) => (
+                <div key={group.key}>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{group.label}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.options.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onPointerDown={() => togglePill(group.key as keyof FilterState, opt.value)}
+                        className={pillBtn(draft[group.key as keyof FilterState] === opt.value)}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <div className="flex items-center justify-between rounded-2xl bg-orange-50/60 px-4 py-3">
+                <span className="text-sm font-semibold text-gray-700">Show archived contacts</span>
+                <button
+                  type="button"
+                  onPointerDown={() => setDraft((prev) => ({ ...prev, archived: !prev.archived }))}
+                  className={`relative h-6 w-11 rounded-full transition ${draft.archived ? 'bg-primary' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${draft.archived ? 'translate-x-5' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onPointerDown={clearFilters}
+                className="flex-1 rounded-2xl border border-orange-200 bg-white py-3 text-sm font-semibold text-gray-600 transition hover:bg-orange-50 active:scale-[0.98]"
+              >
+                Clear filters
+              </button>
+              <button
+                type="button"
+                onPointerDown={applyFilters}
+                className="flex-1 rounded-2xl bg-primary py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark active:scale-[0.98]"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
