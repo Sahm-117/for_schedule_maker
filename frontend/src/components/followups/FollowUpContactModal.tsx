@@ -140,7 +140,11 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
         </div>
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Source</label>
-          <input className={inputClass} value={source} onChange={(e) => setSource(e.target.value)} placeholder="e.g. Selfie Sunday / First Timers Hangout" />
+          {canEditOwner ? (
+            <input className={inputClass} value={source} onChange={(e) => setSource(e.target.value)} placeholder="e.g. Selfie Sunday / First Timers Hangout" />
+          ) : (
+            <p className="w-full rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-sm text-gray-600">{source || '—'}</p>
+          )}
         </div>
         {canEditOwner && (
           <AppSelect
@@ -151,13 +155,22 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
             placeholder="Unassigned"
           />
         )}
-        <AppSelect
-          label="Target cohort"
-          value={cohortId}
-          onChange={setCohortId}
-          options={[{ value: '', label: 'No cohort' }, ...cohorts.map((c) => ({ value: c.id, label: c.name }))]}
-          placeholder="No cohort"
-        />
+        {canEditOwner ? (
+          <AppSelect
+            label="Target cohort"
+            value={cohortId}
+            onChange={setCohortId}
+            options={[{ value: '', label: 'No cohort' }, ...cohorts.map((c) => ({ value: c.id, label: c.name }))]}
+            placeholder="No cohort"
+          />
+        ) : (
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Target cohort</label>
+            <p className="w-full rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-sm text-gray-600">
+              {cohorts.find((c) => c.id === cohortId)?.name || cohortId || 'No cohort'}
+            </p>
+          </div>
+        )}
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Due date</label>
           <input type="date" className={inputClass} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />

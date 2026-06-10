@@ -62,6 +62,8 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const [dueDateValue, setDueDateValue] = useState('');
   const [editingNotes, setEditingNotes] = useState<FollowUpContact | null>(null);
   const [notesValue, setNotesValue] = useState('');
+  const [editingLastContact, setEditingLastContact] = useState<FollowUpContact | null>(null);
+  const [lastContactValue, setLastContactValue] = useState('');
   const [viewingInfo, setViewingInfo] = useState<string | null>(null);
   const stepperRef = useRef<HTMLDivElement | null>(null);
   const dueDateInputRef = useRef<HTMLInputElement | null>(null);
@@ -112,6 +114,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         { label: 'Edit contact', onClick: () => onEdit(contact) },
         { label: `Number of follow ups (${contact.followUpCount})`, onClick: () => setAdjustingCount(contact) },
         { label: `Due date: ${contact.dueDate ? dateLabel(contact.dueDate) : 'none'}`, onClick: () => { setDueDateValue(contact.dueDate || ''); setEditingDueDate(contact); } },
+        { label: `Last contact: ${contact.lastContactDate ? dateLabel(contact.lastContactDate) : 'none'}`, onClick: () => { setLastContactValue(contact.lastContactDate || ''); setEditingLastContact(contact); } },
         { label: contact.notes ? `View note` : `Add note`, onClick: () => { setNotesValue(contact.notes || ''); setEditingNotes(contact); } },
         ...(canAssign && onDelete ? [{ label: 'Delete contact', onClick: () => onDelete(contact), tone: 'danger' as const }] : []),
       ]}
@@ -137,6 +140,12 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     if (!editingNotes) return;
     onFieldChange(editingNotes, { notes: notesValue.trim() || null });
     setEditingNotes(null);
+  };
+
+  const handleLastContactSave = () => {
+    if (!editingLastContact) return;
+    onFieldChange(editingLastContact, { lastContactDate: lastContactValue || null });
+    setEditingLastContact(null);
   };
 
   if (contacts.length === 0) {
@@ -428,6 +437,27 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setEditingDueDate(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
               <button type="button" onClick={handleDueDateSave} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark">Save</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {editingLastContact && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center" onClick={() => setEditingLastContact(null)}>
+          <div className="absolute inset-0 bg-slate-900/35" />
+          <div className="relative mb-20 w-[90vw] max-w-[320px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0" onClick={(e) => e.stopPropagation()}>
+            <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Last contact date</p>
+            <p className="mb-4 truncate text-center text-sm font-semibold text-gray-900">{editingLastContact.fullName}</p>
+            <input
+              type="date"
+              value={lastContactValue}
+              onChange={(e) => setLastContactValue(e.target.value)}
+              className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-orange-300"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setEditingLastContact(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
+              <button type="button" onClick={handleLastContactSave} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark">Save</button>
             </div>
           </div>
         </div>,
