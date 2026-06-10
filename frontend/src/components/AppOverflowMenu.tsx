@@ -19,14 +19,14 @@ const AppOverflowMenu: React.FC<AppOverflowMenuProps> = ({ items, align = 'right
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
+    const handlePointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, []);
 
   useEffect(() => {
@@ -36,10 +36,20 @@ const AppOverflowMenu: React.FC<AppOverflowMenuProps> = ({ items, align = 'right
       const rect = triggerRef.current?.getBoundingClientRect();
       if (!rect) return;
       const width = 176;
-      const left = align === 'right' ? Math.max(12, rect.right - width) : rect.left;
+      const menuHeight = items.length * 48 + 16;
+      let top = rect.bottom + 8;
+      let left = align === 'right' ? Math.max(12, rect.right - width) : rect.left;
+
+      if (top + menuHeight > window.innerHeight) {
+        top = Math.max(12, rect.top - menuHeight - 8);
+      }
+      if (left + width > window.innerWidth) {
+        left = Math.max(12, window.innerWidth - width - 12);
+      }
+
       setMenuStyle({
         position: 'fixed',
-        top: rect.bottom + 8,
+        top,
         left,
         width,
         zIndex: 110,
@@ -53,7 +63,7 @@ const AppOverflowMenu: React.FC<AppOverflowMenuProps> = ({ items, align = 'right
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
-  }, [align, open]);
+  }, [align, open, items.length]);
 
   return (
     <div ref={rootRef} className="relative">
@@ -76,7 +86,7 @@ const AppOverflowMenu: React.FC<AppOverflowMenuProps> = ({ items, align = 'right
             <button
               key={item.label}
               type="button"
-              onClick={() => {
+              onPointerDown={() => {
                 setOpen(false);
                 item.onClick();
               }}

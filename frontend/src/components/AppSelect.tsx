@@ -36,14 +36,14 @@ const AppSelect: React.FC<AppSelectProps> = ({
   );
 
   useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
+    const handlePointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, []);
 
   useEffect(() => {
@@ -52,11 +52,24 @@ const AppSelect: React.FC<AppSelectProps> = ({
     const updatePosition = () => {
       const rect = rootRef.current?.getBoundingClientRect();
       if (!rect) return;
+      const width = rect.width;
+      const itemHeight = 48;
+      const menuHeight = Math.min(options.length, 6) * itemHeight + 24;
+      let top = rect.bottom + 6;
+      let left = rect.left;
+
+      if (top + menuHeight > window.innerHeight) {
+        top = Math.max(12, rect.top - menuHeight - 6);
+      }
+      if (left + width > window.innerWidth) {
+        left = Math.max(12, window.innerWidth - width - 12);
+      }
+
       setMenuStyle({
         position: 'fixed',
-        top: rect.bottom + 6,
-        left: rect.left,
-        width: rect.width,
+        top,
+        left,
+        width,
         zIndex: 100,
       });
     };
@@ -69,7 +82,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
-  }, [open]);
+  }, [open, options.length]);
 
   return (
     <div ref={rootRef} className={`relative ${open ? 'z-[90]' : 'z-10'} ${className}`}>
@@ -109,7 +122,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
                 <button
                   key={option.value}
                   type="button"
-                  onClick={() => {
+                  onPointerDown={() => {
                     onChange(option.value);
                     setOpen(false);
                   }}

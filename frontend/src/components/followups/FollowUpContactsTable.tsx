@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { FollowUpContact, User } from '../../types';
 import AppSelect from '../AppSelect';
 import AppOverflowMenu from '../AppOverflowMenu';
@@ -49,6 +50,8 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const [bulkOwnerId, setBulkOwnerId] = useState('');
   const [bulkDueDate, setBulkDueDate] = useState('');
   const [assigning, setAssigning] = useState(false);
+  const [adjustingCount, setAdjustingCount] = useState<FollowUpContact | null>(null);
+  const stepperRef = useRef<HTMLDivElement | null>(null);
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -94,10 +97,18 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         { label: 'Send message', onClick: () => onMessage(contact) },
         { label: 'Log contact', onClick: () => onLogContact(contact) },
         { label: 'Edit contact', onClick: () => onEdit(contact) },
+        { label: `Adjust count (${contact.followUpCount})`, onClick: () => setAdjustingCount(contact) },
         ...(canAssign && onDelete ? [{ label: 'Delete contact', onClick: () => onDelete(contact), tone: 'danger' as const }] : []),
       ]}
     />
   );
+
+  const handleStepperChange = (delta: number) => {
+    if (!adjustingCount) return;
+    const newCount = Math.max(0, adjustingCount.followUpCount + delta);
+    onFieldChange(adjustingCount, { followUpCount: newCount });
+    setAdjustingCount(null);
+  };
 
   if (contacts.length === 0) {
     return <p className="rounded-3xl bg-orange-50/60 px-4 py-12 text-center text-sm text-gray-500">No contacts here yet.</p>;
@@ -150,8 +161,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               <th className="px-4 py-3">Registration</th>
               <th className="px-4 py-3">Next action</th>
               <th className="px-4 py-3">Due</th>
-              <th className="px-4 py-3">Follow-ups</th>
-              <th className="w-16 px-4 py-3 text-right">Actions</th>
+              <th className="w-24 px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -206,11 +216,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                   </span>
                 </td>
                 <td className="px-4 py-3.5">
-                  <p className="text-xs text-gray-600">{contact.followUpCount}×</p>
-                  {contact.lastContactDate && <p className="mt-0.5 text-[11px] text-gray-400">{dateLabel(contact.lastContactDate)}</p>}
-                </td>
-                <td className="px-4 py-3.5">
-                  <div className="flex justify-end">
+                  <div className="flex justify-end gap-1.5">
                     {actions(contact)}
                   </div>
                 </td>
@@ -242,9 +248,6 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               <div className="shrink-0 text-right">
                 <span className={`block text-xs font-semibold ${isOverdue(contact) ? 'text-rose-600' : 'text-gray-500'}`}>
                   {contact.dueDate ? `Due ${dateLabel(contact.dueDate)}` : 'No due date'}
-                </span>
-                <span className="mt-1 block text-[11px] text-gray-400">
-                  {contact.followUpCount}× {contact.lastContactDate ? `• ${dateLabel(contact.lastContactDate)}` : ''}
                 </span>
               </div>
             </div>
@@ -286,6 +289,33 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
           </div>
         ))}
       </div>
+
+      {adjustingCount && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center">
+          <button type="button" className="absolute inset-0 bg-slate-900/35" onClick={() => setAdjustingCount(null)} aria-label="Close" />
+          <div ref={stepperRef} className="relative mb-20 flex items-center gap-4 rounded-[28px] bg-white px-6 py-4 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0">
+            <button
+              type="button"
+              disabled={adjustingCount.followUpCount <= 0}
+              onClick={() => handleStepperChange(-1)}
+              className="grid h-11 w-11 place-items-center rounded-full bg-orange-100 text-xl font-bold text-primary transition hover:bg-orange-200 disabled:opacity-30"
+            >
+              −
+            </button>
+            <span className="min-w-[3ch] text-center text-2xl font-bold tabular-nums text-gray-900">
+              {adjustingCount.followUpCount}
+            </span>
+            <button
+              type="button"
+              onClick={() => handleStepperChange(1)}
+              className="grid h-11 w-11 place-items-center rounded-full bg-primary text-xl font-bold text-white transition hover:bg-primary-dark"
+            >
+              +
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

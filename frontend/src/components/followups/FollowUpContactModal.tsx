@@ -167,14 +167,26 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Follow-up count</label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                className={inputClass}
-                value={followUpCount}
-                onChange={(e) => setFollowUpCount(e.target.value)}
-              />
+              <div className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-white px-3 py-2">
+                <button
+                  type="button"
+                  disabled={Number(followUpCount) <= 0}
+                  onClick={() => setFollowUpCount(String(Math.max(0, Number(followUpCount) - 1)))}
+                  className="grid h-9 w-9 place-items-center rounded-full bg-orange-100 text-lg font-bold text-primary transition hover:bg-orange-200 disabled:opacity-30"
+                >
+                  −
+                </button>
+                <span className="min-w-[3ch] text-center text-lg font-bold tabular-nums text-gray-900">
+                  {followUpCount}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setFollowUpCount(String(Number(followUpCount) + 1))}
+                  className="grid h-9 w-9 place-items-center rounded-full bg-primary text-lg font-bold text-white transition hover:bg-primary-dark"
+                >
+                  +
+                </button>
+              </div>
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Last contact date</label>
