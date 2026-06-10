@@ -122,7 +122,8 @@ const AppSelect: React.FC<AppSelectProps> = ({
                 <button
                   key={option.value}
                   type="button"
-                  onPointerDown={() => {
+                  onPointerDown={(e) => {
+                    e.preventDefault();
                     onChange(option.value);
                     setOpen(false);
                   }}

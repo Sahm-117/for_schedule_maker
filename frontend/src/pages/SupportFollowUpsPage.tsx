@@ -19,6 +19,7 @@ import {
   REGISTRATION_STATUS_META,
   NEXT_ACTION_META,
 } from '../utils/followUps';
+import { buildWhatsAppLink } from '../utils/phone';
 
 type Tab = 'contacts' | 'issues';
 
@@ -92,7 +93,6 @@ const SupportFollowUpsPage: React.FC = () => {
   const [draft, setDraft] = useState<FilterState>({ reply: '', call: '', reg: '', next: '', archived: false });
 
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
-  const [messagingContact, setMessagingContact] = useState<FollowUpContact | null>(null);
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
@@ -169,6 +169,15 @@ const SupportFollowUpsPage: React.FC = () => {
     replaceContact(logged);
   };
 
+  const openWhatsApp = (contact: FollowUpContact) => {
+    const link = buildWhatsAppLink(contact.phone, `Hi ${contact.fullName.split(' ')[0]}!`);
+    if (link) {
+      window.open(link, '_blank', 'noopener');
+    } else {
+      alert('Invalid phone number for this contact.');
+    }
+  };
+
   const handleCopyLink = async () => {
     if (!registrationLink) return;
     try {
@@ -192,6 +201,8 @@ const SupportFollowUpsPage: React.FC = () => {
 
   const clearFilters = () => {
     setDraft({ reply: '', call: '', reg: '', next: '', archived: false });
+    setFilters({ reply: '', call: '', reg: '', next: '', archived: false });
+    setShowFilterPanel(false);
   };
 
   const togglePill = (group: keyof FilterState, value: string) => {
@@ -287,7 +298,7 @@ const SupportFollowUpsPage: React.FC = () => {
               owners={[]}
               canAssign={false}
               onFieldChange={(c, patch) => { void handleFieldChange(c, patch); }}
-              onMessage={setMessagingContact}
+              onMessage={openWhatsApp}
               onLogContact={(c) => { void handleLogContact(c); }}
               onEdit={setEditingContact}
             />

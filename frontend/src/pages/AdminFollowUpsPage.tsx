@@ -232,6 +232,8 @@ const AdminFollowUpsPage: React.FC = () => {
 
   const clearFilters = () => {
     setDraft({ reply: '', call: '', reg: '', next: '', archived: false });
+    setFilters({ reply: '', call: '', reg: '', next: '', archived: false });
+    setShowFilterPanel(false);
   };
 
   const togglePill = (group: keyof FilterState, value: string) => {

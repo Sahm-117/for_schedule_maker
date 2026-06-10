@@ -87,7 +87,8 @@ const AppOverflowMenu: React.FC<AppOverflowMenuProps> = ({ items, align = 'right
             <button
               key={item.label}
               type="button"
-              onPointerDown={() => {
+              onPointerDown={(e) => {
+                e.preventDefault();
                 setOpen(false);
                 item.onClick();
               }}
