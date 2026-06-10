@@ -5,6 +5,7 @@ type OverflowMenuItem = {
   label: string;
   onClick: () => void;
   tone?: 'default' | 'danger';
+  icon?: React.ReactNode;
 };
 
 interface AppOverflowMenuProps {
@@ -90,12 +91,13 @@ const AppOverflowMenu: React.FC<AppOverflowMenuProps> = ({ items, align = 'right
                 setOpen(false);
                 item.onClick();
               }}
-              className={`block w-full rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition ${
+              className={`flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition ${
                 item.tone === 'danger'
                   ? 'text-red-600 hover:bg-red-50'
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
+              {item.icon && <span className="h-4 w-4 shrink-0">{item.icon}</span>}
               {item.label}
             </button>
           ))}

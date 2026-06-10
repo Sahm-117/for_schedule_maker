@@ -35,6 +35,13 @@ const dateLabel = (value?: string | null) => {
 const compactMeta = (primary: string, secondary?: string | null) =>
   secondary ? `${primary} • ${secondary}` : primary;
 
+const WhatsAppIcon = (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="h-full w-full">
+    <path d="M12.032 21.965c-1.922 0-3.805-.537-5.414-1.556l-3.633.954.995-3.513a9.939 9.939 0 0 1-1.653-5.534c0-5.523 4.5-10.023 10.023-10.023 2.685 0 5.208 1.045 7.104 2.942a9.975 9.975 0 0 1 2.941 7.104c0 5.522-4.5 10.022-10.023 10.022l-.34-.003v-.001Zm0-18.524c-4.7 0-8.524 3.823-8.524 8.523 0 1.87.606 3.674 1.741 5.16l-1.144 4.035 4.172-1.115a8.54 8.54 0 0 0 4.755 1.443c4.7 0 8.523-3.823 8.523-8.523 0-2.278-.888-4.419-2.5-6.03a8.534 8.534 0 0 0-6.023-2.493Z" />
+    <path d="M17.507 14.307c-.269-.134-1.592-.785-1.838-.874-.247-.09-.427-.134-.607.134-.179.27-.696.875-.854 1.055-.157.18-.314.202-.583.067-.27-.134-1.137-.418-2.165-1.335-.8-.713-1.34-1.594-1.497-1.863-.157-.27-.016-.415.118-.55.12-.119.27-.313.404-.47.135-.156.18-.269.27-.448.09-.18.045-.336-.022-.47-.067-.135-.607-1.46-.832-2-.22-.525-.445-.437-.607-.445-.157-.008-.336-.01-.516-.01-.18 0-.472.067-.72.336-.247.27-.944.923-.944 2.252 0 1.33.966 2.614 1.102 2.794.135.18 1.902 2.906 4.61 4.075 2.707 1.168 2.707.78 3.195.73.494-.05 1.588-.645 1.812-1.27.224-.623.224-1.157.157-1.27-.067-.112-.247-.18-.516-.314Z" />
+  </svg>
+);
+
 const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   contacts,
   owners,
@@ -51,7 +58,12 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const [bulkDueDate, setBulkDueDate] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [adjustingCount, setAdjustingCount] = useState<FollowUpContact | null>(null);
+  const [editingDueDate, setEditingDueDate] = useState<FollowUpContact | null>(null);
+  const [dueDateValue, setDueDateValue] = useState('');
+  const [editingNotes, setEditingNotes] = useState<FollowUpContact | null>(null);
+  const [notesValue, setNotesValue] = useState('');
   const stepperRef = useRef<HTMLDivElement | null>(null);
+  const dueDateInputRef = useRef<HTMLInputElement | null>(null);
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -94,10 +106,12 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const actions = (contact: FollowUpContact) => (
     <AppOverflowMenu
       items={[
-        { label: 'Send message', onClick: () => onMessage(contact) },
+        { label: 'Send message', onClick: () => onMessage(contact), icon: WhatsAppIcon },
         { label: 'Log an issue', onClick: () => onLogContact(contact) },
         { label: 'Edit contact', onClick: () => onEdit(contact) },
         { label: `Number of follow ups (${contact.followUpCount})`, onClick: () => setAdjustingCount(contact) },
+        { label: `Due date: ${contact.dueDate ? dateLabel(contact.dueDate) : 'none'}`, onClick: () => { setDueDateValue(contact.dueDate || ''); setEditingDueDate(contact); } },
+        { label: `Add note`, onClick: () => { setNotesValue(contact.notes || ''); setEditingNotes(contact); } },
         ...(canAssign && onDelete ? [{ label: 'Delete contact', onClick: () => onDelete(contact), tone: 'danger' as const }] : []),
       ]}
     />
@@ -110,6 +124,18 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
       onFieldChange(prev, { followUpCount: newCount });
       return { ...prev, followUpCount: newCount };
     });
+  };
+
+  const handleDueDateSave = () => {
+    if (!editingDueDate) return;
+    onFieldChange(editingDueDate, { dueDate: dueDateValue || null });
+    setEditingDueDate(null);
+  };
+
+  const handleNotesSave = () => {
+    if (!editingNotes) return;
+    onFieldChange(editingNotes, { notes: notesValue.trim() || null });
+    setEditingNotes(null);
   };
 
   if (contacts.length === 0) {
@@ -188,8 +214,9 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                         </span>
                       )}
                       {contact.notes && (
-                        <span className="max-w-[180px] truncate rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700" title={contact.notes}>
-                          {contact.notes}
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700" title={contact.notes}>
+                          <svg className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          <span className="truncate max-w-[140px]">{contact.notes}</span>
                         </span>
                       )}
                     </div>
@@ -241,9 +268,16 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                   <div className="min-w-0">
                     <p className="truncate text-[17px] font-semibold leading-5 text-gray-900">{contact.fullName}</p>
                     <p className="mt-1 text-xs text-gray-500">{compactMeta(contact.phone || 'No phone', contact.source || '')}</p>
-                    {canAssign && (
-                      <p className="mt-1 text-xs text-gray-500">Owner: {contact.ownerName || 'Unassigned'}</p>
-                    )}
+                    <div className="mt-0.5 flex items-center gap-1">
+                      {canAssign && (
+                        <span className="text-xs text-gray-500">Owner: {contact.ownerName || 'Unassigned'}</span>
+                      )}
+                      {contact.notes && (
+                        <span className="inline-flex items-center text-amber-600" title={contact.notes}>
+                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -259,25 +293,36 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               <FollowUpStatusPill label={CALL_STATUS_META[contact.callStatus].label} tone={CALL_STATUS_META[contact.callStatus].tone} />
               <FollowUpStatusPill label={REGISTRATION_STATUS_META[contact.registrationStatus].label} tone={REGISTRATION_STATUS_META[contact.registrationStatus].tone} />
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-3">
               {canAssign && (
-                <AppSelect
-                  value={contact.ownerId || ''}
-                  onChange={(v) => onFieldChange(contact, { ownerId: v || null, previousOwnerId: contact.ownerId || null })}
-                  options={ownerOptions}
-                  placeholder="Owner"
-                  compact
-                  className="col-span-2"
-                />
+                <div className="col-span-2">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">Owner</p>
+                  <AppSelect
+                    value={contact.ownerId || ''}
+                    onChange={(v) => onFieldChange(contact, { ownerId: v || null, previousOwnerId: contact.ownerId || null })}
+                    options={ownerOptions}
+                    placeholder="Owner"
+                    compact
+                  />
+                </div>
               )}
-              {statusCell(contact, 'replyStatus', REPLY_STATUS_META, contact.replyStatus)}
-              {statusCell(contact, 'callStatus', CALL_STATUS_META, contact.callStatus)}
-              {statusCell(contact, 'registrationStatus', REGISTRATION_STATUS_META, contact.registrationStatus)}
-              {statusCell(contact, 'nextAction', NEXT_ACTION_META, contact.nextAction)}
+              <div>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">Reply</p>
+                {statusCell(contact, 'replyStatus', REPLY_STATUS_META, contact.replyStatus)}
+              </div>
+              <div>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">Call</p>
+                {statusCell(contact, 'callStatus', CALL_STATUS_META, contact.callStatus)}
+              </div>
+              <div>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">Registration</p>
+                {statusCell(contact, 'registrationStatus', REGISTRATION_STATUS_META, contact.registrationStatus)}
+              </div>
+              <div>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">Next</p>
+                {statusCell(contact, 'nextAction', NEXT_ACTION_META, contact.nextAction)}
+              </div>
             </div>
-            {contact.notes && (
-              <p className="mt-3 rounded-2xl bg-amber-50 px-3 py-2 text-xs text-amber-800">{contact.notes}</p>
-            )}
             <div className="mt-3 flex items-center justify-between border-t border-orange-50 pt-3">
               <button
                 type="button"
@@ -325,6 +370,49 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
             >
               Done
             </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {editingDueDate && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center" onClick={() => setEditingDueDate(null)}>
+          <div className="absolute inset-0 bg-slate-900/35" />
+          <div className="relative mb-20 w-[90vw] max-w-[320px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0" onClick={(e) => e.stopPropagation()}>
+            <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Due date</p>
+            <p className="mb-4 truncate text-center text-sm font-semibold text-gray-900">{editingDueDate.fullName}</p>
+            <input
+              ref={dueDateInputRef}
+              type="date"
+              value={dueDateValue}
+              onChange={(e) => setDueDateValue(e.target.value)}
+              className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-orange-300"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setEditingDueDate(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
+              <button type="button" onClick={handleDueDateSave} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark">Save</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {editingNotes && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center" onClick={() => setEditingNotes(null)}>
+          <div className="absolute inset-0 bg-slate-900/35" />
+          <div className="relative mb-20 w-[90vw] max-w-[320px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0" onClick={(e) => e.stopPropagation()}>
+            <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Note</p>
+            <p className="mb-4 truncate text-center text-sm font-semibold text-gray-900">{editingNotes.fullName}</p>
+            <textarea
+              value={notesValue}
+              onChange={(e) => setNotesValue(e.target.value)}
+              placeholder="Anything worth remembering"
+              className="min-h-[100px] w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-orange-300"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setEditingNotes(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
+              <button type="button" onClick={handleNotesSave} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark">Save</button>
+            </div>
           </div>
         </div>,
         document.body
