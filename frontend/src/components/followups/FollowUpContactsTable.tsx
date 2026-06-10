@@ -298,6 +298,20 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                       >
                         i
                       </button>
+                      {contact.notes && (
+                        <button
+                          type="button"
+                          onClick={() => setViewingNote(viewingNote === contact.id ? null : contact.id)}
+                          className="relative ml-1 inline-flex h-4 w-4 -translate-y-px items-center justify-center rounded-full bg-amber-200 text-[10px] font-bold text-amber-800 transition hover:bg-amber-300"
+                        >
+                          <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          {viewingNote === contact.id && (
+                            <div className="absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
+                              {contact.notes}
+                            </div>
+                          )}
+                        </button>
+                      )}
                     </p>
                     {viewingInfo === contact.id && (
                       <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
