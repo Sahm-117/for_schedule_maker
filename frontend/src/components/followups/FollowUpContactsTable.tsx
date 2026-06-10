@@ -62,6 +62,8 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const [dueDateValue, setDueDateValue] = useState('');
   const [editingNotes, setEditingNotes] = useState<FollowUpContact | null>(null);
   const [notesValue, setNotesValue] = useState('');
+  const [viewingInfo, setViewingInfo] = useState<string | null>(null);
+  const [viewingNote, setViewingNote] = useState<string | null>(null);
   const stepperRef = useRef<HTMLDivElement | null>(null);
   const dueDateInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -111,7 +113,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         { label: 'Edit contact', onClick: () => onEdit(contact) },
         { label: `Number of follow ups (${contact.followUpCount})`, onClick: () => setAdjustingCount(contact) },
         { label: `Due date: ${contact.dueDate ? dateLabel(contact.dueDate) : 'none'}`, onClick: () => { setDueDateValue(contact.dueDate || ''); setEditingDueDate(contact); } },
-        { label: `Add note`, onClick: () => { setNotesValue(contact.notes || ''); setEditingNotes(contact); } },
+        { label: contact.notes ? `View note` : `Add note`, onClick: () => { setNotesValue(contact.notes || ''); setEditingNotes(contact); } },
         ...(canAssign && onDelete ? [{ label: 'Delete contact', onClick: () => onDelete(contact), tone: 'danger' as const }] : []),
       ]}
     />
@@ -202,10 +204,22 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                 )}
                 <td className="px-4 py-3.5">
                   <div className="min-w-[240px]">
-                    <p className="font-semibold leading-5 text-gray-900">{contact.fullName}</p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      {compactMeta(contact.phone || 'No phone', contact.source || '')}
+                    <p className="font-semibold leading-5 text-gray-900">
+                      {contact.fullName}
+                      <button
+                        type="button"
+                        onClick={() => setViewingInfo(viewingInfo === contact.id ? null : contact.id)}
+                        className="ml-1.5 inline-flex h-4 w-4 -translate-y-px items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold text-gray-600 transition hover:bg-gray-300"
+                      >
+                        i
+                      </button>
                     </p>
+                    {viewingInfo === contact.id && (
+                      <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
+                        <p>{contact.phone || 'No phone'}</p>
+                        {contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
+                      </div>
+                    )}
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
                       <FollowUpStatusPill label={MESSAGE_STATUS_META[contact.messageStatus].label} tone={MESSAGE_STATUS_META[contact.messageStatus].tone} />
                       {contact.ownerName && (
@@ -214,9 +228,19 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                         </span>
                       )}
                       {contact.notes && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700" title={contact.notes}>
-                          <svg className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                          <span className="truncate max-w-[140px]">{contact.notes}</span>
+                        <span className="relative inline-flex">
+                          <button
+                            type="button"
+                            onClick={() => setViewingNote(viewingNote === contact.id ? null : contact.id)}
+                            className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100"
+                          >
+                            <svg className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          </button>
+                          {viewingNote === contact.id && (
+                            <div className="absolute left-0 top-full z-20 mt-1 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
+                              {contact.notes}
+                            </div>
+                          )}
                         </span>
                       )}
                     </div>
@@ -266,15 +290,40 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                     <input type="checkbox" checked={selected.has(contact.id)} onChange={() => toggle(contact.id)} className="mt-1 h-4 w-4 rounded border-orange-200 text-primary" />
                   )}
                   <div className="min-w-0">
-                    <p className="truncate text-[17px] font-semibold leading-5 text-gray-900">{contact.fullName}</p>
-                    <p className="mt-1 text-xs text-gray-500">{compactMeta(contact.phone || 'No phone', contact.source || '')}</p>
+                    <p className="truncate text-[17px] font-semibold leading-5 text-gray-900">
+                      {contact.fullName}
+                      <button
+                        type="button"
+                        onClick={() => setViewingInfo(viewingInfo === contact.id ? null : contact.id)}
+                        className="ml-1.5 inline-flex h-4 w-4 -translate-y-px items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold text-gray-600 transition hover:bg-gray-300"
+                      >
+                        i
+                      </button>
+                    </p>
+                    {viewingInfo === contact.id && (
+                      <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
+                        <p>{contact.phone || 'No phone'}</p>
+                        {contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
+                      </div>
+                    )}
                     <div className="mt-0.5 flex items-center gap-1">
                       {canAssign && (
                         <span className="text-xs text-gray-500">Owner: {contact.ownerName || 'Unassigned'}</span>
                       )}
                       {contact.notes && (
-                        <span className="inline-flex items-center text-amber-600" title={contact.notes}>
-                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        <span className="relative inline-flex">
+                          <button
+                            type="button"
+                            onClick={() => setViewingNote(viewingNote === contact.id ? null : contact.id)}
+                            className="inline-flex items-center text-amber-600 hover:text-amber-800"
+                          >
+                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          </button>
+                          {viewingNote === contact.id && (
+                            <div className="absolute left-0 top-full z-20 mt-1 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
+                              {contact.notes}
+                            </div>
+                          )}
                         </span>
                       )}
                     </div>
