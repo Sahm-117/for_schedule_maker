@@ -72,7 +72,7 @@ const AppOverflowMenu: React.FC<AppOverflowMenuProps> = ({ items, align = 'right
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onPointerDown={() => setOpen((prev) => !prev)}
         className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-orange-100 bg-white text-gray-500 shadow-sm transition hover:border-orange-200 hover:bg-orange-50 hover:text-gray-700"
         aria-label="More actions"
         title="More actions"

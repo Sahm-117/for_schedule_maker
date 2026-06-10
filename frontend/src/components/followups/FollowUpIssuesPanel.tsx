@@ -13,7 +13,9 @@ interface FollowUpIssuesPanelProps {
   owners: User[];
   currentUserId?: string;
   canResolve?: boolean;
+  canDelete?: boolean;
   canAssignOwner?: boolean;
+  canReply?: boolean;
 }
 
 const inputClass =
@@ -26,7 +28,9 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   owners,
   currentUserId,
   canResolve = true,
+  canDelete = true,
   canAssignOwner = true,
+  canReply = true,
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -41,6 +45,8 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   const [error, setError] = useState('');
   const [showClosed, setShowClosed] = useState(false);
   const [deleting, setDeleting] = useState<FollowUpIssue | null>(null);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   const filteredContacts = useMemo(() => {
     if (!contactSearch.trim()) return contacts;
@@ -131,6 +137,20 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
     }
   };
 
+  const handleReply = async (issue: FollowUpIssue) => {
+    if (!replyText.trim()) return;
+    setSaving(true);
+    try {
+      const updatedIssue = `${issue.issue}\n\n---\nReply: ${replyText.trim()}`;
+      const { issue: updated } = await followUpIssuesApi.update(issue.id, { issue: updatedIssue });
+      onIssuesChanged(issues.map((i) => (i.id === updated.id ? updated : i)));
+      setReplyingTo(null);
+      setReplyText('');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const contactChips = (
     <div className="flex flex-wrap gap-1.5">
       {selectedIds.map((id) => {
@@ -191,7 +211,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
                       )}
                       <span className="text-xs text-gray-400">Opened {issue.openedAt}</span>
                     </div>
-                    <p className="mt-2 text-sm text-gray-800">{issue.issue}</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">{issue.issue}</p>
                     <p className="mt-1 text-xs text-gray-500">
                       {issue.reportedByName ? `Reported by: ${issue.reportedByName} • ` : ''}
                       {issue.ownerName ? `Owner: ${issue.ownerName}` : 'No owner'}
@@ -218,7 +238,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
                         Reopen
                       </button>
                     )}
-                    {canResolve && (
+                    {canDelete && (
                       <button
                         type="button"
                         onClick={() => setDeleting(issue)}
@@ -229,6 +249,45 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
                     )}
                   </div>
                 </div>
+                {canReply && issue.status === 'OPEN' && (
+                  <div className="mt-3 border-t border-orange-50 pt-3">
+                    {replyingTo === issue.id ? (
+                      <div className="flex gap-2">
+                        <textarea
+                          className="min-h-[60px] flex-1 rounded-2xl border border-orange-100 bg-white px-3 py-2 text-sm outline-none transition focus:border-orange-300"
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          placeholder="Type a reply…"
+                        />
+                        <div className="flex flex-col gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => { void handleReply(issue); }}
+                            disabled={saving || !replyText.trim()}
+                            className="rounded-2xl bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
+                          >
+                            Send
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setReplyingTo(null); setReplyText(''); }}
+                            className="rounded-2xl border border-orange-100 bg-white px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-orange-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => { setReplyingTo(issue.id); setReplyText(''); }}
+                        className="rounded-2xl border border-orange-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-orange-50"
+                      >
+                        Reply
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -326,7 +385,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
         </ModalShell>
       )}
 
-      {canResolve && (
+      {canDelete && (
         <ModalShell
         isOpen={!!deleting}
         onClose={() => setDeleting(null)}

@@ -100,7 +100,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
         }`}
       >
         <div className="min-w-0">
-          <p className={`truncate font-semibold text-gray-900 ${compact ? 'text-sm' : 'text-[15px]'}`}>
+          <p className={`truncate font-semibold text-gray-900 ${compact ? 'text-[16px]' : 'text-[16px]'}`}>
             {selectedOption?.label || placeholder}
           </p>
           {selectedOption?.meta && (

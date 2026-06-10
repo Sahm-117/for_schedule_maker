@@ -5,21 +5,22 @@ import PageHeader from '../components/PageHeader';
 import FollowUpContactsTable from '../components/followups/FollowUpContactsTable';
 import FollowUpContactModal from '../components/followups/FollowUpContactModal';
 import FollowUpIssuesPanel from '../components/followups/FollowUpIssuesPanel';
+import MessageTemplatePicker from '../components/followups/MessageTemplatePicker';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import {
   followUpContactsApi,
   followUpIssuesApi,
+  messageTemplatesApi,
   settingsApi,
 } from '../services/api';
-import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue } from '../types';
+import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, MessageTemplate } from '../types';
 import {
   REPLY_STATUS_META,
   CALL_STATUS_META,
   REGISTRATION_STATUS_META,
   NEXT_ACTION_META,
 } from '../utils/followUps';
-import { buildWhatsAppLink } from '../utils/phone';
 
 type Tab = 'contacts' | 'issues';
 
@@ -82,6 +83,7 @@ const SupportFollowUpsPage: React.FC = () => {
   const [tab, setTab] = useState<Tab>('contacts');
   const [contacts, setContacts] = useState<FollowUpContact[]>([]);
   const [issues, setIssues] = useState<FollowUpIssue[]>([]);
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [registrationLink, setRegistrationLink] = useState('');
   const [copied, setCopied] = useState(false);
   const [showLinkTip, setShowLinkTip] = useState(false);
@@ -93,19 +95,22 @@ const SupportFollowUpsPage: React.FC = () => {
   const [draft, setDraft] = useState<FilterState>({ reply: '', call: '', reg: '', next: '', archived: false });
 
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
+  const [messagingContact, setMessagingContact] = useState<FollowUpContact | null>(null);
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
     setLoadError('');
     try {
-      const [contactsRes, linkRes] = await Promise.all([
+      const [contactsRes, templatesRes, linkRes] = await Promise.all([
         followUpContactsApi.getAll({ ownerId: user.id }),
+        messageTemplatesApi.getAll(),
         settingsApi.getRegistrationLink(),
       ]);
       const issuesRes = await followUpIssuesApi.getAll();
       setContacts(contactsRes.contacts);
       setIssues(issuesRes.issues);
+      setTemplates(templatesRes.templates);
       setRegistrationLink(linkRes.url);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load your follow-ups.');
@@ -169,15 +174,9 @@ const SupportFollowUpsPage: React.FC = () => {
     replaceContact(logged);
   };
 
-  const openWhatsApp = (contact: FollowUpContact) => {
-    const ok = window.confirm(`Open WhatsApp to message ${contact.fullName.split(' ')[0]}?`);
-    if (!ok) return;
-    const link = buildWhatsAppLink(contact.phone, `Hi ${contact.fullName.split(' ')[0]}!`);
-    if (link) {
-      window.open(link, '_blank', 'noopener');
-    } else {
-      alert('Invalid phone number for this contact.');
-    }
+  const handleMessageSent = async (contact: FollowUpContact) => {
+    const { contact: logged } = await followUpContactsApi.logContact(contact.id);
+    replaceContact(logged);
   };
 
   const handleCopyLink = async () => {
@@ -300,7 +299,7 @@ const SupportFollowUpsPage: React.FC = () => {
               owners={[]}
               canAssign={false}
               onFieldChange={(c, patch) => { void handleFieldChange(c, patch); }}
-              onMessage={openWhatsApp}
+              onMessage={setMessagingContact}
               onLogContact={(c) => { void handleLogContact(c); }}
               onEdit={setEditingContact}
             />
@@ -312,8 +311,10 @@ const SupportFollowUpsPage: React.FC = () => {
               contacts={visibleContacts}
               owners={[]}
               currentUserId={user?.id}
-              canResolve={false}
+              canResolve
+              canDelete
               canAssignOwner={false}
+              canReply={false}
             />
           )}
         </>
@@ -327,6 +328,16 @@ const SupportFollowUpsPage: React.FC = () => {
         owners={[]}
         cohorts={cohorts}
         canEditOwner={false}
+      />
+
+      <MessageTemplatePicker
+        isOpen={!!messagingContact}
+        onClose={() => setMessagingContact(null)}
+        contact={messagingContact}
+        templates={templates}
+        registrationLink={registrationLink}
+        currentUserName={user?.name}
+        onMessageSent={handleMessageSent}
       />
 
       {showFilterPanel && createPortal(
