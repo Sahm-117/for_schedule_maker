@@ -87,14 +87,15 @@ const AdminFollowUpsPage: React.FC = () => {
   }, [contacts, cohortFilter, ownerFilter, showArchived]);
 
   const ownerOptionCounts = useMemo(() => {
-    const total = contacts.filter((c) => !c.archivedAt).length;
-    const unassigned = contacts.filter((c) => !c.ownerId && !c.archivedAt).length;
+    const scoped = cohortFilter ? contacts.filter((c) => c.cohortId === cohortFilter && !c.archivedAt) : contacts.filter((c) => !c.archivedAt);
+    const total = scoped.length;
+    const unassigned = scoped.filter((c) => !c.ownerId).length;
     const perOwner: Record<string, number> = {};
     owners.forEach((o) => {
-      perOwner[o.id] = contacts.filter((c) => c.ownerId === o.id && !c.archivedAt).length;
+      perOwner[o.id] = scoped.filter((c) => c.ownerId === o.id).length;
     });
     return { total, unassigned, perOwner };
-  }, [contacts, owners]);
+  }, [contacts, owners, cohortFilter]);
 
   const dashboardContacts = useMemo(
     () => contacts.filter((c) => !c.archivedAt).filter((c) => !cohortFilter || c.cohortId === cohortFilter),
