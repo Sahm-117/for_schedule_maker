@@ -116,6 +116,9 @@ export interface OwnerBreakdownRow {
   contacted: number;
   registered: number;
   stillOpen: number;
+  notInterested: number;
+  notAGoodTime: number;
+  notATcnMember: number;
 }
 
 export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdownRow[] => {
@@ -129,14 +132,20 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       contacted: 0,
       registered: 0,
       stillOpen: 0,
+      notInterested: 0,
+      notAGoodTime: 0,
+      notATcnMember: 0,
     };
     row.assigned += 1;
     if (c.replyStatus === 'REPLIED' || c.callStatus === 'CALLED' || c.callStatus === 'MISSED_CALL' || c.callStatus === 'NOT_APPLICABLE') row.contacted += 1;
     if (c.registrationStatus === 'REGISTERED') row.registered += 1;
     if (c.replyStatus !== 'REPLIED' && c.registrationStatus !== 'REGISTERED') row.stillOpen += 1;
+    if (c.registrationStatus === 'NOT_INTERESTED') row.notInterested += 1;
+    if (c.registrationStatus === 'NOT_A_GOOD_TIME') row.notAGoodTime += 1;
+    if (c.registrationStatus === 'NOT_A_TCN_MEMBER') row.notATcnMember += 1;
     map.set(key, row);
   }
-  return Array.from(map.values()).sort((a, b) => b.assigned - a.assigned);
+  return Array.from(map.values()).sort((a, b) => b.stillOpen - a.stillOpen);
 };
 
 export const formatTemplateDate = (value?: string | null): string => {

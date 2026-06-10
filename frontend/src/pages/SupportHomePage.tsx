@@ -82,8 +82,11 @@ const SupportHomePage: React.FC = () => {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Metric title="My Activities" value={myActivities.length} to="/support/schedule" detail={activeWeek ? `Week ${activeWeek.weekNumber}` : 'Open schedule'} />
-            <Metric title="My Follow-ups" value={followUpCount} to="/support/follow-ups" detail={followUpCount > 0 ? `You have ${followUpCount} contact${followUpCount !== 1 ? 's' : ''} to follow up` : 'No pending follow-ups'} />
-            <Metric title="My Support Groups" value={userLabelIds.length} to="/support/profile" detail="View profile" />
+            {isCohortActive ? (
+              <Metric title="My Support Groups" value={userLabelIds.length} to="/support/profile" detail="View profile" />
+            ) : (
+              <Metric title="Number of follow ups" value={followUpCount} to="/support/follow-ups" detail={followUpCount > 0 ? `You have ${followUpCount} contact${followUpCount !== 1 ? 's' : ''} to follow up` : 'No pending follow-ups'} />
+            )}
             <Metric title="Resources" value={resourceCount} to="/support/resources" detail={newResourceCount > 0 ? `+${newResourceCount} new since your last visit` : 'Open the Resource Hub'} />
             <Metric title="Announcements" value={announcements.length} to="/support/announcements" detail="Open updates" />
           </div>

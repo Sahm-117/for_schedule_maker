@@ -279,7 +279,7 @@ const SupportFollowUpsPage: React.FC = () => {
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         {[
-          { key: 'contacts', label: 'Contacts' },
+          { key: 'contacts', label: `Contacts (${contacts.filter((c) => !c.archivedAt).length})` },
           { key: 'issues', label: 'Issues' },
         ].map((item) => (
           <button

@@ -138,6 +138,9 @@ const AdminDashboardPage: React.FC = () => {
                 <th className="px-6 py-3 font-semibold">Contacted</th>
                 <th className="px-6 py-3 font-semibold">Registered</th>
                 <th className="px-6 py-3 font-semibold">Still open</th>
+                <th className="px-6 py-3 font-semibold">Not Interested</th>
+                <th className="px-6 py-3 font-semibold">Not a Good Time</th>
+                <th className="px-6 py-3 font-semibold">Not a TCN Member</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -148,6 +151,9 @@ const AdminDashboardPage: React.FC = () => {
                   <td className="px-6 py-3 text-gray-700">{row.contacted}</td>
                   <td className="px-6 py-3 text-gray-700">{row.registered}</td>
                   <td className={`px-6 py-3 font-semibold ${row.stillOpen > 0 ? 'text-rose-600' : 'text-gray-700'}`}>{row.stillOpen}</td>
+                  <td className="px-6 py-3 text-gray-700">{row.notInterested}</td>
+                  <td className="px-6 py-3 text-gray-700">{row.notAGoodTime}</td>
+                  <td className="px-6 py-3 text-gray-700">{row.notATcnMember}</td>
                 </tr>
               ))}
             </tbody>
