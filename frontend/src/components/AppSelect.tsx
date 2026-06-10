@@ -45,7 +45,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
   }, []);
 
   return (
-    <div ref={rootRef} className={`relative ${open ? 'z-40' : 'z-10'} ${className}`}>
+    <div ref={rootRef} className={`relative overflow-visible ${open ? 'z-[90]' : 'z-10'} ${className}`}>
       {label && (
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">
           {label}
@@ -55,7 +55,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         className={`flex w-full items-center justify-between rounded-2xl border border-orange-100 bg-white text-left shadow-sm transition hover:border-orange-200 hover:bg-orange-50/40 ${
-          compact ? 'px-3 py-2.5' : 'px-4 py-3'
+          compact ? 'px-3 py-2' : 'px-4 py-3'
         }`}
       >
         <div className="min-w-0">
@@ -66,7 +66,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
             <p className="truncate text-xs text-gray-500">{selectedOption.meta}</p>
           )}
         </div>
-        <span className={`ml-3 inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-orange-50 text-gray-500 ${open ? 'rotate-180' : ''} transition-transform`}>
+        <span className={`ml-3 inline-flex ${compact ? 'h-7 w-7' : 'h-8 w-8'} flex-shrink-0 items-center justify-center rounded-full bg-orange-50 text-gray-500 ${open ? 'rotate-180' : ''} transition-transform`}>
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 9-7 7-7-7" />
           </svg>
@@ -74,7 +74,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-3xl border border-orange-100 bg-white p-2 shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
+        <div className="absolute left-0 right-0 top-[calc(100%+0.4rem)] z-[100] overflow-hidden rounded-[24px] border border-orange-100 bg-white p-1.5 shadow-[0_28px_80px_rgba(15,23,42,0.18)]">
           <div className="max-h-72 overflow-y-auto">
             {options.map((option) => {
               const selected = option.value === value;
@@ -86,7 +86,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
                     onChange(option.value);
                     setOpen(false);
                   }}
-                  className={`flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left transition ${
+                  className={`flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left transition ${
                     selected ? 'bg-orange-50 text-primary' : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >

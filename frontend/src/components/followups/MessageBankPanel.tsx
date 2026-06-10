@@ -97,33 +97,31 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="surface-card overflow-hidden rounded-3xl p-6">
-        <div className="rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900">Registration link</p>
-              <p className="mt-1 break-all text-sm text-gray-500">
-                {registrationLink || 'Not set yet.'}
-              </p>
-              <p className="mt-2 text-xs text-gray-500">
-                Used wherever a template contains {'{{registration_link}}'}.
-              </p>
-            </div>
-            {!readOnly && (
-              <button
-                type="button"
-                onClick={() => setShowLinkEditor(true)}
-                className="rounded-full border border-primary p-2 text-primary hover:bg-primary/5"
-                aria-label="Edit registration link"
-                title="Edit registration link"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m15.232 5.232 3.536 3.536M9 11l6.232-6.232a2.5 2.5 0 1 1 3.536 3.536L12.536 14.5A4 4 0 0 1 10.7 15.6L7 17l1.4-3.7a4 4 0 0 1 1.1-1.836Z" />
-                </svg>
-              </button>
-            )}
+    <div className="space-y-5">
+      <div className="surface-card overflow-hidden rounded-3xl p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-4 rounded-[28px] border border-orange-100 bg-white px-4 py-4 shadow-sm">
+          <div className="min-w-0">
+            <p className="text-lg font-semibold text-gray-900">Registration link</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Used wherever a template contains {'{{registration_link}}'}.
+            </p>
+            <p className="mt-3 truncate text-[15px] font-medium text-gray-800 sm:break-all">
+              {registrationLink || 'Not set yet.'}
+            </p>
           </div>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => setShowLinkEditor(true)}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-orange-200 text-primary hover:bg-orange-50"
+              aria-label="Edit registration link"
+              title="Edit registration link"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m15.232 5.232 3.536 3.536M9 11l6.232-6.232a2.5 2.5 0 1 1 3.536 3.536L12.536 14.5A4 4 0 0 1 10.7 15.6L7 17l1.4-3.7a4 4 0 0 1 1.1-1.836Z" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -150,7 +148,7 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {templates.map((t) => (
-            <div key={t.id} className="surface-card flex flex-col rounded-3xl p-5">
+            <div key={t.id} className="surface-card flex flex-col rounded-3xl p-4">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-bold text-gray-900">{t.useCase}</p>
                 {!readOnly && (
@@ -161,7 +159,7 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
                 )}
               </div>
               {t.whenToUse && <p className="mt-1 text-xs font-medium text-amber-700">{t.whenToUse}</p>}
-              <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-xs text-gray-600">{t.body}</p>
+              <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-gray-600">{t.body}</p>
             </div>
           ))}
         </div>

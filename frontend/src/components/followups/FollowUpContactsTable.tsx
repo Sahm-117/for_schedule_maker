@@ -30,6 +30,9 @@ const dateLabel = (value?: string | null) => {
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(d);
 };
 
+const compactMeta = (primary: string, secondary?: string | null) =>
+  secondary ? `${primary} • ${secondary}` : primary;
+
 const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   contacts,
   owners,
@@ -80,23 +83,23 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
       options={statusOptions(meta)}
       placeholder="—"
       compact
-      className="min-w-[130px]"
+      className="min-w-[122px]"
     />
   );
 
   const actions = (contact: FollowUpContact) => (
-    <div className="flex items-center justify-end gap-1">
-      <button type="button" onClick={() => onMessage(contact)} className="rounded-xl px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50" title="Send WhatsApp message">
+    <div className="flex items-center justify-end gap-0.5">
+      <button type="button" onClick={() => onMessage(contact)} className="rounded-xl px-2 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50" title="Send WhatsApp message">
         Message
       </button>
-      <button type="button" onClick={() => onLogContact(contact)} className="rounded-xl px-2.5 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50" title="Log a contact attempt (bumps count + date)">
+      <button type="button" onClick={() => onLogContact(contact)} className="rounded-xl px-2 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50" title="Log a contact attempt (bumps count + date)">
         Log
       </button>
-      <button type="button" onClick={() => onEdit(contact)} className="rounded-xl px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-orange-50">
+      <button type="button" onClick={() => onEdit(contact)} className="rounded-xl px-2 py-1.5 text-xs font-semibold text-primary hover:bg-orange-50">
         Edit
       </button>
       {canAssign && onDelete && (
-        <button type="button" onClick={() => onDelete(contact)} className="rounded-xl px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">
+        <button type="button" onClick={() => onDelete(contact)} className="rounded-xl px-2 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">
           Delete
         </button>
       )}
@@ -110,9 +113,9 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   return (
     <div className="space-y-3">
       {canAssign && selected.size > 0 && (
-        <div className="surface-card sticky top-16 z-20 flex flex-wrap items-center gap-3 rounded-3xl px-4 py-3">
+        <div className="surface-card sticky top-16 z-40 flex flex-wrap items-center gap-2 rounded-[28px] px-3.5 py-3">
           <span className="text-sm font-semibold text-gray-900">{selected.size} selected</span>
-          <div className="w-48">
+          <div className="w-44">
             <AppSelect value={bulkOwnerId} onChange={setBulkOwnerId} options={ownerOptions.slice(1)} placeholder="Assign to…" compact />
           </div>
           <input
@@ -137,7 +140,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
       )}
 
       {/* Desktop table */}
-      <div className="surface-card hidden overflow-x-auto rounded-3xl lg:block">
+      <div className="surface-card hidden overflow-x-auto overflow-y-visible rounded-3xl lg:block">
         <table className="w-full text-left text-sm">
           <thead className="bg-orange-50/60 text-[11px] uppercase tracking-wide text-gray-500">
             <tr>
@@ -155,48 +158,65 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               <th className="px-4 py-3">Next action</th>
               <th className="px-4 py-3">Due</th>
               <th className="px-4 py-3">Follow-ups</th>
-              <th className="sticky right-0 bg-orange-50/95 px-4 py-3 text-right">Actions</th>
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {contacts.map((contact) => (
               <tr key={contact.id} className="border-t border-orange-50 align-middle">
                 {canAssign && (
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3.5">
                     <input type="checkbox" checked={selected.has(contact.id)} onChange={() => toggle(contact.id)} className="h-4 w-4 rounded border-orange-200 text-primary" />
                   </td>
                 )}
-                <td className="px-4 py-3">
-                  <p className="font-semibold text-gray-900">{contact.fullName}</p>
-                  <p className="text-xs text-gray-500">{contact.phone || 'No phone'}{contact.source ? ` • ${contact.source}` : ''}</p>
-                  {contact.notes && <p className="mt-0.5 max-w-[220px] truncate text-xs text-amber-700" title={contact.notes}>{contact.notes}</p>}
+                <td className="px-4 py-3.5">
+                  <div className="min-w-[240px]">
+                    <p className="font-semibold leading-5 text-gray-900">{contact.fullName}</p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {compactMeta(contact.phone || 'No phone', contact.source || '')}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <FollowUpStatusPill label={MESSAGE_STATUS_META[contact.messageStatus].label} tone={MESSAGE_STATUS_META[contact.messageStatus].tone} />
+                      {contact.ownerName && (
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                          {contact.ownerName}
+                        </span>
+                      )}
+                      {contact.notes && (
+                        <span className="max-w-[180px] truncate rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700" title={contact.notes}>
+                          {contact.notes}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </td>
                 {canAssign && (
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3.5">
                     <AppSelect
                       value={contact.ownerId || ''}
                       onChange={(v) => onFieldChange(contact, { ownerId: v || null, previousOwnerId: contact.ownerId || null })}
                       options={ownerOptions}
                       placeholder="Unassigned"
                       compact
-                      className="min-w-[140px]"
+                      className="min-w-[136px]"
                     />
                   </td>
                 )}
-                <td className="px-4 py-3">{statusCell(contact, 'messageStatus', MESSAGE_STATUS_META, contact.messageStatus)}</td>
-                <td className="px-4 py-3">{statusCell(contact, 'replyStatus', REPLY_STATUS_META, contact.replyStatus)}</td>
-                <td className="px-4 py-3">{statusCell(contact, 'callStatus', CALL_STATUS_META, contact.callStatus)}</td>
-                <td className="px-4 py-3">{statusCell(contact, 'registrationStatus', REGISTRATION_STATUS_META, contact.registrationStatus)}</td>
-                <td className="px-4 py-3">{statusCell(contact, 'nextAction', NEXT_ACTION_META, contact.nextAction)}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3.5">{statusCell(contact, 'messageStatus', MESSAGE_STATUS_META, contact.messageStatus)}</td>
+                <td className="px-4 py-3.5">{statusCell(contact, 'replyStatus', REPLY_STATUS_META, contact.replyStatus)}</td>
+                <td className="px-4 py-3.5">{statusCell(contact, 'callStatus', CALL_STATUS_META, contact.callStatus)}</td>
+                <td className="px-4 py-3.5">{statusCell(contact, 'registrationStatus', REGISTRATION_STATUS_META, contact.registrationStatus)}</td>
+                <td className="px-4 py-3.5">{statusCell(contact, 'nextAction', NEXT_ACTION_META, contact.nextAction)}</td>
+                <td className="px-4 py-3.5">
                   <span className={`text-xs font-semibold ${isOverdue(contact) ? 'text-rose-600' : 'text-gray-600'}`}>
                     {dateLabel(contact.dueDate)}
                   </span>
                 </td>
-                <td className="px-4 py-3">
-                  <p className="text-xs text-gray-600">{contact.followUpCount}× {contact.lastContactDate ? `• ${dateLabel(contact.lastContactDate)}` : ''}</p>
+                <td className="px-4 py-3.5">
+                  <p className="text-xs text-gray-600">{contact.followUpCount}×</p>
+                  {contact.lastContactDate && <p className="mt-0.5 text-[11px] text-gray-400">{dateLabel(contact.lastContactDate)}</p>}
                 </td>
-                <td className="sticky right-0 bg-white px-4 py-3">{actions(contact)}</td>
+                <td className="px-4 py-3.5">{actions(contact)}</td>
               </tr>
             ))}
           </tbody>
@@ -204,40 +224,79 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
       </div>
 
       {/* Mobile cards */}
-      <div className="space-y-3 lg:hidden">
+      <div className="space-y-2.5 lg:hidden">
         {contacts.map((contact) => (
-          <div key={contact.id} className="surface-card rounded-3xl p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
+          <div key={contact.id} className="surface-card relative overflow-visible rounded-[28px] p-3.5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-2">
                   {canAssign && (
-                    <input type="checkbox" checked={selected.has(contact.id)} onChange={() => toggle(contact.id)} className="h-4 w-4 rounded border-orange-200 text-primary" />
+                    <input type="checkbox" checked={selected.has(contact.id)} onChange={() => toggle(contact.id)} className="mt-1 h-4 w-4 rounded border-orange-200 text-primary" />
                   )}
-                  <p className="truncate font-semibold text-gray-900">{contact.fullName}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-[17px] font-semibold leading-5 text-gray-900">{contact.fullName}</p>
+                    <p className="mt-1 text-xs text-gray-500">{compactMeta(contact.phone || 'No phone', contact.source || '')}</p>
+                    {canAssign && (
+                      <p className="mt-1 text-xs text-gray-500">Owner: {contact.ownerName || 'Unassigned'}</p>
+                    )}
+                  </div>
                 </div>
-                <p className="mt-0.5 text-xs text-gray-500">{contact.phone || 'No phone'}{contact.source ? ` • ${contact.source}` : ''}</p>
-                {canAssign && <p className="mt-0.5 text-xs text-gray-500">Owner: {contact.ownerName || 'Unassigned'}</p>}
               </div>
-              <span className={`shrink-0 text-xs font-semibold ${isOverdue(contact) ? 'text-rose-600' : 'text-gray-500'}`}>
-                {contact.dueDate ? `Due ${dateLabel(contact.dueDate)}` : ''}
-              </span>
+              <div className="shrink-0 text-right">
+                <span className={`block text-xs font-semibold ${isOverdue(contact) ? 'text-rose-600' : 'text-gray-500'}`}>
+                  {contact.dueDate ? `Due ${dateLabel(contact.dueDate)}` : 'No due date'}
+                </span>
+                <span className="mt-1 block text-[11px] text-gray-400">
+                  {contact.followUpCount}× {contact.lastContactDate ? `• ${dateLabel(contact.lastContactDate)}` : ''}
+                </span>
+              </div>
             </div>
             <div className="mt-3 flex flex-wrap gap-1.5">
               <FollowUpStatusPill label={MESSAGE_STATUS_META[contact.messageStatus].label} tone={MESSAGE_STATUS_META[contact.messageStatus].tone} />
               <FollowUpStatusPill label={REPLY_STATUS_META[contact.replyStatus].label} tone={REPLY_STATUS_META[contact.replyStatus].tone} />
               <FollowUpStatusPill label={CALL_STATUS_META[contact.callStatus].label} tone={CALL_STATUS_META[contact.callStatus].tone} />
               <FollowUpStatusPill label={REGISTRATION_STATUS_META[contact.registrationStatus].label} tone={REGISTRATION_STATUS_META[contact.registrationStatus].tone} />
-              <FollowUpStatusPill label={NEXT_ACTION_META[contact.nextAction].label} tone={NEXT_ACTION_META[contact.nextAction].tone} />
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
+              {canAssign && (
+                <AppSelect
+                  value={contact.ownerId || ''}
+                  onChange={(v) => onFieldChange(contact, { ownerId: v || null, previousOwnerId: contact.ownerId || null })}
+                  options={ownerOptions}
+                  placeholder="Owner"
+                  compact
+                  className="col-span-2"
+                />
+              )}
               {statusCell(contact, 'replyStatus', REPLY_STATUS_META, contact.replyStatus)}
-              {statusCell(contact, 'registrationStatus', REGISTRATION_STATUS_META, contact.registrationStatus)}
               {statusCell(contact, 'callStatus', CALL_STATUS_META, contact.callStatus)}
+              {statusCell(contact, 'registrationStatus', REGISTRATION_STATUS_META, contact.registrationStatus)}
               {statusCell(contact, 'nextAction', NEXT_ACTION_META, contact.nextAction)}
             </div>
+            {contact.notes && (
+              <p className="mt-3 rounded-2xl bg-amber-50 px-3 py-2 text-xs text-amber-800">{contact.notes}</p>
+            )}
             <div className="mt-3 flex items-center justify-between border-t border-orange-50 pt-3">
-              <span className="text-xs text-gray-500">{contact.followUpCount} follow-up{contact.followUpCount === 1 ? '' : 's'}{contact.lastContactDate ? ` • last ${dateLabel(contact.lastContactDate)}` : ''}</span>
-              {actions(contact)}
+              <button
+                type="button"
+                onClick={() => onMessage(contact)}
+                className="rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+              >
+                Send message
+              </button>
+              <div className="flex items-center gap-0.5">
+                <button type="button" onClick={() => onLogContact(contact)} className="rounded-xl px-2 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50">
+                  Log
+                </button>
+                <button type="button" onClick={() => onEdit(contact)} className="rounded-xl px-2 py-1.5 text-xs font-semibold text-primary hover:bg-orange-50">
+                  Edit
+                </button>
+                {canAssign && onDelete && (
+                  <button type="button" onClick={() => onDelete(contact)} className="rounded-xl px-2 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         ))}
