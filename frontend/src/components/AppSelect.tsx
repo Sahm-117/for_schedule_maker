@@ -97,19 +97,21 @@ const AppSelect: React.FC<AppSelectProps> = ({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`flex w-full items-center justify-between rounded-2xl border border-orange-100 bg-white text-left shadow-sm transition hover:border-orange-200 hover:bg-orange-50/40 ${
-          compact ? 'px-3 py-2' : 'px-4 py-3'
+        className={`flex w-full items-center justify-between rounded-2xl border bg-white text-left shadow-sm transition ${
+          compact ? 'border-gray-200/70 px-2 py-1.5 hover:border-gray-300' : 'border-orange-100 px-4 py-3 hover:border-orange-200 hover:bg-orange-50/40'
         }`}
       >
         <div className="min-w-0">
-          <p className={`truncate font-semibold text-gray-900 ${compact ? 'text-[16px]' : 'text-[16px]'}`}>
+          <p className={`truncate font-semibold ${compact ? 'text-sm text-gray-600' : 'text-[16px] text-gray-900'}`}>
             {selectedOption?.label || placeholder}
           </p>
           {selectedOption?.meta && (
             <p className="truncate text-xs text-gray-500">{selectedOption.meta}</p>
           )}
         </div>
-        <span className={`ml-3 inline-flex ${compact ? 'h-7 w-7' : 'h-8 w-8'} flex-shrink-0 items-center justify-center rounded-full bg-orange-50 text-gray-500 ${open ? 'rotate-180' : ''} transition-transform`}>
+        <span className={`ml-2 inline-flex flex-shrink-0 items-center justify-center rounded-full transition-transform ${open ? 'rotate-180' : ''} ${
+          compact ? 'h-5 w-5 bg-gray-100 text-gray-400' : 'h-8 w-8 bg-orange-50 text-gray-500'
+        }`}>
           {loading ? (
             <svg className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" strokeWidth="4" stroke="currentColor" fill="none" />
