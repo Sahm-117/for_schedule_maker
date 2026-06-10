@@ -44,11 +44,14 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
                 <th className="px-5 py-3">Contacted</th>
                 <th className="px-5 py-3">Registered</th>
                 <th className="px-5 py-3">Still open</th>
+                <th className="px-5 py-3">Not Interested</th>
+                <th className="px-5 py-3">Not a Good Time</th>
+                <th className="px-5 py-3">Not a TCN Member</th>
               </tr>
             </thead>
             <tbody>
               {owners.length === 0 ? (
-                <tr><td colSpan={5} className="px-5 py-8 text-center text-gray-400">No contacts yet.</td></tr>
+                <tr><td colSpan={8} className="px-5 py-8 text-center text-gray-400">No contacts yet.</td></tr>
               ) : (
                 owners.map((row) => (
                   <tr key={row.ownerId || 'unassigned'} className="border-t border-orange-50">
@@ -57,6 +60,9 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
                     <td className="px-5 py-3">{row.contacted}</td>
                     <td className="px-5 py-3">{row.registered}</td>
                     <td className="px-5 py-3 font-semibold">{row.stillOpen}</td>
+                    <td className="px-5 py-3">{row.notInterested}</td>
+                    <td className="px-5 py-3">{row.notAGoodTime}</td>
+                    <td className="px-5 py-3">{row.notATcnMember}</td>
                   </tr>
                 ))
               )}

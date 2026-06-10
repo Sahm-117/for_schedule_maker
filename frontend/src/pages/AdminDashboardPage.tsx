@@ -6,9 +6,8 @@ import PageHeader from '../components/PageHeader';
 import { PeriodBadge } from '../components/PeriodIcon';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, followUpContactsApi, resourcesApi, supportActivityCompletionsApi, usersApi } from '../services/api';
-import type { Activity, Announcement, FollowUpContact, Resource, SupportActivityCompletion, User } from '../types';
-import { computeOwnerBreakdown } from '../utils/followUps';
+import { announcementsApi, resourcesApi, supportActivityCompletionsApi, usersApi } from '../services/api';
+import type { Activity, Announcement, Resource, SupportActivityCompletion, User } from '../types';
 
 const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
 
@@ -19,12 +18,10 @@ const AdminDashboardPage: React.FC = () => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
-  const [contacts, setContacts] = useState<FollowUpContact[]>([]);
 
   useEffect(() => {
     resourcesApi.getAll().then((res) => setResources(res.resources)).catch(() => {});
     announcementsApi.getHistory({ isAdmin: true, cohortId: activeCohort?.id || null }).then((res) => setAnnouncements(res.announcements.slice(0, 3))).catch(() => {});
-    followUpContactsApi.getAll().then((res) => setContacts(res.contacts)).catch(() => {});
     if (isAdmin) {
       usersApi.getAll()
         .then(async (res) => {
@@ -69,8 +66,6 @@ const AdminDashboardPage: React.FC = () => {
   }, [activeWeek]);
 
   const supportCount = users.filter((member) => member.role === 'SUPPORT').length;
-  const notRegisteredCount = contacts.filter((c) => !c.archivedAt && c.registrationStatus === 'NOT_REGISTERED').length;
-  const ownerBreakdown = computeOwnerBreakdown(contacts).sort((a, b) => b.stillOpen - a.stillOpen);
   const todayActivities = todaysDay?.activities || [];
   const completionsByActivity = useMemo(() => {
     const map = new Map<number, SupportActivityCompletion[]>();
@@ -109,7 +104,6 @@ const AdminDashboardPage: React.FC = () => {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <HeroMetric label="Pending approvals" value={globalPendingChanges.length} />
-            <HeroMetric label="Not registered" value={notRegisteredCount} />
             <HeroMetric label="Resources" value={resources.length} />
             <HeroMetric label="Supports" value={supportCount} />
             <HeroMetric label="Announcements" value={announcements.length} />
@@ -122,43 +116,6 @@ const AdminDashboardPage: React.FC = () => {
         <SummaryCard title="Today’s Activities" value={todayActivities.length} detail={todaysDay ? `${todaysDay.dayName} in Week ${activeWeek?.weekNumber}` : 'No day selected'} />
         <SummaryCard title="Resources" value={resources.length} detail={newResourceCount > 0 ? `+${newResourceCount} new since the last check` : 'No new additions right now'} />
         <SummaryCard title="System State" value={realtimeHealthy ? 'Live' : 'Polling'} detail={digestEnabled ? 'Digest enabled' : 'Digest paused'} />
-      </section>
-
-      <section className="surface-card mb-6 overflow-hidden">
-        <div className="px-6 py-5">
-          <h3 className="text-lg font-semibold text-gray-900">Owner breakdown</h3>
-          <p className="mt-1 text-sm text-gray-500">Follow-up contacts grouped by owner, sorted by still open (descending).</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-y border-gray-100 bg-gray-50/80 text-xs uppercase tracking-wide text-gray-500">
-              <tr>
-                <th className="px-6 py-3 font-semibold">Owner</th>
-                <th className="px-6 py-3 font-semibold">Assigned</th>
-                <th className="px-6 py-3 font-semibold">Contacted</th>
-                <th className="px-6 py-3 font-semibold">Registered</th>
-                <th className="px-6 py-3 font-semibold">Still open</th>
-                <th className="px-6 py-3 font-semibold">Not Interested</th>
-                <th className="px-6 py-3 font-semibold">Not a Good Time</th>
-                <th className="px-6 py-3 font-semibold">Not a TCN Member</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {ownerBreakdown.map((row) => (
-                <tr key={row.ownerId || 'unassigned'} className="hover:bg-orange-50/40">
-                  <td className="px-6 py-3 font-medium text-gray-900">{row.ownerName}</td>
-                  <td className="px-6 py-3 text-gray-700">{row.assigned}</td>
-                  <td className="px-6 py-3 text-gray-700">{row.contacted}</td>
-                  <td className="px-6 py-3 text-gray-700">{row.registered}</td>
-                  <td className={`px-6 py-3 font-semibold ${row.stillOpen > 0 ? 'text-rose-600' : 'text-gray-700'}`}>{row.stillOpen}</td>
-                  <td className="px-6 py-3 text-gray-700">{row.notInterested}</td>
-                  <td className="px-6 py-3 text-gray-700">{row.notAGoodTime}</td>
-                  <td className="px-6 py-3 text-gray-700">{row.notATcnMember}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.9fr]">
