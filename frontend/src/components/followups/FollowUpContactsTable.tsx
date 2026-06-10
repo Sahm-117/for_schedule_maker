@@ -60,6 +60,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const [editingLastContact, setEditingLastContact] = useState<FollowUpContact | null>(null);
   const [lastContactValue, setLastContactValue] = useState('');
   const [viewingInfo, setViewingInfo] = useState<string | null>(null);
+  const [savingFields, setSavingFields] = useState<Set<string>>(new Set());
   const stepperRef = useRef<HTMLDivElement | null>(null);
   const dueDateInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -90,16 +91,31 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
 
   const ownerOptions = [{ value: '', label: 'Unassigned' }, ...owners.map((o) => ({ value: o.id, label: o.name }))];
 
-  const statusCell = (contact: FollowUpContact, field: string, meta: Record<string, { label: string; tone: string }>, value: string) => (
-    <AppSelect
-      value={value}
-      onChange={(v) => onFieldChange(contact, { [field]: v })}
-      options={statusOptions(meta)}
-      placeholder="—"
-      compact
-      className="min-w-[122px]"
-    />
-  );
+  const statusCell = (contact: FollowUpContact, field: string, meta: Record<string, { label: string; tone: string }>, value: string) => {
+    const key = `${contact.id}:${field}`;
+    return (
+      <AppSelect
+        value={value}
+        loading={savingFields.has(key)}
+        onChange={async (v) => {
+          setSavingFields((prev) => new Set(prev).add(key));
+          try {
+            await (onFieldChange(contact, { [field]: v }) as unknown as Promise<unknown>);
+          } finally {
+            setSavingFields((prev) => {
+              const next = new Set(prev);
+              next.delete(key);
+              return next;
+            });
+          }
+        }}
+        options={statusOptions(meta)}
+        placeholder="—"
+        compact
+        className="min-w-[122px]"
+      />
+    );
+  };
 
   const actions = (contact: FollowUpContact) => (
     <AppOverflowMenu
@@ -323,19 +339,19 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
             {/* Status dropdowns row */}
             <div className="mt-2.5 grid grid-cols-2 gap-x-1.5 gap-y-2 px-4">
               <div>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Reply</p>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Reply</p>
                 {statusCell(contact, 'replyStatus', REPLY_STATUS_META, contact.replyStatus)}
               </div>
               <div>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Call</p>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Call</p>
                 {statusCell(contact, 'callStatus', CALL_STATUS_META, contact.callStatus)}
               </div>
               <div>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Registration</p>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Registration</p>
                 {statusCell(contact, 'registrationStatus', REGISTRATION_STATUS_META, contact.registrationStatus)}
               </div>
               <div>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Next action</p>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Next action</p>
                 {statusCell(contact, 'nextAction', NEXT_ACTION_META, contact.nextAction)}
               </div>
             </div>

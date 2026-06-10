@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import type { FollowUpContact, FollowUpIssue, User } from '../../types';
 import AppSelect from '../AppSelect';
+import AppOverflowMenu from '../AppOverflowMenu';
 import ModalShell from './ModalShell';
 import FollowUpStatusPill from './FollowUpStatusPill';
 import { ISSUE_STATUS_META } from '../../utils/followUps';
 import { followUpIssuesApi } from '../../services/api';
+import { supabase } from '../../lib/supabase';
 
 interface FollowUpIssuesPanelProps {
   issues: FollowUpIssue[];
@@ -146,6 +148,11 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
       onIssuesChanged(issues.map((i) => (i.id === updated.id ? updated : i)));
       setReplyingTo(null);
       setReplyText('');
+      if (issue.reportedById && issue.reportedById !== currentUserId) {
+        void supabase.functions.invoke('notify-followup-issue', {
+          body: { issueId: issue.id, reporterId: issue.reportedById },
+        }).catch(() => undefined);
+      }
     } finally {
       setSaving(false);
     }
@@ -220,33 +227,13 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
                     {issue.resolution && <p className="mt-2 rounded-2xl bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Resolution: {issue.resolution}</p>}
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    {issue.status === 'OPEN' && canResolve && (
-                      <button
-                        type="button"
-                        onClick={() => { setResolving(issue); setResolution(''); }}
-                        className="rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                      >
-                        Resolve
-                      </button>
-                    )}
-                    {issue.status === 'RESOLVED' && canResolve && (
-                      <button
-                        type="button"
-                        onClick={() => { void handleReopen(issue); }}
-                        className="rounded-2xl border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50"
-                      >
-                        Reopen
-                      </button>
-                    )}
-                    {canDelete && (
-                      <button
-                        type="button"
-                        onClick={() => setDeleting(issue)}
-                        className="rounded-2xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                      >
-                        Delete
-                      </button>
-                    )}
+                    <AppOverflowMenu
+                      items={[
+                        ...(issue.status === 'OPEN' && canResolve ? [{ label: 'Resolve', onClick: () => { setResolving(issue); setResolution(''); } }] : []),
+                        ...(issue.status === 'RESOLVED' && canResolve ? [{ label: 'Reopen', onClick: () => { void handleReopen(issue); } }] : []),
+                        ...(canDelete ? [{ label: 'Delete', onClick: () => setDeleting(issue), tone: 'danger' as const }] : []),
+                      ]}
+                    />
                   </div>
                 </div>
                 {canReply && issue.status === 'OPEN' && (

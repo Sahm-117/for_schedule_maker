@@ -15,6 +15,7 @@ interface AppSelectProps {
   label?: string;
   compact?: boolean;
   className?: string;
+  loading?: boolean;
 }
 
 const AppSelect: React.FC<AppSelectProps> = ({
@@ -25,6 +26,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
   label,
   compact = false,
   className = '',
+  loading = false,
 }) => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -108,9 +110,16 @@ const AppSelect: React.FC<AppSelectProps> = ({
           )}
         </div>
         <span className={`ml-3 inline-flex ${compact ? 'h-7 w-7' : 'h-8 w-8'} flex-shrink-0 items-center justify-center rounded-full bg-orange-50 text-gray-500 ${open ? 'rotate-180' : ''} transition-transform`}>
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 9-7 7-7-7" />
-          </svg>
+          {loading ? (
+            <svg className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" strokeWidth="4" stroke="currentColor" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : (
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 9-7 7-7-7" />
+            </svg>
+          )}
         </span>
       </button>
 
