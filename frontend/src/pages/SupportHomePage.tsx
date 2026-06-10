@@ -35,9 +35,9 @@ const SupportHomePage: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    followUpContactsApi.getAll({ ownerId: user.id })
+    followUpContactsApi.getAll({ ownerId: user.id, archived: false })
       .then((res) => {
-        const active = res.data.filter((c) => {
+        const active = res.contacts.filter((c) => {
           if (c.nextAction === 'CLOSE') return false;
           if (c.registrationStatus === 'NOT_INTERESTED' || c.registrationStatus === 'NOT_A_TCN_MEMBER') return false;
           return true;

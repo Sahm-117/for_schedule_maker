@@ -25,7 +25,7 @@ type Tab = 'overview' | 'contacts' | 'messages' | 'issues';
 
 const AdminFollowUpsPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
-  const { cohorts, activeCohort } = useAppData();
+  const { cohorts, activeCohort, liveRevision } = useAppData();
 
   const [tab, setTab] = useState<Tab>('overview');
   const [contacts, setContacts] = useState<FollowUpContact[]>([]);
@@ -66,7 +66,7 @@ const AdminFollowUpsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [liveRevision]);
 
   useEffect(() => {
     void loadAll();

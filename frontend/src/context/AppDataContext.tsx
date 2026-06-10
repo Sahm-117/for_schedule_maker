@@ -275,6 +275,9 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .on('postgres_changes', { event: '*', schema: 'public', table: 'UserLabel' }, scheduleWorkspaceRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'SupportActivityCompletion' }, scheduleWorkspaceRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'AppSetting' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'FollowUpContact' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'FollowUpIssue' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'MessageTemplate' }, scheduleWorkspaceRefresh)
       .subscribe((status: string) => {
         if (status === 'SUBSCRIBED') {
           setRealtimeHealthy(true);
