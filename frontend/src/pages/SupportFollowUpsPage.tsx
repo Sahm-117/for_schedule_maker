@@ -321,7 +321,7 @@ const SupportFollowUpsPage: React.FC = () => {
               contacts={visibleContacts}
               owners={[]}
               canAssign={false}
-              onFieldChange={(c, patch) => { void handleFieldChange(c, patch); }}
+              onFieldChange={(c, patch) => handleFieldChange(c, patch)}
               onMessage={setMessagingContact}
               onLogContact={(c) => { void handleLogContact(c); }}
               onEdit={setEditingContact}

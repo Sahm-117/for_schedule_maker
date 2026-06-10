@@ -381,7 +381,7 @@ const AdminFollowUpsPage: React.FC = () => {
               contacts={filteredContacts}
               owners={owners}
               canAssign
-              onFieldChange={(c, patch) => { void handleFieldChange(c, patch); }}
+              onFieldChange={(c, patch) => handleFieldChange(c, patch)}
               onMessage={setMessagingContact}
               onLogContact={(c) => { void handleLogContact(c); }}
               onEdit={(c) => { setEditingContact(c); setShowContactModal(true); }}
