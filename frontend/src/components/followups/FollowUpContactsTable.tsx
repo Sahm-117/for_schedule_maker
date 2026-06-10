@@ -104,9 +104,12 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   );
 
   const handleStepperChange = (delta: number) => {
-    if (!adjustingCount) return;
-    const newCount = Math.max(0, adjustingCount.followUpCount + delta);
-    onFieldChange(adjustingCount, { followUpCount: newCount });
+    setAdjustingCount((prev) => {
+      if (!prev) return prev;
+      const newCount = Math.max(0, prev.followUpCount + delta);
+      onFieldChange(prev, { followUpCount: newCount });
+      return { ...prev, followUpCount: newCount };
+    });
   };
 
   if (contacts.length === 0) {
@@ -290,16 +293,16 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
       </div>
 
       {adjustingCount && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center">
-          <button type="button" className="absolute inset-0 bg-slate-900/35" onClick={() => setAdjustingCount(null)} aria-label="Close" />
-          <div ref={stepperRef} className="relative mb-20 w-[90vw] max-w-[300px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0">
+        <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center" onClick={() => setAdjustingCount(null)}>
+          <div className="absolute inset-0 bg-slate-900/35" />
+          <div ref={stepperRef} className="relative mb-20 w-[90vw] max-w-[300px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0" onClick={(e) => e.stopPropagation()}>
             <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Follow-up count</p>
             <p className="mb-4 truncate text-center text-sm font-semibold text-gray-900">{adjustingCount.fullName}</p>
             <div className="flex items-center justify-center gap-5">
               <button
                 type="button"
                 disabled={adjustingCount.followUpCount <= 0}
-                onPointerDown={(e) => { e.preventDefault(); handleStepperChange(-1); }}
+                onPointerDown={() => handleStepperChange(-1)}
                 className="grid h-12 w-12 place-items-center rounded-2xl bg-orange-100 text-2xl font-bold text-primary shadow-sm transition active:scale-95 hover:bg-orange-200 disabled:opacity-30 disabled:active:scale-100"
               >
                 −
@@ -309,7 +312,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               </span>
               <button
                 type="button"
-                onPointerDown={(e) => { e.preventDefault(); handleStepperChange(1); }}
+                onPointerDown={() => handleStepperChange(1)}
                 className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-2xl font-bold text-white shadow-sm transition active:scale-95 hover:bg-primary-dark"
               >
                 +
