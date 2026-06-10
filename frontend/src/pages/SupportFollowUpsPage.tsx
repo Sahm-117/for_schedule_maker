@@ -128,7 +128,7 @@ const SupportFollowUpsPage: React.FC = () => {
             </button>
             {showLinkTip && (
               <div className="absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2">
-                <div className="max-w-[260px] rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg break-all">
+                <div className="max-w-[90vw] rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg break-all sm:max-w-md">
                   {registrationLink}
                 </div>
                 <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
