@@ -5,7 +5,6 @@ import AppSelect from '../AppSelect';
 import AppOverflowMenu from '../AppOverflowMenu';
 import FollowUpStatusPill from './FollowUpStatusPill';
 import {
-  MESSAGE_STATUS_META,
   REPLY_STATUS_META,
   CALL_STATUS_META,
   REGISTRATION_STATUS_META,
@@ -199,7 +198,6 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               )}
               <th className="px-4 py-3">Person</th>
               {canAssign && <th className="px-4 py-3">Owner</th>}
-              <th className="px-4 py-3">Message</th>
               <th className="px-4 py-3">Reply</th>
               <th className="px-4 py-3">Call</th>
               <th className="px-4 py-3">Registration</th>
@@ -244,7 +242,6 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                       </div>
                     )}
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <FollowUpStatusPill label={MESSAGE_STATUS_META[contact.messageStatus].label} tone={MESSAGE_STATUS_META[contact.messageStatus].tone} />
                       {contact.ownerName && (
                         <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
                           {contact.ownerName}
@@ -266,7 +263,6 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                     />
                   </td>
                 )}
-                <td className="px-4 py-3.5">{statusCell(contact, 'messageStatus', MESSAGE_STATUS_META, contact.messageStatus)}</td>
                 <td className="px-4 py-3.5">{statusCell(contact, 'replyStatus', REPLY_STATUS_META, contact.replyStatus)}</td>
                 <td className="px-4 py-3.5">{statusCell(contact, 'callStatus', CALL_STATUS_META, contact.callStatus)}</td>
                 <td className="px-4 py-3.5">{statusCell(contact, 'registrationStatus', REGISTRATION_STATUS_META, contact.registrationStatus)}</td>
@@ -339,7 +335,6 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               </div>
             </div>
             <div className="mt-3 flex flex-wrap gap-1.5">
-              <FollowUpStatusPill label={MESSAGE_STATUS_META[contact.messageStatus].label} tone={MESSAGE_STATUS_META[contact.messageStatus].tone} />
               <FollowUpStatusPill label={REPLY_STATUS_META[contact.replyStatus].label} tone={REPLY_STATUS_META[contact.replyStatus].tone} />
               <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
                 <span className="h-2.5 w-2.5">{PhoneIcon}</span>
