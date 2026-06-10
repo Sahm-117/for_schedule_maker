@@ -142,6 +142,80 @@ export interface Announcement {
   cohortName?: string | null;
 }
 
+export type FollowUpMessageStatus = 'NOT_SENT' | 'SENT';
+export type FollowUpReplyStatus = 'NO_REPLY' | 'REPLIED' | 'NEEDS_REMINDER';
+export type FollowUpCallStatus = 'NOT_CALLED' | 'CALLED' | 'MISSED_CALL' | 'CALL_BACK_LATER' | 'NOT_APPLICABLE';
+export type FollowUpRegistrationStatus = 'NOT_REGISTERED' | 'PENDING_CONFIRMATION' | 'REGISTERED' | 'STILL_THINKING' | 'NOT_INTERESTED';
+export type FollowUpNextAction = 'SEND_MESSAGE' | 'SEND_REMINDER' | 'CALL' | 'CLOSE';
+export type IssueStatus = 'OPEN' | 'RESOLVED';
+
+export interface FollowUpContact {
+  id: string;
+  fullName: string;
+  phone?: string | null;
+  source?: string | null;
+  ownerId?: string | null;
+  ownerName?: string | null;
+  messageStatus: FollowUpMessageStatus;
+  replyStatus: FollowUpReplyStatus;
+  callStatus: FollowUpCallStatus;
+  registrationStatus: FollowUpRegistrationStatus;
+  nextAction: FollowUpNextAction;
+  lastContactDate?: string | null;
+  followUpCount: number;
+  notes?: string | null;
+  cohortId?: string | null;
+  cohortName?: string | null;
+  dueDate?: string | null;
+  archivedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type FollowUpContactUpdate = Partial<Pick<
+  FollowUpContact,
+  | 'fullName'
+  | 'phone'
+  | 'source'
+  | 'ownerId'
+  | 'messageStatus'
+  | 'replyStatus'
+  | 'callStatus'
+  | 'registrationStatus'
+  | 'nextAction'
+  | 'lastContactDate'
+  | 'notes'
+  | 'cohortId'
+  | 'dueDate'
+>> & {
+  previousOwnerId?: string | null;
+};
+
+export interface MessageTemplate {
+  id: string;
+  useCase: string;
+  body: string;
+  whenToUse?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface FollowUpIssue {
+  id: string;
+  contactId?: string | null;
+  contactName?: string | null;
+  openedAt: string;
+  person?: string | null;
+  issue: string;
+  ownerId?: string | null;
+  ownerName?: string | null;
+  neededFrom?: string | null;
+  status: IssueStatus;
+  resolution?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface DailyDigestCursor {
   weekNumber: number;
   dayName: string;

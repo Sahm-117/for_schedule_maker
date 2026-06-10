@@ -19,6 +19,9 @@ import {
   notificationSettingsApi as supabaseNotificationSettingsApi,
   announcementsApi as supabaseAnnouncementsApi,
   resourcesApi as supabaseResourcesApi,
+  followUpContactsApi as supabaseFollowUpContactsApi,
+  messageTemplatesApi as supabaseMessageTemplatesApi,
+  followUpIssuesApi as supabaseFollowUpIssuesApi,
   setAuthToken as supabaseSetAuthToken,
   clearAuthToken as supabaseClearAuthToken,
 } from './supabase-api';
@@ -133,6 +136,34 @@ export const cohortsApi = USE_SUPABASE ? supabaseCohortsApi : {
   async delete(_cohortId: string): Promise<{ message: string }> { throw new Error('Cohorts are only available in Supabase mode.'); },
   async getMembers(_cohortId: string): Promise<{ users: User[] }> { return { users: [] }; },
   async setMembers(_cohortId: string, _userIds: string[]): Promise<{ message: string }> { return { message: 'Not supported' }; },
+};
+
+const followUpsUnavailable = () => {
+  throw new Error('Follow-ups are only available in Supabase mode.');
+};
+
+export const followUpContactsApi = USE_SUPABASE ? supabaseFollowUpContactsApi : {
+  async getAll(_options?: any): Promise<{ contacts: import('../types').FollowUpContact[] }> { return { contacts: [] }; },
+  async create(_input: any): Promise<never> { return followUpsUnavailable(); },
+  async createMany(_rows: any[]): Promise<never> { return followUpsUnavailable(); },
+  async update(_id: string, _input: any): Promise<never> { return followUpsUnavailable(); },
+  async assignMany(_ids: string[], _ownerId: string | null, _dueDate?: string | null): Promise<never> { return followUpsUnavailable(); },
+  async logContact(_id: string): Promise<never> { return followUpsUnavailable(); },
+  async delete(_id: string): Promise<never> { return followUpsUnavailable(); },
+};
+
+export const messageTemplatesApi = USE_SUPABASE ? supabaseMessageTemplatesApi : {
+  async getAll(): Promise<{ templates: import('../types').MessageTemplate[] }> { return { templates: [] }; },
+  async create(_input: any): Promise<never> { return followUpsUnavailable(); },
+  async update(_id: string, _input: any): Promise<never> { return followUpsUnavailable(); },
+  async delete(_id: string): Promise<never> { return followUpsUnavailable(); },
+};
+
+export const followUpIssuesApi = USE_SUPABASE ? supabaseFollowUpIssuesApi : {
+  async getAll(_options?: any): Promise<{ issues: import('../types').FollowUpIssue[] }> { return { issues: [] }; },
+  async create(_input: any): Promise<never> { return followUpsUnavailable(); },
+  async update(_id: string, _input: any): Promise<never> { return followUpsUnavailable(); },
+  async delete(_id: string): Promise<never> { return followUpsUnavailable(); },
 };
 
 // Activities API
@@ -322,6 +353,12 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   },
   async setDailyDigestEnabled(enabled: boolean): Promise<{ enabled: boolean }> {
     return { enabled };
+  },
+  async getRegistrationLink(): Promise<{ url: string }> {
+    return { url: '' };
+  },
+  async setRegistrationLink(url: string): Promise<{ url: string }> {
+    return { url };
   },
 };
 

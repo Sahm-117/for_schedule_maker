@@ -148,6 +148,66 @@ Deno.serve(async (_req) => {
       }
     }
 
+    // 7. Follow-up due-date reminders — one push per contact per due date.
+    //    dueReminderSentAt acts as the dedupe guard across 10-minute cron runs;
+    //    changing a contact's due date resets it to null (re-arms the reminder).
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+
+    const { data: dueContacts } = await supabase
+      .from('FollowUpContact')
+      .select('id, fullName, nextAction, dueDate, ownerId')
+      .lte('dueDate', todayISO)
+      .is('archivedAt', null)
+      .is('dueReminderSentAt', null)
+      .not('ownerId', 'is', null)
+
+    const NEXT_ACTION_LABELS: Record<string, string> = {
+      SEND_MESSAGE: 'Send message',
+      SEND_REMINDER: 'Send reminder',
+      CALL: 'Call',
+      CLOSE: 'Close',
+    }
+
+    for (const contact of (dueContacts || []) as any[]) {
+      const { data: subs } = await supabase
+        .from('PushSubscription')
+        .select('userId, endpoint, p256dh, auth')
+        .eq('userId', contact.ownerId)
+
+      const payload = JSON.stringify({
+        title: '⏰ Follow-up due',
+        body: `${contact.fullName} — ${NEXT_ACTION_LABELS[contact.nextAction] || 'Follow up'}`,
+        icon: '/icon-192.png',
+        tag: `fof-followup-due-${contact.id}-${contact.dueDate}`,
+      })
+
+      for (const sub of (subs || []) as any[]) {
+        const pushSub = {
+          endpoint: sub.endpoint,
+          keys: { p256dh: sub.p256dh, auth: sub.auth },
+        }
+        try {
+          await webPush.sendNotification(pushSub, payload)
+          notified.push(sub.userId)
+        } catch (err: any) {
+          if (err?.statusCode === 410) {
+            await supabase
+              .from('PushSubscription')
+              .delete()
+              .eq('userId', sub.userId)
+              .eq('endpoint', sub.endpoint)
+          }
+        }
+      }
+
+      // Mark as reminded even with no active subscriptions, so the contact
+      // isn't re-processed every 10 minutes.
+      await supabase
+        .from('FollowUpContact')
+        .update({ dueReminderSentAt: now.toISOString() })
+        .eq('id', contact.id)
+    }
+
     return new Response(
       JSON.stringify({ ok: true, notified: notified.length }),
       { headers: { 'Content-Type': 'application/json' } }

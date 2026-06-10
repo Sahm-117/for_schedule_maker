@@ -1639,6 +1639,43 @@ export const settingsApi = {
 
     return { enabled: parseDailyDigestEnabled((data as any)?.value) };
   },
+
+  async getRegistrationLink(): Promise<{ url: string }> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'registration_link')
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const value = (data as any)?.value;
+    return { url: typeof value === 'string' ? value : '' };
+  },
+
+  async setRegistrationLink(url: string): Promise<{ url: string }> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .upsert(
+        [{
+          settingKey: 'registration_link',
+          value: url,
+          updatedAt: new Date().toISOString(),
+        }],
+        { onConflict: 'settingKey' }
+      )
+      .select('value')
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const value = (data as any)?.value;
+    return { url: typeof value === 'string' ? value : '' };
+  },
 };
 
 export const digestApi = {
@@ -2196,4 +2233,304 @@ export const setAuthToken = (token: string) => {
 export const clearAuthToken = () => {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
+};
+
+// ---------------------------------------------------------------------------
+// Follow-ups module
+// ---------------------------------------------------------------------------
+
+const mapFollowUpContact = (row: any): import('../types').FollowUpContact => ({
+  id: row.id,
+  fullName: row.fullName,
+  phone: row.phone,
+  source: row.source,
+  ownerId: row.ownerId,
+  ownerName: row.owner?.name || null,
+  messageStatus: row.messageStatus,
+  replyStatus: row.replyStatus,
+  callStatus: row.callStatus,
+  registrationStatus: row.registrationStatus,
+  nextAction: row.nextAction,
+  lastContactDate: row.lastContactDate,
+  followUpCount: row.followUpCount ?? 0,
+  notes: row.notes,
+  cohortId: row.cohortId,
+  cohortName: row.Cohort?.name || null,
+  dueDate: row.dueDate,
+  archivedAt: row.archivedAt,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+});
+
+const FOLLOW_UP_SELECT = '*, owner:User!FollowUpContact_ownerId_fkey(id, name), Cohort(name)';
+
+export type FollowUpContactInput = import('../types').FollowUpContactUpdate;
+
+const notifyFollowUpAssignment = (ownerId: string, contactNames: string[]) => {
+  // Fire-and-forget: a push failure must never block the UI flow.
+  void supabase.functions
+    .invoke('notify-followup-assignment', {
+      body: { ownerId, contactCount: contactNames.length, sample: contactNames.slice(0, 3) },
+    })
+    .catch(() => undefined);
+};
+
+export const followUpContactsApi = {
+  async getAll(options?: {
+    cohortId?: string | null;
+    ownerId?: string;
+    archived?: boolean;
+  }): Promise<{ contacts: import('../types').FollowUpContact[] }> {
+    let query = supabase
+      .from('FollowUpContact')
+      .select(FOLLOW_UP_SELECT)
+      .order('createdAt', { ascending: false });
+
+    if (options?.cohortId) query = query.eq('cohortId', options.cohortId);
+    if (options?.ownerId) query = query.eq('ownerId', options.ownerId);
+    if (options?.archived === true) query = query.not('archivedAt', 'is', null);
+    if (options?.archived === false) query = query.is('archivedAt', null);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    return { contacts: ((data as any[]) || []).map(mapFollowUpContact) };
+  },
+
+  async create(input: FollowUpContactInput): Promise<{ contact: import('../types').FollowUpContact }> {
+    const { data, error } = await supabase
+      .from('FollowUpContact')
+      .insert([input])
+      .select(FOLLOW_UP_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to create contact');
+
+    const contact = mapFollowUpContact(data);
+    if (input.ownerId) notifyFollowUpAssignment(input.ownerId, [contact.fullName]);
+    return { contact };
+  },
+
+  async createMany(rows: FollowUpContactInput[]): Promise<{ contacts: import('../types').FollowUpContact[] }> {
+    if (rows.length === 0) return { contacts: [] };
+    const { data, error } = await supabase
+      .from('FollowUpContact')
+      .insert(rows)
+      .select(FOLLOW_UP_SELECT);
+
+    if (error) throw new Error(error.message);
+    return { contacts: ((data as any[]) || []).map(mapFollowUpContact) };
+  },
+
+  async update(contactId: string, input: FollowUpContactInput): Promise<{ contact: import('../types').FollowUpContact }> {
+    const { previousOwnerId, ...fields } = input;
+    const patch: Record<string, unknown> = { ...fields, updatedAt: new Date().toISOString() };
+
+    if (fields.nextAction === 'CLOSE') {
+      patch.archivedAt = new Date().toISOString();
+    } else if (fields.nextAction) {
+      patch.archivedAt = null;
+    }
+    if ('dueDate' in fields) {
+      // Re-arm the due reminder whenever the due date changes.
+      patch.dueReminderSentAt = null;
+    }
+
+    const { data, error } = await supabase
+      .from('FollowUpContact')
+      .update(patch)
+      .eq('id', contactId)
+      .select(FOLLOW_UP_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to update contact');
+
+    const contact = mapFollowUpContact(data);
+    if (fields.ownerId && fields.ownerId !== previousOwnerId) {
+      notifyFollowUpAssignment(fields.ownerId, [contact.fullName]);
+    }
+    return { contact };
+  },
+
+  async assignMany(contactIds: string[], ownerId: string | null, dueDate?: string | null): Promise<{ contacts: import('../types').FollowUpContact[] }> {
+    if (contactIds.length === 0) return { contacts: [] };
+    const patch: Record<string, unknown> = { ownerId, updatedAt: new Date().toISOString() };
+    if (dueDate !== undefined) {
+      patch.dueDate = dueDate;
+      patch.dueReminderSentAt = null;
+    }
+
+    const { data, error } = await supabase
+      .from('FollowUpContact')
+      .update(patch)
+      .in('id', contactIds)
+      .select(FOLLOW_UP_SELECT);
+
+    if (error) throw new Error(error.message);
+
+    const contacts = ((data as any[]) || []).map(mapFollowUpContact);
+    if (ownerId) notifyFollowUpAssignment(ownerId, contacts.map((c) => c.fullName));
+    return { contacts };
+  },
+
+  async logContact(contactId: string): Promise<{ contact: import('../types').FollowUpContact }> {
+    const { data: current, error: readError } = await supabase
+      .from('FollowUpContact')
+      .select('followUpCount')
+      .eq('id', contactId)
+      .single();
+
+    if (readError || !current) throw new Error(readError?.message || 'Contact not found');
+
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    const { data, error } = await supabase
+      .from('FollowUpContact')
+      .update({
+        followUpCount: ((current as any).followUpCount ?? 0) + 1,
+        lastContactDate: today,
+        updatedAt: now.toISOString(),
+      })
+      .eq('id', contactId)
+      .select(FOLLOW_UP_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to log contact');
+    return { contact: mapFollowUpContact(data) };
+  },
+
+  async delete(contactId: string): Promise<{ message: string }> {
+    const { error } = await supabase
+      .from('FollowUpContact')
+      .delete()
+      .eq('id', contactId);
+
+    if (error) throw new Error(error.message);
+    return { message: 'Contact deleted' };
+  },
+};
+
+export const messageTemplatesApi = {
+  async getAll(): Promise<{ templates: import('../types').MessageTemplate[] }> {
+    const { data, error } = await supabase
+      .from('MessageTemplate')
+      .select('*')
+      .order('createdAt', { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return { templates: (data as any[]) || [] };
+  },
+
+  async create(input: { useCase: string; body: string; whenToUse?: string | null }): Promise<{ template: import('../types').MessageTemplate }> {
+    const { data, error } = await supabase
+      .from('MessageTemplate')
+      .insert([input])
+      .select()
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to create template');
+    return { template: data as any };
+  },
+
+  async update(templateId: string, input: { useCase: string; body: string; whenToUse?: string | null }): Promise<{ template: import('../types').MessageTemplate }> {
+    const { data, error } = await supabase
+      .from('MessageTemplate')
+      .update({ ...input, updatedAt: new Date().toISOString() })
+      .eq('id', templateId)
+      .select()
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to update template');
+    return { template: data as any };
+  },
+
+  async delete(templateId: string): Promise<{ message: string }> {
+    const { error } = await supabase
+      .from('MessageTemplate')
+      .delete()
+      .eq('id', templateId);
+
+    if (error) throw new Error(error.message);
+    return { message: 'Template deleted' };
+  },
+};
+
+const mapFollowUpIssue = (row: any): import('../types').FollowUpIssue => ({
+  id: row.id,
+  contactId: row.contactId,
+  contactName: row.contact?.fullName || null,
+  openedAt: row.openedAt,
+  person: row.person,
+  issue: row.issue,
+  ownerId: row.ownerId,
+  ownerName: row.owner?.name || null,
+  neededFrom: row.neededFrom,
+  status: row.status,
+  resolution: row.resolution,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+});
+
+const ISSUE_SELECT = '*, contact:FollowUpContact(id, fullName), owner:User!FollowUpIssue_ownerId_fkey(id, name)';
+
+export const followUpIssuesApi = {
+  async getAll(options?: { contactId?: string; status?: import('../types').IssueStatus }): Promise<{ issues: import('../types').FollowUpIssue[] }> {
+    let query = supabase
+      .from('FollowUpIssue')
+      .select(ISSUE_SELECT)
+      .order('createdAt', { ascending: false });
+
+    if (options?.contactId) query = query.eq('contactId', options.contactId);
+    if (options?.status) query = query.eq('status', options.status);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return { issues: ((data as any[]) || []).map(mapFollowUpIssue) };
+  },
+
+  async create(input: {
+    contactId?: string | null;
+    person?: string | null;
+    issue: string;
+    ownerId?: string | null;
+    neededFrom?: string | null;
+  }): Promise<{ issue: import('../types').FollowUpIssue }> {
+    const { data, error } = await supabase
+      .from('FollowUpIssue')
+      .insert([input])
+      .select(ISSUE_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to create issue');
+    return { issue: mapFollowUpIssue(data) };
+  },
+
+  async update(issueId: string, input: {
+    issue?: string;
+    ownerId?: string | null;
+    neededFrom?: string | null;
+    status?: import('../types').IssueStatus;
+    resolution?: string | null;
+  }): Promise<{ issue: import('../types').FollowUpIssue }> {
+    const { data, error } = await supabase
+      .from('FollowUpIssue')
+      .update({ ...input, updatedAt: new Date().toISOString() })
+      .eq('id', issueId)
+      .select(ISSUE_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to update issue');
+    return { issue: mapFollowUpIssue(data) };
+  },
+
+  async delete(issueId: string): Promise<{ message: string }> {
+    const { error } = await supabase
+      .from('FollowUpIssue')
+      .delete()
+      .eq('id', issueId);
+
+    if (error) throw new Error(error.message);
+    return { message: 'Issue deleted' };
+  },
 };

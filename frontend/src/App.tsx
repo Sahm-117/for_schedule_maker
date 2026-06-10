@@ -19,6 +19,8 @@ import AdminSettingsPage from './pages/AdminSettingsPage';
 import AnnouncementsFeedPage from './pages/AnnouncementsFeedPage';
 import ActivityOverviewPage from './pages/ActivityOverviewPage';
 import CohortsPage from './pages/CohortsPage';
+import AdminFollowUpsPage from './pages/AdminFollowUpsPage';
+import SupportFollowUpsPage from './pages/SupportFollowUpsPage';
 import SupportHomePage from './pages/SupportHomePage';
 import SupportSchedulePage from './pages/SupportSchedulePage';
 import SupportResourcesPage from './pages/SupportResourcesPage';
@@ -53,6 +55,8 @@ function App() {
             <Route path="/settings" element={<AdminSettingsPage />} />
             <Route path="/activity-overview" element={<ActivityOverviewPage />} />
             <Route path="/cohorts" element={<CohortsPage />} />
+            <Route path="/follow-ups" element={<AdminFollowUpsPage />} />
+            <Route path="/support/follow-ups" element={<SupportFollowUpsPage />} />
             <Route path="/support" element={<SupportHomePage />} />
             <Route path="/support/schedule" element={<SupportSchedulePage />} />
             <Route path="/support/resources" element={<SupportResourcesPage />} />

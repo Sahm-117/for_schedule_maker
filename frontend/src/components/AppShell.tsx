@@ -15,6 +15,7 @@ type NavItem = {
   icon: React.ReactNode;
   adminOnly?: boolean;
   sopHidden?: boolean;
+  mobileHidden?: boolean;
 };
 
 const IconBox: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -31,6 +32,7 @@ const ICONS = {
   megaphone: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M11 5 6 9H3v6h3l5 4V5Zm0 0h4a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4h-4" /></svg></IconBox>,
   resources: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M19 11H5m14 0a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2m14 0V9a2 2 0 0 0-2-2M5 11V9a2 2 0 0 1 2-2m0 0V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2M7 7h10" /></svg></IconBox>,
   settings: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M10.325 4.317a1 1 0 0 1 1.9 0 1 1 0 0 0 1.49.617 1 1 0 0 1 1.366.366 1 1 0 0 0 1.324.472 1 1 0 0 1 1.366.366 1 1 0 0 1-.366 1.366 1 1 0 0 0-.472 1.324 1 1 0 0 1 .617 1.49 1 1 0 0 0 0 1.9 1 1 0 0 1-.617 1.49 1 1 0 0 0-.472 1.324 1 1 0 0 1 .366 1.366 1 1 0 0 1-1.366.366 1 1 0 0 0-1.324.472 1 1 0 0 1-1.49.617 1 1 0 0 0-1.9 0 1 1 0 0 1-1.49-.617 1 1 0 0 0-1.324-.472 1 1 0 0 1-1.366-.366 1 1 0 0 1 .366-1.366 1 1 0 0 0 .472-1.324 1 1 0 0 1-.617-1.49 1 1 0 0 0 0-1.9 1 1 0 0 1 .617-1.49 1 1 0 0 0 .472-1.324 1 1 0 0 1-.366-1.366 1 1 0 0 1 1.366-.366 1 1 0 0 0 1.324-.472 1 1 0 0 1 1.49-.617Z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg></IconBox>,
+  followups: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 8l7.89 5.26a2 2 0 0 0 2.22 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z" /></svg></IconBox>,
   profile: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M20 21a8 8 0 1 0-16 0m8-11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" /></svg></IconBox>,
 };
 
@@ -40,6 +42,7 @@ const adminNav: NavItem[] = [
   { to: '/approvals', label: 'Approvals', icon: ICONS.approvals },
   { to: '/activity-overview', label: 'Activity Overview', icon: ICONS.overview, adminOnly: true },
   { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
+  { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
   { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
   { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
   { to: '/resources', label: 'Resources', icon: ICONS.resources },
@@ -49,6 +52,7 @@ const adminNav: NavItem[] = [
 const supportNav: NavItem[] = [
   { to: '/support', label: 'Home', icon: ICONS.dashboard },
   { to: '/support/schedule', label: 'My Schedule', icon: ICONS.schedule },
+  { to: '/support/follow-ups', label: 'My Follow-ups', icon: ICONS.followups, mobileHidden: true },
   { to: '/support/resources', label: 'Resources', icon: ICONS.resources },
   { to: '/support/profile', label: 'Profile', icon: ICONS.profile },
 ];
@@ -100,7 +104,7 @@ const AppShell: React.FC = () => {
     });
   }, [isAdmin, isSopPreparer, isSupport]);
   const mobileNavItems = useMemo(() => {
-    if (isSupport) return supportNav;
+    if (isSupport) return supportNav.filter((item) => !item.mobileHidden);
     const mobileAdminRoutes = new Set(['/dashboard', '/schedule', '/approvals', '/resources']);
     return navItems.filter((item) => mobileAdminRoutes.has(item.to));
   }, [isSupport, navItems]);
