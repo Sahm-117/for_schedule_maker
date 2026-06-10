@@ -199,7 +199,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               <th className="px-4 py-3">Registration</th>
               <th className="px-4 py-3">Next action</th>
               <th className="px-4 py-3">Due</th>
-              <th className="w-24 px-4 py-3 text-right">Actions</th>
+              <th className="sticky right-0 z-10 w-24 bg-orange-50/60 px-4 py-3 text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -270,7 +270,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                     {dateLabel(contact.dueDate)}
                   </span>
                 </td>
-                <td className="px-4 py-3.5">
+                <td className="sticky right-0 z-10 bg-white px-4 py-3.5 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">
                   <div className="flex justify-end gap-1.5">
                     {actions(contact)}
                   </div>
@@ -434,6 +434,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               onChange={(e) => setDueDateValue(e.target.value)}
               className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-orange-300"
             />
+            {!dueDateValue && <p className="mt-2 text-center text-xs text-gray-400">Select date</p>}
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setEditingDueDate(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
               <button type="button" onClick={handleDueDateSave} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark">Save</button>
@@ -455,6 +456,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               onChange={(e) => setLastContactValue(e.target.value)}
               className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-orange-300"
             />
+            {!lastContactValue && <p className="mt-2 text-center text-xs text-gray-400">Select date</p>}
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setEditingLastContact(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
               <button type="button" onClick={handleLastContactSave} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark">Save</button>
