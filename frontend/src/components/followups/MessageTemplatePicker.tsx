@@ -25,6 +25,7 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
 }) => {
   const [selectedId, setSelectedId] = useState('');
   const [marking, setMarking] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const selected = templates.find((t) => t.id === selectedId) || null;
   const filled = useMemo(
@@ -59,10 +60,14 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
           {filled && (
             <button
               type="button"
-              onClick={() => { void navigator.clipboard?.writeText(filled); }}
+              onClick={() => {
+                void navigator.clipboard?.writeText(filled);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
               className="rounded-2xl border border-orange-200 bg-white px-4 py-2.5 text-sm font-semibold text-primary hover:bg-orange-50"
             >
-              Copy text
+              {copied ? 'Copied!' : 'Copy text'}
             </button>
           )}
           {waLink ? (

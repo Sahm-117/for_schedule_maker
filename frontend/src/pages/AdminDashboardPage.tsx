@@ -6,8 +6,8 @@ import PageHeader from '../components/PageHeader';
 import { PeriodBadge } from '../components/PeriodIcon';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, resourcesApi, supportActivityCompletionsApi, usersApi } from '../services/api';
-import type { Activity, Announcement, Resource, SupportActivityCompletion, User } from '../types';
+import { announcementsApi, followUpContactsApi, resourcesApi, supportActivityCompletionsApi, usersApi } from '../services/api';
+import type { Activity, Announcement, FollowUpContact, Resource, SupportActivityCompletion, User } from '../types';
 
 const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
 
@@ -18,10 +18,12 @@ const AdminDashboardPage: React.FC = () => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
+  const [contacts, setContacts] = useState<FollowUpContact[]>([]);
 
   useEffect(() => {
     resourcesApi.getAll().then((res) => setResources(res.resources)).catch(() => {});
     announcementsApi.getHistory({ isAdmin: true, cohortId: activeCohort?.id || null }).then((res) => setAnnouncements(res.announcements.slice(0, 3))).catch(() => {});
+    followUpContactsApi.getAll().then((res) => setContacts(res.contacts)).catch(() => {});
     if (isAdmin) {
       usersApi.getAll()
         .then(async (res) => {
@@ -66,6 +68,7 @@ const AdminDashboardPage: React.FC = () => {
   }, [activeWeek]);
 
   const supportCount = users.filter((member) => member.role === 'SUPPORT').length;
+  const notRegisteredCount = contacts.filter((c) => !c.archivedAt && c.registrationStatus === 'NOT_REGISTERED').length;
   const todayActivities = todaysDay?.activities || [];
   const completionsByActivity = useMemo(() => {
     const map = new Map<number, SupportActivityCompletion[]>();
@@ -104,6 +107,7 @@ const AdminDashboardPage: React.FC = () => {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <HeroMetric label="Pending approvals" value={globalPendingChanges.length} />
+            <HeroMetric label="Not registered" value={notRegisteredCount} />
             <HeroMetric label="Resources" value={resources.length} />
             <HeroMetric label="Supports" value={supportCount} />
             <HeroMetric label="Announcements" value={announcements.length} />
