@@ -26,6 +26,21 @@ const AnnouncementsFeedPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [activeCohort?.id, isAdmin, isSopPreparer, liveRevision, user?.id, userCohortIds]);
 
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => {
+      announcementsApi.getHistory({
+        cohortId: activeCohort?.id || null,
+        userId: user.id,
+        isAdmin: isAdmin || isSopPreparer,
+        accessibleCohortIds: userCohortIds,
+      })
+        .then((res) => setAnnouncements(res.announcements))
+        .catch(() => {});
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [activeCohort?.id, isAdmin, isSopPreparer, user?.id, userCohortIds]);
+
   if (!user) return null;
 
   if (user.role !== 'SUPPORT' && !isSopPreparer && !isAdmin) {

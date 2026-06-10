@@ -10,6 +10,9 @@ interface AnnouncementsModalProps {
   embedded?: boolean;
   showComposer?: boolean;
   showHistory?: boolean;
+  history?: Announcement[];
+  loadingHistory?: boolean;
+  onSent?: () => void;
 }
 
 const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
@@ -18,6 +21,9 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   embedded = false,
   showComposer = true,
   showHistory = true,
+  history: propHistory,
+  loadingHistory: propLoadingHistory,
+  onSent,
 }) => {
   const { user, isAdmin, userCohortIds } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
@@ -27,9 +33,12 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   const [sending, setSending] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [history, setHistory] = useState<Announcement[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [localHistory, setLocalHistory] = useState<Announcement[]>([]);
+  const [localLoadingHistory, setLocalLoadingHistory] = useState(false);
   const [visibleCount, setVisibleCount] = useState(4);
+
+  const history = propHistory ?? localHistory;
+  const loadingHistory = propLoadingHistory ?? localLoadingHistory;
 
   const SUBJECT_MAX = 80;
   const BODY_MAX = 200;
@@ -37,20 +46,36 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   const shouldRender = embedded || isOpen;
 
   useEffect(() => {
+    if (propHistory) return;
     if (!shouldRender) return;
     setVisibleCount(4);
     setScope('ACTIVE_COHORT');
-    setLoadingHistory(true);
+    setLocalLoadingHistory(true);
     announcementsApi.getHistory({
       cohortId: activeCohort?.id || null,
       userId: user?.id,
       isAdmin,
       accessibleCohortIds: userCohortIds,
     })
-      .then((res) => setHistory(res.announcements))
+      .then((res) => setLocalHistory(res.announcements))
       .catch(() => {})
-      .finally(() => setLoadingHistory(false));
-  }, [activeCohort?.id, isAdmin, liveRevision, shouldRender, user?.id, userCohortIds]);
+      .finally(() => setLocalLoadingHistory(false));
+  }, [activeCohort?.id, isAdmin, liveRevision, shouldRender, user?.id, userCohortIds, propHistory]);
+
+  useEffect(() => {
+    if (propHistory) return;
+    const interval = setInterval(() => {
+      announcementsApi.getHistory({
+        cohortId: activeCohort?.id || null,
+        userId: user?.id,
+        isAdmin,
+        accessibleCohortIds: userCohortIds,
+      })
+        .then((res) => setLocalHistory(res.announcements))
+        .catch(() => {});
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [activeCohort?.id, isAdmin, user?.id, userCohortIds, propHistory]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,13 +90,17 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       setStatus({ type: 'success', message: `Sent to ${sent} device${sent !== 1 ? 's' : ''}.` });
       setSubject('');
       setBody('');
-      const res = await announcementsApi.getHistory({
-        cohortId: activeCohort?.id || null,
-        userId: user.id,
-        isAdmin,
-        accessibleCohortIds: userCohortIds,
-      });
-      setHistory(res.announcements);
+      if (onSent) {
+        onSent();
+      } else {
+        const res = await announcementsApi.getHistory({
+          cohortId: activeCohort?.id || null,
+          userId: user.id,
+          isAdmin,
+          accessibleCohortIds: userCohortIds,
+        });
+        setLocalHistory(res.announcements);
+      }
     } catch {
       setStatus({ type: 'error', message: 'Failed to send announcement. Please try again.' });
     } finally {
@@ -88,7 +117,11 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     setStatus(null);
     try {
       await announcementsApi.delete(announcement.id);
-      setHistory((prev) => prev.filter((item) => item.id !== announcement.id));
+      if (onSent) {
+        onSent();
+      } else {
+        setLocalHistory((prev) => prev.filter((item) => item.id !== announcement.id));
+      }
       setStatus({ type: 'success', message: 'Announcement deleted.' });
     } catch {
       setStatus({ type: 'error', message: 'Failed to delete announcement. Please try again.' });
