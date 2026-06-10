@@ -129,6 +129,7 @@ const SupportHomePage: React.FC = () => {
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <QuickLink to="/support/resources" label="Browse Resource Hub" />
               <QuickLink to="/support/announcements" label="View announcements" />
+              <QuickLink to="/support/follow-ups" label="My Follow-ups" />
               <QuickLink to="/support/profile" label="Profile & alerts" />
             </div>
           </div>
