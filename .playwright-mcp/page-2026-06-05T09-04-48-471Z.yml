@@ -1,0 +1,138 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: F
+        - generic [ref=e6]:
+          - paragraph [ref=e7]: FOF IKD
+          - paragraph [ref=e8]: Ops Console
+      - navigation [ref=e9]:
+        - link "Dashboard" [ref=e10] [cursor=pointer]:
+          - /url: /
+          - img [ref=e11]
+          - text: Dashboard
+        - link "Schedule" [ref=e16] [cursor=pointer]:
+          - /url: /schedule
+          - img [ref=e17]
+          - text: Schedule
+        - link "Approvals" [ref=e19] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e20]
+          - text: Approvals
+        - link "Users" [ref=e23] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e24]
+          - text: Users
+        - link "Groups" [ref=e29] [cursor=pointer]:
+          - /url: /cohorts
+          - img [ref=e30]
+          - text: Groups
+        - link "Participants" [ref=e35] [cursor=pointer]:
+          - /url: /participants
+          - img [ref=e36]
+          - text: Participants
+        - link "Faith Projects" [ref=e40] [cursor=pointer]:
+          - /url: /faith-projects
+          - img [ref=e41]
+          - text: Faith Projects
+        - link "Attendance" [ref=e43] [cursor=pointer]:
+          - /url: /attendance
+          - img [ref=e44]
+          - text: Attendance
+        - link "Announcements" [ref=e48] [cursor=pointer]:
+          - /url: /announcements
+          - img [ref=e49]
+          - text: Announcements
+        - link "Resources" [ref=e52] [cursor=pointer]:
+          - /url: /resources
+          - img [ref=e53]
+          - text: Resources
+        - link "Settings" [ref=e55] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e56]
+          - text: Settings
+    - generic [ref=e59]:
+      - banner [ref=e60]:
+        - generic [ref=e61]:
+          - generic [ref=e63] [cursor=pointer]:
+            - generic [ref=e64]: "You work on:"
+            - generic [ref=e65]:
+              - combobox "You work on:" [ref=e66]:
+                - option "Cohort 2025-A" [selected]
+              - img
+          - link "Support sign-in →" [ref=e67] [cursor=pointer]:
+            - /url: /login
+          - button [ref=e68]:
+            - img [ref=e69]
+          - generic [ref=e73]:
+            - generic [ref=e74]:
+              - paragraph [ref=e75]: Hi, Stas
+              - paragraph [ref=e76]: Admin
+            - generic [ref=e77]: S
+      - main [ref=e78]:
+        - generic [ref=e337]:
+          - generic [ref=e338]:
+            - generic [ref=e339]:
+              - heading "Announcements" [level=1] [ref=e340]
+              - paragraph [ref=e341]: Communicate updates and urgent messages.
+            - button "New Announcement" [active] [ref=e342]:
+              - img [ref=e343]
+              - generic [ref=e344]: New Announcement
+          - generic [ref=e345]:
+            - img [ref=e346]
+            - generic [ref=e348]:
+              - paragraph [ref=e349]: "Urgent · Emergency: Sunday Service Time Change"
+              - paragraph [ref=e350]: This Sunday's service moved to 9:00 AM due to community event.
+          - generic [ref=e351]:
+            - article [ref=e352]:
+              - generic [ref=e353]:
+                - generic [ref=e354]:
+                  - img [ref=e355]
+                  - text: Pinned
+                - generic [ref=e357]: 11/05/2025
+                - button "Delete announcement" [ref=e358]:
+                  - img [ref=e359]
+              - heading "Week 5 Schedule Published" [level=3] [ref=e362]
+              - paragraph [ref=e363]: The new week schedule is now live. Please review your cohort activities.
+            - article [ref=e364]:
+              - generic [ref=e365]:
+                - generic [ref=e366]: Urgent
+                - generic [ref=e367]: 10/05/2025
+                - button "Delete announcement" [ref=e368]:
+                  - img [ref=e369]
+              - 'heading "Emergency: Sunday Service Time Change" [level=3] [ref=e372]'
+              - paragraph [ref=e373]: This Sunday's service moved to 9:00 AM due to community event.
+              - paragraph [ref=e374]: Expires 18/05/2025
+          - generic [ref=e377]:
+            - generic [ref=e378]:
+              - heading "New Announcement" [level=2] [ref=e379]
+              - button [ref=e380]:
+                - img [ref=e381]
+            - generic [ref=e384]:
+              - generic [ref=e385]:
+                - generic [ref=e386]: Title
+                - textbox [ref=e387]
+              - generic [ref=e388]:
+                - generic [ref=e389]: Message
+                - textbox [ref=e390]
+                - paragraph [ref=e391]: 0/1000
+              - generic [ref=e392]:
+                - generic [ref=e393]: Expires (optional)
+                - textbox [ref=e394]
+              - generic [ref=e395]:
+                - generic [ref=e396]:
+                  - checkbox "Pinned" [ref=e397]
+                  - text: Pinned
+                - generic [ref=e398]:
+                  - checkbox "Urgent" [ref=e399]
+                  - text: Urgent
+            - generic [ref=e400]:
+              - button "Cancel" [ref=e401]
+              - button "Publish" [ref=e402]
+  - complementary "Edit with Lovable" [ref=e326]:
+    - link "Edit with Lovable" [ref=e327] [cursor=pointer]:
+      - /url: https://lovable.dev/projects/75d7efa8-61e9-4e95-b9ed-6a92975d7769?utm_source=lovable-badge
+      - generic [ref=e328]: Edit with
+      - img [ref=e329]
+    - button "Dismiss" [ref=e334] [cursor=pointer]:
+      - img [ref=e335]

@@ -1,0 +1,188 @@
+- generic [ref=e2]:
+  - generic [ref=e59]:
+    - banner [ref=e60]:
+      - generic [ref=e61]:
+        - button [ref=e403]:
+          - img [ref=e404]
+        - generic [ref=e65] [cursor=pointer]:
+          - combobox [ref=e405]:
+            - option "Cohort 2025-A" [selected]
+          - img
+        - button [ref=e68]:
+          - img [ref=e69]
+        - generic [ref=e77]: S
+    - main [ref=e78]:
+      - generic [ref=e501]:
+        - generic [ref=e502]:
+          - generic [ref=e503]:
+            - heading "User Management" [level=1] [ref=e504]
+            - paragraph [ref=e505]: Admins, SOP Preparers, and Supports.
+          - button "Create User" [ref=e506]:
+            - img [ref=e507]
+        - generic [ref=e510]:
+          - generic [ref=e511]:
+            - img [ref=e512]
+            - textbox "Search users…" [ref=e515]
+          - combobox [ref=e516]:
+            - option "All roles" [selected]
+            - option "Admin"
+            - option "SOP Preparer"
+            - option "Support"
+        - table [ref=e518]:
+          - rowgroup [ref=e519]:
+            - row "Name Status" [ref=e520]:
+              - columnheader "Name" [ref=e521]
+              - columnheader "Status" [ref=e522]
+              - columnheader [ref=e523]
+          - rowgroup [ref=e524]:
+            - row "SA Stas Adebayo ADMIN ACTIVE" [ref=e525]:
+              - cell "SA Stas Adebayo ADMIN" [ref=e526]:
+                - generic [ref=e527]:
+                  - generic [ref=e528]: SA
+                  - generic [ref=e529]:
+                    - paragraph [ref=e530]: Stas Adebayo
+                    - paragraph [ref=e531]: ADMIN
+              - cell "ACTIVE" [ref=e532]:
+                - generic [ref=e533]: ACTIVE
+              - cell [ref=e534]:
+                - button [ref=e535]:
+                  - img [ref=e536]
+            - row "GO Grace Olufemi SOP PREPARER ACTIVE" [ref=e540]:
+              - cell "GO Grace Olufemi SOP PREPARER" [ref=e541]:
+                - generic [ref=e542]:
+                  - generic [ref=e543]: GO
+                  - generic [ref=e544]:
+                    - paragraph [ref=e545]: Grace Olufemi
+                    - paragraph [ref=e546]: SOP PREPARER
+              - cell "ACTIVE" [ref=e547]:
+                - generic [ref=e548]: ACTIVE
+              - cell [ref=e549]:
+                - button [ref=e550]:
+                  - img [ref=e551]
+            - row "DO Daniel Okeke SUPPORT ACTIVE" [ref=e555]:
+              - cell "DO Daniel Okeke SUPPORT" [ref=e556]:
+                - generic [ref=e557]:
+                  - generic [ref=e558]: DO
+                  - generic [ref=e559]:
+                    - paragraph [ref=e560]: Daniel Okeke
+                    - paragraph [ref=e561]: SUPPORT
+              - cell "ACTIVE" [ref=e562]:
+                - generic [ref=e563]: ACTIVE
+              - cell [ref=e564]:
+                - button [ref=e565]:
+                  - img [ref=e566]
+            - row "EB Esther Bello SUPPORT ACTIVE" [ref=e570]:
+              - cell "EB Esther Bello SUPPORT" [ref=e571]:
+                - generic [ref=e572]:
+                  - generic [ref=e573]: EB
+                  - generic [ref=e574]:
+                    - paragraph [ref=e575]: Esther Bello
+                    - paragraph [ref=e576]: SUPPORT
+              - cell "ACTIVE" [ref=e577]:
+                - generic [ref=e578]: ACTIVE
+              - cell [ref=e579]:
+                - button [ref=e580]:
+                  - img [ref=e581]
+            - row "SA Samuel Ajayi SUPPORT ACTIVE" [ref=e585]:
+              - cell "SA Samuel Ajayi SUPPORT" [ref=e586]:
+                - generic [ref=e587]:
+                  - generic [ref=e588]: SA
+                  - generic [ref=e589]:
+                    - paragraph [ref=e590]: Samuel Ajayi
+                    - paragraph [ref=e591]: SUPPORT
+              - cell "ACTIVE" [ref=e592]:
+                - generic [ref=e593]: ACTIVE
+              - cell [ref=e594]:
+                - button [ref=e595]:
+                  - img [ref=e596]
+            - row "RE Ruth Eze SUPPORT INACTIVE" [ref=e600]:
+              - cell "RE Ruth Eze SUPPORT" [ref=e601]:
+                - generic [ref=e602]:
+                  - generic [ref=e603]: RE
+                  - generic [ref=e604]:
+                    - paragraph [ref=e605]: Ruth Eze
+                    - paragraph [ref=e606]: SUPPORT
+              - cell "INACTIVE" [ref=e607]:
+                - generic [ref=e608]: INACTIVE
+              - cell [ref=e609]:
+                - button [ref=e610]:
+                  - img [ref=e611]
+            - row "MA Michael Adekunle SOP PREPARER ACTIVE" [ref=e615]:
+              - cell "MA Michael Adekunle SOP PREPARER" [ref=e616]:
+                - generic [ref=e617]:
+                  - generic [ref=e618]: MA
+                  - generic [ref=e619]:
+                    - paragraph [ref=e620]: Michael Adekunle
+                    - paragraph [ref=e621]: SOP PREPARER
+              - cell "ACTIVE" [ref=e622]:
+                - generic [ref=e623]: ACTIVE
+              - cell [ref=e624]:
+                - button [ref=e625]:
+                  - img [ref=e626]
+        - generic [ref=e631]:
+          - generic [ref=e632]:
+            - heading "Create User" [level=2] [ref=e633]
+            - button [ref=e634]:
+              - img [ref=e635]
+          - generic [ref=e638]:
+            - generic [ref=e639]:
+              - generic [ref=e640]: Name *
+              - textbox "Full name" [active] [ref=e641]
+            - generic [ref=e642]:
+              - generic [ref=e643]:
+                - generic [ref=e644]: Role *
+                - combobox [ref=e645]:
+                  - option "Admin"
+                  - option "SOP Preparer"
+                  - option "Support" [selected]
+              - generic [ref=e646]:
+                - generic [ref=e647]: Status
+                - combobox [ref=e648]:
+                  - option "Active" [selected]
+                  - option "Inactive"
+            - generic [ref=e649]:
+              - generic [ref=e650]: Email
+              - textbox "name@tcnikd.org" [ref=e651]
+            - generic [ref=e652]:
+              - generic [ref=e653]: Phone
+              - textbox "+234…" [ref=e654]
+            - generic [ref=e655]:
+              - generic [ref=e656]:
+                - generic [ref=e657]: Cohort
+                - combobox [ref=e658]:
+                  - option "—" [selected]
+                  - option "Cohort 2025-A"
+                  - option "Cohort 2024-B"
+                  - option "Cohort 2024-C"
+              - generic [ref=e659]:
+                - generic [ref=e660]: Group
+                - combobox [ref=e661]:
+                  - option "—" [selected]
+                  - option "Group Alpha"
+                  - option "Group Beta"
+                  - option "Group Gamma"
+            - generic [ref=e662]:
+              - button "Cancel" [ref=e663]
+              - button "Create User" [ref=e664]
+  - navigation [ref=e406]:
+    - generic [ref=e407]:
+      - link "Dashboard" [ref=e408] [cursor=pointer]:
+        - /url: /
+        - img [ref=e409]
+        - generic [ref=e414]: Dashboard
+      - link "Schedule" [ref=e415] [cursor=pointer]:
+        - /url: /schedule
+        - img [ref=e416]
+        - generic [ref=e418]: Schedule
+      - link "Approvals" [ref=e419] [cursor=pointer]:
+        - /url: /approvals
+        - img [ref=e420]
+        - generic [ref=e423]: Approvals
+      - link "Users" [ref=e424] [cursor=pointer]:
+        - /url: /users
+        - img [ref=e425]
+        - generic [ref=e430]: Users
+      - link "Groups" [ref=e431] [cursor=pointer]:
+        - /url: /cohorts
+        - img [ref=e432]
+        - generic [ref=e437]: Groups

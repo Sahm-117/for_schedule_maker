@@ -1,0 +1,130 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e440]:
+      - generic [ref=e441]:
+        - generic [ref=e442]:
+          - generic [ref=e443]: F
+          - generic [ref=e444]:
+            - paragraph [ref=e445]: FOF IKD
+            - paragraph [ref=e446]: Ops Console
+        - button [ref=e447]:
+          - img [ref=e448]
+      - navigation [ref=e451]:
+        - link "Dashboard" [ref=e452] [cursor=pointer]:
+          - /url: /
+          - img [ref=e453]
+          - text: Dashboard
+        - link "Schedule" [ref=e458] [cursor=pointer]:
+          - /url: /schedule
+          - img [ref=e459]
+          - text: Schedule
+        - link "Approvals" [ref=e461] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e462]
+          - text: Approvals
+        - link "Users" [ref=e465] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e466]
+          - text: Users
+        - link "Groups" [ref=e471] [cursor=pointer]:
+          - /url: /cohorts
+          - img [ref=e472]
+          - text: Groups
+        - link "Participants" [ref=e477] [cursor=pointer]:
+          - /url: /participants
+          - img [ref=e478]
+          - text: Participants
+        - link "Faith Projects" [ref=e482] [cursor=pointer]:
+          - /url: /faith-projects
+          - img [ref=e483]
+          - text: Faith Projects
+        - link "Attendance" [ref=e485] [cursor=pointer]:
+          - /url: /attendance
+          - img [ref=e486]
+          - text: Attendance
+        - link "Announcements" [ref=e490] [cursor=pointer]:
+          - /url: /announcements
+          - img [ref=e491]
+          - text: Announcements
+        - link "Resources" [ref=e494] [cursor=pointer]:
+          - /url: /resources
+          - img [ref=e495]
+          - text: Resources
+        - link "Settings" [ref=e497] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e498]
+          - text: Settings
+    - generic [ref=e59]:
+      - banner [ref=e60]:
+        - generic [ref=e61]:
+          - button [active] [ref=e403]:
+            - img [ref=e404]
+          - generic [ref=e65] [cursor=pointer]:
+            - combobox [ref=e405]:
+              - option "Cohort 2025-A" [selected]
+            - img
+          - button [ref=e68]:
+            - img [ref=e69]
+          - generic [ref=e77]: S
+      - main [ref=e78]:
+        - generic [ref=e337]:
+          - generic [ref=e338]:
+            - generic [ref=e339]:
+              - heading "Announcements" [level=1] [ref=e340]
+              - paragraph [ref=e341]: Communicate updates and urgent messages.
+            - button "New Announcement" [ref=e342]:
+              - img [ref=e343]
+          - generic [ref=e345]:
+            - img [ref=e346]
+            - generic [ref=e348]:
+              - paragraph [ref=e349]: "Urgent · Emergency: Sunday Service Time Change"
+              - paragraph [ref=e350]: This Sunday's service moved to 9:00 AM due to community event.
+          - generic [ref=e351]:
+            - article [ref=e352]:
+              - generic [ref=e353]:
+                - generic [ref=e354]:
+                  - img [ref=e355]
+                  - text: Pinned
+                - generic [ref=e357]: 11/05/2025
+                - button "Delete announcement" [ref=e358]:
+                  - img [ref=e359]
+              - heading "Week 5 Schedule Published" [level=3] [ref=e362]
+              - paragraph [ref=e363]: The new week schedule is now live. Please review your cohort activities.
+            - article [ref=e364]:
+              - generic [ref=e365]:
+                - generic [ref=e366]: Urgent
+                - generic [ref=e367]: 10/05/2025
+                - button "Delete announcement" [ref=e368]:
+                  - img [ref=e369]
+              - 'heading "Emergency: Sunday Service Time Change" [level=3] [ref=e372]'
+              - paragraph [ref=e373]: This Sunday's service moved to 9:00 AM due to community event.
+              - paragraph [ref=e374]: Expires 18/05/2025
+    - navigation [ref=e406]:
+      - generic [ref=e407]:
+        - link "Dashboard" [ref=e408] [cursor=pointer]:
+          - /url: /
+          - img [ref=e409]
+          - generic [ref=e414]: Dashboard
+        - link "Schedule" [ref=e415] [cursor=pointer]:
+          - /url: /schedule
+          - img [ref=e416]
+          - generic [ref=e418]: Schedule
+        - link "Approvals" [ref=e419] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e420]
+          - generic [ref=e423]: Approvals
+        - link "Users" [ref=e424] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e425]
+          - generic [ref=e430]: Users
+        - link "Groups" [ref=e431] [cursor=pointer]:
+          - /url: /cohorts
+          - img [ref=e432]
+          - generic [ref=e437]: Groups
+  - complementary "Edit with Lovable" [ref=e326]:
+    - link "Edit with Lovable" [ref=e327] [cursor=pointer]:
+      - /url: https://lovable.dev/projects/75d7efa8-61e9-4e95-b9ed-6a92975d7769?utm_source=lovable-badge
+      - generic [ref=e328]: Edit with
+      - img [ref=e329]
+    - button "Dismiss" [ref=e334] [cursor=pointer]:
+      - img [ref=e335]

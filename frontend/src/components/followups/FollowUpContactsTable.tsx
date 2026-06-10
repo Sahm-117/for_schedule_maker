@@ -327,8 +327,9 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               <button
                 type="button"
                 onClick={() => onMessage(contact)}
-                className="rounded-full bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+                className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
               >
+                <span className="h-3.5 w-3.5">{WhatsAppIcon}</span>
                 Send message
               </button>
               {actions(contact)}

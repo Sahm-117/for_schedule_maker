@@ -23,6 +23,7 @@ const SupportFollowUpsPage: React.FC = () => {
   const [registrationLink, setRegistrationLink] = useState('');
   const [copied, setCopied] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [showLinkTip, setShowLinkTip] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
@@ -115,15 +116,24 @@ const SupportFollowUpsPage: React.FC = () => {
       {registrationLink && (
         <div className="mb-5 flex flex-wrap items-center gap-3 rounded-3xl border border-sky-100 bg-sky-50/60 px-4 py-3">
           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-sky-700">Registration link</span>
-          <div className="group relative inline-flex">
-            <span className="inline-flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-sky-200 text-[10px] font-bold text-sky-800 transition hover:bg-sky-300" title={registrationLink}>
+          <div className="relative inline-flex">
+            <button
+              type="button"
+              onClick={() => setShowLinkTip((v) => !v)}
+              onBlur={() => setShowLinkTip(false)}
+              className="inline-flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-sky-200 text-[10px] font-bold text-sky-800 transition hover:bg-sky-300"
+              aria-label="Show registration link"
+            >
               i
-            </span>
-            <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 group-hover:block group-active:block sm:group-hover:block">
-              <div className="max-w-[280px] whitespace-pre-wrap rounded-2xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg break-all">
-                {registrationLink}
+            </button>
+            {showLinkTip && (
+              <div className="absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2">
+                <div className="max-w-[260px] rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg break-all">
+                  {registrationLink}
+                </div>
+                <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
               </div>
-            </div>
+            )}
           </div>
           <div className="ml-auto flex items-center gap-2">
             <button
