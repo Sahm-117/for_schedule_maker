@@ -341,7 +341,10 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
             <div className="mt-3 flex flex-wrap gap-1.5">
               <FollowUpStatusPill label={MESSAGE_STATUS_META[contact.messageStatus].label} tone={MESSAGE_STATUS_META[contact.messageStatus].tone} />
               <FollowUpStatusPill label={REPLY_STATUS_META[contact.replyStatus].label} tone={REPLY_STATUS_META[contact.replyStatus].tone} />
-              <FollowUpStatusPill label={CALL_STATUS_META[contact.callStatus].label} tone={CALL_STATUS_META[contact.callStatus].tone} />
+              <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                <span className="h-2.5 w-2.5">{PhoneIcon}</span>
+                {CALL_STATUS_META[contact.callStatus].label}
+              </span>
               <FollowUpStatusPill label={REGISTRATION_STATUS_META[contact.registrationStatus].label} tone={REGISTRATION_STATUS_META[contact.registrationStatus].tone} />
             </div>
             <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-3">
@@ -362,10 +365,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                 {statusCell(contact, 'replyStatus', REPLY_STATUS_META, contact.replyStatus)}
               </div>
               <div>
-                <p className="mb-1 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">
-                  <span className="h-2.5 w-2.5">{PhoneIcon}</span>
-                  Call
-                </p>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">Call</p>
                 {statusCell(contact, 'callStatus', CALL_STATUS_META, contact.callStatus)}
               </div>
               <div>
