@@ -218,13 +218,15 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
                         Reopen
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => setDeleting(issue)}
-                      className="rounded-2xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                    >
-                      Delete
-                    </button>
+                    {canResolve && (
+                      <button
+                        type="button"
+                        onClick={() => setDeleting(issue)}
+                        className="rounded-2xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -324,7 +326,8 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
         </ModalShell>
       )}
 
-      <ModalShell
+      {canResolve && (
+        <ModalShell
         isOpen={!!deleting}
         onClose={() => setDeleting(null)}
         title="Delete issue"
@@ -339,6 +342,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
       >
         <p className="text-sm text-gray-700">Delete this issue? This cannot be undone.</p>
       </ModalShell>
+      )}
     </div>
   );
 };

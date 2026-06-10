@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import AppSelect from '../components/AppSelect';
@@ -20,8 +21,50 @@ import {
   usersApi,
 } from '../services/api';
 import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, MessageTemplate, User } from '../types';
+import {
+  REPLY_STATUS_META,
+  CALL_STATUS_META,
+  REGISTRATION_STATUS_META,
+  NEXT_ACTION_META,
+} from '../utils/followUps';
 
 type Tab = 'overview' | 'contacts' | 'messages' | 'issues';
+
+interface FilterState {
+  reply: string;
+  call: string;
+  reg: string;
+  next: string;
+  archived: boolean;
+}
+
+const statusGroups: Array<{ key: keyof FilterState; label: string; options: Array<{ value: string; label: string }> }> = [
+  { key: 'reply', label: 'Reply', options: Object.entries(REPLY_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
+  { key: 'call', label: 'Call', options: Object.entries(CALL_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
+  { key: 'reg', label: 'Registration', options: Object.entries(REGISTRATION_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
+  { key: 'next', label: 'Next action', options: Object.entries(NEXT_ACTION_META).map(([v, m]) => ({ value: v, label: m.label })) },
+];
+
+const pillBtn = (active: boolean) =>
+  `rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95 ${
+    active ? 'bg-primary text-white shadow-sm' : 'border border-orange-100 bg-white text-gray-600 hover:bg-orange-50'
+  }`;
+
+const FilterIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-full w-full">
+    <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+  </svg>
+);
+
+function activeFilterCount(f: FilterState): number {
+  let n = 0;
+  if (f.reply) n++;
+  if (f.call) n++;
+  if (f.reg) n++;
+  if (f.next) n++;
+  if (f.archived) n++;
+  return n;
+}
 
 const AdminFollowUpsPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
@@ -33,12 +76,16 @@ const AdminFollowUpsPage: React.FC = () => {
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [issues, setIssues] = useState<FollowUpIssue[]>([]);
   const [registrationLink, setRegistrationLink] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [showLinkTip, setShowLinkTip] = useState(false);
   const [cohortFilter, setCohortFilter] = useState('');
   const [ownerFilter, setOwnerFilter] = useState('');
-  const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const initialLoadRef = useRef(true);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({ reply: '', call: '', reg: '', next: '', archived: false });
+  const [draft, setDraft] = useState<FilterState>({ reply: '', call: '', reg: '', next: '', archived: false });
 
   const [showContactModal, setShowContactModal] = useState(false);
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
@@ -88,10 +135,15 @@ const AdminFollowUpsPage: React.FC = () => {
       if (cohortFilter && c.cohortId !== cohortFilter) return false;
       if (ownerFilter === '__unassigned__' && c.ownerId) return false;
       if (ownerFilter && ownerFilter !== '__unassigned__' && c.ownerId !== ownerFilter) return false;
-      if (showArchived) return !!c.archivedAt;
-      return !c.archivedAt;
+      if (filters.archived) return !!c.archivedAt;
+      if (c.archivedAt) return false;
+      if (filters.reply && c.replyStatus !== filters.reply) return false;
+      if (filters.call && c.callStatus !== filters.call) return false;
+      if (filters.reg && c.registrationStatus !== filters.reg) return false;
+      if (filters.next && c.nextAction !== filters.next) return false;
+      return true;
     });
-  }, [contacts, cohortFilter, ownerFilter, showArchived]);
+  }, [contacts, cohortFilter, ownerFilter, filters]);
 
   const ownerOptionCounts = useMemo(() => {
     const scoped = cohortFilter ? contacts.filter((c) => c.cohortId === cohortFilter && !c.archivedAt) : contacts.filter((c) => !c.archivedAt);
@@ -127,7 +179,6 @@ const AdminFollowUpsPage: React.FC = () => {
       const { contact: updated } = await followUpContactsApi.update(contact.id, patch);
       replaceContact(updated);
     } catch {
-      // refetch to recover from a failed optimistic edit
       void loadAll();
     }
   };
@@ -156,6 +207,35 @@ const AdminFollowUpsPage: React.FC = () => {
     await followUpContactsApi.delete(deletingContact.id);
     setContacts((prev) => prev.filter((c) => c.id !== deletingContact.id));
     setDeletingContact(null);
+  };
+
+  const handleCopyLink = async () => {
+    if (!registrationLink) return;
+    try {
+      await navigator.clipboard.writeText(registrationLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback
+    }
+  };
+
+  const openFilterPanel = () => {
+    setDraft({ ...filters });
+    setShowFilterPanel(true);
+  };
+
+  const applyFilters = () => {
+    setFilters({ ...draft });
+    setShowFilterPanel(false);
+  };
+
+  const clearFilters = () => {
+    setDraft({ reply: '', call: '', reg: '', next: '', archived: false });
+  };
+
+  const togglePill = (group: keyof FilterState, value: string) => {
+    setDraft((prev) => ({ ...prev, [group]: prev[group] === value ? '' : value }));
   };
 
   const tabs: Array<{ key: Tab; label: string }> = [
@@ -191,6 +271,48 @@ const AdminFollowUpsPage: React.FC = () => {
           </div>
         )}
       />
+
+      {registrationLink && (
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-3xl border border-sky-100 bg-sky-50/60 px-4 py-3">
+          <span className="text-xs font-semibold uppercase tracking-[0.08em] text-sky-700">Registration link</span>
+          <div className="relative inline-flex">
+            <button
+              type="button"
+              onClick={() => setShowLinkTip((v) => !v)}
+              onBlur={() => setShowLinkTip(false)}
+              className="inline-flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-sky-200 text-[10px] font-bold text-sky-800 transition hover:bg-sky-300"
+              aria-label="Show registration link"
+            >
+              i
+            </button>
+            {showLinkTip && (
+              <div className="absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2">
+                <div className="max-w-[320px] rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg break-words sm:max-w-md">
+                  {registrationLink}
+                </div>
+                <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
+              </div>
+            )}
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="rounded-2xl border border-sky-200 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 transition hover:bg-sky-100 active:scale-95"
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+            <a
+              href={registrationLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-2xl bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-700 active:scale-95"
+            >
+              Open
+            </a>
+          </div>
+        </div>
+      )}
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         {tabs.map((t) => (
@@ -229,15 +351,18 @@ const AdminFollowUpsPage: React.FC = () => {
                 />
               </div>
             )}
-            {tab === 'contacts' && (
-              <button
-                type="button"
-                onClick={() => setShowArchived((v) => !v)}
-                className={`rounded-2xl px-3 py-2 text-xs font-semibold ${showArchived ? 'bg-slate-700 text-white' : 'bg-white text-gray-600 hover:bg-orange-50'}`}
-              >
-                {showArchived ? 'Showing archived' : 'Show archived'}
-              </button>
-            )}
+            <button
+              type="button"
+              onPointerDown={openFilterPanel}
+              className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-orange-200 bg-white text-gray-600 hover:bg-orange-50"
+            >
+              <span className="h-5 w-5">{FilterIcon}</span>
+              {activeFilterCount(filters) > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold leading-none text-white shadow-sm">
+                  {activeFilterCount(filters)}
+                </span>
+              )}
+            </button>
           </div>
         )}
       </div>
@@ -326,6 +451,73 @@ const AdminFollowUpsPage: React.FC = () => {
         message={`Delete ${deletingContact?.fullName}? This removes their follow-up history and cannot be undone.`}
         confirmText="Delete"
       />
+
+      {showFilterPanel && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center" onPointerDown={() => setShowFilterPanel(false)}>
+          <div className="absolute inset-0 bg-slate-900/35" />
+          <div
+            className="relative mb-0 w-full max-w-md rounded-t-[28px] bg-white p-6 pb-8 shadow-[0_-8px_40px_rgba(15,23,42,0.15)] sm:mb-0 sm:rounded-[28px]"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-gray-200 sm:hidden" />
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Filters</h3>
+              <button type="button" onPointerDown={() => setShowFilterPanel(false)} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-5">
+              {statusGroups.map((group) => (
+                <div key={group.key}>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{group.label}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.options.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onPointerDown={() => togglePill(group.key as keyof FilterState, opt.value)}
+                        className={pillBtn(draft[group.key as keyof FilterState] === opt.value)}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <div className="flex items-center justify-between rounded-2xl bg-orange-50/60 px-4 py-3">
+                <span className="text-sm font-semibold text-gray-700">Show archived contacts</span>
+                <button
+                  type="button"
+                  onPointerDown={() => setDraft((prev) => ({ ...prev, archived: !prev.archived }))}
+                  className={`relative h-6 w-11 rounded-full transition ${draft.archived ? 'bg-primary' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${draft.archived ? 'translate-x-5' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onPointerDown={clearFilters}
+                className="flex-1 rounded-2xl border border-orange-200 bg-white py-3 text-sm font-semibold text-gray-600 transition hover:bg-orange-50 active:scale-[0.98]"
+              >
+                Clear filters
+              </button>
+              <button
+                type="button"
+                onPointerDown={applyFilters}
+                className="flex-1 rounded-2xl bg-primary py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark active:scale-[0.98]"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
