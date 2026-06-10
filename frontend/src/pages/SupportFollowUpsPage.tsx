@@ -3,28 +3,25 @@ import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import FollowUpContactsTable from '../components/followups/FollowUpContactsTable';
 import FollowUpContactModal from '../components/followups/FollowUpContactModal';
-import MessageBankPanel from '../components/followups/MessageBankPanel';
 import FollowUpIssuesPanel from '../components/followups/FollowUpIssuesPanel';
-import MessageTemplatePicker from '../components/followups/MessageTemplatePicker';
 import { useAuth } from '../hooks/useAuth';
 import {
   followUpContactsApi,
   followUpIssuesApi,
-  messageTemplatesApi,
   settingsApi,
 } from '../services/api';
-import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, MessageTemplate } from '../types';
+import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue } from '../types';
 
-type Tab = 'contacts' | 'messages' | 'issues';
+type Tab = 'contacts' | 'issues';
 
 const SupportFollowUpsPage: React.FC = () => {
   const { user } = useAuth();
 
   const [tab, setTab] = useState<Tab>('contacts');
   const [contacts, setContacts] = useState<FollowUpContact[]>([]);
-  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [issues, setIssues] = useState<FollowUpIssue[]>([]);
   const [registrationLink, setRegistrationLink] = useState('');
+  const [copied, setCopied] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -37,14 +34,12 @@ const SupportFollowUpsPage: React.FC = () => {
     setLoading(true);
     setLoadError('');
     try {
-      const [contactsRes, templatesRes, linkRes] = await Promise.all([
+      const [contactsRes, linkRes] = await Promise.all([
         followUpContactsApi.getAll({ ownerId: user.id }),
-        messageTemplatesApi.getAll(),
         settingsApi.getRegistrationLink(),
       ]);
       const issuesRes = await followUpIssuesApi.getAll();
       setContacts(contactsRes.contacts);
-      setTemplates(templatesRes.templates);
       setIssues(issuesRes.issues);
       setRegistrationLink(linkRes.url);
     } catch (err) {
@@ -85,15 +80,20 @@ const SupportFollowUpsPage: React.FC = () => {
     }
   };
 
-  const handleMessageSent = async (contact: FollowUpContact) => {
-    const { contact: marked } = await followUpContactsApi.update(contact.id, { messageStatus: 'SENT' });
-    const { contact: logged } = await followUpContactsApi.logContact(marked.id);
-    replaceContact(logged);
-  };
-
   const handleLogContact = async (contact: FollowUpContact) => {
     const { contact: logged } = await followUpContactsApi.logContact(contact.id);
     replaceContact(logged);
+  };
+
+  const handleCopyLink = async () => {
+    if (!registrationLink) return;
+    try {
+      await navigator.clipboard.writeText(registrationLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback: select the text manually
+    }
   };
 
   return (
@@ -112,10 +112,31 @@ const SupportFollowUpsPage: React.FC = () => {
         )}
       />
 
+      {registrationLink && (
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-3xl border border-sky-100 bg-sky-50/60 px-4 py-3">
+          <span className="text-xs font-semibold uppercase tracking-[0.08em] text-sky-700">Registration link</span>
+          <span className="min-w-0 flex-1 truncate text-sm text-sky-900">{registrationLink}</span>
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className="rounded-2xl border border-sky-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-sky-700 transition hover:bg-sky-100 active:scale-95"
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+          <a
+            href={registrationLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-2xl bg-sky-600 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-700 active:scale-95"
+          >
+            Open
+          </a>
+        </div>
+      )}
+
       <div className="mb-5 flex flex-wrap items-center gap-2">
         {[
           { key: 'contacts', label: 'Contacts' },
-          { key: 'messages', label: 'Messages' },
           { key: 'issues', label: 'Issues' },
         ].map((item) => (
           <button
@@ -146,16 +167,6 @@ const SupportFollowUpsPage: React.FC = () => {
               onEdit={setEditingContact}
             />
           )}
-          {tab === 'messages' && (
-            <MessageBankPanel
-              templates={templates}
-              onTemplatesChanged={() => {}}
-              registrationLink={registrationLink}
-              onRegistrationLinkChanged={() => {}}
-              readOnly
-              currentUser={user}
-            />
-          )}
           {tab === 'issues' && (
             <FollowUpIssuesPanel
               issues={visibleIssues}
@@ -178,16 +189,6 @@ const SupportFollowUpsPage: React.FC = () => {
         owners={[]}
         cohorts={[]}
         canEditOwner={false}
-      />
-
-      <MessageTemplatePicker
-        isOpen={!!messagingContact}
-        onClose={() => setMessagingContact(null)}
-        contact={messagingContact}
-        templates={templates}
-        registrationLink={registrationLink}
-        currentUserName={user?.name}
-        onMessageSent={handleMessageSent}
       />
     </div>
   );
