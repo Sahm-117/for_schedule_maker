@@ -5,6 +5,7 @@ import FollowUpContactsTable from '../components/followups/FollowUpContactsTable
 import FollowUpContactModal from '../components/followups/FollowUpContactModal';
 import FollowUpIssuesPanel from '../components/followups/FollowUpIssuesPanel';
 import { useAuth } from '../hooks/useAuth';
+import { useAppData } from '../context/AppDataContext';
 import {
   followUpContactsApi,
   followUpIssuesApi,
@@ -16,6 +17,7 @@ type Tab = 'contacts' | 'issues';
 
 const SupportFollowUpsPage: React.FC = () => {
   const { user } = useAuth();
+  const { cohorts } = useAppData();
 
   const [tab, setTab] = useState<Tab>('contacts');
   const [contacts, setContacts] = useState<FollowUpContact[]>([]);
@@ -208,7 +210,7 @@ const SupportFollowUpsPage: React.FC = () => {
         onSaved={replaceContact}
         contact={editingContact}
         owners={[]}
-        cohorts={[]}
+        cohorts={cohorts}
         canEditOwner={false}
       />
     </div>
