@@ -40,6 +40,7 @@ export const REGISTRATION_STATUS_META: Record<FollowUpRegistrationStatus, Status
   NOT_INTERESTED: { label: 'Not Interested', tone: 'bg-rose-100/80 text-rose-700' },
   NOT_A_TCN_MEMBER: { label: 'Not a TCN Member', tone: 'bg-rose-100/80 text-rose-700' },
   NOT_A_GOOD_TIME: { label: 'Not a Good Time', tone: 'bg-rose-100/80 text-rose-700' },
+  NO_RESPONSE: { label: 'No Response', tone: 'bg-slate-100 text-slate-600' },
 };
 
 export const NEXT_ACTION_META: Record<FollowUpNextAction, StatusMeta> = {
@@ -58,7 +59,7 @@ export const statusOptions = <T extends string>(meta: Record<T, StatusMeta>) =>
   (Object.keys(meta) as T[]).map((value) => ({ value, label: meta[value].label }));
 
 export const isTerminalFollowUpRegistrationStatus = (status: FollowUpRegistrationStatus): boolean =>
-  status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME';
+  status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME' || status === 'NO_RESPONSE';
 
 export const isTerminalFollowUpContact = (contact: FollowUpContact): boolean =>
   !!contact.archivedAt || contact.nextAction === 'CLOSE' || isTerminalFollowUpRegistrationStatus(contact.registrationStatus);

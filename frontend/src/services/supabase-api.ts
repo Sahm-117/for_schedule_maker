@@ -2367,6 +2367,12 @@ export const followUpContactsApi = {
 
     const patch: Record<string, unknown> = { ...fields, updatedAt: new Date().toISOString() };
 
+    if (fields.registrationStatus === 'NO_RESPONSE') {
+      patch.replyStatus = 'NO_REPLY';
+      patch.callStatus = 'NOT_APPLICABLE';
+      patch.nextAction = 'CLOSE';
+    }
+
     if (fields.nextAction === 'CLOSE') {
       patch.archivedAt = new Date().toISOString();
     } else if (fields.nextAction) {
