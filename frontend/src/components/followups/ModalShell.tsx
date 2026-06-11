@@ -17,7 +17,7 @@ const ModalShell: React.FC<ModalShellProps> = ({ isOpen, onClose, title, subtitl
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <button type="button" className="absolute inset-0 bg-slate-900/45" onClick={onClose} aria-label="Close" />
-      <div className={`relative m-0 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:m-4 sm:rounded-3xl ${wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'}`}>
+      <div className={`relative z-10 m-0 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:m-4 sm:rounded-3xl ${wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'}`}>
         <div className="flex items-start justify-between border-b border-orange-100 px-6 py-4">
           <div>
             <h2 className="text-base font-bold text-gray-900">{title}</h2>
@@ -29,7 +29,7 @@ const ModalShell: React.FC<ModalShellProps> = ({ isOpen, onClose, title, subtitl
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
         {footer && (
-          <div className="flex items-center justify-end gap-3 border-t border-orange-100 bg-white/80 px-6 py-4 backdrop-blur-xl">
+          <div className="flex items-center justify-end gap-3 border-t border-orange-100 bg-white px-6 py-4">
             {footer}
           </div>
         )}
