@@ -29,6 +29,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
   cohorts,
   defaultCohortId,
   canEditOwner,
+  existingContacts,
 }) => {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -54,6 +55,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
     setFollowUpCount(String(contact?.followUpCount ?? 0));
     setNotes(contact?.notes || '');
     setError('');
+    setSaving(false);
   }, [isOpen, contact, defaultCohortId]);
 
   const phoneInvalid = phone.trim() !== '' && !normalizeToIntlPhone(phone);
