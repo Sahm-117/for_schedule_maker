@@ -150,7 +150,13 @@ const AppShell: React.FC = () => {
             </div>
             <div>
               <p className="text-base font-bold text-gray-900">FOF IKD Ops</p>
-              <p className="text-xs text-gray-500">{isSupport ? `${user?.name?.split(' ')[0] || 'Your'}'s workspace` : 'Operations console'}</p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="text-xs text-gray-400 hover:text-primary transition-colors"
+              >
+                ↻ Refresh
+              </button>
             </div>
           </button>
         </div>
@@ -200,7 +206,13 @@ const AppShell: React.FC = () => {
             <div className="flex items-center justify-between border-b border-orange-100 px-5 py-5">
             <div>
               <p className="text-base font-bold text-gray-900">FOF IKD Ops</p>
-              <p className="text-xs text-gray-500">{isSupport ? `${user?.name?.split(' ')[0] || 'Your'}'s workspace` : 'Operations console'}</p>
+              <button
+                type="button"
+                onClick={() => { window.location.reload(); setOpen(false); }}
+                className="text-xs text-gray-400 hover:text-primary transition-colors"
+              >
+                ↻ Refresh
+              </button>
             </div>
               <button type="button" onClick={() => setOpen(false)} className="rounded-xl p-2 text-gray-400 hover:bg-orange-50 hover:text-gray-700">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18 18 6M6 6l12 12" /></svg>
