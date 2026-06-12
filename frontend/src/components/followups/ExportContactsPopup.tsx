@@ -66,9 +66,13 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts, onC
                   <button
                     type="button"
                     onClick={() => { void copyOne(c); }}
-                    className="ml-3 shrink-0 rounded-lg border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-orange-50 active:scale-95"
+                    className="ml-3 shrink-0 rounded-lg border border-orange-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-orange-50 active:scale-95"
                   >
-                    {copiedId === c.id ? 'Copied!' : 'Copy'}
+                    {copiedId === c.id ? (
+                      'Copied!'
+                    ) : (
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
+                    )}
                   </button>
                 </div>
               ))}

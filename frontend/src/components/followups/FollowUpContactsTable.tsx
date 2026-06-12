@@ -36,6 +36,12 @@ const WhatsAppIcon = (
   </svg>
 );
 
+const PhoneIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-full w-full">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M22 12h-4l-3 9L9 3l-3 9H2" />
+  </svg>
+);
+
 const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   contacts,
   owners,
@@ -145,7 +151,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const actions = (contact: FollowUpContact) => (
     <AppOverflowMenu
       items={[
-        { label: 'Copy number', onClick: () => { void copyNumber(contact); } },
+        { label: 'Copy number', onClick: () => { void copyNumber(contact); }, icon: PhoneIcon },
         { label: 'Send message', onClick: () => onMessage(contact), icon: WhatsAppIcon },
         { label: 'Log an issue', onClick: () => onLogContact(contact) },
         { label: 'Edit contact', onClick: () => onEdit(contact) },
@@ -380,9 +386,13 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                   <button
                     type="button"
                     onPointerDown={() => { void copyNumber(contact); }}
-                    className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-orange-50 active:scale-95"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 active:scale-95"
                   >
-                    {copiedPhoneId === contact.id ? 'Copied!' : 'Copy'}
+                    {copiedPhoneId === contact.id ? (
+                      'Copied!'
+                    ) : (
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
+                    )}
                   </button>
                 </div>
                 <button
