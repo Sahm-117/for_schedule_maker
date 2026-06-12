@@ -73,46 +73,39 @@ export const isClosedStatus = (value: string): boolean =>
 export interface FollowUpMetrics {
   total: number;
   contacted: number;
-  replied: number;
-  called: number;
   registered: number;
   noResponse: number;
   notContacted: number;
-  stillThinking: number;
-  pendingConfirmation: number;
-  notInterested: number;
-  needsAction: number;
-  interestedNotRegistered: number;
+  needsReminder: number;
+  callBackLater: number;
+  closed: number;
 }
 
 export const computeFollowUpMetrics = (contacts: FollowUpContact[]): FollowUpMetrics => {
   const total = contacts.length;
   const contacted = contacts.filter((c) => c.messageStatus === 'SENT' || c.callStatus === 'CALLED').length;
-  const replied = contacts.filter((c) => c.replyStatus === 'REPLIED').length;
-  const called = contacts.filter((c) => c.callStatus === 'CALLED').length;
   const registered = contacts.filter((c) => c.registrationStatus === 'REGISTERED').length;
   const noResponse = contacts.filter((c) => c.messageStatus === 'SENT' && c.replyStatus === 'NO_REPLY').length;
   const notContacted = contacts.filter((c) => c.messageStatus === 'NOT_SENT' && c.callStatus === 'NOT_CALLED').length;
-  const stillThinking = contacts.filter((c) => c.registrationStatus === 'STILL_THINKING').length;
-  const pendingConfirmation = contacts.filter((c) => c.registrationStatus === 'PENDING_CONFIRMATION').length;
-  const notInterested = contacts.filter((c) => isClosedRegistrationStatus(c.registrationStatus)).length;
-  const needsAction = contacts.filter((c) => !isClosedContact(c)).length;
-  const interestedNotRegistered = contacts.filter(
-    (c) => c.registrationStatus !== 'REGISTERED' && !isClosedRegistrationStatus(c.registrationStatus)
+  const needsReminder = contacts.filter((c) => c.replyStatus === 'NEEDS_REMINDER').length;
+  const callBackLater = contacts.filter((c) => c.callStatus === 'CALL_BACK_LATER').length;
+  const closed = contacts.filter(
+    (c) =>
+      c.replyStatus === 'INCORRECT_NUMBER' ||
+      c.callStatus === 'INCORRECT_NUMBER' ||
+      c.registrationStatus === 'NOT_INTERESTED' ||
+      c.registrationStatus === 'NOT_A_GOOD_TIME' ||
+      c.registrationStatus === 'NOT_A_TCN_MEMBER'
   ).length;
   return {
     total,
     contacted,
-    replied,
-    called,
     registered,
     noResponse,
     notContacted,
-    stillThinking,
-    pendingConfirmation,
-    notInterested,
-    needsAction,
-    interestedNotRegistered,
+    needsReminder,
+    callBackLater,
+    closed,
   };
 };
 
