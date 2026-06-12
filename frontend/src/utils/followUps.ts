@@ -144,7 +144,7 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
     if (c.messageStatus === 'NOT_SENT' && c.callStatus === 'NOT_CALLED') row.uncontacted += 1;
     if (c.replyStatus === 'REPLIED' || c.callStatus === 'CALLED' || c.callStatus === 'MISSED_CALL' || c.callStatus === 'NOT_APPLICABLE') row.contacted += 1;
     if (c.registrationStatus === 'REGISTERED') row.registered += 1;
-    if (c.replyStatus !== 'REPLIED' && c.registrationStatus !== 'REGISTERED' && !isClosedContact(c)) row.stillOpen += 1;
+    if (c.registrationStatus !== 'REGISTERED' && !isClosedContact(c)) row.stillOpen += 1;
     if (c.replyStatus === 'INCORRECT_NUMBER' || c.callStatus === 'INCORRECT_NUMBER') row.wrongNumber += 1;
     if (c.registrationStatus === 'NOT_INTERESTED') row.notInterested += 1;
     if (c.registrationStatus === 'NOT_A_GOOD_TIME') row.notAGoodTime += 1;
