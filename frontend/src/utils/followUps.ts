@@ -141,7 +141,7 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       notATcnMember: 0,
     };
     row.assigned += 1;
-    if (c.messageStatus === 'NOT_SENT' && c.callStatus === 'NOT_CALLED') row.uncontacted += 1;
+    if (c.registrationStatus !== 'REGISTERED' && !isClosedContact(c) && c.messageStatus === 'NOT_SENT' && c.callStatus === 'NOT_CALLED') row.uncontacted += 1;
     if (c.replyStatus === 'REPLIED' || c.callStatus === 'CALLED' || c.callStatus === 'MISSED_CALL' || c.callStatus === 'NOT_APPLICABLE') row.contacted += 1;
     if (c.registrationStatus === 'REGISTERED') row.registered += 1;
     if (c.registrationStatus !== 'REGISTERED' && !isClosedContact(c)) row.stillOpen += 1;
