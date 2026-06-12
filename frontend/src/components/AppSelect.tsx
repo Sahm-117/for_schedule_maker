@@ -32,6 +32,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value) || null,
@@ -98,7 +99,16 @@ const AppSelect: React.FC<AppSelectProps> = ({
       )}
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onPointerDown={(e) => { pointerStart.current = { x: e.clientX, y: e.clientY }; }}
+        onPointerUp={(e) => {
+          const start = pointerStart.current;
+          pointerStart.current = null;
+          if (!start) return;
+          const dx = Math.abs(e.clientX - start.x);
+          const dy = Math.abs(e.clientY - start.y);
+          if (dx > 8 || dy > 8) return;
+          setOpen((prev) => !prev);
+        }}
         className={`flex w-full items-center justify-between rounded-2xl border bg-white text-left shadow-sm transition ${
           compact ? 'border-gray-200/70 px-2 py-1.5 min-h-[36px] hover:border-gray-300' : 'border-orange-100 px-4 py-3 hover:border-orange-200 hover:bg-orange-50/40'
         }`}

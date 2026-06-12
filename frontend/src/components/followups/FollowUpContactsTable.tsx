@@ -63,8 +63,18 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const [notInterestedContact, setNotInterestedContact] = useState<FollowUpContact | null>(null);
   const [pendingClose, setPendingClose] = useState<{ contact: FollowUpContact; status: 'REGISTERED' | 'WRONG_NUMBER' } | null>(null);
   const [closeNotes, setCloseNotes] = useState('');
+  const [copiedPhoneId, setCopiedPhoneId] = useState<string | null>(null);
   const stepperRef = useRef<HTMLDivElement | null>(null);
   const dueDateInputRef = useRef<HTMLInputElement | null>(null);
+
+  const copyNumber = async (contact: FollowUpContact) => {
+    if (!contact.phone) return;
+    try {
+      await navigator.clipboard.writeText(contact.phone);
+      setCopiedPhoneId(contact.id);
+      setTimeout(() => setCopiedPhoneId(null), 2000);
+    } catch { /* ignore */ }
+  };
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -135,6 +145,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const actions = (contact: FollowUpContact) => (
     <AppOverflowMenu
       items={[
+        { label: 'Copy number', onClick: () => { void copyNumber(contact); } },
         { label: 'Send message', onClick: () => onMessage(contact), icon: WhatsAppIcon },
         { label: 'Log an issue', onClick: () => onLogContact(contact) },
         { label: 'Edit contact', onClick: () => onEdit(contact) },
@@ -356,15 +367,24 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
             {/* Action */}
             <div className="mt-2.5 border-t border-orange-50 px-4 py-2.5">
               <div className="flex items-center justify-between">
-                <button
-                  type="button"
-                  data-wt="fu-whatsapp"
-                  onPointerDown={() => onMessage(contact)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 active:scale-95"
-                >
-                  <span className="h-3.5 w-3.5">{WhatsAppIcon}</span>
-                  Message
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    data-wt="fu-whatsapp"
+                    onPointerDown={() => onMessage(contact)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 active:scale-95"
+                  >
+                    <span className="h-3.5 w-3.5">{WhatsAppIcon}</span>
+                    Message
+                  </button>
+                  <button
+                    type="button"
+                    onPointerDown={() => { void copyNumber(contact); }}
+                    className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-orange-50 active:scale-95"
+                  >
+                    {copiedPhoneId === contact.id ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
                 <button
                   type="button"
                   onPointerDown={() => setAdjustingCount(contact)}

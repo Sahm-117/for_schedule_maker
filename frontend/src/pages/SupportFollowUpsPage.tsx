@@ -20,9 +20,11 @@ import {
   CALL_STATUS_META,
   REGISTRATION_STATUS_META,
   NEXT_ACTION_META,
+  isClosedContact,
 } from '../utils/followUps';
 import { useWalkthrough } from '../hooks/useWalkthrough';
 import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
+import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 
 type Tab = 'contacts' | 'issues';
 
@@ -102,6 +104,7 @@ const SupportFollowUpsPage: React.FC = () => {
 
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
   const [messagingContact, setMessagingContact] = useState<FollowUpContact | null>(null);
+  const [showExport, setShowExport] = useState(false);
 
   const wt = useWalkthrough('followups');
 
@@ -138,15 +141,22 @@ const SupportFollowUpsPage: React.FC = () => {
   }, [loadAll]);
 
   const visibleContacts = useMemo(
-    () => contacts.filter((c) => {
-      if (filters.archived) return !!c.archivedAt;
-      if (c.archivedAt) return false;
-      if (filters.reply && c.replyStatus !== filters.reply) return false;
-      if (filters.call && c.callStatus !== filters.call) return false;
-      if (filters.reg && c.registrationStatus !== filters.reg) return false;
-      if (filters.next && c.nextAction !== filters.next) return false;
-      return true;
-    }),
+    () => {
+      let list = contacts.filter((c) => {
+        if (filters.archived && c.archivedAt) return false;
+        if (filters.reply && c.replyStatus !== filters.reply) return false;
+        if (filters.call && c.callStatus !== filters.call) return false;
+        if (filters.reg && c.registrationStatus !== filters.reg) return false;
+        if (filters.next && c.nextAction !== filters.next) return false;
+        return true;
+      });
+      list.sort((a, b) => {
+        const aClosed = isClosedContact(a) ? 1 : 0;
+        const bClosed = isClosedContact(b) ? 1 : 0;
+        return aClosed - bClosed;
+      });
+      return list;
+    },
     [contacts, filters]
   );
 
@@ -252,6 +262,15 @@ const SupportFollowUpsPage: React.FC = () => {
         title="My Follow-ups"
         subtitle="People assigned to you — update statuses right after each message or call."
         onHelp={wt.reopen}
+        action={(
+          <button
+            type="button"
+            onClick={() => setShowExport(true)}
+            className="inline-flex h-11 items-center justify-center rounded-2xl border border-orange-200 bg-white px-4 text-sm font-semibold text-primary hover:bg-orange-50"
+          >
+            Export
+          </button>
+        )}
       />
 
       {registrationLink && (
@@ -412,7 +431,7 @@ const SupportFollowUpsPage: React.FC = () => {
                 </div>
               ))}
               <div className="flex items-center justify-between rounded-2xl bg-orange-50/60 px-4 py-3">
-                <span className="text-sm font-semibold text-gray-700">Show archived contacts</span>
+                <span className="text-sm font-semibold text-gray-700">Hide archived contacts</span>
                 <button type="button" onClick={(e) => { e.stopPropagation(); setDraft((prev) => ({ ...prev, archived: !prev.archived })); }} className={`relative h-6 w-11 rounded-full transition ${draft.archived ? 'bg-primary' : 'bg-gray-300'}`}>
                   <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${draft.archived ? 'translate-x-5' : ''}`} />
                 </button>
@@ -425,6 +444,13 @@ const SupportFollowUpsPage: React.FC = () => {
           </div>
         </div>,
         document.body
+      )}
+
+      {showExport && (
+        <ExportContactsPopup
+          contacts={contacts}
+          onClose={() => setShowExport(false)}
+        />
       )}
 
       {wt.show && (

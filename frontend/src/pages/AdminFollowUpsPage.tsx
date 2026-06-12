@@ -11,6 +11,7 @@ import ContactImportModal from '../components/followups/ContactImportModal';
 import MessageTemplatePicker from '../components/followups/MessageTemplatePicker';
 import MessageBankPanel from '../components/followups/MessageBankPanel';
 import FollowUpIssuesPanel from '../components/followups/FollowUpIssuesPanel';
+import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import {
@@ -26,6 +27,7 @@ import {
   CALL_STATUS_META,
   REGISTRATION_STATUS_META,
   NEXT_ACTION_META,
+  isClosedContact,
 } from '../utils/followUps';
 
 type Tab = 'overview' | 'contacts' | 'messages' | 'issues';
@@ -92,6 +94,7 @@ const AdminFollowUpsPage: React.FC = () => {
   const [showImport, setShowImport] = useState(false);
   const [messagingContact, setMessagingContact] = useState<FollowUpContact | null>(null);
   const [deletingContact, setDeletingContact] = useState<FollowUpContact | null>(null);
+  const [showExport, setShowExport] = useState(false);
 
   const loadAll = useCallback(async () => {
     if (initialLoadRef.current) setLoading(true);
@@ -131,18 +134,23 @@ const AdminFollowUpsPage: React.FC = () => {
   };
 
   const filteredContacts = useMemo(() => {
-    return contacts.filter((c) => {
+    let list = contacts.filter((c) => {
       if (cohortFilter && c.cohortId !== cohortFilter) return false;
       if (ownerFilter === '__unassigned__' && c.ownerId) return false;
       if (ownerFilter && ownerFilter !== '__unassigned__' && c.ownerId !== ownerFilter) return false;
-      if (filters.archived) return !!c.archivedAt;
-      if (c.archivedAt) return false;
+      if (filters.archived && c.archivedAt) return false;
       if (filters.reply && c.replyStatus !== filters.reply) return false;
       if (filters.call && c.callStatus !== filters.call) return false;
       if (filters.reg && c.registrationStatus !== filters.reg) return false;
       if (filters.next && c.nextAction !== filters.next) return false;
       return true;
     });
+    list.sort((a, b) => {
+      const aClosed = isClosedContact(a) ? 1 : 0;
+      const bClosed = isClosedContact(b) ? 1 : 0;
+      return aClosed - bClosed;
+    });
+    return list;
   }, [contacts, cohortFilter, ownerFilter, filters]);
 
   const ownerOptionCounts = useMemo(() => {
@@ -269,13 +277,22 @@ const AdminFollowUpsPage: React.FC = () => {
         action={(
           <div className="flex gap-2">
             {tab === 'contacts' && (
-              <button
-                type="button"
-                onClick={() => setShowImport(true)}
-                className="inline-flex h-11 items-center justify-center rounded-2xl border border-orange-200 bg-white px-4 text-sm font-semibold text-primary hover:bg-orange-50"
-              >
-                Import
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowImport(true)}
+                  className="inline-flex h-11 items-center justify-center rounded-2xl border border-orange-200 bg-white px-4 text-sm font-semibold text-primary hover:bg-orange-50"
+                >
+                  Import
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowExport(true)}
+                  className="inline-flex h-11 items-center justify-center rounded-2xl border border-orange-200 bg-white px-4 text-sm font-semibold text-primary hover:bg-orange-50"
+                >
+                  Export
+                </button>
+              </>
             )}
             <button
               type="button"
@@ -460,6 +477,13 @@ const AdminFollowUpsPage: React.FC = () => {
         onMessageSent={handleMessageSent}
       />
 
+      {showExport && (
+        <ExportContactsPopup
+          contacts={contacts}
+          onClose={() => setShowExport(false)}
+        />
+      )}
+
       <ConfirmationModal
         isOpen={!!deletingContact}
         onClose={() => setDeletingContact(null)}
@@ -503,7 +527,7 @@ const AdminFollowUpsPage: React.FC = () => {
               ))}
 
               <div className="flex items-center justify-between rounded-2xl bg-orange-50/60 px-4 py-3">
-                <span className="text-sm font-semibold text-gray-700">Show archived contacts</span>
+                <span className="text-sm font-semibold text-gray-700">Hide archived contacts</span>
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setDraft((prev) => ({ ...prev, archived: !prev.archived })); }}
