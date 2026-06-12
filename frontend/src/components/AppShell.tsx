@@ -8,6 +8,7 @@ import NotificationPromptModal from './NotificationPromptModal';
 import PWAInstallBanner from './PWAInstallBanner';
 import PWAUpdateBanner from './PWAUpdateBanner';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { isWalkthroughDismissed } from '../hooks/useWalkthrough';
 
 type NavItem = {
   to: string;
@@ -95,6 +96,7 @@ const AppShell: React.FC = () => {
   const navigate = useNavigate();
 
   const isSupport = user?.role === 'SUPPORT';
+  const walkthroughDone = !isSupport || isWalkthroughDismissed();
   const navItems = useMemo(() => {
     if (isSupport) return supportNav;
     return adminNav.filter((item) => {
@@ -131,7 +133,7 @@ const AppShell: React.FC = () => {
   return (
     <div className="app-shell-bg min-h-screen text-gray-900">
       <PWAUpdateBanner />
-      {showPrompt && <NotificationPromptModal onEnable={enable} onDismiss={dismiss} />}
+      {walkthroughDone && showPrompt && <NotificationPromptModal onEnable={enable} onDismiss={dismiss} />}
       {isSopPreparer && unreadCount > 0 && (
         <RejectedChangesNotification
           rejectedChanges={rejectedChanges}
@@ -363,7 +365,7 @@ const AppShell: React.FC = () => {
         </div>
       </nav>
 
-      <PWAInstallBanner />
+      {walkthroughDone && <PWAInstallBanner />}
     </div>
   );
 };
