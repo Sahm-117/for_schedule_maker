@@ -275,7 +275,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                     />
                   </td>
                 )}
-                <td className="px-4 py-3.5">{statusCell(contact, 'replyStatus', REPLY_STATUS_META, contact.replyStatus)}</td>
+                <td className="px-4 py-3.5" data-wt="fu-status-dropdown">{statusCell(contact, 'replyStatus', REPLY_STATUS_META, contact.replyStatus)}</td>
                 <td className="px-4 py-3.5">{statusCell(contact, 'callStatus', CALL_STATUS_META, contact.callStatus)}</td>
                 <td className="px-4 py-3.5">{statusCell(contact, 'registrationStatus', REGISTRATION_STATUS_META, contact.registrationStatus)}</td>
                 <td className="px-4 py-3.5">{statusCell(contact, 'nextAction', NEXT_ACTION_META, contact.nextAction)}</td>
@@ -367,6 +367,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               <div className="flex items-center justify-between">
                 <button
                   type="button"
+                  data-wt="fu-whatsapp"
                   onPointerDown={() => onMessage(contact)}
                   className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 active:scale-95"
                 >

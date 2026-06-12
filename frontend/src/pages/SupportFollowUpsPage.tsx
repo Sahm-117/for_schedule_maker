@@ -21,6 +21,8 @@ import {
   REGISTRATION_STATUS_META,
   NEXT_ACTION_META,
 } from '../utils/followUps';
+import { useWalkthrough } from '../hooks/useWalkthrough';
+import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
 
 type Tab = 'contacts' | 'issues';
 
@@ -100,6 +102,8 @@ const SupportFollowUpsPage: React.FC = () => {
 
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
   const [messagingContact, setMessagingContact] = useState<FollowUpContact | null>(null);
+
+  const wt = useWalkthrough('followups');
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
@@ -233,6 +237,7 @@ const SupportFollowUpsPage: React.FC = () => {
       <PageHeader
         title="My Follow-ups"
         subtitle="People assigned to you — update statuses right after each message or call."
+        onHelp={wt.reopen}
       />
 
       {registrationLink && (
@@ -298,6 +303,7 @@ const SupportFollowUpsPage: React.FC = () => {
         ))}
         <button
           type="button"
+          data-wt="fu-filter"
           onPointerDown={openFilterPanel}
           className="ml-auto relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-orange-200 bg-white text-gray-600 hover:bg-orange-50"
         >
@@ -317,15 +323,17 @@ const SupportFollowUpsPage: React.FC = () => {
       ) : (
         <>
           {tab === 'contacts' && (
-            <FollowUpContactsTable
-              contacts={visibleContacts}
-              owners={[]}
-              canAssign={false}
-              onFieldChange={(c, patch) => handleFieldChange(c, patch)}
-              onMessage={setMessagingContact}
-              onLogContact={(c) => { void handleLogContact(c); }}
-              onEdit={setEditingContact}
-            />
+            <div data-wt="fu-contacts">
+              <FollowUpContactsTable
+                contacts={visibleContacts}
+                owners={[]}
+                canAssign={false}
+                onFieldChange={(c, patch) => handleFieldChange(c, patch)}
+                onMessage={setMessagingContact}
+                onLogContact={(c) => { void handleLogContact(c); }}
+                onEdit={setEditingContact}
+              />
+            </div>
           )}
           {tab === 'issues' && (
             <FollowUpIssuesPanel
@@ -403,6 +411,19 @@ const SupportFollowUpsPage: React.FC = () => {
           </div>
         </div>,
         document.body
+      )}
+
+      {wt.show && (
+        <WalkthroughPopup
+          steps={[
+            { targetSelector: '[data-wt="fu-contacts"]', title: 'Your contacts', body: 'Each person you are following up with has four statuses you can update: Reply, Call, Registration, and Next Action.', position: 'top' },
+            { targetSelector: '[data-wt="fu-status-dropdown"]', title: 'Update a status', body: 'Tap any status to change it. If you pick a closed reason like Wrong Number or Not Interested, you will be asked to add a note.', position: 'bottom' },
+            { targetSelector: '[data-wt="fu-whatsapp"]', title: 'Send a message', body: 'Tap Message to send a pre-written WhatsApp template. Pick the template, preview it, then open WhatsApp.', position: 'top' },
+            { targetSelector: '[data-wt="fu-filter"]', title: 'Filter contacts', body: 'Use filters to narrow down your list by reply status, call status, or registration status.', position: 'left' },
+          ]}
+          onDone={wt.done}
+          onSkip={wt.skipAll}
+        />
       )}
     </div>
   );

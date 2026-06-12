@@ -107,6 +107,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
             {onToggleCompleted && isSupportCompletionCard && (
               <button
                 type="button"
+                data-wt="activity-mark-done"
                 onClick={() => onToggleCompleted(!isCompleted)}
                 disabled={!canToggleCompleted}
                 className={`ml-auto inline-flex min-h-9 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${

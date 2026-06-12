@@ -9,6 +9,8 @@ import { useAppData } from '../context/AppDataContext';
 import { announcementsApi, followUpContactsApi, resourcesApi } from '../services/api';
 import type { Announcement } from '../types';
 import { getCurrentProgramDayName } from '../utils/schedule';
+import { useWalkthrough } from '../hooks/useWalkthrough';
+import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
 
 const SupportHomePage: React.FC = () => {
   const { user, userLabelIds, userCohortIds } = useAuth();
@@ -16,6 +18,8 @@ const SupportHomePage: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [resourceCount, setResourceCount] = useState(0);
   const [followUpCount, setFollowUpCount] = useState(0);
+
+  const wt = useWalkthrough('home');
 
   useEffect(() => {
     if (!user) return;
@@ -72,9 +76,10 @@ const SupportHomePage: React.FC = () => {
       <PageHeader
         title={`Welcome back, ${user.name.split(' ')[0]}`}
         subtitle={activeCohort ? `${activeCohort.name} is active right now. Here is what is lined up for you.` : 'Here is what is lined up for you today.'}
+        onHelp={wt.reopen}
       />
 
-      <section className="surface-card mb-6 overflow-hidden bg-gradient-to-br from-slate-900 to-slate-700 text-white">
+      <section data-wt="home-metrics" className="surface-card mb-6 overflow-hidden bg-gradient-to-br from-slate-900 to-slate-700 text-white">
         <div className="grid gap-6 px-6 py-6 sm:px-8 lg:grid-cols-[1.35fr_1fr]">
           <div>
             <p className="text-sm text-white/75">Welcome back</p>
@@ -94,7 +99,7 @@ const SupportHomePage: React.FC = () => {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="surface-card p-6">
+        <div data-wt="home-schedule" className="surface-card p-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">My schedule highlights</h3>
@@ -158,6 +163,17 @@ const SupportHomePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {wt.show && (
+        <WalkthroughPopup
+          steps={[
+            { targetSelector: '[data-wt="home-metrics"]', title: 'Your numbers', body: 'Your key numbers are here. Tap any tile to jump straight to that section. The tiles change based on whether the programme is running.', position: 'bottom' },
+            { targetSelector: '[data-wt="home-schedule"]', title: "Today's activities", body: 'Your activities for today show up here. Tap "Open schedule" to see the full week and mark things done.', position: 'top' },
+          ]}
+          onDone={wt.done}
+          onSkip={wt.skipAll}
+        />
+      )}
     </div>
   );
 };

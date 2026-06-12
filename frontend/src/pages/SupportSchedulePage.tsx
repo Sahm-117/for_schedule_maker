@@ -8,6 +8,8 @@ import { useAuth } from '../hooks/useAuth';
 import { supportActivityCompletionsApi } from '../services/api';
 import { getCurrentProgramDayName, getTodayAndUpcomingDayNames } from '../utils/schedule';
 import type { SupportActivityCompletion } from '../types';
+import { useWalkthrough } from '../hooks/useWalkthrough';
+import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
 
 const SupportSchedulePage: React.FC = () => {
   const { user, userLabelIds } = useAuth();
@@ -23,6 +25,8 @@ const SupportSchedulePage: React.FC = () => {
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
   const [completionSavingIds, setCompletionSavingIds] = useState<number[]>([]);
   const [completionError, setCompletionError] = useState('');
+
+  const wt = useWalkthrough('schedule');
 
   if (user?.role !== 'SUPPORT') {
     return <Navigate to="/schedule" replace />;
@@ -97,7 +101,7 @@ const SupportSchedulePage: React.FC = () => {
   };
 
   const scheduleAction = (
-    <div className="flex flex-wrap items-center gap-2">
+    <div data-wt="schedule-view-modes" className="flex flex-wrap items-center gap-2">
       {[
         { id: 'today', label: 'Today' },
         { id: 'upcoming', label: 'Next Days' },
@@ -123,6 +127,7 @@ const SupportSchedulePage: React.FC = () => {
         title={`${user.name.split(' ')[0]}'s Schedule`}
         subtitle="Start with today, then look ahead whenever you want a fuller view of your week."
         action={scheduleAction}
+        onHelp={wt.reopen}
       />
 
       {completionError && (
@@ -169,6 +174,17 @@ const SupportSchedulePage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {wt.show && (
+        <WalkthroughPopup
+          steps={[
+            { targetSelector: '[data-wt="schedule-view-modes"]', title: 'View modes', body: 'Switch between just today, the coming days, or the whole week.', position: 'bottom' },
+            { targetSelector: '[data-wt="activity-mark-done"]', title: 'Mark activities done', body: 'Tap "Mark done" when you finish an activity. It saves instantly. Tap again to undo.', position: 'top' },
+          ]}
+          onDone={wt.done}
+          onSkip={wt.skipAll}
+        />
+      )}
     </div>
   );
 };
