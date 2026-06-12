@@ -71,11 +71,13 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
                 <th className="px-5 py-3 whitespace-nowrap">Uncontacted</th>
                 <th className="px-5 py-3 whitespace-nowrap">Contacted</th>
                 <th className="px-5 py-3 whitespace-nowrap">Still Open</th>
+                <th className="px-5 py-3 whitespace-nowrap">Registered</th>
+                <th className="px-5 py-3 whitespace-nowrap">Conv. Rate</th>
               </tr>
             </thead>
             <tbody>
               {owners.length === 0 ? (
-                <tr><td colSpan={5} className="px-5 py-8 text-center text-gray-400">No contacts yet.</td></tr>
+                <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400">No contacts yet.</td></tr>
               ) : (
                 owners.map((row) => (
                   <tr key={row.ownerId || 'unassigned'} className="border-t border-orange-50">
@@ -84,6 +86,8 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
                     <td className="px-5 py-3 whitespace-nowrap">{row.uncontacted}</td>
                     <td className="px-5 py-3 whitespace-nowrap">{row.contacted}</td>
                     <td className="px-5 py-3 whitespace-nowrap font-semibold">{row.stillOpen}</td>
+                    <td className="px-5 py-3 whitespace-nowrap">{row.registered}</td>
+                    <td className="px-5 py-3 whitespace-nowrap font-semibold">{row.assigned > 0 ? `${Math.round((row.registered / row.assigned) * 100)}%` : '-'}</td>
                   </tr>
                 ))
               )}
@@ -114,33 +118,6 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
                   <td className="px-5 py-3 whitespace-nowrap">{row.notInterested}</td>
                   <td className="px-5 py-3 whitespace-nowrap">{row.notAGoodTime}</td>
                   <td className="px-5 py-3 whitespace-nowrap">{row.notATcnMember}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </AccordionSection>
-
-      <AccordionSection title="Conversion" subtitle="How many registered so far.">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-orange-50/60 text-xs uppercase tracking-wide text-gray-500">
-            <tr>
-              <th className="px-5 py-3 whitespace-nowrap">Owner</th>
-              <th className="px-5 py-3 whitespace-nowrap">Registered</th>
-              <th className="px-5 py-3 whitespace-nowrap">Still Open</th>
-              <th className="px-5 py-3 whitespace-nowrap">Conversion Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {owners.length === 0 ? (
-              <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400">No contacts yet.</td></tr>
-            ) : (
-              owners.map((row) => (
-                <tr key={row.ownerId || 'unassigned'} className="border-t border-orange-50">
-                  <td className={`px-5 py-3 font-semibold whitespace-nowrap ${row.ownerId ? 'text-gray-900' : 'text-amber-700'}`}>{row.ownerName}</td>
-                  <td className="px-5 py-3 whitespace-nowrap">{row.registered}</td>
-                  <td className="px-5 py-3 whitespace-nowrap">{row.stillOpen}</td>
-                  <td className="px-5 py-3 whitespace-nowrap font-semibold">{row.assigned > 0 ? `${Math.round((row.registered / row.assigned) * 100)}%` : '-'}</td>
                 </tr>
               ))
             )}
