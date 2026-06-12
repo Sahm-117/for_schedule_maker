@@ -72,7 +72,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
         position: 'fixed',
         top,
         left,
-        width,
+        minWidth: width,
         zIndex: 100,
       });
     };
@@ -101,12 +101,12 @@ const AppSelect: React.FC<AppSelectProps> = ({
           compact ? 'border-gray-200/70 px-2 py-1.5 min-h-[36px] hover:border-gray-300' : 'border-orange-100 px-4 py-3 hover:border-orange-200 hover:bg-orange-50/40'
         }`}
       >
-        <div className="min-w-0">
-          <p className={`truncate font-semibold ${compact ? 'text-sm text-gray-600' : 'text-[16px] text-gray-900'}`}>
+          <div className="min-w-0">
+          <p className={`font-semibold ${compact ? 'text-sm text-gray-600' : 'text-[16px] text-gray-900'}`}>
             {selectedOption?.label || placeholder}
           </p>
           {selectedOption?.meta && (
-            <p className="truncate text-xs text-gray-500">{selectedOption.meta}</p>
+            <p className="text-xs text-gray-500">{selectedOption.meta}</p>
           )}
         </div>
         <span className={`ml-2 inline-flex flex-shrink-0 items-center justify-center rounded-full transition-transform ${open ? 'rotate-180' : ''} ${
@@ -141,8 +141,8 @@ const AppSelect: React.FC<AppSelectProps> = ({
                   }`}
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">{option.label}</p>
-                    {option.meta && <p className="truncate text-xs text-gray-500">{option.meta}</p>}
+                    <p className="text-sm font-semibold whitespace-nowrap">{option.label}</p>
+                    {option.meta && <p className="text-xs text-gray-500 whitespace-nowrap">{option.meta}</p>}
                   </div>
                   {selected && (
                     <span className="ml-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-primary shadow-sm">

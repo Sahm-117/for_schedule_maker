@@ -22,6 +22,7 @@ export const REPLY_STATUS_META: Record<FollowUpReplyStatus, StatusMeta> = {
   NO_REPLY: { label: 'No Reply', tone: 'bg-slate-100 text-slate-600' },
   REPLIED: { label: 'Replied', tone: 'bg-emerald-100/80 text-emerald-700' },
   NEEDS_REMINDER: { label: 'Needs Reminder', tone: 'bg-amber-100/80 text-amber-700' },
+  INCORRECT_NUMBER: { label: 'Wrong Number', tone: 'bg-rose-100/80 text-rose-700' },
 };
 
 export const CALL_STATUS_META: Record<FollowUpCallStatus, StatusMeta> = {
@@ -30,10 +31,10 @@ export const CALL_STATUS_META: Record<FollowUpCallStatus, StatusMeta> = {
   MISSED_CALL: { label: 'Missed Call', tone: 'bg-rose-100/80 text-rose-700' },
   CALL_BACK_LATER: { label: 'Call Back Later', tone: 'bg-amber-100/80 text-amber-700' },
   NOT_APPLICABLE: { label: 'Not Applicable', tone: 'bg-neutral-100 text-neutral-600' },
+  INCORRECT_NUMBER: { label: 'Wrong Number', tone: 'bg-rose-100/80 text-rose-700' },
 };
 
 export const REGISTRATION_STATUS_META: Record<FollowUpRegistrationStatus, StatusMeta> = {
-  NO_RESPONSE: { label: 'No Response', tone: 'bg-slate-100 text-slate-600' },
   NOT_INTERESTED: { label: 'Not Interested', tone: 'bg-rose-100/80 text-rose-700' },
   NOT_A_GOOD_TIME: { label: 'Not a Good Time', tone: 'bg-rose-100/80 text-rose-700' },
   NOT_A_TCN_MEMBER: { label: 'Not a TCN Member', tone: 'bg-rose-100/80 text-rose-700' },
@@ -57,11 +58,17 @@ export const ISSUE_STATUS_META: Record<IssueStatus, StatusMeta> = {
 export const statusOptions = <T extends string>(meta: Record<T, StatusMeta>) =>
   (Object.keys(meta) as T[]).map((value) => ({ value, label: meta[value].label }));
 
-export const isTerminalFollowUpRegistrationStatus = (status: FollowUpRegistrationStatus): boolean =>
-  status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME' || status === 'NO_RESPONSE';
+export const isClosedRegistrationStatus = (status: FollowUpRegistrationStatus): boolean =>
+  status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME';
 
-export const isTerminalFollowUpContact = (contact: FollowUpContact): boolean =>
-  !!contact.archivedAt || contact.nextAction === 'CLOSE' || isTerminalFollowUpRegistrationStatus(contact.registrationStatus);
+export const isWrongNumber = (status: FollowUpReplyStatus | FollowUpCallStatus): boolean =>
+  status === 'INCORRECT_NUMBER';
+
+export const isClosedContact = (contact: FollowUpContact): boolean =>
+  !!contact.archivedAt || contact.nextAction === 'CLOSE' || isClosedRegistrationStatus(contact.registrationStatus) || isWrongNumber(contact.replyStatus) || isWrongNumber(contact.callStatus);
+
+export const isClosedStatus = (value: string): boolean =>
+  value === 'INCORRECT_NUMBER' || value === 'NOT_INTERESTED' || value === 'NOT_A_GOOD_TIME' || value === 'NOT_A_TCN_MEMBER' || value === 'NO_RESPONSE';
 
 export interface FollowUpMetrics {
   total: number;
@@ -88,10 +95,10 @@ export const computeFollowUpMetrics = (contacts: FollowUpContact[]): FollowUpMet
   const notContacted = contacts.filter((c) => c.messageStatus === 'NOT_SENT' && c.callStatus === 'NOT_CALLED').length;
   const stillThinking = contacts.filter((c) => c.registrationStatus === 'STILL_THINKING').length;
   const pendingConfirmation = contacts.filter((c) => c.registrationStatus === 'PENDING_CONFIRMATION').length;
-  const notInterested = contacts.filter((c) => isTerminalFollowUpRegistrationStatus(c.registrationStatus)).length;
-  const needsAction = contacts.filter((c) => !isTerminalFollowUpContact(c)).length;
+  const notInterested = contacts.filter((c) => isClosedRegistrationStatus(c.registrationStatus)).length;
+  const needsAction = contacts.filter((c) => !isClosedContact(c)).length;
   const interestedNotRegistered = contacts.filter(
-    (c) => c.registrationStatus !== 'REGISTERED' && !isTerminalFollowUpRegistrationStatus(c.registrationStatus)
+    (c) => c.registrationStatus !== 'REGISTERED' && !isClosedRegistrationStatus(c.registrationStatus)
   ).length;
   return {
     total,
@@ -113,9 +120,11 @@ export interface OwnerBreakdownRow {
   ownerId: string | null;
   ownerName: string;
   assigned: number;
+  uncontacted: number;
   contacted: number;
   registered: number;
   stillOpen: number;
+  wrongNumber: number;
   notInterested: number;
   notAGoodTime: number;
   notATcnMember: number;
@@ -129,17 +138,21 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       ownerId: c.ownerId || null,
       ownerName: c.ownerName || (c.ownerId ? 'Unknown' : 'Unassigned'),
       assigned: 0,
+      uncontacted: 0,
       contacted: 0,
       registered: 0,
       stillOpen: 0,
+      wrongNumber: 0,
       notInterested: 0,
       notAGoodTime: 0,
       notATcnMember: 0,
     };
     row.assigned += 1;
+    if (c.messageStatus === 'NOT_SENT' && c.callStatus === 'NOT_CALLED') row.uncontacted += 1;
     if (c.replyStatus === 'REPLIED' || c.callStatus === 'CALLED' || c.callStatus === 'MISSED_CALL' || c.callStatus === 'NOT_APPLICABLE') row.contacted += 1;
     if (c.registrationStatus === 'REGISTERED') row.registered += 1;
-    if (c.replyStatus !== 'REPLIED' && c.registrationStatus !== 'REGISTERED') row.stillOpen += 1;
+    if (c.replyStatus !== 'REPLIED' && c.registrationStatus !== 'REGISTERED' && !isClosedContact(c)) row.stillOpen += 1;
+    if (c.replyStatus === 'INCORRECT_NUMBER' || c.callStatus === 'INCORRECT_NUMBER') row.wrongNumber += 1;
     if (c.registrationStatus === 'NOT_INTERESTED') row.notInterested += 1;
     if (c.registrationStatus === 'NOT_A_GOOD_TIME') row.notAGoodTime += 1;
     if (c.registrationStatus === 'NOT_A_TCN_MEMBER') row.notATcnMember += 1;

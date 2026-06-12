@@ -168,7 +168,7 @@ const SupportFollowUpsPage: React.FC = () => {
         if (patch.registrationStatus === 'REGISTERED') {
           patch.replyStatus = 'REPLIED';
           patch.nextAction = 'CLOSE';
-        } else if (patch.registrationStatus === 'NOT_INTERESTED' || patch.registrationStatus === 'NOT_A_TCN_MEMBER') {
+        } else if (patch.registrationStatus === 'NOT_INTERESTED' || patch.registrationStatus === 'NOT_A_TCN_MEMBER' || patch.registrationStatus === 'NOT_A_GOOD_TIME') {
           patch.replyStatus = 'REPLIED';
           patch.nextAction = 'CLOSE';
         }

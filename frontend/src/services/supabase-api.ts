@@ -2286,17 +2286,22 @@ const notifyFollowUpAssignment = (ownerId: string, contactNames: string[]) => {
 const getTerminalFollowUpReason = (contact: {
   nextAction?: string | null;
   registrationStatus?: string | null;
-}): 'CLOSE' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | null => {
+  replyStatus?: string | null;
+  callStatus?: string | null;
+}): 'CLOSE' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE' | null => {
   if (contact.nextAction === 'CLOSE') return 'CLOSE';
   if (contact.registrationStatus === 'NOT_INTERESTED') return 'NOT_INTERESTED';
   if (contact.registrationStatus === 'NOT_A_TCN_MEMBER') return 'NOT_A_TCN_MEMBER';
+  if (contact.registrationStatus === 'NOT_A_GOOD_TIME') return 'NOT_A_GOOD_TIME';
+  if (contact.replyStatus === 'INCORRECT_NUMBER' || contact.callStatus === 'INCORRECT_NUMBER') return 'INCORRECT_NUMBER';
+  if (contact.registrationStatus === 'NO_RESPONSE') return 'NO_RESPONSE';
   return null;
 };
 
 const notifyFollowUpTerminalStatus = (
   contactId: string,
   actorId: string,
-  terminalState: 'CLOSE' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER'
+  terminalState: 'CLOSE' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE'
 ) => {
   void supabase.functions
     .invoke('notify-followup-terminal-status', {
@@ -2366,6 +2371,12 @@ export const followUpContactsApi = {
     }
 
     const patch: Record<string, unknown> = { ...fields, updatedAt: new Date().toISOString() };
+
+    if (fields.replyStatus === 'INCORRECT_NUMBER' || fields.callStatus === 'INCORRECT_NUMBER') {
+      patch.replyStatus = 'INCORRECT_NUMBER';
+      patch.callStatus = 'INCORRECT_NUMBER';
+      patch.nextAction = 'CLOSE';
+    }
 
     if (fields.registrationStatus === 'NO_RESPONSE') {
       patch.replyStatus = 'NO_REPLY';
