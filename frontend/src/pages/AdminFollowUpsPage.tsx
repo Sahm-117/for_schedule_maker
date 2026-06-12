@@ -174,7 +174,21 @@ const AdminFollowUpsPage: React.FC = () => {
         } else if (patch.registrationStatus === 'NOT_INTERESTED' || patch.registrationStatus === 'NOT_A_TCN_MEMBER' || patch.registrationStatus === 'NOT_A_GOOD_TIME') {
           patch.replyStatus = 'REPLIED';
           patch.nextAction = 'CLOSE';
+        } else if (
+          (contact.registrationStatus === 'NOT_INTERESTED' || contact.registrationStatus === 'NOT_A_TCN_MEMBER' || contact.registrationStatus === 'NOT_A_GOOD_TIME' || contact.registrationStatus === 'NO_RESPONSE') &&
+          patch.registrationStatus !== 'NOT_INTERESTED' && patch.registrationStatus !== 'NOT_A_TCN_MEMBER' && patch.registrationStatus !== 'NOT_A_GOOD_TIME' && patch.registrationStatus !== 'NO_RESPONSE' && patch.registrationStatus !== 'REGISTERED'
+        ) {
+          patch.nextAction = 'SEND_MESSAGE';
+          patch.archivedAt = null;
         }
+      }
+      if (patch.replyStatus && contact.replyStatus === 'INCORRECT_NUMBER' && patch.replyStatus !== 'INCORRECT_NUMBER') {
+        patch.nextAction = 'SEND_MESSAGE';
+        patch.archivedAt = null;
+      }
+      if (patch.callStatus && contact.callStatus === 'INCORRECT_NUMBER' && patch.callStatus !== 'INCORRECT_NUMBER') {
+        patch.nextAction = 'SEND_MESSAGE';
+        patch.archivedAt = null;
       }
       const { contact: updated } = await followUpContactsApi.update(contact.id, patch);
       replaceContact(updated);
