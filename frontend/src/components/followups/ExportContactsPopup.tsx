@@ -11,7 +11,12 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts, onC
   const [copiedAll, setCopiedAll] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const formatLine = (c: FollowUpContact) => `${c.fullName}\t${c.phone || ''}`;
+  const normalizePhone = (p?: string | null) => {
+    if (!p) return '';
+    return p.startsWith('0') || p.startsWith('+') ? p : `0${p}`;
+  };
+
+  const formatLine = (c: FollowUpContact) => `${c.fullName}\t${normalizePhone(c.phone)}`;
 
   const copyAll = async () => {
     const text = contacts.map(formatLine).join('\n');
@@ -24,7 +29,7 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts, onC
 
   const copyOne = async (c: FollowUpContact) => {
     try {
-      await navigator.clipboard.writeText(`${c.fullName}\t${c.phone || ''}`);
+      await navigator.clipboard.writeText(`${c.fullName}\t${normalizePhone(c.phone)}`);
       setCopiedId(c.id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch { /* ignore */ }
@@ -61,7 +66,7 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts, onC
                 <div key={c.id} className="flex items-center justify-between py-2.5">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-gray-900">{c.fullName}</p>
-                    <p className="truncate text-xs text-gray-500">{c.phone || '—'}</p>
+                    <p className="truncate text-xs text-gray-500">{normalizePhone(c.phone) || '—'}</p>
                   </div>
                   <button
                     type="button"

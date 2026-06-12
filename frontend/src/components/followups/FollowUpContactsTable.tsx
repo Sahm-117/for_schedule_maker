@@ -74,9 +74,11 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const dueDateInputRef = useRef<HTMLInputElement | null>(null);
 
   const copyNumber = async (contact: FollowUpContact) => {
-    if (!contact.phone) return;
+    const phone = contact.phone || '';
+    if (!phone) return;
+    const normalized = phone.startsWith('0') || phone.startsWith('+') ? phone : `0${phone}`;
     try {
-      await navigator.clipboard.writeText(contact.phone);
+      await navigator.clipboard.writeText(normalized);
       setCopiedPhoneId(contact.id);
       setTimeout(() => setCopiedPhoneId(null), 2000);
     } catch { /* ignore */ }
