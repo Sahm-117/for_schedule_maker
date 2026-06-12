@@ -67,12 +67,14 @@ const AppSelect: React.FC<AppSelectProps> = ({
       if (left + width > window.innerWidth) {
         left = Math.max(12, window.innerWidth - width - 12);
       }
+      const maxMenuWidth = Math.max(width, Math.min(360, window.innerWidth - 24));
 
       setMenuStyle({
         position: 'fixed',
         top,
         left,
         minWidth: width,
+        maxWidth: maxMenuWidth,
         zIndex: 100,
       });
     };
@@ -136,13 +138,13 @@ const AppSelect: React.FC<AppSelectProps> = ({
                   type="button"
                   onPointerDown={() => onChange(option.value)}
                   onClick={() => setOpen(false)}
-                  className={`flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left transition ${
+                  className={`flex w-full items-start justify-between rounded-2xl px-3 py-2.5 text-left transition ${
                     selected ? 'bg-orange-50 text-primary' : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold whitespace-nowrap">{option.label}</p>
-                    {option.meta && <p className="text-xs text-gray-500 whitespace-nowrap">{option.meta}</p>}
+                    <p className="text-sm font-semibold">{option.label}</p>
+                    {option.meta && <p className="text-xs leading-tight text-gray-500">{option.meta}</p>}
                   </div>
                   {selected && (
                     <span className="ml-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-primary shadow-sm">

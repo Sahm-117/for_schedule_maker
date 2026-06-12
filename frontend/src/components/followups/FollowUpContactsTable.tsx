@@ -61,6 +61,8 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const [viewingInfo, setViewingInfo] = useState<string | null>(null);
   const [savingFields, setSavingFields] = useState<Set<string>>(new Set());
   const [notInterestedContact, setNotInterestedContact] = useState<FollowUpContact | null>(null);
+  const [pendingClose, setPendingClose] = useState<{ contact: FollowUpContact; status: 'REGISTERED' | 'WRONG_NUMBER' } | null>(null);
+  const [closeNotes, setCloseNotes] = useState('');
   const stepperRef = useRef<HTMLDivElement | null>(null);
   const dueDateInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -102,6 +104,11 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
           const status = v as FollowUpStatus;
           if (status === 'NOT_INTERESTED') {
             setNotInterestedContact(contact);
+            return;
+          }
+          if (status === 'REGISTERED' || status === 'WRONG_NUMBER') {
+            setCloseNotes(contact.notes || '');
+            setPendingClose({ contact, status });
             return;
           }
           setSavingFields((prev) => new Set(prev).add(key));
@@ -475,6 +482,45 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
           }}
           onCancel={() => setNotInterestedContact(null)}
         />
+      )}
+
+      {pendingClose && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[140] flex items-end justify-center sm:items-center" onClick={() => setPendingClose(null)}>
+          <div className="absolute inset-0 bg-slate-900/35" />
+          <div className="relative mb-20 w-[90vw] max-w-[340px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0" onClick={(e) => e.stopPropagation()}>
+            <p className="text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Any notes?</p>
+            <p className="mb-4 truncate text-center text-sm font-semibold text-gray-900">{pendingClose.contact.fullName}</p>
+            <textarea
+              value={closeNotes}
+              onChange={(e) => setCloseNotes(e.target.value)}
+              placeholder="Optional — context for this status update."
+              className="min-h-[100px] w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-orange-300"
+            />
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setPendingClose(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
+              <button type="button" onClick={async () => {
+                const { contact, status } = pendingClose;
+                const key = `${contact.id}:followUpStatus`;
+                setSavingFields((prev) => new Set(prev).add(key));
+                try {
+                  const patch = buildStatusPatch(status);
+                  patch.notes = closeNotes.trim() || contact.notes || null;
+                  patch.followUpCount = contact.followUpCount;
+                  await (onFieldChange(contact, patch) as unknown as Promise<unknown>);
+                } finally {
+                  setSavingFields((prev) => {
+                    const next = new Set(prev);
+                    next.delete(key);
+                    return next;
+                  });
+                  setPendingClose(null);
+                  setCloseNotes('');
+                }
+              }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark">Save</button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {editingNotes && typeof document !== 'undefined' && createPortal(
