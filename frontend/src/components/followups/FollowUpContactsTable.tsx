@@ -1,16 +1,14 @@
 import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { FollowUpContact, User } from '../../types';
+import type { FollowUpContact, FollowUpStatus, User } from '../../types';
 import AppSelect from '../AppSelect';
 import AppOverflowMenu from '../AppOverflowMenu';
+import NotInterestedPopup from './NotInterestedPopup';
 import {
-  REPLY_STATUS_META,
-  CALL_STATUS_META,
-  REGISTRATION_STATUS_META,
-  NEXT_ACTION_META,
-  statusOptions,
+  computeFollowUpStatus,
+  followUpStatusOptions,
   isOverdue,
-  isClosedStatus,
+  buildStatusPatch,
 } from '../../utils/followUps';
 
 interface FollowUpContactsTableProps {
@@ -62,7 +60,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const [lastContactValue, setLastContactValue] = useState('');
   const [viewingInfo, setViewingInfo] = useState<string | null>(null);
   const [savingFields, setSavingFields] = useState<Set<string>>(new Set());
-  const [pendingStatusChange, setPendingStatusChange] = useState<{ contact: FollowUpContact; field: string; value: string } | null>(null);
+  const [notInterestedContact, setNotInterestedContact] = useState<FollowUpContact | null>(null);
   const stepperRef = useRef<HTMLDivElement | null>(null);
   const dueDateInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -93,20 +91,24 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
 
   const ownerOptions = [{ value: '', label: 'Unassigned' }, ...owners.map((o) => ({ value: o.id, label: o.name }))];
 
-  const statusCell = (contact: FollowUpContact, field: string, meta: Record<string, { label: string; tone: string }>, value: string) => {
-    const key = `${contact.id}:${field}`;
+  const statusDropdown = (contact: FollowUpContact) => {
+    const key = `${contact.id}:followUpStatus`;
+    const currentStatus = computeFollowUpStatus(contact);
     return (
       <AppSelect
-        value={value}
+        value={currentStatus}
         loading={savingFields.has(key)}
         onChange={async (v) => {
-          if (isClosedStatus(v)) {
-            setPendingStatusChange({ contact, field, value: v });
+          const status = v as FollowUpStatus;
+          if (status === 'NOT_INTERESTED') {
+            setNotInterestedContact(contact);
             return;
           }
           setSavingFields((prev) => new Set(prev).add(key));
           try {
-            await (onFieldChange(contact, { [field]: v }) as unknown as Promise<unknown>);
+            const patch = buildStatusPatch(status);
+            patch.followUpCount = contact.followUpCount;
+            await (onFieldChange(contact, patch) as unknown as Promise<unknown>);
           } finally {
             setSavingFields((prev) => {
               const next = new Set(prev);
@@ -115,10 +117,10 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
             });
           }
         }}
-        options={statusOptions(meta)}
+        options={followUpStatusOptions}
         placeholder="—"
         compact
-        className="min-w-[122px]"
+        className="min-w-[160px]"
       />
     );
   };
@@ -210,10 +212,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               )}
               <th className="px-4 py-3">Person</th>
               {canAssign && <th className="px-4 py-3">Owner</th>}
-              <th className="px-4 py-3">Reply</th>
-              <th className="px-4 py-3">Call</th>
-              <th className="px-4 py-3">Registration</th>
-              <th className="px-4 py-3">Next action</th>
+              <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Due</th>
               <th className="sticky right-0 z-10 w-24 bg-orange-50/60 px-4 py-3 text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">Actions</th>
             </tr>
@@ -275,10 +274,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                     />
                   </td>
                 )}
-                <td className="px-4 py-3.5" data-wt="fu-status-dropdown">{statusCell(contact, 'replyStatus', REPLY_STATUS_META, contact.replyStatus)}</td>
-                <td className="px-4 py-3.5">{statusCell(contact, 'callStatus', CALL_STATUS_META, contact.callStatus)}</td>
-                <td className="px-4 py-3.5">{statusCell(contact, 'registrationStatus', REGISTRATION_STATUS_META, contact.registrationStatus)}</td>
-                <td className="px-4 py-3.5">{statusCell(contact, 'nextAction', NEXT_ACTION_META, contact.nextAction)}</td>
+                <td className="px-4 py-3.5" data-wt="fu-status-dropdown">{statusDropdown(contact)}</td>
                 <td className="px-4 py-3.5">
                   <span className={`text-xs font-semibold ${isOverdue(contact) ? 'text-rose-600' : 'text-gray-600'}`}>
                     {dateLabel(contact.dueDate)}
@@ -342,23 +338,11 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               </div>
             </div>
 
-            {/* Status dropdowns row */}
-            <div className="mt-2.5 grid grid-cols-2 gap-x-1.5 gap-y-2 px-4">
+            {/* Status dropdown */}
+            <div className="mt-2.5 px-4">
               <div>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-300">Reply</p>
-                {statusCell(contact, 'replyStatus', REPLY_STATUS_META, contact.replyStatus)}
-              </div>
-              <div>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-300">Call</p>
-                {statusCell(contact, 'callStatus', CALL_STATUS_META, contact.callStatus)}
-              </div>
-              <div>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-300">Registration</p>
-                {statusCell(contact, 'registrationStatus', REGISTRATION_STATUS_META, contact.registrationStatus)}
-              </div>
-              <div>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-300">Next action</p>
-                {statusCell(contact, 'nextAction', NEXT_ACTION_META, contact.nextAction)}
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-300">Status</p>
+                {statusDropdown(contact)}
               </div>
             </div>
 
@@ -471,65 +455,26 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         document.body
       )}
 
-      {pendingStatusChange && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[130] flex items-end justify-center sm:items-center" onClick={() => setPendingStatusChange(null)}>
-          <div className="absolute inset-0 bg-slate-900/35" />
-          <div className="relative mb-20 w-[90vw] max-w-[320px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0" onClick={(e) => e.stopPropagation()}>
-            <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Any notes?</p>
-            <p className="mb-4 truncate text-center text-sm font-semibold text-gray-900">{pendingStatusChange.contact.fullName}</p>
-            <textarea
-              value={notesValue}
-              onChange={(e) => setNotesValue(e.target.value)}
-              placeholder="Optional — anything to give context for this status update."
-              className="min-h-[100px] w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-orange-300"
-            />
-            <div className="mt-4 flex justify-end gap-2">
-              {notesValue.trim() || pendingStatusChange.contact.notes ? (
-                <>
-                  <button type="button" onClick={() => { setPendingStatusChange(null); setNotesValue(''); }} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
-                  <button type="button" onClick={async () => {
-                    const { contact, field, value } = pendingStatusChange;
-                    const key = `${contact.id}:${field}`;
-                    setSavingFields((prev) => new Set(prev).add(key));
-                    try {
-                      const patch: Record<string, unknown> = { [field]: value };
-                      patch.notes = notesValue.trim() || pendingStatusChange.contact.notes || null;
-                      await (onFieldChange(contact, patch) as unknown as Promise<unknown>);
-                    } finally {
-                      setSavingFields((prev) => {
-                        const next = new Set(prev);
-                        next.delete(key);
-                        return next;
-                      });
-                      setPendingStatusChange(null);
-                      setNotesValue('');
-                    }
-                  }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark">Save & Close</button>
-                </>
-              ) : (
-                <>
-                  <button type="button" onClick={() => setPendingStatusChange(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
-                  <button type="button" onClick={async () => {
-                    const { contact, field, value } = pendingStatusChange;
-                    const key = `${contact.id}:${field}`;
-                    setSavingFields((prev) => new Set(prev).add(key));
-                    try {
-                      await (onFieldChange(contact, { [field]: value }) as unknown as Promise<unknown>);
-                    } finally {
-                      setSavingFields((prev) => {
-                        const next = new Set(prev);
-                        next.delete(key);
-                        return next;
-                      });
-                      setPendingStatusChange(null);
-                    }
-                  }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark">No notes</button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
+      {notInterestedContact && (
+        <NotInterestedPopup
+          contactName={notInterestedContact.fullName}
+          existingNotes={notInterestedContact.notes}
+          onSave={(subReason, notes) => {
+            const key = `${notInterestedContact.id}:followUpStatus`;
+            setSavingFields((prev) => new Set(prev).add(key));
+            const patch = buildStatusPatch('NOT_INTERESTED', subReason);
+            patch.notes = notes || notInterestedContact.notes || null;
+            patch.followUpCount = notInterestedContact.followUpCount;
+            onFieldChange(notInterestedContact, patch);
+            setSavingFields((prev) => {
+              const next = new Set(prev);
+              next.delete(key);
+              return next;
+            });
+            setNotInterestedContact(null);
+          }}
+          onCancel={() => setNotInterestedContact(null)}
+        />
       )}
 
       {editingNotes && typeof document !== 'undefined' && createPortal(

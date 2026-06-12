@@ -6,10 +6,11 @@ import type {
   FollowUpCallStatus,
   FollowUpRegistrationStatus,
   FollowUpNextAction,
+  FollowUpStatus,
   IssueStatus,
 } from '../types';
 
-type StatusMeta = { label: string; tone: string };
+type StatusMeta = { label: string; tone: string; description?: string };
 
 const pill = (tone: string) => tone;
 
@@ -55,103 +56,161 @@ export const ISSUE_STATUS_META: Record<IssueStatus, StatusMeta> = {
   RESOLVED: { label: 'Resolved', tone: 'bg-emerald-100/80 text-emerald-700' },
 };
 
+export const FOLLOW_UP_STATUS_META: Record<FollowUpStatus, StatusMeta> = {
+  TO_CONTACT: { label: 'To contact', description: 'Not contacted yet — send them a message or give them a call.', tone: 'bg-slate-100 text-slate-600' },
+  WAITING: { label: 'Waiting', description: 'Message sent, waiting for a reply.', tone: 'bg-amber-100/80 text-amber-700' },
+  NEEDS_REMINDER: { label: 'Needs reminder', description: 'They did not reply — send a gentle reminder.', tone: 'bg-amber-100/80 text-amber-700' },
+  REPLIED: { label: 'Replied', description: 'They replied. Still working on getting them registered.', tone: 'bg-emerald-100/80 text-emerald-700' },
+  CALL_BACK_LATER: { label: 'Call back later', description: 'They asked you to call another time.', tone: 'bg-violet-100/80 text-violet-700' },
+  REGISTERED: { label: 'Registered', description: 'They are registered. All done.', tone: 'bg-emerald-100/80 text-emerald-700' },
+  WRONG_NUMBER: { label: 'Wrong number', description: 'The number does not work.', tone: 'bg-rose-100/80 text-rose-700' },
+  NOT_INTERESTED: { label: 'Not interested', description: 'They said no, not available, or not a TCN member.', tone: 'bg-rose-100/80 text-rose-700' },
+};
+
 export const statusOptions = <T extends string>(meta: Record<T, StatusMeta>) =>
   (Object.keys(meta) as T[]).map((value) => ({ value, label: meta[value].label }));
+
+export const followUpStatusOptions = (Object.keys(FOLLOW_UP_STATUS_META) as FollowUpStatus[]).map((value) => ({
+  value,
+  label: FOLLOW_UP_STATUS_META[value].label,
+  meta: FOLLOW_UP_STATUS_META[value].description,
+}));
+
+export const computeFollowUpStatus = (c: FollowUpContact): FollowUpStatus => {
+  if (c.registrationStatus === 'REGISTERED') return 'REGISTERED';
+  if (c.registrationStatus === 'NOT_INTERESTED' || c.registrationStatus === 'NOT_A_GOOD_TIME' || c.registrationStatus === 'NOT_A_TCN_MEMBER') return 'NOT_INTERESTED';
+  if (c.replyStatus === 'INCORRECT_NUMBER' || c.callStatus === 'INCORRECT_NUMBER') return 'WRONG_NUMBER';
+  if (c.callStatus === 'CALL_BACK_LATER') return 'CALL_BACK_LATER';
+  if (c.replyStatus === 'NEEDS_REMINDER') return 'NEEDS_REMINDER';
+  if (c.replyStatus === 'REPLIED') return 'REPLIED';
+  if (c.messageStatus === 'SENT') return 'WAITING';
+  return 'TO_CONTACT';
+};
+
+export const isClosedContact = (c: FollowUpContact): boolean => {
+  const status = computeFollowUpStatus(c);
+  return status === 'REGISTERED' || status === 'WRONG_NUMBER' || status === 'NOT_INTERESTED';
+};
 
 export const isClosedRegistrationStatus = (status: FollowUpRegistrationStatus): boolean =>
   status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME';
 
-export const isWrongNumber = (status: FollowUpReplyStatus | FollowUpCallStatus): boolean =>
-  status === 'INCORRECT_NUMBER';
-
-export const isClosedContact = (contact: FollowUpContact): boolean =>
-  !!contact.archivedAt || contact.nextAction === 'CLOSE' || isClosedRegistrationStatus(contact.registrationStatus) || isWrongNumber(contact.replyStatus) || isWrongNumber(contact.callStatus);
-
-export const isClosedStatus = (value: string): boolean =>
-  value === 'INCORRECT_NUMBER' || value === 'NOT_INTERESTED' || value === 'NOT_A_GOOD_TIME' || value === 'NOT_A_TCN_MEMBER' || value === 'NO_RESPONSE';
-
 export interface FollowUpMetrics {
-  total: number;
-  contacted: number;
-  registered: number;
-  noResponse: number;
-  notContacted: number;
+  toContact: number;
+  waiting: number;
   needsReminder: number;
+  replied: number;
   callBackLater: number;
-  closed: number;
+  registered: number;
+  wrongNumber: number;
+  notInterested: number;
 }
 
 export const computeFollowUpMetrics = (contacts: FollowUpContact[]): FollowUpMetrics => {
-  const total = contacts.length;
-  const contacted = contacts.filter((c) => c.messageStatus === 'SENT' || c.callStatus === 'CALLED').length;
-  const registered = contacts.filter((c) => c.registrationStatus === 'REGISTERED').length;
-  const noResponse = contacts.filter((c) => c.messageStatus === 'SENT' && c.replyStatus === 'NO_REPLY').length;
-  const notContacted = contacts.filter((c) => c.messageStatus === 'NOT_SENT' && c.callStatus === 'NOT_CALLED').length;
-  const needsReminder = contacts.filter((c) => c.replyStatus === 'NEEDS_REMINDER').length;
-  const callBackLater = contacts.filter((c) => c.callStatus === 'CALL_BACK_LATER').length;
-  const closed = contacts.filter(
-    (c) =>
-      c.replyStatus === 'INCORRECT_NUMBER' ||
-      c.callStatus === 'INCORRECT_NUMBER' ||
-      c.registrationStatus === 'NOT_INTERESTED' ||
-      c.registrationStatus === 'NOT_A_GOOD_TIME' ||
-      c.registrationStatus === 'NOT_A_TCN_MEMBER'
-  ).length;
-  return {
-    total,
-    contacted,
-    registered,
-    noResponse,
-    notContacted,
-    needsReminder,
-    callBackLater,
-    closed,
-  };
+  const toContact: FollowUpMetrics = { toContact: 0, waiting: 0, needsReminder: 0, replied: 0, callBackLater: 0, registered: 0, wrongNumber: 0, notInterested: 0 };
+  for (const c of contacts) {
+    const status = computeFollowUpStatus(c);
+    if (status === 'TO_CONTACT') toContact.toContact++;
+    else if (status === 'WAITING') toContact.waiting++;
+    else if (status === 'NEEDS_REMINDER') toContact.needsReminder++;
+    else if (status === 'REPLIED') toContact.replied++;
+    else if (status === 'CALL_BACK_LATER') toContact.callBackLater++;
+    else if (status === 'REGISTERED') toContact.registered++;
+    else if (status === 'WRONG_NUMBER') toContact.wrongNumber++;
+    else if (status === 'NOT_INTERESTED') toContact.notInterested++;
+  }
+  return toContact;
 };
 
 export interface OwnerBreakdownRow {
   ownerId: string | null;
   ownerName: string;
   assigned: number;
-  uncontacted: number;
-  contacted: number;
+  toContact: number;
+  waiting: number;
+  needsReminder: number;
+  replied: number;
+  callBackLater: number;
   registered: number;
-  stillOpen: number;
   wrongNumber: number;
   notInterested: number;
-  notAGoodTime: number;
-  notATcnMember: number;
 }
 
 export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdownRow[] => {
   const map = new Map<string, OwnerBreakdownRow>();
   for (const c of contacts) {
     const key = c.ownerId || 'unassigned';
-    const row = map.get(key) || {
-      ownerId: c.ownerId || null,
-      ownerName: c.ownerName || (c.ownerId ? 'Unknown' : 'Unassigned'),
-      assigned: 0,
-      uncontacted: 0,
-      contacted: 0,
-      registered: 0,
-      stillOpen: 0,
-      wrongNumber: 0,
-      notInterested: 0,
-      notAGoodTime: 0,
-      notATcnMember: 0,
-    };
+    let row = map.get(key);
+    if (!row) {
+      row = {
+        ownerId: c.ownerId || null,
+        ownerName: c.ownerName || (c.ownerId ? 'Unknown' : 'Unassigned'),
+        assigned: 0, toContact: 0, waiting: 0, needsReminder: 0, replied: 0, callBackLater: 0, registered: 0, wrongNumber: 0, notInterested: 0,
+      };
+      map.set(key, row);
+    }
     row.assigned += 1;
-    if (c.registrationStatus !== 'REGISTERED' && !isClosedContact(c) && c.messageStatus === 'NOT_SENT' && c.callStatus === 'NOT_CALLED') row.uncontacted += 1;
-    if (c.replyStatus === 'REPLIED' || c.callStatus === 'CALLED' || c.callStatus === 'MISSED_CALL' || c.callStatus === 'NOT_APPLICABLE') row.contacted += 1;
-    if (c.registrationStatus === 'REGISTERED') row.registered += 1;
-    if (c.registrationStatus !== 'REGISTERED' && !isClosedContact(c)) row.stillOpen += 1;
-    if (c.replyStatus === 'INCORRECT_NUMBER' || c.callStatus === 'INCORRECT_NUMBER') row.wrongNumber += 1;
-    if (c.registrationStatus === 'NOT_INTERESTED') row.notInterested += 1;
-    if (c.registrationStatus === 'NOT_A_GOOD_TIME') row.notAGoodTime += 1;
-    if (c.registrationStatus === 'NOT_A_TCN_MEMBER') row.notATcnMember += 1;
-    map.set(key, row);
+    const status = computeFollowUpStatus(c);
+    switch (status) {
+      case 'TO_CONTACT': row.toContact++; break;
+      case 'WAITING': row.waiting++; break;
+      case 'NEEDS_REMINDER': row.needsReminder++; break;
+      case 'REPLIED': row.replied++; break;
+      case 'CALL_BACK_LATER': row.callBackLater++; break;
+      case 'REGISTERED': row.registered++; break;
+      case 'WRONG_NUMBER': row.wrongNumber++; break;
+      case 'NOT_INTERESTED': row.notInterested++; break;
+    }
   }
-  return Array.from(map.values()).sort((a, b) => b.stillOpen - a.stillOpen);
+  return Array.from(map.values()).sort((a, b) => (b.toContact + b.waiting + b.needsReminder + b.replied + b.callBackLater) - (a.toContact + a.waiting + a.needsReminder + a.replied + a.callBackLater));
+};
+
+export const buildStatusPatch = (status: FollowUpStatus, subReason?: string): Record<string, unknown> => {
+  const now = new Date().toISOString();
+  const base = { archivedAt: null, messageStatus: 'NOT_SENT', replyStatus: 'NO_REPLY', callStatus: 'NOT_CALLED', registrationStatus: 'NOT_REGISTERED', nextAction: 'SEND_MESSAGE' as string } as Record<string, unknown>;
+
+  switch (status) {
+    case 'TO_CONTACT':
+      break;
+    case 'WAITING':
+      base.messageStatus = 'SENT';
+      base.replyStatus = 'NO_REPLY';
+      base.nextAction = 'SEND_REMINDER';
+      break;
+    case 'NEEDS_REMINDER':
+      base.messageStatus = 'SENT';
+      base.replyStatus = 'NEEDS_REMINDER';
+      base.nextAction = 'SEND_REMINDER';
+      break;
+    case 'REPLIED':
+      base.messageStatus = 'SENT';
+      base.replyStatus = 'REPLIED';
+      base.nextAction = 'SEND_MESSAGE';
+      break;
+    case 'CALL_BACK_LATER':
+      base.callStatus = 'CALL_BACK_LATER';
+      base.nextAction = 'CALL';
+      break;
+    case 'REGISTERED':
+      base.replyStatus = 'REPLIED';
+      base.registrationStatus = 'REGISTERED';
+      base.nextAction = 'CLOSE';
+      base.archivedAt = now;
+      break;
+    case 'WRONG_NUMBER':
+      base.replyStatus = 'INCORRECT_NUMBER';
+      base.callStatus = 'INCORRECT_NUMBER';
+      base.nextAction = 'CLOSE';
+      base.archivedAt = now;
+      break;
+    case 'NOT_INTERESTED':
+      base.replyStatus = 'REPLIED';
+      base.registrationStatus = subReason || 'NOT_INTERESTED';
+      base.nextAction = 'CLOSE';
+      base.archivedAt = now;
+      break;
+  }
+  return base;
 };
 
 export const formatTemplateDate = (value?: string | null): string => {
