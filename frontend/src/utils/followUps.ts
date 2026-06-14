@@ -104,22 +104,28 @@ export interface FollowUpMetrics {
   registered: number;
   wrongNumber: number;
   notInterested: number;
+  total: number;
+  contacted: number;
+  notContacted: number;
+  noResponse: number;
+  closed: number;
 }
 
 export const computeFollowUpMetrics = (contacts: FollowUpContact[]): FollowUpMetrics => {
-  const toContact: FollowUpMetrics = { toContact: 0, waiting: 0, needsReminder: 0, replied: 0, callBackLater: 0, registered: 0, wrongNumber: 0, notInterested: 0 };
+  const m: FollowUpMetrics = { toContact: 0, waiting: 0, needsReminder: 0, replied: 0, callBackLater: 0, registered: 0, wrongNumber: 0, notInterested: 0, total: 0, contacted: 0, notContacted: 0, noResponse: 0, closed: 0 };
   for (const c of contacts) {
+    m.total++;
     const status = computeFollowUpStatus(c);
-    if (status === 'TO_CONTACT') toContact.toContact++;
-    else if (status === 'WAITING') toContact.waiting++;
-    else if (status === 'NEEDS_REMINDER') toContact.needsReminder++;
-    else if (status === 'REPLIED') toContact.replied++;
-    else if (status === 'CALL_BACK_LATER') toContact.callBackLater++;
-    else if (status === 'REGISTERED') toContact.registered++;
-    else if (status === 'WRONG_NUMBER') toContact.wrongNumber++;
-    else if (status === 'NOT_INTERESTED') toContact.notInterested++;
+    if (status === 'TO_CONTACT') { m.toContact++; m.notContacted++; }
+    else if (status === 'WAITING') { m.waiting++; m.noResponse++; }
+    else if (status === 'NEEDS_REMINDER') { m.needsReminder++; m.noResponse++; }
+    else if (status === 'REPLIED') { m.replied++; m.contacted++; }
+    else if (status === 'CALL_BACK_LATER') { m.callBackLater++; m.contacted++; }
+    else if (status === 'REGISTERED') { m.registered++; m.contacted++; m.closed++; }
+    else if (status === 'WRONG_NUMBER') { m.wrongNumber++; m.contacted++; m.closed++; }
+    else if (status === 'NOT_INTERESTED') { m.notInterested++; m.contacted++; m.closed++; }
   }
-  return toContact;
+  return m;
 };
 
 export interface OwnerBreakdownRow {
@@ -134,6 +140,11 @@ export interface OwnerBreakdownRow {
   registered: number;
   wrongNumber: number;
   notInterested: number;
+  uncontacted: number;
+  contacted: number;
+  stillOpen: number;
+  notAGoodTime: number;
+  notATcnMember: number;
 }
 
 export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdownRow[] => {
@@ -146,10 +157,13 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
         ownerId: c.ownerId || null,
         ownerName: c.ownerName || (c.ownerId ? 'Unknown' : 'Unassigned'),
         assigned: 0, toContact: 0, waiting: 0, needsReminder: 0, replied: 0, callBackLater: 0, registered: 0, wrongNumber: 0, notInterested: 0,
+        uncontacted: 0, contacted: 0, stillOpen: 0, notAGoodTime: 0, notATcnMember: 0,
       };
       map.set(key, row);
     }
-    row.assigned += 1;
+    row.assigned++;
+    if (c.registrationStatus === 'NOT_A_GOOD_TIME') row.notAGoodTime++;
+    if (c.registrationStatus === 'NOT_A_TCN_MEMBER') row.notATcnMember++;
     const status = computeFollowUpStatus(c);
     switch (status) {
       case 'TO_CONTACT': row.toContact++; break;
@@ -161,6 +175,11 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       case 'WRONG_NUMBER': row.wrongNumber++; break;
       case 'NOT_INTERESTED': row.notInterested++; break;
     }
+  }
+  for (const row of map.values()) {
+    row.uncontacted = row.toContact;
+    row.contacted = row.replied + row.callBackLater + row.registered + row.wrongNumber + row.notInterested;
+    row.stillOpen = row.assigned - row.registered - row.wrongNumber - row.notInterested;
   }
   return Array.from(map.values()).sort((a, b) => (b.toContact + b.waiting + b.needsReminder + b.replied + b.callBackLater) - (a.toContact + a.waiting + a.needsReminder + a.replied + a.callBackLater));
 };
