@@ -126,7 +126,7 @@ export const computeFollowUpMetrics = (contacts: FollowUpContact[]): FollowUpMet
     else if (status === 'REGISTERED') { m.registered++; m.contacted++; m.closed++; }
     else if (status === 'WRONG_NUMBER') { m.wrongNumber++; m.contacted++; m.closed++; }
     else if (status === 'NOT_INTERESTED') { m.notInterested++; m.contacted++; m.closed++; }
-    else if (status === 'NO_RESPONSE') { m.noResponse++; m.closed++; }
+    else if (status === 'NO_RESPONSE') { m.closed++; }
   }
   return m;
 };
@@ -143,6 +143,7 @@ export interface OwnerBreakdownRow {
   registered: number;
   wrongNumber: number;
   notInterested: number;
+  noResponse: number;
   uncontacted: number;
   contacted: number;
   stillOpen: number;
@@ -159,7 +160,7 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       row = {
         ownerId: c.ownerId || null,
         ownerName: c.ownerName || (c.ownerId ? 'Unknown' : 'Unassigned'),
-        assigned: 0, toContact: 0, waiting: 0, needsReminder: 0, replied: 0, callBackLater: 0, registered: 0, wrongNumber: 0, notInterested: 0,
+        assigned: 0, toContact: 0, waiting: 0, needsReminder: 0, replied: 0, callBackLater: 0, registered: 0, wrongNumber: 0, notInterested: 0, noResponse: 0,
         uncontacted: 0, contacted: 0, stillOpen: 0, notAGoodTime: 0, notATcnMember: 0,
       };
       map.set(key, row);
@@ -177,13 +178,13 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       case 'REGISTERED': row.registered++; break;
       case 'WRONG_NUMBER': row.wrongNumber++; break;
       case 'NOT_INTERESTED': row.notInterested++; break;
-      case 'NO_RESPONSE': break;
+      case 'NO_RESPONSE': row.noResponse++; break;
     }
   }
   for (const row of map.values()) {
     row.uncontacted = row.toContact;
     row.contacted = row.replied + row.callBackLater + row.registered + row.wrongNumber + row.notInterested;
-    row.stillOpen = row.assigned - row.registered - row.wrongNumber - row.notInterested;
+    row.stillOpen = row.assigned - row.registered - row.wrongNumber - row.notInterested - row.noResponse;
   }
   return Array.from(map.values()).sort((a, b) => (b.toContact + b.waiting + b.needsReminder + b.replied + b.callBackLater) - (a.toContact + a.waiting + a.needsReminder + a.replied + a.callBackLater));
 };
