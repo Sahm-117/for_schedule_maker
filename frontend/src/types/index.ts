@@ -223,6 +223,88 @@ export interface FollowUpIssue {
   updatedAt?: string;
 }
 
+// ── Participants ──────────────────────────────────────────────────────────────
+
+export type ParticipantStatus = 'ACTIVE' | 'ARCHIVED';
+export type ParticipantSource = 'FOLLOW_UP' | 'MANUAL' | 'IMPORT';
+
+export interface Participant {
+  id: string;
+  fullName: string;
+  phone?: string | null;
+  cohortId?: string | null;
+  cohortName?: string | null;
+  source: ParticipantSource;
+  followUpContactId?: string | null;
+  status: ParticipantStatus;
+  notes?: string | null;
+  groupId?: string | null;
+  groupName?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type ParticipantUpdate = Partial<Pick<Participant, 'fullName' | 'phone' | 'cohortId' | 'notes' | 'status'>>;
+
+// ── Groups ────────────────────────────────────────────────────────────────────
+
+export interface Group {
+  id: string;
+  cohortId: string;
+  cohortName?: string | null;
+  name: string;
+  supportId?: string | null;
+  supportName?: string | null;
+  participantCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ── Attendance ────────────────────────────────────────────────────────────────
+
+export type AttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT';
+
+export interface AttendanceRecord {
+  id: string;
+  participantId: string;
+  participantName?: string;
+  weekId: number;
+  status: AttendanceStatus;
+  markedById?: string | null;
+  markedAt?: string;
+}
+
+// ── Faith Projects ────────────────────────────────────────────────────────────
+
+export type FaithProjectStatus = 'NOT_DRAFTED' | 'UNDER_REFINEMENT' | 'APPROVED';
+
+export interface FaithProject {
+  id: string;
+  participantId: string;
+  participantName?: string | null;
+  title?: string | null;
+  body?: string | null;
+  status: FaithProjectStatus;
+  updatedById?: string | null;
+  updatedByName?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ── Group Prayers ─────────────────────────────────────────────────────────────
+
+export interface GroupPrayer {
+  id: string;
+  cohortId: string;
+  weekId: number;
+  weekNumber?: number;
+  body: string;
+  createdById?: string | null;
+  createdByName?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface DailyDigestCursor {
   weekNumber: number;
   dayName: string;

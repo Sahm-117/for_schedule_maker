@@ -22,6 +22,11 @@ import {
   followUpContactsApi as supabaseFollowUpContactsApi,
   messageTemplatesApi as supabaseMessageTemplatesApi,
   followUpIssuesApi as supabaseFollowUpIssuesApi,
+  participantsApi as supabaseParticipantsApi,
+  groupsApi as supabaseGroupsApi,
+  attendanceApi as supabaseAttendanceApi,
+  faithProjectsApi as supabaseFaithProjectsApi,
+  groupPrayersApi as supabaseGroupPrayersApi,
   setAuthToken as supabaseSetAuthToken,
   clearAuthToken as supabaseClearAuthToken,
 } from './supabase-api';
@@ -418,6 +423,48 @@ export const digestApi = USE_SUPABASE ? supabaseDigestApi : {
       nextActionLabel: 'Send Digest Now',
     };
   },
+};
+
+const peopleUnavailable = () => {
+  throw new Error('This feature is only available in Supabase mode.');
+};
+
+export const participantsApi = USE_SUPABASE ? supabaseParticipantsApi : {
+  async getAll(_options?: any): Promise<{ participants: import('../types').Participant[] }> { return { participants: [] }; },
+  async create(_input: any): Promise<never> { return peopleUnavailable(); },
+  async createMany(_rows: any[]): Promise<never> { return peopleUnavailable(); },
+  async update(_id: string, _input: any): Promise<never> { return peopleUnavailable(); },
+  async archive(_id: string): Promise<never> { return peopleUnavailable(); },
+  async delete(_id: string): Promise<never> { return peopleUnavailable(); },
+  async upsertFromFollowUpContact(_contact: any): Promise<never> { return peopleUnavailable(); },
+};
+
+export const groupsApi = USE_SUPABASE ? supabaseGroupsApi : {
+  async getAll(_options?: any): Promise<{ groups: import('../types').Group[] }> { return { groups: [] }; },
+  async create(_input: any): Promise<never> { return peopleUnavailable(); },
+  async update(_id: string, _input: any): Promise<never> { return peopleUnavailable(); },
+  async delete(_id: string): Promise<never> { return peopleUnavailable(); },
+  async getParticipants(_groupId: string): Promise<{ participants: import('../types').Participant[] }> { return { participants: [] }; },
+  async setParticipants(_groupId: string, _ids: string[]): Promise<never> { return peopleUnavailable(); },
+};
+
+export const attendanceApi = USE_SUPABASE ? supabaseAttendanceApi : {
+  async getForWeek(_options: any): Promise<{ records: import('../types').AttendanceRecord[] }> { return { records: [] }; },
+  async mark(_participantId: string, _weekId: number, _status: any, _markedById?: string): Promise<never> { return peopleUnavailable(); },
+  async bulkMark(_entries: any[], _markedById?: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {
+  async getByParticipant(_participantId: string): Promise<{ projects: import('../types').FaithProject[] }> { return { projects: [] }; },
+  async getAll(_options?: any): Promise<{ projects: import('../types').FaithProject[] }> { return { projects: [] }; },
+  async upsertForParticipant(_participantId: string, _input: any): Promise<never> { return peopleUnavailable(); },
+  async delete(_id: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const groupPrayersApi = USE_SUPABASE ? supabaseGroupPrayersApi : {
+  async getForCohort(_cohortId: string): Promise<{ prayers: import('../types').GroupPrayer[] }> { return { prayers: [] }; },
+  async upsertForWeek(_cohortId: string, _weekId: number, _body: string, _createdById?: string): Promise<never> { return peopleUnavailable(); },
+  async delete(_id: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export default api;

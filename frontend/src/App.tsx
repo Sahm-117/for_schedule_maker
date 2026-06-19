@@ -20,7 +20,14 @@ import AnnouncementsFeedPage from './pages/AnnouncementsFeedPage';
 import ActivityOverviewPage from './pages/ActivityOverviewPage';
 import CohortsPage from './pages/CohortsPage';
 import AdminFollowUpsPage from './pages/AdminFollowUpsPage';
+import AdminParticipantsPage from './pages/AdminParticipantsPage';
+import AdminGroupsPage from './pages/AdminGroupsPage';
+import AdminAttendancePage from './pages/AdminAttendancePage';
+import AdminFaithProjectsPage from './pages/AdminFaithProjectsPage';
+import AdminGroupPrayersPage from './pages/AdminGroupPrayersPage';
 import SupportFollowUpsPage from './pages/SupportFollowUpsPage';
+import SupportAttendancePage from './pages/SupportAttendancePage';
+import SupportParticipantsPage from './pages/SupportParticipantsPage';
 import SupportHomePage from './pages/SupportHomePage';
 import SupportSchedulePage from './pages/SupportSchedulePage';
 import SupportResourcesPage from './pages/SupportResourcesPage';
@@ -56,7 +63,14 @@ function App() {
             <Route path="/activity-overview" element={<ActivityOverviewPage />} />
             <Route path="/cohorts" element={<CohortsPage />} />
             <Route path="/follow-ups" element={<AdminFollowUpsPage />} />
+            <Route path="/participants" element={<AdminParticipantsPage />} />
+            <Route path="/groups" element={<AdminGroupsPage />} />
+            <Route path="/attendance" element={<AdminAttendancePage />} />
+            <Route path="/faith-projects" element={<AdminFaithProjectsPage />} />
+            <Route path="/group-prayers" element={<AdminGroupPrayersPage />} />
             <Route path="/support/follow-ups" element={<SupportFollowUpsPage />} />
+            <Route path="/support/attendance" element={<SupportAttendancePage />} />
+            <Route path="/support/participants" element={<SupportParticipantsPage />} />
             <Route path="/support" element={<SupportHomePage />} />
             <Route path="/support/schedule" element={<SupportSchedulePage />} />
             <Route path="/support/resources" element={<SupportResourcesPage />} />

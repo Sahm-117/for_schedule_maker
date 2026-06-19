@@ -2420,6 +2420,14 @@ export const followUpContactsApi = {
       notifyFollowUpTerminalStatus(contact.id, actor.id, nextTerminalReason);
     }
 
+    // Auto-create a Participant when the contact is marked REGISTERED.
+    if (
+      fields.registrationStatus === 'REGISTERED' &&
+      (current as any).registrationStatus !== 'REGISTERED'
+    ) {
+      void participantsApi.upsertFromFollowUpContact(contact).catch(() => undefined);
+    }
+
     return { contact };
   },
 
@@ -2631,5 +2639,441 @@ export const followUpIssuesApi = {
 
     if (error) throw new Error(error.message);
     return { message: 'Issue deleted' };
+  },
+};
+
+// ── Participants ──────────────────────────────────────────────────────────────
+
+const PARTICIPANT_SELECT = `
+  *,
+  cohort:Cohort(name),
+  group:GroupParticipant(group:Group(id, name))
+`.trim();
+
+const mapParticipant = (row: any): import('../types').Participant => ({
+  id: row.id,
+  fullName: row.fullName,
+  phone: row.phone ?? null,
+  cohortId: row.cohortId ?? null,
+  cohortName: row.cohort?.name ?? null,
+  source: row.source ?? 'MANUAL',
+  followUpContactId: row.followUpContactId ?? null,
+  status: row.status ?? 'ACTIVE',
+  notes: row.notes ?? null,
+  groupId: row.group?.[0]?.group?.id ?? null,
+  groupName: row.group?.[0]?.group?.name ?? null,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+});
+
+export const participantsApi = {
+  async getAll(options?: {
+    cohortId?: string;
+    supportId?: string;
+    includeArchived?: boolean;
+  }): Promise<{ participants: import('../types').Participant[] }> {
+    let query = supabase
+      .from('Participant')
+      .select(PARTICIPANT_SELECT)
+      .order('fullName', { ascending: true });
+
+    if (!options?.includeArchived) query = query.eq('status', 'ACTIVE');
+    if (options?.cohortId) query = query.eq('cohortId', options.cohortId);
+
+    if (options?.supportId) {
+      const { data: groupRows } = await supabase
+        .from('Group')
+        .select('id')
+        .eq('supportId', options.supportId);
+      const groupIds = (groupRows ?? []).map((g: any) => g.id);
+      if (groupIds.length === 0) return { participants: [] };
+      const { data: gpRows } = await supabase
+        .from('GroupParticipant')
+        .select('participantId')
+        .in('groupId', groupIds);
+      const participantIds = (gpRows ?? []).map((r: any) => r.participantId);
+      if (participantIds.length === 0) return { participants: [] };
+      query = query.in('id', participantIds);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return { participants: ((data as any[]) || []).map(mapParticipant) };
+  },
+
+  async create(input: {
+    fullName: string;
+    phone?: string | null;
+    cohortId?: string | null;
+    source?: string;
+    followUpContactId?: string | null;
+    notes?: string | null;
+  }): Promise<{ participant: import('../types').Participant }> {
+    const { data, error } = await supabase
+      .from('Participant')
+      .insert([{ ...input, source: input.source ?? 'MANUAL' }])
+      .select(PARTICIPANT_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to create participant');
+    return { participant: mapParticipant(data) };
+  },
+
+  async createMany(rows: Array<{
+    fullName: string;
+    phone?: string | null;
+    cohortId?: string | null;
+    source?: string;
+  }>): Promise<{ participants: import('../types').Participant[] }> {
+    if (rows.length === 0) return { participants: [] };
+    const inserts = rows.map((r) => ({ ...r, source: r.source ?? 'IMPORT' }));
+    const { data, error } = await supabase
+      .from('Participant')
+      .insert(inserts)
+      .select(PARTICIPANT_SELECT);
+
+    if (error) throw new Error(error.message);
+    return { participants: ((data as any[]) || []).map(mapParticipant) };
+  },
+
+  async update(participantId: string, input: import('../types').ParticipantUpdate): Promise<{ participant: import('../types').Participant }> {
+    const { data, error } = await supabase
+      .from('Participant')
+      .update({ ...input, updatedAt: new Date().toISOString() })
+      .eq('id', participantId)
+      .select(PARTICIPANT_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to update participant');
+    return { participant: mapParticipant(data) };
+  },
+
+  async archive(participantId: string): Promise<{ participant: import('../types').Participant }> {
+    return participantsApi.update(participantId, { status: 'ARCHIVED' });
+  },
+
+  async delete(participantId: string): Promise<{ message: string }> {
+    const { error } = await supabase.from('Participant').delete().eq('id', participantId);
+    if (error) throw new Error(error.message);
+    return { message: 'Participant deleted' };
+  },
+
+  async upsertFromFollowUpContact(contact: import('../types').FollowUpContact): Promise<{ participant: import('../types').Participant }> {
+    const { data: existing } = await supabase
+      .from('Participant')
+      .select('id')
+      .eq('followUpContactId', contact.id)
+      .maybeSingle();
+
+    if (existing) {
+      return participantsApi.update(existing.id, {
+        fullName: contact.fullName,
+        phone: contact.phone,
+        cohortId: contact.cohortId,
+      });
+    }
+
+    return participantsApi.create({
+      fullName: contact.fullName,
+      phone: contact.phone,
+      cohortId: contact.cohortId,
+      source: 'FOLLOW_UP',
+      followUpContactId: contact.id,
+    });
+  },
+};
+
+// ── Groups ────────────────────────────────────────────────────────────────────
+
+const GROUP_SELECT = '*, support:User!Group_supportId_fkey(id, name), members:GroupParticipant(participantId)';
+
+const mapGroup = (row: any): import('../types').Group => ({
+  id: row.id,
+  cohortId: row.cohortId,
+  name: row.name,
+  supportId: row.supportId ?? null,
+  supportName: row.support?.name ?? null,
+  participantCount: (row.members ?? []).length,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+});
+
+export const groupsApi = {
+  async getAll(options?: { cohortId?: string }): Promise<{ groups: import('../types').Group[] }> {
+    let query = supabase
+      .from('Group')
+      .select(GROUP_SELECT)
+      .order('name', { ascending: true });
+
+    if (options?.cohortId) query = query.eq('cohortId', options.cohortId);
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return { groups: ((data as any[]) || []).map(mapGroup) };
+  },
+
+  async create(input: { cohortId: string; name: string; supportId?: string | null }): Promise<{ group: import('../types').Group }> {
+    const { data, error } = await supabase
+      .from('Group')
+      .insert([input])
+      .select(GROUP_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to create group');
+    return { group: mapGroup(data) };
+  },
+
+  async update(groupId: string, input: { name?: string; supportId?: string | null }): Promise<{ group: import('../types').Group }> {
+    const { data, error } = await supabase
+      .from('Group')
+      .update({ ...input, updatedAt: new Date().toISOString() })
+      .eq('id', groupId)
+      .select(GROUP_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to update group');
+    return { group: mapGroup(data) };
+  },
+
+  async delete(groupId: string): Promise<{ message: string }> {
+    const { error } = await supabase.from('Group').delete().eq('id', groupId);
+    if (error) throw new Error(error.message);
+    return { message: 'Group deleted' };
+  },
+
+  async getParticipants(groupId: string): Promise<{ participants: import('../types').Participant[] }> {
+    const { data, error } = await supabase
+      .from('GroupParticipant')
+      .select(`participantId, participant:Participant(${PARTICIPANT_SELECT})`)
+      .eq('groupId', groupId);
+
+    if (error) throw new Error(error.message);
+    return { participants: ((data as any[]) || []).map((r: any) => mapParticipant(r.participant)) };
+  },
+
+  async setParticipants(groupId: string, participantIds: string[]): Promise<{ message: string }> {
+    const { error: delError } = await supabase
+      .from('GroupParticipant')
+      .delete()
+      .eq('groupId', groupId);
+
+    if (delError) throw new Error(delError.message);
+    if (participantIds.length === 0) return { message: 'Members cleared' };
+
+    const inserts = participantIds.map((participantId) => ({ groupId, participantId }));
+    const { error: insError } = await supabase.from('GroupParticipant').insert(inserts);
+    if (insError) throw new Error(insError.message);
+    return { message: 'Members updated' };
+  },
+};
+
+// ── Attendance ────────────────────────────────────────────────────────────────
+
+const ATTENDANCE_SELECT = '*, participant:Participant(id, fullName)';
+
+const mapAttendance = (row: any): import('../types').AttendanceRecord => ({
+  id: row.id,
+  participantId: row.participantId,
+  participantName: row.participant?.fullName ?? undefined,
+  weekId: row.weekId,
+  status: row.status,
+  markedById: row.markedById ?? null,
+  markedAt: row.markedAt,
+});
+
+export const attendanceApi = {
+  async getForWeek(options: { weekId: number; supportId?: string }): Promise<{ records: import('../types').AttendanceRecord[] }> {
+    let query = supabase
+      .from('AttendanceRecord')
+      .select(ATTENDANCE_SELECT)
+      .eq('weekId', options.weekId);
+
+    if (options.supportId) {
+      const { data: groupRows } = await supabase
+        .from('Group')
+        .select('id')
+        .eq('supportId', options.supportId);
+      const groupIds = (groupRows ?? []).map((g: any) => g.id);
+      if (groupIds.length === 0) return { records: [] };
+      const { data: gpRows } = await supabase
+        .from('GroupParticipant')
+        .select('participantId')
+        .in('groupId', groupIds);
+      const participantIds = (gpRows ?? []).map((r: any) => r.participantId);
+      if (participantIds.length === 0) return { records: [] };
+      query = query.in('participantId', participantIds);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return { records: ((data as any[]) || []).map(mapAttendance) };
+  },
+
+  async mark(participantId: string, weekId: number, status: import('../types').AttendanceStatus, markedById?: string): Promise<{ record: import('../types').AttendanceRecord }> {
+    const { data, error } = await supabase
+      .from('AttendanceRecord')
+      .upsert(
+        { participantId, weekId, status, markedById: markedById ?? null, markedAt: new Date().toISOString() },
+        { onConflict: 'participantId,weekId' }
+      )
+      .select(ATTENDANCE_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to mark attendance');
+    return { record: mapAttendance(data) };
+  },
+
+  async bulkMark(entries: Array<{ participantId: string; weekId: number; status: import('../types').AttendanceStatus }>, markedById?: string): Promise<{ records: import('../types').AttendanceRecord[] }> {
+    if (entries.length === 0) return { records: [] };
+    const rows = entries.map((e) => ({
+      ...e,
+      markedById: markedById ?? null,
+      markedAt: new Date().toISOString(),
+    }));
+
+    const { data, error } = await supabase
+      .from('AttendanceRecord')
+      .upsert(rows, { onConflict: 'participantId,weekId' })
+      .select(ATTENDANCE_SELECT);
+
+    if (error) throw new Error(error.message);
+    return { records: ((data as any[]) || []).map(mapAttendance) };
+  },
+};
+
+// ── Faith Projects ────────────────────────────────────────────────────────────
+
+const FAITH_PROJECT_SELECT = '*, participant:Participant(id, fullName), updatedBy:User!FaithProject_updatedById_fkey(id, name)';
+
+const mapFaithProject = (row: any): import('../types').FaithProject => ({
+  id: row.id,
+  participantId: row.participantId,
+  participantName: row.participant?.fullName ?? null,
+  title: row.title ?? null,
+  body: row.body ?? null,
+  status: row.status ?? 'NOT_DRAFTED',
+  updatedById: row.updatedById ?? null,
+  updatedByName: row.updatedBy?.name ?? null,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+});
+
+export const faithProjectsApi = {
+  async getByParticipant(participantId: string): Promise<{ projects: import('../types').FaithProject[] }> {
+    const { data, error } = await supabase
+      .from('FaithProject')
+      .select(FAITH_PROJECT_SELECT)
+      .eq('participantId', participantId)
+      .order('createdAt', { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return { projects: ((data as any[]) || []).map(mapFaithProject) };
+  },
+
+  async getAll(options?: { cohortId?: string; status?: import('../types').FaithProjectStatus }): Promise<{ projects: import('../types').FaithProject[] }> {
+    let query = supabase
+      .from('FaithProject')
+      .select(FAITH_PROJECT_SELECT)
+      .order('updatedAt', { ascending: false });
+
+    if (options?.status) query = query.eq('status', options.status);
+
+    if (options?.cohortId) {
+      const { data: pRows } = await supabase
+        .from('Participant')
+        .select('id')
+        .eq('cohortId', options.cohortId);
+      const ids = (pRows ?? []).map((p: any) => p.id);
+      if (ids.length === 0) return { projects: [] };
+      query = query.in('participantId', ids);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return { projects: ((data as any[]) || []).map(mapFaithProject) };
+  },
+
+  async upsertForParticipant(participantId: string, input: { title?: string | null; body?: string | null; status?: import('../types').FaithProjectStatus; updatedById?: string | null }): Promise<{ project: import('../types').FaithProject }> {
+    const { data: existing } = await supabase
+      .from('FaithProject')
+      .select('id')
+      .eq('participantId', participantId)
+      .maybeSingle();
+
+    if (existing) {
+      const { data, error } = await supabase
+        .from('FaithProject')
+        .update({ ...input, updatedAt: new Date().toISOString() })
+        .eq('id', existing.id)
+        .select(FAITH_PROJECT_SELECT)
+        .single();
+
+      if (error || !data) throw new Error(error?.message || 'Failed to update faith project');
+      return { project: mapFaithProject(data) };
+    }
+
+    const { data, error } = await supabase
+      .from('FaithProject')
+      .insert([{ participantId, ...input }])
+      .select(FAITH_PROJECT_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to create faith project');
+    return { project: mapFaithProject(data) };
+  },
+
+  async delete(projectId: string): Promise<{ message: string }> {
+    const { error } = await supabase.from('FaithProject').delete().eq('id', projectId);
+    if (error) throw new Error(error.message);
+    return { message: 'Faith project deleted' };
+  },
+};
+
+// ── Group Prayers ─────────────────────────────────────────────────────────────
+
+const GROUP_PRAYER_SELECT = '*, createdBy:User!GroupPrayer_createdById_fkey(id, name), week:Week(weekNumber)';
+
+const mapGroupPrayer = (row: any): import('../types').GroupPrayer => ({
+  id: row.id,
+  cohortId: row.cohortId,
+  weekId: row.weekId,
+  weekNumber: row.week?.weekNumber ?? undefined,
+  body: row.body,
+  createdById: row.createdById ?? null,
+  createdByName: row.createdBy?.name ?? null,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+});
+
+export const groupPrayersApi = {
+  async getForCohort(cohortId: string): Promise<{ prayers: import('../types').GroupPrayer[] }> {
+    const { data, error } = await supabase
+      .from('GroupPrayer')
+      .select(GROUP_PRAYER_SELECT)
+      .eq('cohortId', cohortId)
+      .order('weekId', { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return { prayers: ((data as any[]) || []).map(mapGroupPrayer) };
+  },
+
+  async upsertForWeek(cohortId: string, weekId: number, body: string, createdById?: string): Promise<{ prayer: import('../types').GroupPrayer }> {
+    const { data, error } = await supabase
+      .from('GroupPrayer')
+      .upsert(
+        { cohortId, weekId, body, createdById: createdById ?? null, updatedAt: new Date().toISOString() },
+        { onConflict: 'cohortId,weekId' }
+      )
+      .select(GROUP_PRAYER_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to save prayer');
+    return { prayer: mapGroupPrayer(data) };
+  },
+
+  async delete(prayerId: string): Promise<{ message: string }> {
+    const { error } = await supabase.from('GroupPrayer').delete().eq('id', prayerId);
+    if (error) throw new Error(error.message);
+    return { message: 'Prayer deleted' };
   },
 };
