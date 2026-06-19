@@ -103,7 +103,7 @@ const AdminFollowUpsPage: React.FC = () => {
       const [contactsRes, usersRes, templatesRes, issuesRes, linkRes] = await Promise.all([
         followUpContactsApi.getAll(),
         usersApi.getAll(),
-        messageTemplatesApi.getAll(),
+        messageTemplatesApi.getAll({ category: 'FOLLOW_UP' }),
         followUpIssuesApi.getAll(),
         settingsApi.getRegistrationLink(),
       ]);

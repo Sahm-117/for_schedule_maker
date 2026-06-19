@@ -6,6 +6,8 @@ import { useAppData } from '../context/AppDataContext';
 import { groupsApi, participantsApi, usersApi } from '../services/api';
 import type { Group, Participant, User } from '../types';
 import ModalShell from '../components/followups/ModalShell';
+import AppOverflowMenu from '../components/AppOverflowMenu';
+import AppSelect from '../components/AppSelect';
 
 // ── Group Form Modal ──────────────────────────────────────────────────────────
 
@@ -87,16 +89,16 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
         </div>
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Assigned support</label>
-          <select
+          <AppSelect
             value={supportId}
-            onChange={(e) => setSupportId(e.target.value)}
-            className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="">— None —</option>
-            {supportUsers.map((u) => (
-              <option key={u.id} value={u.id}>{u.name}</option>
-            ))}
-          </select>
+            onChange={setSupportId}
+            options={[
+              { value: '', label: '— None —' },
+              ...supportUsers.map((u) => ({ value: u.id, label: u.name })),
+            ]}
+            placeholder="— None —"
+            compact
+          />
         </div>
       </div>
     </ModalShell>
@@ -157,8 +159,15 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
   const filtered = useMemo(() => {
     if (!search.trim()) return allParticipants;
     const q = search.toLowerCase();
-    return allParticipants.filter((p) => p.fullName.toLowerCase().includes(q));
+    return allParticipants.filter((p) =>
+      p.fullName.toLowerCase().includes(q) || (p.phone ?? '').toLowerCase().includes(q)
+    );
   }, [allParticipants, search]);
+
+  const selectedParticipants = useMemo(
+    () => allParticipants.filter((participant) => selected.has(participant.id)),
+    [allParticipants, selected]
+  );
 
   return (
     <ModalShell
@@ -178,6 +187,21 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
     >
       <div className="flex flex-col gap-3">
         {err && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{err}</p>}
+        {selectedParticipants.length > 0 && (
+          <div className="flex flex-wrap gap-2 rounded-2xl border border-orange-100 bg-orange-50/50 p-3">
+            {selectedParticipants.map((participant) => (
+              <button
+                key={participant.id}
+                type="button"
+                onClick={() => toggle(participant.id)}
+                className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-gray-800 shadow-sm"
+              >
+                <span>{participant.fullName}</span>
+                <span className="text-xs text-red-500">Remove</span>
+              </button>
+            ))}
+          </div>
+        )}
         <input
           type="search"
           value={search}
@@ -285,10 +309,14 @@ const AdminGroupsPage: React.FC = () => {
             <div key={g.id} className="flex flex-col gap-3 rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between">
                 <h3 className="font-bold text-gray-900">{g.name}</h3>
-                <div className="flex gap-1.5">
-                  <button type="button" onClick={() => { setEditing(g); setFormOpen(true); }} className="rounded-xl border border-orange-200 px-2.5 py-1 text-xs font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Edit</button>
-                  <button type="button" onClick={() => void handleDelete(g)} disabled={deleting === g.id} className="rounded-xl border border-red-100 px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 active:scale-95 disabled:opacity-60">Delete</button>
-                </div>
+                <AppOverflowMenu
+                  align="right"
+                  items={[
+                    { label: 'Manage members', onClick: () => setMembersTarget(g) },
+                    { label: 'Edit', onClick: () => { setEditing(g); setFormOpen(true); } },
+                    { label: 'Delete', onClick: () => { void handleDelete(g); }, tone: 'danger' },
+                  ]}
+                />
               </div>
 
               <div className="flex flex-wrap gap-2 text-xs text-gray-500">
@@ -303,14 +331,6 @@ const AdminGroupsPage: React.FC = () => {
                   <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 font-semibold text-neutral-500">No support assigned</span>
                 )}
               </div>
-
-              <button
-                type="button"
-                onClick={() => setMembersTarget(g)}
-                className="mt-auto rounded-xl border border-orange-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-orange-50 active:scale-95"
-              >
-                Manage members
-              </button>
             </div>
           ))}
         </div>

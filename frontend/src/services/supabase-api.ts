@@ -1957,6 +1957,7 @@ export const usersApi = {
     email?: string;
     password?: string;
     role?: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT';
+    isCoordinator?: boolean;
   }): Promise<{ user: User }> {
     const finalUpdateData: any = { ...updateData };
 
@@ -2491,17 +2492,15 @@ export const followUpContactsApi = {
 };
 
 export const messageTemplatesApi = {
-  async getAll(): Promise<{ templates: import('../types').MessageTemplate[] }> {
-    const { data, error } = await supabase
-      .from('MessageTemplate')
-      .select('*')
-      .order('createdAt', { ascending: true });
-
+  async getAll(options?: { category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR' }): Promise<{ templates: import('../types').MessageTemplate[] }> {
+    let q = supabase.from('MessageTemplate').select('*').order('createdAt', { ascending: true });
+    if (options?.category) q = q.eq('category', options.category);
+    const { data, error } = await q;
     if (error) throw new Error(error.message);
     return { templates: (data as any[]) || [] };
   },
 
-  async create(input: { useCase: string; body: string; whenToUse?: string | null }): Promise<{ template: import('../types').MessageTemplate }> {
+  async create(input: { useCase: string; body: string; whenToUse?: string | null; imageUrl?: string | null; imageName?: string | null; category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR' }): Promise<{ template: import('../types').MessageTemplate }> {
     const { data, error } = await supabase
       .from('MessageTemplate')
       .insert([input])
@@ -2512,7 +2511,7 @@ export const messageTemplatesApi = {
     return { template: data as any };
   },
 
-  async update(templateId: string, input: { useCase: string; body: string; whenToUse?: string | null }): Promise<{ template: import('../types').MessageTemplate }> {
+  async update(templateId: string, input: { useCase: string; body: string; whenToUse?: string | null; imageUrl?: string | null; imageName?: string | null }): Promise<{ template: import('../types').MessageTemplate }> {
     const { data, error } = await supabase
       .from('MessageTemplate')
       .update({ ...input, updatedAt: new Date().toISOString() })
@@ -2532,6 +2531,14 @@ export const messageTemplatesApi = {
 
     if (error) throw new Error(error.message);
     return { message: 'Template deleted' };
+  },
+
+  async uploadTemplateImage(file: File): Promise<{ url: string; name: string }> {
+    const path = `templates/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const { error } = await supabase.storage.from('resources').upload(path, file, { upsert: false });
+    if (error) throw new Error(error.message);
+    const { data } = supabase.storage.from('resources').getPublicUrl(path);
+    return { url: data.publicUrl, name: file.name };
   },
 };
 
@@ -2650,6 +2657,43 @@ const PARTICIPANT_SELECT = `
   group:GroupParticipant(group:Group(id, name))
 `.trim();
 
+const resolveSupportScopedGroups = async (supportId: string, cohortId?: string | null): Promise<import('../types').Group[]> => {
+  let directQuery = supabase
+    .from('Group')
+    .select(GROUP_SELECT)
+    .eq('supportId', supportId)
+    .order('name', { ascending: true });
+
+  if (cohortId) directQuery = directQuery.eq('cohortId', cohortId);
+
+  const { data: directRows, error: directError } = await directQuery;
+  if (directError) throw new Error(directError.message);
+
+  const directGroups = ((directRows as any[]) || []).map(mapGroup);
+  if (directGroups.length > 0) return directGroups;
+
+  let fallbackQuery = supabase
+    .from('Group')
+    .select(GROUP_SELECT)
+    .order('name', { ascending: true });
+
+  if (cohortId) fallbackQuery = fallbackQuery.eq('cohortId', cohortId);
+
+  const { data: fallbackRows, error: fallbackError } = await fallbackQuery;
+  if (fallbackError) throw new Error(fallbackError.message);
+
+  const populatedGroups = ((fallbackRows as any[]) || [])
+    .map(mapGroup)
+    .filter((group) => (group.participantCount ?? 0) > 0);
+
+  if (populatedGroups.length === 1) return populatedGroups;
+
+  const allGroups = ((fallbackRows as any[]) || []).map(mapGroup);
+  if (allGroups.length === 1) return allGroups;
+
+  return [];
+};
+
 const mapParticipant = (row: any): import('../types').Participant => ({
   id: row.id,
   fullName: row.fullName,
@@ -2681,11 +2725,8 @@ export const participantsApi = {
     if (options?.cohortId) query = query.eq('cohortId', options.cohortId);
 
     if (options?.supportId) {
-      const { data: groupRows } = await supabase
-        .from('Group')
-        .select('id')
-        .eq('supportId', options.supportId);
-      const groupIds = (groupRows ?? []).map((g: any) => g.id);
+      const resolvedGroups = await resolveSupportScopedGroups(options.supportId, options.cohortId);
+      const groupIds = resolvedGroups.map((group) => group.id);
       if (groupIds.length === 0) return { participants: [] };
       const { data: gpRows } = await supabase
         .from('GroupParticipant')
@@ -2798,6 +2839,164 @@ const mapGroup = (row: any): import('../types').Group => ({
   updatedAt: row.updatedAt,
 });
 
+const GROUP_ONBOARDING_STATUS_SELECT = `
+  *,
+  updatedBy:User!GroupOnboardingStatus_updatedById_fkey(id, name),
+  group:Group!GroupOnboardingStatus_groupId_fkey(
+    id,
+    name,
+    supportId,
+    support:User!Group_supportId_fkey(id, name),
+    members:GroupParticipant(participantId)
+  )
+`.trim();
+
+const PARTICIPANT_ONBOARDING_STATUS_SELECT = `
+  *,
+  updatedBy:User!ParticipantOnboardingStatus_updatedById_fkey(id, name),
+  participant:Participant!ParticipantOnboardingStatus_participantId_fkey(
+    id,
+    fullName,
+    group:GroupParticipant(group:Group(id, name))
+  )
+`.trim();
+
+const ONBOARDING_EVENT_SELECT = `
+  *,
+  actor:User!OnboardingEvent_actorId_fkey(id, name, role),
+  participant:Participant(id, fullName),
+  group:Group!OnboardingEvent_groupId_fkey(
+    id,
+    name,
+    supportId,
+    support:User!Group_supportId_fkey(id, name)
+  )
+`.trim();
+
+const mapGroupOnboardingStatus = (row: any): import('../types').GroupOnboardingStatus => ({
+  id: row.id,
+  groupId: row.groupId,
+  groupName: row.group?.name ?? null,
+  supportId: row.group?.supportId ?? null,
+  supportName: row.group?.support?.name ?? null,
+  participantCount: (row.group?.members ?? []).length,
+  groupCreated: !!row.groupCreated,
+  updatedById: row.updatedById ?? null,
+  updatedByName: row.updatedBy?.name ?? null,
+  updatedAt: row.updatedAt,
+  completedAt: row.completedAt ?? null,
+});
+
+const mapParticipantOnboardingStatus = (row: any): import('../types').ParticipantOnboardingStatus => ({
+  id: row.id,
+  participantId: row.participantId,
+  participantName: row.participant?.fullName ?? null,
+  groupId: row.participant?.group?.[0]?.group?.id ?? null,
+  groupName: row.participant?.group?.[0]?.group?.name ?? null,
+  contacted: !!row.contacted,
+  addedToGroup: !!row.addedToGroup,
+  introductionDone: !!row.introductionDone,
+  venueAcknowledged: !!row.venueAcknowledged,
+  updatedById: row.updatedById ?? null,
+  updatedByName: row.updatedBy?.name ?? null,
+  updatedAt: row.updatedAt,
+});
+
+const mapOnboardingEvent = (row: any): import('../types').OnboardingEvent => ({
+  id: row.id,
+  type: row.type,
+  groupId: row.groupId,
+  groupName: row.group?.name ?? null,
+  participantId: row.participantId ?? null,
+  participantName: row.participant?.fullName ?? null,
+  actorId: row.actorId ?? null,
+  actorName: row.actor?.name ?? null,
+  actorRole: row.actor?.role ?? null,
+  supportId: row.group?.supportId ?? null,
+  supportName: row.group?.support?.name ?? null,
+  payload: (row.payload as Record<string, unknown> | null) ?? {},
+  createdAt: row.createdAt,
+});
+
+const isParticipantFullyOnboarded = (status: {
+  contacted?: boolean | null;
+  addedToGroup?: boolean | null;
+  introductionDone?: boolean | null;
+  venueAcknowledged?: boolean | null;
+}) => !!status.contacted && !!status.addedToGroup && !!status.introductionDone && !!status.venueAcknowledged;
+
+const buildVirtualGroupOnboardingStatus = (group: import('../types').Group): import('../types').GroupOnboardingStatus => ({
+  id: `virtual-${group.id}`,
+  groupId: group.id,
+  groupName: group.name,
+  supportId: group.supportId ?? null,
+  supportName: group.supportName ?? null,
+  participantCount: group.participantCount ?? 0,
+  groupCreated: false,
+  updatedById: null,
+  updatedByName: null,
+  updatedAt: undefined,
+  completedAt: null,
+});
+
+const buildVirtualParticipantOnboardingStatus = (participant: import('../types').Participant): import('../types').ParticipantOnboardingStatus => ({
+  id: `virtual-${participant.id}`,
+  participantId: participant.id,
+  participantName: participant.fullName,
+  groupId: participant.groupId ?? null,
+  groupName: participant.groupName ?? null,
+  contacted: false,
+  addedToGroup: false,
+  introductionDone: false,
+  venueAcknowledged: false,
+  updatedById: null,
+  updatedByName: null,
+  updatedAt: undefined,
+});
+
+const deriveGroupCompletedAt = (
+  groupStatus: import('../types').GroupOnboardingStatus | null | undefined,
+  participantStatuses: import('../types').ParticipantOnboardingStatus[]
+): string | null => {
+  if (!groupStatus?.groupCreated || participantStatuses.length === 0) return null;
+  return participantStatuses.every(isParticipantFullyOnboarded)
+    ? groupStatus.completedAt ?? new Date().toISOString()
+    : null;
+};
+
+const notifyOnboardingEvent = (eventId: string) => {
+  void supabase.functions
+    .invoke('notify-onboarding-event', {
+      body: { eventId },
+    })
+    .catch(() => undefined);
+};
+
+const createOnboardingEvent = async (input: {
+  type: import('../types').OnboardingEventType;
+  groupId: string;
+  participantId?: string | null;
+  actorId?: string | null;
+  payload?: Record<string, unknown>;
+}): Promise<import('../types').OnboardingEvent> => {
+  const { data, error } = await supabase
+    .from('OnboardingEvent')
+    .insert([{
+      type: input.type,
+      groupId: input.groupId,
+      participantId: input.participantId ?? null,
+      actorId: input.actorId ?? null,
+      payload: input.payload ?? {},
+    }])
+    .select(ONBOARDING_EVENT_SELECT)
+    .single();
+
+  if (error || !data) throw new Error(error?.message || 'Failed to create onboarding event');
+  const event = mapOnboardingEvent(data);
+  notifyOnboardingEvent(event.id);
+  return event;
+};
+
 export const groupsApi = {
   async getAll(options?: { cohortId?: string }): Promise<{ groups: import('../types').Group[] }> {
     let query = supabase
@@ -2820,10 +3019,26 @@ export const groupsApi = {
       .single();
 
     if (error || !data) throw new Error(error?.message || 'Failed to create group');
-    return { group: mapGroup(data) };
+    const group = mapGroup(data);
+    const actor = getCurrentUserFromStorage();
+    if (group.supportId) {
+      await createOnboardingEvent({
+        type: 'GROUP_ASSIGNED',
+        groupId: group.id,
+        actorId: actor?.id ?? null,
+        payload: { supportId: group.supportId, supportName: group.supportName ?? null },
+      });
+    }
+    return { group };
   },
 
   async update(groupId: string, input: { name?: string; supportId?: string | null }): Promise<{ group: import('../types').Group }> {
+    const { data: current } = await supabase
+      .from('Group')
+      .select(GROUP_SELECT)
+      .eq('id', groupId)
+      .single();
+
     const { data, error } = await supabase
       .from('Group')
       .update({ ...input, updatedAt: new Date().toISOString() })
@@ -2832,7 +3047,22 @@ export const groupsApi = {
       .single();
 
     if (error || !data) throw new Error(error?.message || 'Failed to update group');
-    return { group: mapGroup(data) };
+    const group = mapGroup(data);
+    const previous = current ? mapGroup(current) : null;
+    const actor = getCurrentUserFromStorage();
+    if (group.supportId && group.supportId !== previous?.supportId) {
+      await createOnboardingEvent({
+        type: 'GROUP_ASSIGNED',
+        groupId: group.id,
+        actorId: actor?.id ?? null,
+        payload: {
+          supportId: group.supportId,
+          supportName: group.supportName ?? null,
+          previousSupportId: previous?.supportId ?? null,
+        },
+      });
+    }
+    return { group };
   },
 
   async delete(groupId: string): Promise<{ message: string }> {
@@ -2852,6 +3082,18 @@ export const groupsApi = {
   },
 
   async setParticipants(groupId: string, participantIds: string[]): Promise<{ message: string }> {
+    const { data: groupRow } = await supabase
+      .from('Group')
+      .select(GROUP_SELECT)
+      .eq('id', groupId)
+      .single();
+    const previousGroup = groupRow ? mapGroup(groupRow) : null;
+    const { data: previousRows } = await supabase
+      .from('GroupParticipant')
+      .select('participantId')
+      .eq('groupId', groupId);
+    const previousIds = new Set((previousRows ?? []).map((row: any) => row.participantId as string));
+
     const { error: delError } = await supabase
       .from('GroupParticipant')
       .delete()
@@ -2863,7 +3105,340 @@ export const groupsApi = {
     const inserts = participantIds.map((participantId) => ({ groupId, participantId }));
     const { error: insError } = await supabase.from('GroupParticipant').insert(inserts);
     if (insError) throw new Error(insError.message);
+    const addedParticipantIds = participantIds.filter((participantId) => !previousIds.has(participantId));
+    if (addedParticipantIds.length > 0) {
+      const actor = getCurrentUserFromStorage();
+      await createOnboardingEvent({
+        type: 'PARTICIPANTS_ASSIGNED',
+        groupId,
+        actorId: actor?.id ?? null,
+        payload: {
+          participantCount: addedParticipantIds.length,
+          participantIds: addedParticipantIds,
+          supportId: previousGroup?.supportId ?? null,
+          supportName: previousGroup?.supportName ?? null,
+        },
+      });
+    }
     return { message: 'Members updated' };
+  },
+};
+
+export const groupOnboardingStatusApi = {
+  async getForCohort(cohortId: string): Promise<{ statuses: import('../types').GroupOnboardingStatus[] }> {
+    const { data: groups, error: groupError } = await supabase
+      .from('Group')
+      .select(GROUP_SELECT)
+      .eq('cohortId', cohortId)
+      .order('name', { ascending: true });
+    if (groupError) throw new Error(groupError.message);
+
+    const groupRows = ((groups as any[]) || []).map(mapGroup);
+    if (groupRows.length === 0) return { statuses: [] };
+
+    const groupIds = groupRows.map((group) => group.id);
+    const { data, error } = await supabase
+      .from('GroupOnboardingStatus')
+      .select(GROUP_ONBOARDING_STATUS_SELECT)
+      .in('groupId', groupIds);
+    if (error) throw new Error(error.message);
+
+    const statusMap = new Map<string, import('../types').GroupOnboardingStatus>();
+    ((data as any[]) || []).forEach((row) => {
+      const status = mapGroupOnboardingStatus(row);
+      statusMap.set(status.groupId, status);
+    });
+
+    return {
+      statuses: groupRows.map((group) =>
+        statusMap.get(group.id) || buildVirtualGroupOnboardingStatus(group)
+      ),
+    };
+  },
+
+  async getForSupport(userId: string, cohortId?: string): Promise<{ statuses: import('../types').GroupOnboardingStatus[] }> {
+    const groupRows = await resolveSupportScopedGroups(userId, cohortId);
+    if (groupRows.length === 0) return { statuses: [] };
+    const groupIds = groupRows.map((group) => group.id);
+    const { data, error } = await supabase
+      .from('GroupOnboardingStatus')
+      .select(GROUP_ONBOARDING_STATUS_SELECT)
+      .in('groupId', groupIds);
+    if (error) throw new Error(error.message);
+
+    const statusMap = new Map<string, import('../types').GroupOnboardingStatus>();
+    ((data as any[]) || []).forEach((row) => {
+      const status = mapGroupOnboardingStatus(row);
+      statusMap.set(status.groupId, status);
+    });
+
+    return {
+      statuses: groupRows.map((group) =>
+        statusMap.get(group.id) || buildVirtualGroupOnboardingStatus(group)
+      ),
+    };
+  },
+
+  async update(groupId: string, patch: {
+    groupCreated?: boolean;
+  }, actorId?: string | null): Promise<{ status: import('../types').GroupOnboardingStatus }> {
+    const { data: existing } = await supabase
+      .from('GroupOnboardingStatus')
+      .select(GROUP_ONBOARDING_STATUS_SELECT)
+      .eq('groupId', groupId)
+      .maybeSingle();
+
+    const previous = existing ? mapGroupOnboardingStatus(existing) : null;
+    const { participants } = await groupsApi.getParticipants(groupId);
+    const participantIds = participants.map((participant) => participant.id);
+    const { data: participantRows } = participantIds.length > 0
+      ? await supabase
+        .from('ParticipantOnboardingStatus')
+        .select(PARTICIPANT_ONBOARDING_STATUS_SELECT)
+        .in('participantId', participantIds)
+      : { data: [] as any[] };
+    const participantStatuses = participants.map((participant) => {
+      const matched = ((participantRows as any[]) || []).find((row) => row.participantId === participant.id);
+      return matched ? mapParticipantOnboardingStatus(matched) : buildVirtualParticipantOnboardingStatus(participant);
+    });
+    const next = {
+      groupCreated: patch.groupCreated ?? previous?.groupCreated ?? false,
+    };
+    const completedAt = deriveGroupCompletedAt({
+      id: previous?.id ?? `virtual-${groupId}`,
+      groupId,
+      groupName: previous?.groupName ?? null,
+      supportId: previous?.supportId ?? null,
+      supportName: previous?.supportName ?? null,
+      participantCount: previous?.participantCount ?? participantStatuses.length,
+      updatedById: previous?.updatedById ?? null,
+      updatedByName: previous?.updatedByName ?? null,
+      updatedAt: previous?.updatedAt,
+      completedAt: previous?.completedAt ?? null,
+      ...next,
+    }, participantStatuses);
+
+    const { data, error } = await supabase
+      .from('GroupOnboardingStatus')
+      .upsert([{
+        groupId,
+        ...next,
+        updatedById: actorId ?? null,
+        updatedAt: new Date().toISOString(),
+        completedAt,
+      }], { onConflict: 'groupId' })
+      .select(GROUP_ONBOARDING_STATUS_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to update onboarding progress');
+    const status = mapGroupOnboardingStatus(data);
+    const actor = actorId ?? getCurrentUserFromStorage()?.id ?? null;
+    await createOnboardingEvent({
+      type: 'GROUP_CREATED_UPDATED',
+      groupId,
+      actorId: actor,
+      payload: {
+        groupCreated: status.groupCreated,
+      },
+    });
+    if (!previous?.completedAt && status.completedAt) {
+      await createOnboardingEvent({
+        type: 'GROUP_COMPLETED',
+        groupId,
+        actorId: actor,
+        payload: {
+          participantCount: status.participantCount ?? 0,
+        },
+      });
+    }
+    return { status };
+  },
+};
+
+export const participantOnboardingStatusApi = {
+  async getForCohort(cohortId: string): Promise<{ statuses: import('../types').ParticipantOnboardingStatus[] }> {
+    const { data: participants, error: participantError } = await supabase
+      .from('Participant')
+      .select(PARTICIPANT_SELECT)
+      .eq('cohortId', cohortId)
+      .eq('status', 'ACTIVE')
+      .order('fullName', { ascending: true });
+    if (participantError) throw new Error(participantError.message);
+
+    const participantRows = ((participants as any[]) || []).map(mapParticipant);
+    if (participantRows.length === 0) return { statuses: [] };
+
+    const { data, error } = await supabase
+      .from('ParticipantOnboardingStatus')
+      .select(PARTICIPANT_ONBOARDING_STATUS_SELECT)
+      .in('participantId', participantRows.map((participant) => participant.id));
+
+    if (error) throw new Error(error.message);
+    const statusMap = new Map<string, import('../types').ParticipantOnboardingStatus>();
+    ((data as any[]) || []).forEach((row) => {
+      const status = mapParticipantOnboardingStatus(row);
+      statusMap.set(status.participantId, status);
+    });
+
+    return {
+      statuses: participantRows
+        .filter((participant) => participant.groupId)
+        .map((participant) => statusMap.get(participant.id) || buildVirtualParticipantOnboardingStatus(participant)),
+    };
+  },
+
+  async getForGroup(groupId: string): Promise<{ statuses: import('../types').ParticipantOnboardingStatus[] }> {
+    const { participants } = await groupsApi.getParticipants(groupId);
+    if (participants.length === 0) return { statuses: [] };
+
+    const { data, error } = await supabase
+      .from('ParticipantOnboardingStatus')
+      .select(PARTICIPANT_ONBOARDING_STATUS_SELECT)
+      .in('participantId', participants.map((participant) => participant.id));
+
+    if (error) throw new Error(error.message);
+    const statusMap = new Map<string, import('../types').ParticipantOnboardingStatus>();
+    ((data as any[]) || []).forEach((row) => {
+      const status = mapParticipantOnboardingStatus(row);
+      statusMap.set(status.participantId, status);
+    });
+
+    return {
+      statuses: participants.map((participant) => statusMap.get(participant.id) || buildVirtualParticipantOnboardingStatus(participant)),
+    };
+  },
+
+  async getForSupport(userId: string, cohortId?: string): Promise<{ statuses: import('../types').ParticipantOnboardingStatus[] }> {
+    const { participants } = await participantsApi.getAll({ cohortId, supportId: userId });
+    if (participants.length === 0) return { statuses: [] };
+
+    const { data, error } = await supabase
+      .from('ParticipantOnboardingStatus')
+      .select(PARTICIPANT_ONBOARDING_STATUS_SELECT)
+      .in('participantId', participants.map((participant) => participant.id));
+
+    if (error) throw new Error(error.message);
+    const statusMap = new Map<string, import('../types').ParticipantOnboardingStatus>();
+    ((data as any[]) || []).forEach((row) => {
+      const status = mapParticipantOnboardingStatus(row);
+      statusMap.set(status.participantId, status);
+    });
+
+    return {
+      statuses: participants.map((participant) => statusMap.get(participant.id) || buildVirtualParticipantOnboardingStatus(participant)),
+    };
+  },
+
+  async update(participantId: string, patch: {
+    contacted?: boolean;
+    addedToGroup?: boolean;
+    introductionDone?: boolean;
+    venueAcknowledged?: boolean;
+  }, actorId?: string | null): Promise<{ status: import('../types').ParticipantOnboardingStatus }> {
+    const { data: existing } = await supabase
+      .from('ParticipantOnboardingStatus')
+      .select(PARTICIPANT_ONBOARDING_STATUS_SELECT)
+      .eq('participantId', participantId)
+      .maybeSingle();
+    const previous = existing ? mapParticipantOnboardingStatus(existing) : null;
+    const next = {
+      contacted: patch.contacted ?? previous?.contacted ?? false,
+      addedToGroup: patch.addedToGroup ?? previous?.addedToGroup ?? false,
+      introductionDone: patch.introductionDone ?? previous?.introductionDone ?? false,
+      venueAcknowledged: patch.venueAcknowledged ?? previous?.venueAcknowledged ?? false,
+    };
+
+    const { data, error } = await supabase
+      .from('ParticipantOnboardingStatus')
+      .upsert([{
+        participantId,
+        ...next,
+        updatedById: actorId ?? null,
+        updatedAt: new Date().toISOString(),
+      }], { onConflict: 'participantId' })
+      .select(PARTICIPANT_ONBOARDING_STATUS_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to update participant onboarding status');
+    const status = mapParticipantOnboardingStatus(data);
+    const actor = actorId ?? getCurrentUserFromStorage()?.id ?? null;
+    if (status.groupId) {
+      await createOnboardingEvent({
+        type: 'PARTICIPANT_STATUS_UPDATED',
+        groupId: status.groupId,
+        participantId,
+        actorId: actor,
+        payload: next,
+      });
+
+      const [{ data: groupRow }, { data: groupStatusRow }, { statuses: groupParticipantStatuses }] = await Promise.all([
+        supabase.from('Group').select(GROUP_SELECT).eq('id', status.groupId).single(),
+        supabase.from('GroupOnboardingStatus').select(GROUP_ONBOARDING_STATUS_SELECT).eq('groupId', status.groupId).maybeSingle(),
+        participantOnboardingStatusApi.getForGroup(status.groupId),
+      ]);
+      const groupStatus = groupStatusRow
+        ? mapGroupOnboardingStatus(groupStatusRow)
+        : groupRow
+          ? buildVirtualGroupOnboardingStatus(mapGroup(groupRow))
+          : null;
+      const completedAt = deriveGroupCompletedAt(groupStatus, groupParticipantStatuses);
+      if (groupStatus && groupStatus.completedAt !== completedAt) {
+        await supabase
+          .from('GroupOnboardingStatus')
+          .upsert([{
+            groupId: status.groupId,
+            groupCreated: groupStatus.groupCreated,
+            updatedById: actor ?? null,
+            updatedAt: new Date().toISOString(),
+            completedAt,
+          }], { onConflict: 'groupId' });
+      }
+      if (!groupStatus?.completedAt && completedAt) {
+        await createOnboardingEvent({
+          type: 'GROUP_COMPLETED',
+          groupId: status.groupId,
+          actorId: actor,
+          payload: {
+            participantCount: groupParticipantStatuses.length,
+          },
+        });
+      }
+    }
+
+    return { status };
+  },
+};
+
+export const onboardingEventsApi = {
+  async getForCohort(cohortId: string): Promise<{ events: import('../types').OnboardingEvent[] }> {
+    const { data: groups, error: groupError } = await supabase
+      .from('Group')
+      .select('id')
+      .eq('cohortId', cohortId);
+    if (groupError) throw new Error(groupError.message);
+    const groupIds = (groups ?? []).map((row: any) => row.id);
+    if (groupIds.length === 0) return { events: [] };
+
+    const { data, error } = await supabase
+      .from('OnboardingEvent')
+      .select(ONBOARDING_EVENT_SELECT)
+      .in('groupId', groupIds)
+      .order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { events: ((data as any[]) || []).map(mapOnboardingEvent) };
+  },
+
+  async getForSupport(userId: string, cohortId?: string): Promise<{ events: import('../types').OnboardingEvent[] }> {
+    const groupIds = (await resolveSupportScopedGroups(userId, cohortId)).map((group) => group.id);
+    if (groupIds.length === 0) return { events: [] };
+
+    const { data, error } = await supabase
+      .from('OnboardingEvent')
+      .select(ONBOARDING_EVENT_SELECT)
+      .in('groupId', groupIds)
+      .order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { events: ((data as any[]) || []).map(mapOnboardingEvent) };
   },
 };
 
@@ -2889,11 +3464,7 @@ export const attendanceApi = {
       .eq('weekId', options.weekId);
 
     if (options.supportId) {
-      const { data: groupRows } = await supabase
-        .from('Group')
-        .select('id')
-        .eq('supportId', options.supportId);
-      const groupIds = (groupRows ?? []).map((g: any) => g.id);
+      const groupIds = (await resolveSupportScopedGroups(options.supportId)).map((group) => group.id);
       if (groupIds.length === 0) return { records: [] };
       const { data: gpRows } = await supabase
         .from('GroupParticipant')
@@ -3075,5 +3646,55 @@ export const groupPrayersApi = {
     const { error } = await supabase.from('GroupPrayer').delete().eq('id', prayerId);
     if (error) throw new Error(error.message);
     return { message: 'Prayer deleted' };
+  },
+};
+
+// ── Group Prayer Status ───────────────────────────────────────────────────────
+
+const GROUP_PRAYER_STATUS_SELECT = '*, group:Group(id, name), week:Week(weekNumber)';
+
+const mapGroupPrayerStatus = (row: any): import('../types').GroupPrayerStatus => ({
+  id: row.id,
+  groupId: row.groupId,
+  groupName: row.group?.name ?? null,
+  weekId: row.weekId,
+  weekNumber: row.week?.weekNumber ?? undefined,
+  done: row.done,
+  markedById: row.markedById ?? null,
+  markedAt: row.markedAt ?? undefined,
+});
+
+export const groupPrayerStatusApi = {
+  async getForCohort(cohortId: string): Promise<{ statuses: import('../types').GroupPrayerStatus[] }> {
+    const { data: groupRows, error: gErr } = await supabase
+      .from('Group')
+      .select('id')
+      .eq('cohortId', cohortId);
+    if (gErr) throw new Error(gErr.message);
+    const groupIds = (groupRows ?? []).map((g: any) => g.id);
+    if (groupIds.length === 0) return { statuses: [] };
+
+    const { data, error } = await supabase
+      .from('GroupPrayerStatus')
+      .select(GROUP_PRAYER_STATUS_SELECT)
+      .in('groupId', groupIds)
+      .order('weekId', { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return { statuses: ((data as any[]) || []).map(mapGroupPrayerStatus) };
+  },
+
+  async setDone(groupId: string, weekId: number, done: boolean, markedById?: string): Promise<{ status: import('../types').GroupPrayerStatus }> {
+    const { data, error } = await supabase
+      .from('GroupPrayerStatus')
+      .upsert(
+        { groupId, weekId, done, markedById: markedById ?? null, markedAt: new Date().toISOString() },
+        { onConflict: 'groupId,weekId' }
+      )
+      .select(GROUP_PRAYER_STATUS_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to update prayer status');
+    return { status: mapGroupPrayerStatus(data) };
   },
 };

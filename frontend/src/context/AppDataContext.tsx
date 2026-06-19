@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { cohortsApi, digestApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, weeksApi } from '../services/api';
 import type { Cohort, DailyDigestCursor, DailyDigestFunctionResponse, PendingChange, RejectedChange, Week } from '../types';
+import { getIdealWeekForCohort } from '../utils/weekFocus';
 
 const LAST_SEEN_KEY = 'fof_resources_last_seen';
 const ACTIVE_COHORT_KEY = 'fof_active_cohort_id';
@@ -72,6 +73,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [liveRevision, setLiveRevision] = useState(0);
 
   const refreshTimeoutRef = useRef<number | null>(null);
+  const refreshInProgressRef = useRef(false);
 
   const getAccessibleCohorts = useCallback((allCohorts: Cohort[]) => {
     if (isAdmin || isSopPreparer) return allCohorts;
@@ -97,7 +99,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return applyActiveCohort(response.cohorts);
   }, [applyActiveCohort]);
 
-  const loadWeeksForCohort = useCallback(async (cohortId?: string | null) => {
+  const loadWeeksForCohort = useCallback(async (cohortId?: string | null, cohortForDate?: Cohort | null) => {
     if (!cohortId) {
       setWeeks([]);
       setSelectedWeek(null);
@@ -109,10 +111,9 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setSelectedWeek((prev) => {
       if (response.weeks.length === 0) return null;
       if (prev && prev.cohortId === cohortId) {
-        return response.weeks.find((week) => week.id === prev.id) || response.weeks[0];
+        return response.weeks.find((week) => week.id === prev.id) || getIdealWeekForCohort(cohortForDate ?? null, response.weeks);
       }
-      const week1 = response.weeks.find((week) => week.weekNumber === 1);
-      return week1 || response.weeks[0];
+      return getIdealWeekForCohort(cohortForDate ?? null, response.weeks);
     });
     return response.weeks;
   }, []);
@@ -165,10 +166,12 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const refreshWorkspaceData = useCallback(() => {
+    if (refreshInProgressRef.current) return;
+    refreshInProgressRef.current = true;
     void (async () => {
       try {
         const resolvedCohort = await loadCohorts();
-        const loadedWeeks = await loadWeeksForCohort(resolvedCohort?.id ?? activeCohort?.id ?? null);
+        const loadedWeeks = await loadWeeksForCohort(resolvedCohort?.id ?? activeCohort?.id ?? null, resolvedCohort ?? activeCohort);
 
         if (isAdmin) {
           await Promise.all([
@@ -190,6 +193,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         bumpLiveRevision();
       } catch (error) {
         console.error('Failed to refresh workspace data:', error);
+      } finally {
+        refreshInProgressRef.current = false;
       }
     })();
   }, [
@@ -223,7 +228,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setLoading(true);
       try {
         const resolvedCohort = await loadCohorts();
-        const loadedWeeks = await loadWeeksForCohort(resolvedCohort?.id);
+        const loadedWeeks = await loadWeeksForCohort(resolvedCohort?.id, resolvedCohort);
 
         if (isAdmin) {
           await Promise.all([loadDigestStatus(), loadGlobalPendingChanges(loadedWeeks.map((week) => week.id))]);
@@ -278,6 +283,12 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .on('postgres_changes', { event: '*', schema: 'public', table: 'FollowUpContact' }, scheduleWorkspaceRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'FollowUpIssue' }, scheduleWorkspaceRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'MessageTemplate' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Group' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupParticipant' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupOnboardingStatus' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ParticipantOnboardingStatus' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'OnboardingEvent' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupPrayerStatus' }, scheduleWorkspaceRefresh)
       .subscribe((status: string) => {
         if (status === 'SUBSCRIBED') {
           setRealtimeHealthy(true);
@@ -324,7 +335,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setActiveCohortState(next);
     if (next) {
       localStorage.setItem(ACTIVE_COHORT_KEY, next.id);
-      const loadedWeeks = await loadWeeksForCohort(next.id);
+      const loadedWeeks = await loadWeeksForCohort(next.id, next);
       if (isAdmin) {
         await loadGlobalPendingChanges(loadedWeeks.map((week) => week.id));
       }
@@ -437,7 +448,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const reloadWeeks = useCallback(async () => {
-    await loadWeeksForCohort(activeCohort?.id);
+      await loadWeeksForCohort(activeCohort?.id, activeCohort);
   }, [activeCohort?.id, loadWeeksForCohort]);
 
   const value = useMemo<AppDataContextType>(() => ({

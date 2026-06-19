@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { groupPrayersApi } from '../services/api';
 import type { GroupPrayer, Week } from '../types';
+import { getIdealWeekForCohort } from '../utils/weekFocus';
 
 const AdminGroupPrayersPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
@@ -24,12 +25,13 @@ const AdminGroupPrayersPage: React.FC = () => {
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
-  // Default to most recent week
   useEffect(() => {
-    if (cohortWeeks.length > 0 && selectedWeekId === null) {
-      setSelectedWeekId(cohortWeeks[cohortWeeks.length - 1].id);
+    if (cohortWeeks.length === 0) return;
+    const selectedStillExists = selectedWeekId !== null && cohortWeeks.some((week) => week.id === selectedWeekId);
+    if (!selectedStillExists) {
+      setSelectedWeekId(getIdealWeekForCohort(activeCohort, cohortWeeks)?.id ?? cohortWeeks[0].id);
     }
-  }, [cohortWeeks, selectedWeekId]);
+  }, [activeCohort, cohortWeeks, selectedWeekId]);
 
   const load = useCallback(async () => {
     if (!activeCohort) { setLoading(false); return; }

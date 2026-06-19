@@ -24,6 +24,7 @@ export interface User {
   phone?: string;
   name: string;
   role: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT';
+  isCoordinator?: boolean;
   createdAt?: string;
   updatedAt?: string;
   labels?: Label[];
@@ -201,6 +202,9 @@ export interface MessageTemplate {
   useCase: string;
   body: string;
   whenToUse?: string | null;
+  imageUrl?: string | null;
+  imageName?: string | null;
+  category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR';
   createdAt?: string;
   updatedAt?: string;
 }
@@ -260,6 +264,58 @@ export interface Group {
   updatedAt?: string;
 }
 
+export interface GroupOnboardingStatus {
+  id: string;
+  groupId: string;
+  groupName?: string | null;
+  supportId?: string | null;
+  supportName?: string | null;
+  participantCount?: number;
+  groupCreated: boolean;
+  updatedById?: string | null;
+  updatedByName?: string | null;
+  updatedAt?: string;
+  completedAt?: string | null;
+}
+
+export interface ParticipantOnboardingStatus {
+  id: string;
+  participantId: string;
+  participantName?: string | null;
+  groupId?: string | null;
+  groupName?: string | null;
+  contacted: boolean;
+  addedToGroup: boolean;
+  introductionDone: boolean;
+  venueAcknowledged: boolean;
+  updatedById?: string | null;
+  updatedByName?: string | null;
+  updatedAt?: string;
+}
+
+export type OnboardingEventType =
+  | 'GROUP_ASSIGNED'
+  | 'PARTICIPANTS_ASSIGNED'
+  | 'GROUP_CREATED_UPDATED'
+  | 'PARTICIPANT_STATUS_UPDATED'
+  | 'GROUP_COMPLETED';
+
+export interface OnboardingEvent {
+  id: string;
+  type: OnboardingEventType;
+  groupId: string;
+  groupName?: string | null;
+  participantId?: string | null;
+  participantName?: string | null;
+  actorId?: string | null;
+  actorName?: string | null;
+  actorRole?: User['role'] | null;
+  supportId?: string | null;
+  supportName?: string | null;
+  payload?: Record<string, unknown>;
+  createdAt: string;
+}
+
 // ── Attendance ────────────────────────────────────────────────────────────────
 
 export type AttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT';
@@ -303,6 +359,17 @@ export interface GroupPrayer {
   createdByName?: string | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface GroupPrayerStatus {
+  id: string;
+  groupId: string;
+  groupName?: string | null;
+  weekId: number;
+  weekNumber?: number;
+  done: boolean;
+  markedById?: string | null;
+  markedAt?: string;
 }
 
 export interface DailyDigestCursor {

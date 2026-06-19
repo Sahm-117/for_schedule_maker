@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { MessageTemplate, User } from '../../types';
 import ModalShell from './ModalShell';
 import ConfirmationModal from '../ConfirmationModal';
+import AppOverflowMenu from '../AppOverflowMenu';
 import { messageTemplatesApi, settingsApi } from '../../services/api';
 import { buildTemplatePlaceholderSummary } from '../../utils/followUps';
 
@@ -152,10 +153,13 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-bold text-gray-900">{t.useCase}</p>
                 {!readOnly && (
-                  <div className="flex shrink-0 gap-1">
-                    <button type="button" onClick={() => openForm(t)} className="rounded-xl px-2.5 py-1 text-xs font-semibold text-primary hover:bg-orange-50">Edit</button>
-                    <button type="button" onClick={() => setDeleting(t)} className="rounded-xl px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">Delete</button>
-                  </div>
+                  <AppOverflowMenu
+                    align="right"
+                    items={[
+                      { label: 'Edit', onClick: () => openForm(t) },
+                      { label: 'Delete', onClick: () => setDeleting(t), tone: 'danger' },
+                    ]}
+                  />
                 )}
               </div>
               {t.whenToUse && <p className="mt-1 text-xs font-medium text-amber-700">{t.whenToUse}</p>}

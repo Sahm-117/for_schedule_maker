@@ -88,7 +88,7 @@ const SupportHomePage: React.FC = () => {
           <div className="grid grid-cols-2 gap-3">
             <Metric title="My Activities" value={myActivities.length} to="/support/schedule" detail={activeWeek ? `Week ${activeWeek.weekNumber}` : 'Open schedule'} />
             {isCohortActive ? (
-              <Metric title="My Support Groups" value={userLabelIds.length} to="/support/profile" detail="View profile" />
+              <Metric title="My Group" value="Open" to="/support/participants" detail="Open your group workspace" />
             ) : (
               <Metric title="Number of follow ups" value={followUpCount} to="/support/follow-ups" detail={followUpCount > 0 ? `You have ${followUpCount} contact${followUpCount !== 1 ? 's' : ''} to follow up` : 'No pending follow-ups'} />
             )}
@@ -155,6 +155,7 @@ const SupportHomePage: React.FC = () => {
           <div className="surface-card p-6">
             <h3 className="text-lg font-semibold text-gray-900">Quick links</h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <QuickLink to="/support/participants" label="Open My Group" />
               <QuickLink to="/support/resources" label="Browse Resource Hub" />
               <QuickLink to="/support/announcements" label="View announcements" />
               <QuickLink to="/support/follow-ups" label="My Follow-ups" />

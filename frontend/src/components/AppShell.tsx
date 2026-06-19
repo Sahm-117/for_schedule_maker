@@ -40,6 +40,7 @@ const ICONS = {
   attendance: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" /></svg></IconBox>,
   faith: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" /></svg></IconBox>,
   prayer: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4.318 6.318a4.5 4.5 0 0 0 0 6.364L12 20.364l7.682-7.682a4.5 4.5 0 0 0-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 0 0-6.364 0Z" /></svg></IconBox>,
+  onboarding: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5l-3 3v-3Z" /></svg></IconBox>,
 };
 
 const adminNav: NavItem[] = [
@@ -54,6 +55,7 @@ const adminNav: NavItem[] = [
   { to: '/faith-projects', label: 'Faith Projects', icon: ICONS.faith, adminOnly: true },
   { to: '/group-prayers', label: 'Group Prayers', icon: ICONS.prayer, adminOnly: true },
   { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
+  { to: '/onboarding', label: 'Onboarding', icon: ICONS.onboarding, adminOnly: true },
   { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
   { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
   { to: '/resources', label: 'Resources', icon: ICONS.resources },
@@ -63,11 +65,12 @@ const adminNav: NavItem[] = [
 const supportNav: NavItem[] = [
   { to: '/support', label: 'Home', icon: ICONS.dashboard },
   { to: '/support/schedule', label: 'My Schedule', icon: ICONS.schedule },
-  { to: '/support/participants', label: 'My Participants', icon: ICONS.participants, mobileHidden: true },
+  { to: '/support/participants', label: 'My Group', icon: ICONS.participants },
   { to: '/support/attendance', label: 'Attendance', icon: ICONS.attendance, mobileHidden: true },
   { to: '/support/follow-ups', label: 'My Follow-ups', icon: ICONS.followups, mobileHidden: true },
+  { to: '/support/onboarding', label: 'Onboarding', icon: ICONS.onboarding, mobileHidden: true },
   { to: '/support/resources', label: 'Resources', icon: ICONS.resources },
-  { to: '/support/profile', label: 'Profile', icon: ICONS.profile },
+  { to: '/support/profile', label: 'Profile', icon: ICONS.profile, mobileHidden: true },
 ];
 
 const MobileBadge: React.FC<{ count: number }> = ({ count }) => {
@@ -158,7 +161,13 @@ const AppShell: React.FC = () => {
 
       <aside className="surface-card fixed inset-y-4 left-4 z-30 hidden w-72 flex-col overflow-hidden lg:flex">
         <div className="border-b border-orange-100 px-6 py-6">
-          <button type="button" onClick={() => navigate(isSupport ? '/support' : '/dashboard')} className="flex items-center gap-3 text-left">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate(isSupport ? '/support' : '/dashboard')}
+            onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigate(isSupport ? '/support' : '/dashboard'); } }}
+            className="flex items-center gap-3 text-left cursor-pointer"
+          >
             <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-primary to-orange-600 text-lg font-bold text-white shadow-lg shadow-orange-200">
               F
             </div>
@@ -166,13 +175,13 @@ const AppShell: React.FC = () => {
               <p className="text-base font-bold text-gray-900">FOF IKD Ops</p>
               <button
                 type="button"
-                onClick={() => window.location.reload()}
+                onClick={(event) => { event.stopPropagation(); window.location.reload(); }}
                 className="text-xs text-gray-400 hover:text-primary transition-colors"
               >
                 ↻ Refresh
               </button>
             </div>
-          </button>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-5">

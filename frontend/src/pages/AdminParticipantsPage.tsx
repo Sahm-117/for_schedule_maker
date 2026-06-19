@@ -6,6 +6,7 @@ import { useAppData } from '../context/AppDataContext';
 import { participantsApi, groupsApi } from '../services/api';
 import type { Participant, Group } from '../types';
 import ModalShell from '../components/followups/ModalShell';
+import AppOverflowMenu from '../components/AppOverflowMenu';
 import {
   parseBulkPaste,
   buildExistingPhoneSet,
@@ -365,13 +366,18 @@ const AdminParticipantsPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="sticky right-0 bg-white px-4 py-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button type="button" onClick={() => { setEditing(p); setAddOpen(true); }} className="rounded-xl border border-orange-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-orange-50 active:scale-95">
-                            Edit
-                          </button>
-                          {p.status === 'ACTIVE' && (
-                            <button type="button" onClick={() => void handleArchive(p)} disabled={archiving === p.id} className="rounded-xl border border-red-100 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 active:scale-95 disabled:opacity-60">
-                              Archive
+                        <div className="flex justify-end">
+                          {p.status === 'ACTIVE' ? (
+                            <AppOverflowMenu
+                              align="right"
+                              items={[
+                                { label: 'Edit', onClick: () => { setEditing(p); setAddOpen(true); } },
+                                { label: 'Archive', onClick: () => { void handleArchive(p); }, tone: 'danger' },
+                              ]}
+                            />
+                          ) : (
+                            <button type="button" onClick={() => { setEditing(p); setAddOpen(true); }} className="rounded-xl border border-orange-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-orange-50 active:scale-95">
+                              Edit
                             </button>
                           )}
                         </div>

@@ -27,6 +27,10 @@ import {
   attendanceApi as supabaseAttendanceApi,
   faithProjectsApi as supabaseFaithProjectsApi,
   groupPrayersApi as supabaseGroupPrayersApi,
+  groupPrayerStatusApi as supabaseGroupPrayerStatusApi,
+  groupOnboardingStatusApi as supabaseGroupOnboardingStatusApi,
+  participantOnboardingStatusApi as supabaseParticipantOnboardingStatusApi,
+  onboardingEventsApi as supabaseOnboardingEventsApi,
   setAuthToken as supabaseSetAuthToken,
   clearAuthToken as supabaseClearAuthToken,
 } from './supabase-api';
@@ -159,10 +163,11 @@ export const followUpContactsApi = USE_SUPABASE ? supabaseFollowUpContactsApi : 
 };
 
 export const messageTemplatesApi = USE_SUPABASE ? supabaseMessageTemplatesApi : {
-  async getAll(): Promise<{ templates: import('../types').MessageTemplate[] }> { return { templates: [] }; },
+  async getAll(_options?: any): Promise<{ templates: import('../types').MessageTemplate[] }> { return { templates: [] }; },
   async create(_input: any): Promise<never> { return followUpsUnavailable(); },
   async update(_id: string, _input: any): Promise<never> { return followUpsUnavailable(); },
   async delete(_id: string): Promise<never> { return followUpsUnavailable(); },
+  async uploadTemplateImage(_file: File): Promise<never> { return followUpsUnavailable(); },
 };
 
 export const followUpIssuesApi = USE_SUPABASE ? supabaseFollowUpIssuesApi : {
@@ -315,6 +320,7 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
     email?: string;
     password?: string;
     role?: string;
+    isCoordinator?: boolean;
   }): Promise<{ user: User }> {
     const response = await api.put(`/users/${userId}`, updateData);
     return response.data;
@@ -448,6 +454,24 @@ export const groupsApi = USE_SUPABASE ? supabaseGroupsApi : {
   async setParticipants(_groupId: string, _ids: string[]): Promise<never> { return peopleUnavailable(); },
 };
 
+export const groupOnboardingStatusApi = USE_SUPABASE ? supabaseGroupOnboardingStatusApi : {
+  async getForCohort(_cohortId: string): Promise<{ statuses: import('../types').GroupOnboardingStatus[] }> { return { statuses: [] }; },
+  async getForSupport(_userId: string, _cohortId?: string): Promise<{ statuses: import('../types').GroupOnboardingStatus[] }> { return { statuses: [] }; },
+  async update(_groupId: string, _patch: any, _actorId?: string | null): Promise<never> { return peopleUnavailable(); },
+};
+
+export const participantOnboardingStatusApi = USE_SUPABASE ? supabaseParticipantOnboardingStatusApi : {
+  async getForCohort(_cohortId: string): Promise<{ statuses: import('../types').ParticipantOnboardingStatus[] }> { return { statuses: [] }; },
+  async getForGroup(_groupId: string): Promise<{ statuses: import('../types').ParticipantOnboardingStatus[] }> { return { statuses: [] }; },
+  async getForSupport(_userId: string, _cohortId?: string): Promise<{ statuses: import('../types').ParticipantOnboardingStatus[] }> { return { statuses: [] }; },
+  async update(_participantId: string, _patch: any, _actorId?: string | null): Promise<never> { return peopleUnavailable(); },
+};
+
+export const onboardingEventsApi = USE_SUPABASE ? supabaseOnboardingEventsApi : {
+  async getForCohort(_cohortId: string): Promise<{ events: import('../types').OnboardingEvent[] }> { return { events: [] }; },
+  async getForSupport(_userId: string, _cohortId?: string): Promise<{ events: import('../types').OnboardingEvent[] }> { return { events: [] }; },
+};
+
 export const attendanceApi = USE_SUPABASE ? supabaseAttendanceApi : {
   async getForWeek(_options: any): Promise<{ records: import('../types').AttendanceRecord[] }> { return { records: [] }; },
   async mark(_participantId: string, _weekId: number, _status: any, _markedById?: string): Promise<never> { return peopleUnavailable(); },
@@ -465,6 +489,11 @@ export const groupPrayersApi = USE_SUPABASE ? supabaseGroupPrayersApi : {
   async getForCohort(_cohortId: string): Promise<{ prayers: import('../types').GroupPrayer[] }> { return { prayers: [] }; },
   async upsertForWeek(_cohortId: string, _weekId: number, _body: string, _createdById?: string): Promise<never> { return peopleUnavailable(); },
   async delete(_id: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const groupPrayerStatusApi = USE_SUPABASE ? supabaseGroupPrayerStatusApi : {
+  async getForCohort(_cohortId: string): Promise<{ statuses: import('../types').GroupPrayerStatus[] }> { return { statuses: [] }; },
+  async setDone(_groupId: string, _weekId: number, _done: boolean, _markedById?: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export default api;

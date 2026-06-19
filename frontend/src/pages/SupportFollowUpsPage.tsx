@@ -115,7 +115,7 @@ const SupportFollowUpsPage: React.FC = () => {
     try {
       const [contactsRes, templatesRes, linkRes] = await Promise.all([
         followUpContactsApi.getAll({ ownerId: user.id }),
-        messageTemplatesApi.getAll(),
+        messageTemplatesApi.getAll({ category: 'FOLLOW_UP' }),
         settingsApi.getRegistrationLink(),
       ]);
       const issuesRes = await followUpIssuesApi.getAll();

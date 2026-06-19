@@ -45,12 +45,17 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const targetPath = typeof event.notification.data?.path === 'string' ? event.notification.data.path : '/'
+      const targetUrl = `${self.location.origin}${targetPath.startsWith('/') ? targetPath : `/${targetPath}`}`
       for (const client of clients) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
+          if ('navigate' in client) {
+            void client.navigate(targetUrl)
+          }
           return client.focus()
         }
       }
-      return self.clients.openWindow('/')
+      return self.clients.openWindow(targetUrl)
     })
   )
 })

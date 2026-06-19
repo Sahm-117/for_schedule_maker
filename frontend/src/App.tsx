@@ -32,6 +32,8 @@ import SupportHomePage from './pages/SupportHomePage';
 import SupportSchedulePage from './pages/SupportSchedulePage';
 import SupportResourcesPage from './pages/SupportResourcesPage';
 import SupportProfilePage from './pages/SupportProfilePage';
+import AdminOnboardingPage from './pages/AdminOnboardingPage';
+import SupportOnboardingPage from './pages/SupportOnboardingPage';
 
 function App() {
   return (
@@ -68,6 +70,8 @@ function App() {
             <Route path="/attendance" element={<AdminAttendancePage />} />
             <Route path="/faith-projects" element={<AdminFaithProjectsPage />} />
             <Route path="/group-prayers" element={<AdminGroupPrayersPage />} />
+            <Route path="/onboarding" element={<AdminOnboardingPage />} />
+            <Route path="/support/onboarding" element={<SupportOnboardingPage />} />
             <Route path="/support/follow-ups" element={<SupportFollowUpsPage />} />
             <Route path="/support/attendance" element={<SupportAttendancePage />} />
             <Route path="/support/participants" element={<SupportParticipantsPage />} />

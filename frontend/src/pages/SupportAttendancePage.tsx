@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { attendanceApi, participantsApi } from '../services/api';
 import type { AttendanceRecord, AttendanceStatus, Participant, Week } from '../types';
+import { getIdealWeekForCohort } from '../utils/weekFocus';
 
 const STATUS_OPTIONS: AttendanceStatus[] = ['PRESENT', 'LATE', 'ABSENT'];
 
@@ -37,12 +38,13 @@ const SupportAttendancePage: React.FC = () => {
 
   if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
 
-  // Default to most recent week
   useEffect(() => {
-    if (cohortWeeks.length > 0 && selectedWeekId === null) {
-      setSelectedWeekId(cohortWeeks[cohortWeeks.length - 1].id);
+    if (cohortWeeks.length === 0) return;
+    const selectedStillExists = selectedWeekId !== null && cohortWeeks.some((week) => week.id === selectedWeekId);
+    if (!selectedStillExists) {
+      setSelectedWeekId(getIdealWeekForCohort(activeCohort, cohortWeeks)?.id ?? cohortWeeks[0].id);
     }
-  }, [cohortWeeks, selectedWeekId]);
+  }, [activeCohort, cohortWeeks, selectedWeekId]);
 
   const load = useCallback(async () => {
     if (!activeCohort || selectedWeekId === null || !user?.id) { setLoading(false); return; }
