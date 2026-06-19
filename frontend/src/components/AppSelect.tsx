@@ -29,15 +29,29 @@ const AppSelect: React.FC<AppSelectProps> = ({
   loading = false,
 }) => {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const rootRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
+  const searchable = options.length > 6;
 
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value) || null,
     [options, value]
   );
+
+  const filteredOptions = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return options;
+
+    return options.filter((option) => {
+      const label = option.label.toLowerCase();
+      const meta = option.meta?.toLowerCase() || '';
+      return label.includes(query) || meta.includes(query);
+    });
+  }, [options, searchQuery]);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -51,6 +65,25 @@ const AppSelect: React.FC<AppSelectProps> = ({
   }, []);
 
   useEffect(() => {
+    if (open) return;
+    setSearchQuery('');
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !searchable) return;
+    const canSafelyFocus =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(pointer: fine)').matches &&
+      window.innerWidth >= 768;
+
+    if (!canSafelyFocus) return;
+    const focusTimer = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 0);
+    return () => window.clearTimeout(focusTimer);
+  }, [open, searchable]);
+
+  useEffect(() => {
     if (!open) return undefined;
 
     const updatePosition = () => {
@@ -58,7 +91,9 @@ const AppSelect: React.FC<AppSelectProps> = ({
       if (!rect) return;
       const width = rect.width;
       const itemHeight = 48;
-      const menuHeight = Math.min(options.length, 6) * itemHeight + 24;
+      const searchHeight = searchable ? 58 : 0;
+      const visibleItemCount = Math.max(1, Math.min(filteredOptions.length, 6));
+      const menuHeight = visibleItemCount * itemHeight + searchHeight + 24;
       let top = rect.bottom + 6;
       let left = rect.left;
 
@@ -88,7 +123,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
-  }, [open, options.length]);
+  }, [filteredOptions.length, open, options.length, searchable]);
 
   return (
     <div ref={rootRef} className={`relative ${open ? 'z-[90]' : 'z-10'} ${className}`}>
@@ -139,14 +174,36 @@ const AppSelect: React.FC<AppSelectProps> = ({
 
       {open && typeof document !== 'undefined' && createPortal(
         <div ref={menuRef} style={menuStyle} className="overflow-hidden rounded-[24px] border border-orange-100 bg-white p-1.5 shadow-[0_28px_80px_rgba(15,23,42,0.18)]">
+          {searchable && (
+            <div className="border-b border-orange-100/70 p-1.5">
+              <div className="flex items-center gap-2 rounded-2xl border border-orange-100 bg-orange-50/40 px-3 py-2">
+                <svg className="h-4 w-4 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
+                </svg>
+                <input
+                  ref={searchInputRef}
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search..."
+                  className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-gray-800 outline-none placeholder:text-gray-400"
+                />
+              </div>
+            </div>
+          )}
           <div className="max-h-72 overflow-y-auto">
-            {options.map((option) => {
+            {filteredOptions.length === 0 ? (
+              <p className="px-3 py-4 text-center text-sm font-semibold text-gray-400">No options found</p>
+            ) : filteredOptions.map((option) => {
               const selected = option.value === value;
               return (
                 <button
                   key={option.value}
                   type="button"
-                  onPointerDown={() => onChange(option.value)}
+                  onPointerDown={() => {
+                    onChange(option.value);
+                    setSearchQuery('');
+                  }}
                   onClick={() => setOpen(false)}
                   className={`flex w-full items-start justify-between rounded-2xl px-3 py-2.5 text-left transition ${
                     selected ? 'bg-orange-50 text-primary' : 'text-gray-700 hover:bg-gray-50'
