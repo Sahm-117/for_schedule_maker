@@ -288,6 +288,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupOnboardingStatus' }, scheduleWorkspaceRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ParticipantOnboardingStatus' }, scheduleWorkspaceRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'OnboardingEvent' }, scheduleWorkspaceRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupPrayerFocus' }, scheduleWorkspaceRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupPrayerStatus' }, scheduleWorkspaceRefresh)
       .subscribe((status: string) => {
         if (status === 'SUBSCRIBED') {
@@ -457,7 +458,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     cohorts,
     activeCohort,
     setActiveCohort,
-    reloadCohorts: loadCohorts,
+    reloadCohorts: async () => { await loadCohorts(); },
     weeks,
     selectedWeek,
     handleWeekSelect,

@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
+import AppSelect from '../components/AppSelect';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { attendanceApi, participantsApi } from '../services/api';
-import type { AttendanceRecord, AttendanceStatus, Participant, Week } from '../types';
+import { attendanceApi, groupsApi, participantsApi } from '../services/api';
+import type { AttendanceRecord, AttendanceStatus, Group, Participant, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 
 const STATUS_OPTIONS: AttendanceStatus[] = ['PRESENT', 'LATE', 'ABSENT'];
@@ -33,10 +35,22 @@ const AdminAttendancePage: React.FC = () => {
   const [selectedWeekId, setSelectedWeekId] = useState<number | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [records, setRecords] = useState<Map<string, AttendanceRecord>>(new Map());
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
+
+  // Groups change per cohort, not per week — load once per cohort.
+  useEffect(() => {
+    if (!activeCohort) { setGroups([]); return; }
+    let cancelled = false;
+    void groupsApi.getAll({ cohortId: activeCohort.id })
+      .then(({ groups: gs }) => { if (!cancelled) setGroups(gs); })
+      .catch(() => { /* ignore */ });
+    return () => { cancelled = true; };
+  }, [activeCohort]);
 
   useEffect(() => {
     if (cohortWeeks.length === 0) return;
@@ -76,17 +90,27 @@ const AdminAttendancePage: React.FC = () => {
     }
   };
 
+  const visibleParticipants = useMemo(
+    () => (selectedGroupId ? participants.filter((p) => p.groupId === selectedGroupId) : participants),
+    [participants, selectedGroupId]
+  );
+
   const summary = useMemo(() => {
-    const total = participants.length;
-    const present = [...records.values()].filter((r) => r.status === 'PRESENT').length;
-    const late = [...records.values()].filter((r) => r.status === 'LATE').length;
-    const absent = [...records.values()].filter((r) => r.status === 'ABSENT').length;
+    const total = visibleParticipants.length;
+    const visibleIds = new Set(visibleParticipants.map((p) => p.id));
+    const visibleRecords = [...records.values()].filter((r) => visibleIds.has(r.participantId));
+    const present = visibleRecords.filter((r) => r.status === 'PRESENT').length;
+    const late = visibleRecords.filter((r) => r.status === 'LATE').length;
+    const absent = visibleRecords.filter((r) => r.status === 'ABSENT').length;
     const unmarked = total - (present + late + absent);
     const pct = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
     return { total, present, late, absent, unmarked, pct };
-  }, [participants, records]);
+  }, [visibleParticipants, records]);
 
-  const selectedWeek = cohortWeeks.find((w) => w.id === selectedWeekId);
+  const groupOptions = useMemo(
+    () => [{ value: '', label: 'All groups' }, ...groups.map((g) => ({ value: g.id, label: g.name }))],
+    [groups]
+  );
 
   return (
     <div className="page-content">
@@ -101,25 +125,38 @@ const AdminAttendancePage: React.FC = () => {
         <p className="text-sm text-gray-500">No weeks in this cohort yet.</p>
       ) : (
         <>
-          {/* Week selector */}
-          <div className="mb-6">
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Week</label>
-            <div className="flex flex-wrap gap-2">
-              {cohortWeeks.map((w) => (
-                <button
-                  key={w.id}
-                  type="button"
-                  onClick={() => setSelectedWeekId(w.id)}
-                  className={`rounded-full px-4 py-1.5 text-sm font-semibold transition active:scale-95 ${
-                    selectedWeekId === w.id
-                      ? 'bg-primary text-white shadow-sm'
-                      : 'border border-orange-200 bg-white text-gray-600 hover:bg-orange-50'
-                  }`}
-                >
-                  Week {w.weekNumber}
-                </button>
-              ))}
+          {/* Week selector + group filter */}
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Week</label>
+              <div className="flex flex-wrap gap-2">
+                {cohortWeeks.map((w) => (
+                  <button
+                    key={w.id}
+                    type="button"
+                    onClick={() => setSelectedWeekId(w.id)}
+                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition active:scale-95 ${
+                      selectedWeekId === w.id
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'border border-orange-200 bg-white text-gray-600 hover:bg-orange-50'
+                    }`}
+                  >
+                    Week {w.weekNumber}
+                  </button>
+                ))}
+              </div>
             </div>
+            {groups.length > 0 && (
+              <div className="w-full lg:w-64">
+                <AppSelect
+                  label="Filter by group"
+                  value={selectedGroupId}
+                  onChange={setSelectedGroupId}
+                  options={groupOptions}
+                  placeholder="All groups"
+                />
+              </div>
+            )}
           </div>
 
           {/* Summary cards */}
@@ -140,10 +177,10 @@ const AdminAttendancePage: React.FC = () => {
           )}
 
           {loading ? (
-            <p className="text-sm text-gray-400">Loading…</p>
-          ) : participants.length === 0 ? (
+            <PageLoader />
+          ) : visibleParticipants.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
-              <p className="text-sm text-gray-500">No active participants in this cohort.</p>
+              <p className="text-sm text-gray-500">{selectedGroupId ? 'No active participants in this group.' : 'No active participants in this cohort.'}</p>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-orange-100 bg-white shadow-sm">
@@ -156,7 +193,7 @@ const AdminAttendancePage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-orange-50">
-                  {participants.map((p) => {
+                  {visibleParticipants.map((p) => {
                     const rec = records.get(p.id);
                     const isSaving = saving.has(p.id);
                     return (

@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { participantsApi, groupsApi } from '../services/api';
-import type { Participant, Group } from '../types';
+import { participantsApi } from '../services/api';
+import type { Participant } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import {
@@ -245,14 +246,12 @@ const AdminParticipantsPage: React.FC = () => {
   const { activeCohort, liveRevision } = useAppData();
 
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Participant | null>(null);
-  const [archiving, setArchiving] = useState<string | null>(null);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -260,12 +259,8 @@ const AdminParticipantsPage: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [{ participants: ps }, { groups: gs }] = await Promise.all([
-        participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true }),
-        groupsApi.getAll({ cohortId: activeCohort.id }),
-      ]);
+      const { participants: ps } = await participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true });
       setParticipants(ps);
-      setGroups(gs);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [activeCohort]);
@@ -283,12 +278,10 @@ const AdminParticipantsPage: React.FC = () => {
 
   const handleArchive = async (p: Participant) => {
     if (!window.confirm(`Archive ${p.fullName}? They will no longer appear in attendance.`)) return;
-    setArchiving(p.id);
     try {
       await participantsApi.archive(p.id);
       setParticipants((prev) => prev.map((x) => x.id === p.id ? { ...x, status: 'ARCHIVED' } : x));
     } catch { /* ignore */ }
-    finally { setArchiving(null); }
   };
 
   const activeCount = participants.filter((p) => p.status === 'ACTIVE').length;
@@ -331,7 +324,7 @@ const AdminParticipantsPage: React.FC = () => {
           </div>
 
           {loading ? (
-            <p className="text-sm text-gray-400">Loading…</p>
+            <PageLoader />
           ) : displayed.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
               <p className="text-sm text-gray-500">No participants yet. Add one or import a list.</p>

@@ -106,11 +106,10 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
           };
 
           // Use correct API based on user role
-          let result;
           if (user?.role === 'ADMIN') {
-            result = await activitiesApi.create(activityData);
+            await activitiesApi.create(activityData);
           } else {
-            result = await activitiesApi.request(activityData);
+            await activitiesApi.request(activityData);
           }
           results.push(`${dayName}: Success`);
         } catch (dayError: any) {
@@ -338,7 +337,7 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <label className="block text-sm font-medium text-gray-700">
-                    Labels (optional)
+                    Activity tags (optional)
                   </label>
                   <span className="text-xs text-gray-500">
                     Selected: {selectedLabelIds.length}

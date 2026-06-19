@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import AdminCompletionOverviewDrawer from '../components/AdminCompletionOverviewDrawer';
 import AppSelect from '../components/AppSelect';
+import LabelManagement from '../components/LabelManagement';
 import PageHeader from '../components/PageHeader';
 import ScheduleView from '../components/ScheduleView';
 import WeekSelector from '../components/WeekSelector';
@@ -23,6 +24,7 @@ const AdminSchedulePage: React.FC = () => {
     loading,
   } = useAppData();
   const [showExportMenu, setShowExportMenu] = React.useState(false);
+  const [showTagManagement, setShowTagManagement] = React.useState(false);
   const [showDayExportPicker, setShowDayExportPicker] = React.useState(false);
   const [headerAddDayId, setHeaderAddDayId] = React.useState<number | null>(null);
   const [showDayAddPicker, setShowDayAddPicker] = React.useState(false);
@@ -38,7 +40,7 @@ const AdminSchedulePage: React.FC = () => {
     if (!isAdmin) return;
     labelsApi.getAll()
       .then((response) => setSupportGroups(response.labels))
-      .catch((error) => console.warn('Failed to load support groups for filter:', error));
+      .catch((error) => console.warn('Failed to load activity tags for filter:', error));
   }, [isAdmin]);
 
   React.useEffect(() => {
@@ -103,11 +105,11 @@ const AdminSchedulePage: React.FC = () => {
   };
 
   const groupOptions = [
-    { value: '', label: 'All support groups', meta: 'Show every assigned activity' },
+    { value: '', label: 'All activity tags', meta: 'Show every assigned activity' },
     ...supportGroups.map((group) => ({
       value: group.id,
       label: group.name,
-      meta: 'Support group filter',
+      meta: 'Activity tag filter',
     })),
   ];
 
@@ -127,7 +129,7 @@ const AdminSchedulePage: React.FC = () => {
     ...filteredSupportUsers.map((member) => ({
       value: member.id,
       label: member.name,
-      meta: member.labels?.map((label) => label.name).join(' • ') || 'No support groups yet',
+      meta: member.labels?.map((label) => label.name).join(' • ') || 'No activity tags yet',
     })),
   ];
 
@@ -164,8 +166,19 @@ const AdminSchedulePage: React.FC = () => {
     );
   }, [effectiveFilterLabelIds, selectedWeek]);
 
-  const headerAction = selectedWeek && canManageSchedule ? (
+  const headerAction = canManageSchedule ? (
     <div className="flex flex-wrap items-center justify-end gap-2">
+      {isAdmin && (
+        <button
+          type="button"
+          onClick={() => setShowTagManagement(true)}
+          className="inline-flex h-10 items-center justify-center rounded-full border border-orange-200 px-4 text-sm font-semibold text-gray-700 hover:bg-orange-50"
+        >
+          Manage tags
+        </button>
+      )}
+      {selectedWeek && (
+        <>
       {isAdmin && (
         <button
           type="button"
@@ -233,6 +246,8 @@ const AdminSchedulePage: React.FC = () => {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   ) : null;
 
@@ -240,7 +255,7 @@ const AdminSchedulePage: React.FC = () => {
     <div>
       <PageHeader
         title="Schedule"
-        subtitle="Manage weekly programme activities, exports, and approval-aware edits."
+        subtitle="Manage weekly programme activities, exports, and edits that go through approval."
         action={headerAction}
       />
 
@@ -256,15 +271,15 @@ const AdminSchedulePage: React.FC = () => {
         />
         {isAdmin && (
           <div className="surface-card relative z-20 rounded-3xl border border-orange-100 p-4">
-            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Support Group</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Activity tags</p>
             <p className="mt-1 text-sm font-semibold text-gray-900">Filter assignments fast</p>
-            <p className="mt-1 text-xs text-gray-500">See one support group’s exact workload without opening the native browser picker.</p>
+            <p className="mt-1 text-xs text-gray-500">See one tag’s exact workload without opening the native browser picker.</p>
             <div className="mt-4">
               <AppSelect
                 value={selectedSupportGroupId}
                 onChange={setSelectedSupportGroupId}
                 options={groupOptions}
-                placeholder="All support groups"
+                placeholder="All activity tags"
                 compact
               />
             </div>
@@ -340,9 +355,21 @@ const AdminSchedulePage: React.FC = () => {
             selectedSupportUser
               ? `Tracking done versus pending tasks for ${selectedSupportUser.name}.`
               : selectedSupportGroupId
-                ? 'Tracking done versus pending tasks for the selected support group.'
+                ? 'Tracking done versus pending tasks for the selected activity tag.'
                 : 'Tracking done versus pending tasks for the full selected week.'
           }
+        />
+      )}
+
+      {isAdmin && (
+        <LabelManagement
+          isOpen={showTagManagement}
+          onClose={() => {
+            setShowTagManagement(false);
+            labelsApi.getAll()
+              .then((response) => setSupportGroups(response.labels))
+              .catch((error) => console.warn('Failed to reload activity tags:', error));
+          }}
         />
       )}
 

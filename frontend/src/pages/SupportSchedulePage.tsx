@@ -124,8 +124,8 @@ const SupportSchedulePage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title={`${user.name.split(' ')[0]}'s Schedule`}
-        subtitle="Start with today, then look ahead whenever you want a fuller view of your week."
+        title="My Schedule"
+        subtitle="Your activities for the week. Start with today, then look ahead."
         action={scheduleAction}
         onHelp={wt.reopen}
       />
@@ -166,8 +166,8 @@ const SupportSchedulePage: React.FC = () => {
               noActivitiesText={viewMode === 'today'
                 ? 'You are all clear for today. Switch views if you want to check what is coming next.'
                 : viewMode === 'upcoming'
-                  ? 'There are no more upcoming activities tagged to your support groups in this week.'
-                  : `No activities tagged with your support groups were found for Week ${selectedWeek.weekNumber}.`}
+                  ? 'There are no more upcoming activities tagged for you in this week.'
+                  : `No activities with your activity tags were found for Week ${selectedWeek.weekNumber}.`}
             />
           ) : (
             <div className="surface-card p-12 text-center text-sm text-gray-500">Select a week to view your schedule.</div>

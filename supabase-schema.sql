@@ -35,6 +35,7 @@ CREATE TABLE "Week" (
     id SERIAL PRIMARY KEY,
     "cohortId" UUID NOT NULL REFERENCES "Cohort"(id) ON DELETE CASCADE,
     "weekNumber" INTEGER NOT NULL,
+    title TEXT,
     UNIQUE("cohortId", "weekNumber")
 );
 
@@ -293,3 +294,33 @@ CREATE POLICY "Allow all operations" ON "FollowUpIssue" FOR ALL USING (true) WIT
 INSERT INTO "AppSetting" ("settingKey", value)
 VALUES ('registration_link', '""'::jsonb)
 ON CONFLICT ("settingKey") DO NOTHING;
+
+-- Group Prayer Focus module: support-selected participant focus per group/week.
+-- Guarded because the newer Participants/Groups module may be applied by migrations
+-- in existing projects rather than folded into this older fresh schema file.
+DO $$
+BEGIN
+  IF to_regclass('"Group"') IS NOT NULL
+    AND to_regclass('"Participant"') IS NOT NULL
+    AND to_regclass('"Week"') IS NOT NULL
+  THEN
+    EXECUTE '
+      CREATE TABLE IF NOT EXISTS "GroupPrayerFocus" (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "groupId" UUID NOT NULL REFERENCES "Group"(id) ON DELETE CASCADE,
+        "weekId" INTEGER NOT NULL REFERENCES "Week"(id) ON DELETE CASCADE,
+        "participantId" UUID NOT NULL REFERENCES "Participant"(id) ON DELETE CASCADE,
+        "setById" UUID REFERENCES "User"(id) ON DELETE SET NULL,
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE("groupId", "weekId")
+      )
+    ';
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_groupprayerfocus_group ON "GroupPrayerFocus"("groupId")';
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_groupprayerfocus_week ON "GroupPrayerFocus"("weekId")';
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_groupprayerfocus_participant ON "GroupPrayerFocus"("participantId")';
+    EXECUTE 'ALTER TABLE "GroupPrayerFocus" ENABLE ROW LEVEL SECURITY';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow all operations" ON "GroupPrayerFocus"';
+    EXECUTE 'CREATE POLICY "Allow all operations" ON "GroupPrayerFocus" FOR ALL USING (true) WITH CHECK (true)';
+  END IF;
+END $$;

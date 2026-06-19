@@ -27,6 +27,7 @@ import {
   attendanceApi as supabaseAttendanceApi,
   faithProjectsApi as supabaseFaithProjectsApi,
   groupPrayersApi as supabaseGroupPrayersApi,
+  groupPrayerFocusApi as supabaseGroupPrayerFocusApi,
   groupPrayerStatusApi as supabaseGroupPrayerStatusApi,
   groupOnboardingStatusApi as supabaseGroupOnboardingStatusApi,
   participantOnboardingStatusApi as supabaseParticipantOnboardingStatusApi,
@@ -98,7 +99,7 @@ export const authApi = USE_SUPABASE ? supabaseAuthApi : {
     return response.data;
   },
 
-  async register(userData: { email: string; name: string; password: string; role?: string }): Promise<{ user: User }> {
+  async register(userData: { email?: string; phone?: string; name: string; password: string; role?: string }): Promise<{ user: User }> {
     const response = await api.post('/auth/register', userData);
     return response.data;
   },
@@ -128,6 +129,10 @@ export const weeksApi = USE_SUPABASE ? supabaseWeeksApi : {
       pendingChanges: normalizePendingChanges(response.data.pendingChanges || []),
     };
   },
+
+  async update(_weekId: number, _input: { title?: string | null }): Promise<{ week: Week }> {
+    throw new Error('Weeks are only editable in Supabase mode.');
+  },
 };
 
 export const cohortsApi = USE_SUPABASE ? supabaseCohortsApi : {
@@ -141,7 +146,9 @@ export const cohortsApi = USE_SUPABASE ? supabaseCohortsApi : {
     sourceCohortId: string;
   }): Promise<{ cohort: Cohort }> { throw new Error('Cohorts are only available in Supabase mode.'); },
   async update(_cohortId: string, _input: any): Promise<{ cohort: Cohort }> { throw new Error('Cohorts are only available in Supabase mode.'); },
+  async addWeekAt(_cohortId: string, _weekNumber: number, _options?: { duplicateFromWeekId?: number }): Promise<{ week: Week }> { throw new Error('Cohorts are only available in Supabase mode.'); },
   async addWeek(_cohortId: string): Promise<{ week: Week }> { throw new Error('Cohorts are only available in Supabase mode.'); },
+  async deleteWeek(_weekId: number): Promise<{ deletedWeekNumber: number; cohortId: string }> { throw new Error('Cohorts are only available in Supabase mode.'); },
   async deleteLatestWeek(_cohortId: string): Promise<{ deletedWeekNumber: number }> { throw new Error('Cohorts are only available in Supabase mode.'); },
   async delete(_cohortId: string): Promise<{ message: string }> { throw new Error('Cohorts are only available in Supabase mode.'); },
   async getMembers(_cohortId: string): Promise<{ users: User[] }> { return { users: [] }; },
@@ -187,10 +194,14 @@ export const activitiesApi = USE_SUPABASE ? supabaseActivitiesApi : {
   // Admin only - creates activities directly
   async create(activityData: {
     dayId: number;
+    dayName?: string;
     time: string;
     description: string;
     period: string;
     applyToWeeks?: number[];
+    labelIds?: string[];
+    labelNames?: string[];
+    userId?: string;
   }): Promise<{ activities: any[] }> {
     const response = await api.post('/activities', activityData);
     return response.data;
@@ -199,10 +210,14 @@ export const activitiesApi = USE_SUPABASE ? supabaseActivitiesApi : {
   // Support users - creates pending change requests
   async request(activityData: {
     dayId: number;
+    dayName?: string;
     time: string;
     description: string;
     period: string;
     applyToWeeks?: number[];
+    labelIds?: string[];
+    labelNames?: string[];
+    userId?: string;
   }): Promise<{ message: string; pendingChange: any }> {
     const response = await api.post('/activities/request', activityData);
     return response.data;
@@ -213,6 +228,8 @@ export const activitiesApi = USE_SUPABASE ? supabaseActivitiesApi : {
     period?: string;
     description: string;
     applyToWeeks?: number[];
+    labelIds?: string[];
+    labelNames?: string[];
   }): Promise<{ activities: any[] }> {
     const response = await api.put(`/activities/${activityId}`, updateData);
     return response.data;
@@ -489,6 +506,12 @@ export const groupPrayersApi = USE_SUPABASE ? supabaseGroupPrayersApi : {
   async getForCohort(_cohortId: string): Promise<{ prayers: import('../types').GroupPrayer[] }> { return { prayers: [] }; },
   async upsertForWeek(_cohortId: string, _weekId: number, _body: string, _createdById?: string): Promise<never> { return peopleUnavailable(); },
   async delete(_id: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const groupPrayerFocusApi = USE_SUPABASE ? supabaseGroupPrayerFocusApi : {
+  async getForCohort(_cohortId: string): Promise<{ focuses: import('../types').GroupPrayerFocus[] }> { return { focuses: [] }; },
+  async setFocus(_groupId: string, _weekId: number, _participantId: string, _setById?: string): Promise<never> { return peopleUnavailable(); },
+  async clear(_groupId: string, _weekId: number): Promise<never> { return peopleUnavailable(); },
 };
 
 export const groupPrayerStatusApi = USE_SUPABASE ? supabaseGroupPrayerStatusApi : {

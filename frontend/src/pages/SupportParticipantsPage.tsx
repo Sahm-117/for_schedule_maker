@@ -3,13 +3,14 @@ import { Navigate, NavLink } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
 import ModalShell from '../components/followups/ModalShell';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
 import {
   faithProjectsApi,
   groupOnboardingStatusApi,
+  groupPrayerFocusApi,
   groupPrayerStatusApi,
-  groupPrayersApi,
   groupsApi,
   participantsApi,
 } from '../services/api';
@@ -17,7 +18,7 @@ import type {
   FaithProject,
   FaithProjectStatus,
   GroupOnboardingStatus,
-  GroupPrayer,
+  GroupPrayerFocus,
   GroupPrayerStatus,
   Participant,
   Week,
@@ -153,7 +154,7 @@ const FaithProjectPanel: React.FC<FaithProjectPanelProps> = ({ participant, exis
       <ModalShell
         isOpen={open}
         onClose={() => setOpen(false)}
-        title={`Faith Project - ${participant.fullName}`}
+        title={`Faith project: ${participant.fullName}`}
         footer={(
           <>
             <button type="button" onClick={() => setOpen(false)} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">
@@ -198,11 +199,12 @@ const SupportParticipantsPage: React.FC = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [groupStatuses, setGroupStatuses] = useState<GroupOnboardingStatus[]>([]);
   const [faithProjects, setFaithProjects] = useState<FaithProject[]>([]);
-  const [groupPrayers, setGroupPrayers] = useState<GroupPrayer[]>([]);
+  const [groupPrayerFocuses, setGroupPrayerFocuses] = useState<GroupPrayerFocus[]>([]);
   const [groupPrayerStatuses, setGroupPrayerStatuses] = useState<GroupPrayerStatus[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [selectedWeekId, setSelectedWeekId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<GroupTab>('faith');
+  const [savingPrayerFocus, setSavingPrayerFocus] = useState(false);
   const [savingPrayer, setSavingPrayer] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -223,7 +225,9 @@ const SupportParticipantsPage: React.FC = () => {
     setLoading(true);
     setLoadError('');
     try {
-      const [participantsRes, faithRes, prayersRes] = await Promise.all([
+      // These five reads are independent — fire them in one parallel batch
+      // instead of waterfalling (each round-trip to eu-west-1 is ~300-900ms).
+      const [participantsRes, faithRes, prayerFocusRes, groupStatusInitial, prayerStatusRes] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id, supportId: user.id }).catch((err) => {
           console.error('Failed to load participants:', err);
           return { participants: [] as Participant[] };
@@ -232,23 +236,20 @@ const SupportParticipantsPage: React.FC = () => {
           console.error('Failed to load faith projects:', err);
           return { projects: [] as FaithProject[] };
         }),
-        groupPrayersApi.getForCohort(activeCohort.id).catch((err) => {
-          console.error('Failed to load group prayers:', err);
-          return { prayers: [] as GroupPrayer[] };
+        groupPrayerFocusApi.getForCohort(activeCohort.id).catch((err) => {
+          console.error('Failed to load prayer focuses:', err);
+          return { focuses: [] as GroupPrayerFocus[] };
         }),
-      ]);
-      let groupStatusRes = await groupOnboardingStatusApi
-        .getForSupport(user.id, activeCohort.id)
-        .catch((err) => {
+        groupOnboardingStatusApi.getForSupport(user.id, activeCohort.id).catch((err) => {
           console.error('Failed to load group statuses:', err);
           return { statuses: [] as GroupOnboardingStatus[] };
-        });
-      const prayerStatusRes = await groupPrayerStatusApi
-        .getForCohort(activeCohort.id)
-        .catch((err) => {
+        }),
+        groupPrayerStatusApi.getForCohort(activeCohort.id).catch((err) => {
           console.error('Failed to load prayer statuses:', err);
           return { statuses: [] as GroupPrayerStatus[] };
-        });
+        }),
+      ]);
+      let groupStatusRes = groupStatusInitial;
 
       if (participantsRes.participants.length === 0 && groupStatusRes.statuses.length === 0) {
         const { groups } = await groupsApi.getAll({ cohortId: activeCohort.id }).catch(() => ({ groups: [] as import('../types').Group[] }));
@@ -288,7 +289,7 @@ const SupportParticipantsPage: React.FC = () => {
       groupStatusRes.statuses.forEach((status) => fallbackGroups.set(status.groupId, status));
       setGroupStatuses(Array.from(fallbackGroups.values()));
       setFaithProjects(faithRes.projects);
-      setGroupPrayers(prayersRes.prayers);
+      setGroupPrayerFocuses(prayerFocusRes.focuses);
       setGroupPrayerStatuses(prayerStatusRes.statuses);
 
       const availableGroupIds = Array.from(new Set([
@@ -348,8 +349,34 @@ const SupportParticipantsPage: React.FC = () => {
   const onboardingComplete = !!selectedGroup?.completedAt;
 
   const selectedWeek = cohortWeeks.find((week) => week.id === selectedWeekId) ?? null;
-  const currentPrayer = groupPrayers.find((prayer) => prayer.weekId === selectedWeekId) ?? null;
+  const currentPrayerFocus = groupPrayerFocuses.find((focus) => focus.groupId === selectedGroupId && focus.weekId === selectedWeekId) ?? null;
   const currentPrayerStatus = groupPrayerStatuses.find((status) => status.groupId === selectedGroupId && status.weekId === selectedWeekId) ?? null;
+  const focusedParticipant = currentPrayerFocus
+    ? participants.find((participant) => participant.id === currentPrayerFocus.participantId) ?? null
+    : null;
+  const focusedProject = currentPrayerFocus
+    ? faithProjects.find((project) => project.participantId === currentPrayerFocus.participantId) ?? null
+    : null;
+
+  const setPrayerFocus = async (participantId: string) => {
+    if (!selectedGroupId || !selectedWeekId || !user.id) return;
+    setSavingPrayerFocus(true);
+    try {
+      if (!participantId) {
+        await groupPrayerFocusApi.clear(selectedGroupId, selectedWeekId);
+        setGroupPrayerFocuses((prev) => prev.filter((entry) => !(entry.groupId === selectedGroupId && entry.weekId === selectedWeekId)));
+        return;
+      }
+
+      const { focus } = await groupPrayerFocusApi.setFocus(selectedGroupId, selectedWeekId, participantId, user.id);
+      setGroupPrayerFocuses((prev) => {
+        const others = prev.filter((entry) => !(entry.groupId === focus.groupId && entry.weekId === focus.weekId));
+        return [...others, focus];
+      });
+    } finally {
+      setSavingPrayerFocus(false);
+    }
+  };
 
   const setPrayerDone = async (done: boolean) => {
     if (!selectedGroupId || !selectedWeekId || !user.id) return;
@@ -369,11 +396,11 @@ const SupportParticipantsPage: React.FC = () => {
     <div className="page-content">
       <PageHeader
         title="My Group"
-        subtitle="Stay inside your group workspace for faith projects and weekly group prayers."
+        subtitle="Your group's faith projects and weekly prayer check-ins."
       />
 
       {loading ? (
-        <p className="text-sm text-gray-400">Loading…</p>
+        <PageLoader />
       ) : loadError ? (
         <section className="surface-card p-6 text-center">
           <p className="text-sm text-red-600">{loadError}</p>
@@ -481,10 +508,49 @@ const SupportParticipantsPage: React.FC = () => {
                 <div className="mt-4 space-y-4">
                   <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
                     <p className="text-sm font-semibold text-gray-900">Week {selectedWeek.weekNumber}</p>
-                    <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-gray-700">
-                      {currentPrayer?.body || 'No prayer focus has been added for this week yet.'}
-                    </p>
+                    <div className="mt-3 max-w-md">
+                      <AppSelect
+                        value={currentPrayerFocus?.participantId ?? ''}
+                        onChange={(value) => { void setPrayerFocus(value); }}
+                        options={[
+                          { value: '', label: 'No focus selected', meta: 'Choose who your group will pray for' },
+                          ...selectedParticipants.map((participant) => ({
+                            value: participant.id,
+                            label: participant.fullName,
+                            meta: participant.phone || 'Group participant',
+                          })),
+                        ]}
+                        placeholder="Choose participant"
+                        label="Who are we praying for this week?"
+                        loading={savingPrayerFocus}
+                      />
+                    </div>
                   </div>
+
+                  {currentPrayerFocus ? (
+                    <div className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Prayer focus</p>
+                          <h4 className="mt-1 text-base font-bold text-gray-900">
+                            {focusedProject?.title || focusedParticipant?.fullName || currentPrayerFocus.participantName || 'Selected participant'}
+                          </h4>
+                        </div>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusCls(focusedProject?.status ?? 'NOT_DRAFTED')}`}>
+                          {statusLabel(focusedProject?.status ?? 'NOT_DRAFTED')}
+                        </span>
+                      </div>
+                      {focusedProject?.body ? (
+                        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-gray-700">{focusedProject.body}</p>
+                      ) : (
+                        <p className="mt-3 text-sm text-gray-500">No faith project drafted yet.</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-orange-200 py-8 text-center text-sm text-gray-500">
+                      Choose a participant to show their faith project as this week’s prayer focus.
+                    </div>
+                  )}
 
                   <div className="max-w-sm">
                     <AppSelect

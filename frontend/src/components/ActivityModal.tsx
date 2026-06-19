@@ -269,7 +269,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <label className="block text-sm font-medium text-gray-700">
-                    Labels (optional)
+                    Activity tags (optional)
                   </label>
                   <span className="text-xs text-gray-500">
                     Selected: {selectedLabelIds.length}

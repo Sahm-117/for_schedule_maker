@@ -12,7 +12,7 @@ import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
 
 const SupportProfilePage: React.FC = () => {
   const { user, userLabelIds } = useAuth();
-  const [supportGroups, setSupportGroups] = useState<Label[]>([]);
+  const [activityTags, setActivityTags] = useState<Label[]>([]);
   const { liveRevision } = useAppData();
   const wt = useWalkthrough('profile');
 
@@ -22,15 +22,15 @@ const SupportProfilePage: React.FC = () => {
 
   useEffect(() => {
     usersApi.getUserLabels(user.id)
-      .then((response) => setSupportGroups(response.labels))
-      .catch(() => setSupportGroups([]));
+      .then((response) => setActivityTags(response.labels))
+      .catch(() => setActivityTags([]));
   }, [liveRevision, user.id]);
 
   return (
     <div>
       <PageHeader
-        title={`${user.name.split(' ')[0]}'s Profile`}
-        subtitle="See your support groups, keep your details in view, and choose how you want reminders to reach you."
+        title="Profile"
+        subtitle="Your details, activity tags, and how you want to receive reminders."
         onHelp={wt.reopen}
       />
 
@@ -49,12 +49,12 @@ const SupportProfilePage: React.FC = () => {
           <div className="mt-6 space-y-3">
             <InfoRow label="Role" value={user.role} />
             <InfoRow
-              label="Support groups"
+              label="Activity tags"
               value={userLabelIds.length === 0 ? 'None assigned' : undefined}
-              content={supportGroups.length > 0 ? (
+              content={activityTags.length > 0 ? (
                 <div className="flex flex-wrap justify-end gap-1.5">
-                  {supportGroups.map((group) => (
-                    <LabelChip key={group.id} name={group.name} color={group.color} size="sm" />
+                  {activityTags.map((tag) => (
+                    <LabelChip key={tag.id} name={tag.name} color={tag.color} size="sm" />
                   ))}
                 </div>
               ) : undefined}
@@ -70,7 +70,7 @@ const SupportProfilePage: React.FC = () => {
       {wt.show && (
         <WalkthroughPopup
           steps={[
-            { targetSelector: '[data-wt="profile-groups"]', title: 'Your support groups', body: 'These are the groups you are assigned to. Your schedule and activities are filtered to these groups.', position: 'top' },
+            { targetSelector: '[data-wt="profile-groups"]', title: 'Your activity tags', body: 'These are the tags assigned to you. Your schedule and activities are filtered to these tags.', position: 'top' },
             { targetSelector: '[data-wt="profile-notifications"]', title: 'Reminder alerts', body: 'Set up reminder alerts here so you never miss a follow-up.', position: 'top' },
           ]}
           onDone={wt.done}

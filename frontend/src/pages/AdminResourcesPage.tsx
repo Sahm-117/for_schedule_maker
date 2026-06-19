@@ -10,7 +10,7 @@ const AdminResourcesPage: React.FC = () => {
     <div>
       <PageHeader
         title="Resources"
-        subtitle="Share links, upload files, and keep the team aligned with the latest materials."
+        subtitle="Share links and files with the support team."
       />
       <ResourceHubModal isOpen onClose={() => {}} embedded onViewed={markResourcesViewed} />
     </div>

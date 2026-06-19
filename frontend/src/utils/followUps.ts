@@ -36,12 +36,14 @@ export const CALL_STATUS_META: Record<FollowUpCallStatus, StatusMeta> = {
 };
 
 export const REGISTRATION_STATUS_META: Record<FollowUpRegistrationStatus, StatusMeta> = {
+  NOT_REGISTERED: { label: 'Not Registered', tone: 'bg-slate-100 text-slate-600' },
   NOT_INTERESTED: { label: 'Not Interested', tone: 'bg-rose-100/80 text-rose-700' },
   NOT_A_GOOD_TIME: { label: 'Not a Good Time', tone: 'bg-rose-100/80 text-rose-700' },
   NOT_A_TCN_MEMBER: { label: 'Not a TCN Member', tone: 'bg-rose-100/80 text-rose-700' },
   PENDING_CONFIRMATION: { label: 'Pending Confirmation', tone: 'bg-amber-100/80 text-amber-700' },
   REGISTERED: { label: 'Registered', tone: 'bg-emerald-100/80 text-emerald-700' },
   STILL_THINKING: { label: 'Still Thinking', tone: 'bg-violet-100/80 text-violet-700' },
+  NO_RESPONSE: { label: 'No Response', tone: 'bg-neutral-100 text-neutral-600' },
 };
 
 export const NEXT_ACTION_META: Record<FollowUpNextAction, StatusMeta> = {
@@ -95,7 +97,7 @@ export const isClosedContact = (c: FollowUpContact): boolean => {
 };
 
 export const isClosedRegistrationStatus = (status: FollowUpRegistrationStatus): boolean =>
-  status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME';
+  status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME' || status === 'NO_RESPONSE';
 
 export interface FollowUpMetrics {
   toContact: number;

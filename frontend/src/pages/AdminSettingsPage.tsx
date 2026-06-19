@@ -1,6 +1,5 @@
 import React from 'react';
 import PageHeader from '../components/PageHeader';
-import LabelManagement from '../components/LabelManagement';
 import NotificationSettings from '../components/NotificationSettings';
 import { useAppData } from '../context/AppDataContext';
 
@@ -19,7 +18,7 @@ const AdminSettingsPage: React.FC = () => {
     <div>
       <PageHeader
         title="Settings"
-        subtitle="Control digest behavior, notification timings, and support groups."
+        subtitle="Control digest settings and notification timings."
       />
 
       <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
@@ -59,8 +58,6 @@ const AdminSettingsPage: React.FC = () => {
 
         <NotificationSettings isOpen onClose={() => {}} embedded />
       </div>
-
-      <LabelManagement isOpen onClose={() => {}} embedded />
     </div>
   );
 };

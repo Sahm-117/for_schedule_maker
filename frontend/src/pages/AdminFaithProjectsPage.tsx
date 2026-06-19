@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { faithProjectsApi, participantsApi } from '../services/api';
@@ -66,7 +67,7 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, participant, exi
     <ModalShell
       isOpen={isOpen}
       onClose={onClose}
-      title={`Faith Project — ${participant.fullName}`}
+      title={`Faith project: ${participant.fullName}`}
       footer={
         <>
           <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
@@ -184,7 +185,7 @@ const AdminFaithProjectsPage: React.FC = () => {
   return (
     <div className="page-content">
       <PageHeader
-        title="Faith Projects"
+        title="Faith projects"
         subtitle={activeCohort ? activeCohort.name : 'No active cohort'}
       />
 
@@ -221,7 +222,7 @@ const AdminFaithProjectsPage: React.FC = () => {
           </div>
 
           {loading ? (
-            <p className="text-sm text-gray-400">Loading…</p>
+            <PageLoader />
           ) : displayed.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
               <p className="text-sm text-gray-500">No participants match your filter.</p>

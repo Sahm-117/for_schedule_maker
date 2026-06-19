@@ -230,8 +230,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </div>
-          <h3 className="text-base font-semibold text-gray-900 mb-1">No support group assigned yet</h3>
-          <p className="text-sm text-gray-500">Ask your admin to assign you to a support group so you can see your activities.</p>
+          <h3 className="text-base font-semibold text-gray-900 mb-1">No activity tag assigned yet</h3>
+          <p className="text-sm text-gray-500">Ask your admin to assign you to an activity tag so you can see your activities.</p>
         </div>
       )}
 
@@ -243,7 +243,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
             </svg>
           </div>
           <h3 className="text-base font-semibold text-gray-900 mb-1">{noActivitiesTitle || 'No activities for you in this view'}</h3>
-          <p className="text-sm text-gray-500">{noActivitiesText || `No activities tagged with your support group were found for Week ${week.weekNumber}. Check back later or browse other days.`}</p>
+          <p className="text-sm text-gray-500">{noActivitiesText || `No activities with your activity tags were found for Week ${week.weekNumber}. Check back later or browse other days.`}</p>
         </div>
       )}
 

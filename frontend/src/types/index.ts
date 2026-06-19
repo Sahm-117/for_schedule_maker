@@ -72,6 +72,7 @@ export interface Week {
   id: number;
   cohortId: string;
   weekNumber: number;
+  title?: string | null;
   days: Day[];
 }
 
@@ -193,6 +194,7 @@ export type FollowUpContactUpdate = Partial<Pick<
   | 'notes'
   | 'cohortId'
   | 'dueDate'
+  | 'archivedAt'
 >> & {
   previousOwnerId?: string | null;
 };
@@ -370,6 +372,20 @@ export interface GroupPrayerStatus {
   done: boolean;
   markedById?: string | null;
   markedAt?: string;
+}
+
+export interface GroupPrayerFocus {
+  id: string;
+  groupId: string;
+  groupName?: string | null;
+  weekId: number;
+  weekNumber?: number;
+  participantId: string;
+  participantName?: string | null;
+  setById?: string | null;
+  setByName?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface DailyDigestCursor {

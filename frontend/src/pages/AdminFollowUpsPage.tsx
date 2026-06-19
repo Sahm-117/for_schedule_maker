@@ -28,6 +28,7 @@ import {
   REGISTRATION_STATUS_META,
   NEXT_ACTION_META,
   isClosedContact,
+  isClosedRegistrationStatus,
 } from '../utils/followUps';
 
 type Tab = 'overview' | 'contacts' | 'messages' | 'issues';
@@ -179,12 +180,12 @@ const AdminFollowUpsPage: React.FC = () => {
         if (patch.registrationStatus === 'REGISTERED') {
           patch.replyStatus = 'REPLIED';
           patch.nextAction = 'CLOSE';
-        } else if (patch.registrationStatus === 'NOT_INTERESTED' || patch.registrationStatus === 'NOT_A_TCN_MEMBER' || patch.registrationStatus === 'NOT_A_GOOD_TIME') {
+        } else if (isClosedRegistrationStatus(patch.registrationStatus)) {
           patch.replyStatus = 'REPLIED';
           patch.nextAction = 'CLOSE';
         } else if (
-          (contact.registrationStatus === 'NOT_INTERESTED' || contact.registrationStatus === 'NOT_A_TCN_MEMBER' || contact.registrationStatus === 'NOT_A_GOOD_TIME' || contact.registrationStatus === 'NO_RESPONSE') &&
-          patch.registrationStatus !== 'NOT_INTERESTED' && patch.registrationStatus !== 'NOT_A_TCN_MEMBER' && patch.registrationStatus !== 'NOT_A_GOOD_TIME' && patch.registrationStatus !== 'NO_RESPONSE' && patch.registrationStatus !== 'REGISTERED'
+          isClosedRegistrationStatus(contact.registrationStatus) &&
+          !isClosedRegistrationStatus(patch.registrationStatus)
         ) {
           patch.nextAction = 'SEND_MESSAGE';
           patch.archivedAt = null;

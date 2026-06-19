@@ -1,7 +1,14 @@
-import jsPDF from 'jspdf';
+import type jsPDF from 'jspdf';
 import type { Week } from '../types';
 import { compareTimeStrings } from './time';
 import { getContrastingTextColor, hexToRgb, normalizeHexColor } from './color';
+
+// jsPDF is heavy (~hundreds of KB). Load it on demand so it stays out of the
+// initial bundle — only users who actually export a PDF pay the cost.
+const loadJsPdf = async (): Promise<typeof jsPDF> => {
+  const mod = await import('jspdf');
+  return mod.default;
+};
 
 interface ExportOptions {
   includeEmptyDays?: boolean;
@@ -27,8 +34,13 @@ const loadPublicPngAsDataUrl = async (path: string): Promise<string | null> => {
   }
 };
 
+type Rgb = [number, number, number];
+
 // Clean design colors - FOF brand focused
-const COLORS = {
+const COLORS: {
+  brand: Record<'orange' | 'text' | 'lightText' | 'line', Rgb>;
+  periods: Record<'morning' | 'afternoon' | 'evening', Rgb>;
+} = {
   brand: {
     orange: [255, 145, 77],    // FOF Orange
     text: [51, 51, 51],        // Dark gray text
@@ -129,9 +141,9 @@ const drawLabelChips = (pdf: jsPDF, labels: Array<{ name: string; color: string 
 
   for (const label of labels) {
     const bg = normalizeHexColor(label.color) || '#E5E7EB';
-    const rgb = hexToRgb(bg) || [229, 231, 235];
+    const rgb: Rgb = hexToRgb(bg) || [229, 231, 235];
     const fg = getContrastingTextColor(bg);
-    const textRgb = fg === '#FFFFFF' ? [255, 255, 255] : [0, 0, 0];
+    const textRgb: Rgb = fg === '#FFFFFF' ? [255, 255, 255] : [0, 0, 0];
 
     const textW = pdf.getTextWidth(label.name);
     const chipW = Math.min(maxWidth, textW + chipPadX * 2 + 2);
@@ -152,7 +164,7 @@ const drawLabelChips = (pdf: jsPDF, labels: Array<{ name: string; color: string 
     }
 
     // Text
-    pdf.setTextColor(...(textRgb as any));
+    pdf.setTextColor(...textRgb);
     // jsPDF positions text by baseline; nudge up for visual centering within the pill.
     pdf.text(label.name, x + chipPadX, y - 1);
 
@@ -204,7 +216,8 @@ const exportScheduleToPDF = async (week: Week, options: ExportOptions = {}) => {
   const isPersonal = Array.isArray(filterLabelIds) && filterLabelIds.length > 0;
 
   // Create clean timeline PDF
-  const pdf = new jsPDF({
+  const JsPdf = await loadJsPdf();
+  const pdf = new JsPdf({
     orientation: format,
     unit: 'mm',
     format: 'a4'
@@ -311,7 +324,7 @@ const exportScheduleToPDF = async (week: Week, options: ExportOptions = {}) => {
       }
 
       // Determine border color based on period
-      let borderColor: number[];
+      let borderColor: Rgb;
       switch (activity.period) {
         case 'MORNING':
           borderColor = COLORS.periods.morning;
@@ -409,7 +422,8 @@ export const exportDayToPDF = async (week: Week, day: Week['days'][number], opti
 export const exportAllWeeksToPDF = async (weeks: Week[], options: ExportOptions = {}) => {
   const { format = 'portrait' } = options;
 
-  const pdf = new jsPDF({
+  const JsPdf = await loadJsPdf();
+  const pdf = new JsPdf({
     orientation: format,
     unit: 'mm',
     format: 'a4'

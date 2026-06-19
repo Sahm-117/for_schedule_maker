@@ -32,9 +32,10 @@ export const parseBulkPaste = (text: string, existingPhones: Set<string>): Impor
     } else {
       const phoneMatch = line.match(/([+\d][\d\s()+-]{8,})/);
       if (phoneMatch) {
-        name = line.slice(0, phoneMatch.index).trim().replace(/[,;:]+$/, '');
+        const phoneIndex = phoneMatch.index ?? 0;
+        name = line.slice(0, phoneIndex).trim().replace(/[,;:]+$/, '');
         phone = phoneMatch[1].trim();
-        source = line.slice(phoneMatch.index + phoneMatch[1].length).trim() || undefined;
+        source = line.slice(phoneIndex + phoneMatch[1].length).trim() || undefined;
       }
     }
     const intl = normalizeToIntlPhone(phone);

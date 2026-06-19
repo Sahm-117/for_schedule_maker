@@ -47,13 +47,13 @@ const adminNav: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: ICONS.dashboard },
   { to: '/schedule', label: 'Schedule', icon: ICONS.schedule },
   { to: '/approvals', label: 'Approvals', icon: ICONS.approvals },
-  { to: '/activity-overview', label: 'Activity Overview', icon: ICONS.overview, adminOnly: true },
+  { to: '/activity-overview', label: 'Activity overview', icon: ICONS.overview, adminOnly: true },
   { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
   { to: '/participants', label: 'Participants', icon: ICONS.participants, adminOnly: true },
   { to: '/groups', label: 'Groups', icon: ICONS.groups, adminOnly: true },
   { to: '/attendance', label: 'Attendance', icon: ICONS.attendance, adminOnly: true },
-  { to: '/faith-projects', label: 'Faith Projects', icon: ICONS.faith, adminOnly: true },
-  { to: '/group-prayers', label: 'Group Prayers', icon: ICONS.prayer, adminOnly: true },
+  { to: '/faith-projects', label: 'Faith projects', icon: ICONS.faith, adminOnly: true },
+  { to: '/group-prayers', label: 'Group prayers', icon: ICONS.prayer, adminOnly: true },
   { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
   { to: '/onboarding', label: 'Onboarding', icon: ICONS.onboarding, adminOnly: true },
   { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
@@ -386,7 +386,7 @@ const AppShell: React.FC = () => {
         </div>
       </nav>
 
-      {walkthroughDone && <PWAInstallBanner />}
+      <PWAInstallBanner />
     </div>
   );
 };

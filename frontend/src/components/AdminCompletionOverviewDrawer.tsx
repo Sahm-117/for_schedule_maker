@@ -115,7 +115,7 @@ const AdminCompletionOverviewDrawer: React.FC<AdminCompletionOverviewDrawerProps
 
               {assignedSupports.length === 0 ? (
                 <div className="mt-4 rounded-2xl border border-dashed border-gray-200 bg-slate-50 px-3 py-3 text-sm text-gray-500">
-                  No support users are mapped to this activity’s support groups yet.
+                  No support users are mapped to this activity’s tags yet.
                 </div>
               ) : (
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">

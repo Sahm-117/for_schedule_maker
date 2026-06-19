@@ -12,7 +12,7 @@ import type { Activity, Announcement, Resource, SupportActivityCompletion, User 
 const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
 
 const AdminDashboardPage: React.FC = () => {
-  const { user, isAdmin, isSopPreparer } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { activeCohort, weeks, selectedWeek, globalPendingChanges, realtimeHealthy, digestEnabled, newResourceCount, liveRevision } = useAppData();
   const [users, setUsers] = useState<User[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -85,7 +85,7 @@ const AdminDashboardPage: React.FC = () => {
     <div>
       <PageHeader
         title="Dashboard"
-        subtitle="Operational overview for schedule updates, team readiness, and shared resources."
+        subtitle="A quick look at the programme, your team, and shared files."
         action={activeWeek ? (
           <div className="surface-muted px-4 py-3 text-sm text-gray-700">
             <span className="font-semibold text-gray-900">Active focus:</span> {activeCohort?.name ? `${activeCohort.name} • ` : ''}Week {activeWeek.weekNumber}
@@ -112,10 +112,10 @@ const AdminDashboardPage: React.FC = () => {
       </section>
 
       <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard title="Weeks Loaded" value={weeks.length} detail="Programme structure currently available" />
-        <SummaryCard title="Today’s Activities" value={todayActivities.length} detail={todaysDay ? `${todaysDay.dayName} in Week ${activeWeek?.weekNumber}` : 'No day selected'} />
+        <SummaryCard title="Weeks set up" value={weeks.length} detail="Programme weeks available so far" />
+        <SummaryCard title="Today's activities" value={todayActivities.length} detail={todaysDay ? `${todaysDay.dayName} in Week ${activeWeek?.weekNumber}` : 'No day selected'} />
         <SummaryCard title="Resources" value={resources.length} detail={newResourceCount > 0 ? `+${newResourceCount} new since the last check` : 'No new additions right now'} />
-        <SummaryCard title="System State" value={realtimeHealthy ? 'Live' : 'Polling'} detail={digestEnabled ? 'Digest enabled' : 'Digest paused'} />
+        <SummaryCard title="Live updates" value={realtimeHealthy ? 'Live' : 'Catching up'} detail={digestEnabled ? 'Digest enabled' : 'Digest paused'} />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.9fr]">
@@ -258,7 +258,7 @@ const AdminActivityCompletionStatus: React.FC<{
   if ((activity.labels || []).length === 0) {
     return (
       <div className="mt-3 rounded-2xl border border-dashed border-gray-200 bg-white/70 px-3 py-3 text-xs text-gray-500">
-        No support group is assigned to this activity yet.
+        No activity tag is assigned to this activity yet.
       </div>
     );
   }
@@ -266,7 +266,7 @@ const AdminActivityCompletionStatus: React.FC<{
   if (assignedSupports.length === 0) {
     return (
       <div className="mt-3 rounded-2xl border border-dashed border-gray-200 bg-white/70 px-3 py-3 text-xs text-gray-500">
-        No support users are assigned to the selected support groups for this activity.
+        No support users are assigned to the selected activity tags for this activity.
       </div>
     );
   }

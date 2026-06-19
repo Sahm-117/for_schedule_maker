@@ -46,7 +46,7 @@ const AdminAnnouncementsPage: React.FC = () => {
     <div>
       <PageHeader
         title="Announcements"
-        subtitle="Broadcast updates and urgent information to support users."
+        subtitle="Send updates and urgent messages to support users."
         action={(
           <button
             type="button"

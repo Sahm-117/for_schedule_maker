@@ -21,7 +21,7 @@ const registerSubscription = async (userId: string) => {
   if (existing) await existing.unsubscribe()
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY!),
+    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY!).buffer as ArrayBuffer,
   })
   await pushSubscriptionsApi.save(userId, subscription.toJSON())
 }

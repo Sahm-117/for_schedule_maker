@@ -6,18 +6,54 @@ import LabelChip from '../components/LabelChip';
 import { PeriodBadge } from '../components/PeriodIcon';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, followUpContactsApi, resourcesApi } from '../services/api';
-import type { Announcement } from '../types';
-import { getCurrentProgramDayName } from '../utils/schedule';
+import { announcementsApi, faithProjectsApi, participantsApi, resourcesApi } from '../services/api';
+import type { Announcement, FaithProject, Participant } from '../types';
+import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { useWalkthrough } from '../hooks/useWalkthrough';
 import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
+
+type HomeActivity = {
+  id: number;
+  description: string;
+  time: string;
+  period: string;
+  labels?: Array<{ id: string; name: string; color: string }>;
+  dayName: string;
+  dayIndex: number;
+};
+
+const parseTimeToMinutes = (value: string): number => {
+  const raw = value.trim().toLowerCase();
+  const meridiemMatch = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/);
+  if (meridiemMatch) {
+    let hours = Number(meridiemMatch[1]) % 12;
+    const minutes = Number(meridiemMatch[2] ?? '0');
+    if (meridiemMatch[3] === 'pm') hours += 12;
+    return hours * 60 + minutes;
+  }
+
+  const simpleMatch = raw.match(/^(\d{1,2}):(\d{2})$/);
+  if (simpleMatch) {
+    return Number(simpleMatch[1]) * 60 + Number(simpleMatch[2]);
+  }
+
+  return Number.MAX_SAFE_INTEGER;
+};
+
+const isPrayerActivity = (activity: Pick<HomeActivity, 'description'>) => /group prayer|prayer/i.test(activity.description);
+
+const formatActivityMoment = (activity: Pick<HomeActivity, 'dayName' | 'time'> | null) => {
+  if (!activity) return 'Not set';
+  return `${activity.dayName}, ${activity.time}`;
+};
 
 const SupportHomePage: React.FC = () => {
   const { user, userLabelIds, userCohortIds } = useAuth();
   const { activeCohort, selectedWeek, weeks, newResourceCount, liveRevision } = useAppData();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [resourceCount, setResourceCount] = useState(0);
-  const [followUpCount, setFollowUpCount] = useState(0);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [faithProjects, setFaithProjects] = useState<FaithProject[]>([]);
 
   const wt = useWalkthrough('home');
 
@@ -38,22 +74,24 @@ const SupportHomePage: React.FC = () => {
   }, [liveRevision]);
 
   useEffect(() => {
-    if (!user) return;
-    followUpContactsApi.getAll({ ownerId: user.id, archived: false })
-      .then((res) => {
-        const active = res.contacts.filter((c) => {
-          if (c.nextAction === 'CLOSE') return false;
-          if (c.registrationStatus === 'NOT_INTERESTED' || c.registrationStatus === 'NOT_A_TCN_MEMBER') return false;
-          return true;
-        });
-        setFollowUpCount(active.length);
+    if (!user || !activeCohort) {
+      setParticipants([]);
+      setFaithProjects([]);
+      return;
+    }
+    Promise.all([
+      participantsApi.getAll({ cohortId: activeCohort.id, supportId: user.id }).catch(() => ({ participants: [] as Participant[] })),
+      faithProjectsApi.getAll({ cohortId: activeCohort.id }).catch(() => ({ projects: [] as FaithProject[] })),
+    ])
+      .then(([participantsRes, faithProjectsRes]) => {
+        setParticipants(participantsRes.participants);
+        setFaithProjects(faithProjectsRes.projects);
       })
-      .catch(() => setFollowUpCount(0));
-  }, [user, liveRevision]);
-
-  const isCohortActive = activeCohort?.startDate && activeCohort?.endDate
-    ? new Date() >= new Date(activeCohort.startDate) && new Date() <= new Date(activeCohort.endDate)
-    : false;
+      .catch(() => {
+        setParticipants([]);
+        setFaithProjects([]);
+      });
+  }, [activeCohort, user, liveRevision]);
 
   if (user?.role !== 'SUPPORT') {
     return <Navigate to="/dashboard" replace />;
@@ -61,39 +99,76 @@ const SupportHomePage: React.FC = () => {
 
   const activeWeek = selectedWeek || weeks[0] || null;
   const todayName = getCurrentProgramDayName();
+  const todayIndex = getProgramDayIndex(todayName);
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const cohortWeeks = useMemo(
+    () => (weeks ?? []).filter((week) => week.cohortId === activeCohort?.id).sort((a, b) => a.weekNumber - b.weekNumber),
+    [weeks, activeCohort]
+  );
+  const currentWeekPosition = activeWeek ? cohortWeeks.findIndex((week) => week.id === activeWeek.id) + 1 : 0;
+
   const myActivities = useMemo(() => {
     if (!activeWeek || userLabelIds.length === 0) return [];
     return activeWeek.days.flatMap((day) =>
       day.activities
         .filter((activity) => activity.labels?.some((label) => userLabelIds.includes(label.id)))
-        .map((activity) => ({ ...activity, dayName: day.dayName })),
+        .map((activity) => ({
+          ...activity,
+          dayName: day.dayName,
+          dayIndex: getProgramDayIndex(day.dayName),
+        })),
     );
   }, [activeWeek, userLabelIds]);
   const todayActivities = myActivities.filter((activity) => activity.dayName === todayName);
+  const upcomingActivities = useMemo(
+    () => [...myActivities]
+      .filter((activity) => activity.dayIndex > todayIndex || (activity.dayIndex === todayIndex && parseTimeToMinutes(activity.time) >= currentMinutes))
+      .sort((a, b) => {
+        if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
+        return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
+      }),
+    [currentMinutes, myActivities, todayIndex]
+  );
+  const nextGroupPrayer = upcomingActivities.find((activity) => isPrayerActivity(activity)) ?? null;
+  const draftedProjectCount = useMemo(() => {
+    const participantIds = new Set(participants.map((participant) => participant.id));
+    return faithProjects.filter((project) => participantIds.has(project.participantId) && project.status !== 'NOT_DRAFTED').length;
+  }, [faithProjects, participants]);
+  const nextClassTitle = activeWeek?.title?.trim() || 'Not set';
 
   return (
     <div>
       <PageHeader
         title={`Welcome back, ${user.name.split(' ')[0]}`}
-        subtitle={activeCohort ? `${activeCohort.name} is active right now. Here is what is lined up for you.` : 'Here is what is lined up for you today.'}
+        subtitle={activeCohort ? `${activeCohort.name} is running. Here is what is lined up for you.` : 'Here is what is lined up for you today.'}
         onHelp={wt.reopen}
       />
 
-      <section data-wt="home-metrics" className="surface-card mb-6 overflow-hidden bg-gradient-to-br from-slate-900 to-slate-700 text-white">
-        <div className="grid gap-6 px-6 py-6 sm:px-8 lg:grid-cols-[1.35fr_1fr]">
-          <div>
-            <p className="text-sm text-white/75">Welcome back</p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight">{user.name}</h2>
+      <section data-wt="home-metrics" className="mb-6 rounded-[24px] border border-orange-100 bg-[radial-gradient(circle_at_top,_rgba(251,146,60,0.14),_transparent_52%),linear-gradient(180deg,_#fffaf5_0%,_#ffffff_76%)] px-4 py-4 shadow-sm sm:px-5">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary/80">Programme progress</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-tight text-gray-950">
+                {activeWeek ? `Week ${activeWeek.weekNumber}` : 'No week selected'}
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                {cohortWeeks.length > 0 && currentWeekPosition > 0
+                  ? `${currentWeekPosition} of ${cohortWeeks.length}`
+                  : 'Your current cohort timeline will show here once weeks are available.'}
+              </p>
+            </div>
+            <NavLink to="/support/schedule" className="whitespace-nowrap text-xs font-semibold text-primary hover:text-primary-dark">
+              Open schedule
+            </NavLink>
           </div>
+
           <div className="grid grid-cols-2 gap-3">
-            <Metric title="My Activities" value={myActivities.length} to="/support/schedule" detail={activeWeek ? `Week ${activeWeek.weekNumber}` : 'Open schedule'} />
-            {isCohortActive ? (
-              <Metric title="My Group" value="Open" to="/support/participants" detail="Open your group workspace" />
-            ) : (
-              <Metric title="Number of follow ups" value={followUpCount} to="/support/follow-ups" detail={followUpCount > 0 ? `You have ${followUpCount} contact${followUpCount !== 1 ? 's' : ''} to follow up` : 'No pending follow-ups'} />
-            )}
-            <Metric title="Resources" value={resourceCount} to="/support/resources" detail={newResourceCount > 0 ? `+${newResourceCount} new since your last visit` : 'Open the Resource Hub'} />
-            <Metric title="Announcements" value={announcements.length} to="/support/announcements" detail="Open updates" />
+            <QuickStat title="Activities today" value={todayActivities.length} detail={todayName} to="/support/schedule" accent="orange" />
+            <QuickStat title="Next Group Prayer" value={formatActivityMoment(nextGroupPrayer)} detail={nextGroupPrayer ? 'Prayer slot ahead' : 'No prayer slot found'} to="/support/participants" accent="rose" />
+            <QuickStat title="Faith Projects" value={`${draftedProjectCount}/${participants.length}`} detail={participants.length > 0 ? 'Participants drafted' : 'No participants yet'} to="/support/participants" accent="emerald" />
+            <QuickStat title="Next class" value={nextClassTitle} detail={activeWeek ? `Week ${activeWeek.weekNumber}` : 'No week selected'} to="/support/schedule" accent="sky" />
           </div>
         </div>
       </section>
@@ -102,14 +177,14 @@ const SupportHomePage: React.FC = () => {
         <div data-wt="home-schedule" className="surface-card p-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">My schedule highlights</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Today's plan</h3>
               <p className="text-sm text-gray-500">{activeWeek ? `${todayName} in Week ${activeWeek.weekNumber}` : 'No week selected'}</p>
             </div>
             <NavLink to="/support/schedule" className="text-sm font-semibold text-primary hover:text-primary-dark">Open schedule</NavLink>
           </div>
-          <div className="space-y-3">
+            <div className="space-y-3">
             {todayActivities.length === 0 ? (
-              <EmptyState text={userLabelIds.length === 0 ? 'You have not been assigned to any support group yet.' : 'No matching activities were found in the current week.'} />
+              <EmptyState text={userLabelIds.length === 0 ? 'No activities are assigned to your tags yet.' : 'Nothing scheduled for you today in this week.'} />
             ) : todayActivities.slice(0, 6).map((activity) => (
               <div key={`${activity.id}-${activity.dayName}`} className="surface-muted rounded-2xl px-4 py-4">
                 <div className="flex items-start justify-between gap-4">
@@ -134,11 +209,11 @@ const SupportHomePage: React.FC = () => {
         <div className="space-y-6">
           <div className="surface-card p-6">
             <div className="mb-4 flex items-center justify-between">
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-lg font-semibold text-gray-900">Recent announcements</h3>
                 <p className="text-sm text-gray-500">Messages meant for you and your team.</p>
               </div>
-              <NavLink to="/support/announcements" className="text-sm font-semibold text-primary hover:text-primary-dark">View all</NavLink>
+              <NavLink to="/support/announcements" className="whitespace-nowrap text-xs font-semibold text-primary hover:text-primary-dark">View all</NavLink>
             </div>
             <div className="space-y-3">
               {announcements.length === 0 ? (
@@ -155,10 +230,10 @@ const SupportHomePage: React.FC = () => {
           <div className="surface-card p-6">
             <h3 className="text-lg font-semibold text-gray-900">Quick links</h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <QuickLink to="/support/participants" label="Open My Group" />
-              <QuickLink to="/support/resources" label="Browse Resource Hub" />
+              <QuickLink to="/support/participants" label="My group" />
+              <QuickLink to="/support/resources" label="Browse resources" />
               <QuickLink to="/support/announcements" label="View announcements" />
-              <QuickLink to="/support/follow-ups" label="My Follow-ups" />
+              <QuickLink to="/support/follow-ups" label="My follow-ups" />
               <QuickLink to="/support/profile" label="Profile & alerts" />
             </div>
           </div>
@@ -168,7 +243,7 @@ const SupportHomePage: React.FC = () => {
       {wt.show && (
         <WalkthroughPopup
           steps={[
-            { targetSelector: '[data-wt="home-metrics"]', title: 'Your numbers', body: 'Your key numbers are here. Tap any tile to jump straight to that section. The tiles change based on whether the programme is running.', position: 'bottom' },
+            { targetSelector: '[data-wt="home-metrics"]', title: 'Your week at a glance', body: 'This top section shows where you are in the cohort and the most useful next numbers to check before you move.', position: 'bottom' },
             { targetSelector: '[data-wt="home-schedule"]', title: "Today's activities", body: 'Your activities for today show up here. Tap "Open schedule" to see the full week and mark things done.', position: 'top' },
           ]}
           onDone={wt.done}
@@ -179,18 +254,31 @@ const SupportHomePage: React.FC = () => {
   );
 };
 
-const Metric: React.FC<{ title: string; value: React.ReactNode; to: string; detail: string }> = ({ title, value, to, detail }) => (
-  <NavLink to={to} className="rounded-2xl bg-white/10 px-4 py-4 backdrop-blur-sm transition hover:bg-white/15">
-    <p className="text-xs uppercase tracking-wide text-white/70">{title}</p>
-    <p className="mt-2 text-2xl font-bold text-white">{value}</p>
-    <p className="mt-2 text-xs text-white/70">{detail}</p>
-  </NavLink>
-);
-
 const EmptyState: React.FC<{ text: string }> = ({ text }) => (
   <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/50 px-4 py-8 text-center text-sm text-gray-500">
     {text}
   </div>
+);
+
+const QUICK_STAT_ACCENTS = {
+  orange: 'bg-white text-gray-950 border-orange-100',
+  rose: 'bg-rose-50/70 text-gray-950 border-rose-100',
+  emerald: 'bg-emerald-50/70 text-gray-950 border-emerald-100',
+  sky: 'bg-sky-50/70 text-gray-950 border-sky-100',
+} as const;
+
+const QuickStat: React.FC<{
+  title: string;
+  value: React.ReactNode;
+  detail: string;
+  to: string;
+  accent: keyof typeof QUICK_STAT_ACCENTS;
+}> = ({ title, value, detail, to, accent }) => (
+  <NavLink to={to} className={`min-h-[124px] rounded-2xl border px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-sm ${QUICK_STAT_ACCENTS[accent]}`}>
+    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">{title}</p>
+    <p className="mt-2 line-clamp-2 text-xl font-bold leading-tight text-gray-950 sm:text-2xl">{value}</p>
+    <p className="mt-2 line-clamp-2 text-xs text-gray-500">{detail}</p>
+  </NavLink>
 );
 
 const QuickLink: React.FC<{ to: string; label: string }> = ({ to, label }) => (

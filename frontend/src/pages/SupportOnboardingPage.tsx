@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
 import ModalShell from '../components/followups/ModalShell';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
@@ -11,6 +12,7 @@ import {
   messageTemplatesApi,
   participantOnboardingStatusApi,
   participantsApi,
+  usersApi,
 } from '../services/api';
 import { fillTemplate } from '../utils/followUps';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
@@ -19,6 +21,7 @@ import type {
   MessageTemplate,
   Participant,
   ParticipantOnboardingStatus,
+  User,
 } from '../types';
 
 type StatusKey = 'contacted' | 'addedToGroup' | 'introductionDone' | 'venueAcknowledged';
@@ -220,7 +223,7 @@ const OnboardingPicker: React.FC<OnboardingPickerProps> = ({
 
               {selected.imageUrl && (
                 <div className="mt-4">
-                  <img src={selected.imageUrl} alt={selected.imageName ?? 'template graphic'} className="mb-2 h-40 w-full rounded-xl object-cover" />
+                  <img src={selected.imageUrl} alt={selected.imageName ?? 'template graphic'} loading="lazy" className="mb-2 h-40 w-full rounded-xl object-cover" />
                   <p className="text-xs text-gray-400">{selected.imageName}</p>
                 </div>
               )}
@@ -277,6 +280,136 @@ const OnboardingPicker: React.FC<OnboardingPickerProps> = ({
   );
 };
 
+// Copy-only "Onboard a Support" section for coordinators.
+interface CoordinatorSectionProps {
+  coordinatorId: string;
+  coordinatorName?: string | null;
+}
+
+const CoordinatorSection: React.FC<CoordinatorSectionProps> = ({ coordinatorId, coordinatorName }) => {
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [supports, setSupports] = useState<User[]>([]);
+  const [selectedSupportId, setSelectedSupportId] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [copiedText, setCopiedText] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [{ templates: ts }, { users }] = await Promise.all([
+          messageTemplatesApi.getAll({ category: 'COORDINATOR' }),
+          usersApi.getAll(),
+        ]);
+        if (cancelled) return;
+        setTemplates(ts);
+        setSupports(users.filter((u) => u.role === 'SUPPORT' && u.id !== coordinatorId));
+      } catch { /* ignore */ }
+      finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [coordinatorId]);
+
+  const selectedSupport = supports.find((s) => s.id === selectedSupportId) ?? null;
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) ?? null;
+
+  const supportOptions = useMemo(
+    () => supports.map((s) => ({ value: s.id, label: s.name })),
+    [supports]
+  );
+
+  const filled = useMemo(() => {
+    if (!selectedTemplate) return '';
+    return fillTemplate(
+      selectedTemplate.body,
+      { fullName: selectedSupport?.name ?? '', phone: '', cohortVenue: '', cohortStartDate: null } as any,
+      '',
+      coordinatorName
+    );
+  }, [selectedTemplate, selectedSupport, coordinatorName]);
+
+  if (loading) return null;
+  if (templates.length === 0) return null;
+
+  return (
+    <section className="surface-card p-5">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Coordinator</p>
+        <h3 className="mt-1 text-lg font-bold text-gray-900">Onboard a Support</h3>
+        <p className="mt-1 text-sm text-gray-500">Pick a fellow support and a message, then copy it to send.</p>
+      </div>
+
+      <div className="mt-4 max-w-sm">
+        <AppSelect
+          value={selectedSupportId}
+          onChange={setSelectedSupportId}
+          options={supportOptions}
+          placeholder="Choose a support"
+          label="Support to onboard"
+        />
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        {templates.map((template) => (
+          <button
+            key={template.id}
+            type="button"
+            onClick={() => setSelectedTemplateId(template.id)}
+            className={`rounded-2xl border px-4 py-3 text-left transition ${selectedTemplateId === template.id ? 'border-orange-300 bg-orange-50' : 'border-orange-100 bg-white hover:bg-orange-50/50'}`}
+          >
+            <p className="text-sm font-semibold text-gray-900">{template.useCase}</p>
+            {template.whenToUse && <p className="mt-0.5 text-xs text-gray-400">{template.whenToUse}</p>}
+          </button>
+        ))}
+      </div>
+
+      {selectedTemplate && (
+        <div className="mt-4 rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Preview</p>
+          <p className="whitespace-pre-wrap text-sm text-gray-800">{filled}</p>
+
+          {selectedTemplate.imageUrl && (
+            <div className="mt-4">
+              <img src={selectedTemplate.imageUrl} alt={selectedTemplate.imageName ?? 'template graphic'} loading="lazy" className="mb-2 h-40 w-full rounded-xl object-cover" />
+              <p className="text-xs text-gray-400">{selectedTemplate.imageName}</p>
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard?.writeText(filled);
+                setCopiedText(true);
+                setTimeout(() => setCopiedText(false), 2000);
+              }}
+              className="rounded-2xl border border-orange-200 bg-white px-4 py-2 text-sm font-semibold text-primary hover:bg-orange-50"
+            >
+              {copiedText ? 'Copied!' : 'Copy text'}
+            </button>
+            {selectedTemplate.imageUrl && (
+              <button
+                type="button"
+                onClick={() => { void downloadImage(selectedTemplate.imageUrl!, selectedTemplate.imageName ?? 'graphic.jpg'); }}
+                className="rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50"
+              >
+                Download image
+              </button>
+            )}
+          </div>
+
+          {selectedTemplate.imageUrl && (
+            <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              Tip: Download the image first, then attach it in WhatsApp after it opens.
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+};
+
 const SupportOnboardingPage: React.FC = () => {
   const { user } = useAuth();
   const { activeCohort } = useAppData();
@@ -300,16 +433,15 @@ const SupportOnboardingPage: React.FC = () => {
 
     setLoading(true);
     try {
-      let [participantsRes, templatesRes] = await Promise.all([
+      // Independent reads — one parallel batch instead of a 4-step waterfall.
+      let [participantsRes, templatesRes, groupStatusRes, participantStatusRes] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id, supportId: user.id }),
         messageTemplatesApi.getAll({ category: 'ONBOARDING' }),
+        groupOnboardingStatusApi.getForSupport(user.id, activeCohort.id)
+          .catch(() => ({ statuses: [] as GroupOnboardingStatus[] })),
+        participantOnboardingStatusApi.getForSupport(user.id, activeCohort.id)
+          .catch(() => ({ statuses: [] as ParticipantOnboardingStatus[] })),
       ]);
-      let groupStatusRes = await groupOnboardingStatusApi
-        .getForSupport(user.id, activeCohort.id)
-        .catch(() => ({ statuses: [] as GroupOnboardingStatus[] }));
-      let participantStatusRes = await participantOnboardingStatusApi
-        .getForSupport(user.id, activeCohort.id)
-        .catch(() => ({ statuses: [] as ParticipantOnboardingStatus[] }));
 
       if (participantsRes.participants.length === 0 && groupStatusRes.statuses.length === 0) {
         const { groups } = await groupsApi.getAll({ cohortId: activeCohort.id });
@@ -455,12 +587,12 @@ const SupportOnboardingPage: React.FC = () => {
   return (
     <div className="page-content">
       <PageHeader
-        title="Onboard People"
-        subtitle="Check what your group still needs. Changes here update the list above."
+        title="Onboarding"
+        subtitle="See who still needs to be onboarded and send them a welcome message."
       />
 
       {loading ? (
-        <p className="text-sm text-gray-400">Loading…</p>
+        <PageLoader />
       ) : (
         <div className="space-y-6">
           {groupOptions.length > 1 && (
@@ -563,13 +695,20 @@ const SupportOnboardingPage: React.FC = () => {
                                   setActiveParticipantId(participant.id);
                                 }
                               }}
-                              className="min-w-0 cursor-pointer text-left"
+                              className="flex min-w-0 cursor-pointer items-start justify-between gap-3 text-left"
                             >
-                              <p className="text-base font-semibold text-gray-900">{participant.fullName}</p>
-                              <CopyPhoneButton phone={participant.phone} />
-                              <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                                {STAGE_LABELS[currentStage]}
-                              </p>
+                              <div className="min-w-0">
+                                <p className="text-base font-semibold text-gray-900">{participant.fullName}</p>
+                                <CopyPhoneButton phone={participant.phone} />
+                                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                  {STAGE_LABELS[currentStage]}
+                                </p>
+                              </div>
+                              <span className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-orange-50 text-gray-400">
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" />
+                                </svg>
+                              </span>
                             </div>
 
                             <div className="min-w-0">
@@ -594,6 +733,10 @@ const SupportOnboardingPage: React.FC = () => {
                 )}
               </section>
             </>
+          )}
+
+          {user.isCoordinator && (
+            <CoordinatorSection coordinatorId={user.id} coordinatorName={user.name} />
           )}
         </div>
       )}

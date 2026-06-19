@@ -17,7 +17,7 @@ const AdminApprovalsPage: React.FC = () => {
     <div>
       <PageHeader
         title="Approvals"
-        subtitle="Review and act on pending schedule change requests from SOP preparers."
+        subtitle="Review and act on pending schedule change requests."
       />
 
       <PendingChangesPanel

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -7,33 +7,45 @@ import AppShell from './components/AppShell';
 import { AppDataProvider } from './context/AppDataContext';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import SopDownload from './pages/SopDownload';
 import RootRedirect from './pages/RootRedirect';
-import AdminDashboardPage from './pages/AdminDashboardPage';
-import AdminSchedulePage from './pages/AdminSchedulePage';
-import AdminApprovalsPage from './pages/AdminApprovalsPage';
-import AdminUsersPage from './pages/AdminUsersPage';
-import AdminAnnouncementsPage from './pages/AdminAnnouncementsPage';
-import AdminResourcesPage from './pages/AdminResourcesPage';
-import AdminSettingsPage from './pages/AdminSettingsPage';
-import AnnouncementsFeedPage from './pages/AnnouncementsFeedPage';
-import ActivityOverviewPage from './pages/ActivityOverviewPage';
-import CohortsPage from './pages/CohortsPage';
-import AdminFollowUpsPage from './pages/AdminFollowUpsPage';
-import AdminParticipantsPage from './pages/AdminParticipantsPage';
-import AdminGroupsPage from './pages/AdminGroupsPage';
-import AdminAttendancePage from './pages/AdminAttendancePage';
-import AdminFaithProjectsPage from './pages/AdminFaithProjectsPage';
-import AdminGroupPrayersPage from './pages/AdminGroupPrayersPage';
-import SupportFollowUpsPage from './pages/SupportFollowUpsPage';
-import SupportAttendancePage from './pages/SupportAttendancePage';
-import SupportParticipantsPage from './pages/SupportParticipantsPage';
-import SupportHomePage from './pages/SupportHomePage';
-import SupportSchedulePage from './pages/SupportSchedulePage';
-import SupportResourcesPage from './pages/SupportResourcesPage';
-import SupportProfilePage from './pages/SupportProfilePage';
-import AdminOnboardingPage from './pages/AdminOnboardingPage';
-import SupportOnboardingPage from './pages/SupportOnboardingPage';
+
+// Lazy-loaded pages — each becomes its own chunk, so the initial load only
+// ships the shell + the route the user actually lands on.
+const SopDownload = lazy(() => import('./pages/SopDownload'));
+const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
+const AdminSchedulePage = lazy(() => import('./pages/AdminSchedulePage'));
+const AdminApprovalsPage = lazy(() => import('./pages/AdminApprovalsPage'));
+const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage'));
+const AdminAnnouncementsPage = lazy(() => import('./pages/AdminAnnouncementsPage'));
+const AdminResourcesPage = lazy(() => import('./pages/AdminResourcesPage'));
+const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
+const AnnouncementsFeedPage = lazy(() => import('./pages/AnnouncementsFeedPage'));
+const ActivityOverviewPage = lazy(() => import('./pages/ActivityOverviewPage'));
+const CohortsPage = lazy(() => import('./pages/CohortsPage'));
+const AdminFollowUpsPage = lazy(() => import('./pages/AdminFollowUpsPage'));
+const AdminParticipantsPage = lazy(() => import('./pages/AdminParticipantsPage'));
+const AdminGroupsPage = lazy(() => import('./pages/AdminGroupsPage'));
+const AdminAttendancePage = lazy(() => import('./pages/AdminAttendancePage'));
+const AdminFaithProjectsPage = lazy(() => import('./pages/AdminFaithProjectsPage'));
+const AdminGroupPrayersPage = lazy(() => import('./pages/AdminGroupPrayersPage'));
+const SupportFollowUpsPage = lazy(() => import('./pages/SupportFollowUpsPage'));
+const SupportAttendancePage = lazy(() => import('./pages/SupportAttendancePage'));
+const SupportParticipantsPage = lazy(() => import('./pages/SupportParticipantsPage'));
+const SupportHomePage = lazy(() => import('./pages/SupportHomePage'));
+const SupportSchedulePage = lazy(() => import('./pages/SupportSchedulePage'));
+const SupportResourcesPage = lazy(() => import('./pages/SupportResourcesPage'));
+const SupportProfilePage = lazy(() => import('./pages/SupportProfilePage'));
+const AdminOnboardingPage = lazy(() => import('./pages/AdminOnboardingPage'));
+const SupportOnboardingPage = lazy(() => import('./pages/SupportOnboardingPage'));
+
+const RouteFallback: React.FC = () => (
+  <div className="flex min-h-[60vh] items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+      <p className="mt-4 text-gray-600">Loading...</p>
+    </div>
+  </div>
+);
 
 function App() {
   return (
@@ -54,33 +66,33 @@ function App() {
             }
           >
             <Route index element={<RootRedirect />} />
-            <Route path="/dashboard" element={<AdminDashboardPage />} />
-            <Route path="/schedule" element={<AdminSchedulePage />} />
-            <Route path="/approvals" element={<AdminApprovalsPage />} />
-            <Route path="/users" element={<AdminUsersPage />} />
-            <Route path="/announcements" element={<AdminAnnouncementsPage />} />
-            <Route path="/team-announcements" element={<AnnouncementsFeedPage />} />
-            <Route path="/resources" element={<AdminResourcesPage />} />
-            <Route path="/settings" element={<AdminSettingsPage />} />
-            <Route path="/activity-overview" element={<ActivityOverviewPage />} />
-            <Route path="/cohorts" element={<CohortsPage />} />
-            <Route path="/follow-ups" element={<AdminFollowUpsPage />} />
-            <Route path="/participants" element={<AdminParticipantsPage />} />
-            <Route path="/groups" element={<AdminGroupsPage />} />
-            <Route path="/attendance" element={<AdminAttendancePage />} />
-            <Route path="/faith-projects" element={<AdminFaithProjectsPage />} />
-            <Route path="/group-prayers" element={<AdminGroupPrayersPage />} />
-            <Route path="/onboarding" element={<AdminOnboardingPage />} />
-            <Route path="/support/onboarding" element={<SupportOnboardingPage />} />
-            <Route path="/support/follow-ups" element={<SupportFollowUpsPage />} />
-            <Route path="/support/attendance" element={<SupportAttendancePage />} />
-            <Route path="/support/participants" element={<SupportParticipantsPage />} />
-            <Route path="/support" element={<SupportHomePage />} />
-            <Route path="/support/schedule" element={<SupportSchedulePage />} />
-            <Route path="/support/resources" element={<SupportResourcesPage />} />
-            <Route path="/support/announcements" element={<AnnouncementsFeedPage />} />
-            <Route path="/support/profile" element={<SupportProfilePage />} />
-            <Route path="/sop-download" element={<SopDownload />} />
+            <Route path="/dashboard" element={<Suspense fallback={<RouteFallback />}><AdminDashboardPage /></Suspense>} />
+            <Route path="/schedule" element={<Suspense fallback={<RouteFallback />}><AdminSchedulePage /></Suspense>} />
+            <Route path="/approvals" element={<Suspense fallback={<RouteFallback />}><AdminApprovalsPage /></Suspense>} />
+            <Route path="/users" element={<Suspense fallback={<RouteFallback />}><AdminUsersPage /></Suspense>} />
+            <Route path="/announcements" element={<Suspense fallback={<RouteFallback />}><AdminAnnouncementsPage /></Suspense>} />
+            <Route path="/team-announcements" element={<Suspense fallback={<RouteFallback />}><AnnouncementsFeedPage /></Suspense>} />
+            <Route path="/resources" element={<Suspense fallback={<RouteFallback />}><AdminResourcesPage /></Suspense>} />
+            <Route path="/settings" element={<Suspense fallback={<RouteFallback />}><AdminSettingsPage /></Suspense>} />
+            <Route path="/activity-overview" element={<Suspense fallback={<RouteFallback />}><ActivityOverviewPage /></Suspense>} />
+            <Route path="/cohorts" element={<Suspense fallback={<RouteFallback />}><CohortsPage /></Suspense>} />
+            <Route path="/follow-ups" element={<Suspense fallback={<RouteFallback />}><AdminFollowUpsPage /></Suspense>} />
+            <Route path="/participants" element={<Suspense fallback={<RouteFallback />}><AdminParticipantsPage /></Suspense>} />
+            <Route path="/groups" element={<Suspense fallback={<RouteFallback />}><AdminGroupsPage /></Suspense>} />
+            <Route path="/attendance" element={<Suspense fallback={<RouteFallback />}><AdminAttendancePage /></Suspense>} />
+            <Route path="/faith-projects" element={<Suspense fallback={<RouteFallback />}><AdminFaithProjectsPage /></Suspense>} />
+            <Route path="/group-prayers" element={<Suspense fallback={<RouteFallback />}><AdminGroupPrayersPage /></Suspense>} />
+            <Route path="/onboarding" element={<Suspense fallback={<RouteFallback />}><AdminOnboardingPage /></Suspense>} />
+            <Route path="/support/onboarding" element={<Suspense fallback={<RouteFallback />}><SupportOnboardingPage /></Suspense>} />
+            <Route path="/support/follow-ups" element={<Suspense fallback={<RouteFallback />}><SupportFollowUpsPage /></Suspense>} />
+            <Route path="/support/attendance" element={<Suspense fallback={<RouteFallback />}><SupportAttendancePage /></Suspense>} />
+            <Route path="/support/participants" element={<Suspense fallback={<RouteFallback />}><SupportParticipantsPage /></Suspense>} />
+            <Route path="/support" element={<Suspense fallback={<RouteFallback />}><SupportHomePage /></Suspense>} />
+            <Route path="/support/schedule" element={<Suspense fallback={<RouteFallback />}><SupportSchedulePage /></Suspense>} />
+            <Route path="/support/resources" element={<Suspense fallback={<RouteFallback />}><SupportResourcesPage /></Suspense>} />
+            <Route path="/support/announcements" element={<Suspense fallback={<RouteFallback />}><AnnouncementsFeedPage /></Suspense>} />
+            <Route path="/support/profile" element={<Suspense fallback={<RouteFallback />}><SupportProfilePage /></Suspense>} />
+            <Route path="/sop-download" element={<Suspense fallback={<RouteFallback />}><SopDownload /></Suspense>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

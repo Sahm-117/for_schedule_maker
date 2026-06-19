@@ -3,6 +3,7 @@ import { labelsApi } from '../services/api';
 import type { Label } from '../types';
 import { deltaE76, normalizeHexColor } from '../utils/color';
 import LabelChip from './LabelChip';
+import AppOverflowMenu from './AppOverflowMenu';
 
 interface LabelManagementProps {
   isOpen: boolean;
@@ -35,8 +36,8 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
       const res = await labelsApi.getAll();
       setLabels(res.labels || []);
     } catch (e: any) {
-      console.error('Failed to load labels:', e);
-      setError(e?.message || 'Failed to load labels');
+      console.error('Failed to load tags:', e);
+      setError(e?.message || 'Failed to load tags');
     } finally {
       setLoading(false);
     }
@@ -59,7 +60,7 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
     const trimmedName = name.trim();
     const normalizedColor = normalizeHexColor(color);
     if (!trimmedName) {
-      throw new Error('Label name is required');
+      throw new Error('Tag name is required');
     }
     if (!normalizedColor) {
       throw new Error('Color must be a hex value like #RRGGBB');
@@ -99,16 +100,16 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
       const conflict = findSimilarColorConflict(input.color);
       if (conflict) {
         throw new Error(
-          `Color is too similar to "${conflict.label.name}" (${normalizeHexColor(conflict.label.color) || conflict.label.color}). Please pick a more distinct color.`
+          `Color is too similar to "${conflict.label.name}" (${normalizeHexColor(conflict.label.color) || conflict.label.color}). Please pick a more distinct tag color.`
         );
       }
       await labelsApi.create(input);
-      setSuccess('Label created');
+      setSuccess('Tag created');
       setNewLabel({ name: '', color: DEFAULT_COLOR });
       setShowAdd(false);
       await loadLabels();
     } catch (e: any) {
-      const msg = e?.message || 'Failed to create label';
+      const msg = e?.message || 'Failed to create tag';
       setError(msg);
     } finally {
       setLoading(false);
@@ -126,15 +127,15 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
       const conflict = findSimilarColorConflict(input.color, editing.id);
       if (conflict) {
         throw new Error(
-          `Color is too similar to "${conflict.label.name}" (${normalizeHexColor(conflict.label.color) || conflict.label.color}). Please pick a more distinct color.`
+          `Color is too similar to "${conflict.label.name}" (${normalizeHexColor(conflict.label.color) || conflict.label.color}). Please pick a more distinct tag color.`
         );
       }
       await labelsApi.update(editing.id, input);
-      setSuccess('Label updated');
+      setSuccess('Tag updated');
       setEditing(null);
       await loadLabels();
     } catch (e: any) {
-      const msg = e?.message || 'Failed to update label';
+      const msg = e?.message || 'Failed to update tag';
       setError(msg);
     } finally {
       setLoading(false);
@@ -142,16 +143,16 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
   };
 
   const handleDelete = async (label: Label) => {
-    if (!confirm(`Delete label "${label.name}"? This removes it from all activities.`)) return;
+    if (!confirm(`Delete tag "${label.name}"? This removes it from all activities.`)) return;
     setLoading(true);
     setError('');
     setSuccess('');
     try {
       await labelsApi.delete(label.id);
-      setSuccess('Label deleted');
+      setSuccess('Tag deleted');
       await loadLabels();
     } catch (e: any) {
-      const msg = e?.message || 'Failed to delete label';
+      const msg = e?.message || 'Failed to delete tag';
       setError(msg);
     } finally {
       setLoading(false);
@@ -163,7 +164,7 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
   const content = (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold">Label Management</h2>
+        <h2 className="text-xl font-semibold">Activity tags</h2>
         {!embedded && (
           <button
             onClick={onClose}
@@ -183,8 +184,14 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
         </div>
       )}
 
+      {error && (
+        <div className="mb-4 text-red-700 text-sm bg-red-50 p-3 rounded">
+          {error}
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium">Labels ({sorted.length})</h3>
+        <h3 className="text-lg font-medium">Tags ({sorted.length})</h3>
         <button
           onClick={() => {
             setShowAdd((v) => !v);
@@ -195,13 +202,13 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
           className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50"
           disabled={loading}
         >
-          {showAdd ? 'Cancel' : 'Add Label'}
+          {showAdd ? 'Cancel' : 'Add tag'}
         </button>
       </div>
 
       {showAdd && (
         <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-          <h4 className="text-md font-medium mb-3">Create Label</h4>
+          <h4 className="text-md font-medium mb-3">Create tag</h4>
           <form onSubmit={handleCreate} className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2">
@@ -211,7 +218,7 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
                   value={newLabel.name}
                   onChange={(e) => setNewLabel({ ...newLabel, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                  placeholder="e.g. Group 1"
+                  placeholder="e.g. Prayer team"
                   required
                 />
               </div>
@@ -238,14 +245,14 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
 
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                Preview: <LabelChip name={newLabel.name || 'Label'} color={newLabel.color} size="md" />
+                Preview: <LabelChip name={newLabel.name || 'Tag'} color={newLabel.color} size="md" />
               </div>
               <button
                 type="submit"
                 disabled={loading || !newLabel.name.trim()}
                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
               >
-                {loading ? 'Creating...' : 'Create'}
+                {loading ? 'Creating...' : 'Create tag'}
               </button>
             </div>
           </form>
@@ -254,7 +261,7 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
 
       {editing && (
         <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-          <h4 className="text-md font-medium mb-3">Edit Label</h4>
+          <h4 className="text-md font-medium mb-3">Edit tag</h4>
           <form onSubmit={handleUpdate} className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2">
@@ -290,7 +297,7 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
 
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                Preview: <LabelChip name={editing.name || 'Label'} color={editing.color} size="md" />
+                Preview: <LabelChip name={editing.name || 'Tag'} color={editing.color} size="md" />
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -315,44 +322,42 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
       )}
 
       <div className="border border-gray-200 rounded-lg overflow-hidden">
-        <div className="bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700 flex">
-          <div className="w-20">Color</div>
+        <div className="bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700 flex items-center">
+          <div className="w-10">Color</div>
           <div className="flex-1">Name</div>
-          <div className="w-40 text-right">Actions</div>
+          <div className="w-12 text-right">Actions</div>
         </div>
         {loading && sorted.length === 0 ? (
           <div className="p-4 text-sm text-gray-600">Loading...</div>
         ) : sorted.length === 0 ? (
-          <div className="p-4 text-sm text-gray-600">No labels yet.</div>
+          <div className="p-4 text-sm text-gray-600">No tags yet.</div>
         ) : (
           sorted.map((label) => (
             <div key={label.id} className="px-4 py-3 border-t border-gray-200 flex items-center">
-              <div className="w-20">
-                <LabelChip name={label.color} color={label.color} size="md" />
+              <div className="w-10">
+                <span
+                  className="inline-block h-6 w-6 rounded-full border border-black/10"
+                  style={{ backgroundColor: normalizeHexColor(label.color) || label.color }}
+                  title={normalizeHexColor(label.color) || label.color}
+                />
               </div>
               <div className="flex-1 text-sm text-gray-900">{label.name}</div>
-              <div className="w-40 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(label);
-                    setShowAdd(false);
-                    setError('');
-                    setSuccess('');
-                  }}
-                  className="px-3 py-1 text-sm text-primary hover:text-primary-dark border border-primary rounded-md hover:bg-primary/5 disabled:opacity-50"
-                  disabled={loading}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(label)}
-                  className="px-3 py-1 text-sm text-red-600 hover:text-red-700 border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50"
-                  disabled={loading}
-                >
-                  Delete
-                </button>
+              <div className="w-12 flex justify-end">
+                <AppOverflowMenu
+                  align="right"
+                  items={[
+                    {
+                      label: 'Edit',
+                      onClick: () => {
+                        setEditing(label);
+                        setShowAdd(false);
+                        setError('');
+                        setSuccess('');
+                      },
+                    },
+                    { label: 'Delete', onClick: () => { void handleDelete(label); }, tone: 'danger' },
+                  ]}
+                />
               </div>
             </div>
           ))

@@ -1,11 +1,8 @@
 import { supabase } from '../lib/supabase';
-import type { Session } from '@supabase/supabase-js';
 import type {
   User,
   Cohort,
-  UserCohort,
   Week,
-  Day,
   Activity,
   Label,
   SupportActivityCompletion,
@@ -21,7 +18,6 @@ import { sendTelegramNotificationBestEffort } from './telegramNotifications';
 // Types for API responses are now imported from ../types
 
 // Current user session
-let currentSession: Session | null = null;
 const weekNumberCache = new Map<number, number>();
 const DAILY_DIGEST_ENABLED_KEY = 'daily_digest_enabled';
 const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -169,6 +165,7 @@ const mapWeekRow = (week: any): Week => {
     id: week.id,
     cohortId: week.cohortId,
     weekNumber: week.weekNumber,
+    title: week.title ?? null,
     days: sortedDays.map((day: any) => ({
       id: day.id,
       weekId: day.weekId,
@@ -203,13 +200,12 @@ const mapWeekRow = (week: any): Week => {
 // Initialize session from Supabase
 export const initializeAuth = async () => {
   const { data: { session } } = await supabase.auth.getSession();
-  currentSession = session;
   return session;
 };
 
 // Auth API using Supabase Auth
 export const authApi = {
-  async login(identifier: string, password: string): Promise<AuthResponse> {
+  async login(identifier: string, _password: string): Promise<AuthResponse> {
     const normalized = identifier.trim().toLowerCase();
     const { data: users, error } = await supabase
       .from('User')
@@ -389,6 +385,32 @@ export const weeksApi = {
 
     return { week, pendingChanges };
   },
+
+  async update(weekId: number, input: { title?: string | null }): Promise<{ week: Week }> {
+    const { data, error } = await supabase
+      .from('Week')
+      .update(input)
+      .eq('id', weekId)
+      .select(`
+        *,
+        Day (
+          *,
+          Activity (
+            *,
+            ActivityLabel (
+              Label (*)
+            )
+          )
+        )
+      `)
+      .single();
+
+    if (error || !data) {
+      throw new Error(error?.message || 'Failed to update week');
+    }
+
+    return { week: mapWeekRow(data) };
+  },
 };
 
 export const cohortsApi = {
@@ -447,6 +469,7 @@ export const cohortsApi = {
         .insert([{
           cohortId: cohortRow.id,
           weekNumber: sourceWeek.weekNumber,
+          title: sourceWeek.title ?? null,
         }])
         .select('id')
         .single();
@@ -550,6 +573,104 @@ export const cohortsApi = {
     return { cohort: data as Cohort };
   },
 
+  async addWeekAt(cohortId: string, weekNumber: number, options?: { duplicateFromWeekId?: number }): Promise<{ week: Week }> {
+    const targetWeekNumber = Math.trunc(weekNumber);
+    if (!Number.isFinite(targetWeekNumber) || targetWeekNumber < 1) {
+      throw new Error('Week number must be 1 or higher.');
+    }
+
+    const { data: existingWeek, error: existingError } = await supabase
+      .from('Week')
+      .select('id')
+      .eq('cohortId', cohortId)
+      .eq('weekNumber', targetWeekNumber)
+      .maybeSingle();
+
+    if (existingError) throw new Error(existingError.message);
+    if (existingWeek) {
+      throw new Error(`Week ${targetWeekNumber} already exists in this cohort.`);
+    }
+
+    const sourceWeek = options?.duplicateFromWeekId
+      ? (await weeksApi.getById(options.duplicateFromWeekId, cohortId)).week
+      : null;
+
+    const { data: newWeek, error: weekError } = await supabase
+      .from('Week')
+      .insert([{
+        cohortId,
+        weekNumber: targetWeekNumber,
+        title: sourceWeek?.title ?? null,
+      }])
+      .select('*')
+      .single();
+
+    if (weekError || !newWeek) throw new Error(weekError?.message || 'Failed to create week');
+
+    const dayIdMap = new Map<number, number>();
+    for (const dayName of DAY_ORDER) {
+      const sourceDay = sourceWeek?.days.find((day) => day.dayName === dayName);
+      const { data: newDay, error: dayError } = await supabase
+        .from('Day')
+        .insert([{
+          weekId: (newWeek as any).id,
+          dayName,
+        }])
+        .select('id')
+        .single();
+
+      if (dayError || !newDay) {
+        throw new Error(dayError?.message || `Failed to create ${dayName}`);
+      }
+
+      if (sourceDay) {
+        dayIdMap.set(sourceDay.id, (newDay as any).id as number);
+      }
+    }
+
+    if (sourceWeek) {
+      for (const sourceDay of sourceWeek.days) {
+        const clonedDayId = dayIdMap.get(sourceDay.id);
+        if (!clonedDayId) continue;
+
+        for (const activity of sourceDay.activities) {
+          const { data: newActivity, error: activityError } = await supabase
+            .from('Activity')
+            .insert([{
+              dayId: clonedDayId,
+              time: activity.time,
+              description: activity.description,
+              period: activity.period,
+              orderIndex: activity.orderIndex,
+            }])
+            .select('id')
+            .single();
+
+          if (activityError || !newActivity) {
+            throw new Error(activityError?.message || `Failed to duplicate activity ${activity.description}`);
+          }
+
+          const labelIds = (activity.labels || []).map((label) => label.id);
+          if (labelIds.length > 0) {
+            const { error: labelJoinError } = await supabase
+              .from('ActivityLabel')
+              .insert(labelIds.map((labelId) => ({
+                activityId: (newActivity as any).id as number,
+                labelId,
+              })));
+            if (labelJoinError) {
+              throw new Error(labelJoinError.message);
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      week: (await weeksApi.getById((newWeek as any).id as number, cohortId)).week,
+    };
+  },
+
   async addWeek(cohortId: string): Promise<{ week: Week }> {
     const { data: latestWeeks, error: weeksError } = await supabase
       .from('Week')
@@ -561,36 +682,38 @@ export const cohortsApi = {
     if (weeksError) throw new Error(weeksError.message);
 
     const nextWeekNumber = (((latestWeeks || [])[0] as any)?.weekNumber as number | undefined || 0) + 1;
-    const { data: newWeek, error: weekError } = await supabase
+    return this.addWeekAt(cohortId, nextWeekNumber);
+  },
+
+  async deleteWeek(weekId: number): Promise<{ deletedWeekNumber: number; cohortId: string }> {
+    const { data: week, error: weekError } = await supabase
       .from('Week')
-      .insert([{ cohortId, weekNumber: nextWeekNumber }])
-      .select('*')
+      .select('id, cohortId, weekNumber')
+      .eq('id', weekId)
       .single();
 
-    if (weekError || !newWeek) throw new Error(weekError?.message || 'Failed to create week');
+    if (weekError || !week) throw new Error(weekError?.message || 'Week not found.');
 
-    const { data: newDays, error: daysError } = await supabase
-      .from('Day')
-      .insert(DAY_ORDER.map((dayName) => ({
-        weekId: (newWeek as any).id,
-        dayName,
-      })))
-      .select('*');
+    const { count, error: countError } = await supabase
+      .from('Week')
+      .select('id', { count: 'exact', head: true })
+      .eq('cohortId', (week as any).cohortId);
 
-    if (daysError) throw new Error(daysError.message);
+    if (countError) throw new Error(countError.message);
+    if ((count ?? 0) <= 1) {
+      throw new Error('A cohort must keep at least one week.');
+    }
+
+    const { error: deleteError } = await supabase
+      .from('Week')
+      .delete()
+      .eq('id', weekId);
+
+    if (deleteError) throw new Error(deleteError.message);
 
     return {
-      week: {
-        id: (newWeek as any).id,
-        cohortId,
-        weekNumber: (newWeek as any).weekNumber,
-        days: ((newDays || []) as any[]).sort((a, b) => DAY_ORDER.indexOf(a.dayName) - DAY_ORDER.indexOf(b.dayName)).map((day) => ({
-          id: day.id,
-          weekId: day.weekId,
-          dayName: day.dayName,
-          activities: [],
-        })),
-      },
+      deletedWeekNumber: (week as any).weekNumber as number,
+      cohortId: (week as any).cohortId as string,
     };
   },
 
@@ -609,18 +732,7 @@ export const cohortsApi = {
       throw new Error('No weeks found for this cohort.');
     }
 
-    if (latestWeek.weekNumber <= 1) {
-      throw new Error('Week 1 cannot be removed.');
-    }
-
-    const { error: deleteError } = await supabase
-      .from('Week')
-      .delete()
-      .eq('id', latestWeek.id);
-
-    if (deleteError) throw new Error(deleteError.message);
-
-    return { deletedWeekNumber: latestWeek.weekNumber };
+    return this.deleteWeek(latestWeek.id);
   },
 
   async delete(cohortId: string): Promise<{ message: string }> {
@@ -1441,7 +1553,7 @@ export const pendingChangesApi = {
     }
 
     // Execute the change based on type
-    let results = [];
+    let results: any[] = [];
     if (change.changeType === 'ADD') {
       const result = await activitiesApi.create(change.changeData);
       results = result.activities;
@@ -3646,6 +3758,84 @@ export const groupPrayersApi = {
     const { error } = await supabase.from('GroupPrayer').delete().eq('id', prayerId);
     if (error) throw new Error(error.message);
     return { message: 'Prayer deleted' };
+  },
+};
+
+// ── Group Prayer Focus ────────────────────────────────────────────────────────
+
+const GROUP_PRAYER_FOCUS_SELECT = '*, group:Group(id, name), week:Week(weekNumber), participant:Participant(id, fullName), setBy:User!GroupPrayerFocus_setById_fkey(id, name)';
+
+const mapGroupPrayerFocus = (row: any): import('../types').GroupPrayerFocus => ({
+  id: row.id,
+  groupId: row.groupId,
+  groupName: row.group?.name ?? null,
+  weekId: row.weekId,
+  weekNumber: row.week?.weekNumber ?? undefined,
+  participantId: row.participantId,
+  participantName: row.participant?.fullName ?? null,
+  setById: row.setById ?? null,
+  setByName: row.setBy?.name ?? null,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+});
+
+export const groupPrayerFocusApi = {
+  async getForCohort(cohortId: string): Promise<{ focuses: import('../types').GroupPrayerFocus[] }> {
+    const { data: groupRows, error: gErr } = await supabase
+      .from('Group')
+      .select('id')
+      .eq('cohortId', cohortId);
+    if (gErr) throw new Error(gErr.message);
+
+    const groupIds = (groupRows ?? []).map((g: any) => g.id);
+    if (groupIds.length === 0) return { focuses: [] };
+
+    const { data, error } = await supabase
+      .from('GroupPrayerFocus')
+      .select(GROUP_PRAYER_FOCUS_SELECT)
+      .in('groupId', groupIds)
+      .order('weekId', { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return { focuses: ((data as any[]) || []).map(mapGroupPrayerFocus) };
+  },
+
+  async setFocus(groupId: string, weekId: number, participantId: string, setById?: string): Promise<{ focus: import('../types').GroupPrayerFocus }> {
+    const { data: membership, error: membershipError } = await supabase
+      .from('GroupParticipant')
+      .select('groupId')
+      .eq('groupId', groupId)
+      .eq('participantId', participantId)
+      .maybeSingle();
+
+    if (membershipError) throw new Error(membershipError.message);
+    if (!membership) {
+      throw new Error('Choose a participant in this group.');
+    }
+
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('GroupPrayerFocus')
+      .upsert(
+        { groupId, weekId, participantId, setById: setById ?? null, updatedAt: now },
+        { onConflict: 'groupId,weekId' },
+      )
+      .select(GROUP_PRAYER_FOCUS_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to save prayer focus');
+    return { focus: mapGroupPrayerFocus(data) };
+  },
+
+  async clear(groupId: string, weekId: number): Promise<{ message: string }> {
+    const { error } = await supabase
+      .from('GroupPrayerFocus')
+      .delete()
+      .eq('groupId', groupId)
+      .eq('weekId', weekId);
+
+    if (error) throw new Error(error.message);
+    return { message: 'Prayer focus cleared' };
   },
 };
 

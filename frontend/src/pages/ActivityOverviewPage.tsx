@@ -28,7 +28,7 @@ const ActivityOverviewPage: React.FC = () => {
 
     labelsApi.getAll()
       .then((response) => setSupportGroups(response.labels))
-      .catch((error) => console.warn('Failed to load support groups:', error));
+      .catch((error) => console.warn('Failed to load activity tags:', error));
 
     usersApi.getAll()
       .then(async (response) => {
@@ -100,7 +100,7 @@ const ActivityOverviewPage: React.FC = () => {
   }, [selectedWeek]);
 
   const groupOptions = [
-    { value: '', label: 'All support groups', meta: 'Show every assigned activity' },
+    { value: '', label: 'All activity tags', meta: 'Show every assigned activity' },
     ...supportGroups.map((group) => ({
       value: group.id,
       label: group.name,
@@ -113,7 +113,7 @@ const ActivityOverviewPage: React.FC = () => {
     ...filteredSupportUsers.map((member) => ({
       value: member.id,
       label: member.name,
-      meta: member.labels?.map((label) => label.name).join(' • ') || 'No support groups yet',
+      meta: member.labels?.map((label) => label.name).join(' • ') || 'No activity tags yet',
     })),
   ];
 
@@ -188,8 +188,8 @@ const ActivityOverviewPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="Activity Overview"
-        subtitle="Review completion history across the whole selected week, then narrow by day, support group, or a specific support person."
+        title="Activity overview"
+        subtitle="See who has and hasn't done their activities this week."
       />
 
       <div className="mb-6 grid gap-4 xl:grid-cols-[1.15fr_0.85fr_0.85fr]">
@@ -235,7 +235,7 @@ const ActivityOverviewPage: React.FC = () => {
               value={selectedSupportGroupId}
               onChange={setSelectedSupportGroupId}
               options={groupOptions}
-              placeholder="All support groups"
+              placeholder="All activity tags"
               compact
               label="Support group"
             />

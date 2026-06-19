@@ -136,9 +136,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
       await usersApi.setUserLabels(selectedUser.id, labelEditIds);
       setSelectedUserLabels(allLabels.filter((l) => labelEditIds.includes(l.id)));
       setEditingLabels(false);
-      setSuccess('Support groups updated');
+      setSuccess('Activity tags updated');
     } catch {
-      setError('Failed to update support groups');
+      setError('Failed to update activity tags');
     } finally {
       setSavingLabels(false);
     }
@@ -318,7 +318,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
         </div>
         {newUser.role === 'SUPPORT' && allLabels.length > 0 && (
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Support Groups</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Activity tags</label>
             <div className="max-h-36 space-y-2 overflow-y-auto rounded-md border border-gray-200 bg-white p-3">
               {allLabels.map((label) => (
                 <label key={label.id} className="flex cursor-pointer items-center gap-2">
@@ -639,7 +639,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
         </div>
       )}
 
-      {/* User Details + Label Assignment Modal */}
+      {/* User Details + Activity Tag Assignment Modal */}
       {selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-[60]">
           <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
@@ -693,24 +693,24 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   </div>
                 </div>
 
-                {/* Support Group Assignment */}
+                {/* Activity Tag Assignment */}
                 {selectedUser.role === 'SUPPORT' && (
                   <div>
                     <div className="mb-2 flex items-start justify-between gap-3">
                       <div>
                         <label className="block text-sm font-medium text-gray-700">
-                          Support Groups
+                          Activity tags
                         </label>
                         <p className="text-xs text-gray-500 mt-1">
-                          This user will only see activities tagged with these groups.
+                          This user will only see activities with these tags.
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setEditingLabels(true)}
                         className="rounded-full border border-primary p-2 text-primary hover:bg-primary/5"
-                        aria-label="Edit support groups"
-                        title="Edit support groups"
+                        aria-label="Edit activity tags"
+                        title="Edit activity tags"
                       >
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m15.232 5.232 3.536 3.536M9 11l6.232-6.232a2.5 2.5 0 1 1 3.536 3.536L12.536 14.5A4 4 0 0 1 10.7 15.6L7 17l1.4-3.7a4 4 0 0 1 1.1-1.836Z" />
@@ -726,7 +726,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             ))}
                           </div>
                         ) : (
-                          <p className="text-sm text-gray-500">No support groups selected yet.</p>
+                          <p className="text-sm text-gray-500">No activity tags selected yet.</p>
                         )}
                       </div>
                     ) : allLabels.length > 0 ? (
@@ -751,7 +751,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             disabled={savingLabels}
                             className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark disabled:opacity-50"
                           >
-                            {savingLabels ? 'Saving...' : 'Save Groups'}
+                            {savingLabels ? 'Saving...' : 'Save tags'}
                           </button>
                           <button
                             type="button"

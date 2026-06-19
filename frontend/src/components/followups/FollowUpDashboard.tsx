@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { FollowUpContact } from '../../types';
 import { computeFollowUpMetrics, computeOwnerBreakdown } from '../../utils/followUps';
 
@@ -8,37 +8,6 @@ const MetricCard: React.FC<{ label: string; value: number; tone?: string }> = ({
     <p className={`mt-1 text-2xl font-bold ${tone || 'text-gray-900'}`}>{value}</p>
   </div>
 );
-
-const AccordionSection: React.FC<{ title: string; subtitle: string; defaultOpen?: boolean; children: React.ReactNode }> = ({ title, subtitle, defaultOpen = false, children }) => {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="surface-card overflow-hidden rounded-3xl">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-5 py-4 text-left"
-      >
-        <div>
-          <p className="text-sm font-bold text-gray-900">{title}</p>
-          <p className="text-xs text-gray-500">{subtitle}</p>
-        </div>
-        <svg
-          className={`h-5 w-5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 9-7 7-7-7" />
-        </svg>
-      </button>
-      {open && (
-        <div className="overflow-x-auto border-t border-orange-100">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-};
 
 const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts }) => {
   const m = computeFollowUpMetrics(contacts);

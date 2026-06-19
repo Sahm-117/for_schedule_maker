@@ -37,6 +37,7 @@ export interface Week {
   id: number
   cohortId: string
   weekNumber: number
+  title?: string | null
 }
 
 export interface Day {

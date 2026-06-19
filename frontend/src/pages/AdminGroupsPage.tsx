@@ -8,6 +8,7 @@ import type { Group, Participant, User } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
+import PageLoader from '../components/PageLoader';
 
 // ── Group Form Modal ──────────────────────────────────────────────────────────
 
@@ -249,7 +250,6 @@ const AdminGroupsPage: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Group | null>(null);
   const [membersTarget, setMembersTarget] = useState<Group | null>(null);
-  const [deleting, setDeleting] = useState<string | null>(null);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -273,12 +273,10 @@ const AdminGroupsPage: React.FC = () => {
 
   const handleDelete = async (g: Group) => {
     if (!window.confirm(`Delete "${g.name}"? This also removes all member assignments.`)) return;
-    setDeleting(g.id);
     try {
       await groupsApi.delete(g.id);
       setGroups((prev) => prev.filter((x) => x.id !== g.id));
     } catch { /* ignore */ }
-    finally { setDeleting(null); }
   };
 
   return (
@@ -298,7 +296,7 @@ const AdminGroupsPage: React.FC = () => {
       {!activeCohort ? (
         <p className="text-sm text-gray-500">Select or create a cohort first.</p>
       ) : loading ? (
-        <p className="text-sm text-gray-400">Loading…</p>
+        <PageLoader />
       ) : groups.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
           <p className="text-sm text-gray-500">No groups yet. Create one and assign a Support member.</p>

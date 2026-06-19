@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ModalShell from '../components/followups/ModalShell';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -275,7 +276,7 @@ const AdminOnboardingPage: React.FC = () => {
     <div className="page-content">
       <PageHeader
         title="Onboarding"
-        subtitle="Monitor group progress, manage support templates, and control coordinator access from one place."
+        subtitle="Track onboarding progress, manage message templates, and set up coordinator access."
         action={(
           <button
             type="button"
@@ -325,7 +326,7 @@ const AdminOnboardingPage: React.FC = () => {
             </div>
 
             {loading ? (
-              <p className="mt-4 text-sm text-gray-400">Loading…</p>
+              <PageLoader />
             ) : statuses.length === 0 ? (
               <div className="mt-4 rounded-2xl border border-dashed border-orange-200 py-12 text-center">
                 <p className="text-sm text-gray-500">No group progress yet.</p>
@@ -406,7 +407,7 @@ const AdminOnboardingPage: React.FC = () => {
               {filteredTemplates.map((template) => (
                 <div key={template.id} className="surface-card flex flex-col overflow-hidden rounded-2xl shadow-sm">
                   {template.imageUrl ? (
-                    <img src={template.imageUrl} alt={template.imageName ?? ''} className="h-28 w-full object-cover" />
+                    <img src={template.imageUrl} alt={template.imageName ?? ''} loading="lazy" className="h-28 w-full object-cover" />
                   ) : (
                     <div className="flex h-28 w-full items-center justify-center bg-orange-50/60">
                       <svg className="h-7 w-7 text-orange-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -547,7 +548,7 @@ const AdminOnboardingPage: React.FC = () => {
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Graphic / image (optional)</label>
             {imageUrl ? (
               <div className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50/40 p-3">
-                <img src={imageUrl} alt={imageName ?? ''} className="h-16 w-16 rounded-xl object-cover" />
+                <img src={imageUrl} alt={imageName ?? ''} loading="lazy" className="h-16 w-16 rounded-xl object-cover" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-gray-800">{imageName}</p>
                   <button type="button" onClick={() => { setImageUrl(null); setImageName(null); }} className="mt-1 text-xs text-red-600 hover:underline">Remove</button>
