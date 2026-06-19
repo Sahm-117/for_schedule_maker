@@ -10,6 +10,11 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
 import PageLoader from '../components/PageLoader';
 
+const groupNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+const sortGroupsByName = (groups: Group[]) =>
+  [...groups].sort((a, b) => groupNameCollator.compare(a.name, b.name));
+
 // ── Group Form Modal ──────────────────────────────────────────────────────────
 
 interface GroupFormModalProps {
@@ -262,7 +267,7 @@ const AdminGroupsPage: React.FC = () => {
         participantsApi.getAll({ cohortId: activeCohort.id }),
         usersApi.getAll(),
       ]);
-      setGroups(gs);
+      setGroups(sortGroupsByName(gs));
       setParticipants(ps.filter((p) => p.status === 'ACTIVE'));
       setSupportUsers(users.filter((u) => u.role === 'SUPPORT'));
     } catch { /* ignore */ }
@@ -340,7 +345,8 @@ const AdminGroupsPage: React.FC = () => {
         onSaved={(g) => {
           setGroups((prev) => {
             const idx = prev.findIndex((x) => x.id === g.id);
-            return idx >= 0 ? prev.map((x) => x.id === g.id ? g : x) : [g, ...prev];
+            const next = idx >= 0 ? prev.map((x) => x.id === g.id ? g : x) : [...prev, g];
+            return sortGroupsByName(next);
           });
         }}
         cohortId={activeCohort?.id ?? ''}
@@ -355,7 +361,7 @@ const AdminGroupsPage: React.FC = () => {
           group={membersTarget}
           allParticipants={participants}
           onUpdated={(g) => {
-            setGroups((prev) => prev.map((x) => x.id === g.id ? g : x));
+            setGroups((prev) => sortGroupsByName(prev.map((x) => x.id === g.id ? g : x)));
             setMembersTarget(null);
           }}
         />
