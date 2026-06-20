@@ -258,6 +258,7 @@ const AdminGroupsPage: React.FC = () => {
   const [editing, setEditing] = useState<Group | null>(null);
   const [membersTarget, setMembersTarget] = useState<Group | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Group | null>(null);
+  const [noSupportOnly, setNoSupportOnly] = useState(false);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -289,6 +290,9 @@ const AdminGroupsPage: React.FC = () => {
     finally { setDeleteTarget(null); }
   };
 
+  const noSupportCount = groups.filter((g) => !g.supportId).length;
+  const displayedGroups = noSupportOnly ? groups.filter((g) => !g.supportId) : groups;
+
   return (
     <div className="page-content">
       <PageHeader
@@ -308,6 +312,25 @@ const AdminGroupsPage: React.FC = () => {
         }
       />
 
+      {activeCohort && !loading && groups.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setNoSupportOnly(false)}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${!noSupportOnly ? 'bg-primary/10 text-primary' : 'border border-orange-100 bg-white text-gray-600 hover:bg-orange-50'}`}
+          >
+            All groups
+          </button>
+          <button
+            type="button"
+            onClick={() => setNoSupportOnly(true)}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${noSupportOnly ? 'bg-amber-100/80 text-amber-700' : 'border border-orange-100 bg-white text-gray-600 hover:bg-orange-50'}`}
+          >
+            No support assigned <span className="ml-1 opacity-70">{noSupportCount}</span>
+          </button>
+        </div>
+      )}
+
       {!activeCohort ? (
         <p className="text-sm text-gray-500">Select or create a cohort first.</p>
       ) : loading ? (
@@ -316,9 +339,13 @@ const AdminGroupsPage: React.FC = () => {
         <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
           <p className="text-sm text-gray-500">No groups yet. Create one and assign a Support member.</p>
         </div>
+      ) : displayedGroups.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
+          <p className="text-sm text-gray-500">All groups have a support assigned. 🎉</p>
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {groups.map((g) => (
+          {displayedGroups.map((g) => (
             <div key={g.id} className="flex flex-col gap-3 rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between">
                 <h3 className="font-bold text-gray-900">{g.name}</h3>
