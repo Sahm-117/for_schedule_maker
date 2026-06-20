@@ -144,7 +144,11 @@ const AdminOnboardingPage: React.FC = () => {
     return map;
   }, [participantStatuses]);
 
-  const groupSummaries = useMemo(() => statuses.map((status) => {
+  const groupCollator = useMemo(() => new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }), []);
+
+  const groupSummaries = useMemo(() => [...statuses]
+    .sort((a, b) => groupCollator.compare(a.groupName || '', b.groupName || ''))
+    .map((status) => {
     const members = groupedParticipantStatuses.get(status.groupId) ?? [];
     const stepsDone = countChecklistSteps(status, members);
     const participantCount = status.participantCount ?? members.length;
@@ -158,7 +162,7 @@ const AdminOnboardingPage: React.FC = () => {
       completedParticipants,
       completed: !!status.groupCreated && participantCount > 0 && completedParticipants === participantCount,
     };
-  }), [groupedParticipantStatuses, statuses]);
+  }), [groupCollator, groupedParticipantStatuses, statuses]);
 
   const groupOptions = useMemo(
     () => [
@@ -175,10 +179,6 @@ const AdminOnboardingPage: React.FC = () => {
     [groupSummaries, groupFilter]
   );
 
-  const visibleEvents = useMemo(
-    () => (groupFilter ? events.filter((e) => e.groupId === groupFilter) : events),
-    [events, groupFilter]
-  );
 
   const progress = useMemo(() => {
     const totalParticipants = groupSummaries.reduce((sum, summary) => sum + summary.participantCount, 0);
@@ -197,7 +197,7 @@ const AdminOnboardingPage: React.FC = () => {
   const handleFeedScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 48) {
-      setEventLimit((prev) => (prev < visibleEvents.length ? prev + 10 : prev));
+      setEventLimit((prev) => (prev < events.length ? prev + 10 : prev));
     }
   };
 
@@ -310,15 +310,6 @@ const AdminOnboardingPage: React.FC = () => {
       <PageHeader
         title="Onboarding"
         subtitle="Track onboarding progress, manage message templates, and set up coordinator access."
-        action={(
-          <button
-            type="button"
-            onClick={() => openForm()}
-            className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark"
-          >
-            {templateTab === 'ONBOARDING' ? 'Add support template' : 'Add coordinator template'}
-          </button>
-        )}
       />
 
       <div className="space-y-6">
@@ -372,6 +363,13 @@ const AdminOnboardingPage: React.FC = () => {
                 {templateTab === 'ONBOARDING' ? 'Support -> Participant templates' : 'Coordinator -> Support templates'}
               </h3>
             </div>
+            <button
+              type="button"
+              onClick={() => openForm()}
+              className="shrink-0 rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark"
+            >
+              {templateTab === 'ONBOARDING' ? '+ Add support template' : '+ Add coordinator template'}
+            </button>
           </div>
 
           {filteredTemplates.length === 0 ? (
@@ -413,33 +411,23 @@ const AdminOnboardingPage: React.FC = () => {
           )}
         </section>
 
-        {/* Group filter for the status + feed below. */}
-        {statuses.length > 0 && (
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Filter</span>
-            <div className="w-56">
-              <AppSelect value={groupFilter} onChange={setGroupFilter} options={groupOptions} placeholder="All groups" compact />
-            </div>
-          </div>
-        )}
-
         {/* Recent activity — full width above so group status can use more columns. */}
         <section className="surface-card flex max-h-[22rem] flex-col p-5">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Recent activity</p>
           <h3 className="mt-1 text-lg font-bold text-gray-900">Onboarding event feed</h3>
-          {visibleEvents.length === 0 ? (
+          {events.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">
               No onboarding updates yet.
             </div>
           ) : (
             <div className="mt-4 grid min-h-0 flex-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3" onScroll={handleFeedScroll}>
-              {visibleEvents.slice(0, eventLimit).map((event) => (
+              {events.slice(0, eventLimit).map((event) => (
                 <div key={event.id} className="rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-3">
                   <p className="text-sm font-semibold text-gray-900">{describeEvent(event)}</p>
                   <p className="mt-1 text-xs text-gray-500">{new Date(event.createdAt).toLocaleString()}</p>
                 </div>
               ))}
-              {eventLimit < visibleEvents.length && (
+              {eventLimit < events.length && (
                 <p className="col-span-full py-2 text-center text-xs text-gray-400">Scroll for more…</p>
               )}
             </div>
@@ -447,11 +435,16 @@ const AdminOnboardingPage: React.FC = () => {
         </section>
 
         <section className="surface-card p-5">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Group status</p>
               <h3 className="mt-1 text-lg font-bold text-gray-900">Progress by group</h3>
             </div>
+            {statuses.length > 0 && (
+              <div className="w-56">
+                <AppSelect value={groupFilter} onChange={setGroupFilter} options={groupOptions} placeholder="All groups" compact />
+              </div>
+            )}
           </div>
 
           {loading ? (
