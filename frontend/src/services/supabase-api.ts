@@ -207,24 +207,44 @@ export const initializeAuth = async () => {
 export const authApi = {
   async login(identifier: string, _password: string): Promise<AuthResponse> {
     const normalized = identifier.trim().toLowerCase();
-    const { data: users, error } = await supabase
+    // Do NOT use .single() here: it throws when more than one row matches, which
+    // would lock a user out entirely if a duplicate account ever exists (e.g. two
+    // phone-only accounts with the same number). Fetch all matches and resolve
+    // deterministically so a stray duplicate degrades to a normal login.
+    const { data: matches, error } = await supabase
       .from('User')
       .select('*')
-      .or(`email.eq.${normalized},phone.eq.${normalized}`)
-      .single();
+      .or(`email.eq.${normalized},phone.eq.${normalized}`);
 
-    if (error || !users) {
+    if (error) {
       throw new Error('Invalid credentials');
     }
 
-    if (users.isActive === false) {
+    const rows = (matches as any[]) || [];
+    if (rows.length === 0) {
+      throw new Error('Invalid credentials');
+    }
+
+    // On a multi-match, prefer an active account, then the oldest (stable pick
+    // and consistent with which row an account merge would keep).
+    const pickUser = (candidates: any[]) => {
+      const active = candidates.filter((u) => u.isActive !== false);
+      const pool = active.length > 0 ? active : candidates;
+      return [...pool].sort((a, b) =>
+        new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime()
+      )[0];
+    };
+
+    const user = pickUser(rows);
+
+    if (user.isActive === false) {
       throw new Error('Account deactivated');
     }
 
     return {
-      user: users,
-      accessToken: `mock_token_${users.id}`,
-      refreshToken: `refresh_token_${users.id}`,
+      user,
+      accessToken: `mock_token_${user.id}`,
+      refreshToken: `refresh_token_${user.id}`,
     };
   },
 
