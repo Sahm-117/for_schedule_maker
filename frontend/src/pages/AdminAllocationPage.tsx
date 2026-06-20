@@ -377,9 +377,9 @@ const AdminAllocationPage: React.FC = () => {
               )}
             </Column>
 
-            {/* Group columns — masonry; whole pane scrolls internally. Cards grow
-                to fit all members so the full group is visible at a glance. */}
-            <div className="h-full gap-4 overflow-y-auto pr-1 [column-fill:_balance] columns-1 [&>*]:mb-4 [&>*]:break-inside-avoid sm:columns-2 xl:columns-3">
+            {/* Group columns — responsive grid that scrolls VERTICALLY only.
+                Cards grow to fit all members so the full group shows at a glance. */}
+            <div className="grid h-full grid-cols-1 content-start items-start gap-4 overflow-x-hidden overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
               {groups.map((g) => {
                 const members = byGroup.get(g.id) ?? [];
                 return (
