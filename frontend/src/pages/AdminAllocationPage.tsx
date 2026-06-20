@@ -339,26 +339,28 @@ const AdminAllocationPage: React.FC = () => {
             </div>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(16rem,20rem)_1fr]">
-            {/* Unassigned tray */}
-            <Column id={UNASSIGNED} title="Unassigned" count={unassigned.length} accent>
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search…"
-                className="mb-1.5 w-full rounded-xl border border-orange-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              {filteredUnassigned.length === 0 ? (
-                <p className="py-4 text-center text-xs text-gray-400">
-                  {unassigned.length === 0 ? 'Everyone is allocated 🎉' : 'No matches'}
-                </p>
-              ) : (
-                filteredUnassigned.map((p) => (
-                  <ParticipantChip key={p.id} participant={p} selected={selected.has(p.id)} onToggle={toggle} dragCount={dragCount} />
-                ))
-              )}
-            </Column>
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(22rem,26rem)_1fr]">
+            {/* Unassigned tray — sticky so it stays in view while groups scroll */}
+            <div className="lg:sticky lg:top-4">
+              <Column id={UNASSIGNED} title="Unassigned" count={unassigned.length} accent>
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search…"
+                  className="mb-1.5 w-full rounded-xl border border-orange-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                {filteredUnassigned.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-gray-400">
+                    {unassigned.length === 0 ? 'Everyone is allocated 🎉' : 'No matches'}
+                  </p>
+                ) : (
+                  filteredUnassigned.map((p) => (
+                    <ParticipantChip key={p.id} participant={p} selected={selected.has(p.id)} onToggle={toggle} dragCount={dragCount} />
+                  ))
+                )}
+              </Column>
+            </div>
 
             {/* Group columns */}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
