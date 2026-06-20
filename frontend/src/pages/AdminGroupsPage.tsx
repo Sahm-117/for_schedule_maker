@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
@@ -247,6 +247,7 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
 const AdminGroupsPage: React.FC = () => {
   const { isAdmin } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
+  const navigate = useNavigate();
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -291,9 +292,14 @@ const AdminGroupsPage: React.FC = () => {
         subtitle={activeCohort ? `${groups.length} groups · ${activeCohort.name}` : 'No active cohort'}
         action={
           activeCohort && (
-            <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
-              + New Group
-            </button>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => navigate('/allocation')} className="rounded-2xl border border-orange-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-orange-50 active:scale-95">
+                Allocate participants
+              </button>
+              <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
+                + New Group
+              </button>
+            </div>
           )
         }
       />

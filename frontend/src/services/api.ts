@@ -469,6 +469,8 @@ export const groupsApi = USE_SUPABASE ? supabaseGroupsApi : {
   async delete(_id: string): Promise<never> { return peopleUnavailable(); },
   async getParticipants(_groupId: string): Promise<{ participants: import('../types').Participant[] }> { return { participants: [] }; },
   async setParticipants(_groupId: string, _ids: string[]): Promise<never> { return peopleUnavailable(); },
+  async moveParticipant(_participantId: string, _toGroupId: string | null): Promise<never> { return peopleUnavailable(); },
+  async bulkAssign(_assignments: Array<{ participantId: string; groupId: string }>): Promise<never> { return peopleUnavailable(); },
 };
 
 export const groupOnboardingStatusApi = USE_SUPABASE ? supabaseGroupOnboardingStatusApi : {

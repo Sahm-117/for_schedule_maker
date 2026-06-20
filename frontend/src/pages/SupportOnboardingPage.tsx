@@ -16,6 +16,7 @@ import {
 } from '../services/api';
 import { fillTemplate } from '../utils/followUps';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
+import { downloadFile } from '../utils/download';
 import type {
   GroupOnboardingStatus,
   MessageTemplate,
@@ -46,22 +47,7 @@ const GROUP_CREATED_OPTIONS = [
   { value: 'yes', label: 'Created', meta: 'The small group is ready' },
 ];
 
-async function downloadImage(url: string, name: string) {
-  try {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = objectUrl;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(objectUrl);
-  } catch {
-    window.open(url, '_blank');
-  }
-}
+const downloadImage = (url: string, name: string) => downloadFile(url, name);
 
 const isParticipantComplete = (status?: ParticipantOnboardingStatus | null) =>
   !!status?.contacted && !!status?.addedToGroup && !!status?.introductionDone && !!status?.venueAcknowledged;

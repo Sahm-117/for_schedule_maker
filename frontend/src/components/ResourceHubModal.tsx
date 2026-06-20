@@ -3,6 +3,7 @@ import { resourcesApi, announcementsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import type { Resource } from '../types';
+import { downloadFile } from '../utils/download';
 
 const LAST_SEEN_KEY = 'fof_resources_last_seen';
 
@@ -362,23 +363,30 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
                     )}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <a
-                      href={r.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                      title={r.type === 'link' ? 'Open' : 'Download'}
-                    >
-                      {r.type === 'link' ? (
+                    {r.type === 'link' ? (
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                        title="Open"
+                      >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                         </svg>
-                      ) : (
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => { void downloadFile(r.url, r.fileName ?? r.title); }}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                        title="Download"
+                      >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                      )}
-                    </a>
+                      </button>
+                    )}
                     {isAdmin && (
                       <button
                         onClick={() => handleDelete(r.id)}

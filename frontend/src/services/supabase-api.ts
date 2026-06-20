@@ -2806,21 +2806,28 @@ const resolveSupportScopedGroups = async (supportId: string, cohortId?: string |
   return [];
 };
 
-const mapParticipant = (row: any): import('../types').Participant => ({
-  id: row.id,
-  fullName: row.fullName,
-  phone: row.phone ?? null,
-  cohortId: row.cohortId ?? null,
-  cohortName: row.cohort?.name ?? null,
-  source: row.source ?? 'MANUAL',
-  followUpContactId: row.followUpContactId ?? null,
-  status: row.status ?? 'ACTIVE',
-  notes: row.notes ?? null,
-  groupId: row.group?.[0]?.group?.id ?? null,
-  groupName: row.group?.[0]?.group?.name ?? null,
-  createdAt: row.createdAt,
-  updatedAt: row.updatedAt,
-});
+// PostgREST returns the GroupParticipant embed as an array (to-many) or a single
+// object (to-one) depending on how it resolves the relationship — normalise both.
+const firstGroupEmbed = (group: any): any => (Array.isArray(group) ? group[0] : group);
+
+const mapParticipant = (row: any): import('../types').Participant => {
+  const gp = firstGroupEmbed(row.group);
+  return {
+    id: row.id,
+    fullName: row.fullName,
+    phone: row.phone ?? null,
+    cohortId: row.cohortId ?? null,
+    cohortName: row.cohort?.name ?? null,
+    source: row.source ?? 'MANUAL',
+    followUpContactId: row.followUpContactId ?? null,
+    status: row.status ?? 'ACTIVE',
+    notes: row.notes ?? null,
+    groupId: gp?.group?.id ?? null,
+    groupName: gp?.group?.name ?? null,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+};
 
 export const participantsApi = {
   async getAll(options?: {
@@ -3003,8 +3010,8 @@ const mapParticipantOnboardingStatus = (row: any): import('../types').Participan
   id: row.id,
   participantId: row.participantId,
   participantName: row.participant?.fullName ?? null,
-  groupId: row.participant?.group?.[0]?.group?.id ?? null,
-  groupName: row.participant?.group?.[0]?.group?.name ?? null,
+  groupId: firstGroupEmbed(row.participant?.group)?.group?.id ?? null,
+  groupName: firstGroupEmbed(row.participant?.group)?.group?.name ?? null,
   contacted: !!row.contacted,
   addedToGroup: !!row.addedToGroup,
   introductionDone: !!row.introductionDone,
@@ -3233,6 +3240,78 @@ export const groupsApi = {
       });
     }
     return { message: 'Members updated' };
+  },
+
+  // Move a single participant to a group (or to `null` = unassigned).
+  // Enforces one-group-per-participant by clearing any prior membership first.
+  async moveParticipant(participantId: string, toGroupId: string | null): Promise<{ message: string }> {
+    const { error: delError } = await supabase
+      .from('GroupParticipant')
+      .delete()
+      .eq('participantId', participantId);
+    if (delError) throw new Error(delError.message);
+
+    if (!toGroupId) return { message: 'Participant unassigned' };
+
+    const { error: insError } = await supabase
+      .from('GroupParticipant')
+      .insert({ groupId: toGroupId, participantId });
+    if (insError) throw new Error(insError.message);
+
+    const { data: groupRow } = await supabase
+      .from('Group')
+      .select(GROUP_SELECT)
+      .eq('id', toGroupId)
+      .single();
+    const group = groupRow ? mapGroup(groupRow) : null;
+    const actor = getCurrentUserFromStorage();
+    await createOnboardingEvent({
+      type: 'PARTICIPANTS_ASSIGNED',
+      groupId: toGroupId,
+      actorId: actor?.id ?? null,
+      payload: {
+        participantCount: 1,
+        participantIds: [participantId],
+        supportId: group?.supportId ?? null,
+        supportName: group?.supportName ?? null,
+      },
+    });
+    return { message: 'Participant moved' };
+  },
+
+  // Assign many participants to groups in one batch (used by auto-distribute).
+  // Clears each listed participant's prior membership, then inserts the new ones.
+  async bulkAssign(assignments: Array<{ participantId: string; groupId: string }>): Promise<{ message: string }> {
+    if (assignments.length === 0) return { message: 'Nothing to assign' };
+    const participantIds = assignments.map((a) => a.participantId);
+
+    const { error: delError } = await supabase
+      .from('GroupParticipant')
+      .delete()
+      .in('participantId', participantIds);
+    if (delError) throw new Error(delError.message);
+
+    const { error: insError } = await supabase
+      .from('GroupParticipant')
+      .insert(assignments.map((a) => ({ groupId: a.groupId, participantId: a.participantId })));
+    if (insError) throw new Error(insError.message);
+
+    const actor = getCurrentUserFromStorage();
+    const byGroup = assignments.reduce<Record<string, string[]>>((acc, a) => {
+      (acc[a.groupId] ??= []).push(a.participantId);
+      return acc;
+    }, {});
+    await Promise.all(
+      Object.entries(byGroup).map(([groupId, ids]) =>
+        createOnboardingEvent({
+          type: 'PARTICIPANTS_ASSIGNED',
+          groupId,
+          actorId: actor?.id ?? null,
+          payload: { participantCount: ids.length, participantIds: ids, supportId: null, supportName: null },
+        })
+      )
+    );
+    return { message: `${assignments.length} participants assigned` };
   },
 };
 
