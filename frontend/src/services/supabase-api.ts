@@ -2211,24 +2211,10 @@ export const announcementsApi = {
         sentBy,
         scope: options?.scope || 'ACTIVE_COHORT',
         cohortId: options?.cohortId || null,
+        targetLabelId: options?.targetLabelId || null,
       },
     });
     if (error) throw new Error(error.message);
-
-    // The edge function records the row but doesn't know about targetLabelId, so
-    // stamp it onto the just-created row (newest by this sender) when targeting a tag.
-    if (options?.targetLabelId) {
-      const { data: latest } = await supabase
-        .from('Announcement')
-        .select('id')
-        .eq('sentBy', sentBy)
-        .order('sentAt', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (latest?.id) {
-        await supabase.from('Announcement').update({ targetLabelId: options.targetLabelId }).eq('id', latest.id);
-      }
-    }
     return { sent: (data as any)?.sent ?? 0 };
   },
 

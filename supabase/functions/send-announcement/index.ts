@@ -10,7 +10,8 @@
  *   body: string,
  *   sentBy: string (userId),
  *   scope?: 'ACTIVE_COHORT' | 'ALL_USERS',
- *   cohortId?: string | null
+ *   cohortId?: string | null,
+ *   targetLabelId?: string | null
  * }
  *
  * Required Supabase secrets:
@@ -52,12 +53,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null } = await req.json() as {
+    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null } = await req.json() as {
       subject: string
       body: string
       sentBy?: string
       scope?: 'ACTIVE_COHORT' | 'ALL_USERS'
       cohortId?: string | null
+      targetLabelId?: string | null
     }
 
     if (!subject || !body) {
@@ -77,7 +79,7 @@ Deno.serve(async (req) => {
     // 1. Record the announcement
     const { data: announcement, error: insertError } = await supabase
       .from('Announcement')
-      .insert([{ subject, body, sentBy: sentBy || null, scope, cohortId }])
+      .insert([{ subject, body, sentBy: sentBy || null, scope, cohortId, targetLabelId }])
       .select('id')
       .single()
 
@@ -85,10 +87,8 @@ Deno.serve(async (req) => {
       throw new Error(insertError?.message || 'Failed to insert announcement')
     }
 
-    // 2. Fetch all push subscriptions
-    let subscriptionQuery = supabase
-      .from('PushSubscription')
-      .select('userId, endpoint, p256dh, auth')
+    // 2. Resolve final recipients from scope, optional tag, and active users.
+    let scopedUserIds: string[] = []
 
     if (scope === 'ACTIVE_COHORT' && cohortId) {
       const { data: memberships, error: membershipError } = await supabase
@@ -100,29 +100,74 @@ Deno.serve(async (req) => {
         throw new Error(membershipError.message)
       }
 
-      const cohortUserIds = Array.from(new Set((memberships || []).map((row: any) => row.userId).filter(Boolean)))
-      if (cohortUserIds.length === 0) {
-        return new Response(JSON.stringify({ ok: true, sent: 0 }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
+      scopedUserIds = Array.from(new Set((memberships || []).map((row: any) => row.userId).filter(Boolean)))
+    } else {
+      const { data: users, error: usersError } = await supabase
+        .from('User')
+        .select('id')
+        .eq('isActive', true)
+
+      if (usersError) {
+        throw new Error(usersError.message)
       }
 
-      subscriptionQuery = subscriptionQuery.in('userId', cohortUserIds)
+      scopedUserIds = Array.from(new Set((users || []).map((row: any) => row.id).filter(Boolean)))
     }
 
-    const { data: subs, error: subsError } = await subscriptionQuery
+    if (targetLabelId) {
+      const { data: labelUsers, error: labelError } = await supabase
+        .from('UserLabel')
+        .select('userId')
+        .eq('labelId', targetLabelId)
+
+      if (labelError) {
+        throw new Error(labelError.message)
+      }
+
+      const labelUserIds = new Set((labelUsers || []).map((row: any) => row.userId).filter(Boolean))
+      scopedUserIds = scopedUserIds.filter((userId) => labelUserIds.has(userId))
+    }
+
+    if (scopedUserIds.length === 0) {
+      return new Response(JSON.stringify({ ok: true, sent: 0, announcementId: announcement.id }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const { data: activeUsers, error: activeUsersError } = await supabase
+      .from('User')
+      .select('id')
+      .in('id', scopedUserIds)
+      .eq('isActive', true)
+
+    if (activeUsersError) {
+      throw new Error(activeUsersError.message)
+    }
+
+    const recipientIds = Array.from(new Set((activeUsers || []).map((row: any) => row.id).filter(Boolean)))
+    if (recipientIds.length === 0) {
+      return new Response(JSON.stringify({ ok: true, sent: 0, announcementId: announcement.id }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // 3. Fetch push subscriptions for final recipients.
+    const { data: subs, error: subsError } = await supabase
+      .from('PushSubscription')
+      .select('userId, endpoint, p256dh, auth')
+      .in('userId', recipientIds)
 
     if (subsError) {
       throw new Error(subsError.message)
     }
 
     if (!subs || subs.length === 0) {
-      return new Response(JSON.stringify({ ok: true, sent: 0 }), {
+      return new Response(JSON.stringify({ ok: true, sent: 0, announcementId: announcement.id }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // 3. Build payload
+    // 4. Build payload
     const payload = JSON.stringify({
       title: `📢 From FOF Ops`,
       body: `${subject}: ${body}`,
@@ -130,9 +175,10 @@ Deno.serve(async (req) => {
       tag: `fof-announcement-${announcement.id}`,
       cohortId,
       scope,
+      targetLabelId,
     })
 
-    // 4. Send to each subscription
+    // 5. Send to each subscription
     let sent = 0
     for (const sub of subs as any[]) {
       const pushSub = {
@@ -153,7 +199,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, sent }), {
+    return new Response(JSON.stringify({ ok: true, sent, announcementId: announcement.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
