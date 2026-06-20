@@ -19,6 +19,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore — web-push ESM build
 import webPush from 'https://esm.sh/web-push@3'
+import { sendToSubscriptions } from '../_shared/webpush.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -87,25 +88,8 @@ Deno.serve(async (req) => {
       tag: `fof-followup-assignment-${Date.now()}`,
     })
 
-    let sent = 0
-    for (const sub of subs as any[]) {
-      const pushSub = {
-        endpoint: sub.endpoint,
-        keys: { p256dh: sub.p256dh, auth: sub.auth },
-      }
-      try {
-        await webPush.sendNotification(pushSub, payload)
-        sent++
-      } catch (err: any) {
-        if (err?.statusCode === 410) {
-          await supabase
-            .from('PushSubscription')
-            .delete()
-            .eq('userId', sub.userId)
-            .eq('endpoint', sub.endpoint)
-        }
-      }
-    }
+    const { sent, failed, removed, errors } = await sendToSubscriptions(webPush, supabase, subs as any[], payload)
+    if (failed > 0) console.error(`notify-followup-assignment: ${sent} sent, ${failed} failed, ${removed} removed`, JSON.stringify(errors))
 
     return new Response(JSON.stringify({ ok: true, sent }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

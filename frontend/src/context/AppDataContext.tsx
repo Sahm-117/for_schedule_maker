@@ -74,6 +74,13 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const refreshTimeoutRef = useRef<number | null>(null);
   const refreshInProgressRef = useRef(false);
+  // Mirror the latest cohort/week into refs so refreshWorkspaceData can read them
+  // without listing them as deps. That keeps the callback (and the realtime
+  // channel effect that depends on it) stable, so the channel subscribes ONCE
+  // per session instead of tearing down + re-subscribing 20 listeners on every
+  // cohort/week change.
+  const activeCohortRef = useRef<Cohort | null>(null);
+  const selectedWeekRef = useRef<Week | null>(null);
 
   const getAccessibleCohorts = useCallback((allCohorts: Cohort[]) => {
     if (isAdmin || isSopPreparer) return allCohorts;
@@ -165,13 +172,20 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setLiveRevision((prev) => prev + 1);
   }, []);
 
+  // Keep refs current every render so realtime-triggered refreshes always read
+  // the freshest cohort/week without re-creating the callback.
+  activeCohortRef.current = activeCohort;
+  selectedWeekRef.current = selectedWeek;
+
   const refreshWorkspaceData = useCallback(() => {
     if (refreshInProgressRef.current) return;
     refreshInProgressRef.current = true;
     void (async () => {
       try {
+        const currentCohort = activeCohortRef.current;
+        const currentSelectedWeek = selectedWeekRef.current;
         const resolvedCohort = await loadCohorts();
-        const loadedWeeks = await loadWeeksForCohort(resolvedCohort?.id ?? activeCohort?.id ?? null, resolvedCohort ?? activeCohort);
+        const loadedWeeks = await loadWeeksForCohort(resolvedCohort?.id ?? currentCohort?.id ?? null, resolvedCohort ?? currentCohort);
 
         if (isAdmin) {
           await Promise.all([
@@ -182,8 +196,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           await loadRejectedChanges();
         }
 
-        if (isSopPreparer && selectedWeek) {
-          const matchingWeek = loadedWeeks.find((week) => week.id === selectedWeek.id);
+        if (isSopPreparer && currentSelectedWeek) {
+          const matchingWeek = loadedWeeks.find((week) => week.id === currentSelectedWeek.id);
           if (matchingWeek) {
             await loadWeekPendingChanges(matchingWeek.id);
           }
@@ -198,7 +212,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     })();
   }, [
-    activeCohort?.id,
     bumpLiveRevision,
     isAdmin,
     isSopPreparer,
@@ -209,14 +222,21 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     loadWeekPendingChanges,
     loadWeeksForCohort,
     refreshResourceCount,
-    selectedWeek,
   ]);
 
   const scheduleWorkspaceRefresh = useCallback(() => {
+    // Debounce bursts into a single refresh. If one is already running when the
+    // timer fires, re-defer instead of dropping it, so the latest change is
+    // never lost (refreshWorkspaceData's in-progress guard would otherwise
+    // silently swallow this call).
     if (refreshTimeoutRef.current) {
       window.clearTimeout(refreshTimeoutRef.current);
     }
     refreshTimeoutRef.current = window.setTimeout(() => {
+      if (refreshInProgressRef.current) {
+        scheduleWorkspaceRefresh();
+        return;
+      }
       refreshWorkspaceData();
     }, 300);
   }, [refreshWorkspaceData]);

@@ -1,0 +1,34 @@
+name: Keep Supabase Alive
+
+# Free-tier Supabase projects pause after 7 days with no activity. This pings
+# the REST API daily so the database never auto-pauses during a live cohort.
+# A lightweight HEAD request is enough to count as activity.
+#
+# The anon key below is already public (it ships in the frontend JS bundle), so
+# there is no secret to protect here. If you rotate the project, update the URL
+# and key, or move them to repo secrets and reference them as ${{ secrets.* }}.
+
+on:
+  schedule:
+    # 06:00 UTC daily — well under the 7-day pause window, with wide margin.
+    - cron: '0 6 * * *'
+  workflow_dispatch: {} # allow manual "Run workflow" from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST
+        run: |
+          URL="https://vnmeeqvwqaeczjlvzoul.supabase.co/rest/v1/Cohort?select=id&limit=1"
+          ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZubWVlcXZ3cWFlY3pqbHZ6b3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1MjA2NzksImV4cCI6MjA3NTA5NjY3OX0.kOQ83MGj94u-86j8LT6YahJLRrYrqloDGSKeN_CEc70"
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+            "$URL")
+          echo "Supabase REST responded: $code"
+          # 200 = alive. Any 2xx/4xx means the project is reachable (not paused).
+          # Only fail on connection failure / 5xx so we get an email alert.
+          if [ "$code" -ge 500 ] || [ "$code" -eq 000 ]; then
+            echo "Supabase appears down or paused (HTTP $code)"
+            exit 1
+          fi
