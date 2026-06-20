@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { notificationSettingsApi } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 interface NotificationSettingsProps {
   isOpen: boolean;
@@ -15,6 +17,8 @@ const TIMING_OPTIONS: { label: string; value: number }[] = [
 ];
 
 const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onClose, embedded = false }) => {
+  const { user } = useAuth();
+  const { enable, status: deviceStatus } = usePushNotifications(user?.id);
   const [selected, setSelected] = useState<number[]>([60]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -60,6 +64,15 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
     .sort((a, b) => a - b)
     .map((value) => TIMING_OPTIONS.find((option) => option.value === value)?.label || `${value} mins`)
     .join(' • ');
+  const deviceStatusText = {
+    unsupported: 'Push notifications are not supported on this browser.',
+    blocked: 'Notifications are blocked for this browser. Enable them in browser settings first.',
+    ready: 'Not enabled on this device yet.',
+    saving: 'Saving this device...',
+    enabled: 'Notifications enabled on this device.',
+    failed: 'Failed to enable notifications on this device. Try again.',
+  }[deviceStatus];
+  const canEnableDevice = deviceStatus !== 'unsupported' && deviceStatus !== 'blocked' && deviceStatus !== 'saving';
 
   const editor = (
     <div className="space-y-4">
@@ -135,6 +148,31 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
       <p className="text-sm text-gray-500 mb-4">
         Pick when you would like reminder nudges before your assigned activities. You can choose more than one.
       </p>
+      <div className="mb-4 rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-primary shadow-sm">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 14.158V11a6 6 0 1 0-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
+              </svg>
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Device notifications</p>
+              <p className={`mt-1 text-sm ${deviceStatus === 'blocked' || deviceStatus === 'failed' ? 'text-red-600' : deviceStatus === 'enabled' ? 'text-green-700' : 'text-gray-500'}`}>
+                {deviceStatusText}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={enable}
+            disabled={!canEnableDevice}
+            className="shrink-0 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {deviceStatus === 'saving' ? 'Saving...' : 'Enable on this device'}
+          </button>
+        </div>
+      </div>
       {embedded ? (
         <>
           <div className="rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-4">
