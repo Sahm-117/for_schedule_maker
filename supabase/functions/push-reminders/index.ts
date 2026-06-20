@@ -16,6 +16,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore — web-push ESM build
 import webPush from 'https://esm.sh/web-push@3'
+import { sendToSubscriptions } from '../_shared/webpush.ts'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -147,25 +148,11 @@ Deno.serve(async (_req) => {
           tag: `fof-${activity.id}-${interval}`,
         })
 
-        // 6. Send push to each subscription
-        for (const sub of subs as any[]) {
-          const pushSub = {
-            endpoint: sub.endpoint,
-            keys: { p256dh: sub.p256dh, auth: sub.auth },
-          }
-          try {
-            await webPush.sendNotification(pushSub, payload)
-            notified.push(sub.userId)
-          } catch (err: any) {
-            // 410 Gone = subscription expired, clean it up
-            if (err?.statusCode === 410) {
-              await supabase
-                .from('PushSubscription')
-                .delete()
-                .eq('userId', sub.userId)
-                .eq('endpoint', sub.endpoint)
-            }
-          }
+        // 6. Send push to each subscription (reliable: retries transient
+        //    failures, removes dead subs, logs the rest).
+        {
+          const r = await sendToSubscriptions(webPush, supabase, subs as any[], payload, notified)
+          if (r.failed > 0) console.error(`push-reminders (activity): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
         }
       }
     }
@@ -206,23 +193,9 @@ Deno.serve(async (_req) => {
         tag: `fof-followup-due-${contact.id}-${contact.dueDate}`,
       })
 
-      for (const sub of (subs || []) as any[]) {
-        const pushSub = {
-          endpoint: sub.endpoint,
-          keys: { p256dh: sub.p256dh, auth: sub.auth },
-        }
-        try {
-          await webPush.sendNotification(pushSub, payload)
-          notified.push(sub.userId)
-        } catch (err: any) {
-          if (err?.statusCode === 410) {
-            await supabase
-              .from('PushSubscription')
-              .delete()
-              .eq('userId', sub.userId)
-              .eq('endpoint', sub.endpoint)
-          }
-        }
+      {
+        const r = await sendToSubscriptions(webPush, supabase, (subs || []) as any[], payload, notified)
+        if (r.failed > 0) console.error(`push-reminders (followup-due): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
       }
 
       // Mark as reminded even with no active subscriptions, so the contact
@@ -285,23 +258,9 @@ Deno.serve(async (_req) => {
             tag: `fof-followup-owner-reminder-${ownerId}-${todayISO}`,
           })
 
-          for (const sub of (subs || []) as any[]) {
-            const pushSub = {
-              endpoint: sub.endpoint,
-              keys: { p256dh: sub.p256dh, auth: sub.auth },
-            }
-            try {
-              await webPush.sendNotification(pushSub, payload)
-              notified.push(sub.userId)
-            } catch (err: any) {
-              if (err?.statusCode === 410) {
-                await supabase
-                  .from('PushSubscription')
-                  .delete()
-                  .eq('userId', sub.userId)
-                  .eq('endpoint', sub.endpoint)
-              }
-            }
+          {
+            const r = await sendToSubscriptions(webPush, supabase, (subs || []) as any[], payload, notified)
+            if (r.failed > 0) console.error(`push-reminders (followup-owner): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
           }
         }
       }

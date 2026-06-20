@@ -7,6 +7,7 @@ import RejectedChangesNotification from './RejectedChangesNotification';
 import NotificationPromptModal from './NotificationPromptModal';
 import PWAInstallBanner from './PWAInstallBanner';
 import PWAUpdateBanner from './PWAUpdateBanner';
+import ErrorBoundary from './ErrorBoundary';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { isWalkthroughDismissed } from '../hooks/useWalkthrough';
 import { sortByText } from '../utils/sort';
@@ -511,7 +512,11 @@ const AppShell: React.FC = () => {
         </header>
 
         <main className="mx-auto max-w-7xl px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-8">
-          <Outlet />
+          {/* Route-level boundary: a single page crash shows a contained error
+              (nav/shell survive) and auto-recovers when the route changes. */}
+          <ErrorBoundary inline resetKey={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 

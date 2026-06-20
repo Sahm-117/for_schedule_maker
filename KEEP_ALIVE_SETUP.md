@@ -1,145 +1,54 @@
 # Keep-Alive Setup for FOF Scheduler
 
-This document explains how to prevent the Supabase database from shutting down due to inactivity (7-day free tier limit).
+Free-tier Supabase projects pause after **7 days of inactivity**. This app talks
+to Supabase directly (the frontend uses `VITE_DATA_PROVIDER=supabase`), so the
+database must receive at least one request every few days or it will pause and
+the app will appear "down" until the next request wakes it.
 
-## ✅ What's Been Added
+## ✅ Current mechanism (live)
 
-1. **Keep-Alive API Route**: `/api/keep-alive`
-   - Location: `backend/src/routes/keepAlive.ts`
-   - Simple endpoint that queries the database to keep it active
-   - Returns success status and timestamp
+**GitHub Actions cron** — `.github/workflows/keep-alive.yml`
 
-## 🚀 Setup Options
+- Runs daily at 06:00 UTC (`workflow_dispatch` also lets you trigger it manually
+  from the repo's **Actions** tab).
+- Sends a lightweight authenticated `GET` to the Supabase REST API.
+- Fails (sending you the standard GitHub Actions failure email) only if Supabase
+  is unreachable or returns 5xx — so it doubles as a basic uptime alert.
+- The anon key in the workflow is already public (it ships in the frontend
+  bundle), so there is no secret to protect. If you rotate the project, update
+  the URL + key in the workflow.
 
-### Option 1: UptimeRobot (Recommended - Free & Easy)
+No external service or account is required — it runs on GitHub's free Actions
+minutes.
 
-1. Go to https://uptimerobot.com/
-2. Create a free account
-3. Click "Add New Monitor"
-4. Configure:
-   - **Monitor Type**: HTTP(s)
-   - **Friendly Name**: FOF Scheduler Keep-Alive
-   - **URL**: `https://your-backend-url.com/api/keep-alive`
-   - **Monitoring Interval**: 5 days (432000 seconds) *Note: Free tier allows minimum 5 minutes, so you can use daily checks*
-5. Click "Create Monitor"
+## ⚠️ Note on the old Express backend
 
-**Recommended Setting**: Use **1 day (1440 minutes)** interval to safely stay under the 7-day limit.
+Earlier versions documented a `/api/keep-alive` route in the Express backend
+(`backend/src/routes/keepAlive.ts`). **That path is no longer used in
+production** — the app now calls Supabase directly and the Express backend is not
+deployed. Ignore the old UptimeRobot/Express instructions; the GitHub Action
+above is the single source of truth.
 
-### Option 2: Cron-Job.org (Free Alternative)
+## 🧪 Testing
 
-1. Go to https://cron-job.org/
-2. Create a free account
-3. Click "Create Cronjob"
-4. Configure:
-   - **Title**: FOF Keep-Alive
-   - **Address**: `https://your-backend-url.com/api/keep-alive`
-   - **Schedule**: Every 5 days at 00:00 (or daily for safety)
-   - Use cron expression: `0 0 */5 * *`
-5. Save the cron job
+Trigger the workflow manually:
 
-### Option 3: GitHub Actions (For GitHub-hosted projects)
+1. Open the repo on GitHub → **Actions** → **Keep Supabase Alive**.
+2. Click **Run workflow**.
+3. The run log prints `Supabase REST responded: 200`.
 
-Create `.github/workflows/keep-alive.yml`:
+Or test the endpoint directly:
 
-```yaml
-name: Keep Database Alive
-
-on:
-  schedule:
-    # Runs every 5 days at midnight UTC
-    - cron: '0 0 */5 * *'
-  workflow_dispatch: # Allows manual trigger
-
-jobs:
-  ping:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ping Keep-Alive Endpoint
-        run: |
-          curl -f https://your-backend-url.com/api/keep-alive || exit 1
-```
-
-### Option 4: Vercel Cron (If deploying backend to Vercel)
-
-If you deploy the Express backend to Vercel, create `vercel.json` in the backend directory:
-
-```json
-{
-  "crons": [
-    {
-      "path": "/api/keep-alive",
-      "schedule": "0 0 */5 * *"
-    }
-  ]
-}
-```
-
-Note: Vercel cron requires Hobby plan or higher ($20/month).
-
-## 🧪 Testing the Endpoint
-
-### Local Testing
 ```bash
-cd backend
-npm install
-npm run dev
-
-# In another terminal:
-curl http://localhost:3000/api/keep-alive
+curl -s -o /dev/null -w "%{http_code}\n" \
+  -H "apikey: <ANON_KEY>" -H "Authorization: Bearer <ANON_KEY>" \
+  "https://vnmeeqvwqaeczjlvzoul.supabase.co/rest/v1/Cohort?select=id&limit=1"
+# 200 = alive
 ```
 
-Expected response:
-```json
-{
-  "success": true,
-  "message": "Database pinged successfully",
-  "timestamp": "2025-11-30T01:47:00.000Z",
-  "weekCount": 8
-}
-```
+## 🎯 Want stronger uptime?
 
-### Production Testing
-```bash
-curl https://your-backend-url.com/api/keep-alive
-```
-
-## 📊 Monitoring
-
-Once set up, you can monitor the endpoint health:
-
-1. **UptimeRobot**: Check the dashboard for uptime stats
-2. **Cron-Job.org**: View execution history
-3. **GitHub Actions**: Check workflow runs in the Actions tab
-
-## 🔒 Security Notes
-
-- The `/api/keep-alive` endpoint is public (no authentication required)
-- It only performs a COUNT query, no sensitive data exposed
-- Safe to call from any cron service
-
-## 🎯 Recommended Approach
-
-For the FOF Scheduler project, I recommend **UptimeRobot** because:
-- ✅ Free forever
-- ✅ Simple setup (5 minutes)
-- ✅ Reliable monitoring
-- ✅ Email alerts if endpoint goes down
-- ✅ No GitHub Actions usage limits
-
-Set the interval to **1 day** (well under the 7-day Supabase limit) for maximum safety.
-
-## 📝 Cron Schedule Examples
-
-- `0 0 */5 * *` - Every 5 days at midnight UTC
-- `0 0 * * *` - Daily at midnight UTC (safest)
-- `0 */12 * * *` - Every 12 hours
-- `0 0 * * 0` - Every Sunday at midnight
-
-## 🔄 Reusability
-
-This same approach works for ANY project using:
-- Supabase (PostgreSQL)
-- Railway PostgreSQL
-- Any database that auto-pauses due to inactivity
-
-Just copy the `keepAlive.ts` route file and set up a cron service!
+A daily ping prevents the 7-day pause but does **not** give you a real uptime
+SLA. For higher availability you would need **Supabase Pro** (no auto-pause,
+daily backups) — a paid tier. On free tier, this Action is the best available
+safeguard.

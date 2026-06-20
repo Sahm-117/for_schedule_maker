@@ -18,20 +18,34 @@ self.addEventListener('message', (event) => {
 
 // Push notification handler
 self.addEventListener('push', (event) => {
-  if (!event.data) return
-
-  const data = event.data.json() as {
-    title: string
-    body: string
+  // Always show *something* — a push that arrives with a missing or malformed
+  // payload should still surface a notification rather than vanish silently.
+  type PushPayload = {
+    title?: string
+    body?: string
     icon?: string
     badge?: string
     tag?: string
     data?: Record<string, unknown>
   }
 
+  let data: PushPayload = {}
+  if (event.data) {
+    try {
+      data = event.data.json() as PushPayload
+    } catch {
+      // Non-JSON payload — fall back to raw text as the body.
+      try {
+        data = { body: event.data.text() }
+      } catch {
+        data = {}
+      }
+    }
+  }
+
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
+    self.registration.showNotification(data.title || 'FOF Ops', {
+      body: data.body || 'You have a new update.',
       icon: data.icon || '/icon-192.png',
       badge: data.badge || '/icon-192.png',
       tag: data.tag || 'fof-reminder',
