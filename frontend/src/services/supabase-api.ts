@@ -431,6 +431,7 @@ export const cohortsApi = {
         startDate: row.startDate,
         endDate: row.endDate,
         status: row.status,
+        schedulePublished: row.schedulePublished ?? false,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
       })),
@@ -558,6 +559,7 @@ export const cohortsApi = {
     startDate?: string | null;
     endDate?: string | null;
     status?: 'ACTIVE' | 'ARCHIVED';
+    schedulePublished?: boolean;
   }): Promise<{ cohort: Cohort }> {
     const { data, error } = await supabase
       .from('Cohort')

@@ -41,6 +41,7 @@ export interface Cohort {
   startDate?: string | null;
   endDate?: string | null;
   status?: 'ACTIVE' | 'ARCHIVED';
+  schedulePublished?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

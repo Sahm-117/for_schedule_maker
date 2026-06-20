@@ -20,7 +20,9 @@ const SupportSchedulePage: React.FC = () => {
     reloadWeeks,
     pendingChangesForSelectedWeek,
     refreshPendingChanges,
+    activeCohort,
   } = useAppData();
+  const schedulePublished = activeCohort?.schedulePublished !== false;
   const [viewMode, setViewMode] = useState<'today' | 'upcoming' | 'week'>('today');
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
   const [completionSavingIds, setCompletionSavingIds] = useState<number[]>([]);
@@ -136,6 +138,12 @@ const SupportSchedulePage: React.FC = () => {
         </div>
       )}
 
+      {!schedulePublished ? (
+        <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/40 py-16 text-center">
+          <p className="text-base font-semibold text-gray-700">Schedule not published yet</p>
+          <p className="mt-1 text-sm text-gray-500">Your coordinator is still finalising this week’s plan. You’ll see your activities here once it’s published.</p>
+        </div>
+      ) : (
       <div className="grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
         <WeekSelector
           weeks={weeks}
@@ -174,6 +182,7 @@ const SupportSchedulePage: React.FC = () => {
           )}
         </div>
       </div>
+      )}
 
       {wt.show && (
         <WalkthroughPopup

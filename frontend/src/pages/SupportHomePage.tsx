@@ -108,8 +108,9 @@ const SupportHomePage: React.FC = () => {
   );
   const currentWeekPosition = activeWeek ? cohortWeeks.findIndex((week) => week.id === activeWeek.id) + 1 : 0;
 
+  const schedulePublished = activeCohort?.schedulePublished !== false;
   const myActivities = useMemo(() => {
-    if (!activeWeek || userLabelIds.length === 0) return [];
+    if (!activeWeek || userLabelIds.length === 0 || !schedulePublished) return [];
     return activeWeek.days.flatMap((day) =>
       day.activities
         .filter((activity) => activity.labels?.some((label) => userLabelIds.includes(label.id)))
@@ -119,7 +120,7 @@ const SupportHomePage: React.FC = () => {
           dayIndex: getProgramDayIndex(day.dayName),
         })),
     );
-  }, [activeWeek, userLabelIds]);
+  }, [activeWeek, userLabelIds, schedulePublished]);
   const todayActivities = myActivities.filter((activity) => activity.dayName === todayName);
   const upcomingActivities = useMemo(
     () => [...myActivities]
@@ -184,7 +185,7 @@ const SupportHomePage: React.FC = () => {
           </div>
             <div className="space-y-3">
             {todayActivities.length === 0 ? (
-              <EmptyState text={userLabelIds.length === 0 ? 'No activities are assigned to your tags yet.' : 'Nothing scheduled for you today in this week.'} />
+              <EmptyState text={!schedulePublished ? 'Schedule not published yet. Check back once your coordinator publishes it.' : userLabelIds.length === 0 ? 'No activities are assigned to your tags yet.' : 'Nothing scheduled for you today in this week.'} />
             ) : todayActivities.slice(0, 6).map((activity) => (
               <div key={`${activity.id}-${activity.dayName}`} className="surface-muted rounded-2xl px-4 py-4">
                 <div className="flex items-start justify-between gap-4">

@@ -8,7 +8,9 @@ import ScheduleView from '../components/ScheduleView';
 import WeekSelector from '../components/WeekSelector';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { labelsApi, supportActivityCompletionsApi, usersApi } from '../services/api';
+import { labelsApi, supportActivityCompletionsApi, usersApi, cohortsApi } from '../services/api';
+import AppOverflowMenu from '../components/AppOverflowMenu';
+import ConfirmationModal from '../components/ConfirmationModal';
 import type { Activity, Day, Label, SupportActivityCompletion, User } from '../types';
 import { exportAllWeeksToPDF, exportDayToPDF, exportWeekToPDF } from '../utils/pdfExport';
 
@@ -22,7 +24,23 @@ const AdminSchedulePage: React.FC = () => {
     pendingChangesForSelectedWeek,
     refreshPendingChanges,
     loading,
+    activeCohort,
+    reloadCohorts,
   } = useAppData();
+  const [publishing, setPublishing] = React.useState(false);
+  const [confirmPublishOpen, setConfirmPublishOpen] = React.useState(false);
+  const schedulePublished = activeCohort?.schedulePublished === true;
+
+  const togglePublished = async () => {
+    if (!activeCohort || publishing) return;
+    setConfirmPublishOpen(false);
+    setPublishing(true);
+    try {
+      await cohortsApi.update(activeCohort.id, { schedulePublished: !schedulePublished });
+      await reloadCohorts();
+    } catch { /* ignore */ }
+    finally { setPublishing(false); }
+  };
   const [showExportMenu, setShowExportMenu] = React.useState(false);
   const [showTagManagement, setShowTagManagement] = React.useState(false);
   const [showDayExportPicker, setShowDayExportPicker] = React.useState(false);
@@ -76,14 +94,6 @@ const AdminSchedulePage: React.FC = () => {
         setCompletions([]);
       });
   }, [isAdmin, selectedWeek]);
-
-  if (user?.role === 'SUPPORT') {
-    return <Navigate to="/support/schedule" replace />;
-  }
-
-  if (loading) {
-    return null;
-  }
 
   const canManageSchedule = isAdmin || isSopPreparer;
 
@@ -171,36 +181,25 @@ const AdminSchedulePage: React.FC = () => {
       {isAdmin && (
         <button
           type="button"
-          onClick={() => setShowTagManagement(true)}
-          className="inline-flex h-10 items-center justify-center rounded-full border border-orange-200 px-4 text-sm font-semibold text-gray-700 hover:bg-orange-50"
+          onClick={() => setConfirmPublishOpen(true)}
+          disabled={!activeCohort || publishing}
+          title={schedulePublished ? 'Supports can see their activities. Click to unpublish.' : 'Supports cannot see activities yet. Click to publish.'}
+          className={`inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-semibold transition disabled:opacity-60 ${
+            schedulePublished ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+          }`}
         >
-          Manage tags
+          <span className={`h-2 w-2 rounded-full ${schedulePublished ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+          {publishing ? 'Saving…' : schedulePublished ? 'Published' : 'Draft'}
         </button>
       )}
       {selectedWeek && (
         <>
-      {isAdmin && (
-        <button
-          type="button"
-          onClick={() => setShowOverviewDrawer(true)}
-          className="inline-flex h-10 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
-        >
-          Overview
-        </button>
-      )}
       <button
         type="button"
         onClick={() => setShowDayAddPicker(true)}
         className="inline-flex h-10 items-center justify-center rounded-full border border-primary px-4 text-sm font-semibold text-primary hover:bg-primary/5"
       >
         Add Activity
-      </button>
-      <button
-        type="button"
-        onClick={() => setCrossWeekRequest((prev) => prev + 1)}
-        className="inline-flex h-10 items-center justify-center rounded-full border border-orange-200 px-4 text-sm font-semibold text-gray-700 hover:bg-orange-50"
-      >
-        Cross-Week
       </button>
       <div className="relative">
         <button
@@ -246,10 +245,26 @@ const AdminSchedulePage: React.FC = () => {
           </div>
         )}
       </div>
+      <AppOverflowMenu
+        align="right"
+        items={[
+          ...(isAdmin ? [{ label: 'Manage tags', onClick: () => setShowTagManagement(true) }] : []),
+          ...(isAdmin ? [{ label: 'Overview', onClick: () => setShowOverviewDrawer(true) }] : []),
+          { label: 'Cross-Week', onClick: () => setCrossWeekRequest((prev) => prev + 1) },
+        ]}
+      />
         </>
       )}
     </div>
   ) : null;
+
+  // Guards are placed after all hooks to satisfy the Rules of Hooks.
+  if (user?.role === 'SUPPORT') {
+    return <Navigate to="/support/schedule" replace />;
+  }
+  if (loading) {
+    return null;
+  }
 
   return (
     <div>
@@ -360,6 +375,18 @@ const AdminSchedulePage: React.FC = () => {
           }
         />
       )}
+
+      <ConfirmationModal
+        isOpen={confirmPublishOpen}
+        onClose={() => setConfirmPublishOpen(false)}
+        onConfirm={() => { void togglePublished(); }}
+        title={schedulePublished ? 'Unpublish schedule?' : 'Publish schedule to supports?'}
+        message={schedulePublished
+          ? `Supports will immediately stop seeing their activities for ${activeCohort?.name ?? 'this cohort'}. You can publish again anytime.`
+          : `Every support will immediately see the activities tagged to them in ${activeCohort?.name ?? 'this cohort'}. Make sure the schedule is ready.`}
+        confirmText={schedulePublished ? 'Unpublish' : 'Publish'}
+        type={schedulePublished ? 'danger' : 'info'}
+      />
 
       {isAdmin && (
         <LabelManagement
