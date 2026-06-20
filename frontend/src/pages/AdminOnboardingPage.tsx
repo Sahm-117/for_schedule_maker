@@ -423,23 +423,45 @@ const AdminOnboardingPage: React.FC = () => {
           </div>
         )}
 
-        <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-          <section className="surface-card p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Group status</p>
-                <h3 className="mt-1 text-lg font-bold text-gray-900">Progress by group</h3>
-              </div>
+        {/* Recent activity — full width above so group status can use more columns. */}
+        <section className="surface-card flex max-h-[22rem] flex-col p-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Recent activity</p>
+          <h3 className="mt-1 text-lg font-bold text-gray-900">Onboarding event feed</h3>
+          {visibleEvents.length === 0 ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">
+              No onboarding updates yet.
             </div>
+          ) : (
+            <div className="mt-4 grid min-h-0 flex-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3" onScroll={handleFeedScroll}>
+              {visibleEvents.slice(0, eventLimit).map((event) => (
+                <div key={event.id} className="rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-3">
+                  <p className="text-sm font-semibold text-gray-900">{describeEvent(event)}</p>
+                  <p className="mt-1 text-xs text-gray-500">{new Date(event.createdAt).toLocaleString()}</p>
+                </div>
+              ))}
+              {eventLimit < visibleEvents.length && (
+                <p className="col-span-full py-2 text-center text-xs text-gray-400">Scroll for more…</p>
+              )}
+            </div>
+          )}
+        </section>
 
-            {loading ? (
-              <PageLoader />
-            ) : visibleGroupSummaries.length === 0 ? (
-              <div className="mt-4 rounded-2xl border border-dashed border-orange-200 py-12 text-center">
-                <p className="text-sm text-gray-500">No group progress yet.</p>
-              </div>
-            ) : (
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <section className="surface-card p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Group status</p>
+              <h3 className="mt-1 text-lg font-bold text-gray-900">Progress by group</h3>
+            </div>
+          </div>
+
+          {loading ? (
+            <PageLoader />
+          ) : visibleGroupSummaries.length === 0 ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-orange-200 py-12 text-center">
+              <p className="text-sm text-gray-500">No group progress yet.</p>
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {visibleGroupSummaries.map(({ status, pct, participantCount, completed, completedParticipants, members }) => {
                   return (
                     <div key={status.groupId} className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
@@ -472,30 +494,7 @@ const AdminOnboardingPage: React.FC = () => {
                 })}
               </div>
             )}
-          </section>
-
-          <section className="surface-card flex max-h-[36rem] flex-col p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Recent activity</p>
-            <h3 className="mt-1 text-lg font-bold text-gray-900">Onboarding event feed</h3>
-            {visibleEvents.length === 0 ? (
-              <div className="mt-4 rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">
-                No onboarding updates yet.
-              </div>
-            ) : (
-              <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1" onScroll={handleFeedScroll}>
-                {visibleEvents.slice(0, eventLimit).map((event) => (
-                  <div key={event.id} className="rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-3">
-                    <p className="text-sm font-semibold text-gray-900">{describeEvent(event)}</p>
-                    <p className="mt-1 text-xs text-gray-500">{new Date(event.createdAt).toLocaleString()}</p>
-                  </div>
-                ))}
-                {eventLimit < visibleEvents.length && (
-                  <p className="py-2 text-center text-xs text-gray-400">Scroll for more…</p>
-                )}
-              </div>
-            )}
-          </section>
-        </div>
+        </section>
       </div>
 
       <ModalShell
