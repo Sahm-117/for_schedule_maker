@@ -13,23 +13,36 @@ export const WhatsAppIcon: React.FC<{ className?: string }> = ({ className = 'h-
   </svg>
 );
 
-const TOKEN = /(whatsapp)/gi;
+export const TelegramIcon: React.FC<{ className?: string }> = ({ className = 'h-4 w-4' }) => (
+  <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="12" fill="#229ED9" />
+    <path
+      fill="#FFF"
+      d="M5.49 11.77 17.3 7.2c.55-.2 1.03.13.85.96l-2.01 9.46c-.15.68-.56.85-1.13.53l-3.12-2.3-1.5 1.45c-.17.17-.31.31-.63.31l.22-3.18 5.79-5.23c.25-.22-.06-.35-.39-.13l-7.15 4.5-3.08-.96c-.67-.21-.68-.67.14-.99Z"
+    />
+  </svg>
+);
+
+const TOKEN = /(whatsapp|telegram)/gi;
 
 const ActivityText: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => {
   const parts = text.split(TOKEN);
 
   return (
     <span className={className}>
-      {parts.map((part, index) => (
-        part.toLowerCase() === 'whatsapp' ? (
-          <span key={`${part}-${index}`} className="inline-flex translate-y-[2px] items-center">
-            <WhatsAppIcon className="h-4 w-4" />
-            <span className="sr-only">WhatsApp</span>
-          </span>
-        ) : (
-          <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>
-        )
-      ))}
+      {parts.map((part, index) => {
+        const lower = part.toLowerCase();
+        if (lower === 'whatsapp' || lower === 'telegram') {
+          const Icon = lower === 'whatsapp' ? WhatsAppIcon : TelegramIcon;
+          return (
+            <span key={`${part}-${index}`} className="inline-flex translate-y-[2px] items-center gap-1">
+              <span>{part}</span>
+              <Icon className="h-4 w-4" />
+            </span>
+          );
+        }
+        return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+      })}
     </span>
   );
 };
