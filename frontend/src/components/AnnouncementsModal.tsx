@@ -293,7 +293,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                       </div>
                       <div className="flex items-start gap-2 flex-shrink-0">
                         <span className="text-xs text-gray-400">
-                          {new Date(a.sentAt).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          {new Date(a.sentAt).toLocaleString('en-US', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true })}
                         </span>
                         {isAdmin && (
                           <button

@@ -87,12 +87,13 @@ const AnnouncementsFeedPage: React.FC = () => {
                     </p>
                   </div>
                   <span className="text-xs text-gray-400">
-                    {new Intl.DateTimeFormat('en-GB', {
+                    {new Intl.DateTimeFormat('en-US', {
                       day: 'numeric',
                       month: 'short',
                       year: 'numeric',
-                      hour: '2-digit',
+                      hour: 'numeric',
                       minute: '2-digit',
+                      hour12: true,
                     }).format(new Date(item.sentAt))}
                   </span>
                 </div>
