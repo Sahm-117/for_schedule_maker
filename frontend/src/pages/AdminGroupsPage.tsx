@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
@@ -263,9 +263,12 @@ const AdminGroupsPage: React.FC = () => {
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
-  const load = useCallback(async () => {
+  // `silent` background refreshes (triggered by realtime liveRevision bumps)
+  // update the data in place WITHOUT flipping `loading`, so the grid doesn't
+  // flash a full-page "Loading…" every time anything changes in the cohort.
+  const load = useCallback(async (silent = false) => {
     if (!activeCohort) { setLoading(false); return; }
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const [{ groups: gs }, { participants: ps }, { users }] = await Promise.all([
         groupsApi.getAll({ cohortId: activeCohort.id }),
@@ -276,10 +279,18 @@ const AdminGroupsPage: React.FC = () => {
       setParticipants(sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName));
       setSupportUsers(sortByText(users.filter((u) => u.role === 'SUPPORT'), (user) => user.name));
     } catch { /* ignore */ }
-    finally { setLoading(false); }
+    finally { if (!silent) setLoading(false); }
   }, [activeCohort]);
 
-  useEffect(() => { void load(); }, [load, liveRevision]);
+  // Initial / cohort-change load shows the loader.
+  useEffect(() => { void load(false); }, [load]);
+  // Realtime updates refresh silently (no flash). Skip the very first run since
+  // the load above already covers it.
+  const didInitialLoad = useRef(false);
+  useEffect(() => {
+    if (!didInitialLoad.current) { didInitialLoad.current = true; return; }
+    void load(true);
+  }, [liveRevision, load]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;

@@ -166,7 +166,16 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setSuccess('');
 
     try {
-      const userData = { ...newUser, email: newUser.email || newUser.phone };
+      // Send only the fields actually provided. Previously this copied the phone
+      // into the email field for phone-only users, polluting email with a phone
+      // number. register() already omits empty email/phone.
+      const userData = {
+        name: newUser.name,
+        password: newUser.password,
+        role: newUser.role,
+        ...(newUser.email ? { email: newUser.email } : {}),
+        ...(newUser.phone ? { phone: newUser.phone } : {}),
+      };
       const created = await authApi.register(userData);
       if (newUser.role === 'SUPPORT' && newUserLabelIds.length > 0 && created?.user?.id) {
         await usersApi.setUserLabels(created.user.id, newUserLabelIds);
