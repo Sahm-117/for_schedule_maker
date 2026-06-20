@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
@@ -23,11 +23,6 @@ const SOURCE_LABEL: Record<string, string> = {
   FOLLOW_UP: 'Follow-up',
   MANUAL: 'Manual',
   IMPORT: 'Import',
-};
-
-const STATUS_PILL: Record<string, string> = {
-  ACTIVE: 'bg-emerald-100/80 text-emerald-700',
-  ARCHIVED: 'bg-neutral-100 text-neutral-600',
 };
 
 // ── Add/Edit Modal ────────────────────────────────────────────────────────────
@@ -261,9 +256,11 @@ const AdminParticipantsPage: React.FC = () => {
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
-  const load = useCallback(async () => {
+  // `silent` background refreshes (realtime liveRevision bumps) update data in
+  // place without the full-page "Loading…" flash.
+  const load = useCallback(async (silent = false) => {
     if (!activeCohort) { setLoading(false); return; }
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const [{ participants: ps }, { groups: gs }] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true }),
@@ -272,10 +269,17 @@ const AdminParticipantsPage: React.FC = () => {
       setParticipants(sortByText(ps, (participant) => participant.fullName));
       setGroups(sortByText(gs, (group) => group.name));
     } catch { /* ignore */ }
-    finally { setLoading(false); }
+    finally { if (!silent) setLoading(false); }
   }, [activeCohort]);
 
-  useEffect(() => { void load(); }, [load, liveRevision]);
+  // Initial / cohort-change load shows the loader.
+  useEffect(() => { void load(false); }, [load]);
+  // Realtime updates refresh silently (skip the first run already covered above).
+  const didInitialLoad = useRef(false);
+  useEffect(() => {
+    if (!didInitialLoad.current) { didInitialLoad.current = true; return; }
+    void load(true);
+  }, [liveRevision, load]);
 
   const groupOptions = useMemo(
     () => [
@@ -285,6 +289,14 @@ const AdminParticipantsPage: React.FC = () => {
     ],
     [groups]
   );
+
+  // Map each group to its assigned support person's name (groups already carry
+  // supportName), so we can show the support for each participant via groupId.
+  const supportByGroupId = useMemo(() => {
+    const map = new Map<string, string>();
+    groups.forEach((g) => { if (g.supportName) map.set(g.id, g.supportName); });
+    return map;
+  }, [groups]);
 
   const displayed = useMemo(() => {
     let ps = showArchived ? participants : participants.filter((p) => p.status === 'ACTIVE');
@@ -380,7 +392,7 @@ const AdminParticipantsPage: React.FC = () => {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Phone</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Source</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Support</th>
                     <th className="sticky right-0 bg-orange-50/60 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
                   </tr>
                 </thead>
@@ -396,9 +408,13 @@ const AdminParticipantsPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_PILL[p.status] ?? 'bg-neutral-100 text-neutral-600'}`}>
-                          {p.status === 'ACTIVE' ? 'Active' : 'Archived'}
-                        </span>
+                        {p.groupId && supportByGroupId.get(p.groupId) ? (
+                          <span className="rounded-full bg-violet-100/80 px-2.5 py-0.5 text-xs font-semibold text-violet-700">
+                            {supportByGroupId.get(p.groupId)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="sticky right-0 bg-white px-4 py-3 text-right">
                         <div className="flex justify-end">
