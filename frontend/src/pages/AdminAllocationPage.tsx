@@ -56,10 +56,12 @@ const ParticipantChip: React.FC<ChipProps> = ({ participant, selected, onToggle,
       >
         ✓
       </span>
-      <span className="flex-1 truncate font-medium">{participant.fullName}</span>
-      {participant.phone && <span className="hidden text-xs text-gray-400 sm:inline">{participant.phone}</span>}
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="font-medium leading-tight">{participant.fullName}</span>
+        {participant.phone && <span className="text-xs text-gray-400">{participant.phone}</span>}
+      </span>
       {selected && dragCount > 1 && (
-        <span className="rounded-full bg-primary px-1.5 text-[10px] font-bold text-white">{dragCount}</span>
+        <span className="shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-bold text-white">{dragCount}</span>
       )}
     </button>
   );
