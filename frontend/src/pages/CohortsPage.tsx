@@ -5,7 +5,7 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import PageHeader from '../components/PageHeader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { cohortsApi, usersApi, weeksApi } from '../services/api';
+import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi } from '../services/api';
 import type { Cohort, User, Week } from '../types';
 
 type CohortFormState = {
@@ -96,6 +96,27 @@ const CohortsPage: React.FC = () => {
   useEffect(() => {
     setSelectedCohortId(activeCohort?.id || cohorts[0]?.id || '');
   }, [activeCohort?.id, cohorts]);
+
+  // Summary counts for the active cohort card.
+  const [activeSummary, setActiveSummary] = useState<{ groups: number; supports: number; participants: number } | null>(null);
+  useEffect(() => {
+    if (!activeCohort?.id) { setActiveSummary(null); return; }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [{ groups }, { participants }] = await Promise.all([
+          groupsApi.getAll({ cohortId: activeCohort.id }),
+          participantsApi.getAll({ cohortId: activeCohort.id }),
+        ]);
+        if (cancelled) return;
+        const supports = new Set(groups.map((g) => g.supportId).filter(Boolean)).size;
+        setActiveSummary({ groups: groups.length, supports, participants: participants.length });
+      } catch {
+        if (!cancelled) setActiveSummary(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeCohort?.id]);
 
   const selectedCohort = cohorts.find((cohort) => cohort.id === selectedCohortId) || null;
 
@@ -453,6 +474,19 @@ const CohortsPage: React.FC = () => {
                 <span className="rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700">
                   {weekCounts[activeCohort.id] || 0} weeks
                 </span>
+                {activeSummary && (
+                  <>
+                    <span className="rounded-full bg-sky-100/80 px-3 py-1.5 text-xs font-semibold text-sky-700">
+                      {activeSummary.groups} groups
+                    </span>
+                    <span className="rounded-full bg-emerald-100/80 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                      {activeSummary.supports} supports
+                    </span>
+                    <span className="rounded-full bg-amber-100/80 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                      {activeSummary.participants} participants
+                    </span>
+                  </>
+                )}
                 <span className="rounded-full bg-orange-100 px-3 py-1.5 text-xs font-semibold text-orange-700">
                   {formatDateRange(activeCohort.startDate, activeCohort.endDate)}
                 </span>
@@ -1061,14 +1095,46 @@ const WeekChipRow: React.FC<{
   onDelete: (week: Week) => void;
   onEdit: (week: Week) => void;
 }> = ({ weeks, disabled = false, onAdd, onDelete, onEdit }) => {
+  const [expanded, setExpanded] = useState(false);
   const sortedWeeks = [...weeks].sort((a, b) => a.weekNumber - b.weekNumber);
   const weekByNumber = new Map(sortedWeeks.map((week) => [week.weekNumber, week]));
   const maxWeekNumber = sortedWeeks.reduce((max, week) => Math.max(max, week.weekNumber), 0);
   const slots = Array.from({ length: maxWeekNumber }, (_, index) => index + 1);
   const canDelete = sortedWeeks.length > 1 && !disabled;
 
+  // Collapsed by default: a single "Weeks (N)" field with an edit pencil that
+  // expands the individual week pills for editing.
+  if (!expanded) {
+    return (
+      <div className="mt-2 flex items-center gap-2">
+        <span className="inline-flex h-9 items-center rounded-2xl border border-orange-100 bg-white px-3 text-sm font-semibold text-gray-800 shadow-sm">
+          Weeks ({sortedWeeks.length})
+        </span>
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="grid h-9 w-9 place-items-center rounded-2xl border border-orange-100 bg-white text-gray-500 shadow-sm hover:bg-orange-50 hover:text-primary"
+          aria-label="Edit weeks"
+          title="Edit weeks"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z" />
+          </svg>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setExpanded(false)}
+        className="inline-flex h-9 items-center gap-1 rounded-2xl border border-orange-200 bg-orange-50 px-3 text-xs font-semibold text-primary hover:bg-orange-100"
+        title="Collapse weeks"
+      >
+        Done
+      </button>
       {slots.map((weekNumber) => {
         const week = weekByNumber.get(weekNumber);
         if (!week) {
