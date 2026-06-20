@@ -9,6 +9,7 @@ import type { Participant, Group } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
+import ConfirmationModal from '../components/ConfirmationModal';
 import {
   parseBulkPaste,
   buildExistingPhoneSet,
@@ -255,6 +256,7 @@ const AdminParticipantsPage: React.FC = () => {
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Participant | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<Participant | null>(null);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -302,12 +304,14 @@ const AdminParticipantsPage: React.FC = () => {
     [participants]
   );
 
-  const handleArchive = async (p: Participant) => {
-    if (!window.confirm(`Archive ${p.fullName}? They will no longer appear in attendance.`)) return;
+  const handleArchive = async () => {
+    if (!archiveTarget) return;
+    const p = archiveTarget;
     try {
       await participantsApi.archive(p.id);
       setParticipants((prev) => prev.map((x) => x.id === p.id ? { ...x, status: 'ARCHIVED' } : x));
     } catch { /* ignore */ }
+    finally { setArchiveTarget(null); }
   };
 
   const activeCount = participants.filter((p) => p.status === 'ACTIVE').length;
@@ -402,7 +406,7 @@ const AdminParticipantsPage: React.FC = () => {
                               align="right"
                               items={[
                                 { label: 'Edit', onClick: () => { setEditing(p); setAddOpen(true); } },
-                                { label: 'Archive', onClick: () => { void handleArchive(p); }, tone: 'danger' },
+                                { label: 'Archive', onClick: () => setArchiveTarget(p), tone: 'danger' },
                               ]}
                             />
                           ) : (
@@ -440,6 +444,15 @@ const AdminParticipantsPage: React.FC = () => {
         onImported={(ps) => setParticipants((prev) => [...ps, ...prev])}
         cohortId={activeCohort?.id ?? ''}
         existingParticipants={participants}
+      />
+
+      <ConfirmationModal
+        isOpen={!!archiveTarget}
+        onClose={() => setArchiveTarget(null)}
+        onConfirm={() => { void handleArchive(); }}
+        title="Archive participant"
+        message={`Archive ${archiveTarget?.fullName}? They will no longer appear in attendance.`}
+        confirmText="Archive"
       />
     </div>
   );

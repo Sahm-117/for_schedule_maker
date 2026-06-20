@@ -77,7 +77,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           </div>
 
           <div className="mb-6">
-            <p className="text-gray-600 text-sm leading-relaxed">
+            <p className="whitespace-pre-line text-gray-600 text-sm leading-relaxed">
               {message}
             </p>
             {children ? (

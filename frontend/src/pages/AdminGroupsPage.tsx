@@ -6,6 +6,7 @@ import { useAppData } from '../context/AppDataContext';
 import { groupsApi, participantsApi, usersApi } from '../services/api';
 import type { Group, Participant, User } from '../types';
 import ModalShell from '../components/followups/ModalShell';
+import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
 import PageLoader from '../components/PageLoader';
@@ -256,6 +257,7 @@ const AdminGroupsPage: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Group | null>(null);
   const [membersTarget, setMembersTarget] = useState<Group | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Group | null>(null);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -277,12 +279,14 @@ const AdminGroupsPage: React.FC = () => {
 
   useEffect(() => { void load(); }, [load, liveRevision]);
 
-  const handleDelete = async (g: Group) => {
-    if (!window.confirm(`Delete "${g.name}"? This also removes all member assignments.`)) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const g = deleteTarget;
     try {
       await groupsApi.delete(g.id);
       setGroups((prev) => prev.filter((x) => x.id !== g.id));
     } catch { /* ignore */ }
+    finally { setDeleteTarget(null); }
   };
 
   return (
@@ -323,7 +327,7 @@ const AdminGroupsPage: React.FC = () => {
                   items={[
                     { label: 'Manage members', onClick: () => setMembersTarget(g) },
                     { label: 'Edit', onClick: () => { setEditing(g); setFormOpen(true); } },
-                    { label: 'Delete', onClick: () => { void handleDelete(g); }, tone: 'danger' },
+                    { label: 'Delete', onClick: () => setDeleteTarget(g), tone: 'danger' },
                   ]}
                 />
               </div>
@@ -372,6 +376,15 @@ const AdminGroupsPage: React.FC = () => {
           }}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => { void handleDelete(); }}
+        title="Delete group"
+        message={`Delete "${deleteTarget?.name}"? This also removes all member assignments.`}
+        confirmText="Delete"
+      />
     </div>
   );
 };

@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import type { Announcement, Label } from '../types';
 import AppSelect from './AppSelect';
+import ConfirmationModal from './ConfirmationModal';
 
 interface AnnouncementsModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   const [labels, setLabels] = useState<Label[]>([]);
   const [sending, setSending] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [localHistory, setLocalHistory] = useState<Announcement[]>([]);
   const [localLoadingHistory, setLocalLoadingHistory] = useState(false);
@@ -130,10 +132,10 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     }
   };
 
-  const handleDelete = async (announcement: Announcement) => {
-    if (!isAdmin) return;
-    const confirmed = window.confirm(`Delete "${announcement.subject}"? This will remove it from announcement history and support-facing feeds.`);
-    if (!confirmed) return;
+  const handleDelete = async () => {
+    if (!isAdmin || !deleteTarget) return;
+    const announcement = deleteTarget;
+    setDeleteTarget(null);
 
     setDeletingId(announcement.id);
     setStatus(null);
@@ -296,7 +298,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                         {isAdmin && (
                           <button
                             type="button"
-                            onClick={() => void handleDelete(a)}
+                            onClick={() => setDeleteTarget(a)}
                             disabled={deletingId === a.id}
                             className="rounded-lg p-1 text-rose-500 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
                             title="Delete announcement"
@@ -336,13 +338,28 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     </div>
   );
 
+  const deleteConfirm = (
+    <ConfirmationModal
+      isOpen={!!deleteTarget}
+      onClose={() => setDeleteTarget(null)}
+      onConfirm={() => { void handleDelete(); }}
+      title="Delete announcement"
+      message={`Delete "${deleteTarget?.subject}"? This will remove it from announcement history and support-facing feeds.`}
+      confirmText="Delete"
+    />
+  );
+
   return embedded ? (
-    <div className="surface-card overflow-hidden">{content}</div>
+    <>
+      <div className="surface-card overflow-hidden">{content}</div>
+      {deleteConfirm}
+    </>
   ) : (
     <div className="fixed inset-0 z-50 flex items-end bg-black/50 p-0 sm:items-center sm:justify-center sm:p-4">
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-xl sm:max-w-lg sm:rounded-2xl">
         {content}
       </div>
+      {deleteConfirm}
     </div>
   );
 };

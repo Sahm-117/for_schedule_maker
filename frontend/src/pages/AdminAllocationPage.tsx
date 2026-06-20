@@ -16,6 +16,7 @@ import {
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import AppSelect from '../components/AppSelect';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { groupsApi, participantsApi } from '../services/api';
@@ -123,6 +124,7 @@ const AdminAllocationPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [distributePlan, setDistributePlan] = useState<{ assignments: Array<{ participantId: string; groupId: string }>; summary: string; count: number } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -234,7 +236,8 @@ const AdminAllocationPage: React.FC = () => {
 
   // Auto-distribute the unassigned evenly across groups (round-robin).
   const autoDistributeRef = useRef<HTMLButtonElement>(null);
-  const handleAutoDistribute = async () => {
+  // Build the greedy even-distribution plan and open the confirm modal.
+  const handleAutoDistribute = () => {
     if (groups.length === 0 || unassigned.length === 0) return;
     const base = groups.map((g) => byGroup.get(g.id)?.length ?? 0);
     // Greedy: always drop the next person into the currently-smallest group.
@@ -247,8 +250,13 @@ const AdminAllocationPage: React.FC = () => {
       assignments.push({ participantId: p.id, groupId: groups[min].id });
     });
     const summary = groups.map((g, i) => `${g.name}: ${counts[i]}`).join(' · ');
-    if (!window.confirm(`Spread ${unassigned.length} unassigned across ${groups.length} groups?\n\nResult → ${summary}`)) return;
+    setDistributePlan({ assignments, summary, count: unassigned.length });
+  };
 
+  const applyAutoDistribute = async () => {
+    if (!distributePlan) return;
+    const { assignments } = distributePlan;
+    setDistributePlan(null);
     const snapshot = participants;
     const nameById = new Map(groups.map((g) => [g.id, g.name]));
     const groupById = new Map(assignments.map((a) => [a.participantId, a.groupId]));
@@ -413,6 +421,16 @@ const AdminAllocationPage: React.FC = () => {
           </DragOverlay>
         </DndContext>
       )}
+
+      <ConfirmationModal
+        isOpen={!!distributePlan}
+        onClose={() => setDistributePlan(null)}
+        onConfirm={() => { void applyAutoDistribute(); }}
+        title="Auto-distribute participants"
+        message={distributePlan ? `Spread ${distributePlan.count} unassigned across ${groups.length} groups?\n\nResult → ${distributePlan.summary}` : ''}
+        confirmText="Distribute"
+        type="info"
+      />
     </div>
   );
 };
