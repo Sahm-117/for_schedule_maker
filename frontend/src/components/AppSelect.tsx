@@ -90,20 +90,29 @@ const AppSelect: React.FC<AppSelectProps> = ({
       const rect = rootRef.current?.getBoundingClientRect();
       if (!rect) return;
       const width = rect.width;
-      const itemHeight = 48;
+      // Options that carry a `meta` line render taller; estimate accordingly so
+      // the flip-up math doesn't undershoot and let the menu bleed over the nav.
+      const hasMeta = filteredOptions.some((option) => !!option.meta);
+      const itemHeight = hasMeta ? 64 : 48;
       const searchHeight = searchable ? 58 : 0;
       const visibleItemCount = Math.max(1, Math.min(filteredOptions.length, 6));
+      const margin = 12;
       const menuHeight = visibleItemCount * itemHeight + searchHeight + 24;
       let top = rect.bottom + 6;
       let left = rect.left;
 
-      if (top + menuHeight > window.innerHeight) {
-        top = Math.max(12, rect.top - menuHeight - 6);
+      // Prefer dropping below; flip above if it would overflow the viewport bottom.
+      const spaceBelow = window.innerHeight - rect.bottom - margin;
+      const spaceAbove = rect.top - margin;
+      if (menuHeight > spaceBelow && spaceAbove > spaceBelow) {
+        top = Math.max(margin, rect.top - Math.min(menuHeight, spaceAbove) - 6);
       }
       if (left + width > window.innerWidth) {
-        left = Math.max(12, window.innerWidth - width - 12);
+        left = Math.max(margin, window.innerWidth - width - margin);
       }
       const maxMenuWidth = Math.max(width, Math.min(360, window.innerWidth - 24));
+      // Never let the menu extend past the viewport edge — it scrolls internally.
+      const maxHeight = Math.max(120, window.innerHeight - top - margin);
 
       setMenuStyle({
         position: 'fixed',
@@ -111,6 +120,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
         left,
         minWidth: width,
         maxWidth: maxMenuWidth,
+        maxHeight,
         zIndex: 100,
       });
     };
@@ -173,7 +183,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
       </button>
 
       {open && typeof document !== 'undefined' && createPortal(
-        <div ref={menuRef} style={menuStyle} className="overflow-hidden rounded-[24px] border border-orange-100 bg-white p-1.5 shadow-[0_28px_80px_rgba(15,23,42,0.18)]">
+        <div ref={menuRef} style={menuStyle} className="flex flex-col overflow-hidden rounded-[24px] border border-orange-100 bg-white p-1.5 shadow-[0_28px_80px_rgba(15,23,42,0.18)]">
           {searchable && (
             <div className="border-b border-orange-100/70 p-1.5">
               <div className="flex items-center gap-2 rounded-2xl border border-orange-100 bg-orange-50/40 px-3 py-2">
@@ -191,7 +201,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
               </div>
             </div>
           )}
-          <div className="max-h-72 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {filteredOptions.length === 0 ? (
               <p className="px-3 py-4 text-center text-sm font-semibold text-gray-400">No options found</p>
             ) : filteredOptions.map((option) => {

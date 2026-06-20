@@ -471,6 +471,7 @@ export const groupsApi = USE_SUPABASE ? supabaseGroupsApi : {
   async setParticipants(_groupId: string, _ids: string[]): Promise<never> { return peopleUnavailable(); },
   async moveParticipant(_participantId: string, _toGroupId: string | null): Promise<never> { return peopleUnavailable(); },
   async bulkAssign(_assignments: Array<{ participantId: string; groupId: string }>): Promise<never> { return peopleUnavailable(); },
+  async backfillTags(_cohortId: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const groupOnboardingStatusApi = USE_SUPABASE ? supabaseGroupOnboardingStatusApi : {

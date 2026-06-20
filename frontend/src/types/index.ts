@@ -14,6 +14,8 @@ export interface Label {
   id: string;
   name: string;
   color: string;
+  cohortId?: string | null;
+  groupId?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }

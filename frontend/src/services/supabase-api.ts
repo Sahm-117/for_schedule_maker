@@ -3116,6 +3116,107 @@ const createOnboardingEvent = async (input: {
   return event;
 };
 
+// ── Auto group tags ────────────────────────────────────────────────────────
+// Every group owns one cohort-scoped tag named "<group name> Support". The tag
+// is tied to the group (Label.groupId) and its members mirror the group's
+// assigned support (UserLabel). Manual / non-group tags (groupId null) are left
+// untouched. These helpers keep the tag in sync as groups change.
+
+const groupTagName = (groupName: string) => `${groupName} Support`;
+
+// Labels require a distinct color (DB unique on lower(color)). Pick a colour not
+// already taken: try a palette first, else generate random hexes until one is free.
+const GROUP_TAG_PALETTE = [
+  '#6366F1', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
+  '#EC4899', '#14B8A6', '#F97316', '#06B6D4', '#84CC16', '#A855F7',
+  '#3B82F6', '#22C55E', '#EAB308', '#D946EF', '#F43F5E', '#0D9488',
+];
+
+const pickUnusedLabelColor = async (): Promise<string> => {
+  const { data } = await supabase.from('Label').select('color');
+  const used = new Set((data ?? []).map((r: any) => String(r.color || '').toUpperCase()));
+  for (const c of GROUP_TAG_PALETTE) {
+    if (!used.has(c.toUpperCase())) return c;
+  }
+  // palette exhausted — random distinct hex
+  for (let i = 0; i < 50; i++) {
+    const c = '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0').toUpperCase();
+    if (!used.has(c)) return c;
+  }
+  return '#6366F1';
+};
+
+// Find-or-create the tag for a group, returning its id. Adopts an existing label
+// that matches by name within the cohort (so prod's existing "Group N Support"
+// labels are reused, not duplicated), and stamps cohortId/groupId on it.
+const ensureGroupTag = async (group: { id: string; name: string; cohortId: string }): Promise<string> => {
+  // 1. Already linked to this group?
+  const { data: linked } = await supabase
+    .from('Label')
+    .select('id, name')
+    .eq('groupId', group.id)
+    .maybeSingle();
+  const desiredName = groupTagName(group.name);
+  if (linked) {
+    if (linked.name !== desiredName) {
+      await supabase.from('Label').update({ name: desiredName, updatedAt: new Date().toISOString() }).eq('id', linked.id);
+    }
+    return linked.id;
+  }
+
+  // 2. Adopt an existing same-name label in this cohort (or a legacy global one).
+  const { data: candidates } = await supabase
+    .from('Label')
+    .select('id, name, cohortId, groupId')
+    .ilike('name', desiredName);
+  const adopt = (candidates ?? []).find(
+    (l: any) => !l.groupId && (l.cohortId === group.cohortId || l.cohortId === null)
+  );
+  if (adopt) {
+    await supabase
+      .from('Label')
+      .update({ cohortId: group.cohortId, groupId: group.id, updatedAt: new Date().toISOString() })
+      .eq('id', adopt.id);
+    return adopt.id;
+  }
+
+  // 3. Create fresh with a distinct colour.
+  const color = await pickUnusedLabelColor();
+  const { data: created, error } = await supabase
+    .from('Label')
+    .insert([{ name: desiredName, color, cohortId: group.cohortId, groupId: group.id }])
+    .select('id')
+    .single();
+  if (error || !created) throw new Error(error?.message || 'Failed to create group tag');
+  return created.id;
+};
+
+// Make exactly the given user (if any) the holder of this tag among supports:
+// removes the previous support's UserLabel link and adds the new one. Other
+// tags the users hold are untouched (a user can hold many tags).
+const setGroupTagSupport = async (
+  tagId: string,
+  newSupportId: string | null,
+  previousSupportId: string | null
+) => {
+  if (previousSupportId && previousSupportId !== newSupportId) {
+    await supabase.from('UserLabel').delete().eq('labelId', tagId).eq('userId', previousSupportId);
+  }
+  if (newSupportId) {
+    // idempotent upsert into the (userId,labelId) PK
+    await supabase.from('UserLabel').upsert({ userId: newSupportId, labelId: tagId }, { onConflict: 'userId,labelId' });
+  }
+};
+
+const syncGroupTag = async (
+  group: { id: string; name: string; cohortId: string; supportId?: string | null },
+  previousSupportId: string | null
+) => {
+  const tagId = await ensureGroupTag(group);
+  await setGroupTagSupport(tagId, group.supportId ?? null, previousSupportId);
+  return tagId;
+};
+
 export const groupsApi = {
   async getAll(options?: { cohortId?: string }): Promise<{ groups: import('../types').Group[] }> {
     let query = supabase
@@ -3139,6 +3240,8 @@ export const groupsApi = {
 
     if (error || !data) throw new Error(error?.message || 'Failed to create group');
     const group = mapGroup(data);
+    // Auto-create the group's cohort-scoped "<name> Support" tag and tie the support to it.
+    await syncGroupTag({ id: group.id, name: group.name, cohortId: input.cohortId, supportId: group.supportId }, null);
     const actor = getCurrentUserFromStorage();
     if (group.supportId) {
       await createOnboardingEvent({
@@ -3168,6 +3271,12 @@ export const groupsApi = {
     if (error || !data) throw new Error(error?.message || 'Failed to update group');
     const group = mapGroup(data);
     const previous = current ? mapGroup(current) : null;
+    // Keep the group's tag in sync: rename it if the group was renamed, and
+    // re-tie it to the new support if the support changed.
+    await syncGroupTag(
+      { id: group.id, name: group.name, cohortId: group.cohortId, supportId: group.supportId },
+      previous?.supportId ?? null
+    );
     const actor = getCurrentUserFromStorage();
     if (group.supportId && group.supportId !== previous?.supportId) {
       await createOnboardingEvent({
@@ -3185,9 +3294,24 @@ export const groupsApi = {
   },
 
   async delete(groupId: string): Promise<{ message: string }> {
+    // Label.groupId and UserLabel.labelId both cascade ON DELETE, so deleting the
+    // group automatically removes its tag and that tag's support links.
     const { error } = await supabase.from('Group').delete().eq('id', groupId);
     if (error) throw new Error(error.message);
     return { message: 'Group deleted' };
+  },
+
+  // One-off: ensure every group in a cohort has its tag created/adopted and its
+  // current support linked. Used to backfill cohorts that predate auto-tagging.
+  async backfillTags(cohortId: string): Promise<{ message: string; groups: number }> {
+    const { data, error } = await supabase.from('Group').select(GROUP_SELECT).eq('cohortId', cohortId);
+    if (error) throw new Error(error.message);
+    const groups = ((data as any[]) || []).map(mapGroup);
+    for (const g of groups) {
+      // previousSupportId = null so we only add the link (never remove an existing one)
+      await syncGroupTag({ id: g.id, name: g.name, cohortId: g.cohortId, supportId: g.supportId }, null);
+    }
+    return { message: `Backfilled ${groups.length} group tags`, groups: groups.length };
   },
 
   async getParticipants(groupId: string): Promise<{ participants: import('../types').Participant[] }> {

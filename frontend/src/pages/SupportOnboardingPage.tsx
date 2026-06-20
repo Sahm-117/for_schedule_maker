@@ -37,6 +37,14 @@ const STAGE_OPTIONS: Array<{ value: OnboardingStage; label: string; meta: string
 ];
 const CHECKLIST_STEPS = 5;
 
+// Independent onboarding steps a support can toggle in any combination.
+const STATUS_STEPS: Array<{ key: StatusKey; label: string; meta: string }> = [
+  { key: 'contacted', label: 'Talked to', meta: 'You have talked to this person' },
+  { key: 'addedToGroup', label: 'Added to group', meta: 'Added to the small group' },
+  { key: 'introductionDone', label: 'Introduced', meta: 'Introduced to the group' },
+  { key: 'venueAcknowledged', label: 'Knows venue', meta: 'Knows where and when to meet' },
+];
+
 const STAGE_LABELS: Record<OnboardingStage, string> = STAGE_OPTIONS.reduce((acc, option) => {
   acc[option.value] = option.label;
   return acc;
@@ -556,11 +564,17 @@ const SupportOnboardingPage: React.FC = () => {
     }
   };
 
-  const updateParticipantStage = async (participantId: string, stage: OnboardingStage) => {
+  // Toggle a single onboarding step independently (multi-select), writing the
+  // boolean directly rather than a cumulative stage.
+  const updateParticipantStep = async (
+    participantId: string,
+    key: StatusKey,
+    nextValue: boolean
+  ) => {
     if (!user.id) return;
     setSavingParticipantId(participantId);
     try {
-      const { status } = await participantOnboardingStatusApi.update(participantId, buildStagePatch(stage), user.id);
+      const { status } = await participantOnboardingStatusApi.update(participantId, { [key]: nextValue }, user.id);
       setParticipantStatuses((prev) => {
         const others = prev.filter((entry) => entry.participantId !== status.participantId);
         return [...others, status];
@@ -698,15 +712,36 @@ const SupportOnboardingPage: React.FC = () => {
                             </div>
 
                             <div className="min-w-0">
-                              <AppSelect
-                                value={currentStage}
-                                onChange={(value) => { void updateParticipantStage(participant.id, value as OnboardingStage); }}
-                                options={STAGE_OPTIONS}
-                                placeholder="Choose status"
-                                label="Status"
-                                compact
-                                loading={savingParticipantId === participant.id}
-                              />
+                              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Status</p>
+                              <div className="space-y-1.5">
+                                {STATUS_STEPS.map((step) => {
+                                  const checked = !!status[step.key];
+                                  const busy = savingParticipantId === participant.id;
+                                  return (
+                                    <button
+                                      key={step.key}
+                                      type="button"
+                                      disabled={busy}
+                                      onClick={() => { void updateParticipantStep(participant.id, step.key, !checked); }}
+                                      className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition active:scale-[0.99] disabled:opacity-60 ${
+                                        checked ? 'border-emerald-200 bg-emerald-50/70' : 'border-gray-200 bg-white hover:border-gray-300'
+                                      }`}
+                                    >
+                                      <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border ${
+                                        checked ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 text-transparent'
+                                      }`}>
+                                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 13 4 4L19 7" />
+                                        </svg>
+                                      </span>
+                                      <span className="min-w-0">
+                                        <span className="block text-sm font-semibold text-gray-800">{step.label}</span>
+                                        <span className="block text-xs text-gray-500">{step.meta}</span>
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
                               <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${isParticipantComplete(status) ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                                 {isParticipantComplete(status) ? 'Complete' : 'In progress'}
                               </span>
