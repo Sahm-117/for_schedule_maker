@@ -377,13 +377,15 @@ const AdminAllocationPage: React.FC = () => {
               )}
             </Column>
 
-            {/* Group columns — responsive grid that scrolls VERTICALLY only.
-                Cards grow to fit all members so the full group shows at a glance. */}
-            <div className="grid h-full grid-cols-1 content-start items-start gap-4 overflow-x-hidden overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
+            {/* Group columns — masonry via CSS columns, full card heights, with
+                the pane scrolling VERTICALLY only (no fixed inner height). */}
+            <div className="h-full overflow-x-hidden overflow-y-auto pr-1">
+              <div className="columns-1 gap-4 sm:columns-2 xl:columns-3">
               {groups.map((g) => {
                 const members = byGroup.get(g.id) ?? [];
                 return (
-                  <Column key={g.id} id={g.id} title={g.name} subtitle={g.supportName ?? 'No support assigned'} count={members.length} autoHeight>
+                  <div key={g.id} className="mb-4 break-inside-avoid">
+                  <Column id={g.id} title={g.name} subtitle={g.supportName ?? 'No support assigned'} count={members.length} autoHeight>
                     {members.length === 0 ? (
                       <p className="py-4 text-center text-xs text-gray-400">Drag people here</p>
                     ) : (
@@ -392,8 +394,10 @@ const AdminAllocationPage: React.FC = () => {
                       ))
                     )}
                   </Column>
+                  </div>
                 );
               })}
+              </div>
             </div>
           </div>
 
