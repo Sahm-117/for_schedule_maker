@@ -7,6 +7,7 @@ import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
 import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi } from '../services/api';
 import type { Cohort, User, Week } from '../types';
+import { sortByText } from '../utils/sort';
 
 type CohortFormState = {
   name: string;
@@ -89,7 +90,7 @@ const CohortsPage: React.FC = () => {
   useEffect(() => {
     if (!isAdmin) return;
     usersApi.getAll()
-      .then((response) => setSupportUsers(response.users.filter((user) => user.role === 'SUPPORT')))
+      .then((response) => setSupportUsers(sortByText(response.users.filter((user) => user.role === 'SUPPORT'), (user) => user.name)))
       .catch(() => {});
   }, [isAdmin]);
 
@@ -181,7 +182,7 @@ const CohortsPage: React.FC = () => {
   }, [selectedCohort]);
 
   const sortedSupportUsers = useMemo(
-    () => [...supportUsers].sort((a, b) => a.name.localeCompare(b.name)),
+    () => sortByText(supportUsers, (user) => user.name),
     [supportUsers],
   );
 
@@ -201,7 +202,7 @@ const CohortsPage: React.FC = () => {
     [activeCohort?.id, cohorts],
   );
 
-  const cohortOptions = cohorts.map((cohort) => ({
+  const cohortOptions = sortByText(cohorts, (cohort) => cohort.name).map((cohort) => ({
     value: cohort.id,
     label: cohort.name,
     meta: `${weekCounts[cohort.id] || 0} weeks • ${formatDateRange(cohort.startDate, cohort.endDate)}`,

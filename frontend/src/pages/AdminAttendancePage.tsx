@@ -8,6 +8,7 @@ import { useAppData } from '../context/AppDataContext';
 import { attendanceApi, groupsApi, participantsApi } from '../services/api';
 import type { AttendanceRecord, AttendanceStatus, Group, Participant, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
+import { sortByText } from '../utils/sort';
 
 const STATUS_OPTIONS: AttendanceStatus[] = ['PRESENT', 'LATE', 'ABSENT'];
 
@@ -47,7 +48,7 @@ const AdminAttendancePage: React.FC = () => {
     if (!activeCohort) { setGroups([]); return; }
     let cancelled = false;
     void groupsApi.getAll({ cohortId: activeCohort.id })
-      .then(({ groups: gs }) => { if (!cancelled) setGroups(gs); })
+      .then(({ groups: gs }) => { if (!cancelled) setGroups(sortByText(gs, (group) => group.name)); })
       .catch(() => { /* ignore */ });
     return () => { cancelled = true; };
   }, [activeCohort]);
@@ -68,7 +69,7 @@ const AdminAttendancePage: React.FC = () => {
         participantsApi.getAll({ cohortId: activeCohort.id }),
         attendanceApi.getForWeek({ weekId: selectedWeekId }),
       ]);
-      setParticipants(ps.filter((p) => p.status === 'ACTIVE'));
+      setParticipants(sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName));
       const map = new Map<string, AttendanceRecord>();
       rs.forEach((r) => map.set(r.participantId, r));
       setRecords(map);
@@ -91,7 +92,10 @@ const AdminAttendancePage: React.FC = () => {
   };
 
   const visibleParticipants = useMemo(
-    () => (selectedGroupId ? participants.filter((p) => p.groupId === selectedGroupId) : participants),
+    () => sortByText(
+      selectedGroupId ? participants.filter((p) => p.groupId === selectedGroupId) : participants,
+      (participant) => participant.fullName
+    ),
     [participants, selectedGroupId]
   );
 

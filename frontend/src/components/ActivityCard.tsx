@@ -140,13 +140,11 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
                   </p>
                 )}
                 {editPendingChange.changeData.description && editPendingChange.changeData.description !== activity.description && (
-                  <p className="text-gray-600">
-                    Description: <span className="line-through">{activity.description}</span>
-                    <br />
-                    <span className="text-orange-600 font-medium">
-                      {editPendingChange.changeData.description}
-                    </span>
-                  </p>
+                  <div className="text-gray-600">
+                    <span>Description:</span>
+                    <ActivityText text={activity.description} className="mt-1 line-through text-gray-500" />
+                    <ActivityText text={editPendingChange.changeData.description} className="mt-1 font-medium text-orange-600" />
+                  </div>
                 )}
               </div>
               <p className="text-xs text-gray-500 mt-2">

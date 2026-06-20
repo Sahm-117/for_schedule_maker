@@ -30,6 +30,7 @@ import {
   isClosedContact,
   isClosedRegistrationStatus,
 } from '../utils/followUps';
+import { compareText, sortByText } from '../utils/sort';
 
 type Tab = 'overview' | 'contacts' | 'messages' | 'issues';
 
@@ -108,9 +109,9 @@ const AdminFollowUpsPage: React.FC = () => {
         followUpIssuesApi.getAll(),
         settingsApi.getRegistrationLink(),
       ]);
-      setContacts(contactsRes.contacts);
-      setOwners(usersRes.users.filter((u) => u.role === 'SUPPORT' || u.role === 'ADMIN'));
-      setTemplates(templatesRes.templates);
+      setContacts(sortByText(contactsRes.contacts, (contact) => contact.fullName));
+      setOwners(sortByText(usersRes.users.filter((u) => u.role === 'SUPPORT' || u.role === 'ADMIN'), (owner) => owner.name));
+      setTemplates(sortByText(templatesRes.templates, (template) => template.useCase));
       setIssues(issuesRes.issues);
       setRegistrationLink(linkRes.url);
     } catch (err) {
@@ -131,7 +132,7 @@ const AdminFollowUpsPage: React.FC = () => {
   }, [loadAll]);
 
   const replaceContact = (updated: FollowUpContact) => {
-    setContacts((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    setContacts((prev) => sortByText(prev.map((c) => (c.id === updated.id ? updated : c)), (contact) => contact.fullName));
   };
 
   const filteredContacts = useMemo(() => {
@@ -149,7 +150,7 @@ const AdminFollowUpsPage: React.FC = () => {
     list.sort((a, b) => {
       const aClosed = isClosedContact(a) ? 1 : 0;
       const bClosed = isClosedContact(b) ? 1 : 0;
-      return aClosed - bClosed;
+      return (aClosed - bClosed) || compareText(a.fullName, b.fullName);
     });
     return list;
   }, [contacts, cohortFilter, ownerFilter, filters]);
@@ -210,7 +211,7 @@ const AdminFollowUpsPage: React.FC = () => {
     const { contacts: updated } = await followUpContactsApi.assignMany(ids, ownerId, dueDate);
     setContacts((prev) => {
       const map = new Map(updated.map((c) => [c.id, c]));
-      return prev.map((c) => map.get(c.id) || c);
+      return sortByText(prev.map((c) => map.get(c.id) || c), (contact) => contact.fullName);
     });
   };
 
@@ -365,7 +366,7 @@ const AdminFollowUpsPage: React.FC = () => {
               <AppSelect
                 value={cohortFilter}
                 onChange={setCohortFilter}
-                options={[{ value: '', label: 'All cohorts' }, ...cohorts.map((c) => ({ value: c.id, label: c.name }))]}
+                options={[{ value: '', label: 'All cohorts' }, ...sortByText(cohorts, (c) => c.name).map((c) => ({ value: c.id, label: c.name }))]}
                 placeholder="All cohorts"
                 compact
               />
@@ -448,7 +449,8 @@ const AdminFollowUpsPage: React.FC = () => {
         onSaved={(contact) => {
           setContacts((prev) => {
             const exists = prev.some((c) => c.id === contact.id);
-            return exists ? prev.map((c) => (c.id === contact.id ? contact : c)) : [contact, ...prev];
+            const next = exists ? prev.map((c) => (c.id === contact.id ? contact : c)) : [...prev, contact];
+            return sortByText(next, (entry) => entry.fullName);
           });
         }}
         contact={editingContact}
@@ -462,7 +464,7 @@ const AdminFollowUpsPage: React.FC = () => {
       <ContactImportModal
         isOpen={showImport}
         onClose={() => setShowImport(false)}
-        onImported={(imported) => setContacts((prev) => [...imported, ...prev])}
+        onImported={(imported) => setContacts((prev) => sortByText([...prev, ...imported], (contact) => contact.fullName))}
         existingContacts={contacts}
         cohorts={cohorts}
         defaultCohortId={activeCohort?.id}

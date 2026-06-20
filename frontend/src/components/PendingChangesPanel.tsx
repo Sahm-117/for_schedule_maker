@@ -4,6 +4,7 @@ import type { PendingChange, Week } from '../types';
 import ConfirmationModal from './ConfirmationModal';
 import { buildPendingChangePreview, type ChangeSnapshot } from '../utils/pendingChangePreview';
 import { formatDateTime } from '../utils/time';
+import ActivityText from './ActivityText';
 
 interface PendingChangesPanelProps {
   pendingChanges: PendingChange[];
@@ -30,7 +31,8 @@ const FieldRow: React.FC<{ label: string; value?: string }> = ({ label, value })
   if (!value) return null;
   return (
     <div className="text-sm text-gray-700">
-      <span className="font-medium text-gray-900">{label}:</span> {value}
+      <span className="font-medium text-gray-900">{label}:</span>{' '}
+      {label === 'Description' ? <ActivityText text={value} className="mt-1" /> : value}
     </div>
   );
 };

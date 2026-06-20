@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { activitiesApi, pendingChangesApi, labelsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import type { Day, Activity, Week, Label } from '../types';
-import LabelChip from './LabelChip';
 import AppSelect from './AppSelect';
+import ActivityDescriptionToolbar from './ActivityDescriptionToolbar';
+import ActivityLabelPicker from './ActivityLabelPicker';
 
 interface ActivityModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
   const { user } = useAuth();
   const [time, setTime] = useState('');
   const [description, setDescription] = useState('');
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [period, setPeriod] = useState<'MORNING' | 'AFTERNOON' | 'EVENING'>('MORNING');
   const [selectedWeeks, setSelectedWeeks] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,8 +38,6 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(false);
-  const [labelsOpen, setLabelsOpen] = useState(true);
-  const [labelQuery, setLabelQuery] = useState('');
 
   useEffect(() => {
     if (activity) {
@@ -45,19 +45,16 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
       setDescription(activity.description);
       setPeriod(activity.period);
       setSelectedLabelIds((activity.labels || []).map((l) => l.id));
-      setLabelsOpen(true);
     } else {
       setTime('');
       setDescription('');
       setPeriod('MORNING');
       setSelectedLabelIds([]);
-      setLabelsOpen(true);
     }
     setSelectedWeeks([]);
     setError('');
     setDuplicateWeeks([]);
     setShowCrossWeek(false);
-    setLabelQuery('');
   }, [activity, isOpen]);
 
   useEffect(() => {
@@ -79,23 +76,10 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
     return () => { cancelled = true; };
   }, [isOpen]);
 
-  const toggleLabel = (labelId: string, checked: boolean) => {
-    setSelectedLabelIds((prev) => {
-      const set = new Set(prev);
-      if (checked) set.add(labelId);
-      else set.delete(labelId);
-      return Array.from(set);
-    });
-  };
-
   const currentWeekNumber = weeks.find((w) => w.id === day.weekId)?.weekNumber;
   const otherWeeks = typeof currentWeekNumber === 'number'
     ? weeks.filter((w) => w.weekNumber !== currentWeekNumber)
     : weeks;
-
-  const filteredLabels = labelQuery.trim()
-    ? labels.filter((l) => l.name.toLowerCase().includes(labelQuery.trim().toLowerCase()))
-    : labels;
 
   const checkDuplicates = async () => {
     if (!time || !description) return;
@@ -255,98 +239,28 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Description
               </label>
+              <ActivityDescriptionToolbar
+                value={description}
+                onChange={setDescription}
+                textareaRef={descriptionRef}
+              />
               <textarea
+                ref={descriptionRef}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={3}
+                rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
                 placeholder="Describe the activity..."
                 required
               />
             </div>
 
-            <div>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Activity tags (optional)
-                  </label>
-                  <span className="text-xs text-gray-500">
-                    Selected: {selectedLabelIds.length}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {labelsLoading && (
-                    <span className="text-xs text-gray-500">Loading...</span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setLabelsOpen((v) => !v)}
-                    className="text-xs text-primary hover:text-primary-dark px-2 py-1 rounded border border-primary hover:bg-primary/5"
-                  >
-                    {labelsOpen ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-              </div>
-
-              {selectedLabelIds.length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-1">
-                  {labels
-                    .filter((l) => selectedLabelIds.includes(l.id))
-                    .map((label) => {
-                      return (
-                        <LabelChip
-                          key={label.id}
-                          name={label.name}
-                          color={label.color}
-                          size="sm"
-                        />
-                      );
-                    })}
-                </div>
-              )}
-
-              {labelsOpen && (
-                <div className="mt-2 border border-gray-200 rounded-md p-3">
-                  <input
-                    type="text"
-                    value={labelQuery}
-                    onChange={(e) => setLabelQuery(e.target.value)}
-                    placeholder="Search labels..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary text-sm mb-3"
-                  />
-
-                  <div className="max-h-44 overflow-y-auto">
-                    {labels.length === 0 ? (
-                      <p className="text-sm text-gray-500">
-                        No labels yet.
-                      </p>
-                    ) : filteredLabels.length === 0 ? (
-                      <p className="text-sm text-gray-500">
-                        No labels match your search.
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {filteredLabels.map((label) => {
-                          const checked = selectedLabelIds.includes(label.id);
-                          return (
-                            <label key={label.id} className="flex items-center gap-2 p-1 rounded hover:bg-gray-50">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={(e) => toggleLabel(label.id, e.target.checked)}
-                                className="rounded border-gray-300 text-primary focus:ring-primary"
-                              />
-                              <LabelChip name={label.name} color={label.color} size="sm" />
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            <ActivityLabelPicker
+              labels={labels}
+              selectedLabelIds={selectedLabelIds}
+              onChange={setSelectedLabelIds}
+              loading={labelsLoading}
+            />
 
             {duplicateWeeks.length > 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">

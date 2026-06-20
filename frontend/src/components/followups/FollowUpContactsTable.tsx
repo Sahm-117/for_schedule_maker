@@ -10,6 +10,7 @@ import {
   isOverdue,
   buildStatusPatch,
 } from '../../utils/followUps';
+import { sortByText } from '../../utils/sort';
 
 interface FollowUpContactsTableProps {
   contacts: FollowUpContact[];
@@ -109,7 +110,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     }
   };
 
-  const ownerOptions = [{ value: '', label: 'Unassigned' }, ...owners.map((o) => ({ value: o.id, label: o.name }))];
+  const ownerOptions = [{ value: '', label: 'Unassigned' }, ...sortByText(owners, (o) => o.name).map((o) => ({ value: o.id, label: o.name }))];
 
   const statusDropdown = (contact: FollowUpContact) => {
     const key = `${contact.id}:followUpStatus`;

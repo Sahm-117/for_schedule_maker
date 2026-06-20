@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { groupPrayerFocusApi, groupPrayerStatusApi, groupsApi } from '../services/api';
 import type { Group, GroupPrayerFocus, GroupPrayerStatus, Week } from '../types';
+import { sortByText } from '../utils/sort';
 
 const AdminGroupPrayersPage: React.FC = () => {
   const { isAdmin } = useAuth();
@@ -34,7 +35,7 @@ const AdminGroupPrayersPage: React.FC = () => {
         groupPrayerFocusApi.getForCohort(activeCohort.id),
         groupPrayerStatusApi.getForCohort(activeCohort.id),
       ]);
-      setGroups(gs);
+      setGroups(sortByText(gs, (group) => group.name));
       setFocuses(fs);
       setStatuses(ss);
     } catch { /* ignore */ }
@@ -61,7 +62,7 @@ const AdminGroupPrayersPage: React.FC = () => {
   const getFocus = (groupId: string, weekId: number) => focusMap.get(`${groupId}:${weekId}`) ?? null;
 
   const visibleGroups = useMemo(
-    () => (selectedGroupId ? groups.filter((g) => g.id === selectedGroupId) : groups),
+    () => sortByText(selectedGroupId ? groups.filter((g) => g.id === selectedGroupId) : groups, (group) => group.name),
     [groups, selectedGroupId]
   );
 
@@ -77,7 +78,7 @@ const AdminGroupPrayersPage: React.FC = () => {
   );
 
   const groupOptions = useMemo(
-    () => [{ value: '', label: 'All groups' }, ...groups.map((g) => ({ value: g.id, label: g.name }))],
+    () => [{ value: '', label: 'All groups' }, ...sortByText(groups, (group) => group.name).map((g) => ({ value: g.id, label: g.name }))],
     [groups]
   );
 

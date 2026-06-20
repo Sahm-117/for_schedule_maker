@@ -5,6 +5,7 @@ import ConfirmationModal from '../ConfirmationModal';
 import AppOverflowMenu from '../AppOverflowMenu';
 import { messageTemplatesApi, settingsApi } from '../../services/api';
 import { buildTemplatePlaceholderSummary } from '../../utils/followUps';
+import { sortByText } from '../../utils/sort';
 
 interface MessageBankPanelProps {
   templates: MessageTemplate[];
@@ -41,6 +42,7 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
   useEffect(() => setLinkDraft(registrationLink), [registrationLink]);
 
   const placeholderSummary = buildTemplatePlaceholderSummary(currentUser);
+  const sortedTemplates = sortByText(templates, (template) => template.useCase);
 
   const openForm = (template?: MessageTemplate) => {
     if (readOnly) return;
@@ -63,10 +65,10 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
       const input = { useCase: useCase.trim(), body, whenToUse: whenToUse.trim() || null };
       if (editing) {
         const { template } = await messageTemplatesApi.update(editing.id, input);
-        onTemplatesChanged(templates.map((t) => (t.id === template.id ? template : t)));
+        onTemplatesChanged(sortByText(templates.map((t) => (t.id === template.id ? template : t)), (entry) => entry.useCase));
       } else {
         const { template } = await messageTemplatesApi.create(input);
-        onTemplatesChanged([...templates, template]);
+        onTemplatesChanged(sortByText([...templates, template], (entry) => entry.useCase));
       }
       setShowForm(false);
     } catch (err) {
@@ -142,13 +144,13 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
         )}
       </div>
 
-      {templates.length === 0 ? (
+      {sortedTemplates.length === 0 ? (
         <p className="rounded-3xl bg-orange-50/60 px-4 py-10 text-center text-sm text-gray-500">
           {readOnly ? 'No templates yet. Ask an admin to add them in the Message Bank.' : 'No templates yet — add your first WhatsApp message template.'}
         </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {templates.map((t) => (
+          {sortedTemplates.map((t) => (
             <div key={t.id} className="surface-card flex flex-col rounded-3xl p-4">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-bold text-gray-900">{t.useCase}</p>

@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import type { Resource } from '../types';
 import { downloadFile } from '../utils/download';
+import { sortByText } from '../utils/sort';
 
 const LAST_SEEN_KEY = 'fof_resources_last_seen';
 
@@ -79,7 +80,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
   const load = () => {
     setLoading(true);
     resourcesApi.getAll()
-      .then((res) => setResources(res.resources))
+      .then((res) => setResources(sortByText(res.resources, (resource) => resource.title)))
       .catch(() => {})
       .finally(() => setLoading(false));
   };
@@ -142,7 +143,10 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
       resetForm();
       setShowAdd(false);
       if (createdResource) {
-        setResources((prev) => [createdResource as Resource, ...prev.filter((item) => item.id !== createdResource?.id)]);
+        setResources((prev) => sortByText(
+          [...prev.filter((item) => item.id !== createdResource?.id), createdResource as Resource],
+          (resource) => resource.title
+        ));
       } else {
         load();
       }

@@ -4,6 +4,7 @@ import type { User, Label } from '../types';
 import AppSelect from './AppSelect';
 import LabelChip from './LabelChip';
 import { formatDate, formatDateTime } from '../utils/time';
+import { sortByText } from '../utils/sort';
 
 interface UserManagementProps {
   isOpen: boolean;
@@ -69,7 +70,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setLoading(true);
     try {
       const response = await usersApi.getAll();
-      setUsers(response.users);
+      setUsers(sortByText(response.users, (user) => user.name));
     } catch {
       setError('Failed to load users');
     } finally {
@@ -80,7 +81,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const loadLabels = async () => {
     try {
       const response = await labelsApi.getAll();
-      setAllLabels(response.labels);
+      setAllLabels(sortByText(response.labels, (label) => label.name));
     } catch {
       // non-critical
     }
@@ -98,7 +99,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setLabelEditIds([]);
     try {
       const response = await usersApi.getUserLabels(user.id);
-      setSelectedUserLabels(response.labels);
+      setSelectedUserLabels(sortByText(response.labels, (label) => label.name));
       setLabelEditIds(response.labels.map((l) => l.id));
     } catch {
       // non-critical
@@ -119,7 +120,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
     try {
       const response = await usersApi.update(selectedUser.id, { name: nextName });
       setSelectedUser(response.user);
-      setUsers((prev) => prev.map((entry) => (entry.id === selectedUser.id ? { ...entry, ...response.user } : entry)));
+      setUsers((prev) => sortByText(
+        prev.map((entry) => (entry.id === selectedUser.id ? { ...entry, ...response.user } : entry)),
+        (user) => user.name
+      ));
       setSuccess('User profile updated.');
     } catch (err: any) {
       setError(err.message || 'Failed to update user profile.');
@@ -135,7 +139,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setSuccess('');
     try {
       await usersApi.setUserLabels(selectedUser.id, labelEditIds);
-      setSelectedUserLabels(allLabels.filter((l) => labelEditIds.includes(l.id)));
+      setSelectedUserLabels(sortByText(allLabels.filter((l) => labelEditIds.includes(l.id)), (label) => label.name));
       setEditingLabels(false);
       setSuccess('Activity tags updated');
     } catch {
@@ -166,7 +170,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
         await usersApi.setUserLabels(created.user.id, newUserLabelIds);
       }
       if (created?.user) {
-        setUsers((prev) => [created.user, ...prev.filter((entry) => entry.id !== created.user.id)]);
+        setUsers((prev) => sortByText(
+          [...prev.filter((entry) => entry.id !== created.user.id), created.user],
+          (user) => user.name
+        ));
       }
       setSuccess('User created successfully');
       setNewUser({ name: '', email: '', phone: '', password: '', role: 'SUPPORT' });
@@ -226,7 +233,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setSuccess('');
     try {
       await usersApi.update(userId, { role: newRole });
-      setUsers((prev) => prev.map((entry) => (entry.id === userId ? { ...entry, role: newRole } : entry)));
+      setUsers((prev) => sortByText(
+        prev.map((entry) => (entry.id === userId ? { ...entry, role: newRole } : entry)),
+        (user) => user.name
+      ));
       setSuccess('User role updated successfully');
     } catch (error: any) {
       setError(error.response?.data?.error || 'Failed to update user role');
@@ -237,12 +247,12 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
   if (!shouldRender) return null;
 
-  const filteredUsers = users.filter((user) => {
+  const filteredUsers = sortByText(users.filter((user) => {
     const matchesRole = roleFilter === 'ALL' || user.role === roleFilter;
     const haystack = [user.name, user.email, user.phone].filter(Boolean).join(' ').toLowerCase();
     const matchesSearch = searchQuery.trim().length === 0 || haystack.includes(searchQuery.trim().toLowerCase());
     return matchesRole && matchesSearch;
-  });
+  }), (user) => user.name);
 
   const renderCreateForm = () => (
     <div className={showUserList ? 'mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4' : ''}>

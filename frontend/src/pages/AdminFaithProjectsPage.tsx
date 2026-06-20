@@ -8,6 +8,7 @@ import { faithProjectsApi, participantsApi, groupsApi } from '../services/api';
 import type { FaithProject, FaithProjectStatus, Participant, Group } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import AppSelect from '../components/AppSelect';
+import { sortByText } from '../utils/sort';
 
 const STATUS_OPTIONS: Array<{ value: FaithProjectStatus; label: string; cls: string }> = [
   { value: 'NOT_DRAFTED', label: 'Not Drafted', cls: 'bg-neutral-100 text-neutral-600' },
@@ -148,9 +149,9 @@ const AdminFaithProjectsPage: React.FC = () => {
         faithProjectsApi.getAll({ cohortId: activeCohort.id }),
         groupsApi.getAll({ cohortId: activeCohort.id }),
       ]);
-      setParticipants(ps.filter((p) => p.status === 'ACTIVE'));
-      setProjects(fps);
-      setGroups(gs);
+      setParticipants(sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName));
+      setProjects(sortByText(fps, (project) => project.title || project.participantName));
+      setGroups(sortByText(gs, (group) => group.name));
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [activeCohort]);
@@ -189,7 +190,7 @@ const AdminFaithProjectsPage: React.FC = () => {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q));
     }
-    return ps;
+    return sortByText(ps, (participant) => participant.fullName);
   }, [participants, filterStatus, search, projectByParticipant, groupFilter]);
 
   const counts = useMemo(() => {
@@ -309,7 +310,8 @@ const AdminFaithProjectsPage: React.FC = () => {
           onSaved={(fp) => {
             setProjects((prev) => {
               const idx = prev.findIndex((x) => x.id === fp.id);
-              return idx >= 0 ? prev.map((x) => x.id === fp.id ? fp : x) : [fp, ...prev];
+              const next = idx >= 0 ? prev.map((x) => x.id === fp.id ? fp : x) : [...prev, fp];
+              return sortByText(next, (project) => project.title || project.participantName);
             });
             setEditTarget(null);
           }}

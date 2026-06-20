@@ -17,6 +17,7 @@ import {
 } from '../services/api';
 import { buildTemplatePlaceholderSummary } from '../utils/followUps';
 import { formatDateTime } from '../utils/time';
+import { sortByText } from '../utils/sort';
 import type { GroupOnboardingStatus, MessageTemplate, OnboardingEvent, ParticipantOnboardingStatus, User } from '../types';
 
 const inputClass =
@@ -99,8 +100,8 @@ const AdminOnboardingPage: React.FC = () => {
           messageTemplatesApi.getAll(),
           usersApi.getAll(),
         ]);
-        setTemplates(templateRes.templates);
-        const supports = usersRes.users.filter((entry) => entry.role === 'SUPPORT');
+        setTemplates(sortByText(templateRes.templates, (template) => template.useCase));
+        const supports = sortByText(usersRes.users.filter((entry) => entry.role === 'SUPPORT'), (entry) => entry.name);
         setSupportUsers(supports);
         setCoordinatorCandidateId((current) => {
           if (current && supports.some((entry) => entry.id === current && !entry.isCoordinator)) return current;
@@ -273,10 +274,10 @@ const AdminOnboardingPage: React.FC = () => {
       };
       if (editing) {
         const { template } = await messageTemplatesApi.update(editing.id, input);
-        setTemplates((prev) => prev.map((entry) => (entry.id === template.id ? template : entry)));
+        setTemplates((prev) => sortByText(prev.map((entry) => (entry.id === template.id ? template : entry)), (entry) => entry.useCase));
       } else {
         const { template } = await messageTemplatesApi.create({ ...input, category: templateTab });
-        setTemplates((prev) => [...prev, template]);
+        setTemplates((prev) => sortByText([...prev, template], (entry) => entry.useCase));
       }
       setShowForm(false);
     } catch (err) {
@@ -300,7 +301,10 @@ const AdminOnboardingPage: React.FC = () => {
     setUpdatingCoordinatorId(supportUser.id);
     try {
       const { user: updated } = await usersApi.update(supportUser.id, { isCoordinator: !supportUser.isCoordinator });
-      setSupportUsers((prev) => prev.map((entry) => (entry.id === supportUser.id ? { ...entry, isCoordinator: updated.isCoordinator } : entry)));
+      setSupportUsers((prev) => sortByText(
+        prev.map((entry) => (entry.id === supportUser.id ? { ...entry, isCoordinator: updated.isCoordinator } : entry)),
+        (entry) => entry.name
+      ));
     } finally {
       setUpdatingCoordinatorId(null);
     }

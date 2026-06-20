@@ -10,6 +10,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
 import PageLoader from '../components/PageLoader';
+import { sortByText } from '../utils/sort';
 
 const groupNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
@@ -272,8 +273,8 @@ const AdminGroupsPage: React.FC = () => {
         usersApi.getAll(),
       ]);
       setGroups(sortGroupsByName(gs));
-      setParticipants(ps.filter((p) => p.status === 'ACTIVE'));
-      setSupportUsers(users.filter((u) => u.role === 'SUPPORT'));
+      setParticipants(sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName));
+      setSupportUsers(sortByText(users.filter((u) => u.role === 'SUPPORT'), (user) => user.name));
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [activeCohort]);

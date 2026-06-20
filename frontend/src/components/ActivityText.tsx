@@ -1,4 +1,5 @@
 import React from 'react';
+import { parseActivityDescription, type ActivityInlineToken } from '../utils/activityDescription';
 
 export const WhatsAppIcon: React.FC<{ className?: string }> = ({ className = 'h-4 w-4' }) => (
   <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
@@ -23,25 +24,56 @@ export const TelegramIcon: React.FC<{ className?: string }> = ({ className = 'h-
   </svg>
 );
 
-const TOKEN = /(whatsapp|telegram)/gi;
+const renderInlineToken = (token: ActivityInlineToken, key: string) => {
+  const className = [
+    token.bold ? 'font-bold' : '',
+    token.italic ? 'italic' : '',
+    token.platform ? 'inline-flex translate-y-[2px] items-center gap-1' : '',
+  ].filter(Boolean).join(' ');
+
+  if (token.platform) {
+    const Icon = token.platform === 'whatsapp' ? WhatsAppIcon : TelegramIcon;
+    return (
+      <span key={key} className={className}>
+        <span>{token.text}</span>
+        <Icon className="h-4 w-4" />
+      </span>
+    );
+  }
+
+  if (token.bold) return <strong key={key} className={token.italic ? 'italic' : undefined}>{token.text}</strong>;
+  if (token.italic) return <em key={key}>{token.text}</em>;
+  return <React.Fragment key={key}>{token.text}</React.Fragment>;
+};
 
 const ActivityText: React.FC<{ text: string; className?: string }> = ({ text, className = '' }) => {
-  const parts = text.split(TOKEN);
+  const blocks = parseActivityDescription(text);
 
   return (
-    <span className={className}>
-      {parts.map((part, index) => {
-        const lower = part.toLowerCase();
-        if (lower === 'whatsapp' || lower === 'telegram') {
-          const Icon = lower === 'whatsapp' ? WhatsAppIcon : TelegramIcon;
+    <span className={`block ${className}`}>
+      {blocks.map((block, blockIndex) => {
+        if (block.type === 'list') {
           return (
-            <span key={`${part}-${index}`} className="inline-flex translate-y-[2px] items-center gap-1">
-              <span>{part}</span>
-              <Icon className="h-4 w-4" />
+            <span key={`list-${blockIndex}`} className="my-1 block space-y-0.5">
+              {block.items.map((item, itemIndex) => (
+                <span key={`item-${blockIndex}-${itemIndex}`} className="grid grid-cols-[1.25rem_1fr] gap-x-1">
+                  <span className="text-gray-500">{block.ordered ? `${itemIndex + 1}.` : '•'}</span>
+                  <span>{item.inlines.map((token, tokenIndex) => renderInlineToken(token, `${blockIndex}-${itemIndex}-${tokenIndex}`))}</span>
+                </span>
+              ))}
             </span>
           );
         }
-        return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+
+        if (block.inlines.length === 0) {
+          return <span key={`empty-${blockIndex}`} className="block h-2" />;
+        }
+
+        return (
+          <span key={`paragraph-${blockIndex}`} className={blockIndex > 0 ? 'mt-1 block' : 'block'}>
+            {block.inlines.map((token, tokenIndex) => renderInlineToken(token, `${blockIndex}-${tokenIndex}`))}
+          </span>
+        );
       })}
     </span>
   );

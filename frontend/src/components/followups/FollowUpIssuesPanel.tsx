@@ -7,6 +7,7 @@ import FollowUpStatusPill from './FollowUpStatusPill';
 import { ISSUE_STATUS_META } from '../../utils/followUps';
 import { followUpIssuesApi } from '../../services/api';
 import { supabase } from '../../lib/supabase';
+import { sortByText } from '../../utils/sort';
 
 interface FollowUpIssuesPanelProps {
   issues: FollowUpIssue[];
@@ -54,9 +55,9 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   const [replyText, setReplyText] = useState('');
 
   const filteredContacts = useMemo(() => {
-    if (!contactSearch.trim()) return contacts;
+    if (!contactSearch.trim()) return sortByText(contacts, (contact) => contact.fullName);
     const q = contactSearch.toLowerCase();
-    return contacts.filter((c) => c.fullName.toLowerCase().includes(q));
+    return sortByText(contacts.filter((c) => c.fullName.toLowerCase().includes(q)), (contact) => contact.fullName);
   }, [contacts, contactSearch]);
 
   const toggleContact = (id: string) => {
@@ -64,7 +65,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   };
 
   const selectedNames = useMemo(
-    () => selectedIds.map((id) => contacts.find((c) => c.id === id)?.fullName || 'Unknown'),
+    () => sortByText(selectedIds.map((id) => contacts.find((c) => c.id === id)?.fullName || 'Unknown'), (name) => name),
     [selectedIds, contacts]
   );
 
@@ -343,7 +344,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
               label="Owner (optional)"
               value={ownerId}
               onChange={setOwnerId}
-              options={[{ value: '', label: 'No owner' }, ...owners.map((o) => ({ value: o.id, label: o.name }))]}
+              options={[{ value: '', label: 'No owner' }, ...sortByText(owners, (o) => o.name).map((o) => ({ value: o.id, label: o.name }))]}
               placeholder="No owner"
             />
           )}

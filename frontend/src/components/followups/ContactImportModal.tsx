@@ -10,6 +10,7 @@ import {
   type ImportParseResult,
   type ParsedContactRow,
 } from '../../utils/contactImport';
+import { sortByText } from '../../utils/sort';
 
 interface ContactImportModalProps {
   isOpen: boolean;
@@ -86,7 +87,7 @@ const ContactImportModal: React.FC<ContactImportModalProps> = ({
           cohortId: cohortId || null,
         }))
       );
-      onImported(contacts);
+      onImported(sortByText(contacts, (contact) => contact.fullName));
       handleClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed.');
@@ -141,7 +142,7 @@ const ContactImportModal: React.FC<ContactImportModalProps> = ({
             label="Target cohort"
             value={cohortId}
             onChange={setCohortId}
-            options={[{ value: '', label: 'No cohort' }, ...cohorts.map((c) => ({ value: c.id, label: c.name }))]}
+            options={[{ value: '', label: 'No cohort' }, ...sortByText(cohorts, (c) => c.name).map((c) => ({ value: c.id, label: c.name }))]}
             placeholder="No cohort"
             compact
           />

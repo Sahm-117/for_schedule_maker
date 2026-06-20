@@ -17,6 +17,7 @@ import {
 import { fillTemplate } from '../utils/followUps';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
 import { downloadFile } from '../utils/download';
+import { sortByText } from '../utils/sort';
 import type {
   GroupOnboardingStatus,
   MessageTemplate,
@@ -156,7 +157,8 @@ const OnboardingPicker: React.FC<OnboardingPickerProps> = ({
   const [copiedText, setCopiedText] = useState(false);
   const [copiedNumber, setCopiedNumber] = useState(false);
 
-  const selected = templates.find((template) => template.id === selectedId) ?? null;
+  const sortedTemplates = sortByText(templates, (template) => template.useCase);
+  const selected = sortedTemplates.find((template) => template.id === selectedId) ?? null;
   const filled = useMemo(() => {
     if (!selected) return '';
     return fillTemplate(
@@ -190,14 +192,14 @@ const OnboardingPicker: React.FC<OnboardingPickerProps> = ({
         </button>
       )}
     >
-      {templates.length === 0 ? (
+      {sortedTemplates.length === 0 ? (
           <p className="rounded-2xl bg-orange-50 px-4 py-6 text-center text-sm text-gray-500">
             No message templates yet. Ask an admin to add some.
           </p>
       ) : (
         <div className="flex flex-col gap-4">
           <div className="grid gap-2 sm:grid-cols-2">
-            {templates.map((template) => (
+            {sortedTemplates.map((template) => (
               <button
                 key={template.id}
                 type="button"
@@ -297,8 +299,8 @@ const CoordinatorSection: React.FC<CoordinatorSectionProps> = ({ coordinatorId, 
           usersApi.getAll(),
         ]);
         if (cancelled) return;
-        setTemplates(ts);
-        setSupports(users.filter((u) => u.role === 'SUPPORT' && u.id !== coordinatorId));
+        setTemplates(sortByText(ts, (template) => template.useCase));
+        setSupports(sortByText(users.filter((u) => u.role === 'SUPPORT' && u.id !== coordinatorId), (support) => support.name));
       } catch { /* ignore */ }
       finally { if (!cancelled) setLoading(false); }
     })();
@@ -467,7 +469,8 @@ const SupportOnboardingPage: React.FC = () => {
         }
       }
 
-      setParticipants(participantsRes.participants);
+      const sortedParticipants = sortByText(participantsRes.participants, (participant) => participant.fullName);
+      setParticipants(sortedParticipants);
       const fallbackGroups = new Map<string, GroupOnboardingStatus>();
       participantsRes.participants.forEach((participant) => {
         if (!participant.groupId || fallbackGroups.has(participant.groupId)) return;
@@ -478,8 +481,8 @@ const SupportOnboardingPage: React.FC = () => {
 
       const participantStatusMap = new Map(participantStatusRes.statuses.map((status) => [status.participantId, status]));
       setGroupStatuses(Array.from(fallbackGroups.values()));
-      setParticipantStatuses(participantsRes.participants.map((participant) => participantStatusMap.get(participant.id) ?? virtualParticipantStatus(participant)));
-      setTemplates(templatesRes.templates);
+      setParticipantStatuses(sortedParticipants.map((participant) => participantStatusMap.get(participant.id) ?? virtualParticipantStatus(participant)));
+      setTemplates(sortByText(templatesRes.templates, (template) => template.useCase));
       const availableGroupIds = Array.from(new Set([
         ...groupStatusRes.statuses.map((status) => status.groupId),
         ...participantsRes.participants.map((participant) => participant.groupId).filter(Boolean) as string[],
@@ -511,7 +514,7 @@ const SupportOnboardingPage: React.FC = () => {
         meta: 'Participant group',
       });
     });
-    return Array.from(map.values());
+    return sortByText(Array.from(map.values()), (option) => option.label);
   }, [groupStatuses, participants]);
 
   const selectedParticipants = useMemo(

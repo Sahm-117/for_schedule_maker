@@ -4,6 +4,7 @@ import AppSelect from '../AppSelect';
 import ModalShell from './ModalShell';
 import { followUpContactsApi } from '../../services/api';
 import { normalizeToIntlPhone } from '../../utils/phone';
+import { sortByText } from '../../utils/sort';
 
 interface FollowUpContactModalProps {
   isOpen: boolean;
@@ -165,7 +166,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
             label="Assigned to"
             value={ownerId}
             onChange={setOwnerId}
-            options={[{ value: '', label: 'Unassigned' }, ...owners.map((o) => ({ value: o.id, label: o.name }))]}
+            options={[{ value: '', label: 'Unassigned' }, ...sortByText(owners, (o) => o.name).map((o) => ({ value: o.id, label: o.name }))]}
             placeholder="Unassigned"
           />
         )}
@@ -174,7 +175,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
             label="Target cohort"
             value={cohortId}
             onChange={setCohortId}
-            options={[{ value: '', label: 'No cohort' }, ...cohorts.map((c) => ({ value: c.id, label: c.name }))]}
+            options={[{ value: '', label: 'No cohort' }, ...sortByText(cohorts, (c) => c.name).map((c) => ({ value: c.id, label: c.name }))]}
             placeholder="No cohort"
           />
         ) : (

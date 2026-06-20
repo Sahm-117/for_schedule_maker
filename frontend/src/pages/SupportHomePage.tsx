@@ -9,6 +9,7 @@ import { useAppData } from '../context/AppDataContext';
 import { announcementsApi, faithProjectsApi, participantsApi, resourcesApi } from '../services/api';
 import type { Announcement, FaithProject, Participant } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
+import { sortByText } from '../utils/sort';
 import { useWalkthrough } from '../hooks/useWalkthrough';
 import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
 
@@ -84,8 +85,8 @@ const SupportHomePage: React.FC = () => {
       faithProjectsApi.getAll({ cohortId: activeCohort.id }).catch(() => ({ projects: [] as FaithProject[] })),
     ])
       .then(([participantsRes, faithProjectsRes]) => {
-        setParticipants(participantsRes.participants);
-        setFaithProjects(faithProjectsRes.projects);
+        setParticipants(sortByText(participantsRes.participants, (participant) => participant.fullName));
+        setFaithProjects(sortByText(faithProjectsRes.projects, (project) => project.title || project.participantName));
       })
       .catch(() => {
         setParticipants([]);

@@ -2,6 +2,10 @@ import type jsPDF from 'jspdf';
 import type { Week } from '../types';
 import { compareTimeStrings } from './time';
 import { getContrastingTextColor, hexToRgb, normalizeHexColor } from './color';
+import {
+  parseActivityDescription,
+  type ActivityInlineToken,
+} from './activityDescription';
 
 // jsPDF is heavy (~hundreds of KB). Load it on demand so it stays out of the
 // initial bundle — only users who actually export a PDF pay the cost.
@@ -211,6 +215,170 @@ const estimateLabelChipBlockHeight = (pdf: jsPDF, labels: Array<{ name: string }
   return lineCount * (chipHeight + gapY) + 1;
 };
 
+type PdfDescriptionFragment = {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+};
+
+type PdfDescriptionLine = {
+  fragments: PdfDescriptionFragment[];
+  marker?: string;
+  contentOffset?: number;
+  height: number;
+};
+
+const DESCRIPTION_LINE_HEIGHT = 5;
+const DESCRIPTION_BLANK_LINE_HEIGHT = 3;
+const DESCRIPTION_LIST_OFFSET = 7;
+
+const setDescriptionFont = (pdf: jsPDF, fragment?: PdfDescriptionFragment) => {
+  const style = fragment?.bold && fragment?.italic
+    ? 'bolditalic'
+    : fragment?.bold
+      ? 'bold'
+      : fragment?.italic
+        ? 'italic'
+        : 'normal';
+  pdf.setFont('helvetica', style);
+};
+
+const measureDescriptionText = (pdf: jsPDF, fragment: PdfDescriptionFragment): number => {
+  setDescriptionFont(pdf, fragment);
+  return pdf.getTextWidth(fragment.text);
+};
+
+const pushDescriptionFragment = (line: PdfDescriptionFragment[], fragment: PdfDescriptionFragment) => {
+  if (!fragment.text) return;
+  const previous = line[line.length - 1];
+  if (previous && previous.bold === fragment.bold && previous.italic === fragment.italic) {
+    previous.text += fragment.text;
+  } else {
+    line.push({ ...fragment });
+  }
+};
+
+const splitInlineTokenForPdf = (token: ActivityInlineToken): PdfDescriptionFragment[] => {
+  const parts = token.text.match(/\S+\s*|\s+/g) || [token.text];
+  return parts.map((text) => ({
+    text,
+    bold: token.bold,
+    italic: token.italic,
+  }));
+};
+
+const wrapDescriptionFragments = (
+  pdf: jsPDF,
+  tokens: ActivityInlineToken[],
+  maxWidth: number,
+  contentOffset = 0,
+  marker?: string
+): PdfDescriptionLine[] => {
+  const fragments = tokens.flatMap(splitInlineTokenForPdf);
+  const lines: PdfDescriptionLine[] = [];
+  let currentLine: PdfDescriptionFragment[] = [];
+  let currentWidth = 0;
+  let firstLine = true;
+
+  const flushLine = () => {
+    lines.push({
+      fragments: currentLine,
+      marker: firstLine ? marker : undefined,
+      contentOffset,
+      height: DESCRIPTION_LINE_HEIGHT,
+    });
+    currentLine = [];
+    currentWidth = 0;
+    firstLine = false;
+  };
+
+  fragments.forEach((fragment) => {
+    let nextFragment = { ...fragment };
+    let width = measureDescriptionText(pdf, nextFragment);
+    if (currentLine.length > 0 && currentWidth + width > maxWidth) {
+      flushLine();
+      nextFragment = { ...nextFragment, text: nextFragment.text.trimStart() };
+      width = measureDescriptionText(pdf, nextFragment);
+    }
+    pushDescriptionFragment(currentLine, nextFragment);
+    currentWidth += width;
+  });
+
+  if (currentLine.length > 0) flushLine();
+  if (lines.length === 0) {
+    lines.push({
+      fragments: [],
+      marker,
+      contentOffset,
+      height: DESCRIPTION_BLANK_LINE_HEIGHT,
+    });
+  }
+
+  return lines;
+};
+
+const layoutActivityDescription = (pdf: jsPDF, description: string, maxWidth: number): PdfDescriptionLine[] => {
+  const blocks = parseActivityDescription(description);
+  const lines: PdfDescriptionLine[] = [];
+
+  blocks.forEach((block) => {
+    if (block.type === 'paragraph') {
+      if (block.inlines.length === 0) {
+        lines.push({ fragments: [], height: DESCRIPTION_BLANK_LINE_HEIGHT });
+      } else {
+        lines.push(...wrapDescriptionFragments(pdf, block.inlines, maxWidth));
+      }
+      return;
+    }
+
+    block.items.forEach((item, index) => {
+      const marker = block.ordered ? `${index + 1}.` : '•';
+      lines.push(...wrapDescriptionFragments(
+        pdf,
+        item.inlines,
+        Math.max(20, maxWidth - DESCRIPTION_LIST_OFFSET),
+        DESCRIPTION_LIST_OFFSET,
+        marker
+      ));
+    });
+  });
+
+  return lines.length > 0 ? lines : [{ fragments: [], height: DESCRIPTION_BLANK_LINE_HEIGHT }];
+};
+
+const getDescriptionHeight = (lines: PdfDescriptionLine[]): number =>
+  lines.reduce((sum, line) => sum + line.height, 0);
+
+const drawFormattedDescription = (
+  pdf: jsPDF,
+  lines: PdfDescriptionLine[],
+  x: number,
+  y: number
+): number => {
+  let currentY = y;
+  pdf.setFontSize(11);
+  pdf.setTextColor(...COLORS.brand.lightText);
+
+  lines.forEach((line) => {
+    if (line.marker) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(line.marker, x, currentY);
+    }
+
+    let currentX = x + (line.contentOffset || 0);
+    line.fragments.forEach((fragment) => {
+      if (!fragment.text) return;
+      setDescriptionFont(pdf, fragment);
+      pdf.text(fragment.text, currentX, currentY);
+      currentX += pdf.getTextWidth(fragment.text);
+    });
+    currentY += line.height;
+  });
+
+  pdf.setFont('helvetica', 'normal');
+  return currentY;
+};
+
 const exportScheduleToPDF = async (week: Week, options: ExportOptions = {}) => {
   const { includeEmptyDays = false, format = 'portrait', filterLabelIds, subtitle, fileName } = options;
   const isPersonal = Array.isArray(filterLabelIds) && filterLabelIds.length > 0;
@@ -300,8 +468,8 @@ const exportScheduleToPDF = async (week: Week, options: ExportOptions = {}) => {
       // Description with line wrapping (use dynamic width to avoid cutoff)
       pdf.setFontSize(11);
       pdf.setFont('helvetica', 'normal');
-      const descriptionLines = pdf.splitTextToSize(activity.description, descMaxWidth);
-      const lineHeight = 5;
+      const descriptionLines = layoutActivityDescription(pdf, activity.description, descMaxWidth);
+      const descriptionHeight = getDescriptionHeight(descriptionLines);
 
       // Estimate label chip height for page breaks
       const labels = Array.isArray((activity as any).labels) ? ((activity as any).labels as any[]) : [];
@@ -310,7 +478,7 @@ const exportScheduleToPDF = async (week: Week, options: ExportOptions = {}) => {
         labels.map((l: any) => ({ name: String(l?.name || '') })),
         descMaxWidth
       );
-      const needed = Math.max(7, descriptionLines.length * lineHeight) + chipBlockEstimate;
+      const needed = Math.max(7, descriptionHeight) + chipBlockEstimate;
 
       // Check page break for activities
       if (yPosition + needed > pageHeight - 20) {
@@ -352,18 +520,12 @@ const exportScheduleToPDF = async (week: Week, options: ExportOptions = {}) => {
       pdf.text(timeText, 25, yPosition);
 
       // Description (manual line layout for predictable wrapping)
-      pdf.setFontSize(11);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(...COLORS.brand.lightText);
-      for (let i = 0; i < descriptionLines.length; i++) {
-        pdf.text(descriptionLines[i], descX, yPosition + i * lineHeight);
-      }
-
-      let nextY = yPosition + Math.max(7, descriptionLines.length * lineHeight);
+      const descriptionEndY = drawFormattedDescription(pdf, descriptionLines, descX, yPosition);
+      let nextY = yPosition + Math.max(7, descriptionHeight);
 
       // Labels (chips) below description
       if (Array.isArray((activity as any).labels) && (activity as any).labels.length > 0) {
-        const chipsStartY = yPosition + descriptionLines.length * lineHeight + 1;
+        const chipsStartY = descriptionEndY + 1;
         nextY = drawLabelChips(
           pdf,
           (activity as any).labels.map((l: any) => ({ name: l.name, color: l.color })),

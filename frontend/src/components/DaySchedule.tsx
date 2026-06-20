@@ -5,6 +5,7 @@ import ActivityCard from './ActivityCard';
 import ConfirmationModal from './ConfirmationModal';
 import { useAuth } from '../hooks/useAuth';
 import { compareTimeStrings, parseTimeToMinutes } from '../utils/time';
+import { activityDescriptionToPlainText } from '../utils/activityDescription';
 import PeriodIcon, { getPeriodStyle } from './PeriodIcon';
 
 interface DayScheduleProps {
@@ -349,7 +350,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">
-                          {change.changeData.time} - {change.changeData.description}
+                          {change.changeData.time} - {activityDescriptionToPlainText(change.changeData.description || '')}
                         </p>
                         <p className="text-xs text-gray-500">
                           {change.changeData.period} • By {change.user?.name ?? 'Unknown user'}
@@ -375,7 +376,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
         title="Delete Activity"
         message={
           activityToDelete
-            ? `Are you sure you want to delete "${activityToDelete.description}"? ${
+            ? `Are you sure you want to delete "${activityDescriptionToPlainText(activityToDelete.description)}"? ${
                 isAdmin
                   ? 'This action cannot be undone.'
                   : 'This will submit a deletion request for admin approval.'

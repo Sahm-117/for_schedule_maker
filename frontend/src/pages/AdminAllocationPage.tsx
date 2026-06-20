@@ -21,6 +21,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { groupsApi, participantsApi } from '../services/api';
 import type { Group, Participant } from '../types';
+import { sortByText } from '../utils/sort';
 
 const groupNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 const UNASSIGNED = '__unassigned__';
@@ -143,7 +144,7 @@ const AdminAllocationPage: React.FC = () => {
         participantsApi.getAll({ cohortId: activeCohort.id }),
       ]);
       setGroups([...gs].sort((a, b) => groupNameCollator.compare(a.name, b.name)));
-      setParticipants(ps.filter((p) => p.status === 'ACTIVE'));
+      setParticipants(sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName));
     } catch {
       setErr('Failed to load. Please retry.');
     } finally {
@@ -161,7 +162,7 @@ const AdminAllocationPage: React.FC = () => {
       const key = p.groupId && map.has(p.groupId) ? p.groupId : UNASSIGNED;
       map.get(key)!.push(p);
     });
-    map.forEach((list) => list.sort((a, b) => a.fullName.localeCompare(b.fullName)));
+    map.forEach((list, key) => map.set(key, sortByText(list, (participant) => participant.fullName)));
     return map;
   }, [groups, participants]);
 
@@ -346,7 +347,7 @@ const AdminAllocationPage: React.FC = () => {
                     }}
                     options={[
                       { value: UNASSIGNED, label: 'Unassigned' },
-                      ...groups.map((g) => ({ value: g.id, label: g.name })),
+                      ...sortByText(groups, (group) => group.name).map((g) => ({ value: g.id, label: g.name })),
                     ]}
                     placeholder="Choose group…"
                     compact

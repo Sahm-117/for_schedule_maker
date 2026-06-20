@@ -13,6 +13,7 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
 import type { Activity, Day, Label, SupportActivityCompletion, User } from '../types';
 import { exportAllWeeksToPDF, exportDayToPDF, exportWeekToPDF } from '../utils/pdfExport';
+import { sortByText } from '../utils/sort';
 
 const AdminSchedulePage: React.FC = () => {
   const { user, isAdmin, isSopPreparer, userLabelIds } = useAuth();
@@ -57,7 +58,7 @@ const AdminSchedulePage: React.FC = () => {
   React.useEffect(() => {
     if (!isAdmin) return;
     labelsApi.getAll()
-      .then((response) => setSupportGroups(response.labels))
+      .then((response) => setSupportGroups(sortByText(response.labels, (label) => label.name)))
       .catch((error) => console.warn('Failed to load activity tags for filter:', error));
   }, [isAdmin]);
 
@@ -76,7 +77,7 @@ const AdminSchedulePage: React.FC = () => {
             }
           })
         );
-        setSupportUsers(usersWithLabels);
+        setSupportUsers(sortByText(usersWithLabels, (member) => member.name));
       })
       .catch((error) => console.warn('Failed to load support users:', error));
   }, [isAdmin]);
@@ -116,7 +117,7 @@ const AdminSchedulePage: React.FC = () => {
 
   const groupOptions = [
     { value: '', label: 'All activity tags', meta: 'Show every assigned activity' },
-    ...supportGroups.map((group) => ({
+    ...sortByText(supportGroups, (group) => group.name).map((group) => ({
       value: group.id,
       label: group.name,
       meta: 'Activity tag filter',
@@ -124,8 +125,10 @@ const AdminSchedulePage: React.FC = () => {
   ];
 
   const filteredSupportUsers = React.useMemo(() => {
-    if (!selectedSupportGroupId) return supportUsers;
-    return supportUsers.filter((member) => member.labels?.some((label) => label.id === selectedSupportGroupId));
+    const users = selectedSupportGroupId
+      ? supportUsers.filter((member) => member.labels?.some((label) => label.id === selectedSupportGroupId))
+      : supportUsers;
+    return sortByText(users, (member) => member.name);
   }, [selectedSupportGroupId, supportUsers]);
 
   React.useEffect(() => {
@@ -136,7 +139,7 @@ const AdminSchedulePage: React.FC = () => {
 
   const supportUserOptions = [
     { value: '', label: 'All support users', meta: 'Show the full support team' },
-    ...filteredSupportUsers.map((member) => ({
+    ...sortByText(filteredSupportUsers, (member) => member.name).map((member) => ({
       value: member.id,
       label: member.name,
       meta: member.labels?.map((label) => label.name).join(' • ') || 'No activity tags yet',
@@ -394,7 +397,7 @@ const AdminSchedulePage: React.FC = () => {
           onClose={() => {
             setShowTagManagement(false);
             labelsApi.getAll()
-              .then((response) => setSupportGroups(response.labels))
+              .then((response) => setSupportGroups(sortByText(response.labels, (label) => label.name)))
               .catch((error) => console.warn('Failed to reload activity tags:', error));
           }}
         />

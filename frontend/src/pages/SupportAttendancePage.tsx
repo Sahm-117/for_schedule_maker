@@ -9,6 +9,7 @@ import { useAppData } from '../context/AppDataContext';
 import { attendanceApi, participantsApi } from '../services/api';
 import type { AttendanceRecord, AttendanceStatus, Participant, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
+import { sortByText } from '../utils/sort';
 
 const STATUS_OPTIONS: AttendanceStatus[] = ['PRESENT', 'LATE', 'ABSENT'];
 
@@ -114,7 +115,7 @@ const SupportAttendancePage: React.FC = () => {
         participantsApi.getAll({ cohortId: activeCohort.id, supportId: user.id }),
         attendanceApi.getForWeek({ weekId: selectedWeekId, supportId: user.id }),
       ]);
-      setParticipants(ps);
+      setParticipants(sortByText(ps, (participant) => participant.fullName));
       const map = new Map<string, AttendanceRecord>();
       rs.forEach((r) => map.set(r.participantId, r));
       setRecords(map);
@@ -154,7 +155,10 @@ const SupportAttendancePage: React.FC = () => {
       const { participant } = await participantsApi.update(selectedParticipant.id, {
         notes: notes.trim() || null,
       });
-      setParticipants((prev) => prev.map((entry) => (entry.id === participant.id ? { ...entry, ...participant } : entry)));
+      setParticipants((prev) => sortByText(
+        prev.map((entry) => (entry.id === participant.id ? { ...entry, ...participant } : entry)),
+        (entry) => entry.fullName
+      ));
       setSelectedParticipant((prev) => (prev && prev.id === participant.id ? { ...prev, ...participant } : prev));
       setSelectedParticipant(null);
     } catch {

@@ -9,6 +9,7 @@ import PWAInstallBanner from './PWAInstallBanner';
 import PWAUpdateBanner from './PWAUpdateBanner';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { isWalkthroughDismissed } from '../hooks/useWalkthrough';
+import { sortByText } from '../utils/sort';
 
 type NavItem = {
   to: string;
@@ -17,6 +18,11 @@ type NavItem = {
   adminOnly?: boolean;
   sopHidden?: boolean;
   mobileHidden?: boolean;
+};
+
+type NavGroup = {
+  label: string;
+  items: NavItem[];
 };
 
 const IconBox: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -62,6 +68,50 @@ const adminNav: NavItem[] = [
   { to: '/settings', label: 'Settings', icon: ICONS.settings },
 ];
 
+const adminNavGroups: NavGroup[] = [
+  {
+    label: 'Overview',
+    items: [
+      { to: '/dashboard', label: 'Dashboard', icon: ICONS.dashboard },
+    ],
+  },
+  {
+    label: 'Programme',
+    items: [
+      { to: '/schedule', label: 'Schedule', icon: ICONS.schedule },
+      { to: '/approvals', label: 'Approvals', icon: ICONS.approvals },
+      { to: '/activity-overview', label: 'Activity overview', icon: ICONS.overview, adminOnly: true },
+    ],
+  },
+  {
+    label: 'People & groups',
+    items: [
+      { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
+      { to: '/participants', label: 'Participants', icon: ICONS.participants, adminOnly: true },
+      { to: '/groups', label: 'Groups', icon: ICONS.groups, adminOnly: true },
+      { to: '/attendance', label: 'Attendance', icon: ICONS.attendance, adminOnly: true },
+    ],
+  },
+  {
+    label: 'Care & engagement',
+    items: [
+      { to: '/faith-projects', label: 'Faith projects', icon: ICONS.faith, adminOnly: true },
+      { to: '/group-prayers', label: 'Group prayers', icon: ICONS.prayer, adminOnly: true },
+      { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
+      { to: '/onboarding', label: 'Onboarding', icon: ICONS.onboarding, adminOnly: true },
+    ],
+  },
+  {
+    label: 'Administration',
+    items: [
+      { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
+      { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
+      { to: '/resources', label: 'Resources', icon: ICONS.resources },
+      { to: '/settings', label: 'Settings', icon: ICONS.settings },
+    ],
+  },
+];
+
 const supportNav: NavItem[] = [
   { to: '/support', label: 'Home', icon: ICONS.dashboard },
   { to: '/support/schedule', label: 'My Schedule', icon: ICONS.schedule },
@@ -90,6 +140,32 @@ const isNavActive = (pathname: string, to: string) => {
   return pathname === to || pathname.startsWith(`${to}/`);
 };
 
+const canShowNavItem = (item: NavItem, isAdmin: boolean, isSopPreparer: boolean) => {
+  if (item.adminOnly && !isAdmin) return false;
+  if (item.sopHidden && isSopPreparer) return false;
+  return true;
+};
+
+const NavItemLink: React.FC<{
+  item: NavItem;
+  active: boolean;
+  globalPendingCount: number;
+  newResourceCount: number;
+  onClick?: () => void;
+}> = ({ item, active, globalPendingCount, newResourceCount, onClick }) => (
+  <NavLink
+    key={item.to}
+    to={item.to}
+    onClick={onClick}
+    className={({ isActive }) => `nav-pill ${active || isActive ? 'nav-pill-active' : ''}`}
+  >
+    {item.icon}
+    <span>{item.label}</span>
+    {item.to.includes('approvals') && <MobileBadge count={globalPendingCount} />}
+    {item.to.includes('resources') && <MobileBadge count={newResourceCount} />}
+  </NavLink>
+);
+
 const AppShell: React.FC = () => {
   const { user, isAdmin, isSopPreparer, logout, userLabels } = useAuth();
   const {
@@ -114,11 +190,16 @@ const AppShell: React.FC = () => {
   const walkthroughDone = !isSupport || isWalkthroughDismissed();
   const navItems = useMemo(() => {
     if (isSupport) return supportNav;
-    return adminNav.filter((item) => {
-      if (item.adminOnly && !isAdmin) return false;
-      if (item.sopHidden && isSopPreparer) return false;
-      return true;
-    });
+    return adminNav.filter((item) => canShowNavItem(item, isAdmin, isSopPreparer));
+  }, [isAdmin, isSopPreparer, isSupport]);
+  const navGroups = useMemo(() => {
+    if (isSupport) return [];
+    return adminNavGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => canShowNavItem(item, isAdmin, isSopPreparer)),
+      }))
+      .filter((group) => group.items.length > 0);
   }, [isAdmin, isSopPreparer, isSupport]);
   const mobileNavItems = useMemo(() => {
     if (isSupport) return supportNav.filter((item) => !item.mobileHidden);
@@ -133,7 +214,7 @@ const AppShell: React.FC = () => {
     const date = new Date(`${value}T12:00:00`);
     return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
   };
-  const cohortOptions = cohorts.map((cohort) => ({
+  const cohortOptions = sortByText(cohorts, (cohort) => cohort.name).map((cohort) => ({
     value: cohort.id,
     label: cohort.name,
     meta: cohort.startDate && cohort.endDate
@@ -184,22 +265,37 @@ const AppShell: React.FC = () => {
           </div>
         </div>
 
-        <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-5">
-          {navItems.map((item) => {
-            const active = isNavActive(location.pathname, item.to);
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) => `nav-pill ${active || isActive ? 'nav-pill-active' : ''}`}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-                {item.to.includes('approvals') && <MobileBadge count={globalPendingChanges.length} />}
-                {item.to.includes('resources') && <MobileBadge count={newResourceCount} />}
-              </NavLink>
-            );
-          })}
+        <nav className="flex-1 space-y-5 overflow-y-auto px-4 py-5">
+          {isSupport ? (
+            <div className="space-y-2">
+              {navItems.map((item) => (
+                <NavItemLink
+                  key={item.to}
+                  item={item}
+                  active={isNavActive(location.pathname, item.to)}
+                  globalPendingCount={globalPendingChanges.length}
+                  newResourceCount={newResourceCount}
+                />
+              ))}
+            </div>
+          ) : navGroups.map((group) => (
+            <div key={group.label} className="space-y-1.5">
+              <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-400">
+                {group.label}
+              </p>
+              <div className="space-y-1">
+                {group.items.map((item) => (
+                  <NavItemLink
+                    key={item.to}
+                    item={item}
+                    active={isNavActive(location.pathname, item.to)}
+                    globalPendingCount={globalPendingChanges.length}
+                    newResourceCount={newResourceCount}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </nav>
 
         <div className="border-t border-orange-100 px-4 py-4">
@@ -257,22 +353,42 @@ const AppShell: React.FC = () => {
                   />
                 </div>
               )}
-              {navItems.map((item) => {
-                const active = isNavActive(location.pathname, item.to);
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    onClick={() => setOpen(false)}
-                    className={`nav-pill ${active ? 'nav-pill-active' : ''}`}
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                    {item.to.includes('approvals') && <MobileBadge count={globalPendingChanges.length} />}
-                    {item.to.includes('resources') && <MobileBadge count={newResourceCount} />}
-                  </NavLink>
-                );
-              })}
+              {isSupport ? (
+                <div className="space-y-2">
+                  {navItems.map((item) => (
+                    <NavItemLink
+                      key={item.to}
+                      item={item}
+                      active={isNavActive(location.pathname, item.to)}
+                      globalPendingCount={globalPendingChanges.length}
+                      newResourceCount={newResourceCount}
+                      onClick={() => setOpen(false)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {navGroups.map((group) => (
+                    <div key={group.label} className="space-y-1.5">
+                      <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-400">
+                        {group.label}
+                      </p>
+                      <div className="space-y-1">
+                        {group.items.map((item) => (
+                          <NavItemLink
+                            key={item.to}
+                            item={item}
+                            active={isNavActive(location.pathname, item.to)}
+                            globalPendingCount={globalPendingChanges.length}
+                            newResourceCount={newResourceCount}
+                            onClick={() => setOpen(false)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </nav>
             <div className="border-t border-orange-100 px-4 py-4">
               <button
@@ -335,15 +451,6 @@ const AppShell: React.FC = () => {
                   />
                 </div>
               )}
-              <button
-                type="button"
-                onClick={() => navigate(isSupport ? '/support/resources' : '/resources')}
-                className="surface-muted flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700"
-              >
-                {ICONS.resources}
-                Resources
-                <MobileBadge count={newResourceCount} />
-              </button>
               <button
                 type="button"
                 onClick={logout}

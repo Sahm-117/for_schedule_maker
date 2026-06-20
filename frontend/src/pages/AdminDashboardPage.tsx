@@ -8,6 +8,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { announcementsApi, resourcesApi, supportActivityCompletionsApi, usersApi } from '../services/api';
 import type { Activity, Announcement, Resource, SupportActivityCompletion, User } from '../types';
+import { sortByText } from '../utils/sort';
 import { formatDateTime } from '../utils/time';
 
 const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
@@ -21,7 +22,7 @@ const AdminDashboardPage: React.FC = () => {
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
 
   useEffect(() => {
-    resourcesApi.getAll().then((res) => setResources(res.resources)).catch(() => {});
+    resourcesApi.getAll().then((res) => setResources(sortByText(res.resources, (resource) => resource.title))).catch(() => {});
     announcementsApi.getHistory({ isAdmin: true, cohortId: activeCohort?.id || null }).then((res) => setAnnouncements(res.announcements.slice(0, 3))).catch(() => {});
     if (isAdmin) {
       usersApi.getAll()
@@ -43,7 +44,7 @@ const AdminDashboardPage: React.FC = () => {
               }
             })
           );
-          setUsers(labelResponses);
+          setUsers(sortByText(labelResponses, (member) => member.name));
         })
         .catch(() => {});
     }

@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { activitiesApi, labelsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import type { Week, Label } from '../types';
-import LabelChip from './LabelChip';
 import AppSelect from './AppSelect';
+import ActivityDescriptionToolbar from './ActivityDescriptionToolbar';
+import ActivityLabelPicker from './ActivityLabelPicker';
 
 interface CrossWeekModalProps {
   isOpen: boolean;
@@ -25,20 +26,17 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [time, setTime] = useState('');
   const [description, setDescription] = useState('');
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [period, setPeriod] = useState<'MORNING' | 'AFTERNOON' | 'EVENING'>('MORNING');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [labels, setLabels] = useState<Label[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(false);
-  const [labelsOpen, setLabelsOpen] = useState(true);
-  const [labelQuery, setLabelQuery] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
-    setLabelsOpen(true);
-    setLabelQuery('');
     setLabelsLoading(true);
     labelsApi.getAll()
       .then((res) => {
@@ -56,18 +54,6 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
   }, [isOpen]);
 
   const otherWeeks = weeks.filter((w) => w.weekNumber !== currentWeek.weekNumber);
-  const filteredLabels = labelQuery.trim()
-    ? labels.filter((l) => l.name.toLowerCase().includes(labelQuery.trim().toLowerCase()))
-    : labels;
-
-  const toggleLabel = (labelId: string, checked: boolean) => {
-    setSelectedLabelIds((prev) => {
-      const set = new Set(prev);
-      if (checked) set.add(labelId);
-      else set.delete(labelId);
-      return Array.from(set);
-    });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -323,98 +309,28 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Description
               </label>
+              <ActivityDescriptionToolbar
+                value={description}
+                onChange={setDescription}
+                textareaRef={descriptionRef}
+              />
               <textarea
+                ref={descriptionRef}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={3}
+                rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
                 placeholder="Describe the activity..."
                 required
               />
             </div>
 
-            <div>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Activity tags (optional)
-                  </label>
-                  <span className="text-xs text-gray-500">
-                    Selected: {selectedLabelIds.length}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {labelsLoading && (
-                    <span className="text-xs text-gray-500">Loading...</span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setLabelsOpen((v) => !v)}
-                    className="text-xs text-primary hover:text-primary-dark px-2 py-1 rounded border border-primary hover:bg-primary/5"
-                  >
-                    {labelsOpen ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-              </div>
-
-              {selectedLabelIds.length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-1">
-                  {labels
-                    .filter((l) => selectedLabelIds.includes(l.id))
-                    .map((label) => {
-                      return (
-                        <LabelChip
-                          key={label.id}
-                          name={label.name}
-                          color={label.color}
-                          size="sm"
-                        />
-                      );
-                    })}
-                </div>
-              )}
-
-              {labelsOpen && (
-                <div className="mt-2 border border-gray-200 rounded-md p-3">
-                  <input
-                    type="text"
-                    value={labelQuery}
-                    onChange={(e) => setLabelQuery(e.target.value)}
-                    placeholder="Search labels..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary text-sm mb-3"
-                  />
-
-                  <div className="max-h-44 overflow-y-auto">
-                    {labels.length === 0 ? (
-                      <p className="text-sm text-gray-500">
-                        No labels yet.
-                      </p>
-                    ) : filteredLabels.length === 0 ? (
-                      <p className="text-sm text-gray-500">
-                        No labels match your search.
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {filteredLabels.map((label) => {
-                          const checked = selectedLabelIds.includes(label.id);
-                          return (
-                            <label key={label.id} className="flex items-center gap-2 p-1 rounded hover:bg-gray-50">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={(e) => toggleLabel(label.id, e.target.checked)}
-                                className="rounded border-gray-300 text-primary focus:ring-primary"
-                              />
-                              <LabelChip name={label.name} color={label.color} size="sm" />
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            <ActivityLabelPicker
+              labels={labels}
+              selectedLabelIds={selectedLabelIds}
+              onChange={setSelectedLabelIds}
+              loading={labelsLoading}
+            />
 
             {error && (
               <div className="text-red-600 text-sm bg-red-50 p-2 rounded">

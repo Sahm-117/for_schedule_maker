@@ -26,6 +26,7 @@ import {
 import { useWalkthrough } from '../hooks/useWalkthrough';
 import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
 import ExportContactsPopup from '../components/followups/ExportContactsPopup';
+import { compareText, sortByText } from '../utils/sort';
 
 type Tab = 'contacts' | 'issues';
 
@@ -120,9 +121,9 @@ const SupportFollowUpsPage: React.FC = () => {
         settingsApi.getRegistrationLink(),
       ]);
       const issuesRes = await followUpIssuesApi.getAll();
-      setContacts(contactsRes.contacts);
+      setContacts(sortByText(contactsRes.contacts, (contact) => contact.fullName));
       setIssues(issuesRes.issues);
-      setTemplates(templatesRes.templates);
+      setTemplates(sortByText(templatesRes.templates, (template) => template.useCase));
       setRegistrationLink(linkRes.url);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load your follow-ups.');
@@ -154,7 +155,7 @@ const SupportFollowUpsPage: React.FC = () => {
       list.sort((a, b) => {
         const aClosed = isClosedContact(a) ? 1 : 0;
         const bClosed = isClosedContact(b) ? 1 : 0;
-        return aClosed - bClosed;
+        return (aClosed - bClosed) || compareText(a.fullName, b.fullName);
       });
       return list;
     },
@@ -174,7 +175,7 @@ const SupportFollowUpsPage: React.FC = () => {
   }
 
   const replaceContact = (updated: FollowUpContact) => {
-    setContacts((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    setContacts((prev) => sortByText(prev.map((c) => (c.id === updated.id ? updated : c)), (contact) => contact.fullName));
   };
 
   const handleFieldChange = async (contact: FollowUpContact, patch: FollowUpContactUpdate) => {

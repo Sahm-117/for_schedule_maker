@@ -15,6 +15,7 @@ import {
   buildExistingPhoneSet,
   type ParsedContactRow,
 } from '../utils/contactImport';
+import { sortByText } from '../utils/sort';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -268,8 +269,8 @@ const AdminParticipantsPage: React.FC = () => {
         participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true }),
         groupsApi.getAll({ cohortId: activeCohort.id }),
       ]);
-      setParticipants(ps);
-      setGroups(gs);
+      setParticipants(sortByText(ps, (participant) => participant.fullName));
+      setGroups(sortByText(gs, (group) => group.name));
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [activeCohort]);
@@ -296,7 +297,7 @@ const AdminParticipantsPage: React.FC = () => {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
-    return ps;
+    return sortByText(ps, (participant) => participant.fullName);
   }, [participants, showArchived, search, groupFilter]);
 
   const unassignedCount = useMemo(
@@ -431,7 +432,8 @@ const AdminParticipantsPage: React.FC = () => {
         onSaved={(p) => {
           setParticipants((prev) => {
             const idx = prev.findIndex((x) => x.id === p.id);
-            return idx >= 0 ? prev.map((x) => x.id === p.id ? p : x) : [p, ...prev];
+            const next = idx >= 0 ? prev.map((x) => x.id === p.id ? p : x) : [...prev, p];
+            return sortByText(next, (participant) => participant.fullName);
           });
         }}
         cohortId={activeCohort?.id ?? ''}
@@ -441,7 +443,7 @@ const AdminParticipantsPage: React.FC = () => {
       <ImportModal
         isOpen={importOpen}
         onClose={() => setImportOpen(false)}
-        onImported={(ps) => setParticipants((prev) => [...ps, ...prev])}
+        onImported={(ps) => setParticipants((prev) => sortByText([...prev, ...ps], (participant) => participant.fullName))}
         cohortId={activeCohort?.id ?? ''}
         existingParticipants={participants}
       />

@@ -24,6 +24,7 @@ import type {
   Week,
 } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
+import { sortByText } from '../utils/sort';
 
 type GroupTab = 'faith' | 'prayers';
 
@@ -279,7 +280,7 @@ const SupportParticipantsPage: React.FC = () => {
         }
       }
 
-      setParticipants(participantsRes.participants);
+      setParticipants(sortByText(participantsRes.participants, (participant) => participant.fullName));
       const fallbackGroups = new Map<string, GroupOnboardingStatus>();
       participantsRes.participants.forEach((participant) => {
         if (!participant.groupId || fallbackGroups.has(participant.groupId)) return;
@@ -287,8 +288,8 @@ const SupportParticipantsPage: React.FC = () => {
         fallbackGroups.set(participant.groupId, virtualGroupStatus(participant.groupId, participant.groupName, count));
       });
       groupStatusRes.statuses.forEach((status) => fallbackGroups.set(status.groupId, status));
-      setGroupStatuses(Array.from(fallbackGroups.values()));
-      setFaithProjects(faithRes.projects);
+      setGroupStatuses(sortByText(Array.from(fallbackGroups.values()), (status) => status.groupName));
+      setFaithProjects(sortByText(faithRes.projects, (project) => project.title || project.participantName));
       setGroupPrayerFocuses(prayerFocusRes.focuses);
       setGroupPrayerStatuses(prayerStatusRes.statuses);
 
@@ -334,11 +335,14 @@ const SupportParticipantsPage: React.FC = () => {
         meta: 'Participant group',
       });
     });
-    return Array.from(map.values());
+    return sortByText(Array.from(map.values()), (option) => option.label);
   }, [groupStatuses, participants]);
 
   const selectedParticipants = useMemo(
-    () => participants.filter((participant) => participant.groupId === selectedGroupId),
+    () => sortByText(
+      participants.filter((participant) => participant.groupId === selectedGroupId),
+      (participant) => participant.fullName
+    ),
     [participants, selectedGroupId]
   );
 
@@ -470,7 +474,7 @@ const SupportParticipantsPage: React.FC = () => {
                         onSaved={(savedProject) => {
                           setFaithProjects((prev) => {
                             const others = prev.filter((entry) => entry.participantId !== savedProject.participantId);
-                            return [...others, savedProject];
+                            return sortByText([...others, savedProject], (project) => project.title || project.participantName);
                           });
                         }}
                       />
@@ -514,7 +518,7 @@ const SupportParticipantsPage: React.FC = () => {
                         onChange={(value) => { void setPrayerFocus(value); }}
                         options={[
                           { value: '', label: 'No focus selected', meta: 'Choose who your group will pray for' },
-                          ...selectedParticipants.map((participant) => ({
+                          ...sortByText(selectedParticipants, (participant) => participant.fullName).map((participant) => ({
                             value: participant.id,
                             label: participant.fullName,
                             meta: participant.phone || 'Group participant',

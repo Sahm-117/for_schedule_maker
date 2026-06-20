@@ -10,6 +10,7 @@ import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
 import { labelsApi, supportActivityCompletionsApi, usersApi } from '../services/api';
 import type { Activity, Label, SupportActivityCompletion, User } from '../types';
+import { sortByText } from '../utils/sort';
 
 type EnrichedActivity = Activity & { dayName: string };
 
@@ -27,7 +28,7 @@ const ActivityOverviewPage: React.FC = () => {
     if (!isAdmin) return;
 
     labelsApi.getAll()
-      .then((response) => setSupportGroups(response.labels))
+      .then((response) => setSupportGroups(sortByText(response.labels, (label) => label.name)))
       .catch((error) => console.warn('Failed to load activity tags:', error));
 
     usersApi.getAll()
@@ -43,7 +44,7 @@ const ActivityOverviewPage: React.FC = () => {
             }
           })
         );
-        setSupportUsers(usersWithLabels);
+        setSupportUsers(sortByText(usersWithLabels, (member) => member.name));
       })
       .catch((error) => console.warn('Failed to load support users:', error));
   }, [isAdmin]);
@@ -101,7 +102,7 @@ const ActivityOverviewPage: React.FC = () => {
 
   const groupOptions = [
     { value: '', label: 'All activity tags', meta: 'Show every assigned activity' },
-    ...supportGroups.map((group) => ({
+    ...sortByText(supportGroups, (group) => group.name).map((group) => ({
       value: group.id,
       label: group.name,
       meta: 'Support group filter',
@@ -110,7 +111,7 @@ const ActivityOverviewPage: React.FC = () => {
 
   const supportUserOptions = [
     { value: '', label: 'All support users', meta: 'Show the whole support team' },
-    ...filteredSupportUsers.map((member) => ({
+    ...sortByText(filteredSupportUsers, (member) => member.name).map((member) => ({
       value: member.id,
       label: member.name,
       meta: member.labels?.map((label) => label.name).join(' • ') || 'No activity tags yet',
