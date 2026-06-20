@@ -80,6 +80,9 @@ const AdminOnboardingPage: React.FC = () => {
   const [deleting, setDeleting] = useState<MessageTemplate | null>(null);
   const [updatingCoordinatorId, setUpdatingCoordinatorId] = useState<string | null>(null);
   const [coordinatorCandidateId, setCoordinatorCandidateId] = useState('');
+  const [groupFilter, setGroupFilter] = useState(''); // '' = all groups
+  const [eventLimit, setEventLimit] = useState(10); // infinite scroll page size
+  const [coordinatorOpen, setCoordinatorOpen] = useState(false); // settings modal
   const fileRef = useRef<HTMLInputElement>(null);
 
   if (!user || user.role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
@@ -157,6 +160,26 @@ const AdminOnboardingPage: React.FC = () => {
     };
   }), [groupedParticipantStatuses, statuses]);
 
+  const groupOptions = useMemo(
+    () => [
+      { value: '', label: 'All groups' },
+      ...[...statuses]
+        .sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.groupName || '', b.groupName || ''))
+        .map((s) => ({ value: s.groupId, label: s.groupName || 'Group' })),
+    ],
+    [statuses]
+  );
+
+  const visibleGroupSummaries = useMemo(
+    () => (groupFilter ? groupSummaries.filter((s) => s.status.groupId === groupFilter) : groupSummaries),
+    [groupSummaries, groupFilter]
+  );
+
+  const visibleEvents = useMemo(
+    () => (groupFilter ? events.filter((e) => e.groupId === groupFilter) : events),
+    [events, groupFilter]
+  );
+
   const progress = useMemo(() => {
     const totalParticipants = groupSummaries.reduce((sum, summary) => sum + summary.participantCount, 0);
     const onboardedParticipants = groupSummaries.reduce((sum, summary) => sum + (summary.completed ? summary.participantCount : 0), 0);
@@ -169,6 +192,16 @@ const AdminOnboardingPage: React.FC = () => {
       pct: totalParticipants > 0 ? Math.round((onboardedParticipants / totalParticipants) * 100) : 0,
     };
   }, [groupSummaries]);
+
+  // Infinite scroll for the activity feed: reveal 10 more as the user nears the bottom.
+  const handleFeedScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 48) {
+      setEventLimit((prev) => (prev < visibleEvents.length ? prev + 10 : prev));
+    }
+  };
+
+  useEffect(() => { setEventLimit(10); }, [groupFilter]);
 
   const openForm = (template?: MessageTemplate) => {
     setEditing(template ?? null);
@@ -302,9 +335,23 @@ const AdminOnboardingPage: React.FC = () => {
                   : 'Progress cards fill in when an active cohort is selected.'}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <TabButton label="Support -> Participant" active={templateTab === 'ONBOARDING'} onClick={() => setTemplateTab('ONBOARDING')} />
               <TabButton label="Coordinator -> Support" active={templateTab === 'COORDINATOR'} onClick={() => setTemplateTab('COORDINATOR')} />
+              {templateTab === 'COORDINATOR' && (
+                <button
+                  type="button"
+                  onClick={() => setCoordinatorOpen(true)}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-orange-200 bg-white text-gray-500 hover:bg-orange-50 hover:text-primary"
+                  title="Manage coordinators"
+                  aria-label="Manage coordinators"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
 
@@ -316,77 +363,7 @@ const AdminOnboardingPage: React.FC = () => {
           </div>
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-          <section className="surface-card p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Group status</p>
-                <h3 className="mt-1 text-lg font-bold text-gray-900">Progress by group</h3>
-              </div>
-            </div>
-
-            {loading ? (
-              <PageLoader />
-            ) : statuses.length === 0 ? (
-              <div className="mt-4 rounded-2xl border border-dashed border-orange-200 py-12 text-center">
-                <p className="text-sm text-gray-500">No group progress yet.</p>
-              </div>
-            ) : (
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                {groupSummaries.map(({ status, pct, participantCount, completed, completedParticipants, members }) => {
-                  return (
-                    <div key={status.groupId} className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-base font-bold text-gray-900">{status.groupName}</p>
-                          <p className="mt-1 text-sm text-gray-500">{status.supportName || 'No support assigned'} • {participantCount} participant{participantCount === 1 ? '' : 's'}</p>
-                        </div>
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${completed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {completed ? 'Completed' : `${pct}% done`}
-                        </span>
-                      </div>
-                      <div className="mt-4 space-y-2 text-sm text-gray-600">
-                        <StatusLine label="Group created" checked={status.groupCreated} />
-                        <StatusLine label="All contacted" checked={members.length > 0 && members.every((entry) => entry.contacted)} />
-                        <StatusLine label="All added to group" checked={members.length > 0 && members.every((entry) => entry.addedToGroup)} />
-                        <StatusLine label="All introductions done" checked={members.length > 0 && members.every((entry) => entry.introductionDone)} />
-                        <StatusLine label="All venue acknowledged" checked={members.length > 0 && members.every((entry) => entry.venueAcknowledged)} />
-                      </div>
-                      <p className="mt-4 text-xs text-gray-500">
-                        {completedParticipants} of {participantCount} participants fully onboarded.
-                      </p>
-                      {status.updatedAt && (
-                        <p className="mt-4 text-xs text-gray-400">
-                          Last updated by {status.updatedByName || 'a support'} on {new Date(status.updatedAt).toLocaleString()}.
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section className="surface-card p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Recent activity</p>
-            <h3 className="mt-1 text-lg font-bold text-gray-900">Onboarding event feed</h3>
-            {events.length === 0 ? (
-              <div className="mt-4 rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">
-                No onboarding updates yet.
-              </div>
-            ) : (
-              <div className="mt-4 space-y-3">
-                {events.slice(0, 10).map((event) => (
-                  <div key={event.id} className="rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-3">
-                    <p className="text-sm font-semibold text-gray-900">{describeEvent(event)}</p>
-                    <p className="mt-1 text-xs text-gray-500">{new Date(event.createdAt).toLocaleString()}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
-
+        {/* Template library — placed above group status for quicker access. */}
         <section className="surface-card p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -436,55 +413,89 @@ const AdminOnboardingPage: React.FC = () => {
           )}
         </section>
 
-        {templateTab === 'COORDINATOR' && (
-          <section className="surface-card p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Coordinators</p>
-            <h3 className="mt-1 text-lg font-bold text-gray-900">Support users who can onboard other supports</h3>
-            <div className="mt-4 space-y-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end">
-                <div className="max-w-md flex-1">
-                  <AppSelect
-                    value={coordinatorCandidateId}
-                    onChange={setCoordinatorCandidateId}
-                    options={coordinatorOptions}
-                    placeholder="Select a support user"
-                    label="Add coordinator"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { void addCoordinator(); }}
-                  disabled={!coordinatorCandidateId}
-                  className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  Add coordinator
-                </button>
-              </div>
-
-              {coordinatorUsers.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-orange-200 py-10 text-center text-sm text-gray-500">
-                  No coordinators selected yet.
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-3">
-                  {coordinatorUsers.map((supportUser) => (
-                    <button
-                      key={supportUser.id}
-                      type="button"
-                      onClick={() => { void handleCoordinatorToggle(supportUser); }}
-                      disabled={updatingCoordinatorId === supportUser.id}
-                      className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-semibold text-gray-800 disabled:opacity-60"
-                    >
-                      <span>{supportUser.name}</span>
-                      <span className="text-xs text-gray-500">{supportUser.email || supportUser.phone}</span>
-                      <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-red-500">Remove</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+        {/* Group filter for the status + feed below. */}
+        {statuses.length > 0 && (
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Filter</span>
+            <div className="w-56">
+              <AppSelect value={groupFilter} onChange={setGroupFilter} options={groupOptions} placeholder="All groups" compact />
             </div>
-          </section>
+          </div>
         )}
+
+        <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+          <section className="surface-card p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Group status</p>
+                <h3 className="mt-1 text-lg font-bold text-gray-900">Progress by group</h3>
+              </div>
+            </div>
+
+            {loading ? (
+              <PageLoader />
+            ) : visibleGroupSummaries.length === 0 ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-orange-200 py-12 text-center">
+                <p className="text-sm text-gray-500">No group progress yet.</p>
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                {visibleGroupSummaries.map(({ status, pct, participantCount, completed, completedParticipants, members }) => {
+                  return (
+                    <div key={status.groupId} className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-base font-bold text-gray-900">{status.groupName}</p>
+                          <p className="mt-1 text-sm text-gray-500">{status.supportName || 'No support assigned'} • {participantCount} participant{participantCount === 1 ? '' : 's'}</p>
+                        </div>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${completed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {completed ? 'Completed' : `${pct}% done`}
+                        </span>
+                      </div>
+                      <div className="mt-4 space-y-2 text-sm text-gray-600">
+                        <StatusLine label="Group created" checked={status.groupCreated} />
+                        <StatusLine label="All contacted" checked={members.length > 0 && members.every((entry) => entry.contacted)} />
+                        <StatusLine label="All added to group" checked={members.length > 0 && members.every((entry) => entry.addedToGroup)} />
+                        <StatusLine label="All introductions done" checked={members.length > 0 && members.every((entry) => entry.introductionDone)} />
+                        <StatusLine label="All venue acknowledged" checked={members.length > 0 && members.every((entry) => entry.venueAcknowledged)} />
+                      </div>
+                      <p className="mt-4 text-xs text-gray-500">
+                        {completedParticipants} of {participantCount} participants fully onboarded.
+                      </p>
+                      {status.updatedAt && (
+                        <p className="mt-4 text-xs text-gray-400">
+                          Last updated by {status.updatedByName || 'a support'} on {new Date(status.updatedAt).toLocaleString()}.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section className="surface-card flex max-h-[36rem] flex-col p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Recent activity</p>
+            <h3 className="mt-1 text-lg font-bold text-gray-900">Onboarding event feed</h3>
+            {visibleEvents.length === 0 ? (
+              <div className="mt-4 rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">
+                No onboarding updates yet.
+              </div>
+            ) : (
+              <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1" onScroll={handleFeedScroll}>
+                {visibleEvents.slice(0, eventLimit).map((event) => (
+                  <div key={event.id} className="rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-3">
+                    <p className="text-sm font-semibold text-gray-900">{describeEvent(event)}</p>
+                    <p className="mt-1 text-xs text-gray-500">{new Date(event.createdAt).toLocaleString()}</p>
+                  </div>
+                ))}
+                {eventLimit < visibleEvents.length && (
+                  <p className="py-2 text-center text-xs text-gray-400">Scroll for more…</p>
+                )}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
 
       <ModalShell
@@ -571,6 +582,60 @@ const AdminOnboardingPage: React.FC = () => {
             )}
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { void handleImagePick(e); }} />
           </div>
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        isOpen={coordinatorOpen}
+        onClose={() => setCoordinatorOpen(false)}
+        title="Coordinators"
+        subtitle="Support users who can onboard other supports"
+        footer={(
+          <button type="button" onClick={() => setCoordinatorOpen(false)} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white">Done</button>
+        )}
+      >
+        <div className="space-y-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end">
+            <div className="flex-1">
+              <AppSelect
+                value={coordinatorCandidateId}
+                onChange={setCoordinatorCandidateId}
+                options={coordinatorOptions}
+                placeholder="Select a support user"
+                label="Add coordinator"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => { void addCoordinator(); }}
+              disabled={!coordinatorCandidateId}
+              className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              Add coordinator
+            </button>
+          </div>
+
+          {coordinatorUsers.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-orange-200 py-10 text-center text-sm text-gray-500">
+              No coordinators selected yet.
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              {coordinatorUsers.map((supportUser) => (
+                <button
+                  key={supportUser.id}
+                  type="button"
+                  onClick={() => { void handleCoordinatorToggle(supportUser); }}
+                  disabled={updatingCoordinatorId === supportUser.id}
+                  className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-semibold text-gray-800 disabled:opacity-60"
+                >
+                  <span>{supportUser.name}</span>
+                  <span className="text-xs text-gray-500">{supportUser.email || supportUser.phone}</span>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-red-500">Remove</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </ModalShell>
 
