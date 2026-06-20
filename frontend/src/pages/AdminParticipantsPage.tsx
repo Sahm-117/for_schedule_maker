@@ -4,10 +4,11 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { participantsApi } from '../services/api';
-import type { Participant } from '../types';
+import { participantsApi, groupsApi } from '../services/api';
+import type { Participant, Group } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import AppOverflowMenu from '../components/AppOverflowMenu';
+import AppSelect from '../components/AppSelect';
 import {
   parseBulkPaste,
   buildExistingPhoneSet,
@@ -246,9 +247,11 @@ const AdminParticipantsPage: React.FC = () => {
   const { activeCohort, liveRevision } = useAppData();
 
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState('');
+  const [groupFilter, setGroupFilter] = useState(''); // '' = all, '__UNASSIGNED__' = no group, else groupId
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Participant | null>(null);
@@ -259,22 +262,45 @@ const AdminParticipantsPage: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     setLoading(true);
     try {
-      const { participants: ps } = await participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true });
+      const [{ participants: ps }, { groups: gs }] = await Promise.all([
+        participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true }),
+        groupsApi.getAll({ cohortId: activeCohort.id }),
+      ]);
       setParticipants(ps);
+      setGroups(gs);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [activeCohort]);
 
   useEffect(() => { void load(); }, [load, liveRevision]);
 
+  const groupOptions = useMemo(
+    () => [
+      { value: '', label: 'All groups' },
+      { value: '__UNASSIGNED__', label: 'Unassigned' },
+      ...[...groups].sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name)).map((g) => ({ value: g.id, label: g.name })),
+    ],
+    [groups]
+  );
+
   const displayed = useMemo(() => {
     let ps = showArchived ? participants : participants.filter((p) => p.status === 'ACTIVE');
+    if (groupFilter === '__UNASSIGNED__') {
+      ps = ps.filter((p) => !p.groupId);
+    } else if (groupFilter) {
+      ps = ps.filter((p) => p.groupId === groupFilter);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
     return ps;
-  }, [participants, showArchived, search]);
+  }, [participants, showArchived, search, groupFilter]);
+
+  const unassignedCount = useMemo(
+    () => participants.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
+    [participants]
+  );
 
   const handleArchive = async (p: Participant) => {
     if (!window.confirm(`Archive ${p.fullName}? They will no longer appear in attendance.`)) return;
@@ -290,7 +316,7 @@ const AdminParticipantsPage: React.FC = () => {
     <div className="page-content">
       <PageHeader
         title="Participants"
-        subtitle={activeCohort ? `${activeCount} active · ${activeCohort.name}` : 'No active cohort'}
+        subtitle={activeCohort ? `${activeCount} active · ${unassignedCount} unassigned · ${activeCohort.name}` : 'No active cohort'}
         action={
           activeCohort && (
             <div className="flex gap-2">
@@ -310,14 +336,25 @@ const AdminParticipantsPage: React.FC = () => {
       ) : (
         <>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name or phone…"
-              className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-xs"
-            />
-            <label className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search name or phone…"
+                className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-xs"
+              />
+              <div className="w-full sm:w-52">
+                <AppSelect
+                  value={groupFilter}
+                  onChange={setGroupFilter}
+                  options={groupOptions}
+                  placeholder="All groups"
+                  compact
+                />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-600">
               <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="accent-primary" />
               Show archived
             </label>

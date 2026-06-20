@@ -4,9 +4,10 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { faithProjectsApi, participantsApi } from '../services/api';
-import type { FaithProject, FaithProjectStatus, Participant } from '../types';
+import { faithProjectsApi, participantsApi, groupsApi } from '../services/api';
+import type { FaithProject, FaithProjectStatus, Participant, Group } from '../types';
 import ModalShell from '../components/followups/ModalShell';
+import AppSelect from '../components/AppSelect';
 
 const STATUS_OPTIONS: Array<{ value: FaithProjectStatus; label: string; cls: string }> = [
   { value: 'NOT_DRAFTED', label: 'Not Drafted', cls: 'bg-neutral-100 text-neutral-600' },
@@ -129,8 +130,10 @@ const AdminFaithProjectsPage: React.FC = () => {
 
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [projects, setProjects] = useState<FaithProject[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<FaithProjectStatus | ''>('');
+  const [groupFilter, setGroupFilter] = useState(''); // '' = all, '__UNASSIGNED__' = no group
   const [search, setSearch] = useState('');
   const [editTarget, setEditTarget] = useState<{ participant: Participant; project: FaithProject | null } | null>(null);
 
@@ -140,12 +143,14 @@ const AdminFaithProjectsPage: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [{ participants: ps }, { projects: fps }] = await Promise.all([
+      const [{ participants: ps }, { projects: fps }, { groups: gs }] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id }),
         faithProjectsApi.getAll({ cohortId: activeCohort.id }),
+        groupsApi.getAll({ cohortId: activeCohort.id }),
       ]);
       setParticipants(ps.filter((p) => p.status === 'ACTIVE'));
       setProjects(fps);
+      setGroups(gs);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [activeCohort]);
@@ -158,8 +163,22 @@ const AdminFaithProjectsPage: React.FC = () => {
     return map;
   }, [projects]);
 
+  const groupOptions = useMemo(
+    () => [
+      { value: '', label: 'All groups' },
+      { value: '__UNASSIGNED__', label: 'Unassigned' },
+      ...[...groups].sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name)).map((g) => ({ value: g.id, label: g.name })),
+    ],
+    [groups]
+  );
+
   const displayed = useMemo(() => {
     let ps = participants;
+    if (groupFilter === '__UNASSIGNED__') {
+      ps = ps.filter((p) => !p.groupId);
+    } else if (groupFilter) {
+      ps = ps.filter((p) => p.groupId === groupFilter);
+    }
     if (filterStatus) {
       ps = ps.filter((p) => {
         const fp = projectByParticipant.get(p.id);
@@ -171,7 +190,7 @@ const AdminFaithProjectsPage: React.FC = () => {
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q));
     }
     return ps;
-  }, [participants, filterStatus, search, projectByParticipant]);
+  }, [participants, filterStatus, search, projectByParticipant, groupFilter]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { NOT_DRAFTED: 0, UNDER_REFINEMENT: 0, APPROVED: 0 };
@@ -211,7 +230,7 @@ const AdminFaithProjectsPage: React.FC = () => {
             </div>
           )}
 
-          <div className="mb-4">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
             <input
               type="search"
               value={search}
@@ -219,6 +238,15 @@ const AdminFaithProjectsPage: React.FC = () => {
               placeholder="Search participant…"
               className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-xs"
             />
+            <div className="w-full sm:w-52">
+              <AppSelect
+                value={groupFilter}
+                onChange={setGroupFilter}
+                options={groupOptions}
+                placeholder="All groups"
+                compact
+              />
+            </div>
           </div>
 
           {loading ? (

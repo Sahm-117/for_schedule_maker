@@ -289,7 +289,7 @@ const AdminGroupsPage: React.FC = () => {
     <div className="page-content">
       <PageHeader
         title="Groups"
-        subtitle={activeCohort ? `${groups.length} groups · ${activeCohort.name}` : 'No active cohort'}
+        subtitle={activeCohort ? `${groups.length} groups · ${participants.length} participants · ${activeCohort.name}` : 'No active cohort'}
         action={
           activeCohort && (
             <div className="flex gap-2">

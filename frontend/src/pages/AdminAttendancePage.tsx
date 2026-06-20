@@ -112,6 +112,11 @@ const AdminAttendancePage: React.FC = () => {
     [groups]
   );
 
+  const selectedGroup = useMemo(
+    () => groups.find((g) => g.id === selectedGroupId) ?? null,
+    [groups, selectedGroupId]
+  );
+
   return (
     <div className="page-content">
       <PageHeader
@@ -155,6 +160,14 @@ const AdminAttendancePage: React.FC = () => {
                   options={groupOptions}
                   placeholder="All groups"
                 />
+                {selectedGroup && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    Support:{' '}
+                    <span className="font-semibold text-gray-700">
+                      {selectedGroup.supportName || 'None assigned'}
+                    </span>
+                  </p>
+                )}
               </div>
             )}
           </div>

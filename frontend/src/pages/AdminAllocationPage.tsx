@@ -15,6 +15,7 @@ import {
 } from '@dnd-kit/core';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
+import AppSelect from '../components/AppSelect';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { groupsApi, participantsApi } from '../services/api';
@@ -28,7 +29,7 @@ const UNASSIGNED = '__unassigned__';
 interface ChipProps {
   participant: Participant;
   selected: boolean;
-  onToggle: (id: string, additive: boolean) => void;
+  onToggle: (id: string) => void;
   dragCount: number; // how many chips will move if this one is dragged
 }
 
@@ -38,9 +39,10 @@ const ParticipantChip: React.FC<ChipProps> = ({ participant, selected, onToggle,
     <button
       ref={setNodeRef}
       type="button"
+      style={{ touchAction: 'none' }}
       {...attributes}
       {...listeners}
-      onClick={(e) => onToggle(participant.id, e.metaKey || e.ctrlKey || e.shiftKey)}
+      onClick={() => onToggle(participant.id)}
       className={`group relative flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm transition active:scale-[0.98] ${
         selected
           ? 'border-primary bg-primary/10 text-gray-900'
@@ -159,10 +161,12 @@ const AdminAllocationPage: React.FC = () => {
     return unassigned.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
   }, [unassigned, search]);
 
-  const toggle = (id: string, additive: boolean) => {
+  // Every tap toggles that one person on/off and keeps all other selections.
+  // (Searching only filters the list; it never clears the current selection.)
+  const toggle = (id: string) => {
     setSelected((prev) => {
-      const next = new Set(additive ? prev : []);
-      if (prev.has(id) && (additive || prev.size === 1)) next.delete(id);
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
@@ -288,7 +292,7 @@ const AdminAllocationPage: React.FC = () => {
 
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-gray-500">
-              Tap to select (tap more to multi-select), then drag onto a group. {saving && <span className="text-primary">Saving…</span>}
+              Tap people to select them, then drag onto a group — or use “Move selected”. {saving && <span className="text-primary">Saving…</span>}
             </p>
             <button
               ref={autoDistributeRef}
@@ -300,6 +304,40 @@ const AdminAllocationPage: React.FC = () => {
               Auto-distribute evenly
             </button>
           </div>
+
+          {/* Explicit move bar — reliable on every device, complements drag */}
+          {selected.size > 0 && (
+            <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-semibold text-gray-800">
+                {selected.size} selected
+                <button type="button" onClick={() => setSelected(new Set())} className="ml-3 text-xs font-medium text-gray-500 underline">
+                  Clear
+                </button>
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-gray-500">Move to</span>
+                <div className="w-48">
+                  <AppSelect
+                    value=""
+                    onChange={(groupId) => {
+                      const target = groupId === UNASSIGNED ? null : groupId;
+                      const movingIds = [...selected].filter((id) => {
+                        const p = participants.find((x) => x.id === id);
+                        return (p?.groupId ?? null) !== target;
+                      });
+                      if (movingIds.length > 0) void applyMove(movingIds, target);
+                    }}
+                    options={[
+                      { value: UNASSIGNED, label: 'Unassigned' },
+                      ...groups.map((g) => ({ value: g.id, label: g.name })),
+                    ]}
+                    placeholder="Choose group…"
+                    compact
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid gap-4 lg:grid-cols-[minmax(16rem,20rem)_1fr]">
             {/* Unassigned tray */}
