@@ -33,9 +33,19 @@ const Login: React.FC = () => {
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || 'Login failed';
 
+      // Whether the person typed an email (vs a phone number).
+      const triedEmail = !looksLikePhone(trimmed);
+
       // Provide better error messages
       if (errorMessage.includes('User not found') || errorMessage.includes('Invalid credentials') || errorMessage.includes('Unauthorized')) {
-        setError('Invalid login credentials. Please check your email/phone and password and try again.');
+        // Many support accounts were set up with a phone number and no email. If
+        // an email login fails, the most common reason is that the account was
+        // created with a phone instead — point them there specifically.
+        if (triedEmail) {
+          setError("We couldn't find an account for that email. If you signed up with your phone number, try logging in with that instead (e.g. 08012345678).");
+        } else {
+          setError('Invalid login credentials. Please check your phone number and password and try again.');
+        }
       } else if (errorMessage.includes('Account deactivated')) {
         setError('This account has been deactivated. Please contact an administrator.');
       } else if (errorMessage.includes('does not exist')) {
