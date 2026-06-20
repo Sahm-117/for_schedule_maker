@@ -3,6 +3,7 @@ import { usersApi, authApi, labelsApi } from '../services/api';
 import type { User, Label } from '../types';
 import AppSelect from './AppSelect';
 import LabelChip from './LabelChip';
+import { formatDate, formatDateTime } from '../utils/time';
 
 interface UserManagementProps {
   isOpen: boolean;
@@ -428,7 +429,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           <p className="font-semibold text-gray-900 text-sm truncate">{user.name}</p>
                           <p className="text-xs text-gray-500 truncate">{user.email || user.phone}</p>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : ''}
+                            {user.createdAt ? formatDate(user.createdAt) : ''}
                           </p>
                         </div>
                         {/* Role selector + hamburger */}
@@ -543,7 +544,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                            {user.createdAt ? formatDate(user.createdAt) : 'N/A'}
                           </td>
                           <td className="px-6 py-4 text-right text-sm">
                             <div className="relative inline-flex">
@@ -689,7 +690,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Created</label>
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
-                    {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleString() : 'N/A'}
+                    {selectedUser.createdAt ? formatDateTime(selectedUser.createdAt) : 'N/A'}
                   </div>
                 </div>
 

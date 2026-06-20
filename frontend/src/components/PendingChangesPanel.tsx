@@ -3,6 +3,7 @@ import { pendingChangesApi } from '../services/api';
 import type { PendingChange, Week } from '../types';
 import ConfirmationModal from './ConfirmationModal';
 import { buildPendingChangePreview, type ChangeSnapshot } from '../utils/pendingChangePreview';
+import { formatDateTime } from '../utils/time';
 
 interface PendingChangesPanelProps {
   pendingChanges: PendingChange[];
@@ -266,8 +267,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
                 </div>
 
                 <p className="text-xs text-gray-500 mb-3">
-                  by {preview.requesterName} • Submitted on {new Date(preview.submittedAt).toLocaleDateString()} at{' '}
-                  {new Date(preview.submittedAt).toLocaleTimeString()}
+                  by {preview.requesterName} • Submitted {formatDateTime(preview.submittedAt)}
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

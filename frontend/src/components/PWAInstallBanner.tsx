@@ -42,7 +42,7 @@ const PWAInstallBanner: React.FC = () => {
               </p>
             ) : !isTopInfobar ? (
               <p className="mt-3 text-sm leading-5 text-gray-600">
-                Install the app for a faster, full-screen experience and easier access from your home screen.
+                Install the app for a faster, full-screen experience, push notifications for reminders and announcements, and easier access from your home screen.
               </p>
             ) : null
             }

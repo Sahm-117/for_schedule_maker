@@ -8,6 +8,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { announcementsApi, resourcesApi, supportActivityCompletionsApi, usersApi } from '../services/api';
 import type { Activity, Announcement, Resource, SupportActivityCompletion, User } from '../types';
+import { formatDateTime } from '../utils/time';
 
 const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
 
@@ -188,7 +189,7 @@ const AdminDashboardPage: React.FC = () => {
                     <span className="text-xs text-gray-500">{change.user.name}</span>
                   </div>
                   <p className="mt-2 text-sm font-medium text-gray-900">Week {change.weekId}</p>
-                  <p className="mt-1 text-xs text-gray-500">{new Date(change.createdAt).toLocaleString()}</p>
+                  <p className="mt-1 text-xs text-gray-500">{formatDateTime(change.createdAt)}</p>
                 </div>
               ))}
             </div>

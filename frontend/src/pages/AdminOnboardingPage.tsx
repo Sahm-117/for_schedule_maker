@@ -16,6 +16,7 @@ import {
   usersApi,
 } from '../services/api';
 import { buildTemplatePlaceholderSummary } from '../utils/followUps';
+import { formatDateTime } from '../utils/time';
 import type { GroupOnboardingStatus, MessageTemplate, OnboardingEvent, ParticipantOnboardingStatus, User } from '../types';
 
 const inputClass =
@@ -424,7 +425,7 @@ const AdminOnboardingPage: React.FC = () => {
               {events.slice(0, eventLimit).map((event) => (
                 <div key={event.id} className="rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-3">
                   <p className="text-sm font-semibold text-gray-900">{describeEvent(event)}</p>
-                  <p className="mt-1 text-xs text-gray-500">{new Date(event.createdAt).toLocaleString()}</p>
+                  <p className="mt-1 text-xs text-gray-500">{formatDateTime(event.createdAt)}</p>
                 </div>
               ))}
               {eventLimit < events.length && (
@@ -479,7 +480,7 @@ const AdminOnboardingPage: React.FC = () => {
                       </p>
                       {status.updatedAt && (
                         <p className="mt-4 text-xs text-gray-400">
-                          Last updated by {status.updatedByName || 'a support'} on {new Date(status.updatedAt).toLocaleString()}.
+                          Last updated by {status.updatedByName || 'a support'} on {formatDateTime(status.updatedAt)}.
                         </p>
                       )}
                     </div>

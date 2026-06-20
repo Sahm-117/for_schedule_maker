@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { RejectedChange } from '../types';
 import { rejectedChangesApi } from '../services/api';
+import { formatDate } from '../utils/time';
 
 interface RejectedChangesNotificationProps {
   rejectedChanges: RejectedChange[];
@@ -80,7 +81,7 @@ const RejectedChangesNotification: React.FC<RejectedChangesNotificationProps> = 
                         <strong>Reason:</strong> {change.rejectionReason}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Rejected on {new Date(change.rejectedAt).toLocaleDateString()}
+                        Rejected on {formatDate(change.rejectedAt)}
                       </p>
                     </div>
                     <button

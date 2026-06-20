@@ -52,3 +52,24 @@ export const compareTimeStrings = (a: string, b: string): number => {
   return am - bm;
 };
 
+
+// Date display helpers — always include the weekday so dates read clearly
+// across the app (e.g. "Fri, 19 Jun 2026, 6:43 PM").
+export const formatDateTime = (value?: string | number | Date | null): string => {
+  if (!value && value !== 0) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(undefined, {
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
+};
+
+export const formatDate = (value?: string | number | Date | null): string => {
+  if (!value && value !== 0) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, {
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+  });
+};
