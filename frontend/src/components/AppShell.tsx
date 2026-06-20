@@ -25,6 +25,8 @@ type NavGroup = {
   items: NavItem[];
 };
 
+type OpenNavGroups = Record<string, boolean>;
+
 const IconBox: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <span className="grid h-5 w-5 place-items-center">{children}</span>
 );
@@ -89,14 +91,14 @@ const adminNavGroups: NavGroup[] = [
       { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
       { to: '/participants', label: 'Participants', icon: ICONS.participants, adminOnly: true },
       { to: '/groups', label: 'Groups', icon: ICONS.groups, adminOnly: true },
+      { to: '/faith-projects', label: 'Faith projects', icon: ICONS.faith, adminOnly: true },
+      { to: '/group-prayers', label: 'Group prayers', icon: ICONS.prayer, adminOnly: true },
       { to: '/attendance', label: 'Attendance', icon: ICONS.attendance, adminOnly: true },
     ],
   },
   {
-    label: 'Care & engagement',
+    label: 'Engagement',
     items: [
-      { to: '/faith-projects', label: 'Faith projects', icon: ICONS.faith, adminOnly: true },
-      { to: '/group-prayers', label: 'Group prayers', icon: ICONS.prayer, adminOnly: true },
       { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
       { to: '/onboarding', label: 'Onboarding', icon: ICONS.onboarding, adminOnly: true },
     ],
@@ -166,6 +168,58 @@ const NavItemLink: React.FC<{
   </NavLink>
 );
 
+const NavGroupSection: React.FC<{
+  group: NavGroup;
+  open: boolean;
+  onToggle: () => void;
+  locationPathname: string;
+  globalPendingCount: number;
+  newResourceCount: number;
+  onItemClick?: () => void;
+}> = ({
+  group,
+  open,
+  onToggle,
+  locationPathname,
+  globalPendingCount,
+  newResourceCount,
+  onItemClick,
+}) => (
+  <div className="space-y-1.5">
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex w-full items-center gap-2 rounded-xl px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-400 hover:bg-orange-50/70 hover:text-gray-600"
+      aria-expanded={open}
+    >
+      <span className="min-w-0 flex-1 truncate">{group.label}</span>
+      <svg
+        className={`h-3.5 w-3.5 flex-shrink-0 transition-transform ${open ? 'rotate-90' : ''}`}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="m9 5 7 7-7 7" />
+      </svg>
+    </button>
+    {open && (
+      <div className="space-y-1">
+        {group.items.map((item) => (
+          <NavItemLink
+            key={item.to}
+            item={item}
+            active={isNavActive(locationPathname, item.to)}
+            globalPendingCount={globalPendingCount}
+            newResourceCount={newResourceCount}
+            onClick={onItemClick}
+          />
+        ))}
+      </div>
+    )}
+  </div>
+);
+
 const AppShell: React.FC = () => {
   const { user, isAdmin, isSopPreparer, logout, userLabels } = useAuth();
   const {
@@ -183,6 +237,7 @@ const AppShell: React.FC = () => {
   } = useAppData();
   const { showPrompt, enable, dismiss } = usePushNotifications(user?.id);
   const [open, setOpen] = useState(false);
+  const [openNavGroups, setOpenNavGroups] = useState<OpenNavGroups>({});
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -201,6 +256,13 @@ const AppShell: React.FC = () => {
       }))
       .filter((group) => group.items.length > 0);
   }, [isAdmin, isSopPreparer, isSupport]);
+  const isNavGroupOpen = (label: string) => openNavGroups[label] ?? true;
+  const toggleNavGroup = (label: string) => {
+    setOpenNavGroups((current) => ({
+      ...current,
+      [label]: !(current[label] ?? true),
+    }));
+  };
   const mobileNavItems = useMemo(() => {
     if (isSupport) return supportNav.filter((item) => !item.mobileHidden);
     const mobileAdminRoutes = new Set(['/dashboard', '/schedule', '/approvals', '/resources']);
@@ -279,22 +341,15 @@ const AppShell: React.FC = () => {
               ))}
             </div>
           ) : navGroups.map((group) => (
-            <div key={group.label} className="space-y-1.5">
-              <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-400">
-                {group.label}
-              </p>
-              <div className="space-y-1">
-                {group.items.map((item) => (
-                  <NavItemLink
-                    key={item.to}
-                    item={item}
-                    active={isNavActive(location.pathname, item.to)}
-                    globalPendingCount={globalPendingChanges.length}
-                    newResourceCount={newResourceCount}
-                  />
-                ))}
-              </div>
-            </div>
+            <NavGroupSection
+              key={group.label}
+              group={group}
+              open={isNavGroupOpen(group.label)}
+              onToggle={() => toggleNavGroup(group.label)}
+              locationPathname={location.pathname}
+              globalPendingCount={globalPendingChanges.length}
+              newResourceCount={newResourceCount}
+            />
           ))}
         </nav>
 
@@ -369,23 +424,16 @@ const AppShell: React.FC = () => {
               ) : (
                 <div className="space-y-5">
                   {navGroups.map((group) => (
-                    <div key={group.label} className="space-y-1.5">
-                      <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-400">
-                        {group.label}
-                      </p>
-                      <div className="space-y-1">
-                        {group.items.map((item) => (
-                          <NavItemLink
-                            key={item.to}
-                            item={item}
-                            active={isNavActive(location.pathname, item.to)}
-                            globalPendingCount={globalPendingChanges.length}
-                            newResourceCount={newResourceCount}
-                            onClick={() => setOpen(false)}
-                          />
-                        ))}
-                      </div>
-                    </div>
+                    <NavGroupSection
+                      key={group.label}
+                      group={group}
+                      open={isNavGroupOpen(group.label)}
+                      onToggle={() => toggleNavGroup(group.label)}
+                      locationPathname={location.pathname}
+                      globalPendingCount={globalPendingChanges.length}
+                      newResourceCount={newResourceCount}
+                      onItemClick={() => setOpen(false)}
+                    />
                   ))}
                 </div>
               )}

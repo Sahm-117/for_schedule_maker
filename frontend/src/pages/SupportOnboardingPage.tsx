@@ -416,7 +416,7 @@ const SupportOnboardingPage: React.FC = () => {
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [activeParticipantId, setActiveParticipantId] = useState<string | null>(null);
   const [savingGroup, setSavingGroup] = useState(false);
-  const [savingParticipantId, setSavingParticipantId] = useState<string | null>(null);
+  const [savingParticipantSteps, setSavingParticipantSteps] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
@@ -575,7 +575,8 @@ const SupportOnboardingPage: React.FC = () => {
     nextValue: boolean
   ) => {
     if (!user.id) return;
-    setSavingParticipantId(participantId);
+    const savingKey = `${participantId}:${key}`;
+    setSavingParticipantSteps((current) => new Set(current).add(savingKey));
     try {
       const { status } = await participantOnboardingStatusApi.update(participantId, { [key]: nextValue }, user.id);
       setParticipantStatuses((prev) => {
@@ -583,7 +584,11 @@ const SupportOnboardingPage: React.FC = () => {
         return [...others, status];
       });
     } finally {
-      setSavingParticipantId(null);
+      setSavingParticipantSteps((current) => {
+        const next = new Set(current);
+        next.delete(savingKey);
+        return next;
+      });
     }
   };
 
@@ -719,23 +724,27 @@ const SupportOnboardingPage: React.FC = () => {
                               <div className="space-y-1.5">
                                 {STATUS_STEPS.map((step) => {
                                   const checked = !!status[step.key];
-                                  const busy = savingParticipantId === participant.id;
+                                  const busy = savingParticipantSteps.has(`${participant.id}:${step.key}`);
                                   return (
                                     <button
                                       key={step.key}
                                       type="button"
                                       disabled={busy}
                                       onClick={() => { void updateParticipantStep(participant.id, step.key, !checked); }}
-                                      className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition active:scale-[0.99] disabled:opacity-60 ${
+                                      className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition active:scale-[0.99] ${
                                         checked ? 'border-emerald-200 bg-emerald-50/70' : 'border-gray-200 bg-white hover:border-gray-300'
                                       }`}
                                     >
                                       <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border ${
-                                        checked ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 text-transparent'
+                                        checked ? 'border-emerald-500 bg-emerald-500 text-white' : busy ? 'border-orange-300 text-primary' : 'border-gray-300 text-transparent'
                                       }`}>
-                                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 13 4 4L19 7" />
-                                        </svg>
+                                        {busy ? (
+                                          <span className={`h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent ${checked ? 'text-white' : 'text-primary'}`} />
+                                        ) : (
+                                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 13 4 4L19 7" />
+                                          </svg>
+                                        )}
                                       </span>
                                       <span className="min-w-0">
                                         <span className="block text-sm font-semibold text-gray-800">{step.label}</span>
