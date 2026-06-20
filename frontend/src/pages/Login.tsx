@@ -36,6 +36,8 @@ const Login: React.FC = () => {
       // Provide better error messages
       if (errorMessage.includes('User not found') || errorMessage.includes('Invalid credentials') || errorMessage.includes('Unauthorized')) {
         setError('Invalid login credentials. Please check your email/phone and password and try again.');
+      } else if (errorMessage.includes('Account deactivated')) {
+        setError('This account has been deactivated. Please contact an administrator.');
       } else if (errorMessage.includes('does not exist')) {
         setError('Account not found. Please contact an administrator to create your account.');
       } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {

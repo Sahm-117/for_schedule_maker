@@ -14,6 +14,8 @@ CREATE TABLE "User" (
     name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     role "Role" DEFAULT 'SUPPORT',
+    "isActive" BOOLEAN NOT NULL DEFAULT TRUE,
+    "deactivatedAt" TIMESTAMPTZ,
     "createdAt" TIMESTAMP DEFAULT NOW(),
     "updatedAt" TIMESTAMP DEFAULT NOW()
 );
@@ -100,7 +102,7 @@ CREATE TABLE "PendingChange" (
     "weekId" INTEGER NOT NULL,
     "changeType" "ChangeType" NOT NULL,
     "changeData" JSONB NOT NULL,
-    "userId" UUID NOT NULL REFERENCES "User"(id),
+    "userId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
     "createdAt" TIMESTAMP DEFAULT NOW()
 );
 
@@ -110,7 +112,7 @@ CREATE TABLE "RejectedChange" (
     "weekId" INTEGER NOT NULL,
     "changeType" "ChangeType" NOT NULL,
     "changeData" JSONB NOT NULL,
-    "userId" UUID NOT NULL REFERENCES "User"(id),
+    "userId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
     "submittedAt" TIMESTAMP NOT NULL,
     "rejectedBy" TEXT NOT NULL,
     "rejectedAt" TIMESTAMP DEFAULT NOW(),

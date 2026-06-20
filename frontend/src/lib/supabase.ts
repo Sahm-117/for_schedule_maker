@@ -19,6 +19,8 @@ export interface User {
   email: string
   name: string
   role: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT'
+  isActive?: boolean
+  deactivatedAt?: string | null
   createdAt: string
   updatedAt: string
 }

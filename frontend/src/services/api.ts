@@ -322,9 +322,12 @@ export const rejectedChangesApi = USE_SUPABASE ? supabaseRejectedChangesApi : {
 
 // Users API
 export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
-  async getAll(): Promise<{ users: User[] }> {
+  async getAll(options: { includeInactive?: boolean } = {}): Promise<{ users: User[] }> {
     const response = await api.get('/users');
-    return response.data;
+    const users = response.data.users || [];
+    return {
+      users: options.includeInactive ? users : users.filter((user: User) => user.isActive !== false),
+    };
   },
 
   async getById(userId: string): Promise<{ user: User }> {
@@ -337,6 +340,8 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
     email?: string;
     password?: string;
     role?: string;
+    isActive?: boolean;
+    deactivatedAt?: string | null;
     isCoordinator?: boolean;
   }): Promise<{ user: User }> {
     const response = await api.put(`/users/${userId}`, updateData);

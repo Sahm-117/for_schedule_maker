@@ -217,6 +217,10 @@ export const authApi = {
       throw new Error('Invalid credentials');
     }
 
+    if (users.isActive === false) {
+      throw new Error('Account deactivated');
+    }
+
     return {
       user: users,
       accessToken: `mock_token_${users.id}`,
@@ -260,7 +264,7 @@ export const authApi = {
 
     if (!userId) {
       const cachedUser = getCurrentUserFromStorage();
-      if (cachedUser) {
+      if (cachedUser && cachedUser.isActive !== false) {
         return { user: cachedUser };
       }
       throw new Error('No active session');
@@ -274,6 +278,10 @@ export const authApi = {
 
     if (error || !data) {
       throw new Error('User not found');
+    }
+
+    if (data.isActive === false) {
+      throw new Error('Account deactivated');
     }
 
     return { user: data };
@@ -293,6 +301,10 @@ export const authApi = {
 
     if (error || !data) {
       throw new Error('User not found');
+    }
+
+    if (data.isActive === false) {
+      throw new Error('Account deactivated');
     }
 
     return {
@@ -1972,11 +1984,17 @@ export const supportActivityCompletionsApi = {
 
 // Users API
 export const usersApi = {
-  async getAll(): Promise<{ users: User[] }> {
-    const { data, error } = await supabase
+  async getAll(options: { includeInactive?: boolean } = {}): Promise<{ users: User[] }> {
+    let query = supabase
       .from('User')
       .select('*')
       .order('createdAt', { ascending: false });
+
+    if (!options.includeInactive) {
+      query = query.eq('isActive', true);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw new Error(error.message);
@@ -2071,6 +2089,8 @@ export const usersApi = {
     email?: string;
     password?: string;
     role?: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT';
+    isActive?: boolean;
+    deactivatedAt?: string | null;
     isCoordinator?: boolean;
   }): Promise<{ user: User }> {
     const finalUpdateData: any = { ...updateData };

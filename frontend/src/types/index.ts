@@ -26,6 +26,8 @@ export interface User {
   phone?: string;
   name: string;
   role: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT';
+  isActive?: boolean;
+  deactivatedAt?: string | null;
   isCoordinator?: boolean;
   createdAt?: string;
   updatedAt?: string;

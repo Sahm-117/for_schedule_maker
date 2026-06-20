@@ -5,6 +5,7 @@ import AppSelect from './AppSelect';
 import LabelChip from './LabelChip';
 import { formatDate, formatDateTime } from '../utils/time';
 import { sortByText } from '../utils/sort';
+import { useAuth } from '../hooks/useAuth';
 
 interface UserManagementProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   showUserList = true,
   showCreateForm = true,
 }) => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [allLabels, setAllLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,7 +71,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const response = await usersApi.getAll();
+      const response = await usersApi.getAll({ includeInactive: true });
       setUsers(sortByText(response.users, (user) => user.name));
     } catch {
       setError('Failed to load users');
@@ -180,7 +182,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       setNewUserLabelIds([]);
       setShowPasswordInForm(false);
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Failed to create user';
+      const errorMessage = getErrorMessage(error, 'Failed to create user');
       if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
         setError('A user with this email/phone already exists.');
       } else {
@@ -210,18 +212,63 @@ const UserManagement: React.FC<UserManagementProps> = ({
     }
   };
 
-  const handleDeleteUser = async (userId: string, userName: string) => {
-    if (!confirm(`Are you sure you want to delete user "${userName}"?`)) return;
+  const getErrorMessage = (error: any, fallback: string) => error?.response?.data?.error || error?.message || fallback;
+
+  const handleActivationChange = async (targetUser: User) => {
+    const currentlyActive = targetUser.isActive !== false;
+    if (currentlyActive && targetUser.id === currentUser?.id) {
+      setError('You cannot deactivate your own account.');
+      return;
+    }
+
+    const action = currentlyActive ? 'deactivate' : 'reactivate';
+    const confirmed = confirm(
+      currentlyActive
+        ? `Deactivate "${targetUser.name}"? They will be logged out and will not be able to log in, but their records will stay in the app.`
+        : `Reactivate "${targetUser.name}"? They will be able to log in again.`
+    );
+    if (!confirmed) return;
+
     setLoading(true);
     setError('');
     setSuccess('');
     try {
-      await usersApi.delete(userId);
-      setUsers((prev) => prev.filter((entry) => entry.id !== userId));
-      setSuccess('User deleted successfully');
-      if (selectedUser?.id === userId) setSelectedUser(null);
+      const response = await usersApi.update(targetUser.id, {
+        isActive: !currentlyActive,
+        deactivatedAt: currentlyActive ? new Date().toISOString() : null,
+      });
+      setUsers((prev) => sortByText(
+        prev.map((entry) => (entry.id === targetUser.id ? { ...entry, ...response.user } : entry)),
+        (user) => user.name
+      ));
+      if (selectedUser?.id === targetUser.id) {
+        setSelectedUser(response.user);
+      }
+      setSuccess(`User ${action}d successfully.`);
     } catch (error: any) {
-      setError(error.response?.data?.error || 'Failed to delete user');
+      setError(getErrorMessage(error, `Failed to ${action} user.`));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePermanentDeleteUser = async (targetUser: User) => {
+    if (targetUser.id === currentUser?.id) {
+      setError('You cannot permanently delete your own account.');
+      return;
+    }
+
+    if (!confirm(`Permanently delete "${targetUser.name}"? This cannot be undone. Use Deactivate if you only need to block login and keep their records.`)) return;
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await usersApi.delete(targetUser.id);
+      setUsers((prev) => prev.filter((entry) => entry.id !== targetUser.id));
+      setSuccess('User permanently deleted successfully.');
+      if (selectedUser?.id === targetUser.id) setSelectedUser(null);
+    } catch (error: any) {
+      setError(getErrorMessage(error, 'Failed to permanently delete user.'));
     } finally {
       setLoading(false);
     }
@@ -232,14 +279,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setError('');
     setSuccess('');
     try {
-      await usersApi.update(userId, { role: newRole });
+      const response = await usersApi.update(userId, { role: newRole });
       setUsers((prev) => sortByText(
-        prev.map((entry) => (entry.id === userId ? { ...entry, role: newRole } : entry)),
+        prev.map((entry) => (entry.id === userId ? { ...entry, ...response.user } : entry)),
         (user) => user.name
       ));
+      if (selectedUser?.id === userId) setSelectedUser(response.user);
       setSuccess('User role updated successfully');
     } catch (error: any) {
-      setError(error.response?.data?.error || 'Failed to update user role');
+      setError(getErrorMessage(error, 'Failed to update user role'));
     } finally {
       setLoading(false);
     }
@@ -253,6 +301,12 @@ const UserManagement: React.FC<UserManagementProps> = ({
     const matchesSearch = searchQuery.trim().length === 0 || haystack.includes(searchQuery.trim().toLowerCase());
     return matchesRole && matchesSearch;
   }), (user) => user.name);
+
+  const renderStatusBadge = (user: User) => (
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${user.isActive === false ? 'bg-slate-100 text-slate-600' : 'bg-emerald-100 text-emerald-700'}`}>
+      {user.isActive === false ? 'Inactive' : 'Active'}
+    </span>
+  );
 
   const renderCreateForm = () => (
     <div className={showUserList ? 'mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4' : ''}>
@@ -436,7 +490,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     <div key={user.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-gray-900 text-sm truncate">{user.name}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-gray-900 text-sm truncate">{user.name}</p>
+                            {renderStatusBadge(user)}
+                          </div>
                           <p className="text-xs text-gray-500 truncate">{user.email || user.phone}</p>
                           <p className="text-xs text-gray-400 mt-0.5">
                             {user.createdAt ? formatDate(user.createdAt) : ''}
@@ -481,10 +538,18 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                   Reset password
                                 </button>
                                 <button
-                                  onClick={() => { handleDeleteUser(user.id, user.name); setOpenMenuId(null); }}
-                                  className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-gray-50"
+                                  onClick={() => { void handleActivationChange(user); setOpenMenuId(null); }}
+                                  disabled={loading || (user.isActive !== false && user.id === currentUser?.id)}
+                                  className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                  Delete user
+                                  {user.isActive === false ? 'Reactivate' : 'Deactivate'}
+                                </button>
+                                <button
+                                  onClick={() => { void handlePermanentDeleteUser(user); setOpenMenuId(null); }}
+                                  disabled={loading || user.id === currentUser?.id}
+                                  className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Permanent delete
                                 </button>
                               </div>
                             )}
@@ -535,7 +600,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
                       {filteredUsers.map((user) => (
                         <tr key={user.id}>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                              {renderStatusBadge(user)}
+                            </div>
                             <div className="text-sm text-gray-500">{user.email || user.phone}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -581,11 +649,18 @@ const UserManagement: React.FC<UserManagementProps> = ({
                                     Reset password
                                   </button>
                                   <button
-                                    onClick={() => { handleDeleteUser(user.id, user.name); setOpenMenuId(null); }}
-                                    disabled={loading}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-gray-50 disabled:opacity-50"
+                                    onClick={() => { void handleActivationChange(user); setOpenMenuId(null); }}
+                                    disabled={loading || (user.isActive !== false && user.id === currentUser?.id)}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                                   >
-                                    Delete user
+                                    {user.isActive === false ? 'Reactivate' : 'Deactivate'}
+                                  </button>
+                                  <button
+                                    onClick={() => { void handlePermanentDeleteUser(user); setOpenMenuId(null); }}
+                                    disabled={loading || user.id === currentUser?.id}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    Permanent delete
                                   </button>
                                 </div>
                               )}
@@ -691,6 +766,17 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     }`}>
                       {selectedUser.role === 'ADMIN' ? 'Admin' : selectedUser.role === 'SOP_PREPARER' ? 'SOP Preparer' : 'Support'}
                     </span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
+                    {renderStatusBadge(selectedUser)}
+                    {selectedUser.isActive === false && selectedUser.deactivatedAt && (
+                      <span className="ml-2 text-xs text-gray-500">
+                        Deactivated {formatDateTime(selectedUser.deactivatedAt)}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div>

@@ -27,9 +27,17 @@ CREATE TABLE IF NOT EXISTS "User" (
     name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     role "Role" DEFAULT 'SUPPORT',
+    "isActive" BOOLEAN NOT NULL DEFAULT TRUE,
+    "deactivatedAt" TIMESTAMPTZ,
     "createdAt" TIMESTAMP DEFAULT NOW(),
     "updatedAt" TIMESTAMP DEFAULT NOW()
 );
+
+ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN NOT NULL DEFAULT TRUE;
+
+ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "deactivatedAt" TIMESTAMPTZ;
 
 -- Weeks table
 CREATE TABLE IF NOT EXISTS "Week" (
@@ -61,7 +69,7 @@ CREATE TABLE IF NOT EXISTS "PendingChange" (
     "weekId" INTEGER NOT NULL,
     "changeType" "ChangeType" NOT NULL,
     "changeData" JSONB NOT NULL,
-    "userId" UUID NOT NULL REFERENCES "User"(id),
+    "userId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
     "createdAt" TIMESTAMP DEFAULT NOW()
 );
 
@@ -71,13 +79,27 @@ CREATE TABLE IF NOT EXISTS "RejectedChange" (
     "weekId" INTEGER NOT NULL,
     "changeType" "ChangeType" NOT NULL,
     "changeData" JSONB NOT NULL,
-    "userId" UUID NOT NULL REFERENCES "User"(id),
+    "userId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
     "submittedAt" TIMESTAMP NOT NULL,
     "rejectedBy" TEXT NOT NULL,
     "rejectedAt" TIMESTAMP DEFAULT NOW(),
     "rejectionReason" TEXT NOT NULL,
     "isRead" BOOLEAN DEFAULT FALSE
 );
+
+ALTER TABLE "PendingChange"
+    DROP CONSTRAINT IF EXISTS "PendingChange_userId_fkey";
+
+ALTER TABLE "PendingChange"
+    ADD CONSTRAINT "PendingChange_userId_fkey"
+    FOREIGN KEY ("userId") REFERENCES "User"(id) ON DELETE CASCADE;
+
+ALTER TABLE "RejectedChange"
+    DROP CONSTRAINT IF EXISTS "RejectedChange_userId_fkey";
+
+ALTER TABLE "RejectedChange"
+    ADD CONSTRAINT "RejectedChange_userId_fkey"
+    FOREIGN KEY ("userId") REFERENCES "User"(id) ON DELETE CASCADE;
 
 -- Create indexes for better performance (only if they don't exist)
 DO $$ BEGIN
