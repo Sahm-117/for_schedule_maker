@@ -77,16 +77,18 @@ interface ColumnProps {
   header?: React.ReactNode;
   /** Fill the parent's height instead of capping at 70vh (used by the tray). */
   fill?: boolean;
+  /** Size to content with no inner scroll (used by group cards in masonry). */
+  autoHeight?: boolean;
   children: React.ReactNode;
 }
 
-const Column: React.FC<ColumnProps> = ({ id, title, subtitle, count, accent, header, fill, children }) => {
+const Column: React.FC<ColumnProps> = ({ id, title, subtitle, count, accent, header, fill, autoHeight, children }) => {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <div
       ref={setNodeRef}
       className={`flex min-h-[8rem] flex-col rounded-2xl border bg-white p-3 shadow-sm transition ${
-        fill ? 'h-full' : 'max-h-[70vh]'
+        autoHeight ? '' : fill ? 'h-full' : 'max-h-[70vh]'
       } ${isOver ? 'border-primary ring-2 ring-primary/30' : accent ? 'border-orange-200' : 'border-orange-100'}`}
     >
       <div className="mb-2 flex items-center justify-between px-1">
@@ -99,7 +101,7 @@ const Column: React.FC<ColumnProps> = ({ id, title, subtitle, count, accent, hea
         </span>
       </div>
       {header && <div className="mb-1.5">{header}</div>}
-      <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">{children}</div>
+      <div className={`flex flex-col gap-1.5 ${autoHeight ? '' : 'min-h-0 flex-1 overflow-y-auto'}`}>{children}</div>
     </div>
   );
 };
@@ -375,12 +377,13 @@ const AdminAllocationPage: React.FC = () => {
               )}
             </Column>
 
-            {/* Group columns — the whole right pane scrolls internally */}
-            <div className="grid h-full grid-cols-1 content-start gap-4 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
+            {/* Group columns — masonry; whole pane scrolls internally. Cards grow
+                to fit all members so the full group is visible at a glance. */}
+            <div className="h-full gap-4 overflow-y-auto pr-1 [column-fill:_balance] columns-1 [&>*]:mb-4 [&>*]:break-inside-avoid sm:columns-2 xl:columns-3">
               {groups.map((g) => {
                 const members = byGroup.get(g.id) ?? [];
                 return (
-                  <Column key={g.id} id={g.id} title={g.name} subtitle={g.supportName ?? 'No support assigned'} count={members.length}>
+                  <Column key={g.id} id={g.id} title={g.name} subtitle={g.supportName ?? 'No support assigned'} count={members.length} autoHeight>
                     {members.length === 0 ? (
                       <p className="py-4 text-center text-xs text-gray-400">Drag people here</p>
                     ) : (
