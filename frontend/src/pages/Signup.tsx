@@ -46,7 +46,8 @@ const Signup: React.FC = () => {
       await authApi.register(payload);
       setDone(true);
     } catch (err: any) {
-      setError(err.message || 'Sign up failed. Please try again.');
+      // API returns a friendly message (e.g. phone/email already registered).
+      setError(err.message || 'Sign up didn’t go through. Please try again.');
     } finally {
       setLoading(false);
     }

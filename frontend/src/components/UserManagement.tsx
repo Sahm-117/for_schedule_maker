@@ -182,12 +182,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
       setNewUserLabelIds([]);
       setShowPasswordInForm(false);
     } catch (error: any) {
-      const errorMessage = getErrorMessage(error, 'Failed to create user');
-      if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
-        setError('A user with this email/phone already exists.');
-      } else {
-        setError(errorMessage);
-      }
+      // The API layer already returns a friendly message (e.g. phone/email
+      // already registered), so surface it directly.
+      setError(getErrorMessage(error, 'Could not create the account. Please try again.'));
     } finally {
       setLoading(false);
     }

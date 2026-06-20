@@ -203,6 +203,27 @@ export const initializeAuth = async () => {
   return session;
 };
 
+// Turn raw Postgres/Supabase errors into clear, human messages. Centralized so
+// every caller (signup, admin add-user, profile edit) shows the same friendly
+// wording instead of leaking strings like
+// "duplicate key value violates unique constraint uniq_user_phone".
+const friendlyUserError = (rawMessage: string | undefined, fallback: string): string => {
+  const msg = (rawMessage || '').toLowerCase();
+  if (msg.includes('uniq_user_phone') || (msg.includes('duplicate') && msg.includes('phone'))) {
+    return 'That phone number is already registered to another account. Please use a different number, or check if the account already exists.';
+  }
+  if (msg.includes('user_email_key') || (msg.includes('duplicate') && msg.includes('email'))) {
+    return 'That email address is already registered to another account. Please use a different email, or check if the account already exists.';
+  }
+  if (msg.includes('duplicate') || msg.includes('already exists')) {
+    return 'An account with these details already exists. Please check if the person has already been added.';
+  }
+  if (msg.includes('network') || msg.includes('fetch') || msg.includes('timed out') || msg.includes('aborted')) {
+    return 'Connection problem. Please check your internet and try again.';
+  }
+  return fallback;
+};
+
 // Auth API using Supabase Auth
 export const authApi = {
   async login(identifier: string, _password: string): Promise<AuthResponse> {
@@ -268,7 +289,7 @@ export const authApi = {
       .single();
 
     if (error) {
-      throw new Error(error.message);
+      throw new Error(friendlyUserError(error.message, 'Could not create the account. Please try again.'));
     }
 
     return { user: data };
@@ -2129,7 +2150,7 @@ export const usersApi = {
       .single();
 
     if (error) {
-      throw new Error(error.message);
+      throw new Error(friendlyUserError(error.message, 'Could not save the changes. Please try again.'));
     }
 
     return { user: data };
