@@ -2180,7 +2180,7 @@ export const announcementsApi = {
     subject: string,
     body: string,
     sentBy: string,
-    options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null }
+    options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null; targetLabelId?: string | null }
   ): Promise<{ sent: number }> {
     const { data, error } = await supabase.functions.invoke('send-announcement', {
       body: {
@@ -2192,6 +2192,21 @@ export const announcementsApi = {
       },
     });
     if (error) throw new Error(error.message);
+
+    // The edge function records the row but doesn't know about targetLabelId, so
+    // stamp it onto the just-created row (newest by this sender) when targeting a tag.
+    if (options?.targetLabelId) {
+      const { data: latest } = await supabase
+        .from('Announcement')
+        .select('id')
+        .eq('sentBy', sentBy)
+        .order('sentAt', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latest?.id) {
+        await supabase.from('Announcement').update({ targetLabelId: options.targetLabelId }).eq('id', latest.id);
+      }
+    }
     return { sent: (data as any)?.sent ?? 0 };
   },
 
@@ -2211,6 +2226,7 @@ export const announcementsApi = {
     userId?: string;
     isAdmin?: boolean;
     accessibleCohortIds?: string[];
+    userLabelIds?: string[];
   }): Promise<{ announcements: import('../types').Announcement[] }> {
     const { data, error } = await supabase
       .from('Announcement')
@@ -2234,12 +2250,23 @@ export const announcementsApi = {
       scope: row.scope,
       cohortId: row.cohortId,
       cohortName: row.Cohort?.name || null,
+      targetLabelId: row.targetLabelId ?? null,
     }));
 
     const isGlobal = (row: { scope?: string | null; cohortId?: string | null }) =>
       row.scope === 'ALL_USERS' || row.scope == null || row.cohortId == null;
 
+    // A tag-targeted announcement is visible to admins (always) and to non-admins
+    // only if they hold that tag. Untargeted announcements pass this gate.
+    const userLabelIds = new Set(options?.userLabelIds || []);
+    const passesTarget = (row: { targetLabelId?: string | null }) => {
+      if (!row.targetLabelId) return true;
+      if (options?.isAdmin) return true;
+      return userLabelIds.has(row.targetLabelId);
+    };
+
     const announcements = allAnnouncements.filter((row) => {
+      if (!passesTarget(row)) return false;
       if (options?.isAdmin) {
         if (!options.cohortId) return true;
         return isGlobal(row) || row.cohortId === options.cohortId;

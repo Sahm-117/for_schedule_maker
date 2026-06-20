@@ -145,6 +145,7 @@ export interface Announcement {
   scope?: 'ACTIVE_COHORT' | 'ALL_USERS';
   cohortId?: string | null;
   cohortName?: string | null;
+  targetLabelId?: string | null;
 }
 
 export type FollowUpMessageStatus = 'NOT_SENT' | 'SENT';

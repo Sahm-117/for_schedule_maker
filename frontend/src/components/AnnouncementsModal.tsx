@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { announcementsApi } from '../services/api';
+import React, { useState, useEffect, useMemo } from 'react';
+import { announcementsApi, labelsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import type { Announcement } from '../types';
+import type { Announcement, Label } from '../types';
+import AppSelect from './AppSelect';
 
 interface AnnouncementsModalProps {
   isOpen: boolean;
@@ -30,6 +31,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [scope, setScope] = useState<'ACTIVE_COHORT' | 'ALL_USERS'>('ACTIVE_COHORT');
+  const [targetLabelId, setTargetLabelId] = useState(''); // '' = everyone in scope
+  const [labels, setLabels] = useState<Label[]>([]);
   const [sending, setSending] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -77,6 +80,22 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     return () => clearInterval(interval);
   }, [activeCohort?.id, isAdmin, user?.id, userCohortIds, propHistory]);
 
+  // Load tags so the admin can target a specific support's group tag, and so the
+  // history list can label targeted announcements.
+  useEffect(() => {
+    if (!shouldRender) return;
+    labelsApi.getAll().then((res) => setLabels(res.labels)).catch(() => setLabels([]));
+  }, [shouldRender]);
+
+  const labelNameById = useMemo(() => new Map(labels.map((l) => [l.id, l.name])), [labels]);
+
+  const labelOptions = useMemo(() => {
+    // Prefer tags scoped to the active cohort (group tags); fall back to all.
+    const scoped = labels.filter((l) => !l.cohortId || l.cohortId === activeCohort?.id);
+    const sorted = [...scoped].sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name));
+    return [{ value: '', label: 'Everyone in audience' }, ...sorted.map((l) => ({ value: l.id, label: l.name }))];
+  }, [labels, activeCohort?.id]);
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subject.trim() || !body.trim() || !user) return;
@@ -86,10 +105,13 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       const { sent } = await announcementsApi.send(subject.trim(), body.trim(), user.id, {
         scope,
         cohortId: scope === 'ACTIVE_COHORT' ? activeCohort?.id || null : null,
+        targetLabelId: targetLabelId || null,
       });
-      setStatus({ type: 'success', message: `Sent to ${sent} device${sent !== 1 ? 's' : ''}.` });
+      const targetName = targetLabelId ? labels.find((l) => l.id === targetLabelId)?.name : null;
+      setStatus({ type: 'success', message: targetName ? `Sent to ${targetName}.` : `Sent to ${sent} device${sent !== 1 ? 's' : ''}.` });
       setSubject('');
       setBody('');
+      setTargetLabelId('');
       if (onSent) {
         onSent();
       } else {
@@ -185,6 +207,20 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
             </div>
 
             <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific tag (optional)</label>
+              <AppSelect
+                value={targetLabelId}
+                onChange={setTargetLabelId}
+                options={labelOptions}
+                placeholder="Everyone in audience"
+                compact
+              />
+              <p className="mt-1 text-[11px] text-gray-500">
+                Pick a group’s support tag to send to only that support. Leave as “Everyone” to notify the whole audience.
+              </p>
+            </div>
+
+            <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="text-sm font-medium text-gray-700">Subject</label>
                 <span className={`text-xs ${subject.length >= SUBJECT_MAX ? 'text-red-500' : 'text-gray-400'}`}>
@@ -246,6 +282,11 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                         <p className="text-sm font-medium text-gray-900 truncate">{a.subject}</p>
                         <p className="mt-0.5 text-[11px] text-gray-400">
                           {a.scope === 'ALL_USERS' ? 'All Users' : a.cohortName || 'Active Cohort'}
+                          {a.targetLabelId && (
+                            <span className="ml-1.5 rounded-full bg-violet-100/80 px-1.5 py-0.5 font-semibold text-violet-700">
+                              To: {labelNameById.get(a.targetLabelId) || 'tag'}
+                            </span>
+                          )}
                         </p>
                       </div>
                       <div className="flex items-start gap-2 flex-shrink-0">

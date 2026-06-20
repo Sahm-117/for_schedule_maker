@@ -7,7 +7,7 @@ import { announcementsApi } from '../services/api';
 import type { Announcement } from '../types';
 
 const AnnouncementsFeedPage: React.FC = () => {
-  const { user, isAdmin, isSopPreparer, userCohortIds } = useAuth();
+  const { user, isAdmin, isSopPreparer, userCohortIds, userLabelIds } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,11 +20,12 @@ const AnnouncementsFeedPage: React.FC = () => {
       userId: user.id,
       isAdmin: isAdmin || isSopPreparer,
       accessibleCohortIds: userCohortIds,
+        userLabelIds,
     })
       .then((res) => setAnnouncements(res.announcements))
       .catch(() => setAnnouncements([]))
       .finally(() => setLoading(false));
-  }, [activeCohort?.id, isAdmin, isSopPreparer, liveRevision, user?.id, userCohortIds]);
+  }, [activeCohort?.id, isAdmin, isSopPreparer, liveRevision, user?.id, userCohortIds, userLabelIds]);
 
   useEffect(() => {
     if (!user) return;
@@ -34,12 +35,13 @@ const AnnouncementsFeedPage: React.FC = () => {
         userId: user.id,
         isAdmin: isAdmin || isSopPreparer,
         accessibleCohortIds: userCohortIds,
+        userLabelIds,
       })
         .then((res) => setAnnouncements(res.announcements))
         .catch(() => {});
     }, 15000);
     return () => clearInterval(interval);
-  }, [activeCohort?.id, isAdmin, isSopPreparer, user?.id, userCohortIds]);
+  }, [activeCohort?.id, isAdmin, isSopPreparer, user?.id, userCohortIds, userLabelIds]);
 
   if (!user) return null;
 
