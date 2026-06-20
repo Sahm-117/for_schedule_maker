@@ -73,17 +73,21 @@ interface ColumnProps {
   subtitle?: string;
   count: number;
   accent?: boolean;
+  /** Non-scrolling content pinned below the header (e.g. a search box). */
+  header?: React.ReactNode;
+  /** Fill the parent's height instead of capping at 70vh (used by the tray). */
+  fill?: boolean;
   children: React.ReactNode;
 }
 
-const Column: React.FC<ColumnProps> = ({ id, title, subtitle, count, accent, children }) => {
+const Column: React.FC<ColumnProps> = ({ id, title, subtitle, count, accent, header, fill, children }) => {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <div
       ref={setNodeRef}
-      className={`flex max-h-[70vh] min-h-[8rem] flex-col rounded-2xl border bg-white p-3 shadow-sm transition ${
-        isOver ? 'border-primary ring-2 ring-primary/30' : accent ? 'border-orange-200' : 'border-orange-100'
-      }`}
+      className={`flex min-h-[8rem] flex-col rounded-2xl border bg-white p-3 shadow-sm transition ${
+        fill ? 'h-full' : 'max-h-[70vh]'
+      } ${isOver ? 'border-primary ring-2 ring-primary/30' : accent ? 'border-orange-200' : 'border-orange-100'}`}
     >
       <div className="mb-2 flex items-center justify-between px-1">
         <div className="min-w-0">
@@ -94,7 +98,8 @@ const Column: React.FC<ColumnProps> = ({ id, title, subtitle, count, accent, chi
           {count}
         </span>
       </div>
-      <div className="flex flex-col gap-1.5 overflow-y-auto">{children}</div>
+      {header && <div className="mb-1.5">{header}</div>}
+      <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">{children}</div>
     </div>
   );
 };
@@ -339,31 +344,39 @@ const AdminAllocationPage: React.FC = () => {
             </div>
           )}
 
-          <div className="grid items-start gap-4 lg:grid-cols-[minmax(22rem,26rem)_1fr]">
-            {/* Unassigned tray — sticky so it stays in view while groups scroll */}
-            <div className="lg:sticky lg:top-4">
-              <Column id={UNASSIGNED} title="Unassigned" count={unassigned.length} accent>
+          {/* Fixed-height board: each pane scrolls internally, so the page itself
+              doesn't double-scroll. */}
+          <div className="grid h-[calc(100vh-17rem)] min-h-[24rem] items-stretch gap-4 lg:grid-cols-[minmax(22rem,26rem)_1fr]">
+            {/* Unassigned tray — fills height; search pinned, list scrolls */}
+            <Column
+              id={UNASSIGNED}
+              title="Unassigned"
+              count={unassigned.length}
+              accent
+              fill
+              header={(
                 <input
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search…"
-                  className="mb-1.5 w-full rounded-xl border border-orange-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-xl border border-orange-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
-                {filteredUnassigned.length === 0 ? (
-                  <p className="py-4 text-center text-xs text-gray-400">
-                    {unassigned.length === 0 ? 'Everyone is allocated 🎉' : 'No matches'}
-                  </p>
-                ) : (
-                  filteredUnassigned.map((p) => (
-                    <ParticipantChip key={p.id} participant={p} selected={selected.has(p.id)} onToggle={toggle} dragCount={dragCount} />
-                  ))
-                )}
-              </Column>
-            </div>
+              )}
+            >
+              {filteredUnassigned.length === 0 ? (
+                <p className="py-4 text-center text-xs text-gray-400">
+                  {unassigned.length === 0 ? 'Everyone is allocated 🎉' : 'No matches'}
+                </p>
+              ) : (
+                filteredUnassigned.map((p) => (
+                  <ParticipantChip key={p.id} participant={p} selected={selected.has(p.id)} onToggle={toggle} dragCount={dragCount} />
+                ))
+              )}
+            </Column>
 
-            {/* Group columns */}
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {/* Group columns — the whole right pane scrolls internally */}
+            <div className="grid h-full grid-cols-1 content-start gap-4 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
               {groups.map((g) => {
                 const members = byGroup.get(g.id) ?? [];
                 return (

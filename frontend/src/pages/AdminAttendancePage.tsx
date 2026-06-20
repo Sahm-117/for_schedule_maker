@@ -108,7 +108,12 @@ const AdminAttendancePage: React.FC = () => {
   }, [visibleParticipants, records]);
 
   const groupOptions = useMemo(
-    () => [{ value: '', label: 'All groups' }, ...groups.map((g) => ({ value: g.id, label: g.name }))],
+    () => [
+      { value: '', label: 'All groups' },
+      ...[...groups]
+        .sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name))
+        .map((g) => ({ value: g.id, label: g.name })),
+    ],
     [groups]
   );
 
