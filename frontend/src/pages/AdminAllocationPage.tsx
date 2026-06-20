@@ -350,7 +350,7 @@ const AdminAllocationPage: React.FC = () => {
 
           {/* Fixed-height board: each pane scrolls internally, so the page itself
               doesn't double-scroll. */}
-          <div className="grid h-[calc(100vh-17rem)] min-h-[24rem] items-stretch gap-4 lg:grid-cols-[minmax(22rem,26rem)_1fr]">
+          <div className="grid h-[calc(100vh-17rem)] min-h-[24rem] items-stretch gap-4 lg:grid-cols-[minmax(19rem,22rem)_1fr]">
             {/* Unassigned tray — fills height; search pinned, list scrolls */}
             <Column
               id={UNASSIGNED}
