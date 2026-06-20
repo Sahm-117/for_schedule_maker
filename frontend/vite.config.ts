@@ -17,12 +17,19 @@ export default defineConfig({
         theme_color: '#ffffff',
         background_color: '#f9fafb',
         display: 'standalone',
+        id: '/',
         scope: '/',
         start_url: '/',
+        categories: ['productivity', 'business'],
         icons: [
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+        screenshots: [
+          { src: '/screenshots/mobile-1.png', sizes: '390x844', type: 'image/png', form_factor: 'narrow', label: 'Your week at a glance' },
+          { src: '/screenshots/mobile-2.png', sizes: '390x844', type: 'image/png', form_factor: 'narrow', label: 'Your group and prayers' },
+          { src: '/screenshots/desktop-1.png', sizes: '1280x800', type: 'image/png', form_factor: 'wide', label: 'Support home' },
         ],
       },
       devOptions: {

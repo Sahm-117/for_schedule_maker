@@ -16,6 +16,10 @@
     --border: #e5e7eb;
     --white: #ffffff;
     --bg: #fafafa;
+    --admin: #92400E;
+    --admin-bg: #FEF3C7;
+    --support: #065F46;
+    --support-bg: #D1FAE5;
   }
   body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
 
@@ -27,40 +31,57 @@
   }
   .cover .badge { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 50px; font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 6px 16px; margin-bottom: 20px; display: inline-block; }
   .cover h1 { font-size: clamp(28px, 5vw, 48px); font-weight: 800; margin-bottom: 12px; }
-  .cover p { font-size: 16px; opacity: 0.85; max-width: 480px; }
+  .cover p { font-size: 16px; opacity: 0.85; max-width: 520px; }
   .cover .version { margin-top: 24px; font-size: 13px; opacity: 0.6; }
 
   .toc { background: white; border-bottom: 1px solid var(--border); padding: 32px 24px; }
-  .toc-inner { max-width: 860px; margin: 0 auto; }
+  .toc-inner { max-width: 880px; margin: 0 auto; }
   .toc h2 { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 16px; }
-  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
   .toc-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); text-decoration: none; color: var(--text); font-size: 13px; font-weight: 500; transition: all 0.15s; }
   .toc-item:hover { border-color: var(--primary); background: var(--primary-light); color: var(--primary-dark); }
   .toc-num { width: 22px; height: 22px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .toc-num.admin { background: var(--admin); }
+  .toc-num.support { background: var(--support); }
 
-  main { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
-  section { margin-bottom: 56px; }
+  main { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+  section { margin-bottom: 56px; scroll-margin-top: 20px; }
   .section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; padding-bottom: 14px; border-bottom: 2px solid var(--primary-light); }
   .section-num { width: 36px; height: 36px; background: var(--primary); color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; flex-shrink: 0; }
+  .section-num.admin { background: var(--admin); }
+  .section-num.support { background: var(--support); }
   h2.section-title { font-size: 22px; font-weight: 700; }
+
+  .side-banner { border-radius: 16px; padding: 22px 24px; margin: 32px 0 28px; color: white; }
+  .side-banner.admin { background: linear-gradient(135deg, #B45309 0%, #92400E 100%); }
+  .side-banner.support { background: linear-gradient(135deg, #059669 0%, #065F46 100%); }
+  .side-banner .eyebrow { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.8; }
+  .side-banner h2 { font-size: 24px; font-weight: 800; margin: 4px 0 8px; }
+  .side-banner p { font-size: 14px; opacity: 0.92; max-width: 620px; }
 
   .role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
   .role-card { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
   .role-card .role-icon { font-size: 28px; margin-bottom: 10px; }
   .role-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
   .role-card .role-tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 50px; margin-bottom: 12px; }
-  .tag-admin { background: #FEF3C7; color: #92400E; }
-  .tag-preparer { background: #EDE9FE; color: #5B21B6; }
-  .tag-support { background: #D1FAE5; color: #065F46; }
+  .tag-admin { background: var(--admin-bg); color: var(--admin); }
+  .tag-support { background: var(--support-bg); color: var(--support); }
   .role-card ul { list-style: none; }
   .role-card ul li { font-size: 13px; color: var(--muted); padding: 4px 0; display: flex; align-items: flex-start; gap: 6px; }
   .role-card ul li::before { content: '✓'; color: var(--primary); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
 
   .feature-block { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 16px; }
-  .feature-block h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .feature-block.admin-edge { border-left: 4px solid var(--admin); }
+  .feature-block.support-edge { border-left: 4px solid var(--support); }
+  .feature-block h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .feature-block p { font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+  .feature-block p:last-child { margin-bottom: 0; }
   .feature-block ul, .feature-block ol { padding-left: 20px; }
   .feature-block li { font-size: 13px; color: var(--muted); padding: 3px 0; }
+
+  .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
+  .flow .node { background: var(--primary-light); color: var(--primary-dark); font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 50px; }
+  .flow .arrow { color: var(--primary); font-weight: 700; }
 
   .steps { list-style: none; padding: 0; counter-reset: steps; }
   .steps li { counter-increment: steps; display: flex; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); }
@@ -72,15 +93,15 @@
   .step-content span { font-size: 13px; color: var(--muted); }
 
   .callout { border-radius: 12px; padding: 16px 18px; margin: 16px 0; display: flex; gap: 12px; align-items: flex-start; font-size: 13px; }
+  .callout:last-child { margin-bottom: 0; }
   .callout.info { background: #EFF6FF; border-left: 3px solid #3B82F6; color: #1E40AF; }
   .callout.tip { background: var(--primary-light); border-left: 3px solid var(--primary); color: #92400E; }
   .callout.warn { background: #FEF3C7; border-left: 3px solid #F59E0B; color: #78350F; }
   .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
 
   .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 50px; vertical-align: middle; }
-  .pill-admin { background: #FEF3C7; color: #92400E; }
-  .pill-prep { background: #EDE9FE; color: #5B21B6; }
-  .pill-support { background: #D1FAE5; color: #065F46; }
+  .pill-admin { background: var(--admin-bg); color: var(--admin); }
+  .pill-support { background: var(--support-bg); color: var(--support); }
   .pill-all { background: #F3F4F6; color: #374151; }
 
   .feature-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
@@ -91,9 +112,9 @@
   .dash { color: #D1D5DB; }
 
   details { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
-  summary { padding: 16px 20px; font-size: 14px; font-weight: 600; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; background: white; }
+  summary { padding: 16px 20px; font-size: 14px; font-weight: 600; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; background: white; gap: 12px; }
   summary::-webkit-details-marker { display: none; }
-  summary::after { content: '+'; font-size: 18px; color: var(--primary); font-weight: 700; }
+  summary::after { content: '+'; font-size: 18px; color: var(--primary); font-weight: 700; flex-shrink: 0; }
   details[open] summary::after { content: '−'; }
   details[open] summary { border-bottom: 1px solid var(--border); }
   .faq-body { padding: 16px 20px; font-size: 13px; color: var(--muted); background: white; line-height: 1.7; }
@@ -107,8 +128,8 @@
 <div class="cover">
   <div class="badge">TCN Ikorodu · FOF Programme</div>
   <h1>FOF IKD Ops</h1>
-  <p>Complete user guide for the Foundation of Faith programme scheduling app</p>
-  <div class="version">Version 1.0 · May 2026</div>
+  <p>The complete guide to running and supporting the Foundation of Faith programme — cohorts, groups, participants, schedules, attendance, follow-ups and more.</p>
+  <div class="version">Version 2.0 · June 2026</div>
 </div>
 
 <div class="toc">
@@ -116,21 +137,30 @@
     <h2>Contents</h2>
     <div class="toc-grid">
       <a href="#getting-started" class="toc-item"><span class="toc-num">1</span> Getting Started</a>
-      <a href="#roles" class="toc-item"><span class="toc-num">2</span> Roles &amp; Access</a>
-      <a href="#schedule" class="toc-item"><span class="toc-num">3</span> Viewing the Schedule</a>
-      <a href="#changes" class="toc-item"><span class="toc-num">4</span> Proposing Changes</a>
-      <a href="#admin" class="toc-item"><span class="toc-num">5</span> Admin Controls</a>
-      <a href="#notifications" class="toc-item"><span class="toc-num">6</span> Notifications</a>
-      <a href="#resources" class="toc-item"><span class="toc-num">7</span> Resource Hub</a>
-      <a href="#export" class="toc-item"><span class="toc-num">8</span> Exporting</a>
-      <a href="#install" class="toc-item"><span class="toc-num">9</span> Installing the App</a>
-      <a href="#faq" class="toc-item"><span class="toc-num">10</span> FAQ</a>
+      <a href="#how-it-works" class="toc-item"><span class="toc-num">2</span> How It's Organised</a>
+      <a href="#roles" class="toc-item"><span class="toc-num">3</span> Roles &amp; Access</a>
+      <a href="#admin-side" class="toc-item"><span class="toc-num admin">A</span> Admin Side</a>
+      <a href="#admin-cohorts" class="toc-item"><span class="toc-num admin">A1</span> Cohorts &amp; Weeks</a>
+      <a href="#admin-people" class="toc-item"><span class="toc-num admin">A2</span> Participants &amp; Groups</a>
+      <a href="#admin-schedule" class="toc-item"><span class="toc-num admin">A3</span> Schedule &amp; Publishing</a>
+      <a href="#admin-engagement" class="toc-item"><span class="toc-num admin">A4</span> Attendance, Prayers &amp; Faith</a>
+      <a href="#admin-followup" class="toc-item"><span class="toc-num admin">A5</span> Follow-ups &amp; Onboarding</a>
+      <a href="#admin-administration" class="toc-item"><span class="toc-num admin">A6</span> Users, Resources &amp; Settings</a>
+      <a href="#support-side" class="toc-item"><span class="toc-num support">S</span> Support Side</a>
+      <a href="#support-home" class="toc-item"><span class="toc-num support">S1</span> Home &amp; My Schedule</a>
+      <a href="#support-group" class="toc-item"><span class="toc-num support">S2</span> My Group</a>
+      <a href="#support-attendance" class="toc-item"><span class="toc-num support">S3</span> Attendance &amp; Onboarding</a>
+      <a href="#support-followup" class="toc-item"><span class="toc-num support">S4</span> My Follow-ups &amp; Profile</a>
+      <a href="#notifications" class="toc-item"><span class="toc-num">4</span> Notifications</a>
+      <a href="#install" class="toc-item"><span class="toc-num">5</span> Installing the App</a>
+      <a href="#faq" class="toc-item"><span class="toc-num">6</span> FAQ</a>
     </div>
   </div>
 </div>
 
 <main>
 
+<!-- 1. GETTING STARTED -->
 <section id="getting-started">
   <div class="section-header">
     <div class="section-num">1</div>
@@ -138,8 +168,8 @@
   </div>
   <div class="feature-block">
     <h3>🔐 Signing in</h3>
-    <p>Open the app and enter your email address or Nigerian phone number (e.g. 08012345678) and password, then tap <strong>Sign in</strong>.</p>
-    <div class="callout tip"><span class="callout-icon">💡</span><span>Support team members can self-register using the <strong>Create an account</strong> link. Admin and SOP Preparer accounts must be created by the programme admin.</span></div>
+    <p>Open the app and enter your email address or Nigerian phone number (e.g. 08012345678) and password, then tap <strong>Sign in</strong>. After signing in you land on your own home page — admins see the operations dashboard, support members see their personal home.</p>
+    <div class="callout tip"><span class="callout-icon">💡</span><span>Support team members can self-register using the <strong>Create an account</strong> link. Admin accounts are created by the programme admin.</span></div>
   </div>
   <div class="feature-block">
     <h3>📱 Creating a Support account</h3>
@@ -147,305 +177,394 @@
       <li><div class="step-num"></div><div class="step-content"><strong>Tap "Create an account"</strong><span>Found at the bottom of the login screen.</span></div></li>
       <li><div class="step-num"></div><div class="step-content"><strong>Choose Email or Phone Number</strong><span>Phone must be in local format: 08012345678 — not +234.</span></div></li>
       <li><div class="step-num"></div><div class="step-content"><strong>Enter your full name and a password</strong><span>Password must be at least 6 characters.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Tap "Create Account"</strong><span>Your account is created as Support role. Ask your admin to assign your label group.</span></div></li>
+      <li><div class="step-num"></div><div class="step-content"><strong>Tap "Create Account"</strong><span>You're created as a Support member. Your admin assigns you to a group and activity tags.</span></div></li>
     </ol>
   </div>
   <div class="feature-block">
-    <h3>🔔 Enable notifications on first open</h3>
-    <p>After logging in for the first time, you will see a prompt explaining what notifications you will receive. Tap <strong>Enable notifications</strong> then Allow in the browser dialog. You will miss schedule updates until this is done.</p>
-    <div class="callout info"><span class="callout-icon">ℹ️</span><span>The app tour will only start <strong>after</strong> you interact with the notification prompt — either enable or dismiss it. This ensures the tour doesn't compete with the prompt for your attention.</span></div>
+    <h3>🧭 The guided tour &amp; notifications</h3>
+    <p>On your first visit you'll be asked to enable notifications, then a short in-app walkthrough highlights the key buttons on each page. You can skip the tour at any time and re-trigger it later from the <strong>?</strong> help button on most pages.</p>
   </div>
 </section>
 
-<section id="roles">
+<!-- 2. HOW IT'S ORGANISED -->
+<section id="how-it-works">
   <div class="section-header">
     <div class="section-num">2</div>
+    <h2 class="section-title">How It's Organised</h2>
+  </div>
+  <p style="font-size:14px;color:var(--muted);margin-bottom:20px;">The whole app is built around one simple structure. Understanding it makes everything else click into place.</p>
+  <div class="feature-block">
+    <h3>🏗️ Cohort → Group → Participant</h3>
+    <div class="flow">
+      <span class="node">Cohort</span><span class="arrow">→</span>
+      <span class="node">Groups</span><span class="arrow">→</span>
+      <span class="node">Participants</span>
+    </div>
+    <ul style="margin-top:12px;">
+      <li><strong>Cohort</strong> — one run of the programme (e.g. "Cohort 9"), made up of numbered weeks. One cohort is "active" at a time.</li>
+      <li><strong>Group</strong> — a small group inside a cohort (e.g. "Group 16"). Each group is led by exactly one Support member.</li>
+      <li><strong>Participant</strong> — a person in a small group. Each participant belongs to one group.</li>
+    </ul>
+    <div class="callout info"><span class="callout-icon">ℹ️</span><span><strong>Follow-up contacts are different.</strong> Contacts are prospective people being invited/registered. They are tracked separately from participants and can be assigned to a Support member to call and follow up.</span></div>
+  </div>
+  <div class="feature-block">
+    <h3>🏷️ Activity tags</h3>
+    <p>Activities on the schedule carry <strong>tags</strong> (e.g. "Prayer", "Class", "WhatsApp post"). Support members are assigned tags, and their schedule shows only the activities matching their tags — so everyone sees just what's relevant to them.</p>
+  </div>
+</section>
+
+<!-- 3. ROLES -->
+<section id="roles">
+  <div class="section-header">
+    <div class="section-num">3</div>
     <h2 class="section-title">Roles &amp; Access</h2>
   </div>
-  <p style="font-size:14px;color:var(--muted);margin-bottom:20px;">Every user has one of three roles which determines what they can see and do.</p>
+  <p style="font-size:14px;color:var(--muted);margin-bottom:20px;">There are two main sides to the app. Your role decides which one you see when you log in.</p>
   <div class="role-grid">
     <div class="role-card">
       <div class="role-icon">👑</div>
       <h3>Admin</h3>
-      <div class="role-tag tag-admin">Programme Director</div>
+      <div class="role-tag tag-admin">Programme Coordinator</div>
       <ul>
-        <li>Create and manage weeks, days, activities</li>
-        <li>Approve or reject change requests</li>
-        <li>Manage all users and roles</li>
-        <li>Assign labels to users and activities</li>
-        <li>Post announcements to the team</li>
-        <li>Manage the Resource Hub</li>
-        <li>Export full programme schedule</li>
-        <li>Send push notifications to all users</li>
-        <li>Trigger Telegram daily digest</li>
+        <li>Set up cohorts, weeks &amp; the full schedule</li>
+        <li>Add participants &amp; build groups</li>
+        <li>Assign Support leads &amp; activity tags</li>
+        <li>Publish the schedule to Support</li>
+        <li>Oversee attendance, prayers &amp; faith projects</li>
+        <li>Manage follow-ups &amp; onboarding</li>
+        <li>Review change approvals, post announcements</li>
+        <li>Manage users, resources &amp; settings</li>
       </ul>
     </div>
     <div class="role-card">
-      <div class="role-icon">✏️</div>
-      <h3>SOP Preparer</h3>
-      <div class="role-tag tag-preparer">Programme Support Officer</div>
-      <ul>
-        <li>View the full programme schedule</li>
-        <li>Submit change requests for admin approval</li>
-        <li>Track status of submitted changes</li>
-        <li>See rejection notes from admin</li>
-        <li>Receive push notifications</li>
-        <li>Export schedule to PDF</li>
-        <li>Export personal schedule (by label)</li>
-        <li>Access the Resource Hub</li>
-        <li>Install the app on their device</li>
-      </ul>
-    </div>
-    <div class="role-card">
-      <div class="role-icon">👁️</div>
+      <div class="role-icon">🤝</div>
       <h3>Support</h3>
-      <div class="role-tag tag-support">Volunteer / Team Member</div>
+      <div class="role-tag tag-support">Small-Group Leader</div>
       <ul>
-        <li>View schedule filtered to their label group</li>
-        <li>Export their personal schedule to PDF</li>
-        <li>Receive push notifications for updates</li>
-        <li>Access the Resource Hub</li>
-        <li>Install the app on their device</li>
+        <li>See their week-at-a-glance home page</li>
+        <li>View their schedule (once published)</li>
+        <li>Mark their own activities done</li>
+        <li>Run their small group: faith projects &amp; prayers</li>
+        <li>Take attendance for their group</li>
+        <li>Onboard their participants step-by-step</li>
+        <li>Work their assigned follow-up contacts</li>
+        <li>Manage their profile &amp; reminders</li>
       </ul>
     </div>
   </div>
-  <div class="callout info"><span class="callout-icon">ℹ️</span><span><strong>Labels explained:</strong> Labels are group tags (e.g. "Tech Team", "Ushers", "Logistics"). Admin assigns labels to activities and to users. Support users only see activities matching their labels. Admin and SOP Preparer see everything — but can also have labels assigned for personal exports.</span></div>
+  <div class="callout info"><span class="callout-icon">ℹ️</span><span>An <strong>SOP Preparer</strong> role also exists for staff who help build the schedule and submit change requests for admin approval. It sits on the Admin side of the app with a narrower set of permissions.</span></div>
 </section>
 
-<section id="schedule">
-  <div class="section-header">
-    <div class="section-num">3</div>
-    <h2 class="section-title">Viewing the Schedule</h2>
-  </div>
-  <div class="feature-block">
-    <h3>📅 Programme weeks</h3>
-    <p>The left panel shows all programme weeks. Tap a week to load its schedule. Each week contains days, and each day contains timed activities with descriptions and team labels.</p>
-    <div class="callout tip"><span class="callout-icon">💡</span><span>On mobile, the week selector is at the top and the schedule loads below. Scroll down to see activities for each day.</span></div>
-  </div>
-  <div class="feature-block">
-    <h3>🏷️ Filtered view for Support users</h3>
-    <p>If you are a Support member, the schedule automatically shows only activities assigned to your label group. You see only what is relevant to your team — no noise from other teams.</p>
-    <div class="callout warn"><span class="callout-icon">⚠️</span><span>If your schedule is empty, your admin may not have assigned your label yet. Contact them to get set up.</span></div>
-  </div>
-  <div class="feature-block">
-    <h3>🔴 Pending changes indicator</h3>
-    <p><span class="pill pill-admin">Admin</span> <span class="pill pill-prep">SOP Preparer</span> &nbsp;A badge shows how many change requests are waiting. Admins see all pending changes; preparers see only their own.</p>
-  </div>
-</section>
+<!-- ============ ADMIN SIDE ============ -->
+<div class="side-banner admin">
+  <div class="eyebrow">For Coordinators</div>
+  <h2>👑 Admin Side</h2>
+  <p>Everything below is for admins. This is where the programme is set up and run: cohorts, the schedule, the people, and all the oversight tools. Support members do not see these screens.</p>
+</div>
 
-<section id="changes">
+<section id="admin-side">
   <div class="section-header">
-    <div class="section-num">4</div>
-    <h2 class="section-title">Proposing &amp; Tracking Changes</h2>
+    <div class="section-num admin">A</div>
+    <h2 class="section-title">Admin Dashboard &amp; Navigation</h2>
   </div>
-  <div class="feature-block">
-    <h3>📝 How to submit a change request <span class="pill pill-prep">SOP Preparer</span></h3>
-    <ol class="steps">
-      <li><div class="step-num"></div><div class="step-content"><strong>Find the activity to edit</strong><span>Navigate to the correct week and day.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Tap the edit (pencil) icon</strong><span>Opens the change proposal form, pre-filled with current values.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Make your updates</strong><span>Change the title, time, description, or labels as needed.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Submit for approval</strong><span>Your change is saved as pending. The admin will review it.</span></div></li>
-    </ol>
+  <div class="feature-block admin-edge">
+    <h3>📊 The Dashboard <span class="pill pill-admin">Admin</span></h3>
+    <p>Your landing page. The operations snapshot shows pending approvals, resource count, number of Support members and announcements at a glance. Below it: today's activity snapshot with completion status, the approval queue, and recent announcements.</p>
   </div>
-  <div class="feature-block">
-    <h3>✅ What happens next</h3>
-    <ul style="list-style:none;padding:0;">
-      <li style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--muted);">🟢 <strong>Approved</strong> — change applied to the live schedule immediately. You get a push notification.</li>
-      <li style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--muted);">🔴 <strong>Rejected</strong> — you'll see a notification with the admin's reason in the Rejected Changes section.</li>
-      <li style="padding:8px 0;font-size:13px;color:var(--muted);">⏳ <strong>Pending</strong> — still awaiting admin review. No action needed from you.</li>
+  <div class="feature-block admin-edge">
+    <h3>🗂️ The grouped sidebar <span class="pill pill-admin">Admin</span></h3>
+    <p>Admin navigation is grouped into collapsible sections so it stays tidy:</p>
+    <ul>
+      <li><strong>Overview</strong> — Dashboard</li>
+      <li><strong>Programme</strong> — Schedule, Approvals, Activity overview</li>
+      <li><strong>People &amp; groups</strong> — Cohorts, Participants, Groups, Faith projects, Group prayers, Attendance</li>
+      <li><strong>Engagement</strong> — Follow-ups, Onboarding</li>
+      <li><strong>Administration</strong> — Users, Announcements, Resources, Settings</li>
     </ul>
   </div>
 </section>
 
-<section id="admin">
+<section id="admin-cohorts">
   <div class="section-header">
-    <div class="section-num">5</div>
-    <h2 class="section-title">Admin Controls</h2>
+    <div class="section-num admin">A1</div>
+    <h2 class="section-title">Cohorts &amp; Weeks</h2>
   </div>
-  <div class="feature-block">
-    <h3>🗓️ Managing weeks, days &amp; activities <span class="pill pill-admin">Admin only</span></h3>
-    <ol class="steps">
-      <li><div class="step-num"></div><div class="step-content"><strong>Create a week</strong><span>Tap + next to "Programme Weeks". Enter the week name and dates.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Add days</strong><span>Open the week and tap "Add Day". Name it (e.g. Day 1 — Monday) and set the date.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Add activities</strong><span>Open a day and tap "Add Activity". Set title, time, description, and assign labels.</span></div></li>
-    </ol>
+  <div class="feature-block admin-edge">
+    <h3>🎓 Managing cohorts <span class="pill pill-admin">Admin</span></h3>
+    <p>On the Cohorts page you create and manage each run of the programme. One cohort is active at a time; everyone works against the active cohort. You can duplicate a cohort to reuse its structure, archive old ones, and permanently delete a cohort you no longer need.</p>
   </div>
-  <div class="feature-block">
-    <h3>👥 User management <span class="pill pill-admin">Admin only</span></h3>
-    <p>Via the Admin panel you can create users (any role), edit details, assign label groups, and deactivate accounts.</p>
-    <div class="callout info"><span class="callout-icon">ℹ️</span><span>Admins and SOP Preparers can also have labels assigned — useful so their personal export only shows their team's activities.</span></div>
-  </div>
-  <div class="feature-block">
-    <h3>🏷️ Label management <span class="pill pill-admin">Admin only</span></h3>
-    <p>Create labels like "Tech Team", "Ushers", "Security". Assign them to activities to indicate team involvement, and to users to filter what they see.</p>
-  </div>
-  <div class="feature-block">
-    <h3>✅ Approving &amp; rejecting changes <span class="pill pill-admin">Admin only</span></h3>
-    <p>The Pending Changes panel shows all outstanding requests. Tap <strong>Approve</strong> to apply immediately, or <strong>Reject</strong> with an optional reason — the preparer is notified either way.</p>
-  </div>
-  <div class="feature-block">
-    <h3>📢 Announcements <span class="pill pill-admin">Admin only</span></h3>
-    <p>Send a message to the entire team. All users with push notifications enabled receive it on their device instantly.</p>
-  </div>
-  <div class="feature-block">
-    <h3>📲 Telegram daily digest <span class="pill pill-admin">Admin only</span></h3>
-    <p>Trigger a digest that sends tomorrow's activities to the team Telegram channel. Configure the channel in app settings.</p>
-  </div>
-
-  <div class="feature-block">
-    <h3>🔑 Resetting a user's password <span class="pill pill-admin">Admin only</span></h3>
-    <p>If a team member forgets their password, the admin can set a new one directly from User Management — no OTP or email flow needed.</p>
-    <ol class="steps">
-      <li><div class="step-num"></div><div class="step-content"><strong>Open User Management</strong><span>Tap the Admin button → User Management from the dashboard.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Find the user and tap "Reset PW"</strong><span>An inline input appears in their row.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Enter a new password (min 6 characters)</strong><span>You can share it with the user verbally or via WhatsApp.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Tap "Save"</strong><span>The user can now log in with the new password immediately.</span></div></li>
-    </ol>
-    <div class="callout tip"><span class="callout-icon">💡</span><span>Ask the user to log in and mentally note their new password — there is no self-service password reset flow. Keep it simple.</span></div>
+  <div class="feature-block admin-edge">
+    <h3>📅 Weeks &amp; week titles <span class="pill pill-admin">Admin</span></h3>
+    <p>A cohort is made up of numbered weeks. You can add a week, give each week a descriptive title, duplicate a week's activities into a new week, and delete a specific week. Weeks always stay in numeric order.</p>
+    <div class="callout tip"><span class="callout-icon">💡</span><span>Duplicating a week copies its activities — a fast way to set up a new week that's similar to a previous one, then tweak the differences.</span></div>
   </div>
 </section>
 
+<section id="admin-people">
+  <div class="section-header">
+    <div class="section-num admin">A2</div>
+    <h2 class="section-title">Participants &amp; Groups</h2>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>🧑‍🤝‍🧑 Participants <span class="pill pill-admin">Admin</span></h3>
+    <p>Add participants individually or import them into the active cohort. Search and filter by name, phone, or group, assign each person to a group, and manage their status (active / archived).</p>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>👥 Groups <span class="pill pill-admin">Admin</span></h3>
+    <p>Create the small groups inside a cohort and assign one Support member to lead each group. Manage who's in each group, and filter to spot groups that don't yet have a Support lead assigned.</p>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>🔀 Allocation <span class="pill pill-admin">Admin</span></h3>
+    <p>The Allocation screen helps you place participants who aren't in a group yet. Drag them into groups manually, or use <strong>auto-distribute</strong> to spread unallocated participants evenly across groups in one click.</p>
+  </div>
+</section>
+
+<section id="admin-schedule">
+  <div class="section-header">
+    <div class="section-num admin">A3</div>
+    <h2 class="section-title">Schedule &amp; Publishing</h2>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>🗓️ Building the schedule <span class="pill pill-admin">Admin</span></h3>
+    <p>Add and edit activities for each day of each week. Every activity has a time, a description (with rich text — bold, italic, bullet and numbered lists), and one or more activity tags. You can filter the schedule by support tag or by a specific Support user to preview exactly what they'll see.</p>
+    <div class="callout tip"><span class="callout-icon">💡</span><span>WhatsApp and Telegram are shown with their icons (and labels) right inside the activity text, so post instructions read clearly.</span></div>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>🚦 Publishing — the visibility gate <span class="pill pill-admin">Admin</span></h3>
+    <p>The schedule starts in <strong>Draft</strong>. Support members cannot see any activities until you <strong>publish</strong> the schedule for the active cohort. Use the publish toggle at the top of the Schedule page — you'll be asked to confirm. You can unpublish at any time to take it back into draft.</p>
+    <div class="callout warn"><span class="callout-icon">⚠️</span><span>If Support members report a blank "Schedule not published yet" message, that's expected until you publish. Publish when the week's plan is final.</span></div>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>📝 Approvals <span class="pill pill-admin">Admin</span></h3>
+    <p>When an SOP Preparer proposes a change (add, edit, or delete an activity), it lands in the Approvals queue. Review each request and <strong>Approve</strong> to apply it to the live schedule, or <strong>Reject</strong> with an optional reason — the preparer is notified either way.</p>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>📈 Activity overview <span class="pill pill-admin">Admin · SOP Preparer</span></h3>
+    <p>A completion breakdown per activity, per day — see at a glance who has marked an activity done and who hasn't, with filters for day, support tag, and individual Support user.</p>
+  </div>
+</section>
+
+<section id="admin-engagement">
+  <div class="section-header">
+    <div class="section-num admin">A4</div>
+    <h2 class="section-title">Attendance, Prayers &amp; Faith Projects</h2>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>✅ Attendance <span class="pill pill-admin">Admin</span></h3>
+    <p>Mark each participant <strong>Present</strong>, <strong>Late</strong>, or <strong>Absent</strong> for any week. Filter by group to review summaries and per-person status across the cohort.</p>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>🙏 Group prayers <span class="pill pill-admin">Admin</span></h3>
+    <p>A matrix of groups by week showing which group completed their prayer and who the prayer focus was, with a trend strip summarising weekly completion across all groups.</p>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>🌱 Faith projects <span class="pill pill-admin">Admin</span></h3>
+    <p>Each participant has a faith project (a personal goal). View and edit any participant's project and track its status through the stages: <em>Not drafted → Under refinement → Approved</em>.</p>
+  </div>
+</section>
+
+<section id="admin-followup">
+  <div class="section-header">
+    <div class="section-num admin">A5</div>
+    <h2 class="section-title">Follow-ups &amp; Onboarding</h2>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>📞 Follow-ups <span class="pill pill-admin">Admin</span></h3>
+    <p>Manage follow-up contacts (prospective participants). Track reply, call, and registration statuses; assign contacts to an owner to work; send templated messages; multi-select contacts; and raise/resolve issues. A breakdown dashboard summarises progress and what's still open.</p>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>🚀 Onboarding <span class="pill pill-admin">Admin</span></h3>
+    <p>Track how far each group is through onboarding (percentage of participants fully onboarded), manage the message templates Support members use, set up onboarding coordinators, and watch the live activity feed of onboarding events.</p>
+  </div>
+</section>
+
+<section id="admin-administration">
+  <div class="section-header">
+    <div class="section-num admin">A6</div>
+    <h2 class="section-title">Users, Announcements, Resources &amp; Settings</h2>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>👤 Users <span class="pill pill-admin">Admin</span></h3>
+    <p>Add users, assign roles (Admin, SOP Preparer, Support), and manage each Support member's activity tags. You can also reset a user's password directly from here — no email or OTP flow.</p>
+    <ol class="steps">
+      <li><div class="step-num"></div><div class="step-content"><strong>Open Users</strong><span>From the Administration section of the sidebar.</span></div></li>
+      <li><div class="step-num"></div><div class="step-content"><strong>Find the user and choose Reset password</strong><span>An inline field appears in their row.</span></div></li>
+      <li><div class="step-num"></div><div class="step-content"><strong>Enter a new password (min 6 chars) and save</strong><span>Share it with the user; they can log in immediately.</span></div></li>
+    </ol>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>📢 Announcements <span class="pill pill-admin">Admin</span></h3>
+    <p>Send a message to the team. Everyone with notifications enabled receives it on their device, and it appears in their in-app announcements feed.</p>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>📚 Resources <span class="pill pill-admin">Admin</span></h3>
+    <p>Manage the shared Resource Hub — add links or upload files (PDF, Word, Excel, PowerPoint, images, ZIP), with an option to notify everyone when you add something. All users can view; only admins add or remove.</p>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>⚙️ Settings <span class="pill pill-admin">Admin</span></h3>
+    <p>Manage workspace settings, including the daily <strong>Telegram digest</strong> — toggle it on and send tomorrow's activities to the team Telegram channel manually when needed.</p>
+  </div>
+</section>
+
+<!-- ============ SUPPORT SIDE ============ -->
+<div class="side-banner support">
+  <div class="eyebrow">For Small-Group Leaders</div>
+  <h2>🤝 Support Side</h2>
+  <p>Everything below is for Support members. Your screens are focused on your group and your own activities — clean and uncluttered. You won't see any of the admin setup tools.</p>
+</div>
+
+<section id="support-home">
+  <div class="section-header">
+    <div class="section-num support">S1</div>
+    <h2 class="section-title">Home &amp; My Schedule</h2>
+  </div>
+  <div class="feature-block support-edge">
+    <h3>🏠 Your Home page <span class="pill pill-support">Support</span></h3>
+    <p>A week-at-a-glance: where you are in the cohort (e.g. "Week 1 of 10"), how many activities you have today, your next group prayer, faith-project progress for your group, and the latest announcements. Quick links jump you straight to your group, resources, follow-ups and profile.</p>
+  </div>
+  <div class="feature-block support-edge">
+    <h3>📅 My Schedule <span class="pill pill-support">Support</span></h3>
+    <p>Your activities for the week, filtered to your activity tags so you only see what's yours. Switch between <strong>Today</strong>, <strong>Next Days</strong>, and <strong>Full Week</strong>.</p>
+    <div class="callout warn"><span class="callout-icon">⚠️</span><span>If you see "Schedule not published yet", your coordinator is still finalising the plan. It will appear as soon as they publish it.</span></div>
+  </div>
+  <div class="feature-block support-edge">
+    <h3>☑️ Mark activities done <span class="pill pill-support">Support</span></h3>
+    <p>Tap <strong>Mark done</strong> when you finish an activity — it saves instantly. Tap again to undo. Your admin sees this completion roll up in the Activity overview.</p>
+  </div>
+</section>
+
+<section id="support-group">
+  <div class="section-header">
+    <div class="section-num support">S2</div>
+    <h2 class="section-title">My Group</h2>
+  </div>
+  <div class="feature-block support-edge">
+    <h3>🌱 Faith projects <span class="pill pill-support">Support</span></h3>
+    <p>For each participant in your group you can view and update their faith project status (Not drafted → Under refinement → Approved) and keep their goal moving forward.</p>
+  </div>
+  <div class="feature-block support-edge">
+    <h3>🙏 Weekly group prayer <span class="pill pill-support">Support</span></h3>
+    <p>Pick a <strong>prayer focus</strong> for the week from your participants and mark the group prayer as done. This feeds the admin's group prayers matrix.</p>
+  </div>
+  <div class="feature-block support-edge">
+    <h3>📋 Quick actions <span class="pill pill-support">Support</span></h3>
+    <p>Copy a participant's phone number in one tap to message or call them quickly.</p>
+  </div>
+</section>
+
+<section id="support-attendance">
+  <div class="section-header">
+    <div class="section-num support">S3</div>
+    <h2 class="section-title">Attendance &amp; Onboarding</h2>
+  </div>
+  <div class="feature-block support-edge">
+    <h3>✅ Take attendance <span class="pill pill-support">Support</span></h3>
+    <p>Choose a week and mark each of your group members <strong>Present</strong>, <strong>Late</strong>, or <strong>Absent</strong>. You can add a private note on any participant — anything worth remembering.</p>
+  </div>
+  <div class="feature-block support-edge">
+    <h3>🚀 Onboard your participants <span class="pill pill-support">Support</span></h3>
+    <p>Work through each participant's onboarding checklist: <strong>Contacted → Added to group → Introduction done → Venue acknowledged</strong>. Send a ready-made welcome message and copy their number right from the screen. Each saved step shows a spinner only on the box you tapped, so you can update several quickly.</p>
+    <div class="callout info"><span class="callout-icon">ℹ️</span><span>If you're an onboarding coordinator, you'll also see a section for sending coordinator-to-support onboarding prompts.</span></div>
+  </div>
+</section>
+
+<section id="support-followup">
+  <div class="section-header">
+    <div class="section-num support">S4</div>
+    <h2 class="section-title">My Follow-ups &amp; Profile</h2>
+  </div>
+  <div class="feature-block support-edge">
+    <h3>📞 My Follow-ups <span class="pill pill-support">Support</span></h3>
+    <p>The contacts assigned to you. Right after each message or call, update their <strong>reply</strong>, <strong>call</strong>, and <strong>registration</strong> status — the app applies sensible cascades automatically (e.g. marking someone Registered also marks them Replied). Send templated WhatsApp messages and flag issues when a number is wrong or a contact needs attention.</p>
+  </div>
+  <div class="feature-block support-edge">
+    <h3>👤 Profile &amp; reminders <span class="pill pill-support">Support</span></h3>
+    <p>View your details and activity tags, and set how you want to receive reminders and notifications.</p>
+  </div>
+</section>
+
+<!-- 4. NOTIFICATIONS -->
 <section id="notifications">
   <div class="section-header">
-    <div class="section-num">6</div>
+    <div class="section-num">4</div>
     <h2 class="section-title">Push Notifications</h2>
   </div>
   <div class="feature-block">
     <h3>🔔 What triggers a notification?</h3>
     <table class="feature-table">
-      <thead><tr><th>Event</th><th>Admin</th><th>SOP Preparer</th><th>Support</th></tr></thead>
+      <thead><tr><th>Event</th><th>Admin</th><th>Support</th></tr></thead>
       <tbody>
-        <tr><td>Schedule change approved &amp; live</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
-        <tr><td>New announcement posted</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
-        <tr><td>New resource added (admin opted in)</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td></tr>
-        <tr><td>Your change request approved/rejected</td><td class="dash">—</td><td class="check">✓</td><td class="dash">—</td></tr>
+        <tr><td>New announcement posted</td><td class="check">✓</td><td class="check">✓</td></tr>
+        <tr><td>New resource added (admin opted in)</td><td class="check">✓</td><td class="check">✓</td></tr>
+        <tr><td>Schedule published / onboarding events</td><td class="check">✓</td><td class="check">✓</td></tr>
+        <tr><td>Change request approved/rejected</td><td class="dash">—</td><td class="check">✓ <span style="font-size:11px;">(SOP Preparer)</span></td></tr>
       </tbody>
     </table>
   </div>
   <div class="feature-block">
-    <h3>📲 How to enable notifications</h3>
+    <h3>📲 Enabling notifications</h3>
     <ol class="steps">
-      <li><div class="step-num"></div><div class="step-content"><strong>Open the app after logging in</strong><span>A prompt appears on your first visit explaining what you will receive.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Tap "Enable notifications"</strong><span>Your browser will ask you to confirm. Tap Allow.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>You're registered</strong><span>Notifications arrive even when the app is closed, as long as the PWA is installed.</span></div></li>
+      <li><div class="step-num"></div><div class="step-content"><strong>Open the app after logging in</strong><span>A prompt appears on your first visit explaining what you'll receive.</span></div></li>
+      <li><div class="step-num"></div><div class="step-content"><strong>Tap "Enable notifications" → Allow</strong><span>Your browser will ask you to confirm.</span></div></li>
+      <li><div class="step-num"></div><div class="step-content"><strong>You're registered</strong><span>Notifications arrive even when the app is closed, especially once it's installed.</span></div></li>
     </ol>
-    <div class="callout warn"><span class="callout-icon">⚠️</span><span>If you dismissed the prompt, go to your phone/browser Settings → Site Settings → Notifications and allow FOF IKD Ops manually.</span></div>
-  </div>
-  <div class="feature-block">
-    <h3>🔕 Not receiving notifications?</h3>
-    <ul>
-      <li>Confirm you tapped Allow when the browser asked</li>
-      <li>Check that Do Not Disturb is not enabled</li>
-      <li>If you reinstalled the PWA, open the app once to refresh your subscription</li>
-      <li>Notifications go to your most recently registered device only</li>
-    </ul>
+    <div class="callout warn"><span class="callout-icon">⚠️</span><span>If you dismissed the prompt, go to your phone/browser Settings → Site Settings → Notifications and allow FOF IKD Ops manually. Notifications go to your most recently registered device.</span></div>
   </div>
 </section>
 
-<section id="resources">
-  <div class="section-header">
-    <div class="section-num">7</div>
-    <h2 class="section-title">Resource Hub</h2>
-  </div>
-  <div class="feature-block">
-    <h3>📚 What is the Resource Hub?</h3>
-    <p>A shared library of links and files the team needs — training guides, role documents, contact sheets, templates. All users can view; only admins can add or remove items.</p>
-  </div>
-  <div class="feature-block">
-    <h3>📂 Opening the Hub</h3>
-    <p>Find the Resource Hub card on the left sidebar. If new resources were added since your last visit, you will see an orange pulsing badge and a banner at the top of the dashboard. Tap either to open.</p>
-  </div>
-  <div class="feature-block">
-    <h3>➕ Adding a resource <span class="pill pill-admin">Admin only</span></h3>
-    <ol class="steps">
-      <li><div class="step-num"></div><div class="step-content"><strong>Tap "Add" in the Resource Hub</strong><span>Button appears in the top-right corner of the modal.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Choose Link/URL or Upload File</strong><span>Files can be PDF, Word, Excel, PowerPoint, images, or ZIP.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Enter a title and optional description</strong></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Toggle "Notify all users" if needed</strong><span>Sends a push notification to everyone when you save.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Tap "Add Resource"</strong><span>Appears immediately for all users.</span></div></li>
-    </ol>
-  </div>
-</section>
-
-<section id="export">
-  <div class="section-header">
-    <div class="section-num">8</div>
-    <h2 class="section-title">Exporting the Schedule</h2>
-  </div>
-  <div class="feature-block">
-    <h3>📄 Export options</h3>
-    <table class="feature-table">
-      <thead><tr><th>Export type</th><th>What it contains</th><th>Who can use it</th></tr></thead>
-      <tbody>
-        <tr><td><strong>Export Week</strong></td><td>All activities for the selected week</td><td><span class="pill pill-admin">Admin</span> <span class="pill pill-prep">SOP Preparer</span></td></tr>
-        <tr><td><strong>Export All Weeks</strong></td><td>Every week and all activities in one PDF</td><td><span class="pill pill-admin">Admin</span> <span class="pill pill-prep">SOP Preparer</span></td></tr>
-        <tr><td><strong>Export My Schedule</strong></td><td>Only activities matching your assigned labels</td><td><span class="pill pill-all">All roles</span></td></tr>
-      </tbody>
-    </table>
-    <div class="callout tip" style="margin-top:14px;"><span class="callout-icon">💡</span><span><strong>All roles</strong> including Admin and SOP Preparer can use "Export My Schedule" — if you have labels assigned, it exports only your team's activities. Great for printing your personal programme sheet.</span></div>
-  </div>
-  <div class="feature-block">
-    <h3>📥 How to export</h3>
-    <ol class="steps">
-      <li><div class="step-num"></div><div class="step-content"><strong>Open a week</strong><span>Select it from the left panel.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Tap the export button you need</strong><span>Export buttons are at the top of the schedule view.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Save or share the PDF</strong><span>On mobile, use the share sheet to send via WhatsApp, email, or save to Files.</span></div></li>
-    </ol>
-  </div>
-</section>
-
+<!-- 5. INSTALL -->
 <section id="install">
   <div class="section-header">
-    <div class="section-num">9</div>
+    <div class="section-num">5</div>
     <h2 class="section-title">Installing the App</h2>
   </div>
   <div class="feature-block">
     <h3>📲 Why install?</h3>
-    <p>FOF IKD Ops is a Progressive Web App (PWA). Installing it to your home screen means it opens full-screen like a native app, loads instantly, works offline, and delivers notifications reliably.</p>
-  </div>
-  <div class="feature-block">
-    <h3>🍎 iPhone / iPad (Safari only)</h3>
-    <ol class="steps">
-      <li><div class="step-num"></div><div class="step-content"><strong>Open in Safari</strong><span>Chrome on iOS does not support PWA install.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Tap the Share button</strong><span>The box-with-arrow icon at the bottom of Safari.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Scroll to "Add to Home Screen" and tap it</strong></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Tap "Add"</strong><span>The FOF IKD Ops icon appears on your home screen.</span></div></li>
-    </ol>
+    <p>FOF IKD Ops is a Progressive Web App (PWA). Installing it to your home screen means it opens full-screen like a native app, loads instantly, and delivers notifications reliably. An <strong>Install</strong> banner appears in-app while you're using it in a browser — and disappears once installed.</p>
   </div>
   <div class="feature-block">
     <h3>🤖 Android (Chrome)</h3>
     <ol class="steps">
-      <li><div class="step-num"></div><div class="step-content"><strong>Open in Chrome</strong><span>A banner may appear automatically at the bottom.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Tap "Install" or "Add to Home Screen"</strong><span>Or use the three-dot menu → Add to Home Screen.</span></div></li>
-      <li><div class="step-num"></div><div class="step-content"><strong>Confirm the install</strong></div></li>
+      <li><div class="step-num"></div><div class="step-content"><strong>Open in Chrome and log in</strong><span>You'll see the in-app Install banner. Chrome may also show its own install card at the top.</span></div></li>
+      <li><div class="step-num"></div><div class="step-content"><strong>Tap "Install"</strong><span>Or use Chrome's three-dot menu → Install app / Add to Home screen.</span></div></li>
+      <li><div class="step-num"></div><div class="step-content"><strong>Confirm</strong><span>The FOF IKD Ops icon appears on your home screen.</span></div></li>
     </ol>
-    <div class="callout tip"><span class="callout-icon">💡</span><span>Always open the app from the home screen icon — not the browser — for the best notification experience.</span></div>
+  </div>
+  <div class="feature-block">
+    <h3>🍎 iPhone / iPad (Safari only)</h3>
+    <ol class="steps">
+      <li><div class="step-num"></div><div class="step-content"><strong>Open in Safari</strong><span>Chrome on iOS cannot install PWAs.</span></div></li>
+      <li><div class="step-num"></div><div class="step-content"><strong>Tap the Share button</strong><span>The box-with-arrow icon.</span></div></li>
+      <li><div class="step-num"></div><div class="step-content"><strong>Tap "Add to Home Screen" → Add</strong></div></li>
+    </ol>
+    <div class="callout tip"><span class="callout-icon">💡</span><span>Always open the app from the home-screen icon — not the browser — for the most reliable notifications.</span></div>
   </div>
 </section>
 
+<!-- 6. FAQ -->
 <section id="faq">
   <div class="section-header">
-    <div class="section-num">10</div>
+    <div class="section-num">6</div>
     <h2 class="section-title">Frequently Asked Questions</h2>
   </div>
 
-  <details><summary>I can't log in — what do I do?</summary><div class="faq-body">Make sure you're using the correct email or phone number (format: 08012345678, not +234). If you forgot your password, contact your programme admin — they can reset it for you instantly from User Management. You'll be back in within a minute.</div></details>
+  <details><summary>I can't log in — what do I do?</summary><div class="faq-body">Use the correct email or phone number (format: 08012345678, not +234). Forgot your password? Contact your programme admin — they reset it instantly from Users. You'll be back in within a minute.</div></details>
 
-  <details><summary>How does password reset work?</summary><div class="faq-body">There is no self-service password reset. If you forget your password, message your programme admin. They open User Management, find your name, tap "Reset PW", set a new password, and share it with you. Log in with the new password — done.</div></details>
+  <details><summary>My schedule is empty / says "not published yet"</summary><div class="faq-body">Support members only see activities after the admin <strong>publishes</strong> the schedule for the active cohort. Until then you'll see the "not published yet" message — that's normal. If it stays empty after publishing, your activity tags or group may not be set; contact your admin.</div></details>
 
-  <details><summary>My schedule is empty / I can't see any activities</summary><div class="faq-body">Support users see only activities assigned to their label group. If nothing shows, your admin may not have assigned your label yet. Contact them. Admin and SOP Preparer users seeing an empty schedule should check their internet connection or refresh the page.</div></details>
+  <details><summary>How does the Cohort → Group → Participant structure work?</summary><div class="faq-body">A Cohort is one run of the programme made of numbered weeks. Inside a cohort are Groups; each group is led by one Support member and contains Participants. Follow-up contacts are separate — they're prospective people being invited, not participants.</div></details>
 
-  <details><summary>I submitted a change but it's not on the schedule yet</summary><div class="faq-body">SOP Preparer changes go to the admin for approval first. The change only appears on the live schedule after the admin approves it. Check the Pending Changes section for status.</div></details>
+  <details><summary>What's the difference between a Participant and a Follow-up contact?</summary><div class="faq-body">A Participant is someone already in a small group, taking part in the programme. A Follow-up contact is a prospective person being called/registered. Contacts can be assigned to a Support member to work; once registered, they may become participants.</div></details>
 
-  <details><summary>I'm not getting push notifications</summary><div class="faq-body">Check that you tapped Allow when prompted. If you dismissed it, go to phone/browser Settings → Site Settings → Notifications and allow FOF IKD Ops. Also check Do Not Disturb is off. After reinstalling the PWA, open the app once to refresh your subscription.</div></details>
+  <details><summary>I marked an activity done by mistake</summary><div class="faq-body">Tap "Mark done" again to undo it. It saves instantly each way.</div></details>
 
-  <details><summary>The app shows old data</summary><div class="faq-body">Pull down to refresh. If there's a "New version available" banner, tap Refresh to get the latest update. If data is still stale, check your internet connection.</div></details>
+  <details><summary>How do I publish or unpublish the schedule? <span class="pill pill-admin">Admin</span></summary><div class="faq-body">On the Schedule page, use the publish toggle at the top and confirm. Publishing makes the schedule visible to Support; unpublishing returns it to draft and hides it again.</div></details>
 
-  <details><summary>Can I use the app on multiple devices?</summary><div class="faq-body">Yes. Push notifications will go to your most recently registered device. If you switch phones, open the app on the new device and enable notifications to move the subscription over.</div></details>
+  <details><summary>I'm not getting push notifications</summary><div class="faq-body">Check you tapped Allow when prompted. If you dismissed it, go to phone/browser Settings → Site Settings → Notifications and allow FOF IKD Ops. Make sure Do Not Disturb is off. After reinstalling the app, open it once to refresh your subscription. Notifications go to your most recently registered device only.</div></details>
 
-  <details><summary>How do I see the full schedule, not just my team's?</summary><div class="faq-body">Support users see a filtered view based on their assigned labels. To see the full schedule, your admin would need to upgrade your role to SOP Preparer or Admin. Speak to your programme admin.</div></details>
+  <details><summary>The Install banner keeps showing</summary><div class="faq-body">That's by design — in a browser the banner reminds you on each visit. It disappears for good once you install the app to your home screen and open it from there.</div></details>
 
-  <details><summary>"Export My Schedule" — who is this for?</summary><div class="faq-body">All roles can use this. It exports only the activities assigned to your label group, making it perfect for printing your personal programme sheet. If you have no labels assigned, it exports the full schedule.</div></details>
+  <details><summary>The app shows old data</summary><div class="faq-body">Pull down to refresh. If a "New version available" banner appears, tap Refresh to update. If data is still stale, check your internet connection.</div></details>
 </section>
 
 </main>

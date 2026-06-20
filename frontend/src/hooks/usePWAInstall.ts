@@ -5,8 +5,6 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-const DISMISS_KEY = 'pwa_install_prompt_dismissed_at';
-
 function isIOS() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
 }
@@ -33,8 +31,6 @@ export function usePWAInstall() {
     const standalone = isInStandaloneMode();
     setIsStandalone(standalone);
     if (standalone) return;
-
-    window.localStorage.removeItem(DISMISS_KEY);
 
     const ios = isIOS();
     const android = isAndroid();
@@ -70,7 +66,6 @@ export function usePWAInstall() {
       setCanInstall(false);
       setIsStandalone(true);
       setHasNativePrompt(false);
-      window.localStorage.removeItem(DISMISS_KEY);
     };
 
     window.addEventListener('appinstalled', onInstalled);
@@ -88,7 +83,6 @@ export function usePWAInstall() {
       const { outcome } = await promptRef.current.userChoice;
       if (outcome === 'accepted') {
         setCanInstall(false);
-        window.localStorage.removeItem(DISMISS_KEY);
       }
     } finally {
       setIsInstalling(false);
@@ -100,7 +94,6 @@ export function usePWAInstall() {
 
   const dismiss = () => {
     setCanInstall(false);
-    window.localStorage.removeItem(DISMISS_KEY);
   };
 
   return { canInstall, install, dismiss, isIOSDevice, isAndroidDevice, isStandalone, isInstalling, hasNativePrompt };
