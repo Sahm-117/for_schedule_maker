@@ -394,6 +394,12 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async setRegistrationLink(url: string): Promise<{ url: string }> {
     return { url };
   },
+  async getSupportContact(): Promise<{ name: string; phone: string }> {
+    return { name: 'Adetutu', phone: '2348184742850' };
+  },
+  async setSupportContact(contact: { name: string; phone: string }): Promise<{ name: string; phone: string }> {
+    return contact;
+  },
 };
 
 export const pushSubscriptionsApi = USE_SUPABASE ? supabasePushSubscriptionsApi : {

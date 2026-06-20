@@ -1848,6 +1848,49 @@ export const settingsApi = {
     const value = (data as any)?.value;
     return { url: typeof value === 'string' ? value : '' };
   },
+
+  // Support contact shown by the floating "Need Support" button. Stored as a
+  // { name, phone } object so admins can change who help routes to without a
+  // deploy. Falls back to a sensible default so the button always works.
+  async getSupportContact(): Promise<{ name: string; phone: string }> {
+    const fallback = { name: 'Adetutu', phone: '2348184742850' };
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'support_contact')
+      .maybeSingle();
+
+    if (error) {
+      // Missing table/row should not break the UI — return the default.
+      return fallback;
+    }
+
+    const value = (data as any)?.value;
+    if (value && typeof value === 'object' && typeof value.phone === 'string' && value.phone.trim()) {
+      return { name: typeof value.name === 'string' && value.name.trim() ? value.name : fallback.name, phone: value.phone };
+    }
+    return fallback;
+  },
+
+  async setSupportContact(contact: { name: string; phone: string }): Promise<{ name: string; phone: string }> {
+    const payload = { name: contact.name.trim(), phone: contact.phone.trim() };
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert(
+        [{
+          settingKey: 'support_contact',
+          value: payload,
+          updatedAt: new Date().toISOString(),
+        }],
+        { onConflict: 'settingKey' }
+      );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return payload;
+  },
 };
 
 export const digestApi = {

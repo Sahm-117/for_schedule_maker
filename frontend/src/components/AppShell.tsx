@@ -7,6 +7,7 @@ import RejectedChangesNotification from './RejectedChangesNotification';
 import NotificationPromptModal from './NotificationPromptModal';
 import PWAInstallBanner from './PWAInstallBanner';
 import PWAUpdateBanner from './PWAUpdateBanner';
+import NeedSupportButton from './NeedSupportButton';
 import ErrorBoundary from './ErrorBoundary';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { isWalkthroughDismissed } from '../hooks/useWalkthrough';
@@ -547,6 +548,7 @@ const AppShell: React.FC = () => {
       </nav>
 
       <PWAInstallBanner />
+      <NeedSupportButton />
     </div>
   );
 };
