@@ -17,6 +17,7 @@ import {
   buildExistingPhoneSet,
   type ParsedContactRow,
   type ParsedRegistrationRow,
+  type SkippedImportRow,
 } from '../utils/contactImport';
 import { sortByText } from '../utils/sort';
 import { normalizeToIntlPhone } from '../utils/phone';
@@ -257,6 +258,14 @@ interface ImportModalProps {
 }
 
 type ImportTab = 'paste' | 'csv';
+type CsvPreviewFilter = 'new' | 'update' | 'skipped';
+
+type CsvPreviewItem = {
+  row: ParsedRegistrationRow;
+  kind: 'new' | 'update' | 'nothing-to-fill';
+  existing?: Participant;
+  fillFields: string[];
+};
 
 // Decide create-vs-fill for each parsed CSV row against existing participants —
 // mirrors importWithEnrich so the preview counts are accurate before import.
@@ -268,24 +277,42 @@ const splitRegistrationRows = (rows: ParsedRegistrationRow[], existing: Particip
   }
   const isEmpty = (v: unknown) =>
     v === null || v === undefined || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && v.length === 0);
-  let toCreate = 0;
-  let toUpdate = 0;
-  let nothingToFill = 0;
+  const newRows: CsvPreviewItem[] = [];
+  const updateRows: CsvPreviewItem[] = [];
+  const nothingToFillRows: CsvPreviewItem[] = [];
+  const fieldChecks: Array<[keyof ParsedRegistrationRow, keyof Participant, string]> = [
+    ['email', 'email', 'Email'],
+    ['gender', 'gender', 'Gender'],
+    ['ageRange', 'ageRange', 'Age range'],
+    ['departments', 'departments', 'Department(s)'],
+    ['registrationDate', 'registrationDate', 'Registration date'],
+    ['smartRequest', 'smartRequest', 'SMART request'],
+  ];
+
   for (const r of rows) {
     const intl = normalizeToIntlPhone(r.phone);
     const match = intl ? byPhone.get(intl) : undefined;
-    if (!match) { toCreate += 1; continue; }
-    const fills = (
-      (isEmpty(match.email) && !isEmpty(r.email)) ||
-      (isEmpty(match.gender) && !isEmpty(r.gender)) ||
-      (isEmpty(match.ageRange) && !isEmpty(r.ageRange)) ||
-      (isEmpty(match.departments) && !isEmpty(r.departments)) ||
-      (isEmpty(match.registrationDate) && !isEmpty(r.registrationDate)) ||
-      (isEmpty(match.smartRequest) && !isEmpty(r.smartRequest))
-    );
-    if (fills) toUpdate += 1; else nothingToFill += 1;
+    if (!match) {
+      newRows.push({ row: r, kind: 'new', fillFields: [] });
+      continue;
+    }
+    const fillFields = fieldChecks
+      .filter(([csvKey, participantKey]) => isEmpty(match[participantKey]) && !isEmpty(r[csvKey]))
+      .map(([, , label]) => label);
+    if (fillFields.length > 0) {
+      updateRows.push({ row: r, kind: 'update', existing: match, fillFields });
+    } else {
+      nothingToFillRows.push({ row: r, kind: 'nothing-to-fill', existing: match, fillFields: [] });
+    }
   }
-  return { toCreate, toUpdate, nothingToFill };
+  return {
+    toCreate: newRows.length,
+    toUpdate: updateRows.length,
+    nothingToFill: nothingToFillRows.length,
+    newRows,
+    updateRows,
+    nothingToFillRows,
+  };
 };
 
 const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, onUpserted, cohortId, existingParticipants }) => {
@@ -294,6 +321,10 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
   const [preview, setPreview] = useState<{ rows: ParsedContactRow[]; skipped: number; duplicates: number } | null>(null);
   const [csvRows, setCsvRows] = useState<ParsedRegistrationRow[] | null>(null);
   const [csvSkipped, setCsvSkipped] = useState(0);
+  const [csvSkippedRows, setCsvSkippedRows] = useState<SkippedImportRow[]>([]);
+  const [csvPreviewFilter, setCsvPreviewFilter] = useState<CsvPreviewFilter>('new');
+  const [csvIncludeNew, setCsvIncludeNew] = useState(true);
+  const [csvIncludeUpdates, setCsvIncludeUpdates] = useState(true);
   const [fileName, setFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [err, setErr] = useState('');
@@ -310,7 +341,8 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
 
   const handleClose = () => {
     setTab('paste'); setPasteText(''); setPreview(null);
-    setCsvRows(null); setCsvSkipped(0); setFileName(''); setErr(''); onClose();
+    setCsvRows(null); setCsvSkipped(0); setCsvSkippedRows([]); setCsvPreviewFilter('new');
+    setCsvIncludeNew(true); setCsvIncludeUpdates(true); setFileName(''); setErr(''); onClose();
   };
 
   const handlePreview = () => {
@@ -327,6 +359,10 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
       const parsed = parseRegistrationCsv(String(reader.result || ''));
       setCsvRows(parsed.rows);
       setCsvSkipped(parsed.skipped);
+      setCsvSkippedRows(parsed.skippedRows ?? []);
+      setCsvPreviewFilter(parsed.rows.length > 0 ? 'new' : 'skipped');
+      setCsvIncludeNew(true);
+      setCsvIncludeUpdates(true);
       setErr(parsed.error || '');
     };
     reader.readAsText(file);
@@ -350,12 +386,12 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
   };
 
   const handleCsvImport = async () => {
-    if (!csvRows || csvRows.length === 0) return;
+    if (!csvRowsForImport || csvRowsForImport.length === 0) return;
     setImporting(true);
     setErr('');
     try {
       const { created, updated } = await participantsApi.importWithEnrich(
-        csvRows.map((r) => ({
+        csvRowsForImport.map((r) => ({
           fullName: r.fullName,
           phone: r.phone || null,
           email: r.email ?? null,
@@ -380,11 +416,45 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
   const tabClass = (active: boolean) =>
     `rounded-2xl px-4 py-2 text-sm font-semibold transition ${active ? 'bg-primary text-white' : 'bg-orange-50 text-gray-600 hover:bg-orange-100'}`;
 
-  const canImport = tab === 'paste' ? !!preview && preview.rows.length > 0 : !!csvRows && csvRows.length > 0;
+  const csvRowsForImport = csvSplit
+    ? [
+        ...(csvIncludeNew ? csvSplit.newRows.map((item) => item.row) : []),
+        ...(csvIncludeUpdates ? csvSplit.updateRows.map((item) => item.row) : []),
+      ]
+    : [];
+  const canImport = tab === 'paste' ? !!preview && preview.rows.length > 0 : csvRowsForImport.length > 0;
   const doImport = tab === 'paste' ? handlePasteImport : handleCsvImport;
   const importLabel = tab === 'paste'
     ? `Import ${preview?.rows.length ?? 0} participants`
-    : `Import ${(csvSplit?.toCreate ?? 0) + (csvSplit?.toUpdate ?? 0)} participants`;
+    : `Import ${csvRowsForImport.length} participants`;
+  const activeCsvItems = csvSplit
+    ? csvPreviewFilter === 'new'
+      ? csvSplit.newRows
+      : csvPreviewFilter === 'update'
+        ? csvSplit.updateRows
+        : csvSplit.nothingToFillRows
+    : [];
+  const activeCsvSkippedRows = csvPreviewFilter === 'skipped' ? csvSkippedRows : [];
+  const activeCsvEmptyMessage = csvPreviewFilter === 'new'
+    ? 'No new participants in this file.'
+    : csvPreviewFilter === 'update'
+      ? 'No existing participants have empty fields to fill.'
+      : 'No skipped or unparseable rows.';
+  const csvPillClass = (active: boolean, tone: 'new' | 'update' | 'skipped') => {
+    const styles = {
+      new: active ? 'bg-emerald-600 text-white' : 'bg-emerald-100/80 text-emerald-700 hover:bg-emerald-200/80',
+      update: active ? 'bg-sky-600 text-white' : 'bg-sky-100/80 text-sky-700 hover:bg-sky-200/80',
+      skipped: active ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+    };
+    return `rounded-full px-2.5 py-1 font-semibold transition ${styles[tone]}`;
+  };
+  const csvActionClass = (enabled: boolean, tone: 'new' | 'update') => {
+    const styles = {
+      new: enabled ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-white text-gray-400',
+      update: enabled ? 'border-sky-300 bg-sky-50 text-sky-700' : 'border-gray-200 bg-white text-gray-400',
+    };
+    return `inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-semibold transition hover:bg-white ${styles[tone]}`;
+  };
 
   return (
     <ModalShell
@@ -465,24 +535,112 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
             {csvRows && csvSplit && (
               <div className="rounded-2xl border border-orange-100 bg-orange-50/50 p-4">
                 <div className="mb-2 flex flex-wrap gap-2 text-xs">
-                  <span className="rounded-full bg-emerald-100/80 px-2.5 py-1 font-semibold text-emerald-700">{csvSplit.toCreate} new</span>
-                  <span className="rounded-full bg-sky-100/80 px-2.5 py-1 font-semibold text-sky-700">{csvSplit.toUpdate} will be updated</span>
+                  <button type="button" onClick={() => setCsvPreviewFilter('new')} className={csvPillClass(csvPreviewFilter === 'new', 'new')}>
+                    {csvSplit.toCreate} new
+                  </button>
+                  <button type="button" onClick={() => setCsvPreviewFilter('update')} className={csvPillClass(csvPreviewFilter === 'update', 'update')}>
+                    {csvSplit.toUpdate} will be updated
+                  </button>
                   {(csvSplit.nothingToFill > 0 || csvSkipped > 0) && (
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">
+                    <button type="button" onClick={() => setCsvPreviewFilter('skipped')} className={csvPillClass(csvPreviewFilter === 'skipped', 'skipped')}>
                       {csvSplit.nothingToFill + csvSkipped} skipped
                       {csvSkipped > 0 ? ` (${csvSkipped} unparseable)` : ''}
-                    </span>
+                    </button>
                   )}
                 </div>
-                <ul className="max-h-48 overflow-y-auto text-xs text-gray-600">
-                  {csvRows.map((r, i) => (
-                    <li key={i} className="flex items-center gap-2 py-0.5">
-                      <span className="font-medium text-gray-800">{r.fullName}</span>
-                      <span className="text-gray-400">{r.phone}</span>
-                      {r.email && <span className="truncate text-gray-400">· {r.email}</span>}
-                    </li>
-                  ))}
-                </ul>
+                <div className="mb-3 rounded-2xl border border-orange-100 bg-white/60 px-3 py-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Import actions</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCsvIncludeNew((value) => !value)}
+                      disabled={csvSplit.toCreate === 0}
+                      className={`${csvActionClass(csvIncludeNew, 'new')} disabled:cursor-not-allowed disabled:opacity-50`}
+                    >
+                      <span className={`grid h-4 w-4 place-items-center rounded border ${csvIncludeNew ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 bg-white text-transparent'}`}>
+                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 13 4 4L19 7" />
+                        </svg>
+                      </span>
+                      Create new ({csvSplit.toCreate})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCsvIncludeUpdates((value) => !value)}
+                      disabled={csvSplit.toUpdate === 0}
+                      className={`${csvActionClass(csvIncludeUpdates, 'update')} disabled:cursor-not-allowed disabled:opacity-50`}
+                    >
+                      <span className={`grid h-4 w-4 place-items-center rounded border ${csvIncludeUpdates ? 'border-sky-500 bg-sky-500 text-white' : 'border-gray-300 bg-white text-transparent'}`}>
+                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 13 4 4L19 7" />
+                        </svg>
+                      </span>
+                      Update existing ({csvSplit.toUpdate})
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[11px] font-semibold text-gray-400">
+                    {csvRowsForImport.length > 0
+                      ? `${csvRowsForImport.length} selected for import. Skipped rows are never imported.`
+                      : 'Nothing selected for import.'}
+                  </p>
+                </div>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    {csvPreviewFilter === 'new' ? 'New participants' : csvPreviewFilter === 'update' ? 'Existing participants to update' : 'Skipped rows'}
+                  </p>
+                  <p className="text-[11px] font-semibold text-gray-400">
+                    {csvPreviewFilter === 'skipped' ? activeCsvSkippedRows.length + csvSplit.nothingToFill : activeCsvItems.length} shown
+                  </p>
+                </div>
+                <div className="max-h-48 overflow-y-auto pr-2 text-xs text-gray-600">
+                  {csvPreviewFilter !== 'skipped' && activeCsvItems.length > 0 && (
+                    <ul className="space-y-1.5">
+                      {activeCsvItems.map((item, i) => (
+                        <li key={`${item.row.phone}-${i}`} className="rounded-xl bg-white/60 px-3 py-2">
+                          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="font-medium text-gray-800">{item.row.fullName}</span>
+                            <span className="text-gray-400">{item.row.phone}</span>
+                            {item.row.email && <span className="min-w-0 truncate text-gray-400">· {item.row.email}</span>}
+                          </div>
+                          {item.kind === 'update' && item.existing && (
+                            <p className="mt-1 text-[11px] text-sky-700">
+                              Matches {item.existing.fullName}; will fill {item.fillFields.join(', ')}.
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {csvPreviewFilter === 'skipped' && (csvSplit.nothingToFillRows.length > 0 || activeCsvSkippedRows.length > 0) && (
+                    <ul className="space-y-1.5">
+                      {csvSplit.nothingToFillRows.map((item, i) => (
+                        <li key={`nothing-${item.row.phone}-${i}`} className="rounded-xl bg-white/60 px-3 py-2">
+                          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="font-medium text-gray-800">{item.row.fullName}</span>
+                            <span className="text-gray-400">{item.row.phone}</span>
+                            {item.existing && <span className="min-w-0 truncate text-gray-400">· matches {item.existing.fullName}</span>}
+                          </div>
+                          <p className="mt-1 text-[11px] text-slate-600">Already exists and no empty registration fields will be filled.</p>
+                        </li>
+                      ))}
+                      {activeCsvSkippedRows.map((row) => (
+                        <li key={`unparseable-${row.rowNumber}`} className="rounded-xl bg-white/60 px-3 py-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold text-gray-800">Row {row.rowNumber}</span>
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">{row.reason}</span>
+                          </div>
+                          <p className="mt-1 break-words font-mono text-[11px] text-gray-500">{row.raw}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {((csvPreviewFilter !== 'skipped' && activeCsvItems.length === 0) ||
+                    (csvPreviewFilter === 'skipped' && csvSplit.nothingToFillRows.length === 0 && activeCsvSkippedRows.length === 0)) && (
+                    <p className="rounded-xl bg-white/60 px-3 py-6 text-center text-sm font-semibold text-gray-400">{activeCsvEmptyMessage}</p>
+                  )}
+                </div>
               </div>
             )}
           </>

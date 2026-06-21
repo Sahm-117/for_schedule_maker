@@ -19,9 +19,16 @@ export interface ParsedRegistrationRow {
   smartRequest?: string;
 }
 
+export interface SkippedImportRow {
+  rowNumber: number;
+  raw: string;
+  reason: string;
+}
+
 export interface RegistrationParseResult {
   rows: ParsedRegistrationRow[];
   skipped: number; // rows that could not be parsed (no name / no valid phone)
+  skippedRows?: SkippedImportRow[];
   error?: string;
 }
 
@@ -218,15 +225,21 @@ export const parseRegistrationCsv = (text: string): RegistrationParseResult => {
 
   const rows: ParsedRegistrationRow[] = [];
   let skipped = 0;
+  const skippedRows: SkippedImportRow[] = [];
   const seen = new Set<string>();
 
-  for (const line of lines.slice(1)) {
+  for (const [index, line] of lines.slice(1).entries()) {
     const cells = splitCsvLine(line);
     const name = cols.nameIndexes.map((i) => cell(cells, i)).filter(Boolean).join(' ');
     const phone = cell(cells, cols.phoneIndex);
     const intl = normalizeToIntlPhone(phone);
     if (!name || !intl) {
       skipped += 1;
+      skippedRows.push({
+        rowNumber: index + 2,
+        raw: line,
+        reason: !name ? 'Missing name' : 'Phone could not be parsed',
+      });
       continue;
     }
     if (seen.has(intl)) continue; // de-dupe within file only
@@ -249,5 +262,5 @@ export const parseRegistrationCsv = (text: string): RegistrationParseResult => {
     });
   }
 
-  return { rows, skipped };
+  return { rows, skipped, skippedRows };
 };
