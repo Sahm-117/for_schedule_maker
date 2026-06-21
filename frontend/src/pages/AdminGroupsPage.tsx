@@ -128,6 +128,7 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(true);
+  const searchRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -164,13 +165,20 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
   };
 
   const [search, setSearch] = useState('');
+  // Only offer participants who aren't already in another group — assignable
+  // means unassigned, or already a member of THIS group (so current members
+  // still show and can be toggled off). Anyone in a different group is hidden.
+  const assignable = useMemo(
+    () => allParticipants.filter((p) => !p.groupId || p.groupId === group.id || selected.has(p.id)),
+    [allParticipants, group.id, selected]
+  );
   const filtered = useMemo(() => {
-    if (!search.trim()) return allParticipants;
+    if (!search.trim()) return assignable;
     const q = search.toLowerCase();
-    return allParticipants.filter((p) =>
+    return assignable.filter((p) =>
       p.fullName.toLowerCase().includes(q) || (p.phone ?? '').toLowerCase().includes(q)
     );
-  }, [allParticipants, search]);
+  }, [assignable, search]);
 
   const selectedParticipants = useMemo(
     () => allParticipants.filter((participant) => selected.has(participant.id)),
@@ -211,6 +219,7 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
           </div>
         )}
         <input
+          ref={searchRef}
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -220,20 +229,31 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
         {loading ? (
           <p className="text-sm text-gray-400">Loading…</p>
         ) : (
-          <ul className="max-h-80 overflow-y-auto divide-y divide-orange-50">
+          // On mobile the search keyboard otherwise eats the first tap on a row
+          // (tap 1 blurs the input, tap 2 selects). Dismiss the keyboard as soon
+          // as the user starts scrolling the list, and toggle on pointerdown so
+          // the first tap always registers.
+          <ul
+            className="max-h-80 touch-pan-y overflow-y-auto divide-y divide-orange-50"
+            onTouchMove={() => searchRef.current?.blur()}
+          >
             {filtered.map((p) => (
-              <li key={p.id} className="flex items-center gap-3 py-2.5">
+              <li
+                key={p.id}
+                onPointerDown={(e) => { e.preventDefault(); searchRef.current?.blur(); toggle(p.id); }}
+                className={`flex cursor-pointer items-center gap-3 rounded-lg py-2.5 transition ${selected.has(p.id) ? 'bg-orange-50/60' : 'hover:bg-gray-50'}`}
+              >
                 <input
                   type="checkbox"
-                  id={`mp-${p.id}`}
                   checked={selected.has(p.id)}
-                  onChange={() => toggle(p.id)}
-                  className="h-4 w-4 accent-primary"
+                  readOnly
+                  tabIndex={-1}
+                  className="pointer-events-none h-4 w-4 accent-primary"
                 />
-                <label htmlFor={`mp-${p.id}`} className="flex-1 cursor-pointer text-sm text-gray-800">
+                <span className="flex-1 text-sm text-gray-800">
                   {p.fullName}
                   {p.phone && <span className="ml-2 text-xs text-gray-400">{p.phone}</span>}
-                </label>
+                </span>
               </li>
             ))}
             {filtered.length === 0 && <li className="py-4 text-center text-sm text-gray-400">No participants found</li>}

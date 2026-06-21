@@ -6,6 +6,25 @@ export interface ParsedContactRow {
   source?: string;
 }
 
+// Registration import row — carries the optional church-registration fields in
+// addition to name + phone. Used by the Participants CSV import.
+export interface ParsedRegistrationRow {
+  fullName: string;
+  phone: string;
+  email?: string;
+  gender?: string;
+  ageRange?: string;
+  departments?: string[];
+  registrationDate?: string;
+  smartRequest?: string;
+}
+
+export interface RegistrationParseResult {
+  rows: ParsedRegistrationRow[];
+  skipped: number; // rows that could not be parsed (no name / no valid phone)
+  error?: string;
+}
+
 export interface ImportParseResult {
   rows: ParsedContactRow[];
   skipped: number; // rows that could not be parsed
@@ -153,4 +172,82 @@ export const buildExistingPhoneSet = (phones: Array<string | null | undefined>):
     if (intl) set.add(intl);
   }
   return set;
+};
+
+// --- Registration CSV: name + phone + the extra registration fields ---------
+// Unlike parseCsv, this does NOT pre-skip rows whose phone already exists — the
+// create-vs-fill decision happens at import time (importWithEnrich). It only
+// de-dupes within the file and skips rows with no name / no valid phone.
+interface RegistrationCols {
+  nameIndexes: number[];
+  phoneIndex: number;
+  emailIndex: number;
+  genderIndex: number;
+  ageIndex: number;
+  dateIndex: number;
+  smartIndex: number;
+  deptIndex: number;
+}
+
+const detectRegistrationColumns = (headers: string[]): RegistrationCols | null => {
+  const base = detectColumns(headers);
+  if (!base) return null;
+  const lower = headers.map((h) => h.toLowerCase());
+  const find = (pred: (h: string) => boolean) => lower.findIndex(pred);
+  return {
+    nameIndexes: base.nameIndexes,
+    phoneIndex: base.phoneIndex,
+    emailIndex: find((h) => h.includes('email')),
+    genderIndex: find((h) => h.includes('gender') || h === 'sex'),
+    ageIndex: find((h) => h.includes('age')),
+    dateIndex: find((h) => h.includes('registration date') || h.includes('reg date') || (h.includes('date') && !h.includes('update'))),
+    smartIndex: find((h) => h.includes('smart') || h.includes('request')),
+    deptIndex: find((h) => h.includes('department')),
+  };
+};
+
+const cell = (cells: string[], i: number): string => (i >= 0 ? (cells[i] || '').trim() : '');
+
+export const parseRegistrationCsv = (text: string): RegistrationParseResult => {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return { rows: [], skipped: 0, error: 'File has no data rows.' };
+
+  const headers = splitCsvLine(lines[0]);
+  const cols = detectRegistrationColumns(headers);
+  if (!cols) return { rows: [], skipped: 0, error: 'Could not find name and phone columns in this file.' };
+
+  const rows: ParsedRegistrationRow[] = [];
+  let skipped = 0;
+  const seen = new Set<string>();
+
+  for (const line of lines.slice(1)) {
+    const cells = splitCsvLine(line);
+    const name = cols.nameIndexes.map((i) => cell(cells, i)).filter(Boolean).join(' ');
+    const phone = cell(cells, cols.phoneIndex);
+    const intl = normalizeToIntlPhone(phone);
+    if (!name || !intl) {
+      skipped += 1;
+      continue;
+    }
+    if (seen.has(intl)) continue; // de-dupe within file only
+    seen.add(intl);
+
+    const deptRaw = cell(cells, cols.deptIndex);
+    const departments = deptRaw
+      ? deptRaw.split(',').map((d) => d.trim()).filter(Boolean)
+      : undefined;
+
+    rows.push({
+      fullName: name,
+      phone,
+      email: cell(cells, cols.emailIndex) || undefined,
+      gender: cell(cells, cols.genderIndex) || undefined,
+      ageRange: cell(cells, cols.ageIndex) || undefined,
+      departments,
+      registrationDate: cell(cells, cols.dateIndex) || undefined,
+      smartRequest: cell(cells, cols.smartIndex) || undefined,
+    });
+  }
+
+  return { rows, skipped };
 };

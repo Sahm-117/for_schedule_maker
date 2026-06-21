@@ -13,6 +13,7 @@ import type {
   DailyDigestFunctionResponse
 } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
+import { normalizeToIntlPhone } from '../utils/phone';
 import { sendTelegramNotificationBestEffort } from './telegramNotifications';
 
 // Types for API responses are now imported from ../types
@@ -2937,6 +2938,12 @@ const mapParticipant = (row: any): import('../types').Participant => {
     followUpContactId: row.followUpContactId ?? null,
     status: row.status ?? 'ACTIVE',
     notes: row.notes ?? null,
+    email: row.email ?? null,
+    gender: row.gender ?? null,
+    ageRange: row.ageRange ?? null,
+    departments: row.departments ?? [],
+    registrationDate: row.registrationDate ?? null,
+    smartRequest: row.smartRequest ?? null,
     groupId: gp?.group?.id ?? null,
     groupName: gp?.group?.name ?? null,
     createdAt: row.createdAt,
@@ -2983,6 +2990,12 @@ export const participantsApi = {
     source?: string;
     followUpContactId?: string | null;
     notes?: string | null;
+    email?: string | null;
+    gender?: string | null;
+    ageRange?: string | null;
+    departments?: string[];
+    registrationDate?: string | null;
+    smartRequest?: string | null;
   }): Promise<{ participant: import('../types').Participant }> {
     const { data, error } = await supabase
       .from('Participant')
@@ -2999,6 +3012,12 @@ export const participantsApi = {
     phone?: string | null;
     cohortId?: string | null;
     source?: string;
+    email?: string | null;
+    gender?: string | null;
+    ageRange?: string | null;
+    departments?: string[];
+    registrationDate?: string | null;
+    smartRequest?: string | null;
   }>): Promise<{ participants: import('../types').Participant[] }> {
     if (rows.length === 0) return { participants: [] };
     const inserts = rows.map((r) => ({ ...r, source: r.source ?? 'IMPORT' }));
@@ -3009,6 +3028,79 @@ export const participantsApi = {
 
     if (error) throw new Error(error.message);
     return { participants: ((data as any[]) || []).map(mapParticipant) };
+  },
+
+  // Create-or-fill import: rows whose phone matches an existing participant get
+  // their EMPTY registration fields filled in (never overwriting a populated
+  // value, never touching name/phone/group). Unmatched rows are created. Match
+  // key is the normalized phone number.
+  async importWithEnrich(
+    rows: Array<{
+      fullName: string;
+      phone?: string | null;
+      email?: string | null;
+      gender?: string | null;
+      ageRange?: string | null;
+      departments?: string[];
+      registrationDate?: string | null;
+      smartRequest?: string | null;
+    }>,
+    cohortId: string | null,
+    existing: import('../types').Participant[],
+  ): Promise<{ created: import('../types').Participant[]; updated: import('../types').Participant[]; skipped: number }> {
+    const byPhone = new Map<string, import('../types').Participant>();
+    for (const p of existing) {
+      const intl = normalizeToIntlPhone(p.phone);
+      if (intl && !byPhone.has(intl)) byPhone.set(intl, p);
+    }
+
+    const isEmpty = (v: unknown): boolean =>
+      v === null || v === undefined || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && v.length === 0);
+
+    const toCreate: typeof rows = [];
+    const matches: Array<{ id: string; patch: import('../types').ParticipantUpdate }> = [];
+    let skipped = 0;
+
+    for (const r of rows) {
+      const intl = normalizeToIntlPhone(r.phone);
+      const match = intl ? byPhone.get(intl) : undefined;
+      if (!match) {
+        toCreate.push(r);
+        continue;
+      }
+      // Fill-only patch: include a field solely when the existing value is empty
+      // and the CSV supplies a non-empty one.
+      const patch: import('../types').ParticipantUpdate = {};
+      if (isEmpty(match.email) && !isEmpty(r.email)) patch.email = r.email!.trim();
+      if (isEmpty(match.gender) && !isEmpty(r.gender)) patch.gender = r.gender!.trim();
+      if (isEmpty(match.ageRange) && !isEmpty(r.ageRange)) patch.ageRange = r.ageRange!.trim();
+      if (isEmpty(match.departments) && !isEmpty(r.departments)) patch.departments = r.departments!;
+      if (isEmpty(match.registrationDate) && !isEmpty(r.registrationDate)) patch.registrationDate = r.registrationDate!;
+      if (isEmpty(match.smartRequest) && !isEmpty(r.smartRequest)) patch.smartRequest = r.smartRequest!.trim();
+
+      if (Object.keys(patch).length === 0) {
+        skipped += 1; // matched, but nothing to fill
+      } else {
+        matches.push({ id: match.id, patch });
+      }
+    }
+
+    const created = toCreate.length
+      ? (await participantsApi.createMany(toCreate.map((r) => ({ ...r, cohortId, source: 'IMPORT' })))).participants
+      : [];
+
+    // Apply fill-updates in small concurrent batches to bound round-trips.
+    const updated: import('../types').Participant[] = [];
+    const BATCH = 5;
+    for (let i = 0; i < matches.length; i += BATCH) {
+      const slice = matches.slice(i, i + BATCH);
+      const results = await Promise.all(
+        slice.map((m) => participantsApi.update(m.id, m.patch).then((res) => res.participant)),
+      );
+      updated.push(...results);
+    }
+
+    return { created, updated, skipped };
   },
 
   async update(participantId: string, input: import('../types').ParticipantUpdate): Promise<{ participant: import('../types').Participant }> {

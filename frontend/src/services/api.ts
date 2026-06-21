@@ -467,6 +467,7 @@ export const participantsApi = USE_SUPABASE ? supabaseParticipantsApi : {
   async getAll(_options?: any): Promise<{ participants: import('../types').Participant[] }> { return { participants: [] }; },
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
   async createMany(_rows: any[]): Promise<never> { return peopleUnavailable(); },
+  async importWithEnrich(_rows: any[], _cohortId: string | null, _existing: any[]): Promise<never> { return peopleUnavailable(); },
   async update(_id: string, _input: any): Promise<never> { return peopleUnavailable(); },
   async archive(_id: string): Promise<never> { return peopleUnavailable(); },
   async delete(_id: string): Promise<never> { return peopleUnavailable(); },

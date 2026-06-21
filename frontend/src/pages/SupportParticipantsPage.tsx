@@ -95,19 +95,128 @@ const CopyPhoneButton: React.FC<{ phone?: string | null }> = ({ phone }) => {
   );
 };
 
+// Read-only registration details (from the church platform / Google Form).
+// Always renders every field; empty values show "—" so supports can see what's
+// missing. Used inside the per-participant "More details" accordion.
+const RegistrationDetails: React.FC<{ participant: Participant }> = ({ participant }) => {
+  const { email, gender, ageRange, departments, registrationDate, smartRequest } = participant;
+  const regDate = registrationDate ? registrationDate.slice(0, 10) : null;
+  const dash = <span className="text-gray-400">—</span>;
+
+  const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
+      <div className="mt-0.5 break-words text-sm text-gray-700">{children}</div>
+    </div>
+  );
+
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <Row label="Email">{email ? <span className="break-all">{email}</span> : dash}</Row>
+      <Row label="Gender">{gender || dash}</Row>
+      <Row label="Age range">{ageRange || dash}</Row>
+      <Row label="Registration date">{regDate || dash}</Row>
+      <div className="sm:col-span-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Department(s)</p>
+        {departments && departments.length > 0 ? (
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {departments.map((d) => (
+              <span key={d} className="max-w-full break-words rounded-full bg-indigo-100/80 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">{d}</span>
+            ))}
+          </div>
+        ) : <div className="mt-0.5 text-sm">{dash}</div>}
+      </div>
+      <div className="sm:col-span-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">SMART request</p>
+        {smartRequest ? (
+          <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-6 text-gray-700">{smartRequest}</p>
+        ) : <div className="mt-0.5 text-sm">{dash}</div>}
+      </div>
+    </div>
+  );
+};
+
+// Inline modal to edit a participant's name (support can fix typos).
+const EditNameModal: React.FC<{
+  participant: Participant | null;
+  onClose: () => void;
+  onSaved: (p: Participant) => void;
+}> = ({ participant, onClose, onSaved }) => {
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (participant) { setName(participant.fullName); setError(''); }
+  }, [participant]);
+
+  if (!participant) return null;
+
+  const handleSave = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) { setError('Name is required'); return; }
+    if (saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      const { participant: updated } = await participantsApi.update(participant.id, { fullName: trimmedName });
+      onSaved(updated);
+      onClose();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      isOpen={!!participant}
+      onClose={onClose}
+      title="Edit name"
+      footer={(
+        <>
+          <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
+          <button type="button" onClick={() => { void handleSave(); }} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </>
+      )}
+    >
+      <div className="flex flex-col gap-4">
+        {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>}
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Full name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            placeholder="e.g. Adaeze Obi"
+          />
+        </div>
+      </div>
+    </ModalShell>
+  );
+};
+
 interface FaithProjectPanelProps {
   participant: Participant;
   existing: FaithProject | null;
   onSaved: (project: FaithProject) => void;
+  onParticipantUpdated: (p: Participant) => void;
   userId?: string;
 }
 
-const FaithProjectPanel: React.FC<FaithProjectPanelProps> = ({ participant, existing, onSaved, userId }) => {
+const FaithProjectPanel: React.FC<FaithProjectPanelProps> = ({ participant, existing, onSaved, onParticipantUpdated, userId }) => {
   const [open, setOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [editingName, setEditingName] = useState(false);
   const [status, setStatus] = useState<FaithProjectStatus>(existing?.status ?? 'NOT_DRAFTED');
   const [body, setBody] = useState(existing?.body ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const detailsPanelId = `participant-details-${participant.id}`;
 
   useEffect(() => {
     setStatus(existing?.status ?? 'NOT_DRAFTED');
@@ -136,32 +245,71 @@ const FaithProjectPanel: React.FC<FaithProjectPanelProps> = ({ participant, exis
 
   return (
     <>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setOpen(true)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            setOpen(true);
-          }
-        }}
-        className="flex w-full cursor-pointer items-center justify-between gap-4 rounded-2xl border border-orange-100 bg-white px-4 py-4 text-left shadow-sm transition hover:bg-orange-50/40"
-      >
-        <div className="min-w-0">
-          <p className="truncate text-base font-semibold text-gray-900">{participant.fullName}</p>
-          <CopyPhoneButton phone={participant.phone} />
-          <div className="mt-3">
-            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCls(currentStatus)}`}>
-              {statusLabel(currentStatus)}
-            </span>
+      <div className="rounded-2xl border border-orange-100 bg-white shadow-sm">
+        {/* Top row: tapping it opens the faith-project editor. The edit-name
+            pencil and the details toggle stop propagation so they don't open it. */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              setOpen(true);
+            }
+          }}
+          className="flex w-full cursor-pointer items-center justify-between gap-4 rounded-2xl px-4 py-4 text-left transition hover:bg-orange-50/40"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <p className="min-w-0 truncate text-base font-semibold text-gray-900">{participant.fullName}</p>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setEditingName(true); }}
+                className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-orange-100 hover:text-primary"
+                title="Edit name"
+                aria-label={`Edit name for ${participant.fullName}`}
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586Z" />
+                </svg>
+              </button>
+            </div>
+            <CopyPhoneButton phone={participant.phone} />
+            <div className="mt-3">
+              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCls(currentStatus)}`}>
+                {statusLabel(currentStatus)}
+              </span>
+            </div>
           </div>
+          <span className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-orange-50 text-gray-400">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" />
+            </svg>
+          </span>
         </div>
-        <span className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-orange-50 text-gray-400">
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" />
-          </svg>
-        </span>
+
+        {/* More details accordion (registration info), always available */}
+        <div className="border-t border-orange-100">
+          <button
+            type="button"
+            onClick={() => setDetailsOpen((v) => !v)}
+            aria-expanded={detailsOpen}
+            aria-controls={detailsPanelId}
+            aria-label={`${detailsOpen ? 'Hide' : 'Show'} registration details for ${participant.fullName}`}
+            className="flex w-full items-center justify-between px-4 py-2.5 text-xs font-semibold text-gray-500 transition hover:bg-orange-50/40"
+          >
+            <span>More details</span>
+            <svg className={`h-4 w-4 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 9-7 7-7-7" />
+            </svg>
+          </button>
+          {detailsOpen && (
+            <div id={detailsPanelId} className="border-t border-orange-50 bg-orange-50/20 px-4 py-4">
+              <RegistrationDetails participant={participant} />
+            </div>
+          )}
+        </div>
       </div>
 
       <ModalShell
@@ -202,6 +350,12 @@ const FaithProjectPanel: React.FC<FaithProjectPanelProps> = ({ participant, exis
           </div>
         </div>
       </ModalShell>
+
+      <EditNameModal
+        participant={editingName ? participant : null}
+        onClose={() => setEditingName(false)}
+        onSaved={onParticipantUpdated}
+      />
     </>
   );
 };
@@ -488,6 +642,12 @@ const SupportParticipantsPage: React.FC = () => {
                             const others = prev.filter((entry) => entry.participantId !== savedProject.participantId);
                             return sortByText([...others, savedProject], (project) => project.title || project.participantName);
                           });
+                        }}
+                        onParticipantUpdated={(updated) => {
+                          setParticipants((prev) => sortByText(
+                            prev.map((x) => x.id === updated.id ? { ...x, ...updated } : x),
+                            (p) => p.fullName,
+                          ));
                         }}
                       />
                     );

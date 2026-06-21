@@ -10,18 +10,18 @@ import type { AttendanceRecord, AttendanceStatus, Group, Participant, Week } fro
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 
-const STATUS_OPTIONS: AttendanceStatus[] = ['PRESENT', 'LATE', 'ABSENT'];
+// Per-participant status dropdown options. '' = not marked yet.
+const STATUS_SELECT_OPTIONS = [
+  { value: '', label: 'Not marked' },
+  { value: 'PRESENT', label: 'Present', meta: 'Was present on time' },
+  { value: 'LATE', label: 'Late', meta: 'Came in late' },
+  { value: 'ABSENT', label: 'Absent', meta: 'Did not attend' },
+];
 
-const STATUS_STYLE: Record<AttendanceStatus, string> = {
-  PRESENT: 'bg-emerald-100/80 text-emerald-700',
-  LATE: 'bg-amber-100/80 text-amber-700',
-  ABSENT: 'bg-red-100/80 text-red-700',
-};
-
-const STATUS_LABEL: Record<AttendanceStatus, string> = {
-  PRESENT: 'Present',
-  LATE: 'Late',
-  ABSENT: 'Absent',
+const STATUS_DOT: Record<AttendanceStatus, string> = {
+  PRESENT: 'bg-emerald-500',
+  LATE: 'bg-amber-500',
+  ABSENT: 'bg-red-500',
 };
 
 const AdminAttendancePage: React.FC = () => {
@@ -38,8 +38,10 @@ const AdminAttendancePage: React.FC = () => {
   const [records, setRecords] = useState<Map<string, AttendanceRecord>>(new Map());
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -91,13 +93,34 @@ const AdminAttendancePage: React.FC = () => {
     }
   };
 
-  const visibleParticipants = useMemo(
-    () => sortByText(
-      selectedGroupId ? participants.filter((p) => p.groupId === selectedGroupId) : participants,
-      (participant) => participant.fullName
-    ),
-    [participants, selectedGroupId]
-  );
+  const visibleParticipants = useMemo(() => {
+    let ps = selectedGroupId ? participants.filter((p) => p.groupId === selectedGroupId) : participants;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
+    }
+    return sortByText(ps, (participant) => participant.fullName);
+  }, [participants, selectedGroupId, search]);
+
+  // Mark every still-unmarked visible participant as PRESENT in one batch.
+  const handleMarkAllPresent = async () => {
+    if (selectedWeekId === null) return;
+    const unmarked = visibleParticipants.filter((p) => !records.has(p.id));
+    if (unmarked.length === 0) return;
+    setBulkSaving(true);
+    try {
+      const { records: saved } = await attendanceApi.bulkMark(
+        unmarked.map((p) => ({ participantId: p.id, weekId: selectedWeekId, status: 'PRESENT' as AttendanceStatus })),
+        user?.id,
+      );
+      setRecords((prev) => {
+        const next = new Map(prev);
+        saved.forEach((r) => next.set(r.participantId, r));
+        return next;
+      });
+    } catch { /* ignore */ }
+    finally { setBulkSaving(false); }
+  };
 
   const summary = useMemo(() => {
     const total = visibleParticipants.length;
@@ -181,13 +204,37 @@ const AdminAttendancePage: React.FC = () => {
             )}
           </div>
 
+          {/* Search + bulk action */}
+          {!loading && visibleParticipants.length > 0 && (
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search name or phone…"
+                className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-xs"
+              />
+              {summary.unmarked > 0 && (
+                <button
+                  type="button"
+                  onClick={() => void handleMarkAllPresent()}
+                  disabled={bulkSaving}
+                  className="rounded-2xl bg-emerald-100/80 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition active:scale-95 hover:bg-emerald-200/80 disabled:opacity-60"
+                >
+                  {bulkSaving ? 'Marking…' : `Mark all present (${summary.unmarked})`}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Summary cards */}
           {!loading && (
-            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {[
                 { label: 'Present', value: summary.present, cls: 'bg-emerald-100/80 text-emerald-700' },
                 { label: 'Late', value: summary.late, cls: 'bg-amber-100/80 text-amber-700' },
                 { label: 'Absent', value: summary.absent, cls: 'bg-red-100/80 text-red-700' },
+                { label: 'Unmarked', value: summary.unmarked, cls: 'bg-neutral-100 text-neutral-600' },
                 { label: 'Attendance', value: `${summary.pct}%`, cls: 'bg-sky-100/80 text-sky-700' },
               ].map(({ label, value, cls }) => (
                 <div key={label} className={`rounded-2xl px-4 py-3 ${cls}`}>
@@ -202,51 +249,38 @@ const AdminAttendancePage: React.FC = () => {
             <PageLoader />
           ) : visibleParticipants.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
-              <p className="text-sm text-gray-500">{selectedGroupId ? 'No active participants in this group.' : 'No active participants in this cohort.'}</p>
+              <p className="text-sm text-gray-500">{selectedGroupId ? 'No active participants in this group.' : (search.trim() ? 'No participants match your search.' : 'No active participants in this cohort.')}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-orange-100 bg-white shadow-sm">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-orange-100 bg-orange-50/60">
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Participant</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Attendance</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-orange-50">
-                  {visibleParticipants.map((p) => {
-                    const rec = records.get(p.id);
-                    const isSaving = saving.has(p.id);
-                    return (
-                      <tr key={p.id} className="hover:bg-orange-50/30">
-                        <td className="px-4 py-3 font-medium text-gray-900">{p.fullName}</td>
-                        <td className="px-4 py-3 text-gray-500">{p.groupName ?? '—'}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1.5">
-                            {STATUS_OPTIONS.map((s) => (
-                              <button
-                                key={s}
-                                type="button"
-                                onClick={() => void handleMark(p.id, s)}
-                                disabled={isSaving}
-                                className={`rounded-full px-3 py-1 text-xs font-semibold transition active:scale-95 disabled:opacity-60 ${
-                                  rec?.status === s
-                                    ? STATUS_STYLE[s]
-                                    : 'border border-orange-100 bg-white text-gray-500 hover:bg-orange-50'
-                                }`}
-                              >
-                                {STATUS_LABEL[s]}
-                              </button>
-                            ))}
-                            {!rec && <span className="ml-2 text-xs text-gray-400 self-center">Not marked</span>}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            // Card-style rows: stack on mobile, name+group on the left and the
+            // status dropdown on the right. Works at every width (no horizontal
+            // scroll) and the dropdown is a single large tap target on phones.
+            <div className="divide-y divide-orange-50 overflow-visible rounded-2xl border border-orange-100 bg-white shadow-sm">
+              {visibleParticipants.map((p) => {
+                const rec = records.get(p.id);
+                const isSaving = saving.has(p.id);
+                return (
+                  <div key={p.id} className="flex flex-col gap-3 px-4 py-3 transition hover:bg-orange-50/30 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-2 font-medium text-gray-900">
+                        {rec && <span className={`inline-block h-2 w-2 flex-shrink-0 rounded-full ${STATUS_DOT[rec.status]}`} />}
+                        <span className="truncate">{p.fullName}</span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">{p.groupName ?? 'No group'}</p>
+                    </div>
+                    <div className="w-full sm:w-44">
+                      <AppSelect
+                        value={rec?.status ?? ''}
+                        onChange={(value) => { if (value) void handleMark(p.id, value as AttendanceStatus); }}
+                        options={STATUS_SELECT_OPTIONS}
+                        placeholder="Not marked"
+                        loading={isSaving}
+                        compact
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </>

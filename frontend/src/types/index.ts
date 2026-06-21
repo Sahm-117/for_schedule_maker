@@ -250,13 +250,23 @@ export interface Participant {
   followUpContactId?: string | null;
   status: ParticipantStatus;
   notes?: string | null;
+  // Registration details (from the church platform / Google Form). All optional.
+  email?: string | null;
+  gender?: string | null;
+  ageRange?: string | null;
+  departments?: string[];
+  registrationDate?: string | null;
+  smartRequest?: string | null;
   groupId?: string | null;
   groupName?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export type ParticipantUpdate = Partial<Pick<Participant, 'fullName' | 'phone' | 'cohortId' | 'notes' | 'status'>>;
+export type ParticipantUpdate = Partial<Pick<Participant,
+  'fullName' | 'phone' | 'cohortId' | 'notes' | 'status' |
+  'email' | 'gender' | 'ageRange' | 'departments' | 'registrationDate' | 'smartRequest'
+>>;
 
 // ── Groups ────────────────────────────────────────────────────────────────────
 
