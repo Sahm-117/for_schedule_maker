@@ -113,6 +113,79 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
   );
 };
 
+// ── Assign Support Modal ──────────────────────────────────────────────────────
+// A focused action: pick (or clear) the support person for one group. Reuses
+// groupsApi.update — the same mechanism the Edit modal uses — so it's just a
+// quicker path to the support field.
+
+interface AssignSupportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSaved: (g: Group) => void;
+  group: Group;
+  supportUsers: User[];
+}
+
+const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose, onSaved, group, supportUsers }) => {
+  const [supportId, setSupportId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setSupportId(group.supportId ?? '');
+      setErr('');
+    }
+  }, [isOpen, group]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setErr('');
+    try {
+      const { group: result } = await groupsApi.update(group.id, { supportId: supportId || null });
+      onSaved(result);
+      onClose();
+    } catch (e: any) {
+      setErr(e.message || 'Failed to assign support');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title={`Assign support — ${group.name}`}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
+          <button type="button" onClick={() => void handleSave()} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        {err && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{err}</p>}
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Assigned support</label>
+          <AppSelect
+            value={supportId}
+            onChange={setSupportId}
+            options={[
+              { value: '', label: '— None —' },
+              ...supportUsers.map((u) => ({ value: u.id, label: u.name })),
+            ]}
+            placeholder="— None —"
+            compact
+          />
+        </div>
+      </div>
+    </ModalShell>
+  );
+};
+
 // ── Manage Members Modal ──────────────────────────────────────────────────────
 
 interface MembersModalProps {
@@ -278,6 +351,7 @@ const AdminGroupsPage: React.FC = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Group | null>(null);
   const [membersTarget, setMembersTarget] = useState<Group | null>(null);
+  const [supportTarget, setSupportTarget] = useState<Group | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Group | null>(null);
   const [noSupportOnly, setNoSupportOnly] = useState(false);
 
@@ -324,6 +398,18 @@ const AdminGroupsPage: React.FC = () => {
 
   const noSupportCount = groups.filter((g) => !g.supportId).length;
   const displayedGroups = noSupportOnly ? groups.filter((g) => !g.supportId) : groups;
+
+  // Members per group, derived from the already-loaded participants list (no
+  // extra fetch). Used to render the inline expandable member chips.
+  const membersByGroupId = useMemo(() => {
+    const map = new Map<string, Participant[]>();
+    participants.forEach((p) => {
+      if (!p.groupId) return;
+      const list = map.get(p.groupId);
+      if (list) list.push(p); else map.set(p.groupId, [p]);
+    });
+    return map;
+  }, [participants]);
 
   return (
     <div className="page-content">
@@ -377,34 +463,54 @@ const AdminGroupsPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {displayedGroups.map((g) => (
-            <div key={g.id} className="flex flex-col gap-3 rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between">
-                <h3 className="font-bold text-gray-900">{g.name}</h3>
-                <AppOverflowMenu
-                  align="right"
-                  items={[
-                    { label: 'Manage members', onClick: () => setMembersTarget(g) },
-                    { label: 'Edit', onClick: () => { setEditing(g); setFormOpen(true); } },
-                    { label: 'Delete', onClick: () => setDeleteTarget(g), tone: 'danger' },
-                  ]}
-                />
-              </div>
+          {displayedGroups.map((g) => {
+            const members = membersByGroupId.get(g.id) ?? [];
+            return (
+              <div key={g.id} className="flex flex-col gap-3 rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
+                {/* Header: name + support subtitle on the left; count badge +
+                    overflow menu on the right (mirrors the allocation columns). */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 className="truncate font-bold text-gray-900">{g.name}</h3>
+                    <p className={`truncate text-xs ${g.supportName ? 'text-gray-500' : 'text-neutral-400'}`}>
+                      {g.supportName || 'No support assigned'}
+                    </p>
+                  </div>
+                  <div className="flex flex-shrink-0 items-center gap-1">
+                    <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
+                      {g.participantCount ?? members.length}
+                    </span>
+                    <AppOverflowMenu
+                      align="right"
+                      items={[
+                        { label: 'Manage members', onClick: () => setMembersTarget(g) },
+                        { label: 'Assign support', onClick: () => setSupportTarget(g) },
+                        { label: 'Edit', onClick: () => { setEditing(g); setFormOpen(true); } },
+                        { label: 'Delete', onClick: () => setDeleteTarget(g), tone: 'danger' },
+                      ]}
+                    />
+                  </div>
+                </div>
 
-              <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 font-semibold text-sky-700">
-                  {g.participantCount ?? 0} members
-                </span>
-                {g.supportName ? (
-                  <span className="rounded-full bg-violet-100/80 px-2.5 py-0.5 font-semibold text-violet-700">
-                    {g.supportName}
-                  </span>
+                {/* Members always visible at a glance — name + phone cards. */}
+                {members.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-orange-200 px-3 py-4 text-center text-xs text-gray-400">No members yet</p>
                 ) : (
-                  <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 font-semibold text-neutral-500">No support assigned</span>
+                  <div className="flex flex-col gap-2">
+                    {members.map((p) => (
+                      <div
+                        key={p.id}
+                        className="rounded-xl border border-orange-100 bg-white px-3 py-2 shadow-sm"
+                      >
+                        <p className="truncate text-sm font-semibold leading-tight text-gray-900">{p.fullName}</p>
+                        {p.phone && <p className="text-xs text-gray-400">{p.phone}</p>}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -422,6 +528,19 @@ const AdminGroupsPage: React.FC = () => {
         existing={editing}
         supportUsers={supportUsers}
       />
+
+      {supportTarget && (
+        <AssignSupportModal
+          isOpen={!!supportTarget}
+          onClose={() => setSupportTarget(null)}
+          group={supportTarget}
+          supportUsers={supportUsers}
+          onSaved={(g) => {
+            setGroups((prev) => sortGroupsByName(prev.map((x) => x.id === g.id ? g : x)));
+            setSupportTarget(null);
+          }}
+        />
+      )}
 
       {membersTarget && (
         <MembersModal

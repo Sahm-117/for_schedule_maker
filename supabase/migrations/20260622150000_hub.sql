@@ -1,0 +1,27 @@
+CREATE TABLE IF NOT EXISTS "HubTopic" (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "authorId" UUID NOT NULL REFERENCES "User"(id),
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'OPEN',
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS "HubComment" (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "topicId" UUID NOT NULL REFERENCES "HubTopic"(id) ON DELETE CASCADE,
+  "authorId" UUID NOT NULL REFERENCES "User"(id),
+  body TEXT NOT NULL,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS "HubReply" (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "commentId" UUID NOT NULL REFERENCES "HubComment"(id) ON DELETE CASCADE,
+  "authorId" UUID NOT NULL REFERENCES "User"(id),
+  body TEXT NOT NULL,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);

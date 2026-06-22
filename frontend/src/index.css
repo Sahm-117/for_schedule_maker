@@ -8,11 +8,24 @@
   font-weight: 400;
   color: #1f2937;
   background:
-    radial-gradient(circle at top left, rgba(255, 145, 77, 0.12), transparent 32%),
+    radial-gradient(circle at top left, var(--color-primary-soft), transparent 32%),
     linear-gradient(180deg, #fff8f3 0%, #f7f8fb 38%, #f4f6fb 100%);
-  --color-primary: #ff914d;
-  --color-primary-dark: #e5822d;
-  --color-primary-soft: #fff1e6;
+  /* Primary as RGB channels so Tailwind opacity modifiers (bg-primary/10 etc.) work:
+     primary = rgb(var(--color-primary-rgb) / <alpha-value>). Keep --color-primary
+     hex for raw CSS that references the colour directly. */
+  --color-primary-rgb: 255 145 77;
+  --color-primary: rgb(var(--color-primary-rgb));
+  --color-primary-dark-rgb: 229 130 45;
+  --color-primary-dark: rgb(var(--color-primary-dark-rgb));
+  /* Pastel tints derived from the primary, also channel-based for opacity support. */
+  --color-primary-soft-rgb: 255 241 230;
+  --color-primary-soft: rgb(var(--color-primary-soft-rgb));
+  --color-primary-50-rgb: 255 235 223;
+  --color-primary-50: rgb(var(--color-primary-50-rgb));
+  --color-primary-100-rgb: 255 222 202;
+  --color-primary-100: rgb(var(--color-primary-100-rgb));
+  --color-primary-200-rgb: 255 206 175;
+  --color-primary-200: rgb(var(--color-primary-200-rgb));
   --color-ink: #1f2937;
   --color-muted: #6b7280;
   --color-border: #e5e7eb;
@@ -40,7 +53,7 @@ body {
   min-height: 100vh;
   color: var(--color-ink);
   background:
-    radial-gradient(circle at top left, rgba(255, 145, 77, 0.12), transparent 32%),
+    radial-gradient(circle at top left, var(--color-primary-soft), transparent 32%),
     linear-gradient(180deg, #fff8f3 0%, #f7f8fb 38%, #f4f6fb 100%);
 }
 
@@ -51,7 +64,7 @@ body {
 @layer components {
   .app-shell-bg {
     background:
-      radial-gradient(circle at top left, rgba(255, 145, 77, 0.12), transparent 32%),
+      radial-gradient(circle at top left, var(--color-primary-soft), transparent 32%),
       linear-gradient(180deg, #fff8f3 0%, #f7f8fb 38%, #f4f6fb 100%);
   }
 
@@ -61,7 +74,10 @@ body {
   }
 
   .surface-muted {
-    @apply rounded-2xl border border-orange-100 bg-orange-50/70;
+    @apply rounded-2xl border;
+    border-color: var(--color-primary-100);
+    background-color: var(--color-primary-50);
+    opacity: 0.97;
   }
 
   .page-title {
@@ -73,10 +89,13 @@ body {
   }
 
   .nav-pill {
-    @apply flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium text-gray-600 hover:bg-orange-50 hover:text-primary;
+    @apply flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium text-gray-600 hover:text-primary;
+  }
+  .nav-pill:hover {
+    background-color: var(--color-primary-50);
   }
 
   .nav-pill-active {
-    @apply bg-primary text-white shadow-lg shadow-orange-200;
+    @apply bg-primary text-white shadow-lg;
   }
 }

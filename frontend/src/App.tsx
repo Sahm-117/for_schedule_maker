@@ -38,6 +38,7 @@ const SupportResourcesPage = lazy(() => import('./pages/SupportResourcesPage'));
 const SupportProfilePage = lazy(() => import('./pages/SupportProfilePage'));
 const AdminOnboardingPage = lazy(() => import('./pages/AdminOnboardingPage'));
 const SupportOnboardingPage = lazy(() => import('./pages/SupportOnboardingPage'));
+const HubPage = lazy(() => import('./pages/HubPage'));
 
 const RouteFallback: React.FC = () => (
   <div className="flex min-h-[60vh] items-center justify-center">
@@ -94,6 +95,8 @@ function App() {
             <Route path="/support/resources" element={<Suspense fallback={<RouteFallback />}><SupportResourcesPage /></Suspense>} />
             <Route path="/support/announcements" element={<Suspense fallback={<RouteFallback />}><AnnouncementsFeedPage /></Suspense>} />
             <Route path="/support/profile" element={<Suspense fallback={<RouteFallback />}><SupportProfilePage /></Suspense>} />
+            <Route path="/support/hub" element={<Suspense fallback={<RouteFallback />}><HubPage /></Suspense>} />
+            <Route path="/hub" element={<Suspense fallback={<RouteFallback />}><HubPage /></Suspense>} />
             <Route path="/sop-download" element={<Suspense fallback={<RouteFallback />}><SopDownload /></Suspense>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

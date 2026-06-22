@@ -1,8 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { cohortsApi, digestApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, weeksApi } from '../services/api';
-import type { Cohort, DailyDigestCursor, DailyDigestFunctionResponse, PendingChange, RejectedChange, Week } from '../types';
+import { cohortsApi, digestApi, notificationsApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, weeksApi } from '../services/api';
+import type { Cohort, DailyDigestCursor, DailyDigestFunctionResponse, Notification, PendingChange, RejectedChange, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 
 const LAST_SEEN_KEY = 'fof_resources_last_seen';
@@ -22,6 +22,10 @@ interface AppDataContextType {
   rejectedChanges: RejectedChange[];
   unreadCount: number;
   refreshRejectedChanges: () => Promise<void>;
+  notifications: Notification[];
+  notificationUnreadCount: number;
+  refreshNotifications: () => Promise<void>;
+  markNotificationsRead: () => Promise<void>;
   globalPendingChanges: PendingChange[];
   pendingChangesForSelectedWeek: PendingChange[];
   refreshPendingChanges: () => Promise<void>;
@@ -60,6 +64,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [loading, setLoading] = useState(true);
   const [rejectedChanges, setRejectedChanges] = useState<RejectedChange[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
   const [globalPendingChanges, setGlobalPendingChanges] = useState<PendingChange[]>([]);
   const [weekPendingChanges, setWeekPendingChanges] = useState<PendingChange[]>([]);
   const [newResourceCount, setNewResourceCount] = useState(0);
@@ -130,6 +136,24 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setRejectedChanges(response.rejectedChanges);
     setUnreadCount(response.unreadCount);
   }, []);
+
+  const refreshNotifications = useCallback(async () => {
+    const response = await notificationsApi.getMine();
+    setNotifications(response.notifications);
+    setNotificationUnreadCount(response.unreadCount);
+  }, []);
+
+  const markNotificationsRead = useCallback(async () => {
+    // Optimistic: clear the badge immediately, then persist.
+    setNotificationUnreadCount(0);
+    setNotifications((prev) => prev.map((n) => (n.isRead ? n : { ...n, isRead: true })));
+    try {
+      await notificationsApi.markAllRead();
+    } catch {
+      // On failure, re-sync from the server so the badge reflects reality.
+      void refreshNotifications();
+    }
+  }, [refreshNotifications]);
 
   const loadGlobalPendingChanges = useCallback(async (cohortWeekIds?: number[]) => {
     const response = await pendingChangesApi.getAll();
@@ -256,7 +280,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           await loadRejectedChanges();
         }
 
-        await refreshResourceCount();
+        await Promise.all([refreshResourceCount(), refreshNotifications()]);
       } catch (error) {
         console.error('Failed to initialize app data:', error);
       } finally {
@@ -275,7 +299,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, isSopPreparer, loadCohorts, loadDigestStatus, loadGlobalPendingChanges, loadRejectedChanges, loadWeeksForCohort, refreshResourceCount, user]);
+  }, [isAdmin, isSopPreparer, loadCohorts, loadDigestStatus, loadGlobalPendingChanges, loadRejectedChanges, loadWeeksForCohort, refreshNotifications, refreshResourceCount, user]);
 
   useEffect(() => {
     if (!isSopPreparer || !selectedWeek) return;
@@ -289,7 +313,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!user || !(supabase as any)) return;
 
     const channel = (supabase as any)
-      .channel(`app-sync-${user.id}-${Date.now()}`)
+      .channel(`app-sync-${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'PendingChange' }, scheduleWorkspaceRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Activity' }, scheduleWorkspaceRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Week' }, scheduleWorkspaceRefresh)
@@ -310,6 +334,9 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .on('postgres_changes', { event: '*', schema: 'public', table: 'OnboardingEvent' }, scheduleWorkspaceRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupPrayerFocus' }, scheduleWorkspaceRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupPrayerStatus' }, scheduleWorkspaceRefresh)
+      // Notification rows are per-user and cheap — refresh just the feed (not
+      // the whole workspace) so the badge updates live.
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Notification', filter: `userId=eq.${user.id}` }, () => { void refreshNotifications(); })
       .subscribe((status: string) => {
         if (status === 'SUBSCRIBED') {
           setRealtimeHealthy(true);
@@ -328,15 +355,20 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setRealtimeHealthy(false);
       (supabase as any).removeChannel(channel);
     };
-  }, [scheduleWorkspaceRefresh, user]);
+    // Depend on user.id (not the whole user object) so avatar/theme updates that
+    // replace the user object don't tear down and rebuild the realtime channel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshNotifications, scheduleWorkspaceRefresh, user?.id]);
 
   useEffect(() => {
     if (!user || realtimeHealthy) return;
     const intervalId = window.setInterval(() => {
       refreshWorkspaceData();
+      void refreshNotifications();
     }, 15000);
     return () => window.clearInterval(intervalId);
-  }, [realtimeHealthy, refreshWorkspaceData, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realtimeHealthy, refreshNotifications, refreshWorkspaceData, user?.id]);
 
   const handleWeekSelect = useCallback(async (weekId: number) => {
     try {
@@ -486,6 +518,10 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     rejectedChanges,
     unreadCount,
     refreshRejectedChanges: loadRejectedChanges,
+    notifications,
+    notificationUnreadCount,
+    refreshNotifications,
+    markNotificationsRead,
     globalPendingChanges,
     pendingChangesForSelectedWeek,
     refreshPendingChanges,
@@ -521,8 +557,12 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     liveRevision,
     loadRejectedChanges,
     loading,
+    markNotificationsRead,
     markResourcesViewed,
     newResourceCount,
+    notifications,
+    notificationUnreadCount,
+    refreshNotifications,
     pendingChangesForSelectedWeek,
     realtimeHealthy,
     refreshPendingChanges,

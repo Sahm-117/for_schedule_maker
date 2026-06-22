@@ -16,6 +16,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore — web-push ESM build
 import webPush from 'https://esm.sh/web-push@3'
 import { sendToSubscriptions } from '../_shared/webpush.ts'
+import { insertNotifications } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -108,6 +109,15 @@ Deno.serve(async (req) => {
       })
     }
 
+    const title = 'Follow-up updated'
+    const body = `${actor.name} marked ${contact.fullName} as ${TERMINAL_LABELS[terminalState] || 'closed'}.`
+
+    // In-app feed for every admin, regardless of push subscription.
+    await insertNotifications(
+      supabase,
+      adminIds.map((userId) => ({ userId, title, body, path: '/follow-ups', type: 'FOLLOWUP_TERMINAL' })),
+    )
+
     const { data: subs, error: subsError } = await supabase
       .from('PushSubscription')
       .select('userId, endpoint, p256dh, auth')
@@ -124,8 +134,8 @@ Deno.serve(async (req) => {
     }
 
     const payload = JSON.stringify({
-      title: 'Follow-up updated',
-      body: `${actor.name} marked ${contact.fullName} as ${TERMINAL_LABELS[terminalState] || 'closed'}.`,
+      title,
+      body,
       icon: '/icon-192.png',
       tag: `fof-followup-terminal-${contactId}-${terminalState}`,
     })

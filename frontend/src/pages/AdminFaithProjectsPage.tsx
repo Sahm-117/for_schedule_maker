@@ -5,7 +5,7 @@ import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { faithProjectsApi, participantsApi, groupsApi } from '../services/api';
-import type { FaithProject, FaithProjectStatus, Participant, Group } from '../types';
+import type { FaithProject, FaithProjectReviewEntry, FaithProjectStatus, Group, Participant } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import AppSelect from '../components/AppSelect';
 import { sortByText } from '../utils/sort';
@@ -13,111 +13,189 @@ import { sortByText } from '../utils/sort';
 const STATUS_OPTIONS: Array<{ value: FaithProjectStatus; label: string; cls: string }> = [
   { value: 'NOT_DRAFTED', label: 'Not Drafted', cls: 'bg-neutral-100 text-neutral-600' },
   { value: 'UNDER_REFINEMENT', label: 'Under Refinement', cls: 'bg-amber-100/80 text-amber-700' },
+  { value: 'NEEDS_REFINEMENT', label: 'Needs Refinement', cls: 'bg-orange-100/80 text-orange-700' },
   { value: 'APPROVED', label: 'Approved', cls: 'bg-emerald-100/80 text-emerald-700' },
 ];
 
 const statusLabel = (s: FaithProjectStatus) => STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s;
 const statusCls = (s: FaithProjectStatus) => STATUS_OPTIONS.find((o) => o.value === s)?.cls ?? 'bg-neutral-100 text-neutral-600';
 
-// ── Edit Modal ────────────────────────────────────────────────────────────────
+const formatReviewDate = (iso: string) =>
+  new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso));
 
-interface EditModalProps {
+// ── Review History Accordion ─────────────────────────────────────────────────
+
+const ReviewHistory: React.FC<{ history: FaithProjectReviewEntry[] }> = ({ history }) => {
+  const [open, setOpen] = useState(false);
+  if (history.length === 0) return null;
+  return (
+    <div className="rounded-xl border border-orange-100 bg-orange-50/40">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-3.5 py-2.5 text-xs font-semibold text-gray-600"
+      >
+        <span>{history.length} review{history.length > 1 ? 's' : ''}</span>
+        <span className="text-gray-400">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="divide-y divide-orange-100 border-t border-orange-100">
+          {[...history].reverse().map((entry, i) => (
+            <div key={i} className="px-3.5 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${entry.action === 'APPROVED' ? 'bg-emerald-100/80 text-emerald-700' : 'bg-orange-100/80 text-orange-700'}`}>
+                  {entry.action === 'APPROVED' ? 'Approved' : 'Needs Refinement'}
+                </span>
+                <span className="text-xs text-gray-500">{entry.actorName} · {formatReviewDate(entry.at)}</span>
+              </div>
+              {entry.note && <p className="mt-1.5 text-xs text-gray-600">{entry.note}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Review Modal ──────────────────────────────────────────────────────────────
+
+interface ReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   participant: Participant;
+  group?: Group | null;
   existing: FaithProject | null;
   onSaved: (fp: FaithProject) => void;
-  currentUserId?: string;
+  currentUser: { id: string; name: string } | null;
+  supportUserId?: string | null;
 }
 
-const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, participant, existing, onSaved, currentUserId }) => {
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
-  const [status, setStatus] = useState<FaithProjectStatus>('NOT_DRAFTED');
+const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant, group, existing, onSaved, currentUser, supportUserId }) => {
+  const [decision, setDecision] = useState<'APPROVED' | 'NEEDS_REFINEMENT' | null>(null);
+  const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
   useEffect(() => {
-    if (isOpen) {
-      setTitle(existing?.title ?? '');
-      setBody(existing?.body ?? '');
-      setStatus(existing?.status ?? 'NOT_DRAFTED');
-      setErr('');
-    }
-  }, [isOpen, existing]);
+    if (isOpen) { setDecision(null); setNote(''); setErr(''); }
+  }, [isOpen, existing?.id]);
 
-  const handleSave = async () => {
+  const canSubmit = decision !== null && (decision !== 'NEEDS_REFINEMENT' || note.trim().length > 0);
+
+  const handleSubmit = async () => {
+    if (!existing || !currentUser || !canSubmit || !decision) return;
     setSaving(true);
     setErr('');
     try {
-      const { project } = await faithProjectsApi.upsertForParticipant(participant.id, {
-        title: title.trim() || null,
-        body: body.trim() || null,
-        status,
-        updatedById: currentUserId ?? null,
+      const { project } = await faithProjectsApi.reviewProject(existing.id, {
+        status: decision,
+        note: note.trim() || null,
+        actorId: currentUser.id,
+        actorName: currentUser.name,
       });
+
+      // Notify the assigned support user (fire-and-forget — don't block on push errors)
+      if (supportUserId) {
+        void fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-faith-project-review`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            supportUserId,
+            participantName: participant.fullName,
+            action: decision,
+            note: note.trim() || undefined,
+          }),
+        }).catch(() => { /* ignore push errors */ });
+      }
+
       onSaved(project);
       onClose();
     } catch (e: any) {
-      setErr(e.message || 'Failed to save');
+      setErr(e.message || 'Failed to save review');
     } finally {
       setSaving(false);
     }
   };
 
+  const history = existing?.reviewHistory ?? [];
+
   return (
     <ModalShell
       isOpen={isOpen}
       onClose={onClose}
-      title={`Faith project: ${participant.fullName}`}
+      title={`Review: ${participant.fullName}`}
+      subtitle={group?.name}
       footer={
         <>
           <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
-          <button type="button" onClick={() => void handleSave()} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
-            {saving ? 'Saving…' : 'Save'}
+          <button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={!canSubmit || saving || !existing}
+            className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
+          >
+            {saving ? 'Saving…' : 'Submit review'}
           </button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
         {err && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{err}</p>}
+
+        {/* Project content */}
+        <div className="rounded-xl border border-orange-100 bg-white p-3.5">
+          {existing?.title && <p className="mb-1 text-sm font-semibold text-gray-900">{existing.title}</p>}
+          {existing?.body ? (
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">{existing.body}</p>
+          ) : (
+            <p className="text-sm italic text-gray-400">No content drafted yet.</p>
+          )}
+        </div>
+
+        {/* Decision */}
         <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Status</label>
-          <div className="flex flex-wrap gap-2">
-            {STATUS_OPTIONS.map((opt) => (
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Your decision</p>
+          <div className="flex gap-2">
+            {(['APPROVED', 'NEEDS_REFINEMENT'] as const).map((d) => (
               <button
-                key={opt.value}
+                key={d}
                 type="button"
-                onClick={() => setStatus(opt.value)}
-                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition active:scale-95 ${
-                  status === opt.value ? opt.cls + ' ring-2 ring-offset-1 ring-primary/40' : 'border border-orange-100 bg-white text-gray-500 hover:bg-orange-50'
+                onClick={() => setDecision(d)}
+                className={`flex-1 rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95 ${
+                  decision === d
+                    ? d === 'APPROVED' ? 'border-emerald-300 bg-emerald-100/80 text-emerald-700' : 'border-orange-300 bg-orange-100/80 text-orange-700'
+                    : 'border-orange-100 bg-white text-gray-500 hover:bg-orange-50'
                 }`}
               >
-                {opt.label}
+                {d === 'APPROVED' ? 'Approve' : 'Needs Refinement'}
               </button>
             ))}
           </div>
         </div>
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Title</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            placeholder="Optional project title"
-          />
-        </div>
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Description / Notes</label>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={4}
-            className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            placeholder="What is this participant working on?"
-          />
-        </div>
+
+        {/* Reason — only when requesting refinement */}
+        {decision === 'NEEDS_REFINEMENT' && (
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Reason <span className="text-red-400">*</span>
+            </label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+              autoFocus
+              className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              placeholder="Tell the support what needs to change…"
+            />
+          </div>
+        )}
+
+        {/* Review history accordion */}
+        <ReviewHistory history={history} />
       </div>
     </ModalShell>
   );
@@ -136,7 +214,7 @@ const AdminFaithProjectsPage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<FaithProjectStatus | ''>('');
   const [groupFilter, setGroupFilter] = useState(''); // '' = all, '__UNASSIGNED__' = no group
   const [search, setSearch] = useState('');
-  const [editTarget, setEditTarget] = useState<{ participant: Participant; project: FaithProject | null } | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<{ participant: Participant; project: FaithProject | null } | null>(null);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -163,6 +241,12 @@ const AdminFaithProjectsPage: React.FC = () => {
     projects.forEach((fp) => map.set(fp.participantId, fp));
     return map;
   }, [projects]);
+
+  const groupById = useMemo(() => {
+    const map = new Map<string, Group>();
+    groups.forEach((g) => map.set(g.id, g));
+    return map;
+  }, [groups]);
 
   const groupOptions = useMemo(
     () => [
@@ -285,10 +369,10 @@ const AdminFaithProjectsPage: React.FC = () => {
                         <td className="sticky right-0 bg-white px-4 py-3 text-right">
                           <button
                             type="button"
-                            onClick={() => setEditTarget({ participant: p, project: fp })}
+                            onClick={() => setReviewTarget({ participant: p, project: fp })}
                             className="rounded-xl border border-orange-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-orange-50 active:scale-95"
                           >
-                            Edit
+                            Review
                           </button>
                         </td>
                       </tr>
@@ -301,21 +385,23 @@ const AdminFaithProjectsPage: React.FC = () => {
         </>
       )}
 
-      {editTarget && (
-        <EditModal
-          isOpen={!!editTarget}
-          onClose={() => setEditTarget(null)}
-          participant={editTarget.participant}
-          existing={editTarget.project}
+      {reviewTarget && (
+        <ReviewModal
+          isOpen={!!reviewTarget}
+          onClose={() => setReviewTarget(null)}
+          participant={reviewTarget.participant}
+          group={reviewTarget.participant.groupId ? (groupById.get(reviewTarget.participant.groupId) ?? null) : null}
+          existing={reviewTarget.project}
           onSaved={(fp) => {
             setProjects((prev) => {
               const idx = prev.findIndex((x) => x.id === fp.id);
               const next = idx >= 0 ? prev.map((x) => x.id === fp.id ? fp : x) : [...prev, fp];
               return sortByText(next, (project) => project.title || project.participantName);
             });
-            setEditTarget(null);
+            setReviewTarget(null);
           }}
-          currentUserId={user?.id}
+          currentUser={user ? { id: user.id, name: user.name ?? user.email ?? 'Admin' } : null}
+          supportUserId={reviewTarget.participant.groupId ? (groupById.get(reviewTarget.participant.groupId)?.supportId ?? null) : null}
         />
       )}
     </div>

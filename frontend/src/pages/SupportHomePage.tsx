@@ -151,7 +151,7 @@ const SupportHomePage: React.FC = () => {
         <div className="flex flex-col gap-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary/80">Programme progress</p>
+              <p className="text-xs font-semibold text-primary/80">Programme progress</p>
               <h2 className="mt-1 text-2xl font-bold tracking-tight text-gray-950">
                 {activeWeek ? `Week ${activeWeek.weekNumber}` : 'No week selected'}
               </h2>
@@ -213,7 +213,7 @@ const SupportHomePage: React.FC = () => {
             <div className="mb-4 flex items-center justify-between">
               <div className="min-w-0">
                 <h3 className="text-lg font-semibold text-gray-900">Recent announcements</h3>
-                <p className="text-sm text-gray-500">Messages meant for you and your team.</p>
+                <p className="text-sm text-gray-500">Messages meant for you and everyone else.</p>
               </div>
               <NavLink to="/support/announcements" className="whitespace-nowrap text-xs font-semibold text-primary hover:text-primary-dark">View all</NavLink>
             </div>
@@ -277,7 +277,7 @@ const QuickStat: React.FC<{
   accent: keyof typeof QUICK_STAT_ACCENTS;
 }> = ({ title, value, detail, to, accent }) => (
   <NavLink to={to} className={`min-h-[124px] rounded-2xl border px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-sm ${QUICK_STAT_ACCENTS[accent]}`}>
-    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">{title}</p>
+    <p className="text-xs font-semibold text-gray-500">{title}</p>
     <p className="mt-2 line-clamp-2 text-xl font-bold leading-tight text-gray-950 sm:text-2xl">{value}</p>
     <p className="mt-2 line-clamp-2 text-xs text-gray-500">{detail}</p>
   </NavLink>

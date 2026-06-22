@@ -275,7 +275,7 @@ const AdminFollowUpsPage: React.FC = () => {
     <div>
       <PageHeader
         title="Follow-ups"
-        subtitle="Track interested people, assign owners, and move them to registration."
+        subtitle="Track interested people, assign follow-up reps, and move them to registration."
         action={(
           <div className="flex gap-2">
             {tab === 'contacts' && (
@@ -377,11 +377,11 @@ const AdminFollowUpsPage: React.FC = () => {
                   value={ownerFilter}
                   onChange={setOwnerFilter}
                   options={[
-                    { value: '', label: `All owners (${ownerOptionCounts.total})` },
+                    { value: '', label: `All reps (${ownerOptionCounts.total})` },
                     { value: '__unassigned__', label: `Unassigned (${ownerOptionCounts.unassigned})` },
                     ...owners.map((o) => ({ value: o.id, label: `${o.name} (${ownerOptionCounts.perOwner[o.id] || 0})` })),
                   ]}
-                  placeholder="All owners"
+                  placeholder="All reps"
                   compact
                 />
               </div>

@@ -13,6 +13,7 @@ import {
   digestApi as supabaseDigestApi,
   pendingChangesApi as supabasePendingChangesApi,
   rejectedChangesApi as supabaseRejectedChangesApi,
+  notificationsApi as supabaseNotificationsApi,
   usersApi as supabaseUsersApi,
   supportActivityCompletionsApi as supabaseSupportActivityCompletionsApi,
   pushSubscriptionsApi as supabasePushSubscriptionsApi,
@@ -32,6 +33,7 @@ import {
   groupOnboardingStatusApi as supabaseGroupOnboardingStatusApi,
   participantOnboardingStatusApi as supabaseParticipantOnboardingStatusApi,
   onboardingEventsApi as supabaseOnboardingEventsApi,
+  hubApi as supabaseHubApi,
   setAuthToken as supabaseSetAuthToken,
   clearAuthToken as supabaseClearAuthToken,
 } from './supabase-api';
@@ -167,6 +169,8 @@ export const followUpContactsApi = USE_SUPABASE ? supabaseFollowUpContactsApi : 
   async assignMany(_ids: string[], _ownerId: string | null, _dueDate?: string | null): Promise<never> { return followUpsUnavailable(); },
   async logContact(_id: string): Promise<never> { return followUpsUnavailable(); },
   async delete(_id: string): Promise<never> { return followUpsUnavailable(); },
+  async getNextCohortContacts(_cohortId: string): Promise<{ contacts: import('../types').FollowUpContact[] }> { return { contacts: [] }; },
+  async bulkMoveNextCohortContacts(_ids: string[], _newCohortId: string): Promise<void> { return; },
 };
 
 export const messageTemplatesApi = USE_SUPABASE ? supabaseMessageTemplatesApi : {
@@ -320,6 +324,21 @@ export const rejectedChangesApi = USE_SUPABASE ? supabaseRejectedChangesApi : {
   },
 };
 
+// In-app Notifications API
+export const notificationsApi = USE_SUPABASE ? supabaseNotificationsApi : {
+  async getMine(): Promise<{ notifications: import('../types').Notification[]; unreadCount: number }> {
+    const response = await api.get('/notifications/me');
+    return response.data;
+  },
+  async markAllRead(): Promise<{ updatedCount: number }> {
+    const response = await api.put('/notifications/mark-all-read');
+    return response.data;
+  },
+  async markRead(id: string): Promise<void> {
+    await api.put(`/notifications/${id}/mark-read`);
+  },
+};
+
 // Users API
 export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
   async getAll(options: { includeInactive?: boolean } = {}): Promise<{ users: User[] }> {
@@ -363,6 +382,11 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
 
   async setUserLabels(_userId: string, _labelIds: string[]): Promise<{ message: string }> {
     return { message: 'Not supported' };
+  },
+
+  async saveThemeColor(_userId: string, _color: string | null): Promise<void> { return; },
+  async uploadAvatar(_userId: string, _file: File): Promise<{ avatarUrl: string }> {
+    throw new Error('Avatar upload is not available in REST mode');
   },
 };
 
@@ -470,6 +494,7 @@ export const participantsApi = USE_SUPABASE ? supabaseParticipantsApi : {
   async importWithEnrich(_rows: any[], _cohortId: string | null, _existing: any[]): Promise<never> { return peopleUnavailable(); },
   async update(_id: string, _input: any): Promise<never> { return peopleUnavailable(); },
   async archive(_id: string): Promise<never> { return peopleUnavailable(); },
+  async unarchive(_id: string): Promise<never> { return peopleUnavailable(); },
   async delete(_id: string): Promise<never> { return peopleUnavailable(); },
   async upsertFromFollowUpContact(_contact: any): Promise<never> { return peopleUnavailable(); },
 };
@@ -514,6 +539,7 @@ export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {
   async getByParticipant(_participantId: string): Promise<{ projects: import('../types').FaithProject[] }> { return { projects: [] }; },
   async getAll(_options?: any): Promise<{ projects: import('../types').FaithProject[] }> { return { projects: [] }; },
   async upsertForParticipant(_participantId: string, _input: any): Promise<never> { return peopleUnavailable(); },
+  async reviewProject(_projectId: string, _input: any): Promise<never> { return peopleUnavailable(); },
   async delete(_id: string): Promise<never> { return peopleUnavailable(); },
 };
 
@@ -532,6 +558,24 @@ export const groupPrayerFocusApi = USE_SUPABASE ? supabaseGroupPrayerFocusApi : 
 export const groupPrayerStatusApi = USE_SUPABASE ? supabaseGroupPrayerStatusApi : {
   async getForCohort(_cohortId: string): Promise<{ statuses: import('../types').GroupPrayerStatus[] }> { return { statuses: [] }; },
   async setDone(_groupId: string, _weekId: number, _done: boolean, _markedById?: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const hubApi = USE_SUPABASE ? supabaseHubApi : {
+  async getTopics(_status: 'OPEN' | 'CLOSED'): Promise<{ topics: import('../types').HubTopic[] }> { return { topics: [] }; },
+  async createTopic(_input: any): Promise<never> { return peopleUnavailable(); },
+  async setTopicStatus(_topicId: string, _status: 'OPEN' | 'CLOSED'): Promise<never> { return peopleUnavailable(); },
+  async getComments(_topicId: string): Promise<{ comments: import('../types').HubComment[] }> { return { comments: [] }; },
+  async createComment(_input: any): Promise<never> { return peopleUnavailable(); },
+  async getReplies(_commentId: string): Promise<{ replies: import('../types').HubReply[] }> { return { replies: [] }; },
+  async createReply(_input: any): Promise<never> { return peopleUnavailable(); },
+  async getUsers(): Promise<{ users: Array<{ id: string; name: string; avatarUrl?: string | null }> }> { return { users: [] }; },
+  async sendNotifications(_entries: Array<{ userId: string; title: string; body: string; path: string }>): Promise<void> { return; },
+  async deleteTopic(_topicId: string): Promise<void> { return; },
+  async deleteComment(_commentId: string): Promise<void> { return; },
+  async deleteReply(_replyId: string): Promise<void> { return; },
+  async updateTopic(_topicId: string, _body: string): Promise<never> { return peopleUnavailable(); },
+  async updateComment(_commentId: string, _body: string): Promise<never> { return peopleUnavailable(); },
+  async updateReply(_replyId: string, _body: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export default api;

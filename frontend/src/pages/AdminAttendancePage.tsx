@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import AppSelect from '../components/AppSelect';
+import AppOverflowMenu from '../components/AppOverflowMenu';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { attendanceApi, groupsApi, participantsApi } from '../services/api';
@@ -10,18 +11,23 @@ import type { AttendanceRecord, AttendanceStatus, Group, Participant, Week } fro
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 
-// Per-participant status dropdown options. '' = not marked yet.
-const STATUS_SELECT_OPTIONS = [
-  { value: '', label: 'Not marked' },
-  { value: 'PRESENT', label: 'Present', meta: 'Was present on time' },
-  { value: 'LATE', label: 'Late', meta: 'Came in late' },
-  { value: 'ABSENT', label: 'Absent', meta: 'Did not attend' },
-];
-
 const STATUS_DOT: Record<AttendanceStatus, string> = {
   PRESENT: 'bg-emerald-500',
   LATE: 'bg-amber-500',
   ABSENT: 'bg-red-500',
+};
+
+// Read-only status pill shown on each card (admin view is look-only).
+const STATUS_PILL: Record<AttendanceStatus, string> = {
+  PRESENT: 'bg-emerald-100/80 text-emerald-700',
+  LATE: 'bg-amber-100/80 text-amber-700',
+  ABSENT: 'bg-red-100/80 text-red-700',
+};
+
+const STATUS_LABEL: Record<AttendanceStatus, string> = {
+  PRESENT: 'Present',
+  LATE: 'Late',
+  ABSENT: 'Absent',
 };
 
 const AdminAttendancePage: React.FC = () => {
@@ -149,6 +155,14 @@ const AdminAttendancePage: React.FC = () => {
     [groups, selectedGroupId]
   );
 
+  // Group → assigned support name, so each card can show who supports that
+  // participant's group.
+  const supportByGroupId = useMemo(() => {
+    const map = new Map<string, string>();
+    groups.forEach((g) => { if (g.supportName) map.set(g.id, g.supportName); });
+    return map;
+  }, [groups]);
+
   return (
     <div className="page-content">
       <PageHeader
@@ -252,32 +266,37 @@ const AdminAttendancePage: React.FC = () => {
               <p className="text-sm text-gray-500">{selectedGroupId ? 'No active participants in this group.' : (search.trim() ? 'No participants match your search.' : 'No active participants in this cohort.')}</p>
             </div>
           ) : (
-            // Card-style rows: stack on mobile, name+group on the left and the
-            // status dropdown on the right. Works at every width (no horizontal
-            // scroll) and the dropdown is a single large tap target on phones.
-            <div className="divide-y divide-orange-50 overflow-visible rounded-2xl border border-orange-100 bg-white shadow-sm">
+            // Card grid: READ-ONLY for admins. Attendance is support-driven, so
+            // the status is shown as a pill (no dropdown to fat-finger) and any
+            // change goes through the per-card menu (deliberate action only).
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {visibleParticipants.map((p) => {
                 const rec = records.get(p.id);
                 const isSaving = saving.has(p.id);
+                const status = rec?.status;
                 return (
-                  <div key={p.id} className="flex flex-col gap-3 px-4 py-3 transition hover:bg-orange-50/30 sm:flex-row sm:items-center sm:justify-between">
+                  <div key={p.id} className="flex items-start justify-between gap-3 rounded-2xl border border-orange-100 bg-white p-4 shadow-sm transition hover:bg-orange-50/30">
                     <div className="min-w-0">
-                      <p className="flex items-center gap-2 font-medium text-gray-900">
-                        {rec && <span className={`inline-block h-2 w-2 flex-shrink-0 rounded-full ${STATUS_DOT[rec.status]}`} />}
+                      <p className="flex items-center gap-2 font-semibold text-gray-900">
+                        {status && <span className={`inline-block h-2 w-2 flex-shrink-0 rounded-full ${STATUS_DOT[status]}`} />}
                         <span className="truncate">{p.fullName}</span>
                       </p>
                       <p className="mt-0.5 text-xs text-gray-500">{p.groupName ?? 'No group'}</p>
+                      <p className="mt-0.5 truncate text-xs text-gray-400">
+                        Support: <span className="font-medium text-gray-600">{(p.groupId && supportByGroupId.get(p.groupId)) || 'None'}</span>
+                      </p>
+                      <span className={`mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${status ? STATUS_PILL[status] : 'bg-neutral-100 text-neutral-500'}`}>
+                        {isSaving ? 'Saving…' : status ? STATUS_LABEL[status] : 'Not marked'}
+                      </span>
                     </div>
-                    <div className="w-full sm:w-44">
-                      <AppSelect
-                        value={rec?.status ?? ''}
-                        onChange={(value) => { if (value) void handleMark(p.id, value as AttendanceStatus); }}
-                        options={STATUS_SELECT_OPTIONS}
-                        placeholder="Not marked"
-                        loading={isSaving}
-                        compact
-                      />
-                    </div>
+                    <AppOverflowMenu
+                      align="right"
+                      items={[
+                        { label: 'Mark present', onClick: () => void handleMark(p.id, 'PRESENT') },
+                        { label: 'Mark late', onClick: () => void handleMark(p.id, 'LATE') },
+                        { label: 'Mark absent', onClick: () => void handleMark(p.id, 'ABSENT') },
+                      ]}
+                    />
                   </div>
                 );
               })}

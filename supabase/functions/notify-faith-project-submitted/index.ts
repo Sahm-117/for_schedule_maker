@@ -1,23 +1,20 @@
 /**
- * Notify Follow-up Assignment Edge Function
+ * Notify Faith Project Submitted Edge Function
  *
- * Called by the frontend when an admin assigns follow-up contact(s) to a
- * support user. Sends a targeted Web Push to that user's subscriptions only.
+ * Called by the frontend when a support user submits (or re-submits) a faith
+ * project for admin review (status → UNDER_REFINEMENT). Sends in-app
+ * notifications + Web Push to all ADMIN-role users.
  *
  * POST body:
  * {
- *   ownerId: string (userId of the assigned support),
- *   contactCount: number,
- *   sample?: string[] (up to 3 contact names for the notification body)
+ *   participantName: string,
+ *   supportName: string,
+ *   groupName?: string
  * }
- *
- * Required Supabase secrets:
- *   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
- *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (auto-injected)
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-// @ts-ignore — web-push ESM build
+// @ts-ignore
 import webPush from 'https://esm.sh/web-push@3'
 import { sendToSubscriptions } from '../_shared/webpush.ts'
 import { insertNotifications } from '../_shared/notifications.ts'
@@ -43,7 +40,6 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
-
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ ok: false, error: 'Method not allowed' }), {
       status: 405,
@@ -52,36 +48,51 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { ownerId, contactCount, sample = [] } = await req.json() as {
-      ownerId: string
-      contactCount: number
-      sample?: string[]
+    const { participantName, supportName, groupName } = await req.json() as {
+      participantName: string
+      supportName: string
+      groupName?: string
     }
 
-    if (!ownerId || !contactCount) {
-      return new Response(JSON.stringify({ ok: false, error: 'ownerId and contactCount are required' }), {
+    if (!participantName || !supportName) {
+      return new Response(JSON.stringify({ ok: false, error: 'participantName and supportName are required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const names = sample.filter(Boolean).join(', ')
-    const suffix = contactCount > sample.length ? '…' : ''
-    const title = '🤝 New follow-up assignment'
-    const body = `You've been assigned ${contactCount} follow-up contact${contactCount === 1 ? '' : 's'}${names ? `: ${names}${suffix}` : ''}`
+    const title = 'Faith project submitted for review'
+    const body = groupName
+      ? `${supportName} submitted ${participantName}'s faith project (${groupName})`
+      : `${supportName} submitted ${participantName}'s faith project`
 
-    // Record the in-app notification first — so the assigned user sees it even
-    // if they have no push subscription / push is denied.
-    await insertNotifications(supabase, [{ userId: ownerId, title, body, path: '/support/follow-ups', type: 'FOLLOWUP_ASSIGNMENT' }])
+    // Look up all admin user IDs
+    const { data: admins, error: adminsError } = await supabase
+      .from('User')
+      .select('id')
+      .eq('role', 'ADMIN')
 
-    const { data: subs, error: subsError } = await supabase
+    if (adminsError) throw new Error(adminsError.message)
+    if (!admins || admins.length === 0) {
+      return new Response(JSON.stringify({ ok: true, sent: 0 }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const adminIds = admins.map((a: { id: string }) => a.id)
+
+    await insertNotifications(supabase, adminIds.map((userId: string) => ({
+      userId,
+      title,
+      body,
+      path: '/faith-projects',
+      type: 'FAITH_PROJECT_SUBMITTED',
+    })))
+
+    const { data: subs } = await supabase
       .from('PushSubscription')
       .select('userId, endpoint, p256dh, auth')
-      .eq('userId', ownerId)
-
-    if (subsError) {
-      throw new Error(subsError.message)
-    }
+      .in('userId', adminIds)
 
     if (!subs || subs.length === 0) {
       return new Response(JSON.stringify({ ok: true, sent: 0 }), {
@@ -93,17 +104,18 @@ Deno.serve(async (req) => {
       title,
       body,
       icon: '/icon-192.png',
-      tag: `fof-followup-assignment-${Date.now()}`,
+      tag: `fof-faith-submitted-${Date.now()}`,
+      data: { path: '/faith-projects' },
     })
 
     const { sent, failed, removed, errors } = await sendToSubscriptions(webPush, supabase, subs as any[], payload)
-    if (failed > 0) console.error(`notify-followup-assignment: ${sent} sent, ${failed} failed, ${removed} removed`, JSON.stringify(errors))
+    if (failed > 0) console.error(`notify-faith-project-submitted: ${sent} sent, ${failed} failed, ${removed} removed`, JSON.stringify(errors))
 
     return new Response(JSON.stringify({ ok: true, sent }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
-    console.error('notify-followup-assignment error:', err)
+    console.error('notify-faith-project-submitted error:', err)
     return new Response(JSON.stringify({ ok: false, error: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

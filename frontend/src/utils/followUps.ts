@@ -44,6 +44,7 @@ export const REGISTRATION_STATUS_META: Record<FollowUpRegistrationStatus, Status
   REGISTERED: { label: 'Registered', tone: 'bg-emerald-100/80 text-emerald-700' },
   STILL_THINKING: { label: 'Still Thinking', tone: 'bg-violet-100/80 text-violet-700' },
   NO_RESPONSE: { label: 'No Response', tone: 'bg-neutral-100 text-neutral-600' },
+  NEXT_COHORT: { label: 'Will Join Next Cohort', tone: 'bg-sky-100/80 text-sky-700' },
 };
 
 export const NEXT_ACTION_META: Record<FollowUpNextAction, StatusMeta> = {
@@ -68,6 +69,7 @@ export const FOLLOW_UP_STATUS_META: Record<FollowUpStatus, StatusMeta> = {
   WRONG_NUMBER: { label: 'Wrong number', description: 'The number does not work.', tone: 'bg-rose-100/80 text-rose-700' },
   NOT_INTERESTED: { label: 'Not interested', description: 'They said no, not available, or not a TCN member.', tone: 'bg-rose-100/80 text-rose-700' },
   NO_RESPONSE: { label: 'No response', description: 'They did not reply after multiple follow-ups.', tone: 'bg-neutral-100 text-neutral-600' },
+  NEXT_COHORT: { label: 'Will join next cohort', description: 'They are interested but will join the next cohort.', tone: 'bg-sky-100/80 text-sky-700' },
 };
 
 export const statusOptions = <T extends string>(meta: Record<T, StatusMeta>) =>
@@ -81,6 +83,7 @@ export const followUpStatusOptions = (Object.keys(FOLLOW_UP_STATUS_META) as Foll
 
 export const computeFollowUpStatus = (c: FollowUpContact): FollowUpStatus => {
   if (c.registrationStatus === 'REGISTERED') return 'REGISTERED';
+  if (c.registrationStatus === 'NEXT_COHORT') return 'NEXT_COHORT';
   if (c.registrationStatus === 'NOT_INTERESTED' || c.registrationStatus === 'NOT_A_GOOD_TIME' || c.registrationStatus === 'NOT_A_TCN_MEMBER') return 'NOT_INTERESTED';
   if (c.registrationStatus === 'NO_RESPONSE') return 'NO_RESPONSE';
   if (c.replyStatus === 'INCORRECT_NUMBER' || c.callStatus === 'INCORRECT_NUMBER') return 'WRONG_NUMBER';
@@ -129,6 +132,7 @@ export const computeFollowUpMetrics = (contacts: FollowUpContact[]): FollowUpMet
     else if (status === 'WRONG_NUMBER') { m.wrongNumber++; m.contacted++; m.closed++; }
     else if (status === 'NOT_INTERESTED') { m.notInterested++; m.contacted++; m.closed++; }
     else if (status === 'NO_RESPONSE') { m.closed++; }
+    else if (status === 'NEXT_COHORT') { /* parked — not counted as closed or active */ }
   }
   return m;
 };
@@ -181,12 +185,14 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       case 'WRONG_NUMBER': row.wrongNumber++; break;
       case 'NOT_INTERESTED': row.notInterested++; break;
       case 'NO_RESPONSE': row.noResponse++; break;
+      case 'NEXT_COHORT': break;
     }
   }
   for (const row of map.values()) {
     row.uncontacted = row.toContact;
     row.contacted = row.replied + row.callBackLater + row.registered + row.wrongNumber + row.notInterested;
-    row.stillOpen = row.assigned - row.registered - row.wrongNumber - row.notInterested - row.noResponse;
+    // stillOpen = active (non-archived, non-closed) contacts only
+    row.stillOpen = row.toContact + row.waiting + row.needsReminder + row.replied + row.callBackLater;
   }
   return Array.from(map.values()).sort((a, b) => (b.toContact + b.waiting + b.needsReminder + b.replied + b.callBackLater) - (a.toContact + a.waiting + a.needsReminder + a.replied + a.callBackLater));
 };
@@ -239,6 +245,11 @@ export const buildStatusPatch = (status: FollowUpStatus, subReason?: string): Re
       base.registrationStatus = 'NO_RESPONSE';
       base.nextAction = 'CLOSE';
       base.archivedAt = now;
+      break;
+    case 'NEXT_COHORT':
+      base.registrationStatus = 'NEXT_COHORT';
+      base.nextAction = 'CLOSE';
+      // not archived — parked for next cohort
       break;
   }
   return base;

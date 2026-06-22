@@ -5,8 +5,8 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import PageHeader from '../components/PageHeader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi } from '../services/api';
-import type { Cohort, User, Week } from '../types';
+import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi } from '../services/api';
+import type { Cohort, FollowUpContact, User, Week } from '../types';
 import { sortByText } from '../utils/sort';
 
 type CohortFormState = {
@@ -15,6 +15,7 @@ type CohortFormState = {
   venue: string;
   startDate: string;
   endDate: string;
+  weekCount: number;
 };
 
 const emptyForm = (): CohortFormState => ({
@@ -23,6 +24,7 @@ const emptyForm = (): CohortFormState => ({
   venue: '',
   startDate: '',
   endDate: '',
+  weekCount: 10,
 });
 
 const formatDateRange = (startDate?: string | null, endDate?: string | null) => {
@@ -36,24 +38,38 @@ const formatDateRange = (startDate?: string | null, endDate?: string | null) => 
   return `${start} to ${end}`;
 };
 
-const getAutoEndDate = (startDate: string) => {
-  if (!startDate) return '';
+// End date = the Sunday that closes week N, where week 1 starts on startDate.
+// Each week is 7 days, so week N ends on startDate + (weekCount - 1) * 7 + 6 days,
+// then advance to the following Sunday if not already one.
+const getAutoEndDate = (startDate: string, weekCount: number) => {
+  if (!startDate || weekCount < 1) return '';
   const date = new Date(`${startDate}T12:00:00`);
-  date.setDate(date.getDate() + 56);
+  date.setDate(date.getDate() + (weekCount - 1) * 7 + 6);
   while (date.getDay() !== 0) {
     date.setDate(date.getDate() + 1);
   }
   return date.toISOString().slice(0, 10);
 };
 
+// Number of weeks spanned by an existing start→end date range (rounded up),
+// used to preserve a cohort's real length when editing its start date.
+const weeksBetween = (startDate?: string | null, endDate?: string | null): number | null => {
+  if (!startDate || !endDate) return null;
+  const start = new Date(`${startDate}T12:00:00`).getTime();
+  const end = new Date(`${endDate}T12:00:00`).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return null;
+  return Math.max(1, Math.ceil((end - start) / (7 * 24 * 60 * 60 * 1000)));
+};
+
 const updateStartDate = (
   setter: React.Dispatch<React.SetStateAction<CohortFormState>>,
   startDate: string,
+  weekCount: number,
 ) => {
   setter((prev) => ({
     ...prev,
     startDate,
-    endDate: startDate ? getAutoEndDate(startDate) : '',
+    endDate: startDate ? getAutoEndDate(startDate, weekCount) : '',
   }));
 };
 
@@ -76,6 +92,9 @@ const CohortsPage: React.FC = () => {
   const [weekEditTarget, setWeekEditTarget] = useState<{ cohortId: string; week: Week } | null>(null);
   const [addWeekChoice, setAddWeekChoice] = useState('blank');
   const [weekTitleDraft, setWeekTitleDraft] = useState('');
+
+  const [nextCohortPrompt, setNextCohortPrompt] = useState<{ contacts: FollowUpContact[]; newCohortId: string } | null>(null);
+  const [movingNextCohort, setMovingNextCohort] = useState(false);
 
   const [savingCreate, setSavingCreate] = useState(false);
   const [savingDetails, setSavingDetails] = useState(false);
@@ -178,6 +197,9 @@ const CohortsPage: React.FC = () => {
       venue: selectedCohort.venue || '',
       startDate: selectedCohort.startDate || '',
       endDate: selectedCohort.endDate || '',
+      // Derive the real week span from the existing dates so changing the start
+      // date preserves this cohort's actual length instead of forcing 10 weeks.
+      weekCount: weeksBetween(selectedCohort.startDate, selectedCohort.endDate) ?? 10,
     });
   }, [selectedCohort]);
 
@@ -242,7 +264,7 @@ const CohortsPage: React.FC = () => {
     setSavingCreate(true);
     setStatus('');
     try {
-      await cohortsApi.createFromCurrent({
+      const newCohort = await cohortsApi.createFromCurrent({
         name: createForm.name.trim(),
         description: createForm.description.trim() || undefined,
         venue: createForm.venue.trim() || null,
@@ -254,6 +276,16 @@ const CohortsPage: React.FC = () => {
       setCreateOpen(false);
       setCreateForm(emptyForm());
       setStatus('New cohort created from the current cohort.');
+      // Check for next-cohort follow-up contacts in the current cohort
+      const newCohortId = (newCohort as { cohort: Cohort })?.cohort?.id;
+      if (newCohortId) {
+        try {
+          const { contacts } = await followUpContactsApi.getNextCohortContacts(activeCohort.id);
+          if (contacts.length > 0) {
+            setNextCohortPrompt({ contacts, newCohortId });
+          }
+        } catch { /* non-critical */ }
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Failed to create cohort.');
     } finally {
@@ -661,18 +693,36 @@ const CohortsPage: React.FC = () => {
             placeholder="Venue"
             className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
           />
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             <label className="block">
               <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Start</span>
               <input
                 type="date"
                 value={createForm.startDate}
-                onChange={(event) => updateStartDate(setCreateForm, event.target.value)}
+                onChange={(event) => updateStartDate(setCreateForm, event.target.value, createForm.weekCount)}
                 className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">End</span>
+              <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Weeks</span>
+              <input
+                type="number"
+                min={1}
+                max={52}
+                value={createForm.weekCount}
+                onChange={(event) => {
+                  const wc = Math.max(1, parseInt(event.target.value, 10) || 1);
+                  setCreateForm((prev) => ({
+                    ...prev,
+                    weekCount: wc,
+                    endDate: prev.startDate ? getAutoEndDate(prev.startDate, wc) : '',
+                  }));
+                }}
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">End (auto)</span>
               <input
                 type="date"
                 value={createForm.endDate}
@@ -682,7 +732,7 @@ const CohortsPage: React.FC = () => {
             </label>
           </div>
           <div className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-sm text-gray-600">
-            Picking a start date auto-fills the end date to the Sunday that closes a 9-week run.
+            End date is auto-calculated from the start date and week count, but you can override it.
           </div>
           <div className="flex justify-end gap-2">
             <button
@@ -786,7 +836,7 @@ const CohortsPage: React.FC = () => {
                 <input
                   type="date"
                   value={detailsForm.startDate}
-                  onChange={(event) => updateStartDate(setDetailsForm, event.target.value)}
+                  onChange={(event) => updateStartDate(setDetailsForm, event.target.value, detailsForm.weekCount)}
                   className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
                 />
               </label>
@@ -1081,6 +1131,62 @@ const CohortsPage: React.FC = () => {
               className="rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
             >
               {deletingCohort ? 'Deleting...' : 'Delete Permanently'}
+            </button>
+          </div>
+        </div>
+      </ModalShell>
+
+      <ModalShell
+        isOpen={!!nextCohortPrompt}
+        title="Add next-cohort follow-ups?"
+        subtitle={nextCohortPrompt ? `${nextCohortPrompt.contacts.length} follow-up contact${nextCohortPrompt.contacts.length === 1 ? '' : 's'} ${nextCohortPrompt.contacts.length === 1 ? 'is' : 'are'} marked "Will join next cohort" in the current cohort.` : ''}
+        onClose={() => !movingNextCohort && setNextCohortPrompt(null)}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">Would you like to move them to the new cohort's follow-up list so they can be contacted for registration?</p>
+          {nextCohortPrompt && (
+            <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3">
+              <ul className="space-y-1">
+                {nextCohortPrompt.contacts.slice(0, 5).map((c) => (
+                  <li key={c.id} className="text-sm text-sky-900">{c.fullName}{c.phone ? <span className="ml-2 text-xs text-sky-600">{c.phone}</span> : null}</li>
+                ))}
+                {nextCohortPrompt.contacts.length > 5 && (
+                  <li className="text-xs text-sky-500">…and {nextCohortPrompt.contacts.length - 5} more</li>
+                )}
+              </ul>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setNextCohortPrompt(null)}
+              disabled={movingNextCohort}
+              className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Skip
+            </button>
+            <button
+              type="button"
+              disabled={movingNextCohort}
+              onClick={async () => {
+                if (!nextCohortPrompt) return;
+                setMovingNextCohort(true);
+                try {
+                  await followUpContactsApi.bulkMoveNextCohortContacts(
+                    nextCohortPrompt.contacts.map((c) => c.id),
+                    nextCohortPrompt.newCohortId,
+                  );
+                  setNextCohortPrompt(null);
+                  setStatus(`Moved ${nextCohortPrompt.contacts.length} contact${nextCohortPrompt.contacts.length === 1 ? '' : 's'} to the new cohort's follow-up list.`);
+                } catch (err) {
+                  setStatus(err instanceof Error ? err.message : 'Failed to move contacts.');
+                } finally {
+                  setMovingNextCohort(false);
+                }
+              }}
+              className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {movingNextCohort ? 'Moving…' : 'Yes, move them'}
             </button>
           </div>
         </div>

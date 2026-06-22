@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authApi, setAuthToken, clearAuthToken, usersApi } from '../services/api';
 import { supabase } from '../lib/supabase';
+import { applyTheme } from '../utils/theme';
 import type { Label, User } from '../types';
 
 interface AuthContextType {
@@ -8,6 +9,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  refreshUser: (patch?: Partial<User>) => void;
   isAdmin: boolean;
   isSopPreparer: boolean;
   userLabelIds: string[];
@@ -35,7 +37,8 @@ const isInactiveAuthError = (error: unknown) => {
 };
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, _setUser] = useState<User | null>(null);
+  const setUser = (u: User | null) => { _setUser(u); if (u) applyTheme(u.themeColor); };
   const [loading, setLoading] = useState(true);
   const [userLabelIds, setUserLabelIds] = useState<string[]>([]);
   const [userLabels, setUserLabels] = useState<Label[]>([]);
@@ -87,10 +90,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUserLabelIds([]);
     setUserLabels([]);
     setUserCohortIds([]);
+    applyTheme(null); // reset to default orange on logout
   };
 
   const logout = () => {
     clearSession();
+  };
+
+  // Patch the current user in-place (e.g. after an avatar or theme change) so the
+  // updated value propagates everywhere the global user is read, and persist it to
+  // the cached session. Re-applies the theme in case themeColor changed.
+  const refreshUser = (patch?: Partial<User>) => {
+    _setUser((prev) => {
+      if (!prev) return prev;
+      const next = patch ? { ...prev, ...patch } : prev;
+      try { localStorage.setItem('user', JSON.stringify(next)); } catch { /* ignore */ }
+      applyTheme(next.themeColor);
+      return next;
+    });
   };
 
   const checkAuth = async () => {
@@ -213,6 +230,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
     login,
     logout,
+    refreshUser,
     isAdmin: user?.role === 'ADMIN',
     isSopPreparer: user?.role === 'SOP_PREPARER',
     userLabelIds,

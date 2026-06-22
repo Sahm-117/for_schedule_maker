@@ -8,6 +8,7 @@ import NotificationPromptModal from './NotificationPromptModal';
 import PWAInstallBanner from './PWAInstallBanner';
 import PWAUpdateBanner from './PWAUpdateBanner';
 import NeedSupportButton from './NeedSupportButton';
+import NotificationBell from './NotificationBell';
 import ErrorBoundary from './ErrorBoundary';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { isWalkthroughDismissed } from '../hooks/useWalkthrough';
@@ -16,6 +17,7 @@ import { sortByText } from '../utils/sort';
 type NavItem = {
   to: string;
   label: string;
+  mobileLabel?: string;
   icon: React.ReactNode;
   adminOnly?: boolean;
   sopHidden?: boolean;
@@ -51,6 +53,7 @@ const ICONS = {
   faith: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" /></svg></IconBox>,
   prayer: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4.318 6.318a4.5 4.5 0 0 0 0 6.364L12 20.364l7.682-7.682a4.5 4.5 0 0 0-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 0 0-6.364 0Z" /></svg></IconBox>,
   onboarding: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5l-3 3v-3Z" /></svg></IconBox>,
+  hub: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg></IconBox>,
 };
 
 const adminNav: NavItem[] = [
@@ -68,6 +71,7 @@ const adminNav: NavItem[] = [
   { to: '/onboarding', label: 'Onboarding', icon: ICONS.onboarding, adminOnly: true },
   { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
   { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
+  { to: '/hub', label: 'Hub', icon: ICONS.hub },
   { to: '/resources', label: 'Resources', icon: ICONS.resources },
   { to: '/settings', label: 'Settings', icon: ICONS.settings },
 ];
@@ -103,6 +107,7 @@ const adminNavGroups: NavGroup[] = [
     items: [
       { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
       { to: '/onboarding', label: 'Onboarding', icon: ICONS.onboarding, adminOnly: true },
+      { to: '/hub', label: 'Hub', icon: ICONS.hub },
     ],
   },
   {
@@ -118,11 +123,12 @@ const adminNavGroups: NavGroup[] = [
 
 const supportNav: NavItem[] = [
   { to: '/support', label: 'Home', icon: ICONS.dashboard },
-  { to: '/support/schedule', label: 'My Schedule', icon: ICONS.schedule },
-  { to: '/support/participants', label: 'My Group', icon: ICONS.participants },
+  { to: '/support/schedule', label: 'My Schedule', mobileLabel: 'Schedule', icon: ICONS.schedule },
+  { to: '/support/participants', label: 'My Group', mobileLabel: 'Group', icon: ICONS.participants },
   { to: '/support/attendance', label: 'Attendance', icon: ICONS.attendance, mobileHidden: true },
   { to: '/support/follow-ups', label: 'My Follow-ups', icon: ICONS.followups, mobileHidden: true },
   { to: '/support/onboarding', label: 'Onboarding', icon: ICONS.onboarding, mobileHidden: true },
+  { to: '/support/hub', label: 'Hub', icon: ICONS.hub },
   { to: '/support/resources', label: 'Resources', icon: ICONS.resources },
   { to: '/support/profile', label: 'Profile', icon: ICONS.profile, mobileHidden: true },
 ];
@@ -160,6 +166,7 @@ const NavItemLink: React.FC<{
   <NavLink
     key={item.to}
     to={item.to}
+    end={item.to === '/support' || item.to === '/dashboard'}
     onClick={onClick}
     className={({ isActive }) => `nav-pill ${active || isActive ? 'nav-pill-active' : ''}`}
   >
@@ -267,7 +274,7 @@ const AppShell: React.FC = () => {
   };
   const mobileNavItems = useMemo(() => {
     if (isSupport) return supportNav.filter((item) => !item.mobileHidden);
-    const mobileAdminRoutes = new Set(['/dashboard', '/schedule', '/approvals', '/resources']);
+    const mobileAdminRoutes = new Set(['/dashboard', '/schedule', '/approvals', '/hub', '/resources']);
     return navItems.filter((item) => mobileAdminRoutes.has(item.to));
   }, [isSupport, navItems]);
 
@@ -487,6 +494,10 @@ const AppShell: React.FC = () => {
               </div>
             </div>
 
+            {/* Bell is visible at every width — Support users are mobile-heavy
+                and rely on this in-app feed when push doesn't reach them. */}
+            <NotificationBell />
+
             <div className="hidden items-center gap-3 sm:flex">
               {cohortOptions.length > 0 && (
                 <div className="w-64">
@@ -532,7 +543,7 @@ const AppShell: React.FC = () => {
                 className={`relative flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium ${active ? 'bg-orange-50 text-primary' : 'text-gray-500'}`}
               >
                 {item.icon}
-                <span className="truncate">{item.label}</span>
+                <span className="truncate">{item.mobileLabel ?? item.label}</span>
                 {item.to.includes('approvals') && globalPendingChanges.length > 0 && (
                   <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />
                 )}

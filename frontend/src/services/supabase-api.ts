@@ -1772,6 +1772,56 @@ export const rejectedChangesApi = {
   },
 };
 
+// In-app notification feed. Mirrors the push notifications written by the edge
+// functions; scoped to the current user. (Unlike rejectedChangesApi, this
+// resolves the real signed-in user id from storage — no placeholder.)
+export const notificationsApi = {
+  async getMine(): Promise<{ notifications: import('../types').Notification[]; unreadCount: number }> {
+    const me = getCurrentUserFromStorage();
+    if (!me?.id) return { notifications: [], unreadCount: 0 };
+
+    const { data, error } = await supabase
+      .from('Notification')
+      .select('*')
+      .eq('userId', me.id)
+      .order('createdAt', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      // Table not migrated yet → behave as an empty feed rather than crash.
+      if ((error as any).code === '42P01') return { notifications: [], unreadCount: 0 };
+      throw new Error(error.message);
+    }
+
+    const notifications = (data || []) as import('../types').Notification[];
+    const unreadCount = notifications.filter((n) => !n.isRead).length;
+    return { notifications, unreadCount };
+  },
+
+  async markAllRead(): Promise<{ updatedCount: number }> {
+    const me = getCurrentUserFromStorage();
+    if (!me?.id) return { updatedCount: 0 };
+
+    const { data, error } = await supabase
+      .from('Notification')
+      .update({ isRead: true })
+      .eq('userId', me.id)
+      .eq('isRead', false)
+      .select('id');
+
+    if (error) throw new Error(error.message);
+    return { updatedCount: data?.length || 0 };
+  },
+
+  async markRead(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('Notification')
+      .update({ isRead: true })
+      .eq('id', id);
+    if (error) throw new Error(error.message);
+  },
+};
+
 // App Settings API
 export const settingsApi = {
   async getDailyDigestEnabled(): Promise<{ enabled: boolean }> {
@@ -2211,6 +2261,43 @@ export const usersApi = {
     }
 
     return { message: 'User deleted successfully' };
+  },
+
+  async saveThemeColor(userId: string, color: string | null): Promise<void> {
+    const { error } = await supabase.from('User').update({ themeColor: color, updatedAt: new Date().toISOString() }).eq('id', userId);
+    if (error) throw new Error(error.message);
+  },
+
+  async uploadAvatar(userId: string, file: File): Promise<{ avatarUrl: string }> {
+    // Resize to max 128×128 JPEG at 0.7 quality client-side
+    const compressed = await new Promise<Blob>((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const size = 128;
+        const canvas = document.createElement('canvas');
+        const scale = Math.min(size / img.width, size / img.height, 1);
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Canvas toBlob failed')), 'image/jpeg', 0.7);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+      img.src = url;
+    });
+
+    const path = `avatars/${userId}.jpg`;
+    const { error: uploadError } = await supabase.storage.from('resources').upload(path, compressed, { upsert: true, contentType: 'image/jpeg' });
+    if (uploadError) throw new Error(uploadError.message);
+
+    const { data: urlData } = supabase.storage.from('resources').getPublicUrl(path);
+    const avatarUrl = urlData.publicUrl;
+
+    const { error: updateError } = await supabase.from('User').update({ avatarUrl, updatedAt: new Date().toISOString() }).eq('id', userId);
+    if (updateError) throw new Error(updateError.message);
+
+    return { avatarUrl };
   },
 };
 
@@ -2717,6 +2804,30 @@ export const followUpContactsApi = {
     if (error) throw new Error(error.message);
     return { message: 'Contact deleted' };
   },
+
+  async getNextCohortContacts(cohortId: string): Promise<{ contacts: import('../types').FollowUpContact[] }> {
+    const { data, error } = await supabase
+      .from('FollowUpContact')
+      .select(FOLLOW_UP_SELECT)
+      .eq('cohortId', cohortId)
+      .eq('registrationStatus', 'NEXT_COHORT')
+      .is('archivedAt', null);
+    if (error) throw new Error(error.message);
+    return { contacts: ((data as any[]) || []).map(mapFollowUpContact) };
+  },
+
+  async bulkMoveNextCohortContacts(contactIds: string[], newCohortId: string): Promise<void> {
+    const { error } = await supabase
+      .from('FollowUpContact')
+      .update({
+        cohortId: newCohortId,
+        registrationStatus: 'NOT_REGISTERED',
+        archivedAt: null,
+        updatedAt: new Date().toISOString(),
+      })
+      .in('id', contactIds);
+    if (error) throw new Error(error.message);
+  },
 };
 
 export const messageTemplatesApi = {
@@ -3020,7 +3131,7 @@ export const participantsApi = {
     smartRequest?: string | null;
   }>): Promise<{ participants: import('../types').Participant[] }> {
     if (rows.length === 0) return { participants: [] };
-    const inserts = rows.map((r) => ({ ...r, source: r.source ?? 'IMPORT' }));
+    const inserts = rows.map((r) => ({ ...r, source: r.source ?? 'IMPORT', departments: r.departments ?? [] }));
     const { data, error } = await supabase
       .from('Participant')
       .insert(inserts)
@@ -3117,6 +3228,10 @@ export const participantsApi = {
 
   async archive(participantId: string): Promise<{ participant: import('../types').Participant }> {
     return participantsApi.update(participantId, { status: 'ARCHIVED' });
+  },
+
+  async unarchive(participantId: string): Promise<{ participant: import('../types').Participant }> {
+    return participantsApi.update(participantId, { status: 'ACTIVE' });
   },
 
   async delete(participantId: string): Promise<{ message: string }> {
@@ -4047,6 +4162,7 @@ const mapFaithProject = (row: any): import('../types').FaithProject => ({
   status: row.status ?? 'NOT_DRAFTED',
   updatedById: row.updatedById ?? null,
   updatedByName: row.updatedBy?.name ?? null,
+  reviewHistory: (row.reviewHistory as import('../types').FaithProjectReviewEntry[]) ?? [],
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
@@ -4112,6 +4228,39 @@ export const faithProjectsApi = {
       .single();
 
     if (error || !data) throw new Error(error?.message || 'Failed to create faith project');
+    return { project: mapFaithProject(data) };
+  },
+
+  async reviewProject(projectId: string, input: {
+    status: 'APPROVED' | 'NEEDS_REFINEMENT';
+    note?: string | null;
+    actorId: string;
+    actorName: string;
+  }): Promise<{ project: import('../types').FaithProject }> {
+    const { data: existing, error: fetchErr } = await supabase
+      .from('FaithProject')
+      .select('reviewHistory')
+      .eq('id', projectId)
+      .single();
+    if (fetchErr || !existing) throw new Error(fetchErr?.message || 'Faith project not found');
+
+    const entry: import('../types').FaithProjectReviewEntry = {
+      actorId: input.actorId,
+      actorName: input.actorName,
+      action: input.status,
+      note: input.note ?? null,
+      at: new Date().toISOString(),
+    };
+    const history = [...((existing.reviewHistory as import('../types').FaithProjectReviewEntry[]) ?? []), entry];
+
+    const { data, error } = await supabase
+      .from('FaithProject')
+      .update({ status: input.status, reviewHistory: history, updatedById: input.actorId, updatedAt: new Date().toISOString() })
+      .eq('id', projectId)
+      .select(FAITH_PROJECT_SELECT)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'Failed to save review');
     return { project: mapFaithProject(data) };
   },
 
@@ -4296,5 +4445,183 @@ export const groupPrayerStatusApi = {
 
     if (error || !data) throw new Error(error?.message || 'Failed to update prayer status');
     return { status: mapGroupPrayerStatus(data) };
+  },
+};
+
+// ─── Hub API ──────────────────────────────────────────────────────────────────
+
+const HUB_TOPIC_SELECT = `*, author:User!HubTopic_authorId_fkey(id, name, "avatarUrl"), comments:HubComment(id)`;
+const HUB_COMMENT_SELECT = `*, author:User!HubComment_authorId_fkey(id, name, "avatarUrl"), replies:HubReply(id)`;
+const HUB_REPLY_SELECT = `*, author:User!HubReply_authorId_fkey(id, name, "avatarUrl")`;
+
+const mapTopic = (row: any): import('../types').HubTopic => ({
+  id: row.id,
+  authorId: row.authorId,
+  authorName: row.author?.name ?? 'Unknown',
+  authorAvatarUrl: row.author?.avatarUrl ?? null,
+  title: row.title,
+  body: row.body,
+  status: row.status,
+  commentCount: (row.comments ?? []).length,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+});
+
+const mapComment = (row: any): import('../types').HubComment => ({
+  id: row.id,
+  topicId: row.topicId,
+  authorId: row.authorId,
+  authorName: row.author?.name ?? 'Unknown',
+  authorAvatarUrl: row.author?.avatarUrl ?? null,
+  body: row.body,
+  replyCount: (row.replies ?? []).length,
+  createdAt: row.createdAt,
+});
+
+const mapReply = (row: any): import('../types').HubReply => ({
+  id: row.id,
+  commentId: row.commentId,
+  authorId: row.authorId,
+  authorName: row.author?.name ?? 'Unknown',
+  authorAvatarUrl: row.author?.avatarUrl ?? null,
+  body: row.body,
+  createdAt: row.createdAt,
+});
+
+export const hubApi = {
+  async getTopics(status: 'OPEN' | 'CLOSED'): Promise<{ topics: import('../types').HubTopic[] }> {
+    const { data, error } = await supabase
+      .from('HubTopic')
+      .select(HUB_TOPIC_SELECT)
+      .eq('status', status)
+      .order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { topics: ((data as any[]) || []).map(mapTopic) };
+  },
+
+  async createTopic(input: { title: string; body: string; authorId: string }): Promise<{ topic: import('../types').HubTopic }> {
+    const { data, error } = await supabase
+      .from('HubTopic')
+      .insert([{ title: input.title, body: input.body, authorId: input.authorId, status: 'OPEN' }])
+      .select(HUB_TOPIC_SELECT)
+      .single();
+    if (error) throw new Error(error.message);
+    return { topic: mapTopic(data) };
+  },
+
+  async setTopicStatus(topicId: string, status: 'OPEN' | 'CLOSED'): Promise<{ topic: import('../types').HubTopic }> {
+    const { data, error } = await supabase
+      .from('HubTopic')
+      .update({ status, updatedAt: new Date().toISOString() })
+      .eq('id', topicId)
+      .select(HUB_TOPIC_SELECT)
+      .single();
+    if (error) throw new Error(error.message);
+    return { topic: mapTopic(data) };
+  },
+
+  async getComments(topicId: string): Promise<{ comments: import('../types').HubComment[] }> {
+    const { data, error } = await supabase
+      .from('HubComment')
+      .select(HUB_COMMENT_SELECT)
+      .eq('topicId', topicId)
+      .order('createdAt', { ascending: true });
+    if (error) throw new Error(error.message);
+    return { comments: ((data as any[]) || []).map(mapComment) };
+  },
+
+  async createComment(input: { topicId: string; body: string; authorId: string }): Promise<{ comment: import('../types').HubComment }> {
+    const { data, error } = await supabase
+      .from('HubComment')
+      .insert([{ topicId: input.topicId, body: input.body, authorId: input.authorId }])
+      .select(HUB_COMMENT_SELECT)
+      .single();
+    if (error) throw new Error(error.message);
+    return { comment: mapComment(data) };
+  },
+
+  async getReplies(commentId: string): Promise<{ replies: import('../types').HubReply[] }> {
+    const { data, error } = await supabase
+      .from('HubReply')
+      .select(HUB_REPLY_SELECT)
+      .eq('commentId', commentId)
+      .order('createdAt', { ascending: true });
+    if (error) throw new Error(error.message);
+    return { replies: ((data as any[]) || []).map(mapReply) };
+  },
+
+  async createReply(input: { commentId: string; body: string; authorId: string }): Promise<{ reply: import('../types').HubReply }> {
+    const { data, error } = await supabase
+      .from('HubReply')
+      .insert([{ commentId: input.commentId, body: input.body, authorId: input.authorId }])
+      .select(HUB_REPLY_SELECT)
+      .single();
+    if (error) throw new Error(error.message);
+    return { reply: mapReply(data) };
+  },
+
+  async getUsers(): Promise<{ users: Array<{ id: string; name: string; avatarUrl?: string | null; role?: string }> }> {
+    const { data, error } = await supabase
+      .from('User')
+      .select('id, name, "avatarUrl", role')
+      .eq('isActive', true)
+      .order('name', { ascending: true });
+    if (error) throw new Error(error.message);
+    return { users: (data as any[]) || [] };
+  },
+
+  async sendNotifications(entries: Array<{ userId: string; title: string; body: string; path: string }>): Promise<void> {
+    if (entries.length === 0) return;
+    // Route through the notify-hub edge function (service role) so each event
+    // produces BOTH an in-app feed row AND a Web Push — matching every other
+    // notify-* path. Entries within one call share a title/body, so group by
+    // them and send one request per (title, body) group with role-aware paths.
+    const groups = new Map<string, { title: string; body: string; recipients: Array<{ userId: string; path: string }> }>();
+    for (const e of entries) {
+      const key = `${e.title} ${e.body}`;
+      const g = groups.get(key) ?? { title: e.title, body: e.body, recipients: [] };
+      g.recipients.push({ userId: e.userId, path: e.path });
+      groups.set(key, g);
+    }
+    await Promise.all(
+      [...groups.values()].map((g) =>
+        supabase.functions
+          .invoke('notify-hub', { body: { recipients: g.recipients, title: g.title, body: g.body } })
+          .catch(() => undefined), // fire-and-forget — never block the UI on notifications
+      ),
+    );
+  },
+
+  async deleteTopic(topicId: string): Promise<void> {
+    const { error } = await supabase.from('HubTopic').delete().eq('id', topicId);
+    if (error) throw new Error(error.message);
+  },
+
+  async deleteComment(commentId: string): Promise<void> {
+    const { error } = await supabase.from('HubComment').delete().eq('id', commentId);
+    if (error) throw new Error(error.message);
+  },
+
+  async deleteReply(replyId: string): Promise<void> {
+    const { error } = await supabase.from('HubReply').delete().eq('id', replyId);
+    if (error) throw new Error(error.message);
+  },
+
+  async updateTopic(topicId: string, body: string): Promise<{ topic: import('../types').HubTopic }> {
+    const { data, error } = await supabase.from('HubTopic').update({ body, updatedAt: new Date().toISOString() }).eq('id', topicId).select(HUB_TOPIC_SELECT).single();
+    if (error) throw new Error(error.message);
+    return { topic: mapTopic(data) };
+  },
+
+  async updateComment(commentId: string, body: string): Promise<{ comment: import('../types').HubComment }> {
+    const { data, error } = await supabase.from('HubComment').update({ body, updatedAt: new Date().toISOString() }).eq('id', commentId).select(HUB_COMMENT_SELECT).single();
+    if (error) throw new Error(error.message);
+    return { comment: mapComment(data) };
+  },
+
+  async updateReply(replyId: string, body: string): Promise<{ reply: import('../types').HubReply }> {
+    const { data, error } = await supabase.from('HubReply').update({ body, updatedAt: new Date().toISOString() }).eq('id', replyId).select(HUB_REPLY_SELECT).single();
+    if (error) throw new Error(error.message);
+    return { reply: mapReply(data) };
   },
 };

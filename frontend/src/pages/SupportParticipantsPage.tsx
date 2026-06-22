@@ -16,6 +16,7 @@ import {
 } from '../services/api';
 import type {
   FaithProject,
+  FaithProjectReviewEntry,
   FaithProjectStatus,
   GroupOnboardingStatus,
   GroupPrayerFocus,
@@ -31,13 +32,14 @@ type GroupTab = 'faith' | 'prayers';
 const STATUS_OPTIONS: Array<{ value: FaithProjectStatus; label: string; cls: string }> = [
   { value: 'NOT_DRAFTED', label: 'Not Drafted', cls: 'bg-neutral-100 text-neutral-600' },
   { value: 'UNDER_REFINEMENT', label: 'Under Refinement', cls: 'bg-amber-100/80 text-amber-700' },
+  { value: 'NEEDS_REFINEMENT', label: 'Needs Refinement', cls: 'bg-orange-100/80 text-orange-700' },
   { value: 'APPROVED', label: 'Approved', cls: 'bg-emerald-100/80 text-emerald-700' },
 ];
 
+// Support can only set NOT_DRAFTED or UNDER_REFINEMENT — admin controls NEEDS_REFINEMENT and APPROVED.
 const FAITH_PROJECT_SELECT_OPTIONS = [
   { value: 'NOT_DRAFTED', label: 'Not Drafted', meta: 'No draft has been started yet' },
   { value: 'UNDER_REFINEMENT', label: 'Under Refinement', meta: 'Draft exists and is being refined' },
-  { value: 'APPROVED', label: 'Approved', meta: 'Faith Project is approved' },
 ];
 
 const PRAYER_STATUS_OPTIONS = [
@@ -200,15 +202,52 @@ const EditNameModal: React.FC<{
   );
 };
 
+const formatReviewDate = (iso: string) =>
+  new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso));
+
+const SupportReviewHistory: React.FC<{ history: FaithProjectReviewEntry[] }> = ({ history }) => {
+  const [open, setOpen] = useState(false);
+  if (history.length === 0) return null;
+  return (
+    <div className="rounded-xl border border-orange-100 bg-orange-50/40">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-3.5 py-2.5 text-xs font-semibold text-gray-600"
+      >
+        <span>{history.length} review{history.length > 1 ? 's' : ''}</span>
+        <span className="text-gray-400">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="divide-y divide-orange-100 border-t border-orange-100">
+          {[...history].reverse().map((entry, i) => (
+            <div key={i} className="px-3.5 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${entry.action === 'APPROVED' ? 'bg-emerald-100/80 text-emerald-700' : 'bg-orange-100/80 text-orange-700'}`}>
+                  {entry.action === 'APPROVED' ? 'Approved' : 'Needs Refinement'}
+                </span>
+                <span className="text-xs text-gray-500">{entry.actorName} · {formatReviewDate(entry.at)}</span>
+              </div>
+              {entry.note && <p className="mt-1.5 text-xs text-gray-600">{entry.note}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface FaithProjectPanelProps {
   participant: Participant;
   existing: FaithProject | null;
   onSaved: (project: FaithProject) => void;
   onParticipantUpdated: (p: Participant) => void;
   userId?: string;
+  supportName?: string;
+  groupName?: string;
 }
 
-const FaithProjectPanel: React.FC<FaithProjectPanelProps> = ({ participant, existing, onSaved, onParticipantUpdated, userId }) => {
+const FaithProjectPanel: React.FC<FaithProjectPanelProps> = ({ participant, existing, onSaved, onParticipantUpdated, userId, supportName, groupName }) => {
   const [open, setOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -216,14 +255,22 @@ const FaithProjectPanel: React.FC<FaithProjectPanelProps> = ({ participant, exis
   const [body, setBody] = useState(existing?.body ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [submitted, setSubmitted] = useState(false);
   const detailsPanelId = `participant-details-${participant.id}`;
 
   useEffect(() => {
-    setStatus(existing?.status ?? 'NOT_DRAFTED');
+    // NEEDS_REFINEMENT resets to UNDER_REFINEMENT so support can re-submit after
+    // incorporating feedback. APPROVED is a terminal admin state — keep it as-is
+    // (the editor is read-only for approved projects, so it is never re-saved).
+    const s = existing?.status ?? 'NOT_DRAFTED';
+    setStatus(s === 'NEEDS_REFINEMENT' ? 'UNDER_REFINEMENT' : s);
     setBody(existing?.body ?? '');
   }, [existing]);
 
+  const isApproved = (existing?.status ?? 'NOT_DRAFTED') === 'APPROVED';
+
   const handleSave = async () => {
+    if (isApproved) return; // approved projects are locked — support cannot downgrade them
     setSaving(true);
     setError('');
     try {
@@ -233,7 +280,23 @@ const FaithProjectPanel: React.FC<FaithProjectPanelProps> = ({ participant, exis
         updatedById: userId ?? null,
       });
       onSaved(project);
-      setOpen(false);
+      if (status === 'UNDER_REFINEMENT') {
+        // Notify admins — fire-and-forget
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+        fetch(`${supabaseUrl}/functions/v1/notify-faith-project-submitted`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+          body: JSON.stringify({
+            participantName: participant.fullName,
+            supportName: supportName ?? 'Support',
+            groupName,
+          }),
+        }).catch(() => {/* non-critical */});
+        setSubmitted(true);
+      } else {
+        setOpen(false);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to save');
     } finally {
@@ -276,10 +339,16 @@ const FaithProjectPanel: React.FC<FaithProjectPanelProps> = ({ participant, exis
               </button>
             </div>
             <CopyPhoneButton phone={participant.phone} />
-            <div className="mt-3">
+            <div className="mt-3 flex flex-wrap items-start gap-2">
               <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCls(currentStatus)}`}>
                 {statusLabel(currentStatus)}
               </span>
+              {(() => {
+                const lastNote = existing?.reviewHistory?.slice().reverse().find((e) => e.note);
+                return lastNote ? (
+                  <p className="text-xs text-orange-700 italic">"{lastNote.note}"</p>
+                ) : null;
+              })()}
             </div>
           </div>
           <span className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-orange-50 text-gray-400">
@@ -314,41 +383,81 @@ const FaithProjectPanel: React.FC<FaithProjectPanelProps> = ({ participant, exis
 
       <ModalShell
         isOpen={open}
-        onClose={() => setOpen(false)}
+        onClose={() => { setOpen(false); setSubmitted(false); }}
         title={`Faith project: ${participant.fullName}`}
-        footer={(
+        footer={submitted ? (
+          <button type="button" onClick={() => { setOpen(false); setSubmitted(false); }} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white">
+            Done
+          </button>
+        ) : isApproved ? (
+          <button type="button" onClick={() => setOpen(false)} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white">
+            Close
+          </button>
+        ) : (
           <>
             <button type="button" onClick={() => setOpen(false)} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">
               Cancel
             </button>
             <button type="button" onClick={() => { void handleSave(); }} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? 'Saving…' : status === 'UNDER_REFINEMENT' ? 'Submit for review' : 'Save'}
             </button>
           </>
         )}
       >
-        <div className="flex flex-col gap-4">
-          {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>}
-          <div>
-            <AppSelect
-              value={status}
-              onChange={(value) => setStatus(value as FaithProjectStatus)}
-              options={FAITH_PROJECT_SELECT_OPTIONS}
-              placeholder="Choose status"
-              label="Status"
-            />
+        {submitted ? (
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
+              <svg className="h-6 w-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="text-base font-semibold text-gray-900">Submitted for review</p>
+            <p className="text-sm text-gray-500">The admin team has been notified and will review {participant.fullName}'s faith project.</p>
           </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Faith project</label>
-            <textarea
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              rows={4}
-              className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              placeholder="Write the participant's faith project..."
-            />
+        ) : (
+          <div className="flex flex-col gap-4">
+            {isApproved && (
+              <div className="rounded-xl bg-emerald-50 px-4 py-3">
+                <p className="text-sm font-semibold text-emerald-700">Approved by admin</p>
+                <p className="mt-1 text-xs text-emerald-600">This faith project has been approved and is now locked. Contact an admin if it needs further changes.</p>
+              </div>
+            )}
+            {!isApproved && currentStatus === 'NEEDS_REFINEMENT' && (
+              <div className="rounded-xl bg-orange-50 px-4 py-3">
+                <p className="text-sm font-semibold text-orange-700">Admin has requested changes</p>
+                {(() => {
+                  const lastNote = existing?.reviewHistory?.slice().reverse().find((e) => e.note);
+                  return lastNote ? <p className="mt-1 text-sm text-orange-600">"{lastNote.note}"</p> : null;
+                })()}
+                <p className="mt-1.5 text-xs text-orange-500">Update the project below and submit again for review.</p>
+              </div>
+            )}
+            {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</p>}
+            {!isApproved && (
+              <div>
+                <AppSelect
+                  value={status}
+                  onChange={(value) => setStatus(value as FaithProjectStatus)}
+                  options={FAITH_PROJECT_SELECT_OPTIONS}
+                  placeholder="Choose status"
+                  label="Status"
+                />
+              </div>
+            )}
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Faith project</label>
+              <textarea
+                value={body}
+                onChange={(event) => setBody(event.target.value)}
+                rows={4}
+                disabled={isApproved}
+                className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-gray-50 disabled:text-gray-500"
+                placeholder="Write the participant's faith project..."
+              />
+            </div>
+            <SupportReviewHistory history={existing?.reviewHistory ?? []} />
           </div>
-        </div>
+        )}
       </ModalShell>
 
       <EditNameModal
@@ -637,6 +746,8 @@ const SupportParticipantsPage: React.FC = () => {
                         participant={participant}
                         existing={project}
                         userId={user.id}
+                        supportName={user.name}
+                        groupName={selectedGroup?.groupName ?? undefined}
                         onSaved={(savedProject) => {
                           setFaithProjects((prev) => {
                             const others = prev.filter((entry) => entry.participantId !== savedProject.participantId);

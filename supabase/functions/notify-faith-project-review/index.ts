@@ -1,19 +1,17 @@
 /**
- * Notify Follow-up Assignment Edge Function
+ * Notify Faith Project Review Edge Function
  *
- * Called by the frontend when an admin assigns follow-up contact(s) to a
- * support user. Sends a targeted Web Push to that user's subscriptions only.
+ * Called by the frontend when an admin approves or requests refinement on a
+ * faith project. Sends an in-app notification + Web Push to the assigned
+ * support user.
  *
  * POST body:
  * {
- *   ownerId: string (userId of the assigned support),
- *   contactCount: number,
- *   sample?: string[] (up to 3 contact names for the notification body)
+ *   supportUserId: string,
+ *   participantName: string,
+ *   action: 'APPROVED' | 'NEEDS_REFINEMENT',
+ *   note?: string
  * }
- *
- * Required Supabase secrets:
- *   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
- *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (auto-injected)
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -52,36 +50,41 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { ownerId, contactCount, sample = [] } = await req.json() as {
-      ownerId: string
-      contactCount: number
-      sample?: string[]
+    const { supportUserId, participantName, action, note } = await req.json() as {
+      supportUserId: string
+      participantName: string
+      action: 'APPROVED' | 'NEEDS_REFINEMENT'
+      note?: string
     }
 
-    if (!ownerId || !contactCount) {
-      return new Response(JSON.stringify({ ok: false, error: 'ownerId and contactCount are required' }), {
+    if (!supportUserId || !participantName || !action) {
+      return new Response(JSON.stringify({ ok: false, error: 'supportUserId, participantName, and action are required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const names = sample.filter(Boolean).join(', ')
-    const suffix = contactCount > sample.length ? '…' : ''
-    const title = '🤝 New follow-up assignment'
-    const body = `You've been assigned ${contactCount} follow-up contact${contactCount === 1 ? '' : 's'}${names ? `: ${names}${suffix}` : ''}`
+    const title = action === 'APPROVED'
+      ? 'Faith project approved'
+      : 'Faith project needs work'
+    const body = action === 'APPROVED'
+      ? `${participantName}'s faith project has been approved.`
+      : `${participantName}: ${note || 'Please refine and resubmit.'}`
 
-    // Record the in-app notification first — so the assigned user sees it even
-    // if they have no push subscription / push is denied.
-    await insertNotifications(supabase, [{ userId: ownerId, title, body, path: '/support/follow-ups', type: 'FOLLOWUP_ASSIGNMENT' }])
+    await insertNotifications(supabase, [{
+      userId: supportUserId,
+      title,
+      body,
+      path: '/support/participants',
+      type: 'FAITH_PROJECT_REVIEW',
+    }])
 
     const { data: subs, error: subsError } = await supabase
       .from('PushSubscription')
       .select('userId, endpoint, p256dh, auth')
-      .eq('userId', ownerId)
+      .eq('userId', supportUserId)
 
-    if (subsError) {
-      throw new Error(subsError.message)
-    }
+    if (subsError) throw new Error(subsError.message)
 
     if (!subs || subs.length === 0) {
       return new Response(JSON.stringify({ ok: true, sent: 0 }), {
@@ -93,17 +96,18 @@ Deno.serve(async (req) => {
       title,
       body,
       icon: '/icon-192.png',
-      tag: `fof-followup-assignment-${Date.now()}`,
+      tag: `fof-faith-review-${Date.now()}`,
+      data: { path: '/support/participants' },
     })
 
     const { sent, failed, removed, errors } = await sendToSubscriptions(webPush, supabase, subs as any[], payload)
-    if (failed > 0) console.error(`notify-followup-assignment: ${sent} sent, ${failed} failed, ${removed} removed`, JSON.stringify(errors))
+    if (failed > 0) console.error(`notify-faith-project-review: ${sent} sent, ${failed} failed, ${removed} removed`, JSON.stringify(errors))
 
     return new Response(JSON.stringify({ ok: true, sent }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
-    console.error('notify-followup-assignment error:', err)
+    console.error('notify-faith-project-review error:', err)
     return new Response(JSON.stringify({ ok: false, error: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

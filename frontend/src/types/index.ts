@@ -29,6 +29,8 @@ export interface User {
   isActive?: boolean;
   deactivatedAt?: string | null;
   isCoordinator?: boolean;
+  avatarUrl?: string | null;
+  themeColor?: string | null;
   createdAt?: string;
   updatedAt?: string;
   labels?: Label[];
@@ -151,12 +153,34 @@ export interface Announcement {
   targetLabelId?: string | null;
 }
 
+export type NotificationType =
+  | 'ANNOUNCEMENT'
+  | 'FOLLOWUP_ASSIGNMENT'
+  | 'FOLLOWUP_ISSUE'
+  | 'FOLLOWUP_TERMINAL'
+  | 'FAITH_PROJECT_REVIEW'
+  | 'FAITH_PROJECT_SUBMITTED'
+  | 'HUB'
+  | 'REMINDER'
+  | 'GENERAL';
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  body: string;
+  path?: string | null;
+  type: NotificationType;
+  isRead: boolean;
+  createdAt: string;
+}
+
 export type FollowUpMessageStatus = 'NOT_SENT' | 'SENT';
 export type FollowUpReplyStatus = 'NO_REPLY' | 'REPLIED' | 'NEEDS_REMINDER' | 'INCORRECT_NUMBER';
 export type FollowUpCallStatus = 'NOT_CALLED' | 'CALLED' | 'MISSED_CALL' | 'CALL_BACK_LATER' | 'NOT_APPLICABLE' | 'INCORRECT_NUMBER';
-export type FollowUpRegistrationStatus = 'NOT_REGISTERED' | 'PENDING_CONFIRMATION' | 'REGISTERED' | 'STILL_THINKING' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'NO_RESPONSE';
+export type FollowUpRegistrationStatus = 'NOT_REGISTERED' | 'PENDING_CONFIRMATION' | 'REGISTERED' | 'STILL_THINKING' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'NO_RESPONSE' | 'NEXT_COHORT';
 export type FollowUpNextAction = 'SEND_MESSAGE' | 'SEND_REMINDER' | 'CALL' | 'CLOSE';
-export type FollowUpStatus = 'TO_CONTACT' | 'WAITING' | 'NEEDS_REMINDER' | 'REPLIED' | 'CALL_BACK_LATER' | 'REGISTERED' | 'WRONG_NUMBER' | 'NOT_INTERESTED' | 'NO_RESPONSE';
+export type FollowUpStatus = 'TO_CONTACT' | 'WAITING' | 'NEEDS_REMINDER' | 'REPLIED' | 'CALL_BACK_LATER' | 'REGISTERED' | 'WRONG_NUMBER' | 'NOT_INTERESTED' | 'NO_RESPONSE' | 'NEXT_COHORT';
 export type IssueStatus = 'OPEN' | 'RESOLVED';
 
 export interface FollowUpContact {
@@ -350,7 +374,15 @@ export interface AttendanceRecord {
 
 // ── Faith Projects ────────────────────────────────────────────────────────────
 
-export type FaithProjectStatus = 'NOT_DRAFTED' | 'UNDER_REFINEMENT' | 'APPROVED';
+export type FaithProjectStatus = 'NOT_DRAFTED' | 'UNDER_REFINEMENT' | 'NEEDS_REFINEMENT' | 'APPROVED';
+
+export interface FaithProjectReviewEntry {
+  actorId: string;
+  actorName: string;
+  action: 'APPROVED' | 'NEEDS_REFINEMENT';
+  note?: string | null;
+  at: string;
+}
 
 export interface FaithProject {
   id: string;
@@ -361,6 +393,7 @@ export interface FaithProject {
   status: FaithProjectStatus;
   updatedById?: string | null;
   updatedByName?: string | null;
+  reviewHistory?: FaithProjectReviewEntry[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -423,4 +456,43 @@ export interface DailyDigestFunctionResponse {
   dayName?: string;
   weekNumber?: number;
   details?: unknown;
+}
+
+// ─── Hub ─────────────────────────────────────────────────────────────────────
+
+export type HubTopicStatus = 'OPEN' | 'CLOSED';
+
+export interface HubTopic {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorAvatarUrl?: string | null;
+  title: string;
+  body: string;
+  status: HubTopicStatus;
+  commentCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HubComment {
+  id: string;
+  topicId: string;
+  authorId: string;
+  authorName: string;
+  authorAvatarUrl?: string | null;
+  body: string;
+  replyCount: number;
+  createdAt: string;
+  replies?: HubReply[];
+}
+
+export interface HubReply {
+  id: string;
+  commentId: string;
+  authorId: string;
+  authorName: string;
+  authorAvatarUrl?: string | null;
+  body: string;
+  createdAt: string;
 }

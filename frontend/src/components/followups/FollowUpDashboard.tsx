@@ -35,7 +35,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
           <table className="w-full text-left text-sm">
             <thead className="bg-orange-50/60 text-xs uppercase tracking-wide text-gray-500">
               <tr>
-                <th className="px-5 py-3 whitespace-nowrap">Owner</th>
+                <th className="px-5 py-3 whitespace-nowrap">Follow-up rep</th>
                 <th className="px-5 py-3 whitespace-nowrap">Assigned</th>
                 <th className="px-5 py-3 whitespace-nowrap">Still Open</th>
                 <th className="px-5 py-3 whitespace-nowrap">Registered</th>

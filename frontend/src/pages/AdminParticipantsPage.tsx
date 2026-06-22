@@ -20,6 +20,7 @@ import {
   type SkippedImportRow,
 } from '../utils/contactImport';
 import { sortByText } from '../utils/sort';
+import { reconcileById } from '../utils/reconcile';
 import { normalizeToIntlPhone } from '../utils/phone';
 import { DEPARTMENTS, AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
 
@@ -802,10 +803,12 @@ const AdminParticipantsPage: React.FC = () => {
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState(''); // '' = all, '__UNASSIGNED__' = no group, else groupId
+  const [supportFilter, setSupportFilter] = useState(''); // '' = all, else supportId
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Participant | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Participant | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Participant | null>(null);
   const [viewing, setViewing] = useState<Participant | null>(null);
   const [assigning, setAssigning] = useState<Participant | null>(null);
 
@@ -821,8 +824,17 @@ const AdminParticipantsPage: React.FC = () => {
         participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true }),
         groupsApi.getAll({ cohortId: activeCohort.id }),
       ]);
-      setParticipants(sortByText(ps, (participant) => participant.fullName));
-      setGroups(sortByText(gs, (group) => group.name));
+      const sortedPs = sortByText(ps, (participant) => participant.fullName);
+      const sortedGs = sortByText(gs, (group) => group.name);
+      if (silent) {
+        // Merge by id so unchanged rows keep their reference — avoids the
+        // full-list re-render / scroll-jump on every realtime refresh.
+        setParticipants((prev) => reconcileById(prev, sortedPs));
+        setGroups((prev) => reconcileById(prev, sortedGs));
+      } else {
+        setParticipants(sortedPs);
+        setGroups(sortedGs);
+      }
     } catch { /* ignore */ }
     finally { if (!silent) setLoading(false); }
   }, [activeCohort]);
@@ -853,9 +865,27 @@ const AdminParticipantsPage: React.FC = () => {
     return map;
   }, [groups]);
 
+  // Unique support users derived from groups (only those with an assigned support).
+  const supportOptions = useMemo(() => {
+    const seen = new Map<string, string>(); // supportId → name
+    groups.forEach((g) => { if (g.supportId && g.supportName) seen.set(g.supportId, g.supportName); });
+    const sorted = [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+    return [{ value: '', label: 'All support' }, ...sorted.map(([id, name]) => ({ value: id, label: name }))];
+  }, [groups]);
+
+  // groupIds that belong to the selected support person — used to filter participants.
+  const groupIdsForSupport = useMemo(() => {
+    if (!supportFilter) return null;
+    return new Set(groups.filter((g) => g.supportId === supportFilter).map((g) => g.id));
+  }, [groups, supportFilter]);
+
   const displayed = useMemo(() => {
-    let ps = showArchived ? participants : participants.filter((p) => p.status === 'ACTIVE');
-    if (groupFilter === '__UNASSIGNED__') {
+    let ps = showArchived
+      ? participants.filter((p) => p.status === 'ARCHIVED')
+      : participants.filter((p) => p.status === 'ACTIVE');
+    if (groupIdsForSupport) {
+      ps = ps.filter((p) => p.groupId && groupIdsForSupport.has(p.groupId));
+    } else if (groupFilter === '__UNASSIGNED__') {
       ps = ps.filter((p) => !p.groupId);
     } else if (groupFilter) {
       ps = ps.filter((p) => p.groupId === groupFilter);
@@ -865,7 +895,7 @@ const AdminParticipantsPage: React.FC = () => {
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, showArchived, search, groupFilter]);
+  }, [participants, showArchived, search, groupFilter, groupIdsForSupport]);
 
   const unassignedCount = useMemo(
     () => participants.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
@@ -880,6 +910,23 @@ const AdminParticipantsPage: React.FC = () => {
       setParticipants((prev) => prev.map((x) => x.id === p.id ? { ...x, status: 'ARCHIVED' } : x));
     } catch { /* ignore */ }
     finally { setArchiveTarget(null); }
+  };
+
+  const handleUnarchive = async (p: Participant) => {
+    try {
+      await participantsApi.unarchive(p.id);
+      setParticipants((prev) => prev.map((x) => x.id === p.id ? { ...x, status: 'ACTIVE' } : x));
+    } catch { /* ignore */ }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const p = deleteTarget;
+    try {
+      await participantsApi.delete(p.id);
+      setParticipants((prev) => prev.filter((x) => x.id !== p.id));
+    } catch { /* ignore */ }
+    finally { setDeleteTarget(null); }
   };
 
   const activeCount = participants.filter((p) => p.status === 'ACTIVE').length;
@@ -919,12 +966,23 @@ const AdminParticipantsPage: React.FC = () => {
               <div className="w-full sm:w-52">
                 <AppSelect
                   value={groupFilter}
-                  onChange={setGroupFilter}
+                  onChange={(v) => { setGroupFilter(v); setSupportFilter(''); }}
                   options={groupOptions}
                   placeholder="All groups"
                   compact
                 />
               </div>
+              {supportOptions.length > 1 && (
+                <div className="w-full sm:w-52">
+                  <AppSelect
+                    value={supportFilter}
+                    onChange={(v) => { setSupportFilter(v); setGroupFilter(''); }}
+                    options={supportOptions}
+                    placeholder="All support"
+                    compact
+                  />
+                </div>
+              )}
             </div>
             <label className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-600">
               <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="accent-primary" />
@@ -984,9 +1042,13 @@ const AdminParticipantsPage: React.FC = () => {
                               ]}
                             />
                           ) : (
-                            <button type="button" onClick={() => { setEditing(p); setAddOpen(true); }} className="rounded-xl border border-orange-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-orange-50 active:scale-95">
-                              Edit
-                            </button>
+                            <AppOverflowMenu
+                              align="right"
+                              items={[
+                                { label: 'Unarchive', onClick: () => void handleUnarchive(p) },
+                                { label: 'Delete permanently', onClick: () => setDeleteTarget(p), tone: 'danger' },
+                              ]}
+                            />
                           )}
                         </div>
                       </td>
@@ -1033,6 +1095,15 @@ const AdminParticipantsPage: React.FC = () => {
         title="Archive participant"
         message={`Archive ${archiveTarget?.fullName}? They will no longer appear in attendance.`}
         confirmText="Archive"
+      />
+
+      <ConfirmationModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => { void handleDelete(); }}
+        title="Delete permanently"
+        message={`Permanently delete ${deleteTarget?.fullName}? This cannot be undone — all their attendance records will also be removed.`}
+        confirmText="Delete permanently"
       />
 
       <ViewDetailsModal participant={viewing} onClose={() => setViewing(null)} />

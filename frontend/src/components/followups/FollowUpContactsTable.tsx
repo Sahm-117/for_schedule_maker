@@ -238,7 +238,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                 </th>
               )}
               <th className="px-4 py-3">Person</th>
-              {canAssign && <th className="px-4 py-3">Owner</th>}
+              {canAssign && <th className="px-4 py-3">Follow-up rep</th>}
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Due</th>
               <th className="sticky right-0 z-10 w-24 bg-orange-50/60 px-4 py-3 text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">Actions</th>

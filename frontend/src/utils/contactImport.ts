@@ -81,28 +81,62 @@ export const parseBulkPaste = (text: string, existingPhones: Set<string>): Impor
 };
 
 // --- CSV: fuzzy header detection; only name + phone are imported ---
-const splitCsvLine = (line: string): string[] => {
-  const cells: string[] = [];
+
+// Parses a full CSV text into rows, correctly handling quoted fields that
+// contain embedded commas and newlines (RFC 4180). Returns an array of
+// string-arrays (cells), one per logical row.
+const parseCsvRows = (text: string): string[][] => {
+  const rows: string[][] = [];
+  let cells: string[] = [];
   let current = '';
   let inQuotes = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const ch = line[i];
+
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
     if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') {
+      if (inQuotes && text[i + 1] === '"') {
         current += '"';
         i += 1;
       } else {
         inQuotes = !inQuotes;
       }
     } else if (ch === ',' && !inQuotes) {
-      cells.push(current);
+      cells.push(current.trim());
       current = '';
+    } else if ((ch === '\n' || (ch === '\r' && text[i + 1] === '\n')) && !inQuotes) {
+      if (ch === '\r') i += 1; // consume \n of \r\n
+      cells.push(current.trim());
+      current = '';
+      if (cells.some((c) => c !== '')) rows.push(cells); // skip blank rows
+      cells = [];
+    } else if (ch === '\r' && !inQuotes) {
+      // bare \r — treat as line end
+      cells.push(current.trim());
+      current = '';
+      if (cells.some((c) => c !== '')) rows.push(cells);
+      cells = [];
     } else {
       current += ch;
     }
   }
-  cells.push(current);
-  return cells.map((c) => c.trim());
+  // flush last row
+  if (inQuotes && /[\r\n]/.test(current)) {
+    // Unterminated quote: the rest of the file was swallowed into one field.
+    // Recover by splitting that trailing content on newlines so later rows
+    // aren't lost (the source file had a stray/mismatched quote).
+    const lines = current.split(/\r?\n/);
+    cells.push((lines.shift() ?? '').trim());
+    if (cells.some((c) => c !== '')) rows.push(cells);
+    for (const line of lines) {
+      const recovered = line.split(',').map((c) => c.replace(/^"|"$/g, '').trim());
+      if (recovered.some((c) => c !== '')) rows.push(recovered);
+    }
+  } else {
+    cells.push(current.trim());
+    if (cells.some((c) => c !== '')) rows.push(cells);
+  }
+
+  return rows;
 };
 
 interface DetectedColumns {
@@ -135,10 +169,10 @@ export const parseCsv = (
   existingPhones: Set<string>,
   defaultSource?: string
 ): ImportParseResult & { error?: string } => {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) return { rows: [], skipped: 0, duplicates: 0, error: 'File has no data rows.' };
+  const allRows = parseCsvRows(text);
+  if (allRows.length < 2) return { rows: [], skipped: 0, duplicates: 0, error: 'File has no data rows.' };
 
-  const headers = splitCsvLine(lines[0]);
+  const headers = allRows[0];
   const cols = detectColumns(headers);
   if (!cols) {
     return { rows: [], skipped: 0, duplicates: 0, error: 'Could not find name and phone columns in this file.' };
@@ -149,8 +183,7 @@ export const parseCsv = (
   let duplicates = 0;
   const seen = new Set<string>();
 
-  for (const line of lines.slice(1)) {
-    const cells = splitCsvLine(line);
+  for (const cells of allRows.slice(1)) {
     const name = cols.nameIndexes
       .map((i) => (cells[i] || '').trim())
       .filter(Boolean)
@@ -216,10 +249,10 @@ const detectRegistrationColumns = (headers: string[]): RegistrationCols | null =
 const cell = (cells: string[], i: number): string => (i >= 0 ? (cells[i] || '').trim() : '');
 
 export const parseRegistrationCsv = (text: string): RegistrationParseResult => {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) return { rows: [], skipped: 0, error: 'File has no data rows.' };
+  const allRows = parseCsvRows(text);
+  if (allRows.length < 2) return { rows: [], skipped: 0, error: 'File has no data rows.' };
 
-  const headers = splitCsvLine(lines[0]);
+  const headers = allRows[0];
   const cols = detectRegistrationColumns(headers);
   if (!cols) return { rows: [], skipped: 0, error: 'Could not find name and phone columns in this file.' };
 
@@ -228,8 +261,7 @@ export const parseRegistrationCsv = (text: string): RegistrationParseResult => {
   const skippedRows: SkippedImportRow[] = [];
   const seen = new Set<string>();
 
-  for (const [index, line] of lines.slice(1).entries()) {
-    const cells = splitCsvLine(line);
+  for (const [index, cells] of allRows.slice(1).entries()) {
     const name = cols.nameIndexes.map((i) => cell(cells, i)).filter(Boolean).join(' ');
     const phone = cell(cells, cols.phoneIndex);
     const intl = normalizeToIntlPhone(phone);
@@ -237,7 +269,7 @@ export const parseRegistrationCsv = (text: string): RegistrationParseResult => {
       skipped += 1;
       skippedRows.push({
         rowNumber: index + 2,
-        raw: line,
+        raw: cells.join(','),
         reason: !name ? 'Missing name' : 'Phone could not be parsed',
       });
       continue;

@@ -19,6 +19,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore — web-push ESM build
 import webPush from 'https://esm.sh/web-push@3'
 import { sendToSubscriptions } from '../_shared/webpush.ts'
+import { insertNotifications } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -109,6 +110,18 @@ Deno.serve(async (req) => {
       })
     }
 
+    const contactName = issue.contact?.fullName?.trim()
+    const title = 'New follow-up issue'
+    const body = contactName
+      ? `${reporter.name} logged an issue for ${contactName}: ${truncate(issue.issue)}`
+      : `${reporter.name} logged a follow-up issue: ${truncate(issue.issue)}`
+
+    // In-app feed for every admin, regardless of push subscription.
+    await insertNotifications(
+      supabase,
+      adminIds.map((userId) => ({ userId, title, body, path: '/follow-ups', type: 'FOLLOWUP_ISSUE' })),
+    )
+
     const { data: subs, error: subsError } = await supabase
       .from('PushSubscription')
       .select('userId, endpoint, p256dh, auth')
@@ -124,13 +137,8 @@ Deno.serve(async (req) => {
       })
     }
 
-    const contactName = issue.contact?.fullName?.trim()
-    const body = contactName
-      ? `${reporter.name} logged an issue for ${contactName}: ${truncate(issue.issue)}`
-      : `${reporter.name} logged a follow-up issue: ${truncate(issue.issue)}`
-
     const payload = JSON.stringify({
-      title: 'New follow-up issue',
+      title,
       body,
       icon: '/icon-192.png',
       tag: `fof-followup-issue-${issueId}`,

@@ -23,6 +23,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore
 import webPush from 'https://esm.sh/web-push@3'
 import { sendToSubscriptions } from '../_shared/webpush.ts'
+import { insertNotifications } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -152,7 +153,21 @@ Deno.serve(async (req) => {
       })
     }
 
-    // 3. Fetch push subscriptions for final recipients.
+    // 3. Record an in-app notification for EVERY targeted recipient — even
+    //    those without a push subscription — so users who miss the push still
+    //    see it in-app. (icon/tag are push-only; path opens the resources view.)
+    await insertNotifications(
+      supabase,
+      recipientIds.map((userId) => ({
+        userId,
+        title: `📢 From FOF Ops`,
+        body: `${subject}: ${body}`,
+        path: '/resources',
+        type: 'ANNOUNCEMENT',
+      })),
+    )
+
+    // 4. Fetch push subscriptions for final recipients.
     const { data: subs, error: subsError } = await supabase
       .from('PushSubscription')
       .select('userId, endpoint, p256dh, auth')
@@ -168,7 +183,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // 4. Build payload
+    // 5. Build payload
     const payload = JSON.stringify({
       title: `📢 From FOF Ops`,
       body: `${subject}: ${body}`,
@@ -179,7 +194,7 @@ Deno.serve(async (req) => {
       targetLabelId,
     })
 
-    // 5. Send to each subscription (reliable delivery: retries transient
+    // 6. Send to each subscription (reliable delivery: retries transient
     //    failures, deletes dead subscriptions, never aborts on one bad endpoint).
     const { sent, failed, removed, errors } = await sendToSubscriptions(webPush, supabase, subs as any[], payload)
 
