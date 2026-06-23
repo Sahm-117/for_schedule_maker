@@ -12,6 +12,7 @@ import AppSelect from '../components/AppSelect';
 import GroupMeetingSlotEditor, { type MeetingSlot } from '../components/GroupMeetingSlotEditor';
 import PageLoader from '../components/PageLoader';
 import { sortByText } from '../utils/sort';
+import { reconcileById } from '../utils/reconcile';
 
 const groupNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
@@ -382,9 +383,20 @@ const AdminGroupsPage: React.FC = () => {
         participantsApi.getAll({ cohortId: activeCohort.id }),
         usersApi.getAll(),
       ]);
-      setGroups(sortGroupsByName(gs));
-      setParticipants(sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName));
-      setSupportUsers(sortByText(users.filter((u) => u.role === 'SUPPORT'), (user) => user.name));
+      const sortedGs = sortGroupsByName(gs);
+      const sortedPs = sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName);
+      const sortedUsers = sortByText(users.filter((u) => u.role === 'SUPPORT'), (user) => user.name);
+      if (silent) {
+        // Merge by id so unchanged rows keep their reference — avoids the
+        // full-grid re-render / scroll-jump on every realtime refresh.
+        setGroups((prev) => reconcileById(prev, sortedGs));
+        setParticipants((prev) => reconcileById(prev, sortedPs));
+        setSupportUsers((prev) => reconcileById(prev, sortedUsers));
+      } else {
+        setGroups(sortedGs);
+        setParticipants(sortedPs);
+        setSupportUsers(sortedUsers);
+      }
     } catch { /* ignore */ }
     finally { if (!silent) setLoading(false); }
   }, [activeCohort]);

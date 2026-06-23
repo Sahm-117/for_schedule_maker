@@ -96,15 +96,31 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const applyActiveCohort = useCallback((allCohorts: Cohort[]) => {
     const accessible = getAccessibleCohorts(allCohorts);
     const persisted = localStorage.getItem(ACTIVE_COHORT_KEY);
-    const next = (persisted ? accessible.find((cohort) => cohort.id === persisted) : null) || accessible[0] || null;
-    setCohorts(accessible);
-    setActiveCohortState(next);
-    if (next) {
-      localStorage.setItem(ACTIVE_COHORT_KEY, next.id);
+    const resolved = (persisted ? accessible.find((cohort) => cohort.id === persisted) : null) || accessible[0] || null;
+
+    // Keep references STABLE when nothing actually changed. Background refreshes
+    // (the 15s poll, workspace refresh) re-fetch cohorts and would otherwise hand
+    // back a brand-new Cohort object every time — that new `activeCohort` identity
+    // re-creates each page's `load` callback and re-fires its `load(false)` effect,
+    // flipping the global loader and remounting the page ("it reloads on its own").
+    setCohorts((prev) =>
+      prev.length === accessible.length && JSON.stringify(prev) === JSON.stringify(accessible) ? prev : accessible
+    );
+    let kept = resolved;
+    setActiveCohortState((prev) => {
+      if (prev && resolved && prev.id === resolved.id && JSON.stringify(prev) === JSON.stringify(resolved)) {
+        kept = prev; // unchanged → reuse the old reference so `activeCohort` is stable
+        return prev;
+      }
+      return resolved;
+    });
+
+    if (kept) {
+      localStorage.setItem(ACTIVE_COHORT_KEY, kept.id);
     } else {
       localStorage.removeItem(ACTIVE_COHORT_KEY);
     }
-    return next;
+    return kept; // callers pass this onward to loadWeeksForCohort — return the stable ref
   }, [getAccessibleCohorts]);
 
   const loadCohorts = useCallback(async () => {

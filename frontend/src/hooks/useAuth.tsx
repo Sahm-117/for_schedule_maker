@@ -172,7 +172,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
         localStorage.setItem('user', JSON.stringify(response.user));
-        setUser(response.user);
+        // Only update state when the user actually changed. An unconditional
+        // setUser hands back a brand-new object on every focus/visibility event,
+        // which re-runs AppDataContext's init effect and remounts every page
+        // ("the page reloads when I come back to it"). Reuse the old reference
+        // when nothing changed so the identity stays stable.
+        _setUser((prev) => {
+          if (prev && JSON.stringify(prev) === JSON.stringify(response.user)) return prev;
+          applyTheme(response.user.themeColor);
+          return response.user;
+        });
       } catch (error) {
         if (isInactiveAuthError(error)) {
           clearSession();
