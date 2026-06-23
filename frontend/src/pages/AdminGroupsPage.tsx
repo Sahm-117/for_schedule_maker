@@ -9,6 +9,7 @@ import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
+import GroupMeetingSlotEditor, { type MeetingSlot } from '../components/GroupMeetingSlotEditor';
 import PageLoader from '../components/PageLoader';
 import { sortByText } from '../utils/sort';
 
@@ -31,6 +32,7 @@ interface GroupFormModalProps {
 const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSaved, cohortId, existing, supportUsers }) => {
   const [name, setName] = useState('');
   const [supportId, setSupportId] = useState('');
+  const [slot, setSlot] = useState<MeetingSlot>({ meetingDay: null, meetingTime: null, meetingDurationMins: null });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
@@ -38,6 +40,11 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
     if (isOpen) {
       setName(existing?.name ?? '');
       setSupportId(existing?.supportId ?? '');
+      setSlot({
+        meetingDay: existing?.meetingDay ?? null,
+        meetingTime: existing?.meetingTime ?? null,
+        meetingDurationMins: existing?.meetingDurationMins ?? null,
+      });
       setErr('');
     }
   }, [isOpen, existing]);
@@ -52,12 +59,14 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
         ({ group: result } = await groupsApi.update(existing.id, {
           name: name.trim(),
           supportId: supportId || null,
+          ...slot,
         }));
       } else {
         ({ group: result } = await groupsApi.create({
           cohortId,
           name: name.trim(),
           supportId: supportId || null,
+          ...slot,
         }));
       }
       onSaved(result);
@@ -107,6 +116,10 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
             placeholder="— None —"
             compact
           />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Weekly meeting slot</label>
+          <GroupMeetingSlotEditor value={slot} onChange={setSlot} />
         </div>
       </div>
     </ModalShell>

@@ -85,8 +85,8 @@ const AdminGroupPrayersPage: React.FC = () => {
   return (
     <div className="page-content">
       <PageHeader
-        title="Group prayers"
-        subtitle={activeCohort ? `${activeCohort.name} · Weekly focus and completion` : 'No active cohort'}
+        title="Group meetings"
+        subtitle={activeCohort ? `${activeCohort.name} · Weekly meetings, focus and completion` : 'No active cohort'}
       />
 
       {!activeCohort ? (
@@ -98,7 +98,7 @@ const AdminGroupPrayersPage: React.FC = () => {
       ) : groups.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
           <p className="text-sm text-gray-500">No groups in this cohort yet.</p>
-          <p className="mt-1 text-xs text-gray-400">Create groups and assign supports to track prayer completion.</p>
+          <p className="mt-1 text-xs text-gray-400">Create groups and assign supports to track meeting completion.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-6">

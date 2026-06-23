@@ -302,6 +302,9 @@ export interface Group {
   supportId?: string | null;
   supportName?: string | null;
   participantCount?: number;
+  meetingDay?: string | null;
+  meetingTime?: string | null;
+  meetingDurationMins?: number | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -374,7 +377,7 @@ export interface AttendanceRecord {
 
 // ── Faith Projects ────────────────────────────────────────────────────────────
 
-export type FaithProjectStatus = 'NOT_DRAFTED' | 'UNDER_REFINEMENT' | 'NEEDS_REFINEMENT' | 'APPROVED';
+export type FaithProjectStatus = 'NOT_DRAFTED' | 'AWAITING_DRAFT' | 'UNDER_REFINEMENT' | 'NEEDS_REFINEMENT' | 'APPROVED';
 
 export interface FaithProjectReviewEntry {
   actorId: string;

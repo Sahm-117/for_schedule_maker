@@ -12,6 +12,7 @@ import { sortByText } from '../utils/sort';
 
 const STATUS_OPTIONS: Array<{ value: FaithProjectStatus; label: string; cls: string }> = [
   { value: 'NOT_DRAFTED', label: 'Not Drafted', cls: 'bg-neutral-100 text-neutral-600' },
+  { value: 'AWAITING_DRAFT', label: 'Awaiting Draft', cls: 'bg-sky-100/80 text-sky-700' },
   { value: 'UNDER_REFINEMENT', label: 'Under Refinement', cls: 'bg-amber-100/80 text-amber-700' },
   { value: 'NEEDS_REFINEMENT', label: 'Needs Refinement', cls: 'bg-orange-100/80 text-orange-700' },
   { value: 'APPROVED', label: 'Approved', cls: 'bg-emerald-100/80 text-emerald-700' },

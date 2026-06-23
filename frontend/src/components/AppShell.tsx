@@ -66,7 +66,7 @@ const adminNav: NavItem[] = [
   { to: '/groups', label: 'Groups', icon: ICONS.groups, adminOnly: true },
   { to: '/attendance', label: 'Attendance', icon: ICONS.attendance, adminOnly: true },
   { to: '/faith-projects', label: 'Faith projects', icon: ICONS.faith, adminOnly: true },
-  { to: '/group-prayers', label: 'Group prayers', icon: ICONS.prayer, adminOnly: true },
+  { to: '/group-prayers', label: 'Group meetings', icon: ICONS.prayer, adminOnly: true },
   { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
   { to: '/onboarding', label: 'Onboarding', icon: ICONS.onboarding, adminOnly: true },
   { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
@@ -98,7 +98,7 @@ const adminNavGroups: NavGroup[] = [
       { to: '/participants', label: 'Participants', icon: ICONS.participants, adminOnly: true },
       { to: '/groups', label: 'Groups', icon: ICONS.groups, adminOnly: true },
       { to: '/faith-projects', label: 'Faith projects', icon: ICONS.faith, adminOnly: true },
-      { to: '/group-prayers', label: 'Group prayers', icon: ICONS.prayer, adminOnly: true },
+      { to: '/group-prayers', label: 'Group meetings', icon: ICONS.prayer, adminOnly: true },
       { to: '/attendance', label: 'Attendance', icon: ICONS.attendance, adminOnly: true },
     ],
   },
@@ -173,7 +173,6 @@ const NavItemLink: React.FC<{
     {item.icon}
     <span>{item.label}</span>
     {item.to.includes('approvals') && <MobileBadge count={globalPendingCount} />}
-    {item.to.includes('resources') && <MobileBadge count={newResourceCount} />}
   </NavLink>
 );
 
@@ -546,11 +545,6 @@ const AppShell: React.FC = () => {
                 <span className="truncate">{item.mobileLabel ?? item.label}</span>
                 {item.to.includes('approvals') && globalPendingChanges.length > 0 && (
                   <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />
-                )}
-                {item.to.includes('resources') && newResourceCount > 0 && (
-                  <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">
-                    {newResourceCount > 9 ? '9+' : newResourceCount}
-                  </span>
                 )}
               </NavLink>
             );

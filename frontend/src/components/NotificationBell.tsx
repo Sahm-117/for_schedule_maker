@@ -63,8 +63,6 @@ const NotificationBell: React.FC = () => {
   const handleToggle = () => {
     const next = !open;
     setOpen(next);
-    // Opening the panel marks everything read (server-side feed).
-    if (next && notificationUnreadCount > 0) void markNotificationsRead();
   };
 
   const handleRowClick = (n: Notification) => {

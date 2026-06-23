@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, NavLink } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
+import GroupMeetingSlotEditor, { type MeetingSlot } from '../components/GroupMeetingSlotEditor';
 import ModalShell from '../components/followups/ModalShell';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
@@ -18,6 +19,7 @@ import type {
   FaithProject,
   FaithProjectReviewEntry,
   FaithProjectStatus,
+  Group,
   GroupOnboardingStatus,
   GroupPrayerFocus,
   GroupPrayerStatus,
@@ -31,14 +33,16 @@ type GroupTab = 'faith' | 'prayers';
 
 const STATUS_OPTIONS: Array<{ value: FaithProjectStatus; label: string; cls: string }> = [
   { value: 'NOT_DRAFTED', label: 'Not Drafted', cls: 'bg-neutral-100 text-neutral-600' },
+  { value: 'AWAITING_DRAFT', label: 'Awaiting Draft', cls: 'bg-sky-100/80 text-sky-700' },
   { value: 'UNDER_REFINEMENT', label: 'Under Refinement', cls: 'bg-amber-100/80 text-amber-700' },
   { value: 'NEEDS_REFINEMENT', label: 'Needs Refinement', cls: 'bg-orange-100/80 text-orange-700' },
   { value: 'APPROVED', label: 'Approved', cls: 'bg-emerald-100/80 text-emerald-700' },
 ];
 
-// Support can only set NOT_DRAFTED or UNDER_REFINEMENT — admin controls NEEDS_REFINEMENT and APPROVED.
+// Support can only set NOT_DRAFTED, AWAITING_DRAFT, or UNDER_REFINEMENT — admin controls NEEDS_REFINEMENT and APPROVED.
 const FAITH_PROJECT_SELECT_OPTIONS = [
   { value: 'NOT_DRAFTED', label: 'Not Drafted', meta: 'No draft has been started yet' },
+  { value: 'AWAITING_DRAFT', label: 'Awaiting Draft', meta: 'Participant engaged on Faith Project — no draft yet' },
   { value: 'UNDER_REFINEMENT', label: 'Under Refinement', meta: 'Draft exists and is being refined' },
 ];
 
@@ -474,6 +478,7 @@ const SupportParticipantsPage: React.FC = () => {
   const { activeCohort, weeks } = useAppData();
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [groupStatuses, setGroupStatuses] = useState<GroupOnboardingStatus[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [faithProjects, setFaithProjects] = useState<FaithProject[]>([]);
   const [groupPrayerFocuses, setGroupPrayerFocuses] = useState<GroupPrayerFocus[]>([]);
   const [groupPrayerStatuses, setGroupPrayerStatuses] = useState<GroupPrayerStatus[]>([]);
@@ -501,9 +506,9 @@ const SupportParticipantsPage: React.FC = () => {
     setLoading(true);
     setLoadError('');
     try {
-      // These five reads are independent — fire them in one parallel batch
+      // These reads are independent — fire them in one parallel batch
       // instead of waterfalling (each round-trip to eu-west-1 is ~300-900ms).
-      const [participantsRes, faithRes, prayerFocusRes, groupStatusInitial, prayerStatusRes] = await Promise.all([
+      const [participantsRes, faithRes, prayerFocusRes, groupStatusInitial, prayerStatusRes, groupsRes] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id, supportId: user.id }).catch((err) => {
           console.error('Failed to load participants:', err);
           return { participants: [] as Participant[] };
@@ -524,6 +529,7 @@ const SupportParticipantsPage: React.FC = () => {
           console.error('Failed to load prayer statuses:', err);
           return { statuses: [] as GroupPrayerStatus[] };
         }),
+        groupsApi.getAll({ cohortId: activeCohort.id }).catch(() => ({ groups: [] as Group[] })),
       ]);
       let groupStatusRes = groupStatusInitial;
 
@@ -564,6 +570,7 @@ const SupportParticipantsPage: React.FC = () => {
       });
       groupStatusRes.statuses.forEach((status) => fallbackGroups.set(status.groupId, status));
       setGroupStatuses(sortByText(Array.from(fallbackGroups.values()), (status) => status.groupName));
+      setGroups(groupsRes.groups.filter((g) => g.supportId === user.id));
       setFaithProjects(sortByText(faithRes.projects, (project) => project.title || project.participantName));
       setGroupPrayerFocuses(prayerFocusRes.focuses);
       setGroupPrayerStatuses(prayerStatusRes.statuses);
@@ -625,6 +632,20 @@ const SupportParticipantsPage: React.FC = () => {
     () => groupStatuses.find((status) => status.groupId === selectedGroupId) ?? null,
     [groupStatuses, selectedGroupId]
   );
+  const selectedGroupData = useMemo(
+    () => groups.find((g) => g.id === selectedGroupId) ?? null,
+    [groups, selectedGroupId]
+  );
+  const [meetingSlot, setMeetingSlot] = useState<MeetingSlot>({ meetingDay: null, meetingTime: null, meetingDurationMins: null });
+  const [savingSlot, setSavingSlot] = useState(false);
+  // Sync slot editor when selected group changes
+  React.useEffect(() => {
+    setMeetingSlot({
+      meetingDay: selectedGroupData?.meetingDay ?? null,
+      meetingTime: selectedGroupData?.meetingTime ?? null,
+      meetingDurationMins: selectedGroupData?.meetingDurationMins ?? null,
+    });
+  }, [selectedGroupData]);
   const onboardingComplete = !!selectedGroup?.completedAt;
 
   const selectedWeek = cohortWeeks.find((week) => week.id === selectedWeekId) ?? null;
@@ -714,7 +735,7 @@ const SupportParticipantsPage: React.FC = () => {
 
             <div className="mt-5 flex gap-2">
               <TabButton label="Faith Project" active={activeTab === 'faith'} onClick={() => setActiveTab('faith')} />
-              <TabButton label="Group Prayers" active={activeTab === 'prayers'} onClick={() => setActiveTab('prayers')} />
+              <TabButton label="Group Meetings" active={activeTab === 'prayers'} onClick={() => setActiveTab('prayers')} />
             </div>
           </section>
 
@@ -768,10 +789,20 @@ const SupportParticipantsPage: React.FC = () => {
             </section>
           ) : (
             <section className="surface-card p-5">
+              <div className="mb-3 flex items-start gap-2 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2.5 text-xs text-sky-700">
+                <svg className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>
+                  <strong>Wed · Fri · Sat only, 5 pm – 9 pm, 45 min – 1 hr.</strong>{' '}
+                  Flow: ① Prayer (20–30 min) → ② Recap discussion → ③ Class material → ④ Questions &amp; case study.
+                  Goal: reflection and curiosity — not to exhaust all material.
+                </span>
+              </div>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Group Prayers</p>
-                  <h3 className="mt-1 text-lg font-bold text-gray-900">Weekly prayer focus</h3>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Group Meetings</p>
+                  <h3 className="mt-1 text-lg font-bold text-gray-900">Weekly meeting focus</h3>
                 </div>
                 <div className="w-full max-w-sm">
                   <AppSelect
@@ -786,6 +817,37 @@ const SupportParticipantsPage: React.FC = () => {
                   />
                 </div>
               </div>
+
+              {/* Meeting slot — group leader can lock in their weekly slot */}
+              {selectedGroupData && (
+                <div className="mt-4 rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Weekly meeting slot</p>
+                    {savingSlot && <span className="text-xs text-gray-400">Saving…</span>}
+                  </div>
+                  <GroupMeetingSlotEditor
+                    value={meetingSlot}
+                    onChange={async (slot) => {
+                      setMeetingSlot(slot);
+                      setSavingSlot(true);
+                      try {
+                        const { group: updated } = await groupsApi.update(selectedGroupData.id, slot);
+                        setGroups((prev) => prev.map((g) => g.id === updated.id ? updated : g));
+                      } catch {
+                        // revert on error
+                        setMeetingSlot({
+                          meetingDay: selectedGroupData.meetingDay ?? null,
+                          meetingTime: selectedGroupData.meetingTime ?? null,
+                          meetingDurationMins: selectedGroupData.meetingDurationMins ?? null,
+                        });
+                      } finally {
+                        setSavingSlot(false);
+                      }
+                    }}
+                  />
+                  <p className="mt-2 text-xs text-gray-400">Wed · Fri · Sat only, 5–9 pm, 45 min – 1 hr</p>
+                </div>
+              )}
 
               {!selectedWeek ? (
                 <div className="mt-4 rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">
@@ -808,7 +870,7 @@ const SupportParticipantsPage: React.FC = () => {
                           })),
                         ]}
                         placeholder="Choose participant"
-                        label="Who are we praying for this week?"
+                        label="Who are we focusing on this week?"
                         loading={savingPrayerFocus}
                       />
                     </div>
@@ -818,7 +880,7 @@ const SupportParticipantsPage: React.FC = () => {
                     <div className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Prayer focus</p>
+                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Meeting focus</p>
                           <h4 className="mt-1 text-base font-bold text-gray-900">
                             {focusedProject?.title || focusedParticipant?.fullName || currentPrayerFocus.participantName || 'Selected participant'}
                           </h4>
@@ -835,7 +897,7 @@ const SupportParticipantsPage: React.FC = () => {
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-dashed border-orange-200 py-8 text-center text-sm text-gray-500">
-                      Choose a participant to show their faith project as this week’s prayer focus.
+                      Choose a participant to show their faith project as this week’s meeting focus.
                     </div>
                   )}
 
@@ -844,12 +906,12 @@ const SupportParticipantsPage: React.FC = () => {
                       value={currentPrayerStatus?.done ? 'done' : 'pending'}
                       onChange={(value) => { void setPrayerDone(value === 'done'); }}
                       options={PRAYER_STATUS_OPTIONS}
-                      placeholder="Choose prayer status"
-                      label="Prayer status"
+                      placeholder="Choose meeting status"
+                      label="Meeting status"
                       loading={savingPrayer}
                     />
                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${currentPrayerStatus?.done ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                      {currentPrayerStatus?.done ? 'Prayer done' : 'Prayer pending'}
+                      {currentPrayerStatus?.done ? 'Meeting done' : 'Meeting pending'}
                     </span>
                   </div>
                 </div>

@@ -3276,6 +3276,9 @@ const mapGroup = (row: any): import('../types').Group => ({
   supportId: row.supportId ?? null,
   supportName: row.support?.name ?? null,
   participantCount: (row.members ?? []).length,
+  meetingDay: row.meetingDay ?? null,
+  meetingTime: row.meetingTime ?? null,
+  meetingDurationMins: row.meetingDurationMins ?? null,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
@@ -3553,7 +3556,7 @@ export const groupsApi = {
     return { groups: ((data as any[]) || []).map(mapGroup) };
   },
 
-  async create(input: { cohortId: string; name: string; supportId?: string | null }): Promise<{ group: import('../types').Group }> {
+  async create(input: { cohortId: string; name: string; supportId?: string | null; meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null }): Promise<{ group: import('../types').Group }> {
     const { data, error } = await supabase
       .from('Group')
       .insert([input])
@@ -3576,7 +3579,7 @@ export const groupsApi = {
     return { group };
   },
 
-  async update(groupId: string, input: { name?: string; supportId?: string | null }): Promise<{ group: import('../types').Group }> {
+  async update(groupId: string, input: { name?: string; supportId?: string | null; meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null }): Promise<{ group: import('../types').Group }> {
     const { data: current } = await supabase
       .from('Group')
       .select(GROUP_SELECT)

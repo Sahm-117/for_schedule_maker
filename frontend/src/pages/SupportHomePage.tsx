@@ -6,10 +6,11 @@ import LabelChip from '../components/LabelChip';
 import { PeriodBadge } from '../components/PeriodIcon';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, faithProjectsApi, participantsApi, resourcesApi } from '../services/api';
-import type { Announcement, FaithProject, Participant } from '../types';
+import { announcementsApi, faithProjectsApi, groupsApi, participantsApi, resourcesApi } from '../services/api';
+import type { Announcement, FaithProject, Group, Participant } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
+import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
 import { useWalkthrough } from '../hooks/useWalkthrough';
 import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
 
@@ -23,30 +24,7 @@ type HomeActivity = {
   dayIndex: number;
 };
 
-const parseTimeToMinutes = (value: string): number => {
-  const raw = value.trim().toLowerCase();
-  const meridiemMatch = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/);
-  if (meridiemMatch) {
-    let hours = Number(meridiemMatch[1]) % 12;
-    const minutes = Number(meridiemMatch[2] ?? '0');
-    if (meridiemMatch[3] === 'pm') hours += 12;
-    return hours * 60 + minutes;
-  }
 
-  const simpleMatch = raw.match(/^(\d{1,2}):(\d{2})$/);
-  if (simpleMatch) {
-    return Number(simpleMatch[1]) * 60 + Number(simpleMatch[2]);
-  }
-
-  return Number.MAX_SAFE_INTEGER;
-};
-
-const isPrayerActivity = (activity: Pick<HomeActivity, 'description'>) => /group prayer|prayer/i.test(activity.description);
-
-const formatActivityMoment = (activity: Pick<HomeActivity, 'dayName' | 'time'> | null) => {
-  if (!activity) return 'Not set';
-  return `${activity.dayName}, ${activity.time}`;
-};
 
 const SupportHomePage: React.FC = () => {
   const { user, userLabelIds, userCohortIds } = useAuth();
@@ -55,6 +33,8 @@ const SupportHomePage: React.FC = () => {
   const [resourceCount, setResourceCount] = useState(0);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [faithProjects, setFaithProjects] = useState<FaithProject[]>([]);
+  const [myGroups, setMyGroups] = useState<Group[]>([]);
+  const [tickNow, setTickNow] = useState(() => new Date());
 
   const wt = useWalkthrough('home');
 
@@ -94,15 +74,26 @@ const SupportHomePage: React.FC = () => {
       });
   }, [activeCohort, user, liveRevision]);
 
+  useEffect(() => {
+    if (!user || !activeCohort) { setMyGroups([]); return; }
+    groupsApi.getAll({ cohortId: activeCohort.id })
+      .then((res) => setMyGroups(res.groups.filter((g) => g.supportId === user.id)))
+      .catch(() => setMyGroups([]));
+  }, [activeCohort, user, liveRevision]);
+
+  // Ticking clock so open sessions roll over at Sunday-10am boundaries
+  useEffect(() => {
+    const id = setInterval(() => setTickNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   if (user?.role !== 'SUPPORT') {
     return <Navigate to="/dashboard" replace />;
   }
 
   const activeWeek = selectedWeek || weeks[0] || null;
   const todayName = getCurrentProgramDayName();
-  const todayIndex = getProgramDayIndex(todayName);
-  const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const now = tickNow;
   const cohortWeeks = useMemo(
     () => (weeks ?? []).filter((week) => week.cohortId === activeCohort?.id).sort((a, b) => a.weekNumber - b.weekNumber),
     [weeks, activeCohort]
@@ -123,21 +114,27 @@ const SupportHomePage: React.FC = () => {
     );
   }, [activeWeek, userLabelIds, schedulePublished]);
   const todayActivities = myActivities.filter((activity) => activity.dayName === todayName);
-  const upcomingActivities = useMemo(
-    () => [...myActivities]
-      .filter((activity) => activity.dayIndex > todayIndex || (activity.dayIndex === todayIndex && parseTimeToMinutes(activity.time) >= currentMinutes))
-      .sort((a, b) => {
-        if (a.dayIndex !== b.dayIndex) return a.dayIndex - b.dayIndex;
-        return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
-      }),
-    [currentMinutes, myActivities, todayIndex]
-  );
-  const nextGroupPrayer = upcomingActivities.find((activity) => isPrayerActivity(activity)) ?? null;
+  // Next Group Prayer: computed from the group's locked meeting slot
+  const myGroup = myGroups[0] ?? null;
+  const nextGroupPrayerDisplay = (() => {
+    if (!myGroup?.meetingDay || !myGroup?.meetingTime) return null;
+    const [h, m] = myGroup.meetingTime.split(':').map(Number);
+    const dayLabel = myGroup.meetingDay.charAt(0) + myGroup.meetingDay.slice(1).toLowerCase();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
+    const displayM = String(m).padStart(2, '0');
+    return { label: `${dayLabel}, ${displayH}:${displayM} ${ampm}`, detail: 'Weekly group meeting' };
+  })();
   const draftedProjectCount = useMemo(() => {
     const participantIds = new Set(participants.map((participant) => participant.id));
-    return faithProjects.filter((project) => participantIds.has(project.participantId) && project.status !== 'NOT_DRAFTED').length;
+    return faithProjects.filter(
+      (project) => participantIds.has(project.participantId) && ['UNDER_REFINEMENT', 'NEEDS_REFINEMENT', 'APPROVED'].includes(project.status)
+    ).length;
   }, [faithProjects, participants]);
-  const nextClassTitle = activeWeek?.title?.trim() || 'Not set';
+  // Next class: the week after the current program week (rolls Sunday 10am)
+  const currentIdealWeekNumber = getIdealWeekNumberForCohort(activeCohort, now);
+  const currentIdealIndex = cohortWeeks.findIndex((w) => w.weekNumber === currentIdealWeekNumber);
+  const nextWeek = currentIdealIndex >= 0 ? cohortWeeks[currentIdealIndex + 1] ?? null : null;
 
   return (
     <div>
@@ -168,9 +165,9 @@ const SupportHomePage: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <QuickStat title="Activities today" value={todayActivities.length} detail={todayName} to="/support/schedule" accent="orange" />
-            <QuickStat title="Next Group Prayer" value={formatActivityMoment(nextGroupPrayer)} detail={nextGroupPrayer ? 'Prayer slot ahead' : 'No prayer slot found'} to="/support/participants" accent="rose" />
+            <QuickStat title="Next Group Meeting" value={nextGroupPrayerDisplay?.label ?? 'Not set'} detail={nextGroupPrayerDisplay?.detail ?? 'No meeting slot set'} to="/support/participants" accent="rose" />
             <QuickStat title="Faith Projects" value={`${draftedProjectCount}/${participants.length}`} detail={participants.length > 0 ? 'Participants drafted' : 'No participants yet'} to="/support/participants" accent="emerald" />
-            <QuickStat title="Next class" value={nextClassTitle} detail={activeWeek ? `Week ${activeWeek.weekNumber}` : 'No week selected'} to="/support/schedule" accent="sky" />
+            <QuickStat title="Next class" value={nextWeek?.title?.trim() || 'Not set'} detail={nextWeek ? `Week ${nextWeek.weekNumber}` : 'Programme complete'} to="/support/schedule" accent="sky" />
           </div>
         </div>
       </section>
