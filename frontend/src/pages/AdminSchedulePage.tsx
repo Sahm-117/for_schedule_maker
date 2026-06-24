@@ -42,7 +42,6 @@ const AdminSchedulePage: React.FC = () => {
     } catch { /* ignore */ }
     finally { setPublishing(false); }
   };
-  const [showExportMenu, setShowExportMenu] = React.useState(false);
   const [showTagManagement, setShowTagManagement] = React.useState(false);
   const [showDayExportPicker, setShowDayExportPicker] = React.useState(false);
   const [headerAddDayId, setHeaderAddDayId] = React.useState<number | null>(null);
@@ -100,12 +99,10 @@ const AdminSchedulePage: React.FC = () => {
 
   const exportSelectedWeek = async () => {
     if (!selectedWeek) return;
-    setShowExportMenu(false);
     await exportWeekToPDF(selectedWeek, { includeEmptyDays: false });
   };
 
   const exportAllWeeks = async () => {
-    setShowExportMenu(false);
     await exportAllWeeksToPDF(weeks, { includeEmptyDays: false });
   };
 
@@ -200,57 +197,16 @@ const AdminSchedulePage: React.FC = () => {
       <button
         type="button"
         onClick={() => setShowDayAddPicker(true)}
-        className="inline-flex h-10 items-center justify-center rounded-full border border-primary px-4 text-sm font-semibold text-primary hover:bg-primary/5"
+        className="inline-flex h-10 items-center justify-center rounded-full bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark"
       >
         Add Activity
       </button>
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setShowExportMenu((prev) => !prev)}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark"
-        >
-          Export
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 9-7 7-7-7" />
-          </svg>
-        </button>
-        {showExportMenu && (
-          <div className="absolute right-0 top-12 z-20 w-44 rounded-2xl border border-orange-100 bg-white p-2 shadow-xl">
-            <button
-              type="button"
-              onClick={() => {
-                setShowExportMenu(false);
-                setShowDayExportPicker(true);
-              }}
-              className="w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-orange-50"
-            >
-              Daily export
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                void exportSelectedWeek();
-              }}
-              className="w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-orange-50"
-            >
-              Export week
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                void exportAllWeeks();
-              }}
-              className="w-full rounded-xl px-3 py-2 text-left text-sm text-gray-700 hover:bg-orange-50"
-            >
-              Export all
-            </button>
-          </div>
-        )}
-      </div>
       <AppOverflowMenu
         align="right"
         items={[
+          { label: 'Daily export', onClick: () => setShowDayExportPicker(true) },
+          { label: 'Export week', onClick: () => { void exportSelectedWeek(); } },
+          { label: 'Export all', onClick: () => { void exportAllWeeks(); } },
           ...(isAdmin ? [{ label: 'Manage tags', onClick: () => setShowTagManagement(true) }] : []),
           ...(isAdmin ? [{ label: 'Overview', onClick: () => setShowOverviewDrawer(true) }] : []),
           { label: 'Cross-Week', onClick: () => setCrossWeekRequest((prev) => prev + 1) },

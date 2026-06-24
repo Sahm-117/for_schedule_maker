@@ -31,6 +31,7 @@ import {
   isClosedRegistrationStatus,
 } from '../utils/followUps';
 import { compareText, sortByText } from '../utils/sort';
+import AppOverflowMenu from '../components/AppOverflowMenu';
 
 type Tab = 'overview' | 'contacts' | 'messages' | 'issues';
 
@@ -277,25 +278,7 @@ const AdminFollowUpsPage: React.FC = () => {
         title="Follow-ups"
         subtitle="Track interested people, assign follow-up reps, and move them to registration."
         action={(
-          <div className="flex gap-2">
-            {tab === 'contacts' && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowImport(true)}
-                  className="inline-flex h-11 items-center justify-center rounded-2xl border border-orange-200 bg-white px-4 text-sm font-semibold text-primary hover:bg-orange-50"
-                >
-                  Import
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowExport(true)}
-                  className="inline-flex h-11 items-center justify-center rounded-2xl border border-orange-200 bg-white px-4 text-sm font-semibold text-primary hover:bg-orange-50"
-                >
-                  Export
-                </button>
-              </>
-            )}
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => { setEditingContact(null); setShowContactModal(true); }}
@@ -303,6 +286,15 @@ const AdminFollowUpsPage: React.FC = () => {
             >
               Add Contact
             </button>
+            {tab === 'contacts' && (
+              <AppOverflowMenu
+                align="right"
+                items={[
+                  { label: 'Import contacts', onClick: () => setShowImport(true) },
+                  { label: 'Export contacts', onClick: () => setShowExport(true) },
+                ]}
+              />
+            )}
           </div>
         )}
       />

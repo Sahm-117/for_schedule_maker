@@ -11,6 +11,7 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
 import AppMultiSelect from '../components/AppMultiSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
+import ParticipantsExportPopup from '../components/participants/ParticipantsExportPopup';
 import {
   parseBulkPaste,
   parseRegistrationCsv,
@@ -811,6 +812,7 @@ const AdminParticipantsPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<Participant | null>(null);
   const [viewing, setViewing] = useState<Participant | null>(null);
   const [assigning, setAssigning] = useState<Participant | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -938,13 +940,17 @@ const AdminParticipantsPage: React.FC = () => {
         subtitle={activeCohort ? `${activeCount} active · ${unassignedCount} unassigned · ${activeCohort.name}` : 'No active cohort'}
         action={
           activeCohort && (
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setImportOpen(true)} className="rounded-2xl border border-orange-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-orange-50 active:scale-95">
-                Import
-              </button>
+            <div className="flex items-center gap-2">
               <button type="button" onClick={() => { setEditing(null); setAddOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
                 + Add
               </button>
+              <AppOverflowMenu
+                align="right"
+                items={[
+                  { label: 'Import participants', onClick: () => setImportOpen(true) },
+                  { label: 'Export for WhatsApp', onClick: () => setExportOpen(true) },
+                ]}
+              />
             </div>
           )
         }
@@ -1107,6 +1113,10 @@ const AdminParticipantsPage: React.FC = () => {
       />
 
       <ViewDetailsModal participant={viewing} onClose={() => setViewing(null)} />
+
+      {exportOpen && (
+        <ParticipantsExportPopup participants={displayed} cohortName={activeCohort?.name ?? 'Cohort'} onClose={() => setExportOpen(false)} />
+      )}
 
       <AssignGroupModal
         participant={assigning}

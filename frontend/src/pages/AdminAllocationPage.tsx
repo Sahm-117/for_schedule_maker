@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
   DndContext,
@@ -110,6 +111,78 @@ const Column: React.FC<ColumnProps> = ({ id, title, subtitle, count, accent, hea
   );
 };
 
+// ── Touch-layout detection ─────────────────────────────────────────────────────
+// Drag-and-drop across columns is awkward on phones, so below the desktop
+// breakpoint we swap the board for a tap-to-assign list. Mirrors the
+// "(pointer: fine) + width >= 768" heuristic used elsewhere (AppSelect).
+const useIsTouchLayout = (): boolean => {
+  const query = '(pointer: fine) and (min-width: 768px)';
+  const [isTouch, setIsTouch] = useState<boolean>(() =>
+    typeof window === 'undefined' ? false : !window.matchMedia(query).matches
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const mql = window.matchMedia(query);
+    const update = () => setIsTouch(!mql.matches);
+    update();
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
+  return isTouch;
+};
+
+// ── Mobile group-picker bottom sheet ────────────────────────────────────────────
+interface GroupPickerSheetProps {
+  participantName: string;
+  currentGroupId: string | null;
+  groups: Group[];
+  onPick: (groupId: string | null) => void;
+  onClose: () => void;
+}
+
+const GroupPickerSheet: React.FC<GroupPickerSheetProps> = ({ participantName, currentGroupId, groups, onPick, onClose }) => {
+  const sorted = sortByText(groups, (g) => g.name);
+  return createPortal(
+    <div className="fixed inset-0 z-[130] flex items-end justify-center sm:items-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-slate-900/35" />
+      <div className="relative mb-0 max-h-[80vh] w-full max-w-md overflow-hidden rounded-t-[28px] bg-white pb-8 shadow-[0_-8px_40px_rgba(15,23,42,0.15)] sm:mb-0 sm:rounded-[28px]" onClick={(e) => e.stopPropagation()}>
+        <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-gray-200 sm:hidden" />
+        <div className="flex items-center justify-between border-b border-orange-100 px-5 py-4">
+          <div className="min-w-0">
+            <h3 className="truncate text-lg font-bold text-gray-900">Move {participantName}</h3>
+            <p className="text-xs text-gray-500">Tap a group to assign</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="max-h-[60vh] overflow-y-auto px-3 py-2">
+          <button
+            type="button"
+            onClick={() => onPick(null)}
+            className={`flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left text-sm font-semibold transition ${currentGroupId === null ? 'bg-orange-50 text-primary' : 'text-gray-700 hover:bg-gray-50'}`}
+          >
+            Unassigned
+            {currentGroupId === null && <span className="text-primary">✓</span>}
+          </button>
+          {sorted.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => onPick(g.id)}
+              className={`flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left text-sm font-semibold transition ${currentGroupId === g.id ? 'bg-orange-50 text-primary' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              <span className="min-w-0 truncate">{g.name}<span className="ml-2 text-xs font-normal text-gray-400">{g.supportName ?? 'No support'}</span></span>
+              {currentGroupId === g.id && <span className="ml-2 shrink-0 text-primary">✓</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 const AdminAllocationPage: React.FC = () => {
@@ -126,6 +199,8 @@ const AdminAllocationPage: React.FC = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [distributePlan, setDistributePlan] = useState<{ assignments: Array<{ participantId: string; groupId: string }>; summary: string; count: number } | null>(null);
+  const [pickerTarget, setPickerTarget] = useState<Participant | null>(null);
+  const isTouchLayout = useIsTouchLayout();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -172,6 +247,21 @@ const AdminAllocationPage: React.FC = () => {
     const q = search.toLowerCase();
     return unassigned.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
   }, [unassigned, search]);
+
+  // Mobile list works over EVERY participant (assigned + unassigned), unlike the
+  // desktop tray which only shows unassigned. Unassigned float to the top.
+  const filteredAll = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const base = q
+      ? participants.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q))
+      : participants;
+    return [...base].sort((a, b) => {
+      const au = a.groupId ? 1 : 0;
+      const bu = b.groupId ? 1 : 0;
+      if (au !== bu) return au - bu;
+      return a.fullName.localeCompare(b.fullName);
+    });
+  }, [participants, search]);
 
   // Every tap toggles that one person on/off and keeps all other selections.
   // (Searching only filters the list; it never clears the current selection.)
@@ -305,12 +395,14 @@ const AdminAllocationPage: React.FC = () => {
           <p className="text-sm text-gray-500">Create at least one group first, then come back to allocate.</p>
         </div>
       ) : (
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <>
           {err && <p className="mb-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{err}</p>}
 
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-gray-500">
-              Tap people to select them, then drag onto a group — or use “Move selected”. {saving && <span className="text-primary">Saving…</span>}
+              {isTouchLayout
+                ? 'Tap “Move” on anyone to assign them, or select several and use “Move selected”.'
+                : 'Tap people to select them, then drag onto a group — or use “Move selected”.'} {saving && <span className="text-primary">Saving…</span>}
             </p>
             <button
               ref={autoDistributeRef}
@@ -357,6 +449,57 @@ const AdminAllocationPage: React.FC = () => {
             </div>
           )}
 
+          {isTouchLayout ? (
+            /* Mobile / touch: a single tap-to-assign list (no drag board). */
+            <div className="flex flex-col gap-3">
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search…"
+                className="w-full rounded-xl border border-orange-200 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              {filteredAll.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-orange-200 py-10 text-center text-sm text-gray-400">
+                  {participants.length === 0 ? 'No participants yet.' : 'No matches.'}
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {filteredAll.map((p) => (
+                    <li
+                      key={p.id}
+                      className={`flex items-center gap-3 rounded-2xl border bg-white px-3 py-2.5 shadow-sm transition ${selected.has(p.id) ? 'border-primary bg-primary/5' : 'border-orange-100'}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggle(p.id)}
+                        aria-label={selected.has(p.id) ? 'Deselect' : 'Select'}
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[11px] ${selected.has(p.id) ? 'border-primary bg-primary text-white' : 'border-orange-200 text-transparent'}`}
+                      >
+                        ✓
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-gray-900">{p.fullName}</p>
+                        <p className="truncate text-xs text-gray-400">
+                          {p.phone ? `${p.phone} · ` : ''}
+                          <span className={p.groupName ? 'text-gray-500' : 'text-amber-600'}>{p.groupName ?? 'Unassigned'}</span>
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPickerTarget(p)}
+                        disabled={saving}
+                        className="shrink-0 rounded-xl border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-orange-50 active:scale-95 disabled:opacity-50"
+                      >
+                        Move
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : (
+          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           {/* Fixed-height board: each pane scrolls internally, so the page itself
               doesn't double-scroll. */}
           <div className="grid h-[calc(100vh-17rem)] min-h-[24rem] items-stretch gap-4 lg:grid-cols-[minmax(19rem,22rem)_1fr]">
@@ -420,7 +563,23 @@ const AdminAllocationPage: React.FC = () => {
               </div>
             )}
           </DragOverlay>
-        </DndContext>
+          </DndContext>
+          )}
+        </>
+      )}
+
+      {pickerTarget && (
+        <GroupPickerSheet
+          participantName={pickerTarget.fullName}
+          currentGroupId={pickerTarget.groupId ?? null}
+          groups={groups}
+          onPick={(groupId) => {
+            const target = pickerTarget;
+            setPickerTarget(null);
+            if ((target.groupId ?? null) !== groupId) void applyMove([target.id], groupId);
+          }}
+          onClose={() => setPickerTarget(null)}
+        />
       )}
 
       <ConfirmationModal

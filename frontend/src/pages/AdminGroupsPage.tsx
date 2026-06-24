@@ -9,12 +9,14 @@ import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
+import GroupsExportPopup from '../components/groups/GroupsExportPopup';
 import GroupMeetingSlotEditor, { type MeetingSlot } from '../components/GroupMeetingSlotEditor';
 import PageLoader from '../components/PageLoader';
 import { sortByText } from '../utils/sort';
 import { reconcileById } from '../utils/reconcile';
 
 const groupNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const NO_SUPPORT_OPTION = '__no_support__';
 
 const sortGroupsByName = (groups: Group[]) =>
   [...groups].sort((a, b) => groupNameCollator.compare(a.name, b.name));
@@ -207,7 +209,7 @@ interface MembersModalProps {
   onClose: () => void;
   group: Group;
   allParticipants: Participant[];
-  onUpdated: (g: Group) => void;
+  onUpdated: (g: Group, memberIds: string[]) => void;
 }
 
 const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, allParticipants, onUpdated }) => {
@@ -241,8 +243,9 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
     setSaving(true);
     setErr('');
     try {
-      await groupsApi.setParticipants(group.id, [...selected]);
-      onUpdated({ ...group, participantCount: selected.size });
+      const memberIds = [...selected];
+      await groupsApi.setParticipants(group.id, memberIds);
+      onUpdated({ ...group, participantCount: selected.size }, memberIds);
       onClose();
     } catch (e: any) {
       setErr(e.message || 'Failed to save members');
@@ -368,6 +371,9 @@ const AdminGroupsPage: React.FC = () => {
   const [supportTarget, setSupportTarget] = useState<Group | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Group | null>(null);
   const [noSupportOnly, setNoSupportOnly] = useState(false);
+  const [supportFilter, setSupportFilter] = useState('');
+  const [groupFilter, setGroupFilter] = useState('');
+  const [exportOpen, setExportOpen] = useState(false);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -422,7 +428,15 @@ const AdminGroupsPage: React.FC = () => {
   };
 
   const noSupportCount = groups.filter((g) => !g.supportId).length;
-  const displayedGroups = noSupportOnly ? groups.filter((g) => !g.supportId) : groups;
+  // Filters are mutually exclusive: a specific group wins, then a support
+  // person, then the "no support" pill, else all groups.
+  const displayedGroups = groupFilter
+    ? groups.filter((g) => g.id === groupFilter)
+    : supportFilter
+      ? groups.filter((g) => g.supportId === supportFilter)
+      : noSupportOnly
+        ? groups.filter((g) => !g.supportId)
+        : groups;
 
   // Members per group, derived from the already-loaded participants list (no
   // extra fetch). Used to render the inline expandable member chips.
@@ -443,34 +457,52 @@ const AdminGroupsPage: React.FC = () => {
         subtitle={activeCohort ? `${groups.length} groups · ${participants.length} participants · ${activeCohort.name}` : 'No active cohort'}
         action={
           activeCohort && (
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <button type="button" onClick={() => navigate('/allocation')} className="rounded-2xl border border-orange-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-orange-50 active:scale-95">
                 Allocate participants
               </button>
               <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
                 + New Group
               </button>
+              <AppOverflowMenu
+                align="right"
+                items={[{ label: 'Export for WhatsApp', onClick: () => setExportOpen(true) }]}
+              />
             </div>
           )
         }
       />
 
       {activeCohort && !loading && groups.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setNoSupportOnly(false)}
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${!noSupportOnly ? 'bg-primary/10 text-primary' : 'border border-orange-100 bg-white text-gray-600 hover:bg-orange-50'}`}
-          >
-            All groups
-          </button>
-          <button
-            type="button"
-            onClick={() => setNoSupportOnly(true)}
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${noSupportOnly ? 'bg-amber-100/80 text-amber-700' : 'border border-orange-100 bg-white text-gray-600 hover:bg-orange-50'}`}
-          >
-            No support assigned <span className="ml-1 opacity-70">{noSupportCount}</span>
-          </button>
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          {supportUsers.length > 0 && (
+            <div className="w-full sm:w-56">
+              <AppSelect
+                value={noSupportOnly ? NO_SUPPORT_OPTION : supportFilter}
+                onChange={(v) => {
+                  setGroupFilter('');
+                  setNoSupportOnly(v === NO_SUPPORT_OPTION);
+                  setSupportFilter(v === NO_SUPPORT_OPTION ? '' : v);
+                }}
+                options={[
+                  { value: '', label: 'All support' },
+                  { value: NO_SUPPORT_OPTION, label: `No support assigned (${noSupportCount})` },
+                  ...supportUsers.map((u) => ({ value: u.id, label: u.name })),
+                ]}
+                placeholder="All support"
+                compact
+              />
+            </div>
+          )}
+          <div className="w-full sm:w-56">
+            <AppSelect
+              value={groupFilter}
+              onChange={(v) => { setGroupFilter(v); setSupportFilter(''); setNoSupportOnly(false); }}
+              options={[{ value: '', label: 'All groups' }, ...groups.map((g) => ({ value: g.id, label: g.name }))]}
+              placeholder="Jump to group"
+              compact
+            />
+          </div>
         </div>
       )}
 
@@ -573,8 +605,20 @@ const AdminGroupsPage: React.FC = () => {
           onClose={() => setMembersTarget(null)}
           group={membersTarget}
           allParticipants={participants}
-          onUpdated={(g) => {
+          onUpdated={(g, memberIds) => {
             setGroups((prev) => sortGroupsByName(prev.map((x) => x.id === g.id ? g : x)));
+            // Reflect the new membership in `participants` immediately so the
+            // group cards (derived from this list) update without a reload.
+            const memberSet = new Set(memberIds);
+            setParticipants((prev) => prev.map((p) => {
+              if (memberSet.has(p.id)) {
+                return p.groupId === g.id ? p : { ...p, groupId: g.id, groupName: g.name };
+              }
+              if (p.groupId === g.id) {
+                return { ...p, groupId: null, groupName: null };
+              }
+              return p;
+            }));
             setMembersTarget(null);
           }}
         />
@@ -588,6 +632,16 @@ const AdminGroupsPage: React.FC = () => {
         message={`Delete "${deleteTarget?.name}"? This also removes all member assignments.`}
         confirmText="Delete"
       />
+
+      {exportOpen && (
+        <GroupsExportPopup
+          groups={displayedGroups}
+          membersByGroupId={membersByGroupId}
+          cohortName={activeCohort?.name ?? 'Cohort'}
+          unassignedParticipants={participants.filter((p) => !p.groupId).length}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
     </div>
   );
 };

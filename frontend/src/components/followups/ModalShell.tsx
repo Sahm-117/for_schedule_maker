@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ModalShellProps {
@@ -12,11 +12,24 @@ interface ModalShellProps {
 }
 
 const ModalShell: React.FC<ModalShellProps> = ({ isOpen, onClose, title, subtitle, children, footer, wide }) => {
+  // Only dismiss when the press both STARTS and ENDS on the overlay itself.
+  // On touch, tapping an option inside a nested dropdown (e.g. AppSelect, which
+  // portals its menu as a sibling) unmounts the option on pointerdown; the
+  // follow-up pointerup/click then lands on this overlay and would otherwise
+  // close the modal unexpectedly. Gating on the pointerdown target stops that.
+  const downOnOverlay = useRef(false);
+
   if (!isOpen) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <button type="button" className="absolute inset-0 bg-slate-900/45" onClick={onClose} aria-label="Close" />
+      <button
+        type="button"
+        className="absolute inset-0 bg-slate-900/45"
+        onPointerDown={(e) => { downOnOverlay.current = e.target === e.currentTarget; }}
+        onClick={(e) => { if (downOnOverlay.current && e.target === e.currentTarget) onClose(); downOnOverlay.current = false; }}
+        aria-label="Close"
+      />
       <div className={`relative z-10 m-0 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:m-4 sm:rounded-3xl ${wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'}`}>
         <div className="flex items-start justify-between border-b border-orange-100 px-6 py-4">
           <div>
