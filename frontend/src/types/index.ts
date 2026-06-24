@@ -474,6 +474,8 @@ export interface HubTopic {
   body: string;
   status: HubTopicStatus;
   commentCount: number;
+  likeCount: number;
+  likedByMe: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -44,6 +44,7 @@ const AdminAttendancePage: React.FC = () => {
   const [records, setRecords] = useState<Map<string, AttendanceRecord>>(new Map());
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'' | AttendanceStatus | 'UNMARKED'>('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());
@@ -107,6 +108,27 @@ const AdminAttendancePage: React.FC = () => {
     }
     return sortByText(ps, (participant) => participant.fullName);
   }, [participants, selectedGroupId, search]);
+
+  // Status filter applies only to the card list (summary tiles keep counting
+  // the whole week). 'UNMARKED' = no attendance record for the participant.
+  const displayedParticipants = useMemo(() => {
+    if (!statusFilter) return visibleParticipants;
+    return visibleParticipants.filter((p) => {
+      const status = records.get(p.id)?.status;
+      return statusFilter === 'UNMARKED' ? !status : status === statusFilter;
+    });
+  }, [visibleParticipants, statusFilter, records]);
+
+  const statusFilterOptions = useMemo(
+    () => [
+      { value: '', label: 'All statuses' },
+      { value: 'PRESENT', label: 'Present' },
+      { value: 'LATE', label: 'Late' },
+      { value: 'ABSENT', label: 'Absent' },
+      { value: 'UNMARKED', label: 'Unmarked' },
+    ],
+    []
+  );
 
   // Mark every still-unmarked visible participant as PRESENT in one batch.
   const handleMarkAllPresent = async () => {
@@ -197,25 +219,36 @@ const AdminAttendancePage: React.FC = () => {
                 ))}
               </div>
             </div>
-            {groups.length > 0 && (
-              <div className="w-full lg:w-64">
+            <div className="flex w-full flex-col gap-4 sm:flex-row lg:w-auto">
+              <div className="w-full sm:w-48">
                 <AppSelect
-                  label="Filter by group"
-                  value={selectedGroupId}
-                  onChange={setSelectedGroupId}
-                  options={groupOptions}
-                  placeholder="All groups"
+                  label="Filter by status"
+                  value={statusFilter}
+                  onChange={(v) => setStatusFilter(v as '' | AttendanceStatus | 'UNMARKED')}
+                  options={statusFilterOptions}
+                  placeholder="All statuses"
                 />
-                {selectedGroup && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    Support:{' '}
-                    <span className="font-semibold text-gray-700">
-                      {selectedGroup.supportName || 'None assigned'}
-                    </span>
-                  </p>
-                )}
               </div>
-            )}
+              {groups.length > 0 && (
+                <div className="w-full sm:w-64">
+                  <AppSelect
+                    label="Filter by group"
+                    value={selectedGroupId}
+                    onChange={setSelectedGroupId}
+                    options={groupOptions}
+                    placeholder="All groups"
+                  />
+                  {selectedGroup && (
+                    <p className="mt-2 text-xs text-gray-500">
+                      Support:{' '}
+                      <span className="font-semibold text-gray-700">
+                        {selectedGroup.supportName || 'None assigned'}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Search + bulk action */}
@@ -261,16 +294,16 @@ const AdminAttendancePage: React.FC = () => {
 
           {loading ? (
             <PageLoader />
-          ) : visibleParticipants.length === 0 ? (
+          ) : displayedParticipants.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
-              <p className="text-sm text-gray-500">{selectedGroupId ? 'No active participants in this group.' : (search.trim() ? 'No participants match your search.' : 'No active participants in this cohort.')}</p>
+              <p className="text-sm text-gray-500">{statusFilter ? 'No participants match this status.' : selectedGroupId ? 'No active participants in this group.' : (search.trim() ? 'No participants match your search.' : 'No active participants in this cohort.')}</p>
             </div>
           ) : (
             // Card grid: READ-ONLY for admins. Attendance is support-driven, so
             // the status is shown as a pill (no dropdown to fat-finger) and any
             // change goes through the per-card menu (deliberate action only).
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {visibleParticipants.map((p) => {
+              {displayedParticipants.map((p) => {
                 const rec = records.get(p.id);
                 const isSaving = saving.has(p.id);
                 const status = rec?.status;

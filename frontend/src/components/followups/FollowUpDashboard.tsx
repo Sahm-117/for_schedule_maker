@@ -39,6 +39,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
                 <th className="px-5 py-3 whitespace-nowrap">Assigned</th>
                 <th className="px-5 py-3 whitespace-nowrap">Still Open</th>
                 <th className="px-5 py-3 whitespace-nowrap">Registered</th>
+                <th className="px-5 py-3 whitespace-nowrap">Next Cohort</th>
                 <th className="px-5 py-3 whitespace-nowrap">Wrong Number</th>
                 <th className="px-5 py-3 whitespace-nowrap">Not Interested</th>
                 <th className="px-5 py-3 whitespace-nowrap">Not a Good Time</th>
@@ -48,7 +49,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
             </thead>
             <tbody>
               {owners.length === 0 ? (
-                <tr><td colSpan={9} className="px-5 py-8 text-center text-gray-400">No contacts yet.</td></tr>
+                <tr><td colSpan={10} className="px-5 py-8 text-center text-gray-400">No contacts yet.</td></tr>
               ) : (
                 owners.map((row) => (
                   <tr key={row.ownerId || 'unassigned'} className="border-t border-orange-50">
@@ -56,6 +57,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
                     <td className="px-5 py-3 whitespace-nowrap font-semibold">{row.assigned}</td>
                     <td className="px-5 py-3 whitespace-nowrap font-bold text-amber-700">{row.stillOpen}</td>
                     <td className="px-5 py-3 whitespace-nowrap font-semibold text-emerald-700">{row.registered}</td>
+                    <td className="px-5 py-3 whitespace-nowrap font-semibold text-sky-700">{row.nextCohort}</td>
                     <td className="px-5 py-3 whitespace-nowrap">{row.wrongNumber}</td>
                     <td className="px-5 py-3 whitespace-nowrap">{Math.max(0, row.notInterested - row.notAGoodTime - row.notATcnMember)}</td>
                     <td className="px-5 py-3 whitespace-nowrap">{row.notAGoodTime}</td>

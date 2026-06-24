@@ -147,6 +147,7 @@ export interface OwnerBreakdownRow {
   replied: number;
   callBackLater: number;
   registered: number;
+  nextCohort: number;
   wrongNumber: number;
   notInterested: number;
   noResponse: number;
@@ -166,7 +167,7 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       row = {
         ownerId: c.ownerId || null,
         ownerName: c.ownerName || (c.ownerId ? 'Unknown' : 'Unassigned'),
-        assigned: 0, toContact: 0, waiting: 0, needsReminder: 0, replied: 0, callBackLater: 0, registered: 0, wrongNumber: 0, notInterested: 0, noResponse: 0,
+        assigned: 0, toContact: 0, waiting: 0, needsReminder: 0, replied: 0, callBackLater: 0, registered: 0, nextCohort: 0, wrongNumber: 0, notInterested: 0, noResponse: 0,
         uncontacted: 0, contacted: 0, stillOpen: 0, notAGoodTime: 0, notATcnMember: 0,
       };
       map.set(key, row);
@@ -185,7 +186,7 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       case 'WRONG_NUMBER': row.wrongNumber++; break;
       case 'NOT_INTERESTED': row.notInterested++; break;
       case 'NO_RESPONSE': row.noResponse++; break;
-      case 'NEXT_COHORT': break;
+      case 'NEXT_COHORT': row.nextCohort++; break;
     }
   }
   for (const row of map.values()) {

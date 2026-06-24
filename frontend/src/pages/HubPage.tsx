@@ -244,7 +244,7 @@ const TrashIcon = () => (
   <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
 );
 
-const TopicCard: React.FC<{ topic: HubTopic; onClick: () => void; onDelete?: () => void }> = ({ topic, onClick, onDelete }) => (
+const TopicCard: React.FC<{ topic: HubTopic; onClick: () => void; onToggleLike: () => void; onDelete?: () => void }> = ({ topic, onClick, onToggleLike, onDelete }) => (
   <div className="relative rounded-2xl border border-orange-100 bg-white shadow-sm transition hover:shadow-md hover:border-orange-200">
     <button
       type="button"
@@ -265,9 +265,25 @@ const TopicCard: React.FC<{ topic: HubTopic; onClick: () => void; onDelete?: () 
       <span className="text-xs text-gray-500">{topic.authorName}</span>
       <span className="text-xs text-gray-400">·</span>
       <span className="text-xs text-gray-400">{formatDate(topic.createdAt)}</span>
-      <span className="ml-auto flex items-center gap-1 text-xs text-gray-400">
-        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-        {topic.commentCount}
+      <span className="ml-auto flex items-center gap-3 text-xs text-gray-400">
+        {/* Thumbs-up: nested inside the card's <button>, so use a role="button"
+            span with stopPropagation to avoid invalid nested buttons + opening the topic. */}
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => { e.stopPropagation(); onToggleLike(); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onToggleLike(); } }}
+          aria-pressed={topic.likedByMe}
+          aria-label={topic.likedByMe ? 'Remove like' : 'Like'}
+          className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 transition hover:bg-orange-50 ${topic.likedByMe ? 'text-primary' : 'text-gray-400'}`}
+        >
+          <svg className="h-3.5 w-3.5" fill={topic.likedByMe ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75a.75.75 0 0 1 .75-.75 2.25 2.25 0 0 1 2.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 0 1-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 0 0-1.423-.23H5.904M6.633 10.5a2.25 2.25 0 0 1 .241 1.018c0 .896-.121 1.762-.348 2.586-.146.529-.55.954-1.082 1.073a48.4 48.4 0 0 1-1.084.243M6.633 10.5l-1.024-.13" /></svg>
+          {topic.likeCount}
+        </span>
+        <span className="flex items-center gap-1">
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+          {topic.commentCount}
+        </span>
       </span>
     </div>
     </button>
@@ -310,7 +326,7 @@ const HubPage: React.FC = () => {
     setLoading(true);
     try {
       const [{ topics: t }, { users: u }] = await Promise.all([
-        hubApi.getTopics(status),
+        hubApi.getTopics(status, user?.id),
         hubApi.getUsers(),
       ]);
       setTopics(t);
@@ -318,7 +334,7 @@ const HubPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => { void load(tab); }, [tab, load]);
 
@@ -328,17 +344,32 @@ const HubPage: React.FC = () => {
   // payload.old.topicId is undefined) and reconcile by id so unchanged rows don't
   // re-render / scroll-jump.
   useEffect(() => {
-    const refresh = () => hubApi.getTopics(tab)
+    const refresh = () => hubApi.getTopics(tab, user?.id)
       .then(({ topics: t }) => setTopics((prev) => reconcileById(prev, t)))
       .catch(() => {});
     const channel = supabase
       .channel('hub-topics-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'HubTopic' }, refresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'HubComment' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'HubReaction' }, refresh)
       .subscribe();
 
     return () => { void supabase.removeChannel(channel); };
-  }, [tab]);
+  }, [tab, user?.id]);
+
+  // Optimistic thumbs-up toggle; the realtime refresh reconciles authoritative counts.
+  const handleToggleLike = useCallback((topicId: string) => {
+    if (!user) return;
+    setTopics((prev) => prev.map((t) => t.id === topicId
+      ? { ...t, likedByMe: !t.likedByMe, likeCount: t.likeCount + (t.likedByMe ? -1 : 1) }
+      : t));
+    void hubApi.toggleReaction(topicId, user.id).catch(() => {
+      // revert on failure
+      setTopics((prev) => prev.map((t) => t.id === topicId
+        ? { ...t, likedByMe: !t.likedByMe, likeCount: t.likeCount + (t.likedByMe ? 1 : -1) }
+        : t));
+    });
+  }, [user]);
 
   // The open topic can leave `topics` if another client deletes it or its status
   // moves it off the current tab via realtime — clear the selection instead of crashing.
@@ -410,6 +441,7 @@ const HubPage: React.FC = () => {
               key={topic.id}
               topic={topic}
               onClick={() => setSelectedTopicId(topic.id)}
+              onToggleLike={() => handleToggleLike(topic.id)}
               onDelete={isAdmin ? () => void handleDeleteTopicFromList(topic.id) : undefined}
             />
           ))}

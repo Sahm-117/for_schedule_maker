@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate, Link } from 'react-router-dom';
+import PWAUpdateBanner from '../components/PWAUpdateBanner';
 
 const isValidNigerianPhone = (value: string) => /^0[7-9][0-1]\d{8}$/.test(value);
 const looksLikePhone = (value: string) => /^[0-9+]/.test(value) && !value.includes('@');
@@ -33,19 +34,13 @@ const Login: React.FC = () => {
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || 'Login failed';
 
-      // Whether the person typed an email (vs a phone number).
-      const triedEmail = !looksLikePhone(trimmed);
-
       // Provide better error messages
       if (errorMessage.includes('User not found') || errorMessage.includes('Invalid credentials') || errorMessage.includes('Unauthorized')) {
-        // Many support accounts were set up with a phone number and no email. If
-        // an email login fails, the most common reason is that the account was
-        // created with a phone instead — point them there specifically.
-        if (triedEmail) {
-          setError("We couldn't find an account for that email. If you signed up with your phone number, try logging in with that instead (e.g. 08012345678).");
-        } else {
-          setError('Invalid login credentials. Please check your phone number and password and try again.');
-        }
+        // One combined, actionable message. A failed login here is usually either
+        // a typo OR a stale cached app (an old PWA bundle that can't find the
+        // account) — so cover both: re-check credentials, and if it persists,
+        // refresh/reinstall and sign in with email.
+        setError("We couldn't sign you in. Double-check your email (or phone number) and password. If it still fails, tap “Refresh” at the top to update the app — or reinstall it — then sign in with your email.");
       } else if (errorMessage.includes('Account deactivated')) {
         setError('This account has been deactivated. Please contact an administrator.');
       } else if (errorMessage.includes('does not exist')) {
@@ -62,6 +57,10 @@ const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      {/* Show the "new version → Refresh" prompt here too: a user stuck on an old
+          cached bundle lands on login, so the update affordance must be reachable
+          before sign-in (it's otherwise only mounted inside the authed shell). */}
+      <PWAUpdateBanner />
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           {/* Logo */}

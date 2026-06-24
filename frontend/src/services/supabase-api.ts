@@ -4453,22 +4453,27 @@ export const groupPrayerStatusApi = {
 
 // ─── Hub API ──────────────────────────────────────────────────────────────────
 
-const HUB_TOPIC_SELECT = `*, author:User!HubTopic_authorId_fkey(id, name, "avatarUrl"), comments:HubComment(id)`;
+const HUB_TOPIC_SELECT = `*, author:User!HubTopic_authorId_fkey(id, name, "avatarUrl"), comments:HubComment(id), reactions:HubReaction("userId")`;
 const HUB_COMMENT_SELECT = `*, author:User!HubComment_authorId_fkey(id, name, "avatarUrl"), replies:HubReply(id)`;
 const HUB_REPLY_SELECT = `*, author:User!HubReply_authorId_fkey(id, name, "avatarUrl")`;
 
-const mapTopic = (row: any): import('../types').HubTopic => ({
-  id: row.id,
-  authorId: row.authorId,
-  authorName: row.author?.name ?? 'Unknown',
-  authorAvatarUrl: row.author?.avatarUrl ?? null,
-  title: row.title,
-  body: row.body,
-  status: row.status,
-  commentCount: (row.comments ?? []).length,
-  createdAt: row.createdAt,
-  updatedAt: row.updatedAt,
-});
+const mapTopic = (row: any, currentUserId?: string): import('../types').HubTopic => {
+  const reactions = (row.reactions ?? []) as Array<{ userId: string }>;
+  return {
+    id: row.id,
+    authorId: row.authorId,
+    authorName: row.author?.name ?? 'Unknown',
+    authorAvatarUrl: row.author?.avatarUrl ?? null,
+    title: row.title,
+    body: row.body,
+    status: row.status,
+    commentCount: (row.comments ?? []).length,
+    likeCount: reactions.length,
+    likedByMe: currentUserId ? reactions.some((r) => r.userId === currentUserId) : false,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+};
 
 const mapComment = (row: any): import('../types').HubComment => ({
   id: row.id,
@@ -4492,14 +4497,33 @@ const mapReply = (row: any): import('../types').HubReply => ({
 });
 
 export const hubApi = {
-  async getTopics(status: 'OPEN' | 'CLOSED'): Promise<{ topics: import('../types').HubTopic[] }> {
+  async getTopics(status: 'OPEN' | 'CLOSED', currentUserId?: string): Promise<{ topics: import('../types').HubTopic[] }> {
     const { data, error } = await supabase
       .from('HubTopic')
       .select(HUB_TOPIC_SELECT)
       .eq('status', status)
       .order('createdAt', { ascending: false });
     if (error) throw new Error(error.message);
-    return { topics: ((data as any[]) || []).map(mapTopic) };
+    return { topics: ((data as any[]) || []).map((row) => mapTopic(row, currentUserId)) };
+  },
+
+  // Toggle the current user's thumbs-up on a topic. Returns the new liked state.
+  async toggleReaction(topicId: string, userId: string): Promise<{ liked: boolean }> {
+    const { data: existing, error: selErr } = await supabase
+      .from('HubReaction')
+      .select('id')
+      .eq('topicId', topicId)
+      .eq('userId', userId)
+      .maybeSingle();
+    if (selErr) throw new Error(selErr.message);
+    if (existing) {
+      const { error } = await supabase.from('HubReaction').delete().eq('id', existing.id);
+      if (error) throw new Error(error.message);
+      return { liked: false };
+    }
+    const { error } = await supabase.from('HubReaction').insert([{ topicId, userId }]);
+    if (error) throw new Error(error.message);
+    return { liked: true };
   },
 
   async createTopic(input: { title: string; body: string; authorId: string }): Promise<{ topic: import('../types').HubTopic }> {

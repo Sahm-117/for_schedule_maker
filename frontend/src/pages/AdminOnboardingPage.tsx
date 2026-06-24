@@ -83,6 +83,7 @@ const AdminOnboardingPage: React.FC = () => {
   const [updatingCoordinatorId, setUpdatingCoordinatorId] = useState<string | null>(null);
   const [coordinatorCandidateId, setCoordinatorCandidateId] = useState('');
   const [groupFilter, setGroupFilter] = useState(''); // '' = all groups
+  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'in_progress'>('all');
   const [eventLimit, setEventLimit] = useState(10); // infinite scroll page size
   const [coordinatorOpen, setCoordinatorOpen] = useState(false); // settings modal
   const fileRef = useRef<HTMLInputElement>(null);
@@ -177,8 +178,13 @@ const AdminOnboardingPage: React.FC = () => {
   );
 
   const visibleGroupSummaries = useMemo(
-    () => (groupFilter ? groupSummaries.filter((s) => s.status.groupId === groupFilter) : groupSummaries),
-    [groupSummaries, groupFilter]
+    () => groupSummaries.filter((s) => {
+      if (groupFilter && s.status.groupId !== groupFilter) return false;
+      if (statusFilter === 'completed') return s.completed;
+      if (statusFilter === 'in_progress') return !s.completed;
+      return true;
+    }),
+    [groupSummaries, groupFilter, statusFilter]
   );
 
 
@@ -446,8 +452,23 @@ const AdminOnboardingPage: React.FC = () => {
               <h3 className="mt-1 text-lg font-bold text-gray-900">Progress by group</h3>
             </div>
             {statuses.length > 0 && (
-              <div className="w-56">
-                <AppSelect value={groupFilter} onChange={setGroupFilter} options={groupOptions} placeholder="All groups" compact />
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="w-44">
+                  <AppSelect
+                    value={statusFilter}
+                    onChange={(v) => setStatusFilter(v as 'all' | 'completed' | 'in_progress')}
+                    options={[
+                      { value: 'all', label: 'All statuses' },
+                      { value: 'completed', label: 'Completed' },
+                      { value: 'in_progress', label: 'In progress' },
+                    ]}
+                    placeholder="All statuses"
+                    compact
+                  />
+                </div>
+                <div className="w-56">
+                  <AppSelect value={groupFilter} onChange={setGroupFilter} options={groupOptions} placeholder="All groups" compact />
+                </div>
               </div>
             )}
           </div>

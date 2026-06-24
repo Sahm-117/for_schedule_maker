@@ -561,7 +561,8 @@ export const groupPrayerStatusApi = USE_SUPABASE ? supabaseGroupPrayerStatusApi 
 };
 
 export const hubApi = USE_SUPABASE ? supabaseHubApi : {
-  async getTopics(_status: 'OPEN' | 'CLOSED'): Promise<{ topics: import('../types').HubTopic[] }> { return { topics: [] }; },
+  async getTopics(_status: 'OPEN' | 'CLOSED', _currentUserId?: string): Promise<{ topics: import('../types').HubTopic[] }> { return { topics: [] }; },
+  async toggleReaction(_topicId: string, _userId: string): Promise<{ liked: boolean }> { return peopleUnavailable(); },
   async createTopic(_input: any): Promise<never> { return peopleUnavailable(); },
   async setTopicStatus(_topicId: string, _status: 'OPEN' | 'CLOSED'): Promise<never> { return peopleUnavailable(); },
   async getComments(_topicId: string): Promise<{ comments: import('../types').HubComment[] }> { return { comments: [] }; },

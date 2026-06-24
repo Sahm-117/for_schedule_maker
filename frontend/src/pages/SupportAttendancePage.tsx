@@ -96,6 +96,7 @@ const SupportAttendancePage: React.FC = () => {
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
   const [savingNote, setSavingNote] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'' | AttendanceStatus | 'UNMARKED'>('');
 
   if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
 
@@ -146,6 +147,26 @@ const SupportAttendancePage: React.FC = () => {
     return { total, present, late, absent, pct };
   }, [participants, records]);
 
+  // Status filter for the participant list ('UNMARKED' = no record yet).
+  const displayedParticipants = useMemo(() => {
+    if (!statusFilter) return participants;
+    return participants.filter((p) => {
+      const status = records.get(p.id)?.status;
+      return statusFilter === 'UNMARKED' ? !status : status === statusFilter;
+    });
+  }, [participants, statusFilter, records]);
+
+  const statusFilterOptions = useMemo(
+    () => [
+      { value: '', label: 'All statuses' },
+      { value: 'PRESENT', label: 'Present' },
+      { value: 'LATE', label: 'Late' },
+      { value: 'ABSENT', label: 'Absent' },
+      { value: 'UNMARKED', label: 'Unmarked' },
+    ],
+    []
+  );
+
   const selectedWeek = cohortWeeks.find((w) => w.id === selectedWeekId);
 
   const handleSaveNote = async (notes: string) => {
@@ -179,17 +200,28 @@ const SupportAttendancePage: React.FC = () => {
         <p className="text-sm text-gray-500">No weeks available yet.</p>
       ) : (
         <>
-          <div className="mb-5 max-w-sm">
-            <AppSelect
-              value={selectedWeekId ? String(selectedWeekId) : ''}
-              onChange={(value) => setSelectedWeekId(Number(value))}
-              options={cohortWeeks.map((week) => ({
-                value: String(week.id),
-                label: `Week ${week.weekNumber}`,
-              }))}
-              placeholder="Choose week"
-              label="Week"
-            />
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:max-w-2xl">
+            <div className="w-full sm:max-w-sm">
+              <AppSelect
+                value={selectedWeekId ? String(selectedWeekId) : ''}
+                onChange={(value) => setSelectedWeekId(Number(value))}
+                options={cohortWeeks.map((week) => ({
+                  value: String(week.id),
+                  label: `Week ${week.weekNumber}`,
+                }))}
+                placeholder="Choose week"
+                label="Week"
+              />
+            </div>
+            <div className="w-full sm:max-w-[12rem]">
+              <AppSelect
+                label="Filter by status"
+                value={statusFilter}
+                onChange={(v) => setStatusFilter(v as '' | AttendanceStatus | 'UNMARKED')}
+                options={statusFilterOptions}
+                placeholder="All statuses"
+              />
+            </div>
           </div>
 
           {!loading && participants.length > 0 && (
@@ -215,9 +247,13 @@ const SupportAttendancePage: React.FC = () => {
               <p className="text-sm text-gray-500">You have no participants assigned yet.</p>
               <p className="mt-1 text-xs text-gray-400">Ask an admin to assign you to a group.</p>
             </div>
+          ) : displayedParticipants.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
+              <p className="text-sm text-gray-500">No participants match this status.</p>
+            </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {participants.map((p) => {
+              {displayedParticipants.map((p) => {
                 const rec = records.get(p.id);
                 const isSaving = saving.has(p.id);
                 return (

@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import AppSelect from '../components/AppSelect';
+import { formatMeetingSlot } from '../components/GroupMeetingSlotEditor';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { groupPrayerFocusApi, groupPrayerStatusApi, groupsApi } from '../services/api';
@@ -152,8 +153,13 @@ const AdminGroupPrayersPage: React.FC = () => {
                 {visibleGroups.map((g) => (
                   <tr key={g.id} className="hover:bg-orange-50/30">
                     <td className="sticky left-0 z-10 bg-white px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
-                      {g.name}
-                      {g.supportName && <span className="ml-2 text-xs text-gray-400">{g.supportName}</span>}
+                      <span>
+                        {g.name}
+                        {g.supportName && <span className="ml-2 text-xs text-gray-400">{g.supportName}</span>}
+                      </span>
+                      <span className="mt-0.5 block text-xs font-normal text-gray-400">
+                        {formatMeetingSlot(g) ?? 'No meeting set'}
+                      </span>
                     </td>
                     {cohortWeeks.map((w) => {
                       const done = isDone(g.id, w.id);

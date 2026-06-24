@@ -2,8 +2,32 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAppData } from '../context/AppDataContext';
+import { useAuth } from '../hooks/useAuth';
 import { notificationsApi } from '../services/api';
 import type { Notification } from '../types';
+
+// Resolve a notification to the route that's correct for the *current user's
+// role*. Stored `path` values were historically role-blind (e.g. announcements
+// saved `/resources`, an admin-only route, so support users went nowhere
+// useful). We remap by type + role here so even old rows in the feed land on
+// the right page; anything we don't recognise falls back to the stored path.
+const resolvePath = (n: Notification, isSupport: boolean): string | null => {
+  switch (n.type) {
+    case 'ANNOUNCEMENT':
+      return isSupport ? '/support/announcements' : '/team-announcements';
+    case 'HUB':
+      return isSupport ? '/support/hub' : '/hub';
+    case 'FOLLOWUP_ASSIGNMENT':
+    case 'FOLLOWUP_ISSUE':
+    case 'FOLLOWUP_TERMINAL':
+      return isSupport ? '/support/follow-ups' : '/follow-ups';
+    case 'FAITH_PROJECT_REVIEW':
+    case 'FAITH_PROJECT_SUBMITTED':
+      return n.path ?? '/faith-projects';
+    default:
+      return n.path ?? null;
+  }
+};
 
 // Relative "time ago" for the feed rows (e.g. "3m", "2h", "Yesterday").
 const timeAgo = (iso: string): string => {
@@ -23,6 +47,8 @@ const timeAgo = (iso: string): string => {
 
 const NotificationBell: React.FC = () => {
   const { notifications, notificationUnreadCount, markNotificationsRead } = useAppData();
+  const { user } = useAuth();
+  const isSupport = user?.role === 'SUPPORT';
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
@@ -68,7 +94,8 @@ const NotificationBell: React.FC = () => {
   const handleRowClick = (n: Notification) => {
     setOpen(false);
     if (!n.isRead) void notificationsApi.markRead(n.id).catch(() => {});
-    if (n.path) navigate(n.path);
+    const target = resolvePath(n, isSupport);
+    if (target) navigate(target);
   };
 
   return (

@@ -138,12 +138,22 @@ Deno.serve(async (req) => {
 
     const { data: activeUsers, error: activeUsersError } = await supabase
       .from('User')
-      .select('id')
+      .select('id, role')
       .in('id', scopedUserIds)
       .eq('isActive', true)
 
     if (activeUsersError) {
       throw new Error(activeUsersError.message)
+    }
+
+    // Role-aware deep-link: announcements are read on the announcements feed,
+    // which is a different route per role (support users can't open the admin
+    // route). Keep this in sync between the in-app row and the push payload.
+    const pathForRole = (role?: string) =>
+      role === 'SUPPORT' ? '/support/announcements' : '/team-announcements'
+    const roleByUser = new Map<string, string>()
+    for (const row of (activeUsers || []) as any[]) {
+      if (row?.id) roleByUser.set(row.id, row.role)
     }
 
     const recipientIds = Array.from(new Set((activeUsers || []).map((row: any) => row.id).filter(Boolean)))
@@ -162,7 +172,7 @@ Deno.serve(async (req) => {
         userId,
         title: `📢 From FOF Ops`,
         body: `${subject}: ${body}`,
-        path: '/resources',
+        path: pathForRole(roleByUser.get(userId)),
         type: 'ANNOUNCEMENT',
       })),
     )
@@ -183,8 +193,10 @@ Deno.serve(async (req) => {
       })
     }
 
-    // 5. Build payload
-    const payload = JSON.stringify({
+    // 5. Build payload + send. The deep-link (data.path) differs by role, so we
+    //    split subscriptions into admin vs support batches and send each with
+    //    its own path — kept in sync with the in-app row's path above.
+    const buildPayload = (path: string) => JSON.stringify({
       title: `📢 From FOF Ops`,
       body: `${subject}: ${body}`,
       icon: '/icon-192.png',
@@ -192,11 +204,26 @@ Deno.serve(async (req) => {
       cohortId,
       scope,
       targetLabelId,
+      data: { path },
     })
+
+    const supportSubs = (subs as any[]).filter((s) => roleByUser.get(s.userId) === 'SUPPORT')
+    const otherSubs = (subs as any[]).filter((s) => roleByUser.get(s.userId) !== 'SUPPORT')
 
     // 6. Send to each subscription (reliable delivery: retries transient
     //    failures, deletes dead subscriptions, never aborts on one bad endpoint).
-    const { sent, failed, removed, errors } = await sendToSubscriptions(webPush, supabase, subs as any[], payload)
+    const batches = await Promise.all([
+      otherSubs.length
+        ? sendToSubscriptions(webPush, supabase, otherSubs, buildPayload('/team-announcements'))
+        : Promise.resolve({ sent: 0, failed: 0, removed: 0, errors: [] }),
+      supportSubs.length
+        ? sendToSubscriptions(webPush, supabase, supportSubs, buildPayload('/support/announcements'))
+        : Promise.resolve({ sent: 0, failed: 0, removed: 0, errors: [] }),
+    ])
+    const sent = batches.reduce((n, b) => n + b.sent, 0)
+    const failed = batches.reduce((n, b) => n + b.failed, 0)
+    const removed = batches.reduce((n, b) => n + b.removed, 0)
+    const errors = batches.flatMap((b) => b.errors)
 
     if (failed > 0) {
       console.error(`send-announcement: ${sent} sent, ${failed} failed, ${removed} removed`, JSON.stringify(errors))
