@@ -45,7 +45,7 @@ const Login: React.FC = () => {
         setError('This account has been deactivated. Please contact an administrator.');
       } else if (errorMessage.includes('does not exist')) {
         setError('Account not found. Please contact an administrator to create your account.');
-      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+      } else if (errorMessage.includes('Login service unavailable') || errorMessage.includes('network') || errorMessage.includes('fetch')) {
         setError('Connection error. Please check your internet connection and try again.');
       } else {
         setError('Login failed. Please try again or contact support if the problem persists.');

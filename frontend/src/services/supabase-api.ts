@@ -229,17 +229,22 @@ const friendlyUserError = (rawMessage: string | undefined, fallback: string): st
 export const authApi = {
   async login(identifier: string, _password: string): Promise<AuthResponse> {
     const normalized = identifier.trim().toLowerCase();
-    // Do NOT use .single() here: it throws when more than one row matches, which
-    // would lock a user out entirely if a duplicate account ever exists (e.g. two
-    // phone-only accounts with the same number). Fetch all matches and resolve
-    // deterministically so a stray duplicate degrades to a normal login.
+    const lookupColumn = normalized.includes('@') ? 'email' : 'phone';
+
+    // Look up one identifier at a time. PostgREST's `or` filter is parsed as a
+    // query expression, so a combined email/phone lookup can be rejected by an
+    // older cached client or database schema even when the email itself is a
+    // valid, active account. A login value is unambiguously either an email or a
+    // phone number, so a direct equality filter is both simpler and more robust.
+    // Do NOT use .single(): it throws on duplicate legacy accounts and would
+    // turn an otherwise usable account into a login failure.
     const { data: matches, error } = await supabase
       .from('User')
       .select('*')
-      .or(`email.eq.${normalized},phone.eq.${normalized}`);
+      .eq(lookupColumn, normalized);
 
     if (error) {
-      throw new Error('Invalid credentials');
+      throw new Error('Login service unavailable');
     }
 
     const rows = (matches as any[]) || [];
