@@ -160,6 +160,7 @@ export type NotificationType =
   | 'FOLLOWUP_TERMINAL'
   | 'FAITH_PROJECT_REVIEW'
   | 'FAITH_PROJECT_SUBMITTED'
+  | 'GROUP_MEETING_COMPLETED'
   | 'HUB'
   | 'REMINDER'
   | 'GENERAL';

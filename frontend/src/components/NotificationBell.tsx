@@ -24,6 +24,8 @@ const resolvePath = (n: Notification, isSupport: boolean): string | null => {
     case 'FAITH_PROJECT_REVIEW':
     case 'FAITH_PROJECT_SUBMITTED':
       return n.path ?? '/faith-projects';
+    case 'GROUP_MEETING_COMPLETED':
+      return '/group-prayers';
     default:
       return n.path ?? null;
   }

@@ -732,6 +732,7 @@ const SupportParticipantsPage: React.FC = () => {
 
   const setPrayerDone = async (done: boolean) => {
     if (!selectedGroupId || !selectedWeekId || !user.id) return;
+    const wasDone = currentPrayerStatus?.done === true;
     setSavingPrayer(true);
     try {
       const { status } = await groupPrayerStatusApi.setDone(selectedGroupId, selectedWeekId, done, user.id);
@@ -739,6 +740,19 @@ const SupportParticipantsPage: React.FC = () => {
         const others = prev.filter((entry) => !(entry.groupId === status.groupId && entry.weekId === status.weekId));
         return [...others, status];
       });
+      if (done && !wasDone) {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+        fetch(`${supabaseUrl}/functions/v1/notify-group-meeting-completed`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+          body: JSON.stringify({
+            groupName: selectedGroup?.groupName ?? selectedGroupData?.name ?? 'A group',
+            weekNumber: selectedWeek?.weekNumber,
+            supportName: user.name,
+          }),
+        }).catch(() => {/* Notification delivery must not block marking the meeting done. */});
+      }
     } finally {
       setSavingPrayer(false);
     }
