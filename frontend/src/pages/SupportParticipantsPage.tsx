@@ -13,6 +13,8 @@ import {
   groupPrayerFocusApi,
   groupPrayerStatusApi,
   groupsApi,
+  participantHandoversApi,
+  participantNotesApi,
   participantsApi,
 } from '../services/api';
 import type {
@@ -24,6 +26,8 @@ import type {
   GroupPrayerFocus,
   GroupPrayerStatus,
   Participant,
+  ParticipantHandover,
+  ParticipantNote,
   Week,
 } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
@@ -237,6 +241,7 @@ const SupportReviewHistory: React.FC<{ history: FaithProjectReviewEntry[] }> = (
           ))}
         </div>
       )}
+
     </div>
   );
 };
@@ -473,6 +478,38 @@ const FaithProjectPanel: React.FC<FaithProjectPanelProps> = ({ participant, exis
   );
 };
 
+const ParticipantHandoverContext: React.FC<{
+  handovers: ParticipantHandover[];
+  notes: ParticipantNote[];
+  onAddNote: () => void;
+}> = ({ handovers, notes, onAddNote }) => {
+  const latest = handovers[0];
+  const previousSupport = latest?.fromSupportName;
+  return (
+    <div className="border-t border-orange-100 bg-orange-50/20 px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Handover context</p>
+          {previousSupport ? (
+            <p className="mt-1 text-xs text-gray-600" title={`Previously supported by ${previousSupport}${latest?.faithProjectStatus ? `. Faith project status at handover: ${latest.faithProjectStatus.replaceAll('_', ' ').toLowerCase()}` : ''}.`}>
+              Previously supported by <span className="font-semibold text-gray-800">{previousSupport}</span>
+              {latest?.faithProjectStatus ? ` · Faith project: ${latest.faithProjectStatus.replaceAll('_', ' ').toLowerCase()}` : ''}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-gray-500">No previous support handover recorded yet.</p>
+          )}
+          {notes.slice(0, 2).map((note) => (
+            <p key={note.id} className="mt-1 line-clamp-2 text-xs text-gray-600">{note.noteType === 'MEETING' ? 'Meeting note' : 'Note'} — {note.authorName || 'Support'}: {note.body}</p>
+          ))}
+        </div>
+        <button type="button" onClick={onAddNote} className="shrink-0 rounded-xl border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-primary hover:bg-orange-50">
+          Add note
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const SupportParticipantsPage: React.FC = () => {
   const { user } = useAuth();
   const { activeCohort, weeks } = useAppData();
@@ -482,6 +519,13 @@ const SupportParticipantsPage: React.FC = () => {
   const [faithProjects, setFaithProjects] = useState<FaithProject[]>([]);
   const [groupPrayerFocuses, setGroupPrayerFocuses] = useState<GroupPrayerFocus[]>([]);
   const [groupPrayerStatuses, setGroupPrayerStatuses] = useState<GroupPrayerStatus[]>([]);
+  const [participantNotes, setParticipantNotes] = useState<ParticipantNote[]>([]);
+  const [participantHandovers, setParticipantHandovers] = useState<ParticipantHandover[]>([]);
+  const [noteParticipant, setNoteParticipant] = useState<Participant | null>(null);
+  const [noteBody, setNoteBody] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+  const [meetingNotePrompt, setMeetingNotePrompt] = useState(false);
+  const [meetingNoteBody, setMeetingNoteBody] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [selectedWeekId, setSelectedWeekId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<GroupTab>('faith');
@@ -561,7 +605,15 @@ const SupportParticipantsPage: React.FC = () => {
         }
       }
 
+      const participantIds = participantsRes.participants.map((participant) => participant.id);
+      const [notesRes, handoversRes] = await Promise.all([
+        participantNotesApi.getForParticipants(participantIds).catch(() => ({ notes: [] as ParticipantNote[] })),
+        participantHandoversApi.getForParticipants(participantIds).catch(() => ({ handovers: [] as ParticipantHandover[] })),
+      ]);
+
       setParticipants(sortByText(participantsRes.participants, (participant) => participant.fullName));
+      setParticipantNotes(notesRes.notes);
+      setParticipantHandovers(handoversRes.handovers);
       const fallbackGroups = new Map<string, GroupOnboardingStatus>();
       participantsRes.participants.forEach((participant) => {
         if (!participant.groupId || fallbackGroups.has(participant.groupId)) return;
@@ -692,6 +744,41 @@ const SupportParticipantsPage: React.FC = () => {
     }
   };
 
+  const saveParticipantNote = async () => {
+    if (!noteParticipant || !user.id || !noteBody.trim()) return;
+    setSavingNote(true);
+    try {
+      const { note } = await participantNotesApi.create({
+        participantId: noteParticipant.id, body: noteBody, authorId: user.id,
+        groupId: noteParticipant.groupId ?? null, noteType: 'HANDOVER',
+      });
+      setParticipantNotes((prev) => [note, ...prev]);
+      setNoteParticipant(null);
+      setNoteBody('');
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const submitMeetingCompletion = async (withNote: boolean) => {
+    if (!selectedWeekId || !focusedParticipant || !user.id) return;
+    setSavingPrayer(true);
+    try {
+      if (withNote && meetingNoteBody.trim()) {
+        const { note } = await participantNotesApi.create({
+          participantId: focusedParticipant.id, body: meetingNoteBody, authorId: user.id,
+          groupId: selectedGroupId, weekId: selectedWeekId, noteType: 'MEETING',
+        });
+        setParticipantNotes((prev) => [note, ...prev]);
+      }
+      await setPrayerDone(true);
+      setMeetingNotePrompt(false);
+      setMeetingNoteBody('');
+    } finally {
+      setSavingPrayer(false);
+    }
+  };
+
   return (
     <div className="page-content">
       <PageHeader
@@ -761,27 +848,28 @@ const SupportParticipantsPage: React.FC = () => {
                 <div className="mt-4 space-y-3">
                   {selectedParticipants.map((participant) => {
                     const project = faithProjects.find((entry) => entry.participantId === participant.id) ?? null;
+                    const notes = participantNotes.filter((entry) => entry.participantId === participant.id);
+                    const handovers = participantHandovers.filter((entry) => entry.participantId === participant.id);
                     return (
-                      <FaithProjectPanel
-                        key={participant.id}
-                        participant={participant}
-                        existing={project}
-                        userId={user.id}
-                        supportName={user.name}
-                        groupName={selectedGroup?.groupName ?? undefined}
-                        onSaved={(savedProject) => {
-                          setFaithProjects((prev) => {
-                            const others = prev.filter((entry) => entry.participantId !== savedProject.participantId);
-                            return sortByText([...others, savedProject], (project) => project.title || project.participantName);
-                          });
-                        }}
-                        onParticipantUpdated={(updated) => {
-                          setParticipants((prev) => sortByText(
-                            prev.map((x) => x.id === updated.id ? { ...x, ...updated } : x),
-                            (p) => p.fullName,
-                          ));
-                        }}
-                      />
+                      <div key={participant.id} className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm">
+                        <FaithProjectPanel
+                          participant={participant}
+                          existing={project}
+                          userId={user.id}
+                          supportName={user.name}
+                          groupName={selectedGroup?.groupName ?? undefined}
+                          onSaved={(savedProject) => {
+                            setFaithProjects((prev) => {
+                              const others = prev.filter((entry) => entry.participantId !== savedProject.participantId);
+                              return sortByText([...others, savedProject], (project) => project.title || project.participantName);
+                            });
+                          }}
+                          onParticipantUpdated={(updated) => {
+                            setParticipants((prev) => sortByText(prev.map((x) => x.id === updated.id ? { ...x, ...updated } : x), (p) => p.fullName));
+                          }}
+                        />
+                        <ParticipantHandoverContext handovers={handovers} notes={notes} onAddNote={() => { setNoteParticipant(participant); setNoteBody(''); }} />
+                      </div>
                     );
                   })}
                 </div>
@@ -904,7 +992,11 @@ const SupportParticipantsPage: React.FC = () => {
                   <div className="max-w-sm">
                     <AppSelect
                       value={currentPrayerStatus?.done ? 'done' : 'pending'}
-                      onChange={(value) => { void setPrayerDone(value === 'done'); }}
+                      onChange={(value) => {
+                        if (value !== 'done') { void setPrayerDone(false); return; }
+                        if (focusedParticipant) { setMeetingNotePrompt(true); setMeetingNoteBody(''); return; }
+                        void setPrayerDone(true);
+                      }}
                       options={PRAYER_STATUS_OPTIONS}
                       placeholder="Choose meeting status"
                       label="Meeting status"
@@ -920,6 +1012,32 @@ const SupportParticipantsPage: React.FC = () => {
           )}
         </div>
       )}
+
+      <ModalShell
+        isOpen={!!noteParticipant}
+        onClose={() => setNoteParticipant(null)}
+        title={noteParticipant ? `Add note — ${noteParticipant.fullName}` : 'Add participant note'}
+        subtitle="This note stays with the participant and is visible to admins and a future assigned support."
+        footer={<>
+          <button type="button" onClick={() => setNoteParticipant(null)} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600">Cancel</button>
+          <button type="button" onClick={() => { void saveParticipantNote(); }} disabled={savingNote || !noteBody.trim()} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{savingNote ? 'Saving…' : 'Submit note'}</button>
+        </>}
+      >
+        <textarea value={noteBody} onChange={(event) => setNoteBody(event.target.value)} rows={5} placeholder="Add helpful context for the next support…" className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+      </ModalShell>
+
+      <ModalShell
+        isOpen={meetingNotePrompt}
+        onClose={() => setMeetingNotePrompt(false)}
+        title="Record a session note?"
+        subtitle={focusedParticipant ? `Is there anything worth recording for ${focusedParticipant.fullName} from this meeting?` : 'Is there anything worth recording from this meeting?'}
+        footer={<>
+          <button type="button" onClick={() => { void submitMeetingCompletion(false); }} disabled={savingPrayer} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 disabled:opacity-60">No note — mark done</button>
+          <button type="button" onClick={() => { void submitMeetingCompletion(true); }} disabled={savingPrayer || !meetingNoteBody.trim()} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{savingPrayer ? 'Saving…' : 'Submit note & mark done'}</button>
+        </>}
+      >
+        <textarea value={meetingNoteBody} onChange={(event) => setMeetingNoteBody(event.target.value)} rows={5} placeholder="Optional note about this participant's session…" className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+      </ModalShell>
     </div>
   );
 };

@@ -292,6 +292,36 @@ export type ParticipantUpdate = Partial<Pick<Participant,
   'email' | 'gender' | 'ageRange' | 'departments' | 'registrationDate' | 'smartRequest'
 >>;
 
+export type ParticipantNoteType = 'HANDOVER' | 'MEETING';
+
+export interface ParticipantNote {
+  id: string;
+  participantId: string;
+  body: string;
+  authorId?: string | null;
+  authorName?: string | null;
+  groupId?: string | null;
+  weekId?: number | null;
+  noteType: ParticipantNoteType;
+  createdAt: string;
+}
+
+export type ParticipantHandoverEventType = 'GROUP_JOINED' | 'GROUP_LEFT' | 'SUPPORT_REASSIGNED';
+
+export interface ParticipantHandover {
+  id: string;
+  participantId: string;
+  eventType: ParticipantHandoverEventType;
+  fromGroupName?: string | null;
+  fromSupportName?: string | null;
+  toGroupName?: string | null;
+  toSupportName?: string | null;
+  faithProjectStatus?: string | null;
+  faithProjectUpdatedById?: string | null;
+  faithProjectUpdatedAt?: string | null;
+  createdAt: string;
+}
+
 // ── Groups ────────────────────────────────────────────────────────────────────
 
 export interface Group {

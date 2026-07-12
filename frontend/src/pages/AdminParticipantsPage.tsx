@@ -4,8 +4,8 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { participantsApi, groupsApi } from '../services/api';
-import type { Participant, Group } from '../types';
+import { participantsApi, groupsApi, participantHandoversApi, participantNotesApi } from '../services/api';
+import type { Participant, Group, ParticipantHandover, ParticipantNote } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
@@ -662,6 +662,19 @@ const DetailRow: React.FC<{ label: string; children: React.ReactNode }> = ({ lab
 );
 
 const ViewDetailsModal: React.FC<{ participant: Participant | null; onClose: () => void }> = ({ participant, onClose }) => {
+  const [handoverNotes, setHandoverNotes] = useState<ParticipantNote[]>([]);
+  const [handovers, setHandovers] = useState<ParticipantHandover[]>([]);
+  const participantId = participant?.id;
+  useEffect(() => {
+    if (!participantId) { setHandoverNotes([]); setHandovers([]); return; }
+    void Promise.all([
+      participantNotesApi.getForParticipants([participantId]),
+      participantHandoversApi.getForParticipants([participantId]),
+    ]).then(([notesRes, handoversRes]) => {
+      setHandoverNotes(notesRes.notes);
+      setHandovers(handoversRes.handovers);
+    }).catch(() => { setHandoverNotes([]); setHandovers([]); });
+  }, [participantId]);
   if (!participant) return null;
   const p = participant;
   const regDate = p.registrationDate ? p.registrationDate.slice(0, 10) : null;
@@ -714,6 +727,26 @@ const ViewDetailsModal: React.FC<{ participant: Participant | null; onClose: () 
             <DetailRow label="Notes"><p className="whitespace-pre-wrap leading-6 text-gray-700">{p.notes}</p></DetailRow>
           </div>
         )}
+
+        <div className="border-t border-orange-100 pt-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Support handover</p>
+          {handovers[0]?.fromSupportName ? (
+            <p className="text-sm text-gray-700" title={`Previously supported by ${handovers[0].fromSupportName}`}>
+              Previously supported by <span className="font-semibold">{handovers[0].fromSupportName}</span>
+              {handovers[0].faithProjectStatus ? ` · Faith project: ${handovers[0].faithProjectStatus.replaceAll('_', ' ').toLowerCase()}` : ''}
+            </p>
+          ) : <p className="text-sm text-gray-500">No reassignment history recorded yet.</p>}
+          {handoverNotes.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {handoverNotes.map((note) => (
+                <div key={note.id} className="rounded-xl bg-orange-50/60 px-3 py-2 text-sm text-gray-700">
+                  <p className="whitespace-pre-wrap">{note.body}</p>
+                  <p className="mt-1 text-xs text-gray-500">{note.authorName || 'Support'} · {new Date(note.createdAt).toLocaleDateString()}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </ModalShell>
   );

@@ -3270,6 +3270,53 @@ export const participantsApi = {
   },
 };
 
+// ── Participant handovers and support notes ─────────────────────────────────
+
+const PARTICIPANT_NOTE_SELECT = '*, author:User!ParticipantNote_authorId_fkey(id, name)';
+
+const mapParticipantNote = (row: any): import('../types').ParticipantNote => ({
+  id: row.id, participantId: row.participantId, body: row.body,
+  authorId: row.authorId ?? null, authorName: row.author?.name ?? null,
+  groupId: row.groupId ?? null, weekId: row.weekId ?? null,
+  noteType: row.noteType ?? 'HANDOVER', createdAt: row.createdAt,
+});
+
+const mapParticipantHandover = (row: any): import('../types').ParticipantHandover => ({
+  id: row.id, participantId: row.participantId, eventType: row.eventType,
+  fromGroupName: row.fromGroupName ?? null, fromSupportName: row.fromSupportName ?? null,
+  toGroupName: row.toGroupName ?? null, toSupportName: row.toSupportName ?? null,
+  faithProjectStatus: row.faithProjectStatus ?? null,
+  faithProjectUpdatedById: row.faithProjectUpdatedById ?? null,
+  faithProjectUpdatedAt: row.faithProjectUpdatedAt ?? null, createdAt: row.createdAt,
+});
+
+export const participantNotesApi = {
+  async getForParticipants(participantIds: string[]): Promise<{ notes: import('../types').ParticipantNote[] }> {
+    if (participantIds.length === 0) return { notes: [] };
+    const { data, error } = await supabase.from('ParticipantNote').select(PARTICIPANT_NOTE_SELECT)
+      .in('participantId', participantIds).order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { notes: ((data as any[]) || []).map(mapParticipantNote) };
+  },
+  async create(input: { participantId: string; body: string; authorId: string; groupId?: string | null; weekId?: number | null; noteType?: import('../types').ParticipantNoteType }): Promise<{ note: import('../types').ParticipantNote }> {
+    const { data, error } = await supabase.from('ParticipantNote')
+      .insert([{ ...input, body: input.body.trim(), noteType: input.noteType ?? 'HANDOVER' }])
+      .select(PARTICIPANT_NOTE_SELECT).single();
+    if (error || !data) throw new Error(error?.message || 'Failed to save participant note');
+    return { note: mapParticipantNote(data) };
+  },
+};
+
+export const participantHandoversApi = {
+  async getForParticipants(participantIds: string[]): Promise<{ handovers: import('../types').ParticipantHandover[] }> {
+    if (participantIds.length === 0) return { handovers: [] };
+    const { data, error } = await supabase.from('ParticipantHandover').select('*')
+      .in('participantId', participantIds).order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { handovers: ((data as any[]) || []).map(mapParticipantHandover) };
+  },
+};
+
 // ── Groups ────────────────────────────────────────────────────────────────────
 
 const GROUP_SELECT = '*, support:User!Group_supportId_fkey(id, name), members:GroupParticipant(participantId)';

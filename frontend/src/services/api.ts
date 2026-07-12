@@ -32,6 +32,8 @@ import {
   groupPrayerStatusApi as supabaseGroupPrayerStatusApi,
   groupOnboardingStatusApi as supabaseGroupOnboardingStatusApi,
   participantOnboardingStatusApi as supabaseParticipantOnboardingStatusApi,
+  participantNotesApi as supabaseParticipantNotesApi,
+  participantHandoversApi as supabaseParticipantHandoversApi,
   onboardingEventsApi as supabaseOnboardingEventsApi,
   hubApi as supabaseHubApi,
   setAuthToken as supabaseSetAuthToken,
@@ -541,6 +543,15 @@ export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {
   async upsertForParticipant(_participantId: string, _input: any): Promise<never> { return peopleUnavailable(); },
   async reviewProject(_projectId: string, _input: any): Promise<never> { return peopleUnavailable(); },
   async delete(_id: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const participantNotesApi = USE_SUPABASE ? supabaseParticipantNotesApi : {
+  async getForParticipants(_participantIds: string[]): Promise<{ notes: import('../types').ParticipantNote[] }> { return { notes: [] }; },
+  async create(_input: any): Promise<never> { return peopleUnavailable(); },
+};
+
+export const participantHandoversApi = USE_SUPABASE ? supabaseParticipantHandoversApi : {
+  async getForParticipants(_participantIds: string[]): Promise<{ handovers: import('../types').ParticipantHandover[] }> { return { handovers: [] }; },
 };
 
 export const groupPrayersApi = USE_SUPABASE ? supabaseGroupPrayersApi : {
