@@ -8,6 +8,7 @@ import { faithProjectsApi, participantsApi, groupsApi } from '../services/api';
 import type { FaithProject, FaithProjectReviewEntry, FaithProjectStatus, Group, Participant } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import AppSelect from '../components/AppSelect';
+import FaithProjectsExportPopup from '../components/faithProjects/FaithProjectsExportPopup';
 import { sortByText } from '../utils/sort';
 
 const STATUS_OPTIONS: Array<{ value: FaithProjectStatus; label: string; cls: string }> = [
@@ -216,6 +217,7 @@ const AdminFaithProjectsPage: React.FC = () => {
   const [groupFilter, setGroupFilter] = useState(''); // '' = all, '__UNASSIGNED__' = no group
   const [search, setSearch] = useState('');
   const [reviewTarget, setReviewTarget] = useState<{ participant: Participant; project: FaithProject | null } | null>(null);
+  const [showExportPopup, setShowExportPopup] = useState(false);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -292,6 +294,20 @@ const AdminFaithProjectsPage: React.FC = () => {
       <PageHeader
         title="Faith projects"
         subtitle={activeCohort ? activeCohort.name : 'No active cohort'}
+        action={
+          !loading && groups.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowExportPopup(true)}
+              className="inline-flex items-center gap-1.5 rounded-2xl border border-orange-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-orange-50 hover:border-orange-300 active:scale-95"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export
+            </button>
+          )
+        }
       />
 
       {!activeCohort ? (
@@ -403,6 +419,16 @@ const AdminFaithProjectsPage: React.FC = () => {
           }}
           currentUser={user ? { id: user.id, name: user.name ?? user.email ?? 'Admin' } : null}
           supportUserId={reviewTarget.participant.groupId ? (groupById.get(reviewTarget.participant.groupId)?.supportId ?? null) : null}
+        />
+      )}
+
+      {showExportPopup && (
+        <FaithProjectsExportPopup
+          groups={groups}
+          participants={participants}
+          projectByParticipant={projectByParticipant}
+          cohortName={activeCohort?.name ?? ''}
+          onClose={() => setShowExportPopup(false)}
         />
       )}
     </div>
