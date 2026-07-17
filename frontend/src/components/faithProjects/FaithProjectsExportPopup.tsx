@@ -18,8 +18,15 @@ const STATUS_LABEL: Record<string, string> = {
   APPROVED: 'Approved',
 };
 
-const truncate = (text: string, max = 56) =>
+const truncate = (text: string, max = 80) =>
   text.length > max ? `${text.slice(0, max)}…` : text;
+
+const contentPreview = (fp: FaithProject | null): string => {
+  if (!fp || fp.status === 'NOT_DRAFTED') return 'Not drafted';
+  const text = fp.title || fp.body || '';
+  if (!text) return 'Not drafted';
+  return `"${truncate(text)}"`;
+};
 
 const buildExportText = (
   groups: Group[],
@@ -55,7 +62,7 @@ const buildExportText = (
   }
 
   const lines: string[] = [];
-  lines.push(`── Faith Projects — ${cohortName} ──`);
+  lines.push(`*Faith Projects — ${cohortName}*`);
   lines.push('');
 
   const sortedGroupIds = [...byGroup.keys()].sort((a, b) => {
@@ -69,27 +76,23 @@ const buildExportText = (
     if (!g) continue;
     const members = byGroup.get(gid) ?? [];
     const supportName = g.supportName || 'No support assigned';
-    lines.push(`${g.name} — Support: ${supportName}`);
+    lines.push(`*${g.name}* — Support: ${supportName}`);
     for (const p of members) {
       const fp = projectByParticipant.get(p.id) ?? null;
-      const preview = (!fp || fp.status === 'NOT_DRAFTED')
-        ? 'Not drafted'
-        : truncate(fp.title || fp.body || '', 56);
+      const content = contentPreview(fp);
       const status = STATUS_LABEL[fp?.status ?? 'NOT_DRAFTED'] ?? fp?.status ?? 'Not Drafted';
-      lines.push(`  ${p.fullName.padEnd(20)}│ ${preview.padEnd(56)}│ ${status}`);
+      lines.push(`  • *${p.fullName}* — ${content} — *${status}*`);
     }
     lines.push('');
   }
 
   if (unassigned.length > 0 && includeUnassigned) {
-    lines.push('Unassigned — Support: —');
+    lines.push('*Unassigned*');
     for (const p of unassigned) {
       const fp = projectByParticipant.get(p.id) ?? null;
-      const preview = (!fp || fp.status === 'NOT_DRAFTED')
-        ? 'Not drafted'
-        : truncate(fp.title || fp.body || '', 56);
+      const content = contentPreview(fp);
       const status = STATUS_LABEL[fp?.status ?? 'NOT_DRAFTED'] ?? fp?.status ?? 'Not Drafted';
-      lines.push(`  ${p.fullName.padEnd(20)}│ ${preview.padEnd(56)}│ ${status}`);
+      lines.push(`  • *${p.fullName}* — ${content} — *${status}*`);
     }
     lines.push('');
   }
