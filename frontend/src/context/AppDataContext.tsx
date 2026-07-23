@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { cohortsApi, digestApi, notificationsApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, weeksApi } from '../services/api';
+import { cohortsApi, digestApi, hubApi, notificationsApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, usersApi, weeksApi } from '../services/api';
 import type { Cohort, DailyDigestCursor, DailyDigestFunctionResponse, Notification, PendingChange, RejectedChange, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 
@@ -43,6 +43,9 @@ interface AppDataContextType {
   newResourceCount: number;
   refreshResourceCount: () => Promise<void>;
   markResourcesViewed: () => void;
+  hasNewHubActivity: boolean;
+  refreshHubActivity: () => Promise<void>;
+  markHubSeen: () => void;
 }
 
 const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
@@ -56,7 +59,7 @@ export const useAppData = () => {
 };
 
 export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAdmin, isSopPreparer, userCohortIds } = useAuth();
+  const { user, isAdmin, isSopPreparer, userCohortIds, refreshUser } = useAuth();
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [activeCohort, setActiveCohortState] = useState<Cohort | null>(null);
   const [weeks, setWeeks] = useState<Week[]>([]);
@@ -69,6 +72,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [globalPendingChanges, setGlobalPendingChanges] = useState<PendingChange[]>([]);
   const [weekPendingChanges, setWeekPendingChanges] = useState<PendingChange[]>([]);
   const [newResourceCount, setNewResourceCount] = useState(0);
+  const [latestHubActivityAt, setLatestHubActivityAt] = useState<string | null>(null);
   const [digestSending, setDigestSending] = useState(false);
   const [digestEnabled, setDigestEnabled] = useState(true);
   const [digestToggleLoading, setDigestToggleLoading] = useState(false);
@@ -208,6 +212,11 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setNewResourceCount(count);
   }, []);
 
+  const refreshHubActivity = useCallback(async () => {
+    const latest = await hubApi.getLatestActivityAt();
+    setLatestHubActivityAt(latest);
+  }, []);
+
   const bumpLiveRevision = useCallback(() => {
     setLiveRevision((prev) => prev + 1);
   }, []);
@@ -243,7 +252,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }
         }
 
-        await refreshResourceCount();
+        await Promise.all([refreshResourceCount(), refreshHubActivity()]);
         bumpLiveRevision();
       } catch (error) {
         console.error('Failed to refresh workspace data:', error);
@@ -262,6 +271,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     loadWeekPendingChanges,
     loadWeeksForCohort,
     refreshResourceCount,
+    refreshHubActivity,
   ]);
 
   const scheduleWorkspaceRefresh = useCallback(() => {
@@ -296,7 +306,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           await loadRejectedChanges();
         }
 
-        await Promise.all([refreshResourceCount(), refreshNotifications()]);
+        await Promise.all([refreshResourceCount(), refreshNotifications(), refreshHubActivity()]);
       } catch (error) {
         console.error('Failed to initialize app data:', error);
       } finally {
@@ -315,7 +325,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, isSopPreparer, loadCohorts, loadDigestStatus, loadGlobalPendingChanges, loadRejectedChanges, loadWeeksForCohort, refreshNotifications, refreshResourceCount, user]);
+  }, [isAdmin, isSopPreparer, loadCohorts, loadDigestStatus, loadGlobalPendingChanges, loadRejectedChanges, loadWeeksForCohort, refreshNotifications, refreshResourceCount, refreshHubActivity, user]);
 
   useEffect(() => {
     if (!isSopPreparer || !selectedWeek) return;
@@ -353,6 +363,9 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Notification rows are per-user and cheap — refresh just the feed (not
       // the whole workspace) so the badge updates live.
       .on('postgres_changes', { event: '*', schema: 'public', table: 'Notification', filter: `userId=eq.${user.id}` }, () => { void refreshNotifications(); })
+      // Hub activity — refresh just the unread-dot check, not the whole workspace.
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'HubTopic' }, () => { void refreshHubActivity(); })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'HubComment' }, () => { void refreshHubActivity(); })
       .subscribe((status: string) => {
         if (status === 'SUBSCRIBED') {
           setRealtimeHealthy(true);
@@ -374,7 +387,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Depend on user.id (not the whole user object) so avatar/theme updates that
     // replace the user object don't tear down and rebuild the realtime channel.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshNotifications, scheduleWorkspaceRefresh, user?.id]);
+  }, [refreshHubActivity, refreshNotifications, scheduleWorkspaceRefresh, user?.id]);
 
   useEffect(() => {
     if (!user || realtimeHealthy) return;
@@ -516,9 +529,24 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setNewResourceCount(0);
   }, []);
 
+  const markHubSeen = useCallback(() => {
+    if (!user) return;
+    const seenAt = new Date().toISOString();
+    refreshUser({ hubLastSeenAt: seenAt });
+    usersApi.markHubSeen(user.id).catch((error) => {
+      console.error('Failed to mark Hub as seen:', error);
+    });
+  }, [refreshUser, user]);
+
   const reloadWeeks = useCallback(async () => {
       await loadWeeksForCohort(activeCohort?.id, activeCohort);
   }, [activeCohort?.id, loadWeeksForCohort]);
+
+  const hasNewHubActivity = useMemo(() => {
+    if (!latestHubActivityAt) return false;
+    if (!user?.hubLastSeenAt) return true;
+    return new Date(latestHubActivityAt) > new Date(user.hubLastSeenAt);
+  }, [latestHubActivityAt, user?.hubLastSeenAt]);
 
   const value = useMemo<AppDataContextType>(() => ({
     loading,
@@ -555,6 +583,9 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     newResourceCount,
     refreshResourceCount,
     markResourcesViewed,
+    hasNewHubActivity,
+    refreshHubActivity,
+    markHubSeen,
   }), [
     activeCohort,
     cohorts,
@@ -590,6 +621,9 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setActiveCohort,
     unreadCount,
     weeks,
+    hasNewHubActivity,
+    refreshHubActivity,
+    markHubSeen,
   ]);
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;

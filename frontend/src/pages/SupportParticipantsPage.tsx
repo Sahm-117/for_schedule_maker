@@ -904,7 +904,21 @@ const SupportParticipantsPage: React.FC = () => {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Group Meetings</p>
-                  <h3 className="mt-1 text-lg font-bold text-gray-900">Weekly meeting focus</h3>
+                  <div className="mt-1 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-gray-900">Weekly meeting focus</h3>
+                    {user.whatsappGroupUrl && (
+                      <a
+                        href={user.whatsappGroupUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                        title="Open your WhatsApp group"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.472-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" /><path d="M12.004 2c-5.514 0-9.997 4.483-9.997 9.997 0 1.764.462 3.489 1.34 5.007L2 22l5.117-1.342a9.96 9.96 0 0 0 4.885 1.244h.004c5.514 0 9.997-4.483 9.997-9.997S17.518 2 12.004 2zm5.917 15.911a8.29 8.29 0 0 1-5.913 2.457h-.003a8.31 8.31 0 0 1-4.229-1.157l-.303-.18-3.037.797.811-2.96-.198-.304a8.283 8.283 0 0 1-1.269-4.407c0-4.585 3.732-8.316 8.322-8.316a8.27 8.27 0 0 1 5.884 2.437 8.263 8.263 0 0 1 2.436 5.883 8.31 8.31 0 0 1-2.5 5.75z" /></svg>
+                        WhatsApp Group
+                      </a>
+                    )}
+                  </div>
                 </div>
                 <div className="w-full max-w-sm">
                   <AppSelect

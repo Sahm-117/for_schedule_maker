@@ -7,6 +7,7 @@ import { hubApi } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { reconcileById } from '../utils/reconcile';
 import { useAuth } from '../hooks/useAuth';
+import { useAppData } from '../context/AppDataContext';
 import type { HubTopic } from '../types';
 
 const formatDate = (iso: string) =>
@@ -301,6 +302,7 @@ type Tab = 'OPEN' | 'CLOSED';
 
 const HubPage: React.FC = () => {
   const { user } = useAuth();
+  const { markHubSeen } = useAppData();
   const [tab, setTab] = useState<Tab>('OPEN');
   const [topics, setTopics] = useState<HubTopic[]>([]);
   const [loading, setLoading] = useState(true);
@@ -337,6 +339,8 @@ const HubPage: React.FC = () => {
   }, [user?.id]);
 
   useEffect(() => { void load(tab); }, [tab, load]);
+
+  useEffect(() => { markHubSeen(); }, [markHubSeen]);
 
   // Realtime: silently refresh the topic list on any HubTopic or HubComment change.
   // We refetch authoritative counts (rather than doing fragile +1/-1 math, which

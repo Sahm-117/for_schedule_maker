@@ -2273,6 +2273,16 @@ export const usersApi = {
     if (error) throw new Error(error.message);
   },
 
+  async saveWhatsappGroupUrl(userId: string, url: string | null): Promise<void> {
+    const { error } = await supabase.from('User').update({ whatsappGroupUrl: url, updatedAt: new Date().toISOString() }).eq('id', userId);
+    if (error) throw new Error(error.message);
+  },
+
+  async markHubSeen(userId: string): Promise<void> {
+    const { error } = await supabase.from('User').update({ hubLastSeenAt: new Date().toISOString() }).eq('id', userId);
+    if (error) throw new Error(error.message);
+  },
+
   async uploadAvatar(userId: string, file: File): Promise<{ avatarUrl: string }> {
     // Resize to max 128×128 JPEG at 0.7 quality client-side
     const compressed = await new Promise<Blob>((resolve, reject) => {
@@ -4549,6 +4559,20 @@ const mapReply = (row: any): import('../types').HubReply => ({
 });
 
 export const hubApi = {
+  // Most recent Hub activity (new topic or comment) — used to show an unread
+  // dot on the Hub nav item against the user's hubLastSeenAt.
+  async getLatestActivityAt(): Promise<string | null> {
+    const [topicRes, commentRes] = await Promise.all([
+      supabase.from('HubTopic').select('createdAt').order('createdAt', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('HubComment').select('createdAt').order('createdAt', { ascending: false }).limit(1).maybeSingle(),
+    ]);
+    if (topicRes.error) throw new Error(topicRes.error.message);
+    if (commentRes.error) throw new Error(commentRes.error.message);
+    const dates = [topicRes.data?.createdAt, commentRes.data?.createdAt].filter(Boolean) as string[];
+    if (dates.length === 0) return null;
+    return dates.reduce((latest, d) => (new Date(d) > new Date(latest) ? d : latest));
+  },
+
   async getTopics(status: 'OPEN' | 'CLOSED', currentUserId?: string): Promise<{ topics: import('../types').HubTopic[] }> {
     const { data, error } = await supabase
       .from('HubTopic')

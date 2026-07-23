@@ -31,6 +31,9 @@ const SupportProfilePage: React.FC = () => {
   const [themeColor, setThemeColor] = useState<string>(user?.themeColor ?? DEFAULT_THEME);
   const [savingTheme, setSavingTheme] = useState(false);
   const [editingTheme, setEditingTheme] = useState(false);
+  const [whatsappGroupUrl, setWhatsappGroupUrl] = useState<string>(user?.whatsappGroupUrl ?? '');
+  const [editingWhatsapp, setEditingWhatsapp] = useState(false);
+  const [savingWhatsapp, setSavingWhatsapp] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { liveRevision } = useAppData();
   const wt = useWalkthrough('profile');
@@ -59,6 +62,19 @@ const SupportProfilePage: React.FC = () => {
       setEditingTheme(false);
     } catch { /* silent */ } finally {
       setSavingTheme(false);
+    }
+  };
+
+  const handleSaveWhatsapp = async () => {
+    const trimmed = whatsappGroupUrl.trim();
+    setSavingWhatsapp(true);
+    try {
+      await usersApi.saveWhatsappGroupUrl(user.id, trimmed || null);
+      refreshUser({ whatsappGroupUrl: trimmed || null });
+      setWhatsappGroupUrl(trimmed);
+      setEditingWhatsapp(false);
+    } catch { /* silent */ } finally {
+      setSavingWhatsapp(false);
     }
   };
 
@@ -178,6 +194,56 @@ const SupportProfilePage: React.FC = () => {
                       {savingTheme ? 'Saving…' : 'Save'}
                     </button>
                   </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* WhatsApp group link — collapsed by default, Edit expands a URL field */}
+          <div className="mt-3">
+            {!editingWhatsapp ? (
+              <div className="surface-muted flex items-center justify-between px-4 py-3">
+                <span className="text-sm text-gray-500">WhatsApp group link</span>
+                <div className="flex items-center gap-2">
+                  <span className="max-w-[10rem] truncate text-xs text-gray-500">
+                    {whatsappGroupUrl || 'Not set'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setEditingWhatsapp(true)}
+                    className="ml-2 rounded-full px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/10"
+                  >
+                    Edit
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="surface-muted px-4 py-4 space-y-3">
+                <p className="text-sm font-semibold text-gray-700">WhatsApp group link</p>
+                <p className="text-xs text-gray-500">Paste your WhatsApp group's invite link here. A button to open it will then show up on the Group Prayers tab.</p>
+                <input
+                  type="url"
+                  value={whatsappGroupUrl}
+                  onChange={(e) => setWhatsappGroupUrl(e.target.value)}
+                  placeholder="https://chat.whatsapp.com/..."
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => { setWhatsappGroupUrl(user?.whatsappGroupUrl ?? ''); setEditingWhatsapp(false); }}
+                    className="rounded-2xl border border-gray-200 px-4 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveWhatsapp()}
+                    disabled={savingWhatsapp}
+                    className="rounded-2xl bg-primary px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {savingWhatsapp ? 'Saving…' : 'Save'}
+                  </button>
                 </div>
               </div>
             )}

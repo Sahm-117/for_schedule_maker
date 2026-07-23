@@ -390,6 +390,8 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
   async uploadAvatar(_userId: string, _file: File): Promise<{ avatarUrl: string }> {
     throw new Error('Avatar upload is not available in REST mode');
   },
+  async saveWhatsappGroupUrl(_userId: string, _url: string | null): Promise<void> { return; },
+  async markHubSeen(_userId: string): Promise<void> { return; },
 };
 
 export const supportActivityCompletionsApi = USE_SUPABASE ? supabaseSupportActivityCompletionsApi : {
@@ -572,6 +574,7 @@ export const groupPrayerStatusApi = USE_SUPABASE ? supabaseGroupPrayerStatusApi 
 };
 
 export const hubApi = USE_SUPABASE ? supabaseHubApi : {
+  async getLatestActivityAt(): Promise<string | null> { return null; },
   async getTopics(_status: 'OPEN' | 'CLOSED', _currentUserId?: string): Promise<{ topics: import('../types').HubTopic[] }> { return { topics: [] }; },
   async toggleReaction(_topicId: string, _userId: string): Promise<{ liked: boolean }> { return peopleUnavailable(); },
   async createTopic(_input: any): Promise<never> { return peopleUnavailable(); },

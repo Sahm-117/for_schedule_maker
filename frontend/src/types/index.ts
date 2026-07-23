@@ -31,6 +31,8 @@ export interface User {
   isCoordinator?: boolean;
   avatarUrl?: string | null;
   themeColor?: string | null;
+  hubLastSeenAt?: string | null;
+  whatsappGroupUrl?: string | null;
   createdAt?: string;
   updatedAt?: string;
   labels?: Label[];

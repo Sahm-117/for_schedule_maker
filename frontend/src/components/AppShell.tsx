@@ -156,13 +156,18 @@ const canShowNavItem = (item: NavItem, isAdmin: boolean, isSopPreparer: boolean)
   return true;
 };
 
+const NavDot: React.FC = () => (
+  <span className="ml-auto h-2 w-2 flex-shrink-0 rounded-full bg-primary" />
+);
+
 const NavItemLink: React.FC<{
   item: NavItem;
   active: boolean;
   globalPendingCount: number;
   newResourceCount: number;
+  hasNewHubActivity: boolean;
   onClick?: () => void;
-}> = ({ item, active, globalPendingCount, newResourceCount, onClick }) => (
+}> = ({ item, active, globalPendingCount, newResourceCount, hasNewHubActivity, onClick }) => (
   <NavLink
     key={item.to}
     to={item.to}
@@ -173,6 +178,7 @@ const NavItemLink: React.FC<{
     {item.icon}
     <span>{item.label}</span>
     {item.to.includes('approvals') && <MobileBadge count={globalPendingCount} />}
+    {item.to.includes('hub') && hasNewHubActivity && <NavDot />}
   </NavLink>
 );
 
@@ -183,6 +189,7 @@ const NavGroupSection: React.FC<{
   locationPathname: string;
   globalPendingCount: number;
   newResourceCount: number;
+  hasNewHubActivity: boolean;
   onItemClick?: () => void;
 }> = ({
   group,
@@ -191,6 +198,7 @@ const NavGroupSection: React.FC<{
   locationPathname,
   globalPendingCount,
   newResourceCount,
+  hasNewHubActivity,
   onItemClick,
 }) => (
   <div className="space-y-1.5">
@@ -220,6 +228,7 @@ const NavGroupSection: React.FC<{
             active={isNavActive(locationPathname, item.to)}
             globalPendingCount={globalPendingCount}
             newResourceCount={newResourceCount}
+            hasNewHubActivity={hasNewHubActivity}
             onClick={onItemClick}
           />
         ))}
@@ -242,6 +251,7 @@ const AppShell: React.FC = () => {
     digestEnabled,
     digestCursor,
     newResourceCount,
+    hasNewHubActivity,
   } = useAppData();
   const { showPrompt, enable, dismiss } = usePushNotifications(user?.id);
   const [open, setOpen] = useState(false);
@@ -345,6 +355,7 @@ const AppShell: React.FC = () => {
                   active={isNavActive(location.pathname, item.to)}
                   globalPendingCount={globalPendingChanges.length}
                   newResourceCount={newResourceCount}
+                  hasNewHubActivity={hasNewHubActivity}
                 />
               ))}
             </div>
@@ -357,6 +368,7 @@ const AppShell: React.FC = () => {
               locationPathname={location.pathname}
               globalPendingCount={globalPendingChanges.length}
               newResourceCount={newResourceCount}
+              hasNewHubActivity={hasNewHubActivity}
             />
           ))}
         </nav>
@@ -544,6 +556,9 @@ const AppShell: React.FC = () => {
                 {item.icon}
                 <span className="truncate">{item.mobileLabel ?? item.label}</span>
                 {item.to.includes('approvals') && globalPendingChanges.length > 0 && (
+                  <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />
+                )}
+                {item.to.includes('hub') && hasNewHubActivity && (
                   <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />
                 )}
               </NavLink>
