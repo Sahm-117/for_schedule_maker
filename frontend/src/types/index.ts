@@ -509,6 +509,7 @@ export interface HubTopic {
   commentCount: number;
   likeCount: number;
   likedByMe: boolean;
+  likedBy: Array<{ id: string; name: string; avatarUrl?: string | null }>;
   createdAt: string;
   updatedAt: string;
 }

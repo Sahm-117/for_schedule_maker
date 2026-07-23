@@ -413,6 +413,7 @@ const HubPage: React.FC = () => {
             if (updated.status !== tab) setSelectedTopicId(null);
           }}
           onAuthorClick={(authorId) => setProfileUserId(authorId)}
+          onToggleLike={() => handleToggleLike(topic.id)}
         />
         <HubAuthorProfileModal
           userId={profileUserId}
@@ -524,7 +525,8 @@ const HubTopicView: React.FC<{
   onTopicDeleted: (topicId: string) => void;
   onTopicUpdated: (t: HubTopic) => void;
   onAuthorClick: (authorId: string) => void;
-}> = ({ topic, users, currentUser, onBack, onTopicDeleted, onTopicUpdated, onAuthorClick }) => {
+  onToggleLike: () => void;
+}> = ({ topic, users, currentUser, onBack, onTopicDeleted, onTopicUpdated, onAuthorClick, onToggleLike }) => {
   const [comments, setComments] = useState<HubComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(true);
   const [newComment, setNewComment] = useState('');
@@ -840,6 +842,32 @@ const HubTopicView: React.FC<{
             )}
           </div>
         )}
+
+        <div className="mt-4 flex items-center gap-2 border-t border-orange-100 pt-3">
+          <button
+            type="button"
+            onClick={onToggleLike}
+            aria-pressed={topic.likedByMe}
+            aria-label={topic.likedByMe ? 'Remove like' : 'Like'}
+            className={`flex items-center gap-1.5 rounded-full px-2 py-1 transition hover:bg-orange-50 ${topic.likedByMe ? 'text-primary' : 'text-gray-400'}`}
+          >
+            <svg className="h-4 w-4" fill={topic.likedByMe ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75a.75.75 0 0 1 .75-.75 2.25 2.25 0 0 1 2.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 0 1-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 0 0-1.423-.23H5.904M6.633 10.5a2.25 2.25 0 0 1 .241 1.018c0 .896-.121 1.762-.348 2.586-.146.529-.55.954-1.082 1.073a48.4 48.4 0 0 1-1.084.243M6.633 10.5l-1.024-.13" /></svg>
+            <span className="text-sm font-semibold">{topic.likeCount}</span>
+          </button>
+          {topic.likedBy.length > 0 && (
+            <div
+              className="flex items-center -space-x-2"
+              title={`Liked by ${topic.likedBy.map((liker) => liker.name).join(', ')}`}
+            >
+              {topic.likedBy.slice(0, 5).map((liker) => (
+                <Avatar key={liker.id} name={liker.name} avatarUrl={liker.avatarUrl} size="xs" className="border-2 border-white" />
+              ))}
+              {topic.likedBy.length > 5 && (
+                <span className="ml-1 text-xs text-gray-400">+{topic.likedBy.length - 5}</span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Comments */}

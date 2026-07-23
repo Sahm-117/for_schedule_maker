@@ -4530,12 +4530,12 @@ export const groupPrayerStatusApi = {
 
 // ─── Hub API ──────────────────────────────────────────────────────────────────
 
-const HUB_TOPIC_SELECT = `*, author:User!HubTopic_authorId_fkey(id, name, "avatarUrl"), comments:HubComment(id), reactions:HubReaction("userId")`;
+const HUB_TOPIC_SELECT = `*, author:User!HubTopic_authorId_fkey(id, name, "avatarUrl"), comments:HubComment(id), reactions:HubReaction("userId", user:User(id, name, "avatarUrl"))`;
 const HUB_COMMENT_SELECT = `*, author:User!HubComment_authorId_fkey(id, name, "avatarUrl"), replies:HubReply(id)`;
 const HUB_REPLY_SELECT = `*, author:User!HubReply_authorId_fkey(id, name, "avatarUrl")`;
 
 const mapTopic = (row: any, currentUserId?: string): import('../types').HubTopic => {
-  const reactions = (row.reactions ?? []) as Array<{ userId: string }>;
+  const reactions = (row.reactions ?? []) as Array<{ userId: string; user?: { id: string; name: string; avatarUrl?: string | null } }>;
   return {
     id: row.id,
     authorId: row.authorId,
@@ -4547,6 +4547,9 @@ const mapTopic = (row: any, currentUserId?: string): import('../types').HubTopic
     commentCount: (row.comments ?? []).length,
     likeCount: reactions.length,
     likedByMe: currentUserId ? reactions.some((r) => r.userId === currentUserId) : false,
+    likedBy: reactions
+      .filter((r) => r.user)
+      .map((r) => ({ id: r.user!.id, name: r.user!.name, avatarUrl: r.user!.avatarUrl ?? null })),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
