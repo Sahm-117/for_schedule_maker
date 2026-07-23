@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import PageHeader from '../components/PageHeader';
 import Avatar from '../components/Avatar';
 import ConfirmationModal from '../components/ConfirmationModal';
+import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import { hubApi } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { reconcileById } from '../utils/reconcile';
@@ -245,7 +246,7 @@ const TrashIcon = () => (
   <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
 );
 
-const TopicCard: React.FC<{ topic: HubTopic; onClick: () => void; onToggleLike: () => void; onDelete?: () => void }> = ({ topic, onClick, onToggleLike, onDelete }) => (
+const TopicCard: React.FC<{ topic: HubTopic; onClick: () => void; onToggleLike: () => void; onDelete?: () => void; onAuthorClick: () => void }> = ({ topic, onClick, onToggleLike, onDelete, onAuthorClick }) => (
   <div className="relative rounded-2xl border border-orange-100 bg-white shadow-sm transition hover:shadow-md hover:border-orange-200">
     <button
       type="button"
@@ -262,8 +263,16 @@ const TopicCard: React.FC<{ topic: HubTopic; onClick: () => void; onToggleLike: 
       )}
     </div>
     <div className="mt-3 flex items-center gap-3">
-      <Avatar name={topic.authorName} avatarUrl={topic.authorAvatarUrl} size="xs" />
-      <span className="text-xs text-gray-500">{topic.authorName}</span>
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={(e) => { e.stopPropagation(); onAuthorClick(); }}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onAuthorClick(); } }}
+        className="flex items-center gap-2 rounded-full hover:opacity-80"
+      >
+        <Avatar name={topic.authorName} avatarUrl={topic.authorAvatarUrl} size="xs" />
+        <span className="text-xs text-gray-500">{topic.authorName}</span>
+      </span>
       <span className="text-xs text-gray-400">·</span>
       <span className="text-xs text-gray-400">{formatDate(topic.createdAt)}</span>
       <span className="ml-auto flex items-center gap-3 text-xs text-gray-400">
@@ -309,6 +318,7 @@ const HubPage: React.FC = () => {
   const [newTopicOpen, setNewTopicOpen] = useState(false);
   const [users, setUsers] = useState<MentionUser[]>([]);
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const isAdmin = user?.role === 'ADMIN';
 
   const [listConfirmAction, setListConfirmAction] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
@@ -340,7 +350,10 @@ const HubPage: React.FC = () => {
 
   useEffect(() => { void load(tab); }, [tab, load]);
 
-  useEffect(() => { markHubSeen(); }, [markHubSeen]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per Hub visit;
+  // markHubSeen's identity is unstable (depends on useAuth's unmemoized refreshUser),
+  // so including it in deps re-fires this every render and loops.
+  useEffect(() => { markHubSeen(); }, []);
 
   // Realtime: silently refresh the topic list on any HubTopic or HubComment change.
   // We refetch authoritative counts (rather than doing fragile +1/-1 math, which
@@ -385,20 +398,28 @@ const HubPage: React.FC = () => {
   if (selectedTopicId && selectedTopic) {
     const topic = selectedTopic;
     return (
-      <HubTopicView
-        topic={topic}
-        users={users}
-        currentUser={user!}
-        onBack={() => setSelectedTopicId(null)}
-        onTopicDeleted={(topicId) => {
-          setTopics((prev) => prev.filter((t) => t.id !== topicId));
-          setSelectedTopicId(null);
-        }}
-        onTopicUpdated={(updated) => {
-          setTopics((prev) => prev.map((t) => t.id === updated.id ? updated : t));
-          if (updated.status !== tab) setSelectedTopicId(null);
-        }}
-      />
+      <>
+        <HubTopicView
+          topic={topic}
+          users={users}
+          currentUser={user!}
+          onBack={() => setSelectedTopicId(null)}
+          onTopicDeleted={(topicId) => {
+            setTopics((prev) => prev.filter((t) => t.id !== topicId));
+            setSelectedTopicId(null);
+          }}
+          onTopicUpdated={(updated) => {
+            setTopics((prev) => prev.map((t) => t.id === updated.id ? updated : t));
+            if (updated.status !== tab) setSelectedTopicId(null);
+          }}
+          onAuthorClick={(authorId) => setProfileUserId(authorId)}
+        />
+        <HubAuthorProfileModal
+          userId={profileUserId}
+          isOpen={!!profileUserId}
+          onClose={() => setProfileUserId(null)}
+        />
+      </>
     );
   }
 
@@ -447,6 +468,7 @@ const HubPage: React.FC = () => {
               onClick={() => setSelectedTopicId(topic.id)}
               onToggleLike={() => handleToggleLike(topic.id)}
               onDelete={isAdmin ? () => void handleDeleteTopicFromList(topic.id) : undefined}
+              onAuthorClick={() => setProfileUserId(topic.authorId)}
             />
           ))}
         </div>
@@ -480,6 +502,12 @@ const HubPage: React.FC = () => {
         onClose={() => setListConfirmAction(null)}
         onConfirm={() => { void listConfirmAction?.onConfirm(); }}
       />
+
+      <HubAuthorProfileModal
+        userId={profileUserId}
+        isOpen={!!profileUserId}
+        onClose={() => setProfileUserId(null)}
+      />
     </div>
   );
 };
@@ -495,7 +523,8 @@ const HubTopicView: React.FC<{
   onBack: () => void;
   onTopicDeleted: (topicId: string) => void;
   onTopicUpdated: (t: HubTopic) => void;
-}> = ({ topic, users, currentUser, onBack, onTopicDeleted, onTopicUpdated }) => {
+  onAuthorClick: (authorId: string) => void;
+}> = ({ topic, users, currentUser, onBack, onTopicDeleted, onTopicUpdated, onAuthorClick }) => {
   const [comments, setComments] = useState<HubComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(true);
   const [newComment, setNewComment] = useState('');
@@ -755,13 +784,17 @@ const HubTopicView: React.FC<{
       {/* Topic */}
       <div className="surface-card mb-4 p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onAuthorClick(topic.authorId)}
+            className="flex items-center gap-3 rounded-2xl text-left hover:opacity-80"
+          >
             <Avatar name={topic.authorName} avatarUrl={topic.authorAvatarUrl} size="sm" />
             <div>
               <p className="text-sm font-semibold text-gray-900">{topic.authorName}</p>
               <p className="text-xs text-gray-400">{formatDate(topic.createdAt)}</p>
             </div>
-          </div>
+          </button>
           <div className="flex items-center gap-2">
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${topic.status === 'OPEN' ? 'bg-emerald-100/80 text-emerald-700' : 'bg-neutral-100 text-neutral-600'}`}>
               {topic.status === 'OPEN' ? 'Open' : 'Closed'}
@@ -819,11 +852,15 @@ const HubTopicView: React.FC<{
           comments.map((comment) => (
             <div key={comment.id} className="surface-card p-4">
               <div className="flex items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => onAuthorClick(comment.authorId)}
+                  className="flex items-center gap-2.5 rounded-full hover:opacity-80"
+                >
                   <Avatar name={comment.authorName} avatarUrl={comment.authorAvatarUrl} size="xs" />
                   <span className="text-sm font-semibold text-gray-800">{comment.authorName}</span>
                   <span className="text-xs text-gray-400">{formatDate(comment.createdAt)}</span>
-                </div>
+                </button>
                 {isAdmin && (
                   <button type="button" onClick={() => void handleDeleteComment(comment.id)} title="Delete comment" className="rounded-full p-1 text-gray-300 hover:bg-red-50 hover:text-red-500">
                     <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -871,11 +908,15 @@ const HubTopicView: React.FC<{
                   {(replies[comment.id] ?? []).map((reply) => (
                     <div key={reply.id}>
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onAuthorClick(reply.authorId)}
+                          className="flex items-center gap-2 rounded-full hover:opacity-80"
+                        >
                           <Avatar name={reply.authorName} avatarUrl={reply.authorAvatarUrl} size="xs" />
                           <span className="text-xs font-semibold text-gray-800">{reply.authorName}</span>
                           <span className="text-xs text-gray-400">{formatDate(reply.createdAt)}</span>
-                        </div>
+                        </button>
                         {isAdmin && (
                           <button type="button" onClick={() => void handleDeleteReply(comment.id, reply.id)} title="Delete reply" className="rounded-full p-1 text-gray-300 hover:bg-red-50 hover:text-red-500">
                             <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>

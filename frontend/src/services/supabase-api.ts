@@ -3618,6 +3618,21 @@ export const groupsApi = {
     return { groups: ((data as any[]) || []).map(mapGroup) };
   },
 
+  // The group a given support user is directly assigned to (Group.supportId).
+  // Unlike resolveSupportScopedGroups, this has no "guess the only group"
+  // fallback — used when viewing a THIRD PARTY's assignment (Hub author
+  // profile popup), where a wrong guess would misattribute someone else's group.
+  async getForSupport(userId: string): Promise<{ group: import('../types').Group | null }> {
+    const { data, error } = await supabase
+      .from('Group')
+      .select(GROUP_SELECT)
+      .eq('supportId', userId)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    return { group: data ? mapGroup(data as any) : null };
+  },
+
   async create(input: { cohortId: string; name: string; supportId?: string | null; meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null }): Promise<{ group: import('../types').Group }> {
     const { data, error } = await supabase
       .from('Group')
