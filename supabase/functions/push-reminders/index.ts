@@ -157,6 +157,69 @@ Deno.serve(async (_req) => {
       }
     }
 
+    // 6b. Group prayer-meeting reminders — remind each group's assigned Support
+    //     ahead of the weekly meeting slot, timed by the same remind_before_minutes
+    //     offsets used for activities. Recurs weekly: the query keys off the
+    //     Lagos weekday matching the group's meetingDay.
+    //
+    //     NB: uses Lagos time (not the server-local `now` the activity loop above
+    //     relies on) so the day/time match is correct regardless of edge TZ.
+    {
+      const lagos = getLagosDateParts(now)
+      const lagosNowMinutes = lagos.hour * 60 + lagos.minute
+      const upperDayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+      // Derive the Lagos weekday index from the Lagos ISO date to avoid the
+      // server-TZ ambiguity of now.getDay().
+      const lagosDayIndex = new Date(`${lagos.isoDate}T00:00:00Z`).getUTCDay()
+      const todayUpper = upperDayNames[lagosDayIndex]
+
+      const { data: groups } = await supabase
+        .from('Group')
+        .select('id, name, meetingTime, supportId')
+        .eq('meetingDay', todayUpper)
+        .not('supportId', 'is', null)
+        .not('meetingTime', 'is', null)
+
+      if (groups && groups.length > 0) {
+        for (const interval of remindIntervals) {
+          const targetMinutes = lagosNowMinutes + interval
+
+          const matchingGroups = (groups as any[]).filter((g: any) => {
+            const t = parseTime(g.meetingTime)
+            if (t === null) return false
+            return Math.abs(t - targetMinutes) <= WINDOW
+          })
+
+          const minuteLabel = interval < 60
+            ? `${interval} mins`
+            : interval === 60
+            ? '1 hour'
+            : interval === 1440
+            ? 'tomorrow'
+            : `${Math.round(interval / 60)} hours`
+
+          for (const group of matchingGroups) {
+            const { data: subs } = await supabase
+              .from('PushSubscription')
+              .select('userId, endpoint, p256dh, auth')
+              .eq('userId', group.supportId)
+
+            if (!subs || subs.length === 0) continue
+
+            const payload = JSON.stringify({
+              title: `🙏 Group meeting reminder — ${minuteLabel} away`,
+              body: `${group.name} prayer meeting at ${group.meetingTime}`,
+              icon: '/icon-192.png',
+              tag: `fof-groupmeeting-${group.id}-${interval}`,
+            })
+
+            const r = await sendToSubscriptions(webPush, supabase, subs as any[], payload, notified)
+            if (r.failed > 0) console.error(`push-reminders (group-meeting): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
+          }
+        }
+      }
+    }
+
     // 7. Follow-up due-date reminders — one push per contact per due date.
     //    dueReminderSentAt acts as the dedupe guard across 10-minute cron runs;
     //    changing a contact's due date resets it to null (re-arms the reminder).
