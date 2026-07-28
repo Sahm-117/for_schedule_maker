@@ -248,8 +248,6 @@ const AppShell: React.FC = () => {
     refreshRejectedChanges,
     globalPendingChanges,
     realtimeHealthy,
-    digestEnabled,
-    digestCursor,
     newResourceCount,
     hasNewHubActivity,
   } = useAppData();
@@ -495,11 +493,6 @@ const AppShell: React.FC = () => {
                 {isAdmin && (
                   <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">
                     Pending approvals: {globalPendingChanges.length}
-                  </span>
-                )}
-                {digestEnabled && digestCursor && !isSupport && (
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">
-                    {digestCursor.completed ? 'Digest completed' : `Digest: Week ${digestCursor.weekNumber} • ${digestCursor.dayName}`}
                   </span>
                 )}
               </div>

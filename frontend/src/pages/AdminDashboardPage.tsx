@@ -15,7 +15,7 @@ const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(n
 
 const AdminDashboardPage: React.FC = () => {
   const { user, isAdmin } = useAuth();
-  const { activeCohort, weeks, selectedWeek, globalPendingChanges, realtimeHealthy, digestEnabled, newResourceCount, liveRevision } = useAppData();
+  const { activeCohort, weeks, selectedWeek, globalPendingChanges, realtimeHealthy, newResourceCount, liveRevision } = useAppData();
   const [users, setUsers] = useState<User[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -117,7 +117,7 @@ const AdminDashboardPage: React.FC = () => {
         <SummaryCard title="Weeks set up" value={weeks.length} detail="Programme weeks available so far" />
         <SummaryCard title="Today's activities" value={todayActivities.length} detail={todaysDay ? `${todaysDay.dayName} in Week ${activeWeek?.weekNumber}` : 'No day selected'} />
         <SummaryCard title="Resources" value={resources.length} detail={newResourceCount > 0 ? `+${newResourceCount} new since the last check` : 'No new additions right now'} />
-        <SummaryCard title="Live updates" value={realtimeHealthy ? 'Live' : 'Catching up'} detail={digestEnabled ? 'Digest enabled' : 'Digest paused'} />
+        <SummaryCard title="Live updates" value={realtimeHealthy ? 'Live' : 'Catching up'} detail={realtimeHealthy ? 'Realtime sync connected' : 'Falling back to polling'} />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.9fr]">

@@ -24,7 +24,7 @@ export function useTour(isAdmin: boolean, isSopPreparer: boolean, loading: boole
             element: '[data-tour="admin-actions"]',
             popover: {
               title: 'Admin Actions',
-              description: 'Tap here to manage users, labels, notification settings, and the daily digest.',
+              description: 'Tap here to manage users, labels, and notification settings.',
               side: 'bottom' as const,
               align: 'end' as const,
             },

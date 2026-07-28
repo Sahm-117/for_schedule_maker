@@ -126,23 +126,6 @@ export interface ApiError {
   details?: string;
 }
 
-export interface TelegramNotificationEvent {
-  event: 'CHANGE_REQUEST_CREATED' | 'CHANGE_APPROVED' | 'CHANGE_REJECTED' | 'DAILY_DIGEST';
-  changeType?: 'ADD' | 'EDIT' | 'DELETE';
-  actorName?: string;
-  actorRole?: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT' | 'SYSTEM';
-  requestId?: string;
-  weekId?: number;
-  weekNumber?: number;
-  dayName?: string;
-  summary?: string;
-  timestamp?: string;
-  loginUrl?: string;
-  digestTitle?: string;
-  digestLines?: string[];
-  pdfUrl?: string;
-}
-
 export interface Announcement {
   id: string;
   subject: string;
@@ -473,26 +456,6 @@ export interface GroupPrayerFocus {
   updatedAt?: string;
 }
 
-export interface DailyDigestCursor {
-  weekNumber: number;
-  dayName: string;
-  completed: boolean;
-}
-
-export interface DailyDigestFunctionResponse {
-  ok: boolean;
-  status?: string;
-  enabled?: boolean;
-  reason?: string;
-  error?: string;
-  cursor?: DailyDigestCursor;
-  current?: DailyDigestCursor;
-  next?: DailyDigestCursor;
-  nextActionLabel?: 'Send Digest Now' | 'Restart Digest';
-  dayName?: string;
-  weekNumber?: number;
-  details?: unknown;
-}
 
 // ─── Hub ─────────────────────────────────────────────────────────────────────
 

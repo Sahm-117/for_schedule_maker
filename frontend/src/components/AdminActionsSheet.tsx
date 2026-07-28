@@ -3,12 +3,6 @@ import React from 'react';
 interface AdminActionsSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  digestEnabled: boolean;
-  digestToggleLoading: boolean;
-  digestSending: boolean;
-  digestActionLabel: 'Send Digest Now' | 'Restart Digest';
-  onToggleDigest: () => void;
-  onSendDigestNow: () => void;
   onOpenLabels: () => void;
   onOpenUsers: () => void;
   onOpenNotificationSettings: () => void;
@@ -18,12 +12,6 @@ interface AdminActionsSheetProps {
 const AdminActionsSheet: React.FC<AdminActionsSheetProps> = ({
   isOpen,
   onClose,
-  digestEnabled,
-  digestToggleLoading,
-  digestSending,
-  digestActionLabel,
-  onToggleDigest,
-  onSendDigestNow,
   onOpenLabels,
   onOpenUsers,
   onOpenNotificationSettings,
@@ -58,39 +46,6 @@ const AdminActionsSheet: React.FC<AdminActionsSheetProps> = ({
         </div>
 
         <div className="space-y-2.5">
-          <div className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
-            <div>
-              <p className="text-sm font-medium text-gray-900">Daily Digest</p>
-              <p className="text-xs text-gray-500">Controls scheduled morning digest sends.</p>
-            </div>
-            <button
-              type="button"
-              onClick={onToggleDigest}
-              disabled={digestToggleLoading}
-              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors disabled:opacity-50 ${
-                digestEnabled ? 'bg-green-500' : 'bg-gray-300'
-              }`}
-              aria-label="Toggle daily digest"
-            >
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                  digestEnabled ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={onSendDigestNow}
-            disabled={digestSending || (!digestEnabled && digestActionLabel !== 'Restart Digest')}
-            className="w-full inline-flex items-center justify-center h-11 px-4 rounded-xl border border-green-600 text-green-700 hover:bg-green-50 disabled:opacity-50"
-          >
-            {digestSending
-              ? (digestActionLabel === 'Restart Digest' ? 'Restarting Digest...' : 'Sending Digest...')
-              : digestActionLabel}
-          </button>
-
           <button
             type="button"
             onClick={() => {

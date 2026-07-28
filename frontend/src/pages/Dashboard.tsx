@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../hooks/useAuth';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useTour } from '../hooks/useTour';
-import { weeksApi, rejectedChangesApi, settingsApi, pendingChangesApi, digestApi, resourcesApi } from '../services/api';
-import type { Week, RejectedChange, PendingChange, DailyDigestCursor, DailyDigestFunctionResponse } from '../types';
+import { weeksApi, rejectedChangesApi, pendingChangesApi, resourcesApi } from '../services/api';
+import type { Week, RejectedChange, PendingChange } from '../types';
 import { supabase } from '../lib/supabase';
 import WeekSelector from '../components/WeekSelector';
 import ScheduleView from '../components/ScheduleView';
@@ -36,12 +36,6 @@ const Dashboard: React.FC = () => {
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [showResourceHub, setShowResourceHub] = useState(false);
   const [newResourceCount, setNewResourceCount] = useState(0);
-  const [digestSending, setDigestSending] = useState(false);
-  const [digestEnabled, setDigestEnabled] = useState(true);
-  const [digestToggleLoading, setDigestToggleLoading] = useState(false);
-  const [digestStatus, setDigestStatus] = useState<string>('');
-  const [digestCursor, setDigestCursor] = useState<DailyDigestCursor | null>(null);
-  const [digestActionLabel, setDigestActionLabel] = useState<'Send Digest Now' | 'Restart Digest'>('Send Digest Now');
   const [realtimeHealthy, setRealtimeHealthy] = useState(false);
   const { startTour } = useTour(isAdmin, isSopPreparer, loading, showPrompt);
 
@@ -77,23 +71,6 @@ const Dashboard: React.FC = () => {
     setWeekPendingChanges(response.pendingChanges);
   }, []);
 
-  const applyDigestResponseState = useCallback((response: DailyDigestFunctionResponse) => {
-    if (typeof response.enabled === 'boolean') {
-      setDigestEnabled(response.enabled);
-    }
-    if (response.cursor && typeof response.cursor.weekNumber === 'number' && typeof response.cursor.dayName === 'string') {
-      setDigestCursor(response.cursor);
-    }
-    if (response.nextActionLabel === 'Send Digest Now' || response.nextActionLabel === 'Restart Digest') {
-      setDigestActionLabel(response.nextActionLabel);
-    }
-  }, []);
-
-  const loadDigestStatus = useCallback(async () => {
-    const response = await digestApi.getDigestStatus();
-    applyDigestResponseState(response);
-  }, [applyDigestResponseState]);
-
   const refreshAdminData = useCallback(() => {
     void Promise.all([loadWeeks(), loadGlobalPendingChanges()]);
   }, [loadGlobalPendingChanges, loadWeeks]);
@@ -116,7 +93,7 @@ const Dashboard: React.FC = () => {
         await loadWeeks();
 
         if (isAdmin) {
-          await Promise.all([loadDigestStatus(), loadGlobalPendingChanges()]);
+          await loadGlobalPendingChanges();
         } else if (isSopPreparer) {
           await loadRejectedChanges();
         }
@@ -134,7 +111,7 @@ const Dashboard: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, loadDigestStatus, loadGlobalPendingChanges, loadRejectedChanges, loadWeeks]);
+  }, [isAdmin, loadGlobalPendingChanges, loadRejectedChanges, loadWeeks]);
 
   useEffect(() => {
     if (!isSopPreparer || !selectedWeek) return;
@@ -207,72 +184,6 @@ const Dashboard: React.FC = () => {
 
   const handleRejectedChangesUpdate = () => {
     void loadRejectedChanges();
-  };
-
-  const handleToggleDigest = async () => {
-    const nextValue = !digestEnabled;
-    setDigestToggleLoading(true);
-    setDigestStatus('');
-
-    try {
-      const response = await settingsApi.setDailyDigestEnabled(nextValue);
-      setDigestEnabled(response.enabled);
-      setDigestStatus(response.enabled ? 'Daily digest enabled.' : 'Daily digest disabled.');
-      try {
-        await loadDigestStatus();
-      } catch (statusError) {
-        console.warn('Failed to refresh digest status after toggle:', statusError);
-      }
-    } catch (error) {
-      setDigestStatus(`Digest toggle failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setDigestToggleLoading(false);
-    }
-  };
-
-  const handleSendDigestNow = async () => {
-    if (!digestEnabled && digestActionLabel !== 'Restart Digest') {
-      setDigestStatus('Daily digest is currently OFF. Turn it on first.');
-      return;
-    }
-
-    setDigestSending(true);
-    setDigestStatus('');
-
-    try {
-      if (digestActionLabel === 'Restart Digest') {
-        const body = await digestApi.restartDigest();
-        applyDigestResponseState(body);
-        const restartedAt = body.cursor ? `Week ${body.cursor.weekNumber} • ${body.cursor.dayName}` : 'Week 1 • Sunday';
-        setDigestStatus(`Digest restarted at ${restartedAt}.`);
-      } else {
-        const body = await digestApi.sendDigestNow();
-        applyDigestResponseState(body);
-        if (body.status === 'COMPLETED') {
-          setDigestStatus('Digest already completed. Use Restart Digest.');
-        } else {
-          const currentCursor = body.current || body.cursor;
-          const sentLabel = currentCursor
-            ? `Week ${currentCursor.weekNumber} • ${currentCursor.dayName}`
-            : (body.dayName ? `${body.dayName}` : 'current day');
-          setDigestStatus(`Digest sent to Telegram (${sentLabel}).`);
-        }
-      }
-    } catch (error) {
-      const maybePayload = (error as { payload?: DailyDigestFunctionResponse } | undefined)?.payload;
-      const dispatchDetail = (maybePayload?.details as { failed?: Array<{ error?: string }> } | undefined)?.failed?.[0]?.error;
-      const errText = dispatchDetail
-        ? `${error instanceof Error ? error.message : 'Unknown error'} - ${dispatchDetail}`
-        : (error instanceof Error ? error.message : 'Unknown error');
-      setDigestStatus(`Digest failed: ${errText}`);
-    } finally {
-      setDigestSending(false);
-      try {
-        await loadDigestStatus();
-      } catch (error) {
-        console.warn('Failed to refresh digest status:', error);
-      }
-    }
   };
 
   const pendingChangesForSelectedWeek = useMemo(() => {
@@ -392,30 +303,10 @@ const Dashboard: React.FC = () => {
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs ${realtimeHealthy ? 'bg-green-50 text-green-700 border-green-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
                   {realtimeHealthy ? 'Live sync' : 'Polling fallback'}
                 </span>
-                {digestCursor && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs">
-                    {digestCursor.completed
-                      ? 'Digest Progress: Completed (last week finished)'
-                      : `Digest Progress: Week ${digestCursor.weekNumber} • ${digestCursor.dayName}`}
-                  </span>
-                )}
               </>
             )}
           </div>
 
-          {isAdmin && digestStatus && (
-            <p className={`text-xs sm:text-sm ${
-              digestStatus.startsWith('Digest sent')
-              || digestStatus.startsWith('Digest restarted')
-              || digestStatus.startsWith('Digest already completed')
-              || digestStatus.includes('enabled')
-              || digestStatus.includes('disabled')
-                ? 'text-green-700'
-                : 'text-red-600'
-            }`}>
-              {digestStatus}
-            </p>
-          )}
         </div>
       </header>
 
@@ -523,12 +414,6 @@ const Dashboard: React.FC = () => {
       <AdminActionsSheet
         isOpen={showAdminActions}
         onClose={() => setShowAdminActions(false)}
-        digestEnabled={digestEnabled}
-        digestToggleLoading={digestToggleLoading}
-        digestSending={digestSending}
-        digestActionLabel={digestActionLabel}
-        onToggleDigest={handleToggleDigest}
-        onSendDigestNow={handleSendDigestNow}
         onOpenLabels={() => setShowLabelManagement(true)}
         onOpenUsers={() => setShowUserManagement(true)}
         onOpenNotificationSettings={() => setShowNotificationSettings(true)}

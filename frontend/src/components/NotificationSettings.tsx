@@ -27,16 +27,17 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
 
   const shouldRender = embedded || isOpen;
 
+  // Timings are per-account, so they load and save against the signed-in user.
   useEffect(() => {
-    if (!shouldRender) return;
+    if (!shouldRender || !user?.id) return;
     setLoading(true);
     setStatus('');
     notificationSettingsApi
-      .get()
+      .get(user.id)
       .then((res) => setSelected(res.remindBeforeMinutes))
       .catch(() => setSelected([60]))
       .finally(() => setLoading(false));
-  }, [shouldRender]);
+  }, [shouldRender, user?.id]);
 
   const toggle = (value: number) => {
     setSelected((prev) =>
@@ -45,10 +46,14 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
   };
 
   const handleSave = async () => {
+    if (!user?.id) {
+      setStatus('Failed to save settings.');
+      return;
+    }
     setSaving(true);
     setStatus('');
     try {
-      await notificationSettingsApi.set(selected);
+      await notificationSettingsApi.set(selected, user.id);
       setStatus('Notification settings saved.');
     } catch {
       setStatus('Failed to save settings.');

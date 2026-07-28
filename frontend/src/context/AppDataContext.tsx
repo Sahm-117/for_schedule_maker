@@ -1,8 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { cohortsApi, digestApi, hubApi, notificationsApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, usersApi, weeksApi } from '../services/api';
-import type { Cohort, DailyDigestCursor, DailyDigestFunctionResponse, Notification, PendingChange, RejectedChange, Week } from '../types';
+import { cohortsApi, hubApi, notificationsApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, usersApi, weeksApi } from '../services/api';
+import type { Cohort, Notification, PendingChange, RejectedChange, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 
 const LAST_SEEN_KEY = 'fof_resources_last_seen';
@@ -32,14 +32,6 @@ interface AppDataContextType {
   handlePendingApprove: (changeIds?: string[]) => void;
   handlePendingReject: (changeIds?: string[]) => void;
   realtimeHealthy: boolean;
-  digestSending: boolean;
-  digestEnabled: boolean;
-  digestToggleLoading: boolean;
-  digestStatus: string;
-  digestCursor: DailyDigestCursor | null;
-  digestActionLabel: 'Send Digest Now' | 'Restart Digest';
-  handleToggleDigest: () => Promise<void>;
-  handleSendDigestNow: () => Promise<void>;
   newResourceCount: number;
   refreshResourceCount: () => Promise<void>;
   markResourcesViewed: () => void;
@@ -73,12 +65,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [weekPendingChanges, setWeekPendingChanges] = useState<PendingChange[]>([]);
   const [newResourceCount, setNewResourceCount] = useState(0);
   const [latestHubActivityAt, setLatestHubActivityAt] = useState<string | null>(null);
-  const [digestSending, setDigestSending] = useState(false);
-  const [digestEnabled, setDigestEnabled] = useState(true);
-  const [digestToggleLoading, setDigestToggleLoading] = useState(false);
-  const [digestStatus, setDigestStatus] = useState('');
-  const [digestCursor, setDigestCursor] = useState<DailyDigestCursor | null>(null);
-  const [digestActionLabel, setDigestActionLabel] = useState<'Send Digest Now' | 'Restart Digest'>('Send Digest Now');
   const [realtimeHealthy, setRealtimeHealthy] = useState(false);
   const [liveRevision, setLiveRevision] = useState(0);
 
@@ -189,23 +175,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setWeekPendingChanges(response.pendingChanges);
   }, []);
 
-  const applyDigestResponseState = useCallback((response: DailyDigestFunctionResponse) => {
-    if (typeof response.enabled === 'boolean') {
-      setDigestEnabled(response.enabled);
-    }
-    if (response.cursor && typeof response.cursor.weekNumber === 'number' && typeof response.cursor.dayName === 'string') {
-      setDigestCursor(response.cursor);
-    }
-    if (response.nextActionLabel === 'Send Digest Now' || response.nextActionLabel === 'Restart Digest') {
-      setDigestActionLabel(response.nextActionLabel);
-    }
-  }, []);
-
-  const loadDigestStatus = useCallback(async () => {
-    const response = await digestApi.getDigestStatus();
-    applyDigestResponseState(response);
-  }, [applyDigestResponseState]);
-
   const refreshResourceCount = useCallback(async () => {
     const since = localStorage.getItem(LAST_SEEN_KEY) ?? undefined;
     const count = await resourcesApi.getNewCount(since);
@@ -237,10 +206,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const loadedWeeks = await loadWeeksForCohort(resolvedCohort?.id ?? currentCohort?.id ?? null, resolvedCohort ?? currentCohort);
 
         if (isAdmin) {
-          await Promise.all([
-            loadDigestStatus(),
-            loadGlobalPendingChanges(loadedWeeks.map((week) => week.id)),
-          ]);
+          await loadGlobalPendingChanges(loadedWeeks.map((week) => week.id));
         } else if (isSopPreparer) {
           await loadRejectedChanges();
         }
@@ -265,7 +231,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     isAdmin,
     isSopPreparer,
     loadCohorts,
-    loadDigestStatus,
     loadGlobalPendingChanges,
     loadRejectedChanges,
     loadWeekPendingChanges,
@@ -301,7 +266,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const loadedWeeks = await loadWeeksForCohort(resolvedCohort?.id, resolvedCohort);
 
         if (isAdmin) {
-          await Promise.all([loadDigestStatus(), loadGlobalPendingChanges(loadedWeeks.map((week) => week.id))]);
+          await loadGlobalPendingChanges(loadedWeeks.map((week) => week.id));
         } else if (isSopPreparer) {
           await loadRejectedChanges();
         }
@@ -325,7 +290,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, isSopPreparer, loadCohorts, loadDigestStatus, loadGlobalPendingChanges, loadRejectedChanges, loadWeeksForCohort, refreshNotifications, refreshResourceCount, refreshHubActivity, user]);
+  }, [isAdmin, isSopPreparer, loadCohorts, loadGlobalPendingChanges, loadRejectedChanges, loadWeeksForCohort, refreshNotifications, refreshResourceCount, refreshHubActivity, user]);
 
   useEffect(() => {
     if (!isSopPreparer || !selectedWeek) return;
@@ -429,68 +394,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [cohorts, isAdmin, loadGlobalPendingChanges, loadWeeksForCohort]);
 
-  const handleToggleDigest = useCallback(async () => {
-    const nextValue = !digestEnabled;
-    setDigestToggleLoading(true);
-    setDigestStatus('');
-
-    try {
-      const response = await settingsApi.setDailyDigestEnabled(nextValue);
-      setDigestEnabled(response.enabled);
-      setDigestStatus(response.enabled ? 'Daily digest enabled.' : 'Daily digest disabled.');
-      await loadDigestStatus();
-    } catch (error) {
-      setDigestStatus(`Digest toggle failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setDigestToggleLoading(false);
-    }
-  }, [digestEnabled, loadDigestStatus]);
-
-  const handleSendDigestNow = useCallback(async () => {
-    if (!digestEnabled && digestActionLabel !== 'Restart Digest') {
-      setDigestStatus('Daily digest is currently OFF. Turn it on first.');
-      return;
-    }
-
-    setDigestSending(true);
-    setDigestStatus('');
-
-    try {
-      if (digestActionLabel === 'Restart Digest') {
-        const body = await digestApi.restartDigest();
-        applyDigestResponseState(body);
-        const restartedAt = body.cursor ? `Week ${body.cursor.weekNumber} • ${body.cursor.dayName}` : 'Week 1 • Sunday';
-        setDigestStatus(`Digest restarted at ${restartedAt}.`);
-      } else {
-        const body = await digestApi.sendDigestNow();
-        applyDigestResponseState(body);
-        if (body.status === 'COMPLETED') {
-          setDigestStatus('Digest already completed. Use Restart Digest.');
-        } else {
-          const currentCursor = body.current || body.cursor;
-          const sentLabel = currentCursor
-            ? `Week ${currentCursor.weekNumber} • ${currentCursor.dayName}`
-            : (body.dayName ? `${body.dayName}` : 'current day');
-          setDigestStatus(`Digest sent to Telegram (${sentLabel}).`);
-        }
-      }
-    } catch (error) {
-      const maybePayload = (error as { payload?: DailyDigestFunctionResponse } | undefined)?.payload;
-      const dispatchDetail = (maybePayload?.details as { failed?: Array<{ error?: string }> } | undefined)?.failed?.[0]?.error;
-      const errText = dispatchDetail
-        ? `${error instanceof Error ? error.message : 'Unknown error'} - ${dispatchDetail}`
-        : (error instanceof Error ? error.message : 'Unknown error');
-      setDigestStatus(`Digest failed: ${errText}`);
-    } finally {
-      setDigestSending(false);
-      try {
-        await loadDigestStatus();
-      } catch (error) {
-        console.warn('Failed to refresh digest status:', error);
-      }
-    }
-  }, [applyDigestResponseState, digestActionLabel, digestEnabled, loadDigestStatus]);
-
   const pendingChangesForSelectedWeek = useMemo(() => {
     if (!selectedWeek) return [];
     if (isAdmin) {
@@ -572,14 +475,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     handlePendingApprove,
     handlePendingReject,
     realtimeHealthy,
-    digestSending,
-    digestEnabled,
-    digestToggleLoading,
-    digestStatus,
-    digestCursor,
-    digestActionLabel,
-    handleToggleDigest,
-    handleSendDigestNow,
     newResourceCount,
     refreshResourceCount,
     markResourcesViewed,
@@ -589,17 +484,9 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }), [
     activeCohort,
     cohorts,
-    digestActionLabel,
-    digestCursor,
-    digestEnabled,
-    digestSending,
-    digestStatus,
-    digestToggleLoading,
     globalPendingChanges,
     handlePendingApprove,
     handlePendingReject,
-    handleSendDigestNow,
-    handleToggleDigest,
     handleWeekSelect,
     liveRevision,
     loadRejectedChanges,

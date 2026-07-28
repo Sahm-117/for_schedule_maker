@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label, DailyDigestFunctionResponse, SupportActivityCompletion, Cohort } from '../types';
+import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label, SupportActivityCompletion, Cohort } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
 
 // Import Supabase API
@@ -10,7 +10,6 @@ import {
   activitiesApi as supabaseActivitiesApi,
   labelsApi as supabaseLabelsApi,
   settingsApi as supabaseSettingsApi,
-  digestApi as supabaseDigestApi,
   pendingChangesApi as supabasePendingChangesApi,
   rejectedChangesApi as supabaseRejectedChangesApi,
   notificationsApi as supabaseNotificationsApi,
@@ -410,12 +409,6 @@ export const supportActivityCompletionsApi = USE_SUPABASE ? supabaseSupportActiv
 };
 
 export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
-  async getDailyDigestEnabled(): Promise<{ enabled: boolean }> {
-    return { enabled: true };
-  },
-  async setDailyDigestEnabled(enabled: boolean): Promise<{ enabled: boolean }> {
-    return { enabled };
-  },
   async getRegistrationLink(): Promise<{ url: string }> {
     return { url: '' };
   },
@@ -436,8 +429,8 @@ export const pushSubscriptionsApi = USE_SUPABASE ? supabasePushSubscriptionsApi 
 };
 
 export const notificationSettingsApi = USE_SUPABASE ? supabaseNotificationSettingsApi : {
-  async get(): Promise<{ remindBeforeMinutes: number[] }> { return { remindBeforeMinutes: [60] }; },
-  async set(minutes: number[]): Promise<{ remindBeforeMinutes: number[] }> { return { remindBeforeMinutes: minutes }; },
+  async get(_userId?: string): Promise<{ remindBeforeMinutes: number[] }> { return { remindBeforeMinutes: [60] }; },
+  async set(minutes: number[], _userId?: string): Promise<{ remindBeforeMinutes: number[] }> { return { remindBeforeMinutes: minutes }; },
 };
 
 export const announcementsApi = USE_SUPABASE ? supabaseAnnouncementsApi : {
@@ -457,34 +450,6 @@ export const resourcesApi = USE_SUPABASE ? supabaseResourcesApi : {
   async uploadFile(_input: any): Promise<any> { return {}; },
   async delete(_id: string): Promise<void> {},
   async getNewCount(_since?: string): Promise<number> { return 0; },
-};
-
-export const digestApi = USE_SUPABASE ? supabaseDigestApi : {
-  async getDigestStatus(): Promise<DailyDigestFunctionResponse> {
-    return {
-      ok: true,
-      status: 'NOT_SUPPORTED',
-      enabled: true,
-      cursor: { weekNumber: 1, dayName: 'Sunday', completed: false },
-      nextActionLabel: 'Send Digest Now',
-    };
-  },
-  async sendDigestNow(): Promise<DailyDigestFunctionResponse> {
-    return {
-      ok: true,
-      status: 'NOT_SUPPORTED',
-      cursor: { weekNumber: 1, dayName: 'Sunday', completed: false },
-      nextActionLabel: 'Send Digest Now',
-    };
-  },
-  async restartDigest(): Promise<DailyDigestFunctionResponse> {
-    return {
-      ok: true,
-      status: 'NOT_SUPPORTED',
-      cursor: { weekNumber: 1, dayName: 'Sunday', completed: false },
-      nextActionLabel: 'Send Digest Now',
-    };
-  },
 };
 
 const peopleUnavailable = () => {

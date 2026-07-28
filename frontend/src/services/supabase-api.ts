@@ -8,78 +8,15 @@ import type {
   SupportActivityCompletion,
   PendingChange,
   RejectedChange,
-  AuthResponse,
-  TelegramNotificationEvent,
-  DailyDigestFunctionResponse
+  AuthResponse
 } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
 import { normalizeToIntlPhone } from '../utils/phone';
-import { sendTelegramNotificationBestEffort } from './telegramNotifications';
 
 // Types for API responses are now imported from ../types
 
 // Current user session
-const weekNumberCache = new Map<number, number>();
-const DAILY_DIGEST_ENABLED_KEY = 'daily_digest_enabled';
 const DAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-const parseDailyDigestEnabled = (value: unknown): boolean => {
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') {
-      return true;
-    }
-    if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off') {
-      return false;
-    }
-  }
-  if (value && typeof value === 'object') {
-    const maybeEnabled = (value as { enabled?: unknown }).enabled;
-    if (typeof maybeEnabled === 'boolean') return maybeEnabled;
-  }
-  // Safe default: enabled unless explicitly disabled.
-  return true;
-};
-
-const getDigestFunctionEnv = (): { url: string; anonKey: string } => {
-  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-
-  if (!url || !anonKey) {
-    throw new Error('Missing Supabase env config in frontend.');
-  }
-
-  return { url, anonKey };
-};
-
-const callDigestFunction = async (
-  payload: Record<string, unknown>
-): Promise<DailyDigestFunctionResponse> => {
-  const { url, anonKey } = getDigestFunctionEnv();
-  const response = await fetch(`${url}/functions/v1/telegram-daily-digest`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const body = (await response.json().catch(() => ({}))) as DailyDigestFunctionResponse;
-  if (!response.ok || body.ok !== true) {
-    const err = new Error(body.error || `Request failed (${response.status})`) as Error & {
-      details?: unknown;
-      payload?: DailyDigestFunctionResponse;
-    };
-    err.details = body.details;
-    err.payload = body;
-    throw err;
-  }
-
-  return body;
-};
 
 const getCurrentUserFromStorage = (): User | null => {
   if (typeof window === 'undefined') {
@@ -105,58 +42,6 @@ const getUserIdFromToken = (token: string, prefix: string): string | null => {
 
   const userId = token.slice(prefix.length);
   return userId || null;
-};
-
-const getChangeSummary = (changeData: unknown): string => {
-  if (!changeData || typeof changeData !== 'object') {
-    return 'No summary provided';
-  }
-
-  const data = changeData as Record<string, unknown>;
-  const time = typeof data.time === 'string' ? data.time : undefined;
-  const description = typeof data.description === 'string' ? data.description : undefined;
-
-  if (time && description) {
-    return `${time} - ${description}`;
-  }
-
-  if (description) {
-    return description;
-  }
-
-  if (typeof data.activityId === 'number') {
-    return `Activity ID ${data.activityId}`;
-  }
-
-  return 'No summary provided';
-};
-
-const resolveWeekNumber = async (weekId?: number): Promise<number | undefined> => {
-  if (typeof weekId !== 'number') return undefined;
-  // Simple in-memory cache to avoid extra network calls during bulk operations.
-  const cached = weekNumberCache.get(weekId);
-  if (typeof cached === 'number') return cached;
-  const { data, error } = await supabase
-    .from('Week')
-    .select('weekNumber')
-    .eq('id', weekId)
-    .single();
-  if (error || !data) return undefined;
-  const wn = (data as any).weekNumber as number | undefined;
-  if (typeof wn === 'number') {
-    weekNumberCache.set(weekId, wn);
-  }
-  return wn;
-};
-
-const getLoginUrl = (): string | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  // Keep it simple and always point to login.
-  return `${window.location.origin}/login`;
-};
-
-const notifyTelegramBestEffort = (payload: TelegramNotificationEvent): void => {
-  sendTelegramNotificationBestEffort(payload, { timeoutMs: 2500 });
 };
 
 const mapWeekRow = (week: any): Week => {
@@ -1261,23 +1146,6 @@ export const activitiesApi = {
       throw new Error(error.message);
     }
 
-    const actor = getCurrentUserFromStorage();
-
-    const weekNumber = await resolveWeekNumber(day.weekId);
-    notifyTelegramBestEffort({
-      event: 'CHANGE_REQUEST_CREATED',
-      changeType: 'ADD',
-      actorName: actor?.name || 'Support User',
-      actorRole: actor?.role || 'SUPPORT',
-      requestId: data.id,
-      weekId: day.weekId,
-      weekNumber,
-      dayName: day.dayName,
-      summary: `${activityData.time} - ${activityData.description}`,
-      timestamp: data.createdAt,
-      loginUrl: getLoginUrl(),
-    });
-
     return {
       message: 'Change request submitted',
       pendingChange: data
@@ -1576,28 +1444,6 @@ export const pendingChangesApi = {
       throw new Error(error.message);
     }
 
-    try {
-      const actor = getCurrentUserFromStorage();
-      const payloadData = changeData.changeData as Record<string, unknown> | undefined;
-      const dayName = typeof payloadData?.dayName === 'string' ? (payloadData.dayName as string) : undefined;
-
-      notifyTelegramBestEffort({
-        event: 'CHANGE_REQUEST_CREATED',
-        changeType: changeData.changeType,
-        actorName: actor?.name || 'Support User',
-        actorRole: actor?.role || 'SUPPORT',
-        requestId: (data as any).id,
-        weekId: changeData.weekId,
-        weekNumber: await resolveWeekNumber(changeData.weekId),
-        dayName,
-        summary: getChangeSummary(changeData.changeData),
-        timestamp: (data as any).createdAt,
-        loginUrl: getLoginUrl(),
-      });
-    } catch (notifyError) {
-      console.warn('Telegram notification failed for pending change create:', notifyError);
-    }
-
     return { pendingChange: data };
   },
 
@@ -1638,23 +1484,6 @@ export const pendingChangesApi = {
     if (deleteError) {
       throw new Error(deleteError.message);
     }
-
-    const changeData = change.changeData as Record<string, unknown>;
-    const dayName = typeof changeData.dayName === 'string' ? changeData.dayName : undefined;
-
-    notifyTelegramBestEffort({
-      event: 'CHANGE_APPROVED',
-      changeType: change.changeType,
-      actorName: 'Admin',
-      actorRole: 'ADMIN',
-      requestId: changeId,
-      weekId: change.weekId,
-      weekNumber: await resolveWeekNumber(change.weekId),
-      dayName,
-      summary: getChangeSummary(change.changeData),
-      timestamp: new Date().toISOString(),
-      loginUrl: getLoginUrl(),
-    });
 
     return {
       message: 'Change approved and applied',
@@ -1699,23 +1528,6 @@ export const pendingChangesApi = {
       .from('PendingChange')
       .delete()
       .eq('id', changeId);
-
-    const changeData = change.changeData as Record<string, unknown>;
-    const dayName = typeof changeData.dayName === 'string' ? changeData.dayName : undefined;
-
-    notifyTelegramBestEffort({
-      event: 'CHANGE_REJECTED',
-      changeType: change.changeType,
-      actorName: 'Admin',
-      actorRole: 'ADMIN',
-      requestId: changeId,
-      weekId: change.weekId,
-      weekNumber: await resolveWeekNumber(change.weekId),
-      dayName,
-      summary: `${getChangeSummary(change.changeData)} | Reason: ${rejectionReason}`,
-      timestamp: rejectedChange.rejectedAt,
-      loginUrl: getLoginUrl(),
-    });
 
     return {
       message: 'Change rejected',
@@ -1829,45 +1641,6 @@ export const notificationsApi = {
 
 // App Settings API
 export const settingsApi = {
-  async getDailyDigestEnabled(): Promise<{ enabled: boolean }> {
-    const { data, error } = await supabase
-      .from('AppSetting')
-      .select('value')
-      .eq('settingKey', DAILY_DIGEST_ENABLED_KEY)
-      .maybeSingle();
-
-    if (error) {
-      // Backward-compatible fallback when migration isn't applied yet.
-      if ((error as any).code === '42P01' || error.message?.includes('AppSetting')) {
-        return { enabled: true };
-      }
-      throw new Error(error.message);
-    }
-
-    return { enabled: parseDailyDigestEnabled((data as any)?.value) };
-  },
-
-  async setDailyDigestEnabled(enabled: boolean): Promise<{ enabled: boolean }> {
-    const { data, error } = await supabase
-      .from('AppSetting')
-      .upsert(
-        [{
-          settingKey: DAILY_DIGEST_ENABLED_KEY,
-          value: enabled,
-          updatedAt: new Date().toISOString(),
-        }],
-        { onConflict: 'settingKey' }
-      )
-      .select('value')
-      .single();
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    return { enabled: parseDailyDigestEnabled((data as any)?.value) };
-  },
-
   async getRegistrationLink(): Promise<{ url: string }> {
     const { data, error } = await supabase
       .from('AppSetting')
@@ -1946,30 +1719,6 @@ export const settingsApi = {
     }
 
     return payload;
-  },
-};
-
-export const digestApi = {
-  async getDigestStatus(): Promise<DailyDigestFunctionResponse> {
-    return callDigestFunction({
-      action: 'status',
-      force: true,
-    });
-  },
-
-  async sendDigestNow(): Promise<DailyDigestFunctionResponse> {
-    return callDigestFunction({
-      action: 'send',
-      force: true,
-      advance: false,
-    });
-  },
-
-  async restartDigest(): Promise<DailyDigestFunctionResponse> {
-    return callDigestFunction({
-      action: 'restart',
-      force: true,
-    });
   },
 };
 
@@ -2347,36 +2096,60 @@ export const pushSubscriptionsApi = {
   },
 };
 
-const REMIND_BEFORE_KEY = 'remind_before_minutes';
+// Reminder timings are PER USER, in "UserNotificationSetting".
+//
+// These used to read/write a single global AppSetting row, so one support
+// changing their timings silently changed them for everyone. The settings UI
+// lives on each support's own profile, so it has to be per-account.
+//
+// Default when a user has never saved: one reminder, an hour ahead. Deliberately
+// quiet — extra reminders are opt-in rather than something users have to turn off.
+export const DEFAULT_REMIND_BEFORE_MINUTES = [60];
 
-// Notification settings (stored in AppSetting table)
+const sanitizeMinutes = (value: unknown): number[] | null => {
+  if (!Array.isArray(value)) return null;
+  const cleaned = [...new Set(value.map(Number).filter((n) => Number.isFinite(n) && n > 0))]
+    .sort((a, b) => a - b);
+  return cleaned.length > 0 ? cleaned : null;
+};
+
 export const notificationSettingsApi = {
-  async get(): Promise<{ remindBeforeMinutes: number[] }> {
+  async get(userId?: string): Promise<{ remindBeforeMinutes: number[] }> {
+    if (!userId) return { remindBeforeMinutes: DEFAULT_REMIND_BEFORE_MINUTES };
+
     const { data, error } = await supabase
-      .from('AppSetting')
-      .select('value')
-      .eq('settingKey', REMIND_BEFORE_KEY)
+      .from('UserNotificationSetting')
+      .select('remindBeforeMinutes')
+      .eq('userId', userId)
       .maybeSingle();
 
     if (error) throw new Error(error.message);
 
-    const value = (data as any)?.value;
-    if (Array.isArray(value)) return { remindBeforeMinutes: value as number[] };
-    return { remindBeforeMinutes: [60] };
+    return {
+      remindBeforeMinutes:
+        sanitizeMinutes((data as any)?.remindBeforeMinutes) ?? DEFAULT_REMIND_BEFORE_MINUTES,
+    };
   },
 
-  async set(minutes: number[]): Promise<{ remindBeforeMinutes: number[] }> {
+  async set(minutes: number[], userId?: string): Promise<{ remindBeforeMinutes: number[] }> {
+    if (!userId) throw new Error('Cannot save reminder settings without a signed-in user');
+
+    // An empty selection means "no reminders", which must persist as an empty
+    // list rather than silently falling back to the default.
+    const cleaned = [...new Set(minutes.map(Number).filter((n) => Number.isFinite(n) && n > 0))]
+      .sort((a, b) => a - b);
+
     const { error } = await supabase
-      .from('AppSetting')
+      .from('UserNotificationSetting')
       .upsert([{
-        settingKey: REMIND_BEFORE_KEY,
-        value: minutes,
+        userId,
+        remindBeforeMinutes: cleaned,
         updatedAt: new Date().toISOString(),
-      }], { onConflict: 'settingKey' });
+      }], { onConflict: 'userId' });
 
     if (error) throw new Error(error.message);
 
-    return { remindBeforeMinutes: minutes };
+    return { remindBeforeMinutes: cleaned };
   },
 };
 
