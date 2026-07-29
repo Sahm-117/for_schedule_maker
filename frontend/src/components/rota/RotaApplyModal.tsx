@@ -3,13 +3,12 @@ import ModalShell from '../followups/ModalShell';
 import type { Label } from '../../types';
 import { describeOwners, type LabelOwners, type RotaCell } from '../../utils/rotaGrid';
 import { ROTA_DUTIES } from '../../config/rotaDuties';
-import { CLEAR_OPTION } from './RotaCell';
 
 export interface StagedChange {
   key: string;
   cell: RotaCell;
-  /** Target label id, or CLEAR_OPTION to remove all labels. */
-  value: string;
+  /** Target label ids. Empty array removes all labels. */
+  value: string[];
 }
 
 interface RotaApplyModalProps {
@@ -47,8 +46,9 @@ const RotaApplyModal: React.FC<RotaApplyModalProps> = ({
   const totalActivities = changes.reduce((sum, c) => sum + c.cell.activityIds.length, 0);
   const notifiedNames = new Set<string>();
   for (const change of changes) {
-    if (change.value === CLEAR_OPTION) continue;
-    for (const owner of labelOwners.get(change.value) || []) notifiedNames.add(owner.name);
+    for (const id of change.value) {
+      for (const owner of labelOwners.get(id) || []) notifiedNames.add(owner.name);
+    }
   }
 
   return (
@@ -88,9 +88,12 @@ const RotaApplyModal: React.FC<RotaApplyModalProps> = ({
         )}
 
         {changes.map(({ key, cell, value }) => {
-          const clearing = value === CLEAR_OPTION;
-          const owners = clearing ? [] : labelOwners.get(value) || [];
-          const destructive = cell.state === 'mixed' || clearing || cell.foreignLabels.length > 0;
+          const clearing = value.length === 0;
+          const existingIds = cell.groupLabels.map((g) => g.label.id);
+          const isReplacement =
+            !clearing &&
+            (value.length !== existingIds.length || !value.every((id) => existingIds.includes(id)));
+          const destructive = isReplacement || clearing || cell.foreignLabels.length > 0;
 
           return (
             <div
@@ -106,12 +109,12 @@ const RotaApplyModal: React.FC<RotaApplyModalProps> = ({
                   ? 'currently unassigned'
                   : cell.groupLabels.map((g) => `${g.label.name} (${g.count})`).join(', ')}
                 {' → '}
-                <strong>{clearing ? 'no label — goes silent' : labelName(value)}</strong>
+                <strong>{clearing ? 'no label — goes silent' : value.map(labelName).join(', ')}</strong>
               </div>
 
-              {cell.state === 'mixed' && (
+              {isReplacement && cell.groupLabels.length > 0 && (
                 <div className="mt-1 font-medium text-amber-700">
-                  This replaces {cell.groupLabels.length} different assignments with one.
+                  This replaces the existing {cell.groupLabels.length === 1 ? 'assignment' : `${cell.groupLabels.length} assignments`} with {value.length === 1 ? 'one' : `${value.length}`}.
                 </div>
               )}
               {cell.foreignLabels.length > 0 && (
@@ -120,8 +123,15 @@ const RotaApplyModal: React.FC<RotaApplyModalProps> = ({
                 </div>
               )}
               {!clearing && (
-                <div className={`mt-1 ${owners.length === 1 ? 'text-gray-500' : 'font-medium text-amber-700'}`}>
-                  {describeOwners(owners)}
+                <div className="mt-1 space-y-0.5">
+                  {value.map((id) => {
+                    const owners = labelOwners.get(id) || [];
+                    return (
+                      <div key={id} className={owners.length === 1 ? 'text-gray-500' : 'font-medium text-amber-700'}>
+                        {labelName(id)}: {describeOwners(owners)}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

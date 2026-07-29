@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 type MultiSelectOption = {
   value: string;
   label: string;
+  meta?: string;
 };
 
 interface AppMultiSelectProps {
@@ -14,6 +15,7 @@ interface AppMultiSelectProps {
   label?: string;
   compact?: boolean;
   className?: string;
+  disabled?: boolean;
 }
 
 // Multi-select sibling of AppSelect: same portal-positioned, viewport-flipping,
@@ -27,6 +29,7 @@ const AppMultiSelect: React.FC<AppMultiSelectProps> = ({
   label,
   compact = false,
   className = '',
+  disabled = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,6 +56,7 @@ const AppMultiSelect: React.FC<AppMultiSelectProps> = ({
   }, [options, searchQuery]);
 
   const toggle = (value: string) => {
+    if (disabled) return;
     if (selectedSet.has(value)) {
       onChange(values.filter((v) => v !== value));
     } else {
@@ -95,7 +99,8 @@ const AppMultiSelect: React.FC<AppMultiSelectProps> = ({
       const rect = rootRef.current?.getBoundingClientRect();
       if (!rect) return;
       const width = rect.width;
-      const itemHeight = 48;
+      const hasMeta = filteredOptions.some((option) => !!option.meta);
+      const itemHeight = hasMeta ? 64 : 48;
       const searchHeight = searchable ? 58 : 0;
       const visibleItemCount = Math.max(1, Math.min(filteredOptions.length, 6));
       const margin = 12;
@@ -143,6 +148,7 @@ const AppMultiSelect: React.FC<AppMultiSelectProps> = ({
       )}
       <button
         type="button"
+        disabled={disabled}
         onPointerDown={(e) => { pointerStart.current = { x: e.clientX, y: e.clientY }; }}
         onPointerUp={(e) => {
           const start = pointerStart.current;
@@ -151,9 +157,16 @@ const AppMultiSelect: React.FC<AppMultiSelectProps> = ({
           const dx = Math.abs(e.clientX - start.x);
           const dy = Math.abs(e.clientY - start.y);
           if (dx > 8 || dy > 8) return;
-          setOpen((prev) => !prev);
+          if (!disabled) setOpen((prev) => !prev);
         }}
-        className={`flex w-full items-center justify-between rounded-2xl border bg-white text-left shadow-sm transition ${
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          if (!disabled) setOpen((prev) => !prev);
+        }}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`flex w-full items-center justify-between rounded-2xl border bg-white text-left shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
           compact ? 'border-gray-200/70 px-2 py-1.5 min-h-[36px] hover:border-gray-300' : 'border-orange-100 px-4 py-3 hover:border-orange-200 hover:bg-orange-50/40'
         }`}
       >
@@ -199,12 +212,16 @@ const AppMultiSelect: React.FC<AppMultiSelectProps> = ({
                 <button
                   key={option.value}
                   type="button"
+                  disabled={disabled}
                   onPointerDown={() => toggle(option.value)}
                   className={`flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left transition ${
                     selected ? 'bg-orange-50 text-primary' : 'text-gray-700 hover:bg-gray-50'
-                  }`}
+                  } disabled:cursor-not-allowed`}
                 >
-                  <p className="min-w-0 truncate text-sm font-semibold">{option.label}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{option.label}</p>
+                    {option.meta && <p className="text-xs leading-tight text-gray-500">{option.meta}</p>}
+                  </div>
                   <span className={`ml-3 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border transition ${
                     selected ? 'border-primary bg-primary text-white' : 'border-gray-300 bg-white text-transparent'
                   }`}>

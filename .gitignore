@@ -66,3 +66,6 @@ coverage/
 .env*.local
 .env.test.local
 .playwright-mcp/
+
+# script label backups (data, not code)
+scripts/activitylabel-backup-*.json

@@ -10,8 +10,8 @@ interface RotaGridProps {
   grid: Map<string, RotaCellData>;
   groupLabels: Label[];
   labelOwners: LabelOwners;
-  staged: Map<string, string>;
-  onStage: (key: string, value: string | undefined) => void;
+  staged: Map<string, string[]>;
+  onStage: (key: string, value: string[] | undefined) => void;
   applying?: boolean;
   blockedDutyIds?: Set<string>;
 }

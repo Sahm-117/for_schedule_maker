@@ -14,7 +14,6 @@ import {
   type LabelOwners,
 } from '../utils/rotaGrid';
 import RotaGrid from '../components/rota/RotaGrid';
-import { CLEAR_OPTION } from '../components/rota/RotaCell';
 import RotaApplyModal, { type StagedChange } from '../components/rota/RotaApplyModal';
 import UnmatchedActivitiesPanel from '../components/rota/UnmatchedActivitiesPanel';
 
@@ -28,7 +27,7 @@ const AdminRotaPage: React.FC = () => {
   const [labels, setLabels] = useState<Label[]>([]);
   const [labelOwners, setLabelOwners] = useState<LabelOwners>(new Map());
   const [loading, setLoading] = useState(true);
-  const [staged, setStaged] = useState<Map<string, string>>(new Map());
+  const [staged, setStaged] = useState<Map<string, string[]>>(new Map());
   const [reviewOpen, setReviewOpen] = useState(false);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState('');
@@ -80,7 +79,7 @@ const AdminRotaPage: React.FC = () => {
     return new Set(overlaps.flatMap((o) => o.dutyIds));
   }, [sortedWeeks]);
 
-  const handleStage = useCallback((key: string, value: string | undefined) => {
+  const handleStage = useCallback((key: string, value: string[] | undefined) => {
     setStaged((prev) => {
       const next = new Map(prev);
       if (value === undefined) next.delete(key);
@@ -110,10 +109,7 @@ const AdminRotaPage: React.FC = () => {
     // Sequential, and one cell's failure must not abandon the rest.
     for (const change of changes) {
       try {
-        await activitiesApi.setLabelsForActivities(
-          change.cell.activityIds,
-          change.value === CLEAR_OPTION ? [] : [change.value]
-        );
+        await activitiesApi.setLabelsForActivities(change.cell.activityIds, change.value);
         applied.push(change.key);
       } catch (err) {
         failed.push(`Week ${change.cell.weekNumber}: ${err instanceof Error ? err.message : 'failed'}`);
