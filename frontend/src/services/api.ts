@@ -196,6 +196,10 @@ export const activitiesApi = USE_SUPABASE ? supabaseActivitiesApi : {
     return response.data;
   },
 
+  async setLabelsForActivities(_activityIds: number[], _labelIds: string[]): Promise<{ updated: number }> {
+    throw new Error('The Rota requires Supabase mode.');
+  },
+
   // Admin only - creates activities directly
   async create(activityData: {
     dayId: number;
@@ -375,6 +379,10 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
 
   async getUserLabels(_userId: string): Promise<{ labels: Label[] }> {
     return { labels: [] };
+  },
+
+  async getLabelOwners(): Promise<{ owners: Array<{ labelId: string; user: Pick<User, 'id' | 'name'> }> }> {
+    return { owners: [] };
   },
 
   async getUserCohorts(_userId: string): Promise<{ cohorts: Cohort[] }> {

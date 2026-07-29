@@ -973,6 +973,23 @@ export const activitiesApi = {
     return { existingWeeks };
   },
 
+  /**
+   * Replace the labels on a set of activities in one write. Used by the Rota page
+   * to assign a duty for a week (pass one label id) or clear it (pass []).
+   *
+   * Deliberately separate from `update()`: that path also rewrites
+   * time/description and is keyed off a single seed activity, neither of which
+   * Rota wants. Note the replace semantics — every existing label on these
+   * activities is removed first, which is what makes "clear" work, so callers
+   * must show the user what will be lost.
+   */
+  async setLabelsForActivities(activityIds: number[], labelIds: string[]): Promise<{ updated: number }> {
+    const ids = uniqNumbers(activityIds);
+    if (ids.length === 0) return { updated: 0 };
+    await setActivityLabelsBulk(ids, labelIds);
+    return { updated: ids.length };
+  },
+
   async create(activityData: {
     dayId: number;
     time: string;
@@ -1926,6 +1943,28 @@ export const usersApi = {
       }) as Label);
 
     return { labels };
+  },
+
+  /**
+   * Every label -> user pairing in one query, so callers can tell which labels are
+   * unowned (nobody would be notified) or shared by several people. Fetched in one
+   * go rather than per-user: the Rota grid needs the whole map up front.
+   */
+  async getLabelOwners(): Promise<{ owners: Array<{ labelId: string; user: Pick<User, 'id' | 'name'> }> }> {
+    const { data, error } = await supabase
+      .from('UserLabel')
+      .select('labelId, User(id, name)');
+
+    if (error) throw new Error(error.message);
+
+    const owners = ((data || []) as any[])
+      .filter((row: any) => row.labelId && row.User)
+      .map((row: any) => ({
+        labelId: row.labelId as string,
+        user: { id: row.User.id as string, name: row.User.name as string },
+      }));
+
+    return { owners };
   },
 
   async getUserCohorts(userId: string): Promise<{ cohorts: Cohort[] }> {

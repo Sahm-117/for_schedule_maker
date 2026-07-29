@@ -54,6 +54,7 @@ const ICONS = {
   prayer: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4.318 6.318a4.5 4.5 0 0 0 0 6.364L12 20.364l7.682-7.682a4.5 4.5 0 0 0-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 0 0-6.364 0Z" /></svg></IconBox>,
   onboarding: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5l-3 3v-3Z" /></svg></IconBox>,
   hub: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg></IconBox>,
+  rota: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 9h18M9 4v16M4 20h16a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" /></svg></IconBox>,
 };
 
 const adminNav: NavItem[] = [
@@ -61,6 +62,7 @@ const adminNav: NavItem[] = [
   { to: '/schedule', label: 'Schedule', icon: ICONS.schedule },
   { to: '/approvals', label: 'Approvals', icon: ICONS.approvals },
   { to: '/activity-overview', label: 'Activity overview', icon: ICONS.overview, adminOnly: true },
+  { to: '/rota', label: 'Rota', icon: ICONS.rota, adminOnly: true },
   { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
   { to: '/participants', label: 'Participants', icon: ICONS.participants, adminOnly: true },
   { to: '/groups', label: 'Groups', icon: ICONS.groups, adminOnly: true },
@@ -89,6 +91,7 @@ const adminNavGroups: NavGroup[] = [
       { to: '/schedule', label: 'Schedule', icon: ICONS.schedule },
       { to: '/approvals', label: 'Approvals', icon: ICONS.approvals },
       { to: '/activity-overview', label: 'Activity overview', icon: ICONS.overview, adminOnly: true },
+      { to: '/rota', label: 'Rota', icon: ICONS.rota, adminOnly: true },
     ],
   },
   {

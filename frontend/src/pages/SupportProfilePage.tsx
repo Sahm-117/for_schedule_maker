@@ -43,9 +43,19 @@ const SupportProfilePage: React.FC = () => {
   }
 
   useEffect(() => {
+    let cancelled = false;
+
     usersApi.getUserLabels(user.id)
-      .then((response) => setActivityTags(response.labels))
-      .catch(() => setActivityTags([]));
+      .then((response) => {
+        if (!cancelled) setActivityTags(response.labels);
+      })
+      .catch(() => {
+        if (!cancelled) setActivityTags([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [liveRevision, user.id]);
 
   const handleThemeChange = (hex: string) => {
