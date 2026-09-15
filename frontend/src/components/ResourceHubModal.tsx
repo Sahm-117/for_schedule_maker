@@ -13,6 +13,7 @@ interface ResourceHubModalProps {
   onClose: () => void;
   onViewed?: () => void;
   embedded?: boolean;
+  layout?: 'list' | 'grid';
 }
 
 type AddMode = 'link' | 'file';
@@ -59,7 +60,15 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, onViewed, embedded = false }) => {
+const TYPE_KIND: Record<Resource['type'], string> = {
+  link: 'LINK',
+  pdf: 'PDF',
+  doc: 'DOC',
+  image: 'IMG',
+  file: 'FILE',
+};
+
+const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, onViewed, embedded = false, layout = 'list' }) => {
   const { user, isAdmin } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
   const [resources, setResources] = useState<Resource[]>([]);
@@ -352,6 +361,27 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
               <p className="text-sm text-gray-500 font-medium">No resources yet</p>
               {isAdmin && <p className="text-xs text-gray-400 mt-1">Tap Add to upload files or add links</p>}
             </div>
+          ) : layout === 'grid' ? (
+            <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
+              {resources.map((r) => {
+                const meta = r.fileName && r.fileSize ? `${r.fileName} · ${formatBytes(r.fileSize)}` : r.description || (r.type === 'link' ? r.url : '');
+                const inner = (
+                  <>
+                    <span className={`grid h-12 w-12 place-items-center rounded-full text-[11px] font-bold ${TYPE_COLORS[r.type]}`}>{TYPE_KIND[r.type]}</span>
+                    <span className="min-w-0">
+                      <span className="block text-[15px] font-bold text-gray-800">{r.title}</span>
+                      {meta && <span className="mt-1 block truncate text-xs text-gray-400">{meta}</span>}
+                    </span>
+                  </>
+                );
+                const cardCls = 'flex flex-col gap-3.5 rounded-[20px] border border-[#eef0f4] bg-white p-5 text-left shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)] transition hover:border-[#ffdeca]';
+                return r.type === 'link' ? (
+                  <a key={r.id} href={r.url} target="_blank" rel="noopener noreferrer" className={cardCls}>{inner}</a>
+                ) : (
+                  <button key={r.id} type="button" onClick={() => { void downloadFile(r.url, r.fileName ?? r.title); }} className={cardCls}>{inner}</button>
+                );
+              })}
+            </div>
           ) : (
             <div className="space-y-2">
               {resources.map((r) => (
@@ -414,7 +444,12 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
 
   return embedded ? (
     <>
-      <div className="surface-card flex min-h-[32rem] flex-col overflow-hidden">{content}</div>
+      <div className={layout === 'grid'
+        ? 'flex min-h-[20rem] flex-col overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]'
+        : 'surface-card flex min-h-[32rem] flex-col overflow-hidden'}
+      >
+        {content}
+      </div>
       {addModal}
     </>
   ) : (

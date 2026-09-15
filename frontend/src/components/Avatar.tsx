@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 interface AvatarProps {
   name: string;
   avatarUrl?: string | null;
-  size?: 'xs' | 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
@@ -12,6 +12,7 @@ const sizeMap = {
   sm: 'h-8 w-8 text-xs',
   md: 'h-10 w-10 text-sm',
   lg: 'h-14 w-14 text-lg',
+  xl: 'h-40 w-40 text-5xl',
 };
 
 const Avatar: React.FC<AvatarProps> = ({ name, avatarUrl, size = 'md', className = '' }) => {

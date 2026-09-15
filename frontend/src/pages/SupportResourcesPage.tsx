@@ -19,7 +19,7 @@ const SupportResourcesPage: React.FC = () => {
         title="Resources"
         subtitle="Browse links, files, and reference materials shared with the support team."
       />
-      <ResourceHubModal isOpen onClose={() => {}} embedded onViewed={markResourcesViewed} />
+      <ResourceHubModal isOpen onClose={() => {}} embedded layout="grid" onViewed={markResourcesViewed} />
     </div>
   );
 };

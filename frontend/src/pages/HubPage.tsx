@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader';
 import Avatar from '../components/Avatar';
 import ConfirmationModal from '../components/ConfirmationModal';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
+import ModalShell from '../components/followups/ModalShell';
 import { hubApi } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { reconcileById } from '../utils/reconcile';
@@ -247,34 +248,33 @@ const TrashIcon = () => (
 );
 
 const TopicCard: React.FC<{ topic: HubTopic; onClick: () => void; onToggleLike: () => void; onDelete?: () => void; onAuthorClick: () => void }> = ({ topic, onClick, onToggleLike, onDelete, onAuthorClick }) => (
-  <div className="relative rounded-2xl border border-orange-100 bg-white shadow-sm transition hover:shadow-md hover:border-orange-200">
+  <div className="relative rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)] transition hover:border-[#ffdeca]">
     <button
       type="button"
       onClick={onClick}
-      className="w-full p-4 text-left"
+      className="w-full p-5 text-left"
     >
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-base font-semibold text-gray-900">{topic.title}</p>
-        <p className="mt-1 line-clamp-2 text-sm text-gray-500">{topic.body}</p>
-      </div>
-      {topic.status === 'CLOSED' && (
-        <span className="flex-shrink-0 rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-600">Closed</span>
-      )}
-    </div>
-    <div className="mt-3 flex items-center gap-3">
+    <div className="flex items-center gap-3 pr-8">
       <span
         role="button"
         tabIndex={0}
         onClick={(e) => { e.stopPropagation(); onAuthorClick(); }}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onAuthorClick(); } }}
-        className="flex items-center gap-2 rounded-full hover:opacity-80"
+        className="flex min-w-0 items-center gap-3 rounded-full hover:opacity-80"
       >
-        <Avatar name={topic.authorName} avatarUrl={topic.authorAvatarUrl} size="xs" />
-        <span className="text-xs text-gray-500">{topic.authorName}</span>
+        <Avatar name={topic.authorName} avatarUrl={topic.authorAvatarUrl} size="sm" />
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-bold text-gray-900">{topic.authorName}</span>
+          <span className="block text-xs text-gray-500">{formatDate(topic.createdAt)}</span>
+        </span>
       </span>
-      <span className="text-xs text-gray-400">·</span>
-      <span className="text-xs text-gray-400">{formatDate(topic.createdAt)}</span>
+      {topic.status === 'CLOSED' && (
+        <span className="ml-auto flex-shrink-0 rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-600">Closed</span>
+      )}
+    </div>
+    <p className="mb-1.5 mt-3.5 text-[17px] font-bold text-gray-900">{topic.title}</p>
+    <p className="line-clamp-3 text-sm text-gray-600">{topic.body}</p>
+    <div className="mt-3 flex items-center gap-3">
       <span className="ml-auto flex items-center gap-3 text-xs text-gray-400">
         {/* Thumbs-up: nested inside the card's <button>, so use a role="button"
             span with stopPropagation to avoid invalid nested buttons + opening the topic. */}
@@ -441,13 +441,15 @@ const HubPage: React.FC = () => {
         }
       />
 
-      <div className="mb-4 flex gap-2">
+      <div role="tablist" className="mb-3 grid max-w-[360px] grid-cols-2 gap-1.5 rounded-2xl border border-[#eef0f4] bg-white p-[5px]">
         {(['OPEN', 'CLOSED'] as Tab[]).map((t) => (
           <button
             key={t}
             type="button"
+            role="tab"
+            aria-selected={tab === t}
             onClick={() => setTab(t)}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${tab === t ? 'bg-primary text-white' : 'bg-orange-50 text-gray-600 hover:bg-orange-100'}`}
+            className={`rounded-xl px-1.5 py-[9px] text-[12.5px] font-semibold transition ${tab === t ? 'bg-[#3f4757] text-white' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             {t === 'OPEN' ? 'Open' : 'Closed'}
           </button>
@@ -538,6 +540,7 @@ const HubTopicView: React.FC<{
   const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
   const [replies, setReplies] = useState<Record<string, HubReply[]>>({});
   const [postingReply, setPostingReply] = useState<string | null>(null);
+  const [likersOpen, setLikersOpen] = useState(false);
 
   useEffect(() => {
     hubApi.getComments(topic.id)
@@ -855,19 +858,46 @@ const HubTopicView: React.FC<{
             <span className="text-sm font-semibold">{topic.likeCount}</span>
           </button>
           {topic.likedBy.length > 0 && (
-            <div
-              className="flex items-center -space-x-2"
-              title={`Liked by ${topic.likedBy.map((liker) => liker.name).join(', ')}`}
+            <button
+              type="button"
+              onClick={() => setLikersOpen(true)}
+              className="flex min-w-0 items-center gap-2 rounded-full py-1 pl-1 pr-2 transition hover:bg-orange-50"
+              aria-label={`See who liked this (${topic.likedBy.length})`}
             >
-              {topic.likedBy.slice(0, 5).map((liker) => (
-                <Avatar key={liker.id} name={liker.name} avatarUrl={liker.avatarUrl} size="xs" className="border-2 border-white" />
-              ))}
-              {topic.likedBy.length > 5 && (
-                <span className="ml-1 text-xs text-gray-400">+{topic.likedBy.length - 5}</span>
-              )}
-            </div>
+              <span className="flex flex-none items-center -space-x-2">
+                {topic.likedBy.slice(0, 5).map((liker) => (
+                  <Avatar key={liker.id} name={liker.name} avatarUrl={liker.avatarUrl} size="xs" className="border-2 border-white" />
+                ))}
+              </span>
+              <span className="min-w-0 truncate text-xs text-gray-500">
+                Liked by <span className="font-semibold text-gray-700">{topic.likedBy[0].id === currentUser.id ? 'you' : topic.likedBy[0].name.split(' ')[0]}</span>
+                {topic.likedBy.length > 1 && ` and ${topic.likedBy.length - 1} other${topic.likedBy.length > 2 ? 's' : ''}`}
+              </span>
+            </button>
           )}
         </div>
+
+        <ModalShell
+          isOpen={likersOpen}
+          onClose={() => setLikersOpen(false)}
+          title="Liked by"
+          subtitle={`${topic.likedBy.length} ${topic.likedBy.length === 1 ? 'person' : 'people'}`}
+        >
+          <div className="flex flex-col gap-1">
+            {topic.likedBy.map((liker) => (
+              <button
+                key={liker.id}
+                type="button"
+                onClick={() => { setLikersOpen(false); onAuthorClick(liker.id); }}
+                className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition hover:bg-orange-50"
+              >
+                <Avatar name={liker.name} avatarUrl={liker.avatarUrl} size="sm" />
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900">{liker.name}</span>
+                {liker.id === currentUser.id && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">You</span>}
+              </button>
+            ))}
+          </div>
+        </ModalShell>
       </div>
 
       {/* Comments */}

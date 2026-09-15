@@ -70,21 +70,26 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
         <div className="py-10 text-center text-sm text-gray-500">Loading…</div>
       ) : (
         <div className="space-y-5">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col items-center text-center">
             <button
               type="button"
               onClick={() => setLightboxOpen(true)}
-              className="flex-shrink-0 focus:outline-none"
+              className="flex-shrink-0 rounded-full focus:outline-none focus:ring-4 focus:ring-primary/20"
               title="View photo"
+              aria-label={`View ${profileUser.name}'s photo`}
             >
-              <Avatar name={profileUser.name} avatarUrl={profileUser.avatarUrl} size="lg" />
+              <Avatar
+                name={profileUser.name}
+                avatarUrl={profileUser.avatarUrl}
+                size="xl"
+                className="border-4 border-white shadow-[0_12px_30px_-12px_rgba(17,24,39,0.35)]"
+              />
             </button>
-            <div className="min-w-0">
-              <h3 className="truncate text-lg font-bold text-gray-900">{profileUser.name}</h3>
-              <span className="mt-1 inline-flex rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-600">
-                {profileUser.role}
-              </span>
-            </div>
+            <h3 className="mt-3 max-w-full truncate text-xl font-bold text-gray-900">{profileUser.name}</h3>
+            <span className="mt-1.5 inline-flex rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-600">
+              {profileUser.role}
+            </span>
+            {profileUser.avatarUrl && <p className="mt-1 text-xs text-gray-400">Tap photo to view full size</p>}
           </div>
 
           <div className="surface-muted flex items-center justify-between px-4 py-3">
@@ -142,7 +147,7 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
           aria-label="Close photo"
         >
           {profileUser.avatarUrl ? (
-            <img src={profileUser.avatarUrl} alt={profileUser.name} className="max-h-[80vh] max-w-full rounded-2xl object-contain shadow-2xl" />
+            <img src={profileUser.avatarUrl} alt={profileUser.name} className="max-h-[80vh] w-[min(88vw,440px)] rounded-2xl object-contain shadow-2xl" />
           ) : (
             <div className="grid h-56 w-56 place-items-center rounded-full bg-white text-4xl font-bold text-primary">
               {profileUser.name.slice(0, 1).toUpperCase()}

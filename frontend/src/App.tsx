@@ -30,8 +30,7 @@ const AdminAllocationPage = lazy(() => import('./pages/AdminAllocationPage'));
 const AdminAttendancePage = lazy(() => import('./pages/AdminAttendancePage'));
 const AdminFaithProjectsPage = lazy(() => import('./pages/AdminFaithProjectsPage'));
 const AdminGroupPrayersPage = lazy(() => import('./pages/AdminGroupPrayersPage'));
-const SupportFollowUpsPage = lazy(() => import('./pages/SupportFollowUpsPage'));
-const SupportAttendancePage = lazy(() => import('./pages/SupportAttendancePage'));
+const SupportMobilisationPage = lazy(() => import('./pages/SupportMobilisationPage'));
 const SupportParticipantsPage = lazy(() => import('./pages/SupportParticipantsPage'));
 const SupportHomePage = lazy(() => import('./pages/SupportHomePage'));
 const SupportSchedulePage = lazy(() => import('./pages/SupportSchedulePage'));
@@ -89,8 +88,9 @@ function App() {
             <Route path="/group-prayers" element={<Suspense fallback={<RouteFallback />}><AdminGroupPrayersPage /></Suspense>} />
             <Route path="/onboarding" element={<Suspense fallback={<RouteFallback />}><AdminOnboardingPage /></Suspense>} />
             <Route path="/support/onboarding" element={<Suspense fallback={<RouteFallback />}><SupportOnboardingPage /></Suspense>} />
-            <Route path="/support/follow-ups" element={<Suspense fallback={<RouteFallback />}><SupportFollowUpsPage /></Suspense>} />
-            <Route path="/support/attendance" element={<Suspense fallback={<RouteFallback />}><SupportAttendancePage /></Suspense>} />
+            <Route path="/support/follow-ups" element={<Navigate to="/support/mobilisation?tab=follow" replace />} />
+            <Route path="/support/mobilisation" element={<Suspense fallback={<RouteFallback />}><SupportMobilisationPage /></Suspense>} />
+            <Route path="/support/attendance" element={<Navigate to="/support/participants?tab=sunday" replace />} />
             <Route path="/support/participants" element={<Suspense fallback={<RouteFallback />}><SupportParticipantsPage /></Suspense>} />
             <Route path="/support" element={<Suspense fallback={<RouteFallback />}><SupportHomePage /></Suspense>} />
             <Route path="/support/schedule" element={<Suspense fallback={<RouteFallback />}><SupportSchedulePage /></Suspense>} />

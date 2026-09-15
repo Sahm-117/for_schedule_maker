@@ -31,7 +31,7 @@ const NeedSupportButton: React.FC = () => {
 
   return (
     <>
-      <div className="pointer-events-none fixed inset-x-0 bottom-20 z-40 flex justify-end px-4 lg:bottom-6 lg:px-6">
+      <div className="pointer-events-none fixed inset-x-0 bottom-24 z-40 flex justify-end px-4 lg:bottom-6 lg:px-6">
         <button
           type="button"
           onClick={() => setOpen(true)}

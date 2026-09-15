@@ -24,18 +24,17 @@ import Avatar from '../components/Avatar';
 import { applyTheme, DEFAULT_THEME } from '../utils/theme';
 
 const SupportProfilePage: React.FC = () => {
-  const { user, userLabelIds, refreshUser } = useAuth();
+  const { user, userLabelIds, userLabels, refreshUser } = useAuth();
   const [activityTags, setActivityTags] = useState<Label[]>([]);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
   const [themeColor, setThemeColor] = useState<string>(user?.themeColor ?? DEFAULT_THEME);
   const [savingTheme, setSavingTheme] = useState(false);
-  const [editingTheme, setEditingTheme] = useState(false);
   const [whatsappGroupUrl, setWhatsappGroupUrl] = useState<string>(user?.whatsappGroupUrl ?? '');
   const [editingWhatsapp, setEditingWhatsapp] = useState(false);
   const [savingWhatsapp, setSavingWhatsapp] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { liveRevision } = useAppData();
+  const { liveRevision, activeCohort } = useAppData();
   const wt = useWalkthrough('profile');
 
   if (user?.role !== 'SUPPORT') {
@@ -69,7 +68,6 @@ const SupportProfilePage: React.FC = () => {
     try {
       await usersApi.saveThemeColor(user.id, themeColor);
       refreshUser({ themeColor });
-      setEditingTheme(false);
     } catch { /* silent */ } finally {
       setSavingTheme(false);
     }
@@ -110,8 +108,9 @@ const SupportProfilePage: React.FC = () => {
         onHelp={wt.reopen}
       />
 
-      <div className="mb-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <div data-wt="profile-groups" className="surface-card p-6">
+      <div className="mb-6 grid items-start gap-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+        <section data-wt="profile-groups" className={CARD}>
+          <h2 className="mb-4 text-lg font-bold text-gray-900">Account</h2>
           <div className="flex items-center gap-4">
             <button
               type="button"
@@ -130,20 +129,23 @@ const SupportProfilePage: React.FC = () => {
               </span>
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
             </button>
-            <div>
-              <h3 className="text-xl font-semibold text-gray-900">{user.name}</h3>
-              <p className="text-sm text-gray-500">{user.email || user.phone || 'No contact detail'}</p>
+            <div className="min-w-0">
+              <p className="truncate text-base font-bold text-gray-900">{user.name}</p>
+              <p className="truncate text-sm text-gray-500">{user.email || user.phone || 'No contact detail'}</p>
               <p className="mt-0.5 text-xs text-gray-400">Tap photo to change</p>
             </div>
           </div>
 
-          <div className="mt-6 space-y-3">
-            <InfoRow label="Role" value={user.role} />
+          <div className="mt-5 flex flex-col gap-3">
+            <InfoRow label="Name" value={user.name} />
+            <InfoRow label="Role" value="Support" />
+            <InfoRow label="Group" value={userLabels[0]?.name || 'Not assigned'} />
+            <InfoRow label="Cohort" value={activeCohort?.name || 'No active cohort'} />
             <InfoRow
               label="Activity tags"
               value={userLabelIds.length === 0 ? 'None assigned' : undefined}
               content={activityTags.length > 0 ? (
-                <div className="flex flex-wrap justify-end gap-1.5">
+                <div className="flex flex-wrap gap-1.5">
                   {activityTags.map((tag) => (
                     <LabelChip key={tag.id} name={tag.name} color={tag.color} size="sm" />
                   ))}
@@ -152,85 +154,24 @@ const SupportProfilePage: React.FC = () => {
             />
           </div>
 
-          {/* Accent colour — collapsed by default, Edit expands picker */}
-          <div className="mt-3">
-            {!editingTheme ? (
-              <div className="surface-muted flex items-center justify-between px-4 py-3">
-                <span className="text-sm text-gray-500">Accent colour</span>
-                <div className="flex items-center gap-2">
-                  <div className="h-5 w-5 rounded-full shadow-sm" style={{ backgroundColor: themeColor }} />
-                  <span className="text-xs text-gray-500">
-                    {THEME_SWATCHES.find((s) => s.hex === themeColor.toLowerCase())?.label ?? themeColor}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setEditingTheme(true)}
-                    className="ml-2 rounded-full px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/10"
-                  >
-                    Edit
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="surface-muted px-4 py-4 space-y-3">
-                <p className="text-sm font-semibold text-gray-700">Accent colour</p>
-                <div className="flex flex-wrap gap-2">
-                  {THEME_SWATCHES.map((s) => (
-                    <button
-                      key={s.hex}
-                      type="button"
-                      title={s.label}
-                      onClick={() => handleThemeChange(s.hex)}
-                      style={{ backgroundColor: s.hex, ['--tw-ring-color' as any]: s.hex }}
-                      className={`h-8 w-8 rounded-full transition focus:outline-none ${themeColor.toLowerCase() === s.hex ? 'ring-2 ring-offset-2' : 'hover:scale-110'}`}
-                    >
-                      {themeColor.toLowerCase() === s.hex && (
-                        <svg className="mx-auto h-4 w-4 text-white drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
-                      )}
-                    </button>
-                  ))}
-                  <label title="Custom colour" className="relative h-8 w-8 cursor-pointer overflow-hidden rounded-full border-2 border-dashed border-gray-300 hover:border-gray-400" style={{ background: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }}>
-                    <input type="color" value={themeColor} onChange={(e) => handleThemeChange(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
-                  </label>
-                </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <div className="h-6 w-6 flex-shrink-0 rounded-full shadow-sm" style={{ backgroundColor: themeColor }} />
-                  <span className="text-xs text-gray-500">
-                    {THEME_SWATCHES.find((s) => s.hex === themeColor.toLowerCase())?.label ?? themeColor}
-                  </span>
-                  <div className="ml-auto flex gap-2">
-                    <button type="button" onClick={() => { const saved = user?.themeColor ?? DEFAULT_THEME; setThemeColor(saved); applyTheme(saved); setEditingTheme(false); }} className="rounded-2xl border border-gray-200 px-4 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
-                    <button type="button" onClick={() => void handleSaveTheme()} disabled={savingTheme} className="rounded-2xl bg-primary px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60">
-                      {savingTheme ? 'Saving…' : 'Save'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* WhatsApp group link — collapsed by default, Edit expands a URL field */}
-          <div className="mt-3">
+          <div className="mt-5 border-t border-[#f1f2f5] pt-4">
             {!editingWhatsapp ? (
-              <div className="surface-muted flex items-center justify-between px-4 py-3">
-                <span className="text-sm text-gray-500">WhatsApp group link</span>
-                <div className="flex items-center gap-2">
-                  <span className="max-w-[10rem] truncate text-xs text-gray-500">
-                    {whatsappGroupUrl || 'Not set'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setEditingWhatsapp(true)}
-                    className="ml-2 rounded-full px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/10"
-                  >
-                    Edit
-                  </button>
-                </div>
+              <div className="flex items-center gap-3">
+                <span className="w-[90px] flex-none text-[13px] text-gray-500">WhatsApp group</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900">{whatsappGroupUrl || 'Not set'}</span>
+                <button
+                  type="button"
+                  onClick={() => setEditingWhatsapp(true)}
+                  className="rounded-full px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/10"
+                >
+                  Edit
+                </button>
               </div>
             ) : (
-              <div className="surface-muted px-4 py-4 space-y-3">
+              <div className="space-y-3">
                 <p className="text-sm font-semibold text-gray-700">WhatsApp group link</p>
-                <p className="text-xs text-gray-500">Paste your WhatsApp group's invite link here. A button to open it will then show up on the Group Prayers tab.</p>
+                <p className="text-xs text-gray-500">Paste your WhatsApp group's invite link here. It also shows as the group call link on My Group.</p>
                 <input
                   type="url"
                   value={whatsappGroupUrl}
@@ -258,11 +199,48 @@ const SupportProfilePage: React.FC = () => {
               </div>
             )}
           </div>
-        </div>
+        </section>
 
-        <div data-wt="profile-notifications">
-          <NotificationSettings isOpen onClose={() => {}} embedded />
-        </div>
+        <section className={CARD}>
+          <h2 className="mb-1.5 text-lg font-bold text-gray-900">Accent colour</h2>
+          <p className="text-[13px] text-gray-500">Your theme colour, applied across the app.</p>
+          <div className="mt-4 flex flex-wrap gap-2.5">
+            {THEME_SWATCHES.map((s) => {
+              const selected = themeColor.toLowerCase() === s.hex;
+              return (
+                <button
+                  key={s.hex}
+                  type="button"
+                  title={s.label}
+                  aria-label={s.label}
+                  aria-pressed={selected}
+                  onClick={() => handleThemeChange(s.hex)}
+                  style={{ backgroundColor: s.hex }}
+                  className={`h-10 w-10 rounded-xl transition focus:outline-none ${selected ? 'border-2 border-gray-800' : 'border border-gray-200 hover:scale-105'}`}
+                />
+              );
+            })}
+            <label title="Custom colour" className="relative h-10 w-10 cursor-pointer overflow-hidden rounded-xl border border-dashed border-gray-300" style={{ background: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }}>
+              <input type="color" value={themeColor} onChange={(e) => handleThemeChange(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+            </label>
+          </div>
+          {themeColor.toLowerCase() !== (user?.themeColor ?? DEFAULT_THEME).toLowerCase() && (
+            <div className="mt-3 flex items-center gap-2">
+              <span className="text-xs text-gray-500">{THEME_SWATCHES.find((s) => s.hex === themeColor.toLowerCase())?.label ?? themeColor}</span>
+              <div className="ml-auto flex gap-2">
+                <button type="button" onClick={() => { const saved = user?.themeColor ?? DEFAULT_THEME; setThemeColor(saved); applyTheme(saved); }} className="rounded-2xl border border-gray-200 px-4 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+                <button type="button" onClick={() => void handleSaveTheme()} disabled={savingTheme} className="rounded-2xl bg-primary px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60">
+                  {savingTheme ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <h2 className="mb-1.5 mt-6 text-lg font-bold text-gray-900">Alerts</h2>
+          <div data-wt="profile-notifications">
+            <NotificationSettings isOpen onClose={() => {}} embedded />
+          </div>
+        </section>
       </div>
 
       {wt.show && (
@@ -279,10 +257,12 @@ const SupportProfilePage: React.FC = () => {
   );
 };
 
+const CARD = 'rounded-[22px] border border-[#eef0f4] bg-white p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
+
 const InfoRow: React.FC<{ label: string; value?: string; content?: React.ReactNode }> = ({ label, value, content }) => (
-  <div className="surface-muted flex items-center justify-between px-4 py-3">
-    <span className="text-sm text-gray-500">{label}</span>
-    {content || <span className="text-sm font-semibold text-gray-900">{value}</span>}
+  <div className="flex items-center gap-3">
+    <span className="w-[90px] flex-none text-[13px] text-gray-500">{label}</span>
+    {content || <span className="min-w-0 text-sm font-semibold text-gray-900">{value}</span>}
   </div>
 );
 

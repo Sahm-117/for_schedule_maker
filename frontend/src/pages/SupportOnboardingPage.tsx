@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
 import PageHeader from '../components/PageHeader';
+import SegmentedTabs from '../components/SegmentedTabs';
 import PageLoader from '../components/PageLoader';
 import ModalShell from '../components/followups/ModalShell';
 import { useAuth } from '../hooks/useAuth';
@@ -51,10 +52,7 @@ const STAGE_LABELS: Record<OnboardingStage, string> = STAGE_OPTIONS.reduce((acc,
   return acc;
 }, {} as Record<OnboardingStage, string>);
 
-const GROUP_CREATED_OPTIONS = [
-  { value: 'no', label: 'Not created', meta: 'The small group has not been set up yet' },
-  { value: 'yes', label: 'Created', meta: 'The small group is ready' },
-];
+const CARD = 'rounded-[22px] border border-[#eef0f4] bg-white p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
 
 const downloadImage = (url: string, name: string) => downloadFile(url, name);
 
@@ -298,8 +296,7 @@ const CoordinatorSection: React.FC<CoordinatorSectionProps> = ({ coordinatorId, 
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [supports, setSupports] = useState<User[]>([]);
   const [selectedSupportId, setSelectedSupportId] = useState('');
-  const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [copiedText, setCopiedText] = useState(false);
+  const [copiedTemplateId, setCopiedTemplateId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -312,7 +309,9 @@ const CoordinatorSection: React.FC<CoordinatorSectionProps> = ({ coordinatorId, 
         ]);
         if (cancelled) return;
         setTemplates(sortByText(ts, (template) => template.useCase));
-        setSupports(sortByText(users.filter((u) => u.role === 'SUPPORT' && u.id !== coordinatorId), (support) => support.name));
+        const sortedSupports = sortByText(users.filter((u) => u.role === 'SUPPORT' && u.id !== coordinatorId), (support) => support.name);
+        setSupports(sortedSupports);
+        setSelectedSupportId((current) => current || sortedSupports[0]?.id || '');
       } catch { /* ignore */ }
       finally { if (!cancelled) setLoading(false); }
     })();
@@ -320,100 +319,111 @@ const CoordinatorSection: React.FC<CoordinatorSectionProps> = ({ coordinatorId, 
   }, [coordinatorId]);
 
   const selectedSupport = supports.find((s) => s.id === selectedSupportId) ?? null;
-  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) ?? null;
-
-  const supportOptions = useMemo(
-    () => supports.map((s) => ({ value: s.id, label: s.name })),
-    [supports]
+  const fillFor = (template: MessageTemplate) => fillTemplate(
+    template.body,
+    { fullName: selectedSupport?.name ?? '', phone: '', cohortVenue: '', cohortStartDate: null } as any,
+    '',
+    coordinatorName
   );
 
-  const filled = useMemo(() => {
-    if (!selectedTemplate) return '';
-    return fillTemplate(
-      selectedTemplate.body,
-      { fullName: selectedSupport?.name ?? '', phone: '', cohortVenue: '', cohortStartDate: null } as any,
-      '',
-      coordinatorName
+  if (loading) return <PageLoader />;
+  if (templates.length === 0) {
+    return (
+      <section className="surface-card p-6 text-center">
+        <p className="text-sm text-gray-500">No onboarding messages have been set up yet.</p>
+      </section>
     );
-  }, [selectedTemplate, selectedSupport, coordinatorName]);
-
-  if (loading) return null;
-  if (templates.length === 0) return null;
+  }
 
   return (
-    <section className="surface-card p-5">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Coordinator</p>
-        <h3 className="mt-1 text-lg font-bold text-gray-900">Onboard a Support</h3>
-        <p className="mt-1 text-sm text-gray-500">Pick a fellow support and a message, then copy it to send.</p>
-      </div>
+    <section className={CARD}>
+      <h2 className="text-base font-bold text-gray-900">Onboard a support</h2>
+      <p className="mt-0.5 text-[13px] leading-relaxed text-gray-500">Pick a fellow support and a message, then send it to them.</p>
 
-      <div className="mt-4 max-w-sm">
-        <AppSelect
-          value={selectedSupportId}
-          onChange={setSelectedSupportId}
-          options={supportOptions}
-          placeholder="Choose a support"
-          label="Support to onboard"
-        />
-      </div>
-
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        {templates.map((template) => (
-          <button
-            key={template.id}
-            type="button"
-            onClick={() => setSelectedTemplateId(template.id)}
-            className={`rounded-2xl border px-4 py-3 text-left transition ${selectedTemplateId === template.id ? 'border-orange-300 bg-orange-50' : 'border-orange-100 bg-white hover:bg-orange-50/50'}`}
-          >
-            <p className="text-sm font-semibold text-gray-900">{template.useCase}</p>
-            {template.whenToUse && <p className="mt-0.5 text-xs text-gray-400">{template.whenToUse}</p>}
-          </button>
-        ))}
-      </div>
-
-      {selectedTemplate && (
-        <div className="mt-4 rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Preview</p>
-          <p className="whitespace-pre-wrap text-sm text-gray-800">{filled}</p>
-
-          {selectedTemplate.imageUrl && (
-            <div className="mt-4">
-              <img src={selectedTemplate.imageUrl} alt={selectedTemplate.imageName ?? 'template graphic'} loading="lazy" className="mb-2 h-40 w-full rounded-xl object-cover" />
-              <p className="text-xs text-gray-400">{selectedTemplate.imageName}</p>
-            </div>
-          )}
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                void navigator.clipboard?.writeText(filled);
-                setCopiedText(true);
-                setTimeout(() => setCopiedText(false), 2000);
-              }}
-              className="rounded-2xl border border-orange-200 bg-white px-4 py-2 text-sm font-semibold text-primary hover:bg-orange-50"
-            >
-              {copiedText ? 'Copied!' : 'Copy text'}
-            </button>
-            {selectedTemplate.imageUrl && (
-              <button
-                type="button"
-                onClick={() => { void downloadImage(selectedTemplate.imageUrl!, selectedTemplate.imageName ?? 'graphic.jpg'); }}
-                className="rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50"
-              >
-                Download image
-              </button>
-            )}
+      <div className="mt-4">
+        <span className="mb-2 block text-[12.5px] font-semibold text-gray-900">Support to onboard</span>
+        {supports.length === 0 ? (
+          <p className="text-sm text-gray-500">No other supports found.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {supports.map((support) => {
+              const active = support.id === selectedSupportId;
+              return (
+                <button
+                  key={support.id}
+                  type="button"
+                  onClick={() => setSelectedSupportId(support.id)}
+                  className={`min-h-[42px] rounded-full border px-[15px] py-2 text-[13px] font-semibold transition ${active ? 'border-primary bg-primary text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}
+                >
+                  {support.name}
+                </button>
+              );
+            })}
           </div>
+        )}
+      </div>
 
-          {selectedTemplate.imageUrl && (
-            <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-700">
-              Tip: Download the image first, then attach it in WhatsApp after it opens.
-            </p>
-          )}
-        </div>
-      )}
+      <div className="mt-[18px] flex flex-col gap-2.5">
+        {templates.map((template) => {
+          const body = fillFor(template);
+          const waLink = selectedSupport ? buildWhatsAppLink(selectedSupport.phone, body) : null;
+          return (
+            <div key={template.id} className="rounded-[14px] border border-[#f1f2f5] p-3.5">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="text-[13px] font-bold text-gray-900">{template.useCase}</span>
+                {template.whenToUse && (
+                  <span className="rounded-full bg-[#f6f7f9] px-2.5 py-0.5 text-[11px] font-semibold text-gray-500">{template.whenToUse}</span>
+                )}
+              </div>
+              <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed text-gray-700">{body}</p>
+
+              {template.imageUrl && (
+                <img src={template.imageUrl} alt={template.imageName ?? 'template graphic'} loading="lazy" className="mt-3 h-40 w-full rounded-xl object-cover" />
+              )}
+
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(body);
+                    setCopiedTemplateId(template.id);
+                    setTimeout(() => setCopiedTemplateId((current) => (current === template.id ? null : current)), 2000);
+                  }}
+                  className="min-h-[42px] flex-[1_1_120px] rounded-[10px] border border-[#ffdeca] bg-[#fff8f3] px-3.5 py-2.5 text-[12.5px] font-semibold text-[#c2410c]"
+                >
+                  {copiedTemplateId === template.id ? 'Copied' : 'Copy message'}
+                </button>
+                {template.imageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => { void downloadImage(template.imageUrl!, template.imageName ?? 'graphic.jpg'); }}
+                    className="min-h-[42px] flex-[1_1_120px] rounded-[10px] border border-violet-200 bg-white px-3.5 py-2.5 text-[12.5px] font-semibold text-violet-700"
+                  >
+                    Download image
+                  </button>
+                )}
+                {waLink ? (
+                  <a
+                    href={waLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-[42px] flex-[1_1_140px] items-center justify-center rounded-[10px] bg-[#25d366] px-3.5 py-2.5 text-[12.5px] font-semibold text-white"
+                  >
+                    Send in WhatsApp
+                  </a>
+                ) : (
+                  <span
+                    title="This support has no phone number saved"
+                    className="inline-flex min-h-[42px] flex-[1_1_140px] items-center justify-center rounded-[10px] bg-gray-100 px-3.5 py-2.5 text-[12.5px] font-semibold text-gray-400"
+                  >
+                    Send in WhatsApp
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 };
@@ -427,6 +437,7 @@ const SupportOnboardingPage: React.FC = () => {
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [activeParticipantId, setActiveParticipantId] = useState<string | null>(null);
+  const [onboardTab, setOnboardTab] = useState<'people' | 'support'>('people');
   const [savingGroup, setSavingGroup] = useState(false);
   const [savingParticipantSteps, setSavingParticipantSteps] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -607,16 +618,30 @@ const SupportOnboardingPage: React.FC = () => {
   return (
     <div className="page-content">
       <PageHeader
-        title="Onboarding"
-        subtitle="See who still needs to be onboarded and send them a welcome message."
+        title="Onboard"
+        subtitle="Activate your participants, and help a fellow support get started."
       />
+
+      {user.isCoordinator && (
+        <div className="mb-3 max-w-[760px]">
+          <SegmentedTabs
+            tabs={[
+              { key: 'people', label: 'My participants' },
+              { key: 'support', label: 'Onboard a support' },
+            ]}
+            active={onboardTab}
+            onChange={(key) => setOnboardTab(key as 'people' | 'support')}
+          />
+        </div>
+      )}
 
       {loading ? (
         <PageLoader />
       ) : (
-        <div className="space-y-6">
+        <div className="max-w-[760px] space-y-3">
+          {onboardTab === 'people' && (<>
           {groupOptions.length > 1 && (
-            <section className="surface-card p-5">
+            <section className={CARD}>
               <div className="max-w-sm">
                 <AppSelect
                   value={selectedGroupId}
@@ -635,62 +660,42 @@ const SupportOnboardingPage: React.FC = () => {
             </section>
           ) : (
             <>
-              <section className="surface-card p-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Steps</p>
-                    <h2 className="mt-1 text-lg font-bold text-gray-900">{selectedGroupStatus?.groupName || groupOptions.find((option) => option.value === selectedGroupId)?.label}</h2>
-                    <p className="mt-1 text-sm text-gray-500">Steps auto-update when you change each person below.</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 sm:min-w-[260px]">
-                    <MetricCard label="Steps done" value={`${checklistPercent}%`} />
-                    <MetricCard label="People done" value={`${completedParticipants}/${selectedParticipantStatuses.length}`} />
-                  </div>
+              <section className={CARD}>
+                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 className="text-base font-bold text-gray-900">{selectedGroupStatus?.groupName || groupOptions.find((option) => option.value === selectedGroupId)?.label}</h2>
+                  <p className="text-xs text-gray-500">
+                    {checklistPercent}% of steps done · {completedParticipants}/{selectedParticipantStatuses.length} people fully done ({participantPercent}%)
+                  </p>
                 </div>
-
-                <div className="mt-5 space-y-3">
-                  <div className="rounded-2xl border border-orange-100 bg-white px-4 py-3 shadow-sm">
-                    <AppSelect
-                      value={selectedGroupStatus?.groupCreated ? 'yes' : 'no'}
-                      onChange={(value) => { void updateGroupCreated(value === 'yes'); }}
-                      options={GROUP_CREATED_OPTIONS}
-                      placeholder="Choose"
-                      label="Group set up"
-                      compact
-                      loading={savingGroup}
-                    />
-                  </div>
-                  <ProgressLine
-                    label="Talked to"
-                    done={selectedParticipantStatuses.filter((s) => s.contacted).length}
-                    total={selectedParticipantStatuses.length}
+                <div className="flex flex-col gap-2.5">
+                  <StepRow
+                    n={1}
+                    label="Group set up"
+                    detail={selectedGroupStatus?.groupCreated ? 'The small group is ready. Tap to undo.' : 'The small group has not been set up yet. Tap to mark done.'}
+                    state={selectedGroupStatus?.groupCreated ? 'DONE' : 'NOT_STARTED'}
+                    onClick={() => { void updateGroupCreated(!selectedGroupStatus?.groupCreated); }}
+                    busy={savingGroup}
                   />
-                  <ProgressLine
-                    label="Added to group"
-                    done={selectedParticipantStatuses.filter((s) => s.addedToGroup).length}
-                    total={selectedParticipantStatuses.length}
-                  />
-                  <ProgressLine
-                    label="Introduced"
-                    done={selectedParticipantStatuses.filter((s) => s.introductionDone).length}
-                    total={selectedParticipantStatuses.length}
-                  />
-                  <ProgressLine
-                    label="Knows venue"
-                    done={selectedParticipantStatuses.filter((s) => s.venueAcknowledged).length}
-                    total={selectedParticipantStatuses.length}
-                  />
-                </div>
-
-                <div className="mt-5 rounded-2xl bg-orange-50/50 px-4 py-3 text-sm text-gray-600">
-                  {participantPercent}% of people are fully done.
+                  {STATUS_STEPS.map((step, index) => {
+                    const done = selectedParticipantStatuses.filter((s) => s[step.key]).length;
+                    const total = selectedParticipantStatuses.length;
+                    return (
+                      <StepRow
+                        key={step.key}
+                        n={index + 2}
+                        label={step.label}
+                        detail={`${done} of ${total} ${total === 1 ? 'person' : 'people'}`}
+                        state={progressState(done, total)}
+                      />
+                    );
+                  })}
                 </div>
               </section>
 
-              <section className="surface-card p-5">
+              <section className={CARD}>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">People</p>
-                  <h3 className="mt-1 text-lg font-bold text-gray-900">Tap a person to open message templates</h3>
+                  <h2 className="text-base font-bold text-gray-900">People</h2>
+                  <p className="mt-0.5 text-[13px] text-gray-500">Tap a person to open message templates.</p>
                 </div>
 
                 {selectedParticipants.length === 0 ? (
@@ -703,7 +708,7 @@ const SupportOnboardingPage: React.FC = () => {
                       const status = selectedParticipantStatuses.find((entry) => entry.participantId === participant.id)!;
                       const currentStage = getOnboardingStage(status);
                       return (
-                        <div key={participant.id} className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
+                        <div key={participant.id} className="rounded-2xl border border-[#f1f2f5] bg-white p-4">
                           <div className="grid gap-4 md:grid-cols-[1fr_280px] md:items-start">
                             <div
                               role="button"
@@ -779,8 +784,9 @@ const SupportOnboardingPage: React.FC = () => {
               </section>
             </>
           )}
+          </>)}
 
-          {user.isCoordinator && (
+          {user.isCoordinator && onboardTab === 'support' && (
             <CoordinatorSection coordinatorId={user.id} coordinatorName={user.name} />
           )}
         </div>
@@ -799,31 +805,45 @@ const SupportOnboardingPage: React.FC = () => {
   );
 };
 
-const MetricCard: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div className="rounded-2xl bg-orange-50/70 px-4 py-3">
-    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-    <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
-  </div>
-);
+type StepState = 'DONE' | 'IN_PROGRESS' | 'NOT_STARTED';
 
-const ProgressLine: React.FC<{ label: string; done: number; total: number }> = ({ label, done, total }) => {
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  const r = 10;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (pct / 100) * circ;
-  const color = pct === 100 ? '#059669' : pct > 0 ? '#d97706' : '#d1d5db';
+const STEP_STATE_STYLE: Record<StepState, { label: string; dot: string; text: string }> = {
+  DONE: { label: 'Done', dot: 'bg-[#f2fbf5] text-[#15803d]', text: 'text-[#15803d]' },
+  IN_PROGRESS: { label: 'In progress', dot: 'bg-[#fff8f3] text-[#c2410c]', text: 'text-[#c2410c]' },
+  NOT_STARTED: { label: 'Not started', dot: 'bg-[#f6f7f9] text-gray-500', text: 'text-gray-500' },
+};
 
-  return (
-    <div className="flex items-center justify-between rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-3 text-sm text-gray-700">
-      <span>{label}</span>
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold tabular-nums text-gray-500">{done}/{total}</span>
-        <svg width="28" height="28" viewBox="0 0 28 28" className="-rotate-90">
-          <circle cx="14" cy="14" r={r} fill="none" stroke="#e5e7eb" strokeWidth="3" />
-          <circle cx="14" cy="14" r={r} fill="none" stroke={color} strokeWidth="3" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" />
-        </svg>
-      </div>
-    </div>
+const progressState = (done: number, total: number): StepState => {
+  if (total > 0 && done === total) return 'DONE';
+  return done > 0 ? 'IN_PROGRESS' : 'NOT_STARTED';
+};
+
+const StepRow: React.FC<{
+  n: number;
+  label: string;
+  detail: string;
+  state: StepState;
+  onClick?: () => void;
+  busy?: boolean;
+}> = ({ n, label, detail, state, onClick, busy }) => {
+  const style = STEP_STATE_STYLE[state];
+  const content = (
+    <>
+      <span className={`grid h-[26px] w-[26px] flex-none place-items-center rounded-full text-xs font-bold ${style.dot}`}>{n}</span>
+      <span className="min-w-0">
+        <span className="block text-[15px] font-semibold text-gray-900">{label}</span>
+        <span className="block text-[13px] text-gray-500">{detail}</span>
+      </span>
+      <span className={`ml-auto flex-none text-xs font-semibold ${style.text}`}>{busy ? 'Saving…' : style.label}</span>
+    </>
+  );
+  const cls = 'flex w-full items-center gap-3.5 rounded-2xl border border-[#f1f2f5] bg-white p-4 text-left';
+  return onClick ? (
+    <button type="button" onClick={onClick} disabled={busy} className={`${cls} transition hover:border-gray-200 disabled:opacity-70`}>
+      {content}
+    </button>
+  ) : (
+    <div className={cls}>{content}</div>
   );
 };
 

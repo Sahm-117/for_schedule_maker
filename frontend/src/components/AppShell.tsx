@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
@@ -22,6 +23,7 @@ type NavItem = {
   adminOnly?: boolean;
   sopHidden?: boolean;
   mobileHidden?: boolean;
+  mobileMore?: boolean;
 };
 
 type NavGroup = {
@@ -54,6 +56,8 @@ const ICONS = {
   prayer: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4.318 6.318a4.5 4.5 0 0 0 0 6.364L12 20.364l7.682-7.682a4.5 4.5 0 0 0-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 0 0-6.364 0Z" /></svg></IconBox>,
   onboarding: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5l-3 3v-3Z" /></svg></IconBox>,
   hub: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg></IconBox>,
+  mobilisation: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M18 9v6m3-3h-6M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM3 20a6 6 0 0 1 12 0v1H3v-1Z" /></svg></IconBox>,
+  more: <IconBox><svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4.25 10a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm7 0a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm7 0a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z" /></svg></IconBox>,
   rota: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 9h18M9 4v16M4 20h16a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" /></svg></IconBox>,
 };
 
@@ -126,14 +130,13 @@ const adminNavGroups: NavGroup[] = [
 
 const supportNav: NavItem[] = [
   { to: '/support', label: 'Home', icon: ICONS.dashboard },
+  { to: '/support/mobilisation', label: 'Mobilisation', icon: ICONS.mobilisation },
   { to: '/support/schedule', label: 'My Schedule', mobileLabel: 'Schedule', icon: ICONS.schedule },
   { to: '/support/participants', label: 'My Group', mobileLabel: 'Group', icon: ICONS.participants },
-  { to: '/support/attendance', label: 'Attendance', icon: ICONS.attendance, mobileHidden: true },
-  { to: '/support/follow-ups', label: 'My Follow-ups', icon: ICONS.followups, mobileHidden: true },
-  { to: '/support/onboarding', label: 'Onboarding', icon: ICONS.onboarding, mobileHidden: true },
-  { to: '/support/hub', label: 'Hub', icon: ICONS.hub },
-  { to: '/support/resources', label: 'Resources', icon: ICONS.resources },
-  { to: '/support/profile', label: 'Profile', icon: ICONS.profile, mobileHidden: true },
+  { to: '/support/onboarding', label: 'Onboard', icon: ICONS.onboarding, mobileHidden: true },
+  { to: '/support/hub', label: 'Hub', icon: ICONS.hub, mobileMore: true },
+  { to: '/support/resources', label: 'Resources', icon: ICONS.resources, mobileMore: true },
+  { to: '/support/profile', label: 'Profile', icon: ICONS.profile, mobileMore: true },
 ];
 
 const MobileBadge: React.FC<{ count: number }> = ({ count }) => {
@@ -257,6 +260,7 @@ const AppShell: React.FC = () => {
   const { showPrompt, enable, dismiss } = usePushNotifications(user?.id);
   const [open, setOpen] = useState(false);
   const [openNavGroups, setOpenNavGroups] = useState<OpenNavGroups>({});
+  const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -283,10 +287,15 @@ const AppShell: React.FC = () => {
     }));
   };
   const mobileNavItems = useMemo(() => {
-    if (isSupport) return supportNav.filter((item) => !item.mobileHidden);
+    if (isSupport) return supportNav.filter((item) => !item.mobileHidden && !item.mobileMore);
     const mobileAdminRoutes = new Set(['/dashboard', '/schedule', '/approvals', '/hub', '/resources']);
     return navItems.filter((item) => mobileAdminRoutes.has(item.to));
   }, [isSupport, navItems]);
+  const mobileMoreItems = useMemo(
+    () => (isSupport ? supportNav.filter((item) => item.mobileMore) : []),
+    [isSupport]
+  );
+  const moreActive = mobileMoreItems.some((item) => isNavActive(location.pathname, item.to));
 
   const supportLabel = userLabels[0]?.name || 'Support';
   const currentLabel = isAdmin ? 'Admin' : isSopPreparer ? 'SOP Preparer' : supportLabel;
@@ -539,15 +548,20 @@ const AppShell: React.FC = () => {
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-orange-100 bg-white/95 px-2 py-2 backdrop-blur lg:hidden">
-        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(Math.max(mobileNavItems.length, 1), 5)}, minmax(0, 1fr))` }}>
+      <nav className={isSupport
+        ? 'fixed bottom-4 left-1/2 z-30 w-[calc(100%-24px)] max-w-[400px] -translate-x-1/2 rounded-[22px] border border-[#eef0f4] bg-white p-1.5 shadow-[0_18px_40px_-20px_rgba(17,24,39,0.28)] lg:hidden'
+        : 'fixed inset-x-0 bottom-0 z-30 border-t border-orange-100 bg-white/95 px-2 py-2 backdrop-blur lg:hidden'}
+      >
+        <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(Math.max(mobileNavItems.length + (mobileMoreItems.length > 0 ? 1 : 0), 1), 5)}, minmax(0, 1fr))` }}>
           {mobileNavItems.map((item) => {
             const active = isNavActive(location.pathname, item.to);
             return (
               <NavLink
                 key={item.to}
                 to={item.to}
-                className={`relative flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium ${active ? 'bg-orange-50 text-primary' : 'text-gray-500'}`}
+                className={isSupport
+                  ? `relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-0.5 py-2 text-[10px] font-semibold tracking-tight ${active ? 'bg-primary text-white' : 'text-gray-500'}`
+                  : `relative flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium ${active ? 'bg-orange-50 text-primary' : 'text-gray-500'}`}
               >
                 {item.icon}
                 <span className="truncate">{item.mobileLabel ?? item.label}</span>
@@ -560,8 +574,49 @@ const AppShell: React.FC = () => {
               </NavLink>
             );
           })}
+          {mobileMoreItems.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setMoreOpen((prev) => !prev)}
+              aria-expanded={moreOpen}
+              className={`relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-0.5 py-2 text-[10px] font-semibold tracking-tight ${moreActive || moreOpen ? 'bg-[#fff8f3] text-[#c2410c]' : 'text-gray-500'}`}
+            >
+              {ICONS.more}
+              <span className="truncate">More</span>
+              {hasNewHubActivity && (
+                <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />
+              )}
+            </button>
+          )}
         </div>
       </nav>
+
+      {moreOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <button type="button" aria-label="Close menu" className="absolute inset-0 cursor-default" onClick={() => setMoreOpen(false)} />
+          <div
+            className="absolute bottom-[92px] flex w-[168px] flex-col gap-0.5 rounded-2xl border border-[#eef0f4] bg-white p-1.5 shadow-[0_18px_40px_-18px_rgba(17,24,39,0.3)]"
+            style={{ right: 'max(18px, calc(50% - 194px))' }}
+          >
+            {mobileMoreItems.map((item) => {
+              const active = isNavActive(location.pathname, item.to);
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMoreOpen(false)}
+                  className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition ${active ? 'bg-[#fff8f3] text-[#c2410c]' : 'text-gray-800 hover:bg-gray-50'}`}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                  {item.to.includes('hub') && hasNewHubActivity && <NavDot />}
+                </NavLink>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
 
       <PWAInstallBanner />
       <NeedSupportButton />

@@ -2,12 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, NavLink } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import ActivityText from '../components/ActivityText';
-import LabelChip from '../components/LabelChip';
-import { PeriodBadge } from '../components/PeriodIcon';
+import InfoTip from '../components/InfoTip';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, faithProjectsApi, groupsApi, participantsApi, resourcesApi } from '../services/api';
-import type { Announcement, FaithProject, Group, Participant } from '../types';
+import { announcementsApi, faithProjectsApi, groupsApi, participantsApi, resourcesApi, supportActivityCompletionsApi } from '../services/api';
+import type { Announcement, FaithProject, Group, Participant, SupportActivityCompletion } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
 import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
@@ -24,7 +23,26 @@ type HomeActivity = {
   dayIndex: number;
 };
 
+const PERIOD_LABEL: Record<string, string> = {
+  MORNING: 'Morning',
+  AFTERNOON: 'Afternoon',
+  EVENING: 'Evening',
+};
 
+// Weekly checklist is UI-only for now: ticks are not saved until the checklist table is wired.
+const DEFAULT_CHECKLIST = [
+  'Contact assigned participants',
+  'Confirm attendance',
+  'Follow up with absent participants',
+  'Complete group activity',
+  'Submit weekly report',
+];
+
+const formatWhen = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(date);
+};
 
 const SupportHomePage: React.FC = () => {
   const { user, userLabelIds, userCohortIds } = useAuth();
@@ -35,6 +53,10 @@ const SupportHomePage: React.FC = () => {
   const [faithProjects, setFaithProjects] = useState<FaithProject[]>([]);
   const [myGroups, setMyGroups] = useState<Group[]>([]);
   const [tickNow, setTickNow] = useState(() => new Date());
+  const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
+  const [completionSavingIds, setCompletionSavingIds] = useState<number[]>([]);
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set());
 
   const wt = useWalkthrough('home');
 
@@ -87,6 +109,16 @@ const SupportHomePage: React.FC = () => {
     return () => clearInterval(id);
   }, []);
 
+  const activeWeekId = (selectedWeek || weeks[0] || null)?.id ?? null;
+  useEffect(() => {
+    if (!user || activeWeekId === null) { setCompletions([]); return; }
+    let cancelled = false;
+    supportActivityCompletionsApi.getMineForWeek(activeWeekId, user.id)
+      .then((response) => { if (!cancelled) setCompletions(response.completions); })
+      .catch(() => { if (!cancelled) setCompletions([]); });
+    return () => { cancelled = true; };
+  }, [activeWeekId, user, liveRevision]);
+
   if (user?.role !== 'SUPPORT') {
     return <Navigate to="/dashboard" replace />;
   }
@@ -113,7 +145,27 @@ const SupportHomePage: React.FC = () => {
         })),
     );
   }, [activeWeek, userLabelIds, schedulePublished]);
-  const todayActivities = myActivities.filter((activity) => activity.dayName === todayName);
+  const todayActivities: HomeActivity[] = myActivities.filter((activity) => activity.dayName === todayName);
+  const completedActivityIds = new Set(completions.map((completion) => completion.activityId));
+
+  const toggleActivityDone = async (activityId: number) => {
+    if (completionSavingIds.includes(activityId)) return;
+    setCompletionSavingIds((prev) => [...prev, activityId]);
+    try {
+      if (completedActivityIds.has(activityId)) {
+        await supportActivityCompletionsApi.markUndone(activityId, user.id);
+        setCompletions((prev) => prev.filter((completion) => completion.activityId !== activityId));
+      } else {
+        const response = await supportActivityCompletionsApi.markDone(activityId, user.id);
+        setCompletions((prev) => [...prev.filter((completion) => completion.activityId !== activityId), response.completion]);
+      }
+    } catch (error) {
+      console.warn('Failed to update activity completion:', error);
+    } finally {
+      setCompletionSavingIds((prev) => prev.filter((id) => id !== activityId));
+    }
+  };
+
   // Next Group Prayer: computed from the group's locked meeting slot
   const myGroup = myGroups[0] ?? null;
   const nextGroupPrayerDisplay = (() => {
@@ -136,6 +188,14 @@ const SupportHomePage: React.FC = () => {
   const currentIdealIndex = cohortWeeks.findIndex((w) => w.weekNumber === currentIdealWeekNumber);
   const nextWeek = currentIdealIndex >= 0 ? cohortWeeks[currentIdealIndex + 1] ?? null : null;
 
+  const checkedCount = checkedItems.size;
+  const checklistPct = Math.round((checkedCount / DEFAULT_CHECKLIST.length) * 100);
+  const todayEmptyText = !schedulePublished
+    ? 'Schedule not published yet. Check back once your coordinator publishes it.'
+    : userLabelIds.length === 0
+      ? 'No activities are assigned to your tags yet.'
+      : 'Nothing scheduled for you today.';
+
   return (
     <div>
       <PageHeader
@@ -144,106 +204,166 @@ const SupportHomePage: React.FC = () => {
         onHelp={wt.reopen}
       />
 
-      <section data-wt="home-metrics" className="mb-6 rounded-[24px] border border-orange-100 bg-[radial-gradient(circle_at_top,_rgba(251,146,60,0.14),_transparent_52%),linear-gradient(180deg,_#fffaf5_0%,_#ffffff_76%)] px-4 py-4 shadow-sm sm:px-5">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold text-primary/80">Programme progress</p>
-              <h2 className="mt-1 text-2xl font-bold tracking-tight text-gray-950">
-                {activeWeek ? `Week ${activeWeek.weekNumber}` : 'No week selected'}
-              </h2>
-              <p className="mt-1 text-sm text-gray-600">
-                {cohortWeeks.length > 0 && currentWeekPosition > 0
-                  ? `${currentWeekPosition} of ${cohortWeeks.length}`
-                  : 'Your current cohort timeline will show here once weeks are available.'}
-              </p>
+      <div className="flex flex-wrap items-start gap-5">
+        <div className="flex min-w-0 flex-[1_1_480px] flex-col gap-4">
+          <section data-wt="home-metrics" className="rounded-[22px] border border-[#ffdeca] bg-white p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
+            <div className="flex flex-wrap items-baseline gap-3">
+              <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">Programme progress</p>
+              <NavLink to="/support/schedule" className="ml-auto text-[13px] font-bold text-[#c2410c]">Open schedule →</NavLink>
             </div>
-            <NavLink to="/support/schedule" className="whitespace-nowrap text-xs font-semibold text-primary hover:text-primary-dark">
-              Open schedule
-            </NavLink>
-          </div>
+            <h2 className="mt-1.5 text-[26px] font-extrabold text-gray-900">
+              {activeWeek ? `Week ${activeWeek.weekNumber}` : 'No week selected'}
+            </h2>
+            <p className="mt-0.5 text-[13px] text-gray-500">
+              {cohortWeeks.length > 0 && currentWeekPosition > 0
+                ? `${currentWeekPosition} of ${cohortWeeks.length}`
+                : 'Your current cohort timeline will show here once weeks are available.'}
+            </p>
 
-          <div className="grid grid-cols-2 gap-3">
-            <QuickStat title="Activities today" value={todayActivities.length} detail={todayName} to="/support/schedule" accent="orange" />
-            <QuickStat title="Next Group Meeting" value={nextGroupPrayerDisplay?.label ?? 'Not set'} detail={nextGroupPrayerDisplay?.detail ?? 'No meeting slot set'} to="/support/participants" accent="rose" />
-            <QuickStat title="Faith Projects" value={`${draftedProjectCount}/${participants.length}`} detail={participants.length > 0 ? 'Participants drafted' : 'No participants yet'} to="/support/participants" accent="emerald" />
-            <QuickStat title="Next class" value={nextWeek?.title?.trim() || 'Not set'} detail={nextWeek ? `Week ${nextWeek.weekNumber}` : 'Programme complete'} to="/support/schedule" accent="sky" />
-          </div>
-        </div>
-      </section>
-
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div data-wt="home-schedule" className="surface-card p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Today's plan</h3>
-              <p className="text-sm text-gray-500">{activeWeek ? `${todayName} in Week ${activeWeek.weekNumber}` : 'No week selected'}</p>
+            <div className="mt-4 grid grid-cols-2 gap-2.5">
+              <QuickStat title="Activities today" value={todayActivities.length} detail={todayName} to="/support/schedule" tone="plain" />
+              <QuickStat title="Next Group Meeting" value={nextGroupPrayerDisplay?.label ?? 'Not set'} detail={nextGroupPrayerDisplay?.detail ?? 'Weekly group meeting'} to="/support/participants" tone="rose" />
+              <QuickStat title="Faith Projects" value={`${draftedProjectCount}/${participants.length}`} detail={participants.length > 0 ? 'Participants drafted' : 'No participants yet'} to="/support/participants" tone="green" />
+              <QuickStat title="Next class" value={nextWeek?.title?.trim() || 'Not set'} detail={nextWeek ? "This week's topic" : 'Programme complete'} to="/support/schedule" tone="blue" />
             </div>
-            <NavLink to="/support/schedule" className="text-sm font-semibold text-primary hover:text-primary-dark">Open schedule</NavLink>
-          </div>
-            <div className="space-y-3">
-            {todayActivities.length === 0 ? (
-              <EmptyState text={!schedulePublished ? 'Schedule not published yet. Check back once your coordinator publishes it.' : userLabelIds.length === 0 ? 'No activities are assigned to your tags yet.' : 'Nothing scheduled for you today in this week.'} />
-            ) : todayActivities.slice(0, 6).map((activity) => (
-              <div key={`${activity.id}-${activity.dayName}`} className="surface-muted rounded-2xl px-4 py-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900"><ActivityText text={activity.description} /></p>
-                    <p className="mt-1 text-xs text-gray-500">{activity.dayName} • {activity.time}</p>
-                  </div>
-                  <PeriodBadge period={activity.period} compact />
-                </div>
-                {activity.labels && activity.labels.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {activity.labels.map((label) => (
-                      <LabelChip key={label.id} name={label.name} color={label.color} size="sm" />
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+          </section>
 
-        <div className="space-y-6">
-          <div className="surface-card p-6">
-            <div className="mb-4 flex items-center justify-between">
+          <NavLink
+            to="/support/participants?tab=sunday"
+            className="flex min-h-[44px] items-center justify-center gap-2 rounded-2xl bg-[#3f4757] px-2.5 py-3.5 text-[13px] font-bold text-white sm:min-h-[56px] sm:justify-start sm:gap-2.5 sm:px-[22px] sm:py-4 sm:text-[15px]"
+          >
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 5h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0-2h6v3H9V3Zm-1 9 2 2 4-4" /></svg>
+            Mark attendance
+          </NavLink>
+
+          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))' }}>
+            <QuickLink to="/support/participants" label="Group call" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" />} />
+            <QuickLink to="/support/resources" label="Resources" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Zm0 17A2.5 2.5 0 0 1 6.5 19H20" />} />
+            <QuickLink to="/support/schedule?tab=checklist" label="My Tasks" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 11l3 3L22 4M2 12a10 10 0 1 0 5-8.66" />} />
+            <QuickLink to="/support/mobilisation" label="Mobilisation" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM19 8v6m3-3h-6" />} />
+          </div>
+
+          <section data-wt="home-schedule" className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+            <div className="flex flex-wrap items-center gap-3 px-5 pb-3.5 pt-[18px]">
               <div className="min-w-0">
-                <h3 className="text-lg font-semibold text-gray-900">Recent announcements</h3>
-                <p className="text-sm text-gray-500">Messages meant for you and everyone else.</p>
+                <h2 className="text-lg font-bold text-gray-900">Today</h2>
+                <p className="mt-0.5 text-[13px] text-gray-500">{activeWeek ? `${todayName} · Week ${activeWeek.weekNumber}` : todayName}</p>
               </div>
-              <NavLink to="/support/announcements" className="whitespace-nowrap text-xs font-semibold text-primary hover:text-primary-dark">View all</NavLink>
+              <span className="ml-auto flex-none rounded-full bg-primary px-[11px] py-1 text-xs font-bold text-white">{todayActivities.length}</span>
             </div>
-            <div className="space-y-3">
+
+            {todayActivities.length === 0 ? (
+              <p className="px-5 pb-2 pt-2 text-sm leading-relaxed text-gray-500">{todayEmptyText}</p>
+            ) : (
+              <div className="flex flex-col gap-2.5 px-5 pb-1">
+                {todayActivities.map((activity) => {
+                  const done = completedActivityIds.has(activity.id);
+                  const saving = completionSavingIds.includes(activity.id);
+                  return (
+                    <div key={`${activity.id}-${activity.dayName}`} className="rounded-2xl border border-[#f4ece5] bg-[#fffdfb] p-3.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-bold text-gray-900">{activity.time}</span>
+                        <span className="rounded-full bg-[#eff6ff] px-2.5 py-0.5 text-[11px] font-semibold text-[#2563eb]">{PERIOD_LABEL[activity.period] ?? activity.period}</span>
+                      </div>
+                      <p className="mt-1.5 text-[15.5px] font-bold leading-snug text-gray-900"><ActivityText text={activity.description} /></p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {activity.labels?.filter((label) => userLabelIds.includes(label.id)).map((label) => (
+                          <span key={label.id} className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-bold text-white">{label.name}</span>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => { void toggleActivityDone(activity.id); }}
+                          disabled={saving}
+                          className={`ml-auto min-h-[40px] flex-none rounded-[10px] border px-3.5 py-2 text-[12.5px] font-semibold transition disabled:opacity-60 ${done ? 'border-[#15803d] bg-[#15803d] text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}
+                        >
+                          {saving ? 'Saving…' : done ? '✓ Done' : 'Mark done'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <NavLink to="/support/schedule" className="mt-3.5 block w-full border-t border-[#f4f5f7] p-3.5 text-center text-[13.5px] font-semibold text-[#c2410c]">
+              See the full week →
+            </NavLink>
+          </section>
+
+          <section className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+            <div className="flex items-center gap-2 pr-5">
+            <button
+              type="button"
+              onClick={() => setChecklistOpen((open) => !open)}
+              aria-expanded={checklistOpen}
+              className="flex min-w-0 flex-1 items-center gap-3 pb-3 pl-5 pt-[18px] text-left"
+            >
+              <div className="min-w-0">
+                <h2 className="text-[17px] font-bold text-gray-900">Weekly checklist</h2>
+                <p className="mt-0.5 text-[13px] text-gray-500">{checkedCount} of {DEFAULT_CHECKLIST.length} done this week</p>
+              </div>
+              <span className={`ml-auto flex-none text-[13px] text-gray-400 transition-transform ${checklistOpen ? 'rotate-180' : ''}`}>▾</span>
+            </button>
+            <span className="pb-3 pt-[18px]"><InfoTip label="About the weekly checklist">Ticks are not saved yet.</InfoTip></span>
+            </div>
+            <div className="px-5 pb-4">
+              <div className="h-[7px] overflow-hidden rounded-full bg-[#f4f5f7]">
+                <span className="block h-full rounded-full bg-primary transition-all" style={{ width: `${checklistPct}%` }} />
+              </div>
+            </div>
+            {checklistOpen && (
+              <div className="flex flex-col gap-0.5 px-5 pb-5">
+                {DEFAULT_CHECKLIST.map((label, index) => {
+                  const checked = checkedItems.has(index);
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setCheckedItems((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(index)) next.delete(index); else next.add(index);
+                        return next;
+                      })}
+                      className="flex w-full items-center gap-[11px] py-2 text-left"
+                    >
+                      <span className={`grid h-[19px] w-[19px] flex-none place-items-center rounded-md border-[1.5px] text-[11px] text-white ${checked ? 'border-primary bg-primary' : 'border-gray-300 bg-white'}`}>
+                        {checked ? '✓' : ''}
+                      </span>
+                      <span className={`text-sm ${checked ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+
+        <aside className="flex w-full min-w-0 flex-[1_1_280px] flex-col gap-5 self-start rounded-[22px] border border-[#ffeadb] bg-[#fffaf5] p-[18px] shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)] lg:sticky lg:top-24 lg:max-w-[340px]">
+          <section>
+            <div className="flex items-baseline gap-2.5">
+              <h2 className="text-sm font-bold text-gray-600">Recent announcements</h2>
+              <NavLink to="/support/announcements" className="ml-auto text-xs font-semibold text-[#c2410c]">View all</NavLink>
+            </div>
+            <div className="mt-3 flex flex-col gap-2.5">
               {announcements.length === 0 ? (
-                <EmptyState text="No announcements have been posted yet." />
+                <p className="rounded-2xl border border-[#f4ece5] bg-white p-3.5 text-[13px] text-gray-500">No announcements have been posted yet.</p>
               ) : announcements.map((item) => (
-                <div key={item.id} className="surface-muted px-4 py-4">
-                  <p className="text-sm font-semibold text-gray-900">{item.subject}</p>
-                  <p className="mt-1 line-clamp-2 text-xs text-gray-500">{item.body}</p>
+                <div key={item.id} className="rounded-2xl border border-[#f4ece5] bg-white p-3.5">
+                  <p className="text-sm font-bold text-gray-900">{item.subject}</p>
+                  <p className="mt-1 line-clamp-3 text-[13px] text-gray-600">{item.body}</p>
+                  <p className="mt-2 text-[11px] text-gray-500">{formatWhen(item.sentAt)}</p>
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="surface-card p-6">
-            <h3 className="text-lg font-semibold text-gray-900">Quick links</h3>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <QuickLink to="/support/participants" label="My group" />
-              <QuickLink to="/support/resources" label="Browse resources" />
-              <QuickLink to="/support/announcements" label="View announcements" />
-              <QuickLink to="/support/follow-ups" label="My follow-ups" />
-              <QuickLink to="/support/profile" label="Profile & alerts" />
-            </div>
-          </div>
-        </div>
+          </section>
+        </aside>
       </div>
 
       {wt.show && (
         <WalkthroughPopup
           steps={[
             { targetSelector: '[data-wt="home-metrics"]', title: 'Your week at a glance', body: 'This top section shows where you are in the cohort and the most useful next numbers to check before you move.', position: 'bottom' },
-            { targetSelector: '[data-wt="home-schedule"]', title: "Today's activities", body: 'Your activities for today show up here. Tap "Open schedule" to see the full week and mark things done.', position: 'top' },
+            { targetSelector: '[data-wt="home-schedule"]', title: "Today's activities", body: 'Your activities for today show up here. Tap "Mark done" as you finish each one, or "See the full week" for everything else.', position: 'top' },
           ]}
           onDone={wt.done}
           onSkip={wt.skipAll}
@@ -253,17 +373,11 @@ const SupportHomePage: React.FC = () => {
   );
 };
 
-const EmptyState: React.FC<{ text: string }> = ({ text }) => (
-  <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/50 px-4 py-8 text-center text-sm text-gray-500">
-    {text}
-  </div>
-);
-
-const QUICK_STAT_ACCENTS = {
-  orange: 'bg-white text-gray-950 border-orange-100',
-  rose: 'bg-rose-50/70 text-gray-950 border-rose-100',
-  emerald: 'bg-emerald-50/70 text-gray-950 border-emerald-100',
-  sky: 'bg-sky-50/70 text-gray-950 border-sky-100',
+const QUICK_STAT_TONES = {
+  plain: { box: 'border-[#f1f2f5] bg-white', title: 'text-gray-500', detail: 'text-gray-400' },
+  rose: { box: 'border-[#fbe4e8] bg-[#fdf2f4]', title: 'text-[#9d5b68]', detail: 'text-[#9d5b68]' },
+  green: { box: 'border-[#dcefe1] bg-[#f0f9f2]', title: 'text-[#3f7a52]', detail: 'text-[#3f7a52]' },
+  blue: { box: 'border-[#dbe7f6] bg-[#eef4fb]', title: 'text-[#3c6da3]', detail: 'text-[#3c6da3]' },
 } as const;
 
 const QuickStat: React.FC<{
@@ -271,18 +385,27 @@ const QuickStat: React.FC<{
   value: React.ReactNode;
   detail: string;
   to: string;
-  accent: keyof typeof QUICK_STAT_ACCENTS;
-}> = ({ title, value, detail, to, accent }) => (
-  <NavLink to={to} className={`min-h-[124px] rounded-2xl border px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-sm ${QUICK_STAT_ACCENTS[accent]}`}>
-    <p className="text-xs font-semibold text-gray-500">{title}</p>
-    <p className="mt-2 line-clamp-2 text-xl font-bold leading-tight text-gray-950 sm:text-2xl">{value}</p>
-    <p className="mt-2 line-clamp-2 text-xs text-gray-500">{detail}</p>
-  </NavLink>
-);
+  tone: keyof typeof QUICK_STAT_TONES;
+}> = ({ title, value, detail, to, tone }) => {
+  const style = QUICK_STAT_TONES[tone];
+  return (
+    <NavLink to={to} className={`rounded-2xl border p-3.5 transition hover:shadow-sm ${style.box}`}>
+      <p className={`text-xs font-semibold ${style.title}`}>{title}</p>
+      <p className="mt-1.5 line-clamp-2 text-xl font-extrabold leading-tight text-gray-900">{value}</p>
+      <p className={`mt-0.5 line-clamp-2 text-xs ${style.detail}`}>{detail}</p>
+    </NavLink>
+  );
+};
 
-const QuickLink: React.FC<{ to: string; label: string }> = ({ to, label }) => (
-  <NavLink to={to} className="rounded-2xl border border-orange-100 bg-orange-50/60 px-4 py-4 text-sm font-semibold text-gray-700 hover:bg-orange-100/70">
-    {label}
+const QuickLink: React.FC<{ to: string; label: string; icon: React.ReactNode }> = ({ to, label, icon }) => (
+  <NavLink
+    to={to}
+    className="flex min-h-[44px] min-w-0 flex-col items-center gap-2.5 rounded-2xl border border-[#eef0f4] bg-white px-1 py-4 transition hover:border-[#ffdeca]"
+  >
+    <span className="grid h-11 w-11 place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]">
+      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">{icon}</svg>
+    </span>
+    <span className="whitespace-nowrap text-center text-[13px] font-semibold text-gray-800">{label}</span>
   </NavLink>
 );
 

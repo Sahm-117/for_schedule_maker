@@ -69,3 +69,6 @@ coverage/
 
 # script label backups (data, not code)
 scripts/activitylabel-backup-*.json
+
+# Session context summaries (ContextSaver)
+.sessions/
