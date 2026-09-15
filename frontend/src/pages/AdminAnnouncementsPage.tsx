@@ -57,7 +57,7 @@ const AdminAnnouncementsPage: React.FC = () => {
           </button>
         )}
       />
-      <AnnouncementsModal isOpen onClose={() => {}} embedded showComposer={false} showHistory history={history} loadingHistory={loadingHistory} />
+      <AnnouncementsModal isOpen onClose={() => {}} embedded showComposer={false} showHistory history={history} loadingHistory={loadingHistory} onSent={fetchHistory} />
       <AnnouncementsModal
         isOpen={showComposer}
         onClose={() => setShowComposer(false)}

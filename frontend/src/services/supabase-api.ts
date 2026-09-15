@@ -52,6 +52,10 @@ const mapWeekRow = (week: any): Week => {
     cohortId: week.cohortId,
     weekNumber: week.weekNumber,
     title: week.title ?? null,
+    recapSummary: week.recapSummary ?? null,
+    discussionPrompt: week.discussionPrompt ?? null,
+    recapDocumentUrl: week.recapDocumentUrl ?? null,
+    recapDocumentName: week.recapDocumentName ?? null,
     days: sortedDays.map((day: any) => ({
       id: day.id,
       weekId: day.weekId,
@@ -330,7 +334,7 @@ export const weeksApi = {
     return { week, pendingChanges };
   },
 
-  async update(weekId: number, input: { title?: string | null }): Promise<{ week: Week }> {
+  async update(weekId: number, input: { title?: string | null; recapSummary?: string | null; discussionPrompt?: string | null; recapDocumentUrl?: string | null; recapDocumentName?: string | null }): Promise<{ week: Week }> {
     const { data, error } = await supabase
       .from('Week')
       .update(input)
@@ -2197,7 +2201,12 @@ export const announcementsApi = {
     subject: string,
     body: string,
     sentBy: string,
-    options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null; targetLabelId?: string | null }
+    options?: {
+      scope?: 'ACTIVE_COHORT' | 'ALL_USERS';
+      cohortId?: string | null;
+      targetLabelId?: string | null;
+      home?: { homeUntil: string; linkUrl?: string | null; linkLabel?: string | null } | null;
+    }
   ): Promise<{ sent: number }> {
     const { data, error } = await supabase.functions.invoke('send-announcement', {
       body: {
@@ -2210,7 +2219,22 @@ export const announcementsApi = {
       },
     });
     if (error) throw new Error(error.message);
+    const announcementId = (data as any)?.announcementId as string | undefined;
+    if (options?.home && announcementId) {
+      const { error: homeError } = await supabase.from('Announcement').update({
+        showOnHome: true,
+        homeUntil: options.home.homeUntil,
+        linkUrl: options.home.linkUrl?.trim() || null,
+        linkLabel: options.home.linkUrl?.trim() ? (options.home.linkLabel?.trim() || 'Open') : null,
+      }).eq('id', announcementId);
+      if (homeError) throw new Error(homeError.message);
+    }
     return { sent: (data as any)?.sent ?? 0 };
+  },
+
+  async removeFromHome(announcementId: string): Promise<void> {
+    const { error } = await supabase.from('Announcement').update({ showOnHome: false }).eq('id', announcementId);
+    if (error) throw new Error(error.message);
   },
 
   async delete(announcementId: string): Promise<{ message: string }> {
@@ -2254,6 +2278,10 @@ export const announcementsApi = {
       cohortId: row.cohortId,
       cohortName: row.Cohort?.name || null,
       targetLabelId: row.targetLabelId ?? null,
+      showOnHome: !!row.showOnHome,
+      homeUntil: row.homeUntil ?? null,
+      linkUrl: row.linkUrl ?? null,
+      linkLabel: row.linkLabel ?? null,
     }));
 
     const isGlobal = (row: { scope?: string | null; cohortId?: string | null }) =>
@@ -2403,6 +2431,12 @@ const mapFollowUpContact = (row: any): import('../types').FollowUpContact => ({
   lastContactDate: row.lastContactDate,
   followUpCount: row.followUpCount ?? 0,
   notes: row.notes,
+  email: row.email ?? null,
+  gender: row.gender ?? null,
+  ageRange: row.ageRange ?? null,
+  occupation: row.occupation ?? null,
+  registeredById: row.registeredById ?? null,
+  registeredByName: row.registeredBy?.name ?? null,
   cohortId: row.cohortId,
   cohortName: row.Cohort?.name || null,
   cohortVenue: row.Cohort?.venue || null,
@@ -2413,7 +2447,7 @@ const mapFollowUpContact = (row: any): import('../types').FollowUpContact => ({
   updatedAt: row.updatedAt,
 });
 
-const FOLLOW_UP_SELECT = '*, owner:User!FollowUpContact_ownerId_fkey(id, name), Cohort(name, venue, startDate)';
+const FOLLOW_UP_SELECT = '*, owner:User!FollowUpContact_ownerId_fkey(id, name), registeredBy:User!FollowUpContact_registeredById_fkey(id, name), Cohort(name, venue, startDate)';
 
 export type FollowUpContactInput = import('../types').FollowUpContactUpdate;
 
@@ -3153,6 +3187,8 @@ const mapGroup = (row: any): import('../types').Group => ({
   meetingDay: row.meetingDay ?? null,
   meetingTime: row.meetingTime ?? null,
   meetingDurationMins: row.meetingDurationMins ?? null,
+  callPlatform: row.callPlatform ?? null,
+  callLink: row.callLink ?? null,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
@@ -3468,7 +3504,7 @@ export const groupsApi = {
     return { group };
   },
 
-  async update(groupId: string, input: { name?: string; supportId?: string | null; meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null }): Promise<{ group: import('../types').Group }> {
+  async update(groupId: string, input: { name?: string; supportId?: string | null; meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null; callPlatform?: import('../types').GroupCallPlatform | null; callLink?: string | null }): Promise<{ group: import('../types').Group }> {
     const { data: current } = await supabase
       .from('Group')
       .select(GROUP_SELECT)
@@ -4556,5 +4592,263 @@ export const hubApi = {
     const { data, error } = await supabase.from('HubReply').update({ body, updatedAt: new Date().toISOString() }).eq('id', replyId).select(HUB_REPLY_SELECT).single();
     if (error) throw new Error(error.message);
     return { reply: mapReply(data) };
+  },
+};
+
+// ── Support V2: meeting attendance, flags, checklist, cover requests ──────────
+
+// In-app notification for every admin. Failures are swallowed: alerting must never block the support's action.
+const notifyAdmins = async (title: string, body: string, path: string, type: import('../types').NotificationType) => {
+  try {
+    const { data: admins } = await supabase.from('User').select('id').eq('role', 'ADMIN');
+    const rows = ((admins as Array<{ id: string }>) ?? []).map((admin) => ({ userId: admin.id, title, body, path, type }));
+    if (rows.length > 0) await supabase.from('Notification').insert(rows);
+  } catch { /* non-critical */ }
+};
+
+const notifyUser = async (userId: string, title: string, body: string, path: string, type: import('../types').NotificationType) => {
+  try {
+    await supabase.from('Notification').insert([{ userId, title, body, path, type }]);
+  } catch { /* non-critical */ }
+};
+
+const mapMeetingAttendance = (row: any): import('../types').MeetingAttendance => ({
+  id: row.id,
+  participantId: row.participantId,
+  groupId: row.groupId ?? null,
+  weekId: row.weekId,
+  status: row.status,
+  markedById: row.markedById ?? null,
+  markedAt: row.markedAt,
+});
+
+export const meetingAttendanceApi = {
+  async getForGroupWeek(groupId: string, weekId: number): Promise<{ records: import('../types').MeetingAttendance[] }> {
+    const { data, error } = await supabase.from('MeetingAttendance').select('*').eq('groupId', groupId).eq('weekId', weekId);
+    if (error) throw new Error(error.message);
+    return { records: ((data as any[]) || []).map(mapMeetingAttendance) };
+  },
+
+  async getForWeeks(weekIds: number[]): Promise<{ records: import('../types').MeetingAttendance[] }> {
+    if (weekIds.length === 0) return { records: [] };
+    const { data, error } = await supabase.from('MeetingAttendance').select('*').in('weekId', weekIds);
+    if (error) throw new Error(error.message);
+    return { records: ((data as any[]) || []).map(mapMeetingAttendance) };
+  },
+
+  async mark(input: { participantId: string; groupId: string | null; weekId: number; status: import('../types').MeetingAttendanceStatus; markedById?: string | null }): Promise<{ record: import('../types').MeetingAttendance }> {
+    const { data, error } = await supabase
+      .from('MeetingAttendance')
+      .upsert({ ...input, markedById: input.markedById ?? null, markedAt: new Date().toISOString() }, { onConflict: 'participantId,weekId' })
+      .select('*')
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to save meeting attendance');
+    return { record: mapMeetingAttendance(data) };
+  },
+};
+
+const PARTICIPANT_FLAG_SELECT = '*, participant:Participant(id, fullName), group:Group(id, name), week:Week(weekNumber), raisedBy:User!ParticipantFlag_raisedById_fkey(id, name), clearedBy:User!ParticipantFlag_clearedById_fkey(id, name)';
+
+const mapParticipantFlag = (row: any): import('../types').ParticipantFlag => ({
+  id: row.id,
+  participantId: row.participantId,
+  participantName: row.participant?.fullName ?? null,
+  groupId: row.groupId ?? null,
+  groupName: row.group?.name ?? null,
+  weekId: row.weekId ?? null,
+  weekNumber: row.week?.weekNumber ?? null,
+  reason: row.reason,
+  note: row.note ?? null,
+  raisedById: row.raisedById ?? null,
+  raisedByName: row.raisedBy?.name ?? null,
+  raisedAt: row.raisedAt,
+  clearedById: row.clearedById ?? null,
+  clearedByName: row.clearedBy?.name ?? null,
+  clearedAt: row.clearedAt ?? null,
+});
+
+export const participantFlagsApi = {
+  async getOpenForParticipants(participantIds: string[]): Promise<{ flags: import('../types').ParticipantFlag[] }> {
+    if (participantIds.length === 0) return { flags: [] };
+    const { data, error } = await supabase.from('ParticipantFlag').select(PARTICIPANT_FLAG_SELECT)
+      .in('participantId', participantIds).is('clearedAt', null).order('raisedAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { flags: ((data as any[]) || []).map(mapParticipantFlag) };
+  },
+
+  async getAll(options: { openOnly?: boolean } = {}): Promise<{ flags: import('../types').ParticipantFlag[] }> {
+    let query = supabase.from('ParticipantFlag').select(PARTICIPANT_FLAG_SELECT).order('raisedAt', { ascending: false });
+    if (options.openOnly) query = query.is('clearedAt', null);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return { flags: ((data as any[]) || []).map(mapParticipantFlag) };
+  },
+
+  async raise(input: { participantId: string; participantName: string; groupId?: string | null; weekId?: number | null; reason: string; note?: string | null; raisedById: string; raisedByName: string }): Promise<{ flag: import('../types').ParticipantFlag }> {
+    const { data, error } = await supabase.from('ParticipantFlag')
+      .insert([{
+        participantId: input.participantId,
+        groupId: input.groupId ?? null,
+        weekId: input.weekId ?? null,
+        reason: input.reason.trim(),
+        note: input.note?.trim() || null,
+        raisedById: input.raisedById,
+      }])
+      .select(PARTICIPANT_FLAG_SELECT)
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to flag participant');
+    void notifyAdmins('Participant needs attention', `${input.raisedByName} flagged ${input.participantName}: ${input.reason.trim()}`, '/participants', 'PARTICIPANT_FLAG');
+    return { flag: mapParticipantFlag(data) };
+  },
+
+  async clear(flagId: string, clearedById: string): Promise<{ flag: import('../types').ParticipantFlag }> {
+    const { data, error } = await supabase.from('ParticipantFlag')
+      .update({ clearedAt: new Date().toISOString(), clearedById })
+      .eq('id', flagId)
+      .select(PARTICIPANT_FLAG_SELECT)
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to clear flag');
+    return { flag: mapParticipantFlag(data) };
+  },
+};
+
+const mapChecklistItem = (row: any): import('../types').SupportChecklistItem => ({
+  id: row.id,
+  userId: row.userId,
+  weekId: row.weekId,
+  label: row.label,
+  done: !!row.done,
+  position: row.position ?? 0,
+});
+
+export const supportChecklistApi = {
+  // Returns the support's items for the week, creating the default duties the first time.
+  async getForWeek(userId: string, weekId: number, defaultLabels: string[] = []): Promise<{ items: import('../types').SupportChecklistItem[] }> {
+    const load = async () => {
+      const { data, error } = await supabase.from('SupportChecklistItem').select('*')
+        .eq('userId', userId).eq('weekId', weekId).order('position').order('createdAt');
+      if (error) throw new Error(error.message);
+      return ((data as any[]) || []).map(mapChecklistItem);
+    };
+    const existing = await load();
+    if (existing.length > 0 || defaultLabels.length === 0) return { items: existing };
+    const rows = defaultLabels.map((label, index) => ({ userId, weekId, label, position: index }));
+    const { error } = await supabase.from('SupportChecklistItem').upsert(rows, { onConflict: 'userId,weekId,label', ignoreDuplicates: true });
+    if (error) throw new Error(error.message);
+    return { items: await load() };
+  },
+
+  async add(userId: string, weekId: number, label: string, position: number): Promise<{ item: import('../types').SupportChecklistItem }> {
+    const { data, error } = await supabase.from('SupportChecklistItem')
+      .insert([{ userId, weekId, label: label.trim(), position }]).select('*').single();
+    if (error || !data) throw new Error(error?.code === '23505' ? 'That duty is already on your list.' : (error?.message || 'Failed to add duty'));
+    return { item: mapChecklistItem(data) };
+  },
+
+  async setDone(itemId: string, done: boolean): Promise<{ item: import('../types').SupportChecklistItem }> {
+    const { data, error } = await supabase.from('SupportChecklistItem')
+      .update({ done, updatedAt: new Date().toISOString() }).eq('id', itemId).select('*').single();
+    if (error || !data) throw new Error(error?.message || 'Failed to update duty');
+    return { item: mapChecklistItem(data) };
+  },
+
+  async remove(itemId: string): Promise<void> {
+    const { error } = await supabase.from('SupportChecklistItem').delete().eq('id', itemId);
+    if (error) throw new Error(error.message);
+  },
+};
+
+const COVER_REQUEST_SELECT = '*, support:User!CoverRequest_supportId_fkey(id, name), coverSupport:User!CoverRequest_coverSupportId_fkey(id, name)';
+
+const mapCoverRequest = (row: any): import('../types').CoverRequest => ({
+  id: row.id,
+  supportId: row.supportId,
+  supportName: row.support?.name ?? null,
+  cohortId: row.cohortId ?? null,
+  reason: row.reason,
+  startsAt: row.startsAt,
+  endsAt: row.endsAt,
+  note: row.note ?? null,
+  status: row.status,
+  coverSupportId: row.coverSupportId ?? null,
+  coverSupportName: row.coverSupport?.name ?? null,
+  assignedById: row.assignedById ?? null,
+  assignedAt: row.assignedAt ?? null,
+  createdAt: row.createdAt,
+});
+
+export const coverRequestsApi = {
+  async getMine(supportId: string): Promise<{ requests: import('../types').CoverRequest[] }> {
+    const { data, error } = await supabase.from('CoverRequest').select(COVER_REQUEST_SELECT)
+      .eq('supportId', supportId).order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { requests: ((data as any[]) || []).map(mapCoverRequest) };
+  },
+
+  async getAll(options: { status?: import('../types').CoverRequestStatus } = {}): Promise<{ requests: import('../types').CoverRequest[] }> {
+    let query = supabase.from('CoverRequest').select(COVER_REQUEST_SELECT).order('createdAt', { ascending: false });
+    if (options.status) query = query.eq('status', options.status);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return { requests: ((data as any[]) || []).map(mapCoverRequest) };
+  },
+
+  async create(input: { supportId: string; supportName: string; cohortId?: string | null; reason: string; startsAt: string; endsAt: string; note?: string | null }): Promise<{ request: import('../types').CoverRequest }> {
+    const { data, error } = await supabase.from('CoverRequest')
+      .insert([{
+        supportId: input.supportId,
+        cohortId: input.cohortId ?? null,
+        reason: input.reason.trim(),
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
+        note: input.note?.trim() || null,
+      }])
+      .select(COVER_REQUEST_SELECT)
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to send cover request');
+    void notifyAdmins('Cover request', `${input.supportName} asked for cover: ${input.reason.trim()}`, '/approvals', 'COVER_REQUEST');
+    return { request: mapCoverRequest(data) };
+  },
+
+  // Covers a support is running right now (ASSIGNED and the current time is inside the period).
+  async getActiveForCover(coverSupportId: string): Promise<{ requests: import('../types').CoverRequest[] }> {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase.from('CoverRequest').select(COVER_REQUEST_SELECT)
+      .eq('coverSupportId', coverSupportId).eq('status', 'ASSIGNED').lte('startsAt', now).gte('endsAt', now);
+    if (error) throw new Error(error.message);
+    return { requests: ((data as any[]) || []).map(mapCoverRequest) };
+  },
+
+  async assign(requestId: string, coverSupportId: string, assignedById: string): Promise<{ request: import('../types').CoverRequest }> {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase.from('CoverRequest')
+      .update({ status: 'ASSIGNED', coverSupportId, assignedById, assignedAt: now, updatedAt: now })
+      .eq('id', requestId)
+      .select(COVER_REQUEST_SELECT)
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to assign cover');
+    const request = mapCoverRequest(data);
+    const period = `${new Date(request.startsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${new Date(request.endsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+    void notifyUser(request.supportId, 'Cover arranged', `${request.coverSupportName || 'A support'} will cover your group (${period}).`, '/support/schedule?tab=cover', 'COVER_REQUEST');
+    void notifyUser(coverSupportId, 'You are covering a group', `You are covering for ${request.supportName || 'a support'} (${period}). Their group shows in My Group during that time.`, '/support/participants', 'COVER_REQUEST');
+    return { request };
+  },
+};
+
+// Weekly recap document (usually a PDF). Stored in the shared resources bucket under recaps/.
+export const recapDocumentsApi = {
+  async upload(weekId: number, file: File): Promise<{ url: string; name: string }> {
+    const path = `recaps/week-${weekId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const { error: uploadError } = await supabase.storage.from('resources').upload(path, file, { upsert: false, contentType: file.type || undefined });
+    if (uploadError) throw new Error(uploadError.message);
+    const { data } = supabase.storage.from('resources').getPublicUrl(path);
+    const { error } = await supabase.from('Week').update({ recapDocumentUrl: data.publicUrl, recapDocumentName: file.name }).eq('id', weekId);
+    if (error) throw new Error(error.message);
+    return { url: data.publicUrl, name: file.name };
+  },
+
+  async remove(weekId: number): Promise<void> {
+    const { error } = await supabase.from('Week').update({ recapDocumentUrl: null, recapDocumentName: null }).eq('id', weekId);
+    if (error) throw new Error(error.message);
   },
 };

@@ -117,7 +117,7 @@ const SupportMobilisationPage: React.FC = () => {
       ]);
       const issuesRes = await followUpIssuesApi.getAll();
       setContacts(sortByText(contactsRes.contacts, (contact) => contact.fullName));
-      setMyLeads(allRes.contacts.filter((contact) => contact.source === `Registered by ${user.name}`));
+      setMyLeads(allRes.contacts.filter((contact) => contact.registeredById === user.id || contact.source === `Registered by ${user.name}`));
       setIssues(issuesRes.issues);
       setTemplates(sortByText(templatesRes.templates, (template) => template.useCase));
       setRegistrationLink(linkRes.url);
@@ -210,13 +210,6 @@ const SupportMobilisationPage: React.FC = () => {
     const duplicate = [...myLeads, ...contacts].find((contact) => normalizeToIntlPhone(contact.phone) === normalized);
     if (duplicate) { setLeadError(`This number already belongs to ${duplicate.fullName}.`); return; }
 
-    const details = [
-      lead.email.trim() && `Email: ${lead.email.trim()}`,
-      lead.gender && `Gender: ${lead.gender}`,
-      lead.age && `Age range: ${lead.age}`,
-      lead.occupation.trim() && `Occupation: ${lead.occupation.trim()}`,
-    ].filter(Boolean).join('\n');
-    const notes = [details, lead.note.trim()].filter(Boolean).join('\n\n') || null;
     const fullName = `${lead.first.trim()} ${lead.last.trim()}`.trim();
 
     setLeadSaving(true);
@@ -227,7 +220,12 @@ const SupportMobilisationPage: React.FC = () => {
         source: leadSource,
         cohortId: activeCohort?.id ?? null,
         followUpCount: 0,
-        notes,
+        email: lead.email.trim() || null,
+        gender: lead.gender || null,
+        ageRange: lead.age || null,
+        occupation: lead.occupation.trim() || null,
+        registeredById: user.id,
+        notes: lead.note.trim() || null,
       });
       setMyLeads((prev) => [contact, ...prev]);
       setLead(EMPTY_LEAD);

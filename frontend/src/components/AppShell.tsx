@@ -133,7 +133,7 @@ const supportNav: NavItem[] = [
   { to: '/support/mobilisation', label: 'Mobilisation', icon: ICONS.mobilisation },
   { to: '/support/schedule', label: 'My Schedule', mobileLabel: 'Schedule', icon: ICONS.schedule },
   { to: '/support/participants', label: 'My Group', mobileLabel: 'Group', icon: ICONS.participants },
-  { to: '/support/onboarding', label: 'Onboard', icon: ICONS.onboarding, mobileHidden: true },
+  { to: '/support/onboarding', label: 'Onboard', icon: ICONS.onboarding, mobileMore: true },
   { to: '/support/hub', label: 'Hub', icon: ICONS.hub, mobileMore: true },
   { to: '/support/resources', label: 'Resources', icon: ICONS.resources, mobileMore: true },
   { to: '/support/profile', label: 'Profile', icon: ICONS.profile, mobileMore: true },

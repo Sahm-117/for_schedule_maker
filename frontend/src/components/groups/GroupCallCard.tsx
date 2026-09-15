@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import GroupMeetingSlotEditor, { type MeetingSlot } from '../GroupMeetingSlotEditor';
 import InfoTip from '../InfoTip';
-import { groupsApi, usersApi } from '../../services/api';
-import type { Group } from '../../types';
+import { groupsApi } from '../../services/api';
+import type { Group, GroupCallPlatform } from '../../types';
 
-type Platform = 'WHATSAPP' | 'GOOGLE_MEET';
-
-const platformFromLink = (link: string | null | undefined): Platform | null => {
+const platformFromLink = (link: string | null | undefined): GroupCallPlatform | null => {
   if (!link?.trim()) return null;
   return /meet\.google\.com/i.test(link) ? 'GOOGLE_MEET' : 'WHATSAPP';
 };
@@ -24,23 +22,24 @@ export const formatMeetingSlot = (day?: string | null, time?: string | null, dur
 
 interface GroupCallCardProps {
   group: Group | null;
-  userId: string;
-  callLink: string | null;
+  // Shown until the group has its own link (older groups used the support's WhatsApp group link).
+  fallbackLink: string | null;
   onGroupUpdated: (group: Group) => void;
-  onLinkSaved: (link: string | null) => void;
 }
 
-// Recurring group call: platform + link (stored as the support's WhatsApp group link) + the group's meeting slot.
-const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, userId, callLink, onGroupUpdated, onLinkSaved }) => {
+// Recurring group call: platform, link and meeting slot, all stored on the group.
+const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGroupUpdated }) => {
+  const callLink = group?.callLink?.trim() || fallbackLink?.trim() || null;
   const savedSlot: MeetingSlot = {
     meetingDay: group?.meetingDay ?? null,
     meetingTime: group?.meetingTime ?? null,
     meetingDurationMins: group?.meetingDurationMins ?? null,
   };
-  const hasSetup = !!callLink?.trim() || !!savedSlot.meetingDay;
+  const hasSetup = !!callLink || !!savedSlot.meetingDay;
+  const savedPlatform: GroupCallPlatform = group?.callPlatform ?? platformFromLink(callLink) ?? 'WHATSAPP';
 
   const [editing, setEditing] = useState(!hasSetup);
-  const [platform, setPlatform] = useState<Platform>(platformFromLink(callLink) ?? 'WHATSAPP');
+  const [platform, setPlatform] = useState<GroupCallPlatform>(savedPlatform);
   const [linkDraft, setLinkDraft] = useState(callLink ?? '');
   const [slotDraft, setSlotDraft] = useState<MeetingSlot>(savedSlot);
   const [saving, setSaving] = useState(false);
@@ -56,25 +55,26 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, userId, callLink, 
 
   const startEditing = () => {
     setLinkDraft(callLink ?? '');
-    setPlatform(platformFromLink(callLink) ?? 'WHATSAPP');
+    setPlatform(savedPlatform);
     setSlotDraft(savedSlot);
     setError('');
     setEditing(true);
   };
 
   const save = async () => {
+    if (!group) {
+      setError('Your group is not set up yet. Ask an admin to assign you a group.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
-      const trimmed = linkDraft.trim() || null;
-      if (trimmed !== (callLink?.trim() || null)) {
-        await usersApi.saveWhatsappGroupUrl(userId, trimmed);
-        onLinkSaved(trimmed);
-      }
-      if (group) {
-        const { group: updated } = await groupsApi.update(group.id, slotDraft);
-        onGroupUpdated(updated);
-      }
+      const { group: updated } = await groupsApi.update(group.id, {
+        ...slotDraft,
+        callPlatform: platform,
+        callLink: linkDraft.trim() || null,
+      });
+      onGroupUpdated(updated);
       setEditing(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the call schedule.');
@@ -83,7 +83,6 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, userId, callLink, 
     }
   };
 
-  const shownPlatform = platformFromLink(callLink) ?? platform;
   const slotText = formatMeetingSlot(savedSlot.meetingDay, savedSlot.meetingTime, savedSlot.meetingDurationMins);
 
   return (
@@ -96,7 +95,7 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, userId, callLink, 
           <div>
             <span className="mb-2 block text-[13px] font-semibold text-gray-900">Call platform</span>
             <div className="flex gap-2">
-              {([['WHATSAPP', 'WhatsApp'], ['GOOGLE_MEET', 'Google Meet']] as Array<[Platform, string]>).map(([value, label]) => (
+              {([['WHATSAPP', 'WhatsApp'], ['GOOGLE_MEET', 'Google Meet']] as Array<[GroupCallPlatform, string]>).map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
@@ -146,11 +145,11 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, userId, callLink, 
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" /></svg>
           </span>
           <div className="min-w-0 flex-auto overflow-hidden">
-            <p className="text-sm font-bold text-gray-900">{shownPlatform === 'GOOGLE_MEET' ? 'Google Meet' : 'WhatsApp'}</p>
+            <p className="text-sm font-bold text-gray-900">{savedPlatform === 'GOOGLE_MEET' ? 'Google Meet' : 'WhatsApp'}</p>
             <p className="mt-px text-[13px] text-gray-500">{slotText ? `every ${slotText}` : 'Meeting time not set'}</p>
-            <p className="mt-0.5 truncate text-[13px] text-gray-500">{callLink?.trim() || 'No call link yet'}</p>
+            <p className="mt-0.5 truncate text-[13px] text-gray-500">{callLink || 'No call link yet'}</p>
           </div>
-          {callLink?.trim() && (
+          {callLink && (
             <a href={callLink} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[40px] flex-none items-center whitespace-nowrap rounded-[10px] bg-primary px-3 py-2 text-xs font-semibold text-white">
               Join call
             </a>

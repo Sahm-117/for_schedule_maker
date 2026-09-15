@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import type { Resource } from '../types';
 import { downloadFile } from '../utils/download';
+import DocumentViewerSheet from './DocumentViewerSheet';
 import { sortByText } from '../utils/sort';
 
 const LAST_SEEN_KEY = 'fof_resources_last_seen';
@@ -72,6 +73,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
   const { user, isAdmin } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
   const [resources, setResources] = useState<Resource[]>([]);
+  const [viewing, setViewing] = useState<Resource | null>(null);
   const [loading, setLoading] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [addMode, setAddMode] = useState<AddMode>('link');
@@ -378,9 +380,23 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
                 return r.type === 'link' ? (
                   <a key={r.id} href={r.url} target="_blank" rel="noopener noreferrer" className={cardCls}>{inner}</a>
                 ) : (
-                  <button key={r.id} type="button" onClick={() => { void downloadFile(r.url, r.fileName ?? r.title); }} className={cardCls}>{inner}</button>
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => { if (r.type === 'pdf' || r.type === 'image') setViewing(r); else void downloadFile(r.url, r.fileName ?? r.title); }}
+                    className={cardCls}
+                  >
+                    {inner}
+                  </button>
                 );
               })}
+              <DocumentViewerSheet
+                open={!!viewing}
+                url={viewing?.url ?? null}
+                title={viewing?.title ?? ''}
+                fileName={viewing?.fileName}
+                onClose={() => setViewing(null)}
+              />
             </div>
           ) : (
             <div className="space-y-2">

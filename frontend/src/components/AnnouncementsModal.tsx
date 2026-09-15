@@ -4,6 +4,18 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import type { Announcement, Label } from '../types';
 import AppSelect from './AppSelect';
+
+const EXTERNAL_LINK = '__external';
+const HOME_LINK_OPTIONS = [
+  { value: '', label: 'No link' },
+  { value: '/support/participants', label: 'My Group' },
+  { value: '/support/schedule', label: 'My Schedule' },
+  { value: '/support/mobilisation', label: 'Mobilisation' },
+  { value: '/support/resources', label: 'Resources' },
+  { value: '/support/hub', label: 'Hub' },
+  { value: '/support/announcements', label: 'Announcements' },
+  { value: EXTERNAL_LINK, label: 'Web address…' },
+];
 import ConfirmationModal from './ConfirmationModal';
 
 interface AnnouncementsModalProps {
@@ -33,6 +45,12 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   const [body, setBody] = useState('');
   const [scope, setScope] = useState<'ACTIVE_COHORT' | 'ALL_USERS'>('ACTIVE_COHORT');
   const [targetLabelId, setTargetLabelId] = useState(''); // '' = everyone in scope
+  const [showOnHome, setShowOnHome] = useState(false);
+  const [homeUntil, setHomeUntil] = useState('');
+  const [linkTarget, setLinkTarget] = useState('');
+  const [externalUrl, setExternalUrl] = useState('');
+  const [linkLabel, setLinkLabel] = useState('');
+  const [removingHomeId, setRemovingHomeId] = useState<string | null>(null);
   const [labels, setLabels] = useState<Label[]>([]);
   const [sending, setSending] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -98,9 +116,12 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     return [{ value: '', label: 'Everyone in audience' }, ...sorted.map((l) => ({ value: l.id, label: l.name }))];
   }, [labels, activeCohort?.id]);
 
+  const homeLinkUrl = linkTarget === EXTERNAL_LINK ? externalUrl.trim() : linkTarget;
+  const homeInvalid = showOnHome && (!homeUntil || (linkTarget === EXTERNAL_LINK && !/^https?:\/\//i.test(externalUrl.trim())));
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!subject.trim() || !body.trim() || !user) return;
+    if (!subject.trim() || !body.trim() || !user || homeInvalid) return;
     setSending(true);
     setStatus(null);
     try {
@@ -108,12 +129,20 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
         scope,
         cohortId: scope === 'ACTIVE_COHORT' ? activeCohort?.id || null : null,
         targetLabelId: targetLabelId || null,
+        home: showOnHome
+          ? { homeUntil: new Date(`${homeUntil}T23:59:59`).toISOString(), linkUrl: homeLinkUrl || null, linkLabel: linkLabel.trim() || null }
+          : null,
       });
       const targetName = targetLabelId ? labels.find((l) => l.id === targetLabelId)?.name : null;
       setStatus({ type: 'success', message: targetName ? `Sent to ${targetName}.` : `Sent to ${sent} device${sent !== 1 ? 's' : ''}.` });
       setSubject('');
       setBody('');
       setTargetLabelId('');
+      setShowOnHome(false);
+      setHomeUntil('');
+      setLinkTarget('');
+      setExternalUrl('');
+      setLinkLabel('');
       if (onSent) {
         onSent();
       } else {
@@ -151,6 +180,24 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       setStatus({ type: 'error', message: 'Failed to delete announcement. Please try again.' });
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleRemoveFromHome = async (announcement: Announcement) => {
+    setRemovingHomeId(announcement.id);
+    setStatus(null);
+    try {
+      await announcementsApi.removeFromHome(announcement.id);
+      if (onSent) {
+        onSent();
+      } else {
+        setLocalHistory((prev) => prev.map((item) => (item.id === announcement.id ? { ...item, showOnHome: false } : item)));
+      }
+      setStatus({ type: 'success', message: 'Removed from the home screen.' });
+    } catch {
+      setStatus({ type: 'error', message: 'Could not remove it from the home screen. Please try again.' });
+    } finally {
+      setRemovingHomeId(null);
     }
   };
 
@@ -256,9 +303,59 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
               />
             </div>
 
+            <div className="rounded-xl border border-gray-200 p-3">
+              <label className="flex cursor-pointer items-center justify-between gap-3">
+                <span>
+                  <span className="block text-sm font-medium text-gray-700">Show on home screen</span>
+                  <span className="block text-[11px] text-gray-500">Pinned on the support Home until the date you pick.</span>
+                </span>
+                <input type="checkbox" checked={showOnHome} onChange={(e) => setShowOnHome(e.target.checked)} className="h-5 w-5 accent-[var(--color-primary)]" />
+              </label>
+              {showOnHome && (
+                <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Show until</label>
+                    <input
+                      type="date"
+                      value={homeUntil}
+                      min={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setHomeUntil(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Link (optional)</label>
+                    <AppSelect value={linkTarget} onChange={setLinkTarget} options={HOME_LINK_OPTIONS} placeholder="No link" compact />
+                  </div>
+                  {linkTarget === EXTERNAL_LINK && (
+                    <input
+                      type="url"
+                      value={externalUrl}
+                      onChange={(e) => setExternalUrl(e.target.value)}
+                      placeholder="https://"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  )}
+                  {linkTarget && (
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-gray-700">Button text</label>
+                      <input
+                        type="text"
+                        value={linkLabel}
+                        onChange={(e) => setLinkLabel(e.target.value.slice(0, 30))}
+                        placeholder="Open"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <button
               type="submit"
-              disabled={sending || !subject.trim() || !body.trim()}
+              disabled={sending || !subject.trim() || !body.trim() || homeInvalid}
               className="w-full h-11 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {sending ? 'Sending...' : '📢 Send Announcement'}
@@ -312,6 +409,23 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                       </div>
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{a.body}</p>
+                    {a.showOnHome && a.homeUntil && new Date(a.homeUntil).getTime() > Date.now() && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                          On home until {new Date(a.homeUntil).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                        </span>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => { void handleRemoveFromHome(a); }}
+                            disabled={removingHomeId === a.id}
+                            className="text-[11px] font-semibold text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                          >
+                            {removingHomeId === a.id ? 'Removing…' : 'Remove from home'}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {visibleCount < history.length && (

@@ -6,8 +6,9 @@ import AppSelect from '../components/AppSelect';
 import { formatMeetingSlot } from '../components/GroupMeetingSlotEditor';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { groupPrayerFocusApi, groupPrayerStatusApi, groupsApi } from '../services/api';
-import type { Group, GroupPrayerFocus, GroupPrayerStatus, Week } from '../types';
+import ModalShell from '../components/followups/ModalShell';
+import { groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, meetingAttendanceApi } from '../services/api';
+import type { Group, GroupPrayerFocus, GroupPrayerStatus, MeetingAttendance, MeetingAttendanceStatus, Participant, Week } from '../types';
 import { sortByText } from '../utils/sort';
 
 const AdminGroupPrayersPage: React.FC = () => {
@@ -23,6 +24,8 @@ const AdminGroupPrayersPage: React.FC = () => {
   const [focuses, setFocuses] = useState<GroupPrayerFocus[]>([]);
   const [statuses, setStatuses] = useState<GroupPrayerStatus[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [attendance, setAttendance] = useState<MeetingAttendance[]>([]);
+  const [markTarget, setMarkTarget] = useState<{ group: Group; week: Week } | null>(null);
   const [loading, setLoading] = useState(true);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
@@ -31,17 +34,20 @@ const AdminGroupPrayersPage: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [{ groups: gs }, { focuses: fs }, { statuses: ss }] = await Promise.all([
+      const weekIds = (weeks ?? []).filter((w) => w.cohortId === activeCohort.id).map((w) => w.id);
+      const [{ groups: gs }, { focuses: fs }, { statuses: ss }, { records }] = await Promise.all([
         groupsApi.getAll({ cohortId: activeCohort.id }),
         groupPrayerFocusApi.getForCohort(activeCohort.id),
         groupPrayerStatusApi.getForCohort(activeCohort.id),
+        meetingAttendanceApi.getForWeeks(weekIds).catch(() => ({ records: [] as MeetingAttendance[] })),
       ]);
       setGroups(sortByText(gs, (group) => group.name));
       setFocuses(fs);
       setStatuses(ss);
+      setAttendance(records);
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [activeCohort]);
+  }, [activeCohort, weeks]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -61,6 +67,17 @@ const AdminGroupPrayersPage: React.FC = () => {
   }, [focuses]);
 
   const getFocus = (groupId: string, weekId: number) => focusMap.get(`${groupId}:${weekId}`) ?? null;
+
+  // Who joined the group meeting, per group and week.
+  const joinedMap = useMemo(() => {
+    const map = new Map<string, number>();
+    attendance.filter((record) => record.status === 'JOINED' && record.groupId).forEach((record) => {
+      const key = `${record.groupId}:${record.weekId}`;
+      map.set(key, (map.get(key) ?? 0) + 1);
+    });
+    return map;
+  }, [attendance]);
+  const joinedCount = (groupId: string, weekId: number) => joinedMap.get(`${groupId}:${weekId}`) ?? 0;
 
   const visibleGroups = useMemo(
     () => sortByText(selectedGroupId ? groups.filter((g) => g.id === selectedGroupId) : groups, (group) => group.name),
@@ -166,7 +183,12 @@ const AdminGroupPrayersPage: React.FC = () => {
                       const focus = getFocus(g.id, w.id);
                       return (
                         <td key={w.id} className="px-4 py-3 text-center">
-                          <div className="flex min-w-[120px] flex-col items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setMarkTarget({ group: g, week: w })}
+                            title="Open meeting attendance"
+                            className="flex min-w-[120px] w-full flex-col items-center gap-1 rounded-xl px-1 py-1 transition hover:bg-orange-50"
+                          >
                             <span className="text-xs font-semibold text-gray-800">
                               {focus?.participantName || '—'}
                             </span>
@@ -175,7 +197,10 @@ const AdminGroupPrayersPage: React.FC = () => {
                             }`}>
                               {done ? 'Done' : 'Not done'}
                             </span>
-                          </div>
+                            <span className="text-[11px] text-gray-500">
+                              {joinedCount(g.id, w.id)}/{g.participantCount ?? 0} joined
+                            </span>
+                          </button>
                         </td>
                       );
                     })}
@@ -186,7 +211,99 @@ const AdminGroupPrayersPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <MeetingAttendanceModal
+        target={markTarget}
+        records={attendance}
+        onClose={() => setMarkTarget(null)}
+        onMarked={(record) => setAttendance((prev) => [...prev.filter((entry) => !(entry.participantId === record.participantId && entry.weekId === record.weekId)), record])}
+      />
     </div>
+  );
+};
+
+// ── Meeting attendance for one group and week ────────────────────────────────
+// The support marks this in their group meeting; operations can also mark or fix it here.
+
+const MARK_OPTIONS: Array<{ value: MeetingAttendanceStatus; label: string; cls: string }> = [
+  { value: 'JOINED', label: 'Joined', cls: 'bg-emerald-100/80 text-emerald-700' },
+  { value: 'EXCUSED', label: 'Excused', cls: 'bg-amber-100/80 text-amber-700' },
+  { value: 'MISSED', label: 'Missed', cls: 'bg-red-100/80 text-red-700' },
+];
+
+const MeetingAttendanceModal: React.FC<{
+  target: { group: Group; week: Week } | null;
+  records: MeetingAttendance[];
+  onClose: () => void;
+  onMarked: (record: MeetingAttendance) => void;
+}> = ({ target, records, onClose, onMarked }) => {
+  const { user } = useAuth();
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const groupId = target?.group.id;
+
+  useEffect(() => {
+    if (!groupId) { setParticipants([]); return; }
+    setLoading(true);
+    groupsApi.getParticipants(groupId)
+      .then(({ participants: ps }) => setParticipants(sortByText(ps, (participant) => participant.fullName)))
+      .catch(() => setParticipants([]))
+      .finally(() => setLoading(false));
+  }, [groupId]);
+
+  if (!target) return null;
+
+  const statusFor = (participantId: string) =>
+    records.find((record) => record.participantId === participantId && record.weekId === target.week.id)?.status ?? null;
+
+  const mark = async (participantId: string, status: MeetingAttendanceStatus) => {
+    setSavingId(participantId);
+    try {
+      const { record } = await meetingAttendanceApi.mark({ participantId, groupId: target.group.id, weekId: target.week.id, status, markedById: user?.id ?? null });
+      onMarked(record);
+    } catch { /* ignore */ }
+    finally { setSavingId(null); }
+  };
+
+  return (
+    <ModalShell
+      isOpen={!!target}
+      onClose={onClose}
+      title={`${target.group.name} · Week ${target.week.weekNumber}`}
+      subtitle="Who joined the group meeting"
+      footer={<button type="button" onClick={onClose} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white">Close</button>}
+    >
+      {loading ? (
+        <p className="py-6 text-center text-sm text-gray-400">Loading participants…</p>
+      ) : participants.length === 0 ? (
+        <p className="py-6 text-center text-sm text-gray-500">No participants in this group yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {participants.map((participant) => {
+            const status = statusFor(participant.id);
+            return (
+              <div key={participant.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-orange-100 px-3 py-2.5">
+                <p className="min-w-0 flex-1 text-sm font-semibold text-gray-900">{participant.fullName}</p>
+                <div className="flex flex-none gap-1.5">
+                  {MARK_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => void mark(participant.id, option.value)}
+                      disabled={savingId === participant.id}
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold transition disabled:opacity-50 ${status === option.value ? option.cls : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </ModalShell>
   );
 };
 

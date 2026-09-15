@@ -5,7 +5,7 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import PageHeader from '../components/PageHeader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi } from '../services/api';
+import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi } from '../services/api';
 import type { Cohort, FollowUpContact, User, Week } from '../types';
 import { sortByText } from '../utils/sort';
 
@@ -92,6 +92,10 @@ const CohortsPage: React.FC = () => {
   const [weekEditTarget, setWeekEditTarget] = useState<{ cohortId: string; week: Week } | null>(null);
   const [addWeekChoice, setAddWeekChoice] = useState('blank');
   const [weekTitleDraft, setWeekTitleDraft] = useState('');
+  const [recapSummaryDraft, setRecapSummaryDraft] = useState('');
+  const [discussionPromptDraft, setDiscussionPromptDraft] = useState('');
+  const [recapDocUploading, setRecapDocUploading] = useState(false);
+  const [recapDocError, setRecapDocError] = useState('');
 
   const [nextCohortPrompt, setNextCohortPrompt] = useState<{ contacts: FollowUpContact[]; newCohortId: string } | null>(null);
   const [movingNextCohort, setMovingNextCohort] = useState(false);
@@ -352,6 +356,8 @@ const CohortsPage: React.FC = () => {
   const openEditWeekModal = (cohortId: string, week: Week) => {
     setWeekEditTarget({ cohortId, week });
     setWeekTitleDraft(week.title || '');
+    setRecapSummaryDraft(week.recapSummary || '');
+    setDiscussionPromptDraft(week.discussionPrompt || '');
     setStatus('');
   };
 
@@ -399,6 +405,28 @@ const CohortsPage: React.FC = () => {
     }
   };
 
+  // Recap documents save straight away (upload / remove), separate from the text fields.
+  const handleRecapDocument = async (file: File | null) => {
+    if (!weekEditTarget) return;
+    setRecapDocUploading(true);
+    setRecapDocError('');
+    try {
+      if (file) {
+        const { url, name } = await recapDocumentsApi.upload(weekEditTarget.week.id, file);
+        setWeekEditTarget((prev) => (prev ? { ...prev, week: { ...prev.week, recapDocumentUrl: url, recapDocumentName: name } } : prev));
+      } else {
+        await recapDocumentsApi.remove(weekEditTarget.week.id);
+        setWeekEditTarget((prev) => (prev ? { ...prev, week: { ...prev.week, recapDocumentUrl: null, recapDocumentName: null } } : prev));
+      }
+      await syncCohortWeeks(weekEditTarget.cohortId);
+      if (activeCohort?.id === weekEditTarget.cohortId) await reloadWeeks();
+    } catch (error) {
+      setRecapDocError(error instanceof Error ? error.message : 'The recap document could not be saved.');
+    } finally {
+      setRecapDocUploading(false);
+    }
+  };
+
   const handleSaveWeekTitle = async () => {
     if (!weekEditTarget) return;
     setWeekActionPending(true);
@@ -406,6 +434,8 @@ const CohortsPage: React.FC = () => {
     try {
       await weeksApi.update(weekEditTarget.week.id, {
         title: weekTitleDraft.trim() || null,
+        recapSummary: recapSummaryDraft.trim() || null,
+        discussionPrompt: discussionPromptDraft.trim() || null,
       });
       await syncCohortWeeks(weekEditTarget.cohortId);
       if (activeCohort?.id === weekEditTarget.cohortId) {
@@ -413,9 +443,11 @@ const CohortsPage: React.FC = () => {
       }
       setWeekEditTarget(null);
       setWeekTitleDraft('');
-      setStatus(`Week ${weekEditTarget.week.weekNumber} title updated.`);
+      setRecapSummaryDraft('');
+      setDiscussionPromptDraft('');
+      setStatus(`Week ${weekEditTarget.week.weekNumber} updated.`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Failed to update week title.');
+      setStatus(error instanceof Error ? error.message : 'Failed to update the week.');
     } finally {
       setWeekActionPending(false);
     }
@@ -1017,12 +1049,14 @@ const CohortsPage: React.FC = () => {
 
       <ModalShell
         isOpen={!!weekEditTarget}
-        title={weekEditTarget ? `Week ${weekEditTarget.week.weekNumber} title` : 'Week title'}
-        subtitle="Set the short class title used on the support dashboard."
+        title={weekEditTarget ? `Week ${weekEditTarget.week.weekNumber}` : 'Week'}
+        subtitle="Class title and the recap supports use in their group meeting."
         onClose={() => {
           if (weekActionPending) return;
           setWeekEditTarget(null);
           setWeekTitleDraft('');
+          setRecapSummaryDraft('');
+          setDiscussionPromptDraft('');
         }}
       >
         <div className="space-y-4">
@@ -1036,10 +1070,55 @@ const CohortsPage: React.FC = () => {
               maxLength={60}
               className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
             />
+            <p className="mt-1.5 text-xs text-gray-500">Shows on the support Home “Next class” card and as the recap heading.</p>
           </div>
 
-          <div className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3 text-sm text-gray-600">
-            This title powers the support dashboard’s “Next class” card for this week.
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Recap document</label>
+            {weekEditTarget?.week.recapDocumentUrl ? (
+              <div className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3">
+                <span className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-red-50 text-[10px] font-bold text-red-600">PDF</span>
+                <a href={weekEditTarget.week.recapDocumentUrl} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900 hover:text-primary">
+                  {weekEditTarget.week.recapDocumentName || 'Recap document'}
+                </a>
+                <label className={`flex-none cursor-pointer text-xs font-semibold text-primary ${recapDocUploading ? 'pointer-events-none opacity-50' : ''}`}>
+                  Replace
+                  <input type="file" accept=".pdf,image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleRecapDocument(file); }} />
+                </label>
+                <button type="button" onClick={() => void handleRecapDocument(null)} disabled={recapDocUploading} className="flex-none text-xs font-semibold text-red-700 disabled:opacity-50">
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <label className={`flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-300 px-4 py-4 text-sm font-semibold text-gray-600 hover:border-primary hover:text-primary ${recapDocUploading ? 'pointer-events-none opacity-50' : ''}`}>
+                {recapDocUploading ? 'Uploading…' : 'Upload recap document (PDF)'}
+                <input type="file" accept=".pdf,image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleRecapDocument(file); }} />
+              </label>
+            )}
+            {recapDocError && <p className="mt-1.5 text-xs text-red-700">{recapDocError}</p>}
+            <p className="mt-1.5 text-xs text-gray-500">Supports open it inside the app in step 3 of their group meeting. Saves as soon as you upload.</p>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Recap summary (optional)</label>
+            <textarea
+              value={recapSummaryDraft}
+              onChange={(event) => setRecapSummaryDraft(event.target.value)}
+              placeholder="A short summary of what this week's class covered."
+              rows={3}
+              className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Discussion prompt (optional)</label>
+            <textarea
+              value={discussionPromptDraft}
+              onChange={(event) => setDiscussionPromptDraft(event.target.value)}
+              placeholder="A question or action for the group to talk through."
+              rows={2}
+              className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
+            />
           </div>
 
           <div className="flex justify-end gap-2">
@@ -1048,6 +1127,8 @@ const CohortsPage: React.FC = () => {
               onClick={() => {
                 setWeekEditTarget(null);
                 setWeekTitleDraft('');
+                setRecapSummaryDraft('');
+                setDiscussionPromptDraft('');
               }}
               disabled={weekActionPending}
               className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
@@ -1060,7 +1141,7 @@ const CohortsPage: React.FC = () => {
               disabled={weekActionPending}
               className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
             >
-              {weekActionPending ? 'Saving...' : 'Save Title'}
+              {weekActionPending ? 'Saving...' : 'Save week'}
             </button>
           </div>
         </div>
@@ -1272,10 +1353,23 @@ const WeekChipRow: React.FC<{
               }
             }}
             className="inline-flex h-9 min-w-[112px] cursor-pointer items-center justify-between gap-2 rounded-2xl border border-orange-100 bg-white px-3 text-xs font-semibold text-gray-700 shadow-sm hover:bg-orange-50"
-            title={week.title ? `Week ${week.weekNumber}: ${week.title}` : `Set title for Week ${week.weekNumber}`}
+            title={`${week.title ? `Week ${week.weekNumber}: ${week.title}` : `Set title for Week ${week.weekNumber}`}${week.recapDocumentUrl ? ' · Recap added' : ''}`}
           >
-            <span className="min-w-0 truncate text-left">
-              {week.title?.trim() ? `W${week.weekNumber}: ${week.title}` : `Week ${week.weekNumber}`}
+            <span className="flex min-w-0 items-center gap-1.5">
+              {week.recapDocumentUrl && (
+                <span
+                  className="grid h-4 w-4 flex-none place-items-center rounded-full bg-emerald-100 text-emerald-700"
+                  title="Recap added"
+                  aria-label="Recap added"
+                >
+                  <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.5" d="m5 13 4 4L19 7" />
+                  </svg>
+                </span>
+              )}
+              <span className="min-w-0 truncate text-left">
+                {week.title?.trim() ? `W${week.weekNumber}: ${week.title}` : `Week ${week.weekNumber}`}
+              </span>
             </span>
             <button
               type="button"

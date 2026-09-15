@@ -11,26 +11,8 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import {
-  faithProjectsApi,
-  groupOnboardingStatusApi,
-  groupPrayerFocusApi,
-  groupPrayerStatusApi,
-  groupsApi,
-  participantHandoversApi,
-  participantNotesApi,
-  participantsApi,
-} from '../services/api';
-import type {
-  FaithProject,
-  Group,
-  GroupOnboardingStatus,
-  GroupPrayerFocus,
-  GroupPrayerStatus,
-  Participant,
-  ParticipantHandover,
-  ParticipantNote,
-} from '../types';
+import { faithProjectsApi, groupOnboardingStatusApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, participantsApi, coverRequestsApi } from '../services/api';
+import type { FaithProject, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, CoverRequest } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 
@@ -51,7 +33,7 @@ const virtualGroupStatus = (groupId: string, groupName: string | null | undefine
 });
 
 const SupportParticipantsPage: React.FC = () => {
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const { activeCohort, weeks } = useAppData();
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [groupStatuses, setGroupStatuses] = useState<GroupOnboardingStatus[]>([]);
@@ -61,6 +43,8 @@ const SupportParticipantsPage: React.FC = () => {
   const [groupPrayerStatuses, setGroupPrayerStatuses] = useState<GroupPrayerStatus[]>([]);
   const [participantNotes, setParticipantNotes] = useState<ParticipantNote[]>([]);
   const [participantHandovers, setParticipantHandovers] = useState<ParticipantHandover[]>([]);
+  const [flags, setFlags] = useState<ParticipantFlag[]>([]);
+  const [covers, setCovers] = useState<CoverRequest[]>([]);
   const [noteParticipant, setNoteParticipant] = useState<Participant | null>(null);
   const [noteBody, setNoteBody] = useState('');
   const [savingNote, setSavingNote] = useState(false);
@@ -143,15 +127,28 @@ const SupportParticipantsPage: React.FC = () => {
         }
       }
 
+      // Groups this support is covering right now (only inside the cover period).
+      const activeCovers = await coverRequestsApi.getActiveForCover(user.id).then((res) => res.requests).catch(() => [] as CoverRequest[]);
+      const coveredGroups = groupsRes.groups.filter((group) => group.supportId !== user.id && activeCovers.some((cover) => cover.supportId === group.supportId));
+      const coveredParticipantLists = await Promise.all(coveredGroups.map((group) =>
+        groupsApi.getParticipants(group.id)
+          .then((res) => res.participants.map((participant) => ({ ...participant, groupId: group.id, groupName: participant.groupName ?? group.name })))
+          .catch(() => [] as Participant[])
+      ));
+      const coveredParticipants = coveredParticipantLists.flat();
+
       const participantIds = participantsRes.participants.map((participant) => participant.id);
-      const [notesRes, handoversRes] = await Promise.all([
+      const [notesRes, handoversRes, flagsRes] = await Promise.all([
         participantNotesApi.getForParticipants(participantIds).catch(() => ({ notes: [] as ParticipantNote[] })),
         participantHandoversApi.getForParticipants(participantIds).catch(() => ({ handovers: [] as ParticipantHandover[] })),
+        participantFlagsApi.getOpenForParticipants(participantIds).catch(() => ({ flags: [] as ParticipantFlag[] })),
       ]);
 
-      setParticipants(sortByText(participantsRes.participants, (participant) => participant.fullName));
+      setParticipants(sortByText([...participantsRes.participants, ...coveredParticipants], (participant) => participant.fullName));
+      setCovers(activeCovers);
       setParticipantNotes(notesRes.notes);
       setParticipantHandovers(handoversRes.handovers);
+      setFlags(flagsRes.flags);
       const fallbackGroups = new Map<string, GroupOnboardingStatus>();
       participantsRes.participants.forEach((participant) => {
         if (!participant.groupId || fallbackGroups.has(participant.groupId)) return;
@@ -159,8 +156,10 @@ const SupportParticipantsPage: React.FC = () => {
         fallbackGroups.set(participant.groupId, virtualGroupStatus(participant.groupId, participant.groupName, count));
       });
       groupStatusRes.statuses.forEach((status) => fallbackGroups.set(status.groupId, status));
-      setGroupStatuses(sortByText(Array.from(fallbackGroups.values()), (status) => status.groupName));
-      setGroups(groupsRes.groups.filter((g) => g.supportId === user.id));
+      const ownStatuses = sortByText(Array.from(fallbackGroups.values()), (status) => status.groupName);
+      const coveredStatuses = coveredGroups.map((group, index) => virtualGroupStatus(group.id, `${group.name} (covering)`, coveredParticipantLists[index].length));
+      setGroupStatuses([...ownStatuses, ...coveredStatuses]);
+      setGroups(groupsRes.groups.filter((g) => g.supportId === user.id || coveredGroups.some((covered) => covered.id === g.id)));
       setFaithProjects(sortByText(faithRes.projects, (project) => project.title || project.participantName));
       setGroupPrayerFocuses(prayerFocusRes.focuses);
       setGroupPrayerStatuses(prayerStatusRes.statuses);
@@ -168,6 +167,7 @@ const SupportParticipantsPage: React.FC = () => {
       const availableGroupIds = Array.from(new Set([
         ...groupStatusRes.statuses.map((status) => status.groupId),
         ...participantsRes.participants.map((participant) => participant.groupId).filter(Boolean) as string[],
+        ...coveredGroups.map((group) => group.id),
       ]));
       setSelectedGroupId((current) => (current && availableGroupIds.includes(current) ? current : (availableGroupIds[0] ?? '')));
     } catch (err: any) {
@@ -226,6 +226,15 @@ const SupportParticipantsPage: React.FC = () => {
     () => groups.find((g) => g.id === selectedGroupId) ?? null,
     [groups, selectedGroupId]
   );
+
+  // A covered group belongs to another support: the covering support can only mark attendance there.
+  const coveringFor = selectedGroupData && selectedGroupData.supportId !== user.id
+    ? covers.find((cover) => cover.supportId === selectedGroupData.supportId) ?? null
+    : null;
+
+  useEffect(() => {
+    if (coveringFor && activeTab === 'faith') setActiveTab('prayers');
+  }, [coveringFor, activeTab]);
 
   const selectedWeek = cohortWeeks.find((week) => week.id === selectedWeekId) ?? null;
   const currentPrayerFocus = groupPrayerFocuses.find((focus) => focus.groupId === selectedGroupId && focus.weekId === selectedWeekId) ?? null;
@@ -353,10 +362,16 @@ const SupportParticipantsPage: React.FC = () => {
               )}
             </div>
 
+            {coveringFor && (
+              <p className="rounded-xl bg-sky-100/80 px-3.5 py-2.5 text-[13px] font-semibold text-sky-700">
+                Covering for {coveringFor.supportName || 'another support'} until {new Date(coveringFor.endsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}. You can mark attendance for this group.
+              </p>
+            )}
+
             <div>
               <SegmentedTabs
                 tabs={[
-                  { key: 'faith', label: 'Participants', shortLabel: 'People' },
+                  ...(coveringFor ? [] : [{ key: 'faith', label: 'Participants', shortLabel: 'People' }]),
                   { key: 'prayers', label: 'Group meetings', shortLabel: 'Meetings' },
                   { key: 'sunday', label: 'Sunday class', shortLabel: 'Sunday' },
                 ]}
@@ -368,7 +383,8 @@ const SupportParticipantsPage: React.FC = () => {
 
           {activeTab === 'sunday' ? (
             <SundayClassPanel
-              supportId={user.id}
+              supportId={coveringFor ? (selectedGroupData?.supportId ?? user.id) : user.id}
+              markedById={user.id}
               participants={selectedParticipants}
               weeks={cohortWeeks}
               weekId={selectedWeekId}
@@ -382,10 +398,8 @@ const SupportParticipantsPage: React.FC = () => {
             <div className="space-y-3">
             <GroupCallCard
               group={selectedGroupData}
-              userId={user.id}
-              callLink={user.whatsappGroupUrl ?? null}
+              fallbackLink={user.whatsappGroupUrl ?? null}
               onGroupUpdated={(updated) => setGroups((prev) => prev.map((g) => g.id === updated.id ? updated : g))}
-              onLinkSaved={(link) => refreshUser({ whatsappGroupUrl: link })}
             />
             {selectedParticipants.length === 0 ? (
               <div className="rounded-[18px] border border-dashed border-orange-200 bg-white py-12 text-center text-sm text-gray-500">
@@ -399,7 +413,7 @@ const SupportParticipantsPage: React.FC = () => {
                 project={faithProjects.find((entry) => entry.participantId === participant.id) ?? null}
                 notes={participantNotes.filter((entry) => entry.participantId === participant.id)}
                 handovers={participantHandovers.filter((entry) => entry.participantId === participant.id)}
-                weekNumber={selectedWeek?.weekNumber ?? null}
+                weekId={selectedWeek?.id ?? null}
                 userId={user.id}
                 supportName={user.name}
                 onProjectSaved={(savedProject) => {
@@ -412,6 +426,10 @@ const SupportParticipantsPage: React.FC = () => {
                   setParticipants((prev) => sortByText(prev.map((x) => x.id === updated.id ? { ...x, ...updated } : x), (p) => p.fullName));
                 }}
                 onAddNote={() => { setNoteParticipant(participant); setNoteBody(''); }}
+                onNoteAdded={(note) => setParticipantNotes((prev) => [note, ...prev])}
+                openFlag={flags.find((flag) => flag.participantId === participant.id) ?? null}
+                onFlagRaised={(flag) => setFlags((prev) => [flag, ...prev.filter((entry) => entry.participantId !== flag.participantId)])}
+                onFlagCleared={(flagId) => setFlags((prev) => prev.filter((entry) => entry.id !== flagId))}
               />
             ))}
             </div>
@@ -429,6 +447,12 @@ const SupportParticipantsPage: React.FC = () => {
               submitted={!!currentPrayerStatus?.done}
               onSubmit={handleMeetingSubmit}
               onReopen={() => setPrayerDone(false)}
+              groupId={selectedGroupId || null}
+              userId={user.id}
+              recapSummary={selectedWeek?.recapSummary}
+              discussionPrompt={selectedWeek?.discussionPrompt}
+              recapDocumentUrl={selectedWeek?.recapDocumentUrl}
+              recapDocumentName={selectedWeek?.recapDocumentName}
             />
           )}
         </div>

@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import ModalShell from '../followups/ModalShell';
 import InfoTip from '../InfoTip';
-import { faithProjectsApi, participantsApi } from '../../services/api';
-import type { FaithProject, FaithProjectStatus, Participant, ParticipantHandover, ParticipantNote } from '../../types';
+import { faithProjectsApi, participantFlagsApi, participantNotesApi, participantsApi } from '../../services/api';
+import type { FaithProject, FaithProjectStatus, Participant, ParticipantFlag, ParticipantHandover, ParticipantNote } from '../../types';
 
 // Faith project states mapped onto the V2 design's labels.
 const FP_CHIP: Record<FaithProjectStatus, { label: string; cls: string }> = {
@@ -18,8 +18,7 @@ const CAN_SEND_UP: FaithProjectStatus[] = ['NOT_DRAFTED', 'AWAITING_DRAFT', 'NEE
 
 const CONCERN_REASONS = ['Attendance', 'Engagement', 'Emotional wellbeing', 'Spiritual struggle', 'Other'];
 
-type TrailEntry = { who: string; role: string; at: string; text: string };
-type Flag = { reason: string; note: string };
+type TrailEntry = { key: string; who: string; role: string; at: string; text: string; sortAt: string };
 
 const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
 const formatDate = (iso: string) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(new Date(iso));
@@ -194,12 +193,16 @@ interface ParticipantCardProps {
   project: FaithProject | null;
   notes: ParticipantNote[];
   handovers: ParticipantHandover[];
-  weekNumber: number | null;
+  weekId: number | null;
   userId: string;
   supportName: string;
+  openFlag: ParticipantFlag | null;
   onProjectSaved: (project: FaithProject) => void;
   onParticipantUpdated: (participant: Participant) => void;
   onAddNote: () => void;
+  onNoteAdded: (note: ParticipantNote) => void;
+  onFlagRaised: (flag: ParticipantFlag) => void;
+  onFlagCleared: (flagId: string) => void;
 }
 
 const ParticipantCard: React.FC<ParticipantCardProps> = ({
@@ -208,12 +211,16 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   project,
   notes,
   handovers,
-  weekNumber,
+  weekId,
   userId,
   supportName,
+  openFlag,
   onProjectSaved,
   onParticipantUpdated,
   onAddNote,
+  onNoteAdded,
+  onFlagRaised,
+  onFlagCleared,
 }) => {
   const [menu, setMenu] = useState<'closed' | 'main' | 'concern'>('closed');
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
@@ -223,9 +230,10 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   const [editingName, setEditingName] = useState(false);
   const [fpOpen, setFpOpen] = useState(false);
 
-  // Flags are UI-only until the participant flag table exists.
-  const [flag, setFlag] = useState<Flag | null>(null);
+  const flag = openFlag;
   const [concernOpen, setConcernOpen] = useState(false);
+  const [concernSaving, setConcernSaving] = useState(false);
+  const [concernError, setConcernError] = useState('');
   const [concernReason, setConcernReason] = useState<string | null>(null);
   const [concernOther, setConcernOther] = useState('');
   const [concernNote, setConcernNote] = useState('');
@@ -240,7 +248,14 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
       const rect = menuButtonRef.current?.getBoundingClientRect();
       if (!rect) return;
       const width = 210;
-      setMenuStyle({ position: 'fixed', top: rect.bottom + 6, left: Math.max(12, rect.right - width), width, zIndex: 110 });
+      const left = Math.max(12, rect.right - width);
+      // The concern list is tall: open upwards when there is more room above, and never run off screen.
+      const spaceBelow = window.innerHeight - rect.bottom - 18;
+      const spaceAbove = rect.top - 18;
+      const openUp = spaceBelow < 320 && spaceAbove > spaceBelow;
+      setMenuStyle(openUp
+        ? { position: 'fixed', bottom: window.innerHeight - rect.top + 6, left, width, maxHeight: spaceAbove, overflowY: 'auto', zIndex: 110 }
+        : { position: 'fixed', top: rect.bottom + 6, left, width, maxHeight: spaceBelow, overflowY: 'auto', zIndex: 110 });
     };
     const close = (event: PointerEvent) => {
       if (menuRef.current?.contains(event.target as Node) || menuButtonRef.current?.contains(event.target as Node)) return;
@@ -262,15 +277,46 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
     setConcernOther('');
     setConcernNote('');
     setConcernTouched(false);
+    setConcernError('');
     setMenu('closed');
   };
 
-  const saveConcern = () => {
-    if (!concernReason) return;
+  const saveConcern = async () => {
+    if (!concernReason || concernSaving) return;
     const isOther = concernReason === 'Other';
     if (isOther && !concernOther.trim()) { setConcernTouched(true); return; }
-    setFlag({ reason: isOther ? concernOther.trim() : concernReason, note: concernNote.trim() });
-    setConcernReason(null);
+    setConcernSaving(true);
+    setConcernError('');
+    try {
+      const { flag: saved } = await participantFlagsApi.raise({
+        participantId: participant.id,
+        participantName: participant.fullName,
+        groupId: participant.groupId ?? null,
+        weekId,
+        reason: isOther ? concernOther.trim() : concernReason,
+        note: concernNote.trim() || null,
+        raisedById: userId,
+        raisedByName: supportName,
+      });
+      onFlagRaised(saved);
+      setConcernReason(null);
+    } catch (err) {
+      setConcernError(err instanceof Error ? err.message : 'This flag could not be saved.');
+    } finally {
+      setConcernSaving(false);
+    }
+  };
+
+  const clearFlag = async () => {
+    if (!flag) return;
+    setMenu('closed');
+    try {
+      await participantFlagsApi.clear(flag.id, userId);
+      onFlagCleared(flag.id);
+      setConcernOpen(false);
+    } catch {
+      /* flag stays visible if clearing fails */
+    }
   };
 
   const menuItemCls = 'w-full rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-gray-800 hover:bg-gray-50';
@@ -324,10 +370,9 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         <div className="mt-2.5 rounded-xl border border-[#fde68a] bg-[#fffbeb] px-[13px] py-3">
           <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#92400e]">{flag.reason}</p>
           <p className="mt-1 text-[13px] leading-relaxed text-gray-700">{flag.note || 'No note added.'}</p>
-          <div className="mt-1.5 flex items-center gap-1.5 text-[11.5px] text-gray-400">
-            <span>Flagged by {supportName}{weekNumber ? ` · Week ${weekNumber}` : ''}</span>
-            <InfoTip label="About flags">Flags are not saved yet, so this clears when the page reloads.</InfoTip>
-          </div>
+          <p className="mt-1.5 text-[11.5px] text-gray-400">
+            Flagged by {flag.raisedByName || 'Support'}{flag.weekNumber ? ` · Week ${flag.weekNumber}` : ''}
+          </p>
         </div>
       )}
 
@@ -345,7 +390,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
                 <button key={reason} type="button" className={menuItemCls} onClick={() => openConcern(reason)}>{reason}</button>
               ))}
               {flag && (
-                <button type="button" className="w-full rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-red-700 hover:bg-red-50" onClick={() => { setFlag(null); setConcernOpen(false); setMenu('closed'); }}>
+                <button type="button" className="w-full rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-red-700 hover:bg-red-50" onClick={() => { void clearFlag(); }}>
                   Clear flag
                 </button>
               )}
@@ -364,7 +409,9 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         footer={(
           <>
             <button type="button" onClick={() => setConcernReason(null)} className="min-h-[46px] rounded-xl border border-gray-200 bg-white px-[18px] py-3 text-sm font-semibold text-gray-700">Cancel</button>
-            <button type="button" onClick={saveConcern} className="min-h-[46px] flex-1 rounded-xl bg-primary p-3 text-[15px] font-semibold text-white">Flag concern</button>
+            <button type="button" onClick={() => { void saveConcern(); }} disabled={concernSaving} className="min-h-[46px] flex-1 rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60">
+              {concernSaving ? 'Flagging…' : 'Flag concern'}
+            </button>
           </>
         )}
       >
@@ -377,12 +424,13 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         )}
         <div className="mb-0.5 flex items-center gap-2">
           <span className="text-[13px] font-semibold text-gray-900">Add a note</span>
-          <InfoTip label="About flags">Flagging opens a tracked issue and notifies operations. Flags are not saved yet.</InfoTip>
+          <InfoTip label="About flags">Operations is notified as soon as you flag someone.</InfoTip>
         </div>
         <label className="block">
           <span className="mb-1.5 block text-[12.5px] text-gray-500">Optional. Anything leadership should know.</span>
           <textarea value={concernNote} onChange={(e) => setConcernNote(e.target.value)} rows={4} placeholder="Missed the last four meetings and is not answering calls." className={`${TEXT_INPUT} resize-y`} />
         </label>
+        {concernError && <p className="mt-3 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{concernError}</p>}
       </Sheet>
 
       <Sheet open={viewOpen} onClose={() => setViewOpen(false)} title={participant.fullName} subtitle="Participant details">
@@ -410,7 +458,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
                 ) : (
                   <p className="mt-1 text-xs text-gray-500">No previous support handover recorded yet.</p>
                 )}
-                {notes.slice(0, 3).map((note) => (
+                {notes.filter((note) => note.noteType === 'HANDOVER' || note.noteType === 'MEETING').slice(0, 3).map((note) => (
                   <p key={note.id} className="mt-1 text-xs text-gray-600">{note.noteType === 'MEETING' ? 'Meeting note' : 'Note'} — {note.authorName || 'Support'}: {note.body}</p>
                 ))}
               </div>
@@ -427,11 +475,12 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         onClose={() => setFpOpen(false)}
         participant={participant}
         project={project}
+        notes={notes}
         groupName={groupName}
-        weekNumber={weekNumber}
         userId={userId}
         supportName={supportName}
         onSaved={onProjectSaved}
+        onNoteAdded={onNoteAdded}
       />
 
       <EditNameModal
@@ -448,19 +497,20 @@ const FaithProjectSheet: React.FC<{
   onClose: () => void;
   participant: Participant;
   project: FaithProject | null;
+  notes: ParticipantNote[];
   groupName: string | null;
-  weekNumber: number | null;
   userId: string;
   supportName: string;
   onSaved: (project: FaithProject) => void;
-}> = ({ open, onClose, participant, project, groupName, weekNumber, userId, supportName, onSaved }) => {
+  onNoteAdded: (note: ParticipantNote) => void;
+}> = ({ open, onClose, participant, project, notes, groupName, userId, supportName, onSaved, onNoteAdded }) => {
   const status = project?.status ?? 'NOT_DRAFTED';
   const chip = FP_CHIP[status];
   const editable = CAN_SEND_UP.includes(status);
   const [tab, setTab] = useState<'coach' | 'office'>('coach');
   const [body, setBody] = useState(project?.body ?? '');
   const [note, setNote] = useState('');
-  const [localNotes, setLocalNotes] = useState<Record<'coach' | 'office', TrailEntry[]>>({ coach: [], office: [] });
+  const [noteSaving, setNoteSaving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -472,19 +522,48 @@ const FaithProjectSheet: React.FC<{
     setTab('coach');
   }, [open, project?.body]);
 
-  const officeTrail: TrailEntry[] = (project?.reviewHistory ?? []).map((entry) => ({
-    who: entry.actorName,
-    role: 'Back office',
-    at: formatDate(entry.at),
-    text: entry.note?.trim() || (entry.action === 'APPROVED' ? 'Approved.' : 'Changes requested.'),
-  }));
-  const trail = tab === 'office' ? [...officeTrail, ...localNotes.office] : localNotes.coach;
+  const noteEntry = (entry: ParticipantNote): TrailEntry => ({
+    key: entry.id,
+    who: entry.authorName || 'Support',
+    role: 'Support',
+    at: formatDate(entry.createdAt),
+    text: entry.body,
+    sortAt: entry.createdAt,
+  });
+  const byTime = (a: TrailEntry, b: TrailEntry) => a.sortAt.localeCompare(b.sortAt);
+  const coachTrail = notes.filter((entry) => entry.noteType === 'FAITH_COACH').map(noteEntry).sort(byTime);
+  const officeTrail: TrailEntry[] = [
+    ...(project?.reviewHistory ?? []).map((entry, index) => ({
+      key: `review-${index}`,
+      who: entry.actorName,
+      role: 'Back office',
+      at: formatDate(entry.at),
+      text: entry.note?.trim() || (entry.action === 'APPROVED' ? 'Approved.' : 'Changes requested.'),
+      sortAt: entry.at,
+    })),
+    ...notes.filter((entry) => entry.noteType === 'FAITH_OFFICE').map(noteEntry),
+  ].sort(byTime);
+  const trail = tab === 'office' ? officeTrail : coachTrail;
 
-  const addNote = () => {
-    if (!note.trim()) return;
-    const entry: TrailEntry = { who: supportName, role: 'Support', at: weekNumber ? `Week ${weekNumber}` : 'Now', text: note.trim() };
-    setLocalNotes((prev) => ({ ...prev, [tab]: [...prev[tab], entry] }));
-    setNote('');
+  const addNote = async () => {
+    if (!note.trim() || noteSaving) return;
+    setNoteSaving(true);
+    setError('');
+    try {
+      const { note: saved } = await participantNotesApi.create({
+        participantId: participant.id,
+        body: note.trim(),
+        authorId: userId,
+        groupId: participant.groupId ?? null,
+        noteType: tab === 'office' ? 'FAITH_OFFICE' : 'FAITH_COACH',
+      });
+      onNoteAdded(saved);
+      setNote('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'This note could not be saved.');
+    } finally {
+      setNoteSaving(false);
+    }
   };
 
   const save = async (nextStatus: FaithProjectStatus) => {
@@ -498,7 +577,7 @@ const FaithProjectSheet: React.FC<{
         updatedById: userId,
       });
       onSaved(saved);
-      if (note.trim()) addNote();
+      if (note.trim()) await addNote();
       if (nextStatus === 'UNDER_REFINEMENT') {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
         const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -565,7 +644,6 @@ const FaithProjectSheet: React.FC<{
         {tab === 'office'
           ? 'Only you and the back office see this. The participant never sees these notes.'
           : 'The participant sees everything in this trail.'}
-        {' '}Trail notes are not saved yet.
       </InfoTip>
       </div>
 
@@ -573,8 +651,8 @@ const FaithProjectSheet: React.FC<{
         <p className="px-4 py-6 text-center text-[13.5px] text-gray-400">No notes on this trail yet.</p>
       ) : (
         <div className="mt-3 flex flex-col gap-2.5">
-          {trail.map((entry, index) => (
-            <div key={`${entry.who}-${index}`} className={`rounded-xl px-3.5 py-3 ${entry.role === 'Participant' ? 'bg-[#fff8f3]' : 'bg-[#f6f7f9]'}`}>
+          {trail.map((entry) => (
+            <div key={entry.key} className={`rounded-xl px-3.5 py-3 ${entry.role === 'Participant' ? 'bg-[#fff8f3]' : 'bg-[#f6f7f9]'}`}>
               <div className="flex flex-wrap items-baseline gap-2">
                 <span className="text-[13px] font-bold text-gray-900">{entry.who}</span>
                 <span className="text-[11px] font-semibold text-gray-400">{entry.role}</span>
@@ -593,11 +671,13 @@ const FaithProjectSheet: React.FC<{
       <div className="mt-2 flex items-center gap-3">
         <button
           type="button"
-          onClick={addNote}
-          className={`rounded-xl px-4 py-[11px] text-[13.5px] font-semibold transition ${note.trim() ? 'bg-primary text-white' : 'border border-gray-200 bg-white text-gray-400'}`}
+          onClick={() => { void addNote(); }}
+          disabled={noteSaving}
+          className={`rounded-xl px-4 py-[11px] text-[13.5px] font-semibold transition disabled:opacity-60 ${note.trim() ? 'bg-primary text-white' : 'border border-gray-200 bg-white text-gray-400'}`}
         >
-          Add note
-        </button>      </div>
+          {noteSaving ? 'Saving…' : 'Add note'}
+        </button>
+      </div>
     </Sheet>
   );
 };

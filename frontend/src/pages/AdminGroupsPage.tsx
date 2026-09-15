@@ -4,7 +4,7 @@ import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { groupsApi, participantsApi, usersApi } from '../services/api';
-import type { Group, Participant, User } from '../types';
+import type { Group, Participant, User, GroupCallPlatform } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -36,6 +36,8 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
   const [name, setName] = useState('');
   const [supportId, setSupportId] = useState('');
   const [slot, setSlot] = useState<MeetingSlot>({ meetingDay: null, meetingTime: null, meetingDurationMins: null });
+  const [callPlatform, setCallPlatform] = useState<GroupCallPlatform>('WHATSAPP');
+  const [callLink, setCallLink] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
@@ -48,6 +50,8 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
         meetingTime: existing?.meetingTime ?? null,
         meetingDurationMins: existing?.meetingDurationMins ?? null,
       });
+      setCallPlatform(existing?.callPlatform ?? 'WHATSAPP');
+      setCallLink(existing?.callLink ?? '');
       setErr('');
     }
   }, [isOpen, existing]);
@@ -63,6 +67,8 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
           name: name.trim(),
           supportId: supportId || null,
           ...slot,
+          callPlatform,
+          callLink: callLink.trim() || null,
         }));
       } else {
         ({ group: result } = await groupsApi.create({
@@ -124,6 +130,30 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Weekly meeting slot</label>
           <GroupMeetingSlotEditor value={slot} onChange={setSlot} />
         </div>
+        {existing && (
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Group call</label>
+            <div className="mb-2 grid grid-cols-2 gap-2">
+              {([['WHATSAPP', 'WhatsApp'], ['GOOGLE_MEET', 'Google Meet']] as Array<[GroupCallPlatform, string]>).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setCallPlatform(value)}
+                  className={`rounded-xl border px-3 py-2 text-sm font-semibold ${callPlatform === value ? 'border-primary bg-primary/10 text-primary' : 'border-orange-200 text-gray-600 hover:bg-orange-50'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <input
+              type="url"
+              value={callLink}
+              onChange={(e) => setCallLink(e.target.value)}
+              className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              placeholder="Call link (the support can also set this)"
+            />
+          </div>
+        )}
       </div>
     </ModalShell>
   );

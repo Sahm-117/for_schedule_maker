@@ -4,8 +4,8 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { participantsApi, groupsApi, participantHandoversApi, participantNotesApi } from '../services/api';
-import type { Participant, Group, ParticipantHandover, ParticipantNote } from '../types';
+import { participantsApi, groupsApi, participantHandoversApi, participantNotesApi, participantFlagsApi } from '../services/api';
+import type { Participant, Group, ParticipantHandover, ParticipantNote, ParticipantFlag } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
@@ -661,7 +661,8 @@ const DetailRow: React.FC<{ label: string; children: React.ReactNode }> = ({ lab
   </div>
 );
 
-const ViewDetailsModal: React.FC<{ participant: Participant | null; onClose: () => void }> = ({ participant, onClose }) => {
+const ViewDetailsModal: React.FC<{ participant: Participant | null; flags: ParticipantFlag[]; adminId?: string; onFlagCleared: (flagId: string) => void; onClose: () => void }> = ({ participant, flags, adminId, onFlagCleared, onClose }) => {
+  const [clearingId, setClearingId] = useState<string | null>(null);
   const [handoverNotes, setHandoverNotes] = useState<ParticipantNote[]>([]);
   const [handovers, setHandovers] = useState<ParticipantHandover[]>([]);
   const participantId = participant?.id;
@@ -725,6 +726,38 @@ const ViewDetailsModal: React.FC<{ participant: Participant | null; onClose: () 
         {p.notes && (
           <div className="border-t border-orange-100 pt-4">
             <DetailRow label="Notes"><p className="whitespace-pre-wrap leading-6 text-gray-700">{p.notes}</p></DetailRow>
+          </div>
+        )}
+
+        {flags.length > 0 && (
+          <div className="border-t border-orange-100 pt-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Concerns raised by support</p>
+            <div className="space-y-2">
+              {flags.map((flag) => (
+                <div key={flag.id} className="rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2.5">
+                  <div className="flex items-start gap-2">
+                    <p className="min-w-0 flex-1 text-sm font-semibold text-amber-900">{flag.reason}</p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!adminId) return;
+                        setClearingId(flag.id);
+                        try { await participantFlagsApi.clear(flag.id, adminId); onFlagCleared(flag.id); } catch { /* ignore */ }
+                        finally { setClearingId(null); }
+                      }}
+                      disabled={clearingId === flag.id}
+                      className="flex-none text-xs font-semibold text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                    >
+                      {clearingId === flag.id ? 'Clearing…' : 'Clear'}
+                    </button>
+                  </div>
+                  {flag.note && <p className="mt-1 text-sm text-gray-700">{flag.note}</p>}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Flagged by {flag.raisedByName || 'Support'}{flag.weekNumber ? ` · Week ${flag.weekNumber}` : ''} · {new Date(flag.raisedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -828,7 +861,7 @@ const AssignGroupModal: React.FC<AssignGroupModalProps> = ({ participant, groups
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const AdminParticipantsPage: React.FC = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
 
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -844,6 +877,8 @@ const AdminParticipantsPage: React.FC = () => {
   const [archiveTarget, setArchiveTarget] = useState<Participant | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Participant | null>(null);
   const [viewing, setViewing] = useState<Participant | null>(null);
+  const [flags, setFlags] = useState<ParticipantFlag[]>([]);
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [assigning, setAssigning] = useState<Participant | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
 
@@ -855,10 +890,12 @@ const AdminParticipantsPage: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     if (!silent) setLoading(true);
     try {
-      const [{ participants: ps }, { groups: gs }] = await Promise.all([
+      const [{ participants: ps }, { groups: gs }, { flags: fs }] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true }),
         groupsApi.getAll({ cohortId: activeCohort.id }),
+        participantFlagsApi.getAll({ openOnly: true }).catch(() => ({ flags: [] as ParticipantFlag[] })),
       ]);
+      setFlags(fs);
       const sortedPs = sortByText(ps, (participant) => participant.fullName);
       const sortedGs = sortByText(gs, (group) => group.name);
       if (silent) {
@@ -914,6 +951,17 @@ const AdminParticipantsPage: React.FC = () => {
     return new Set(groups.filter((g) => g.supportId === supportFilter).map((g) => g.id));
   }, [groups, supportFilter]);
 
+  // Open concerns raised by supports, keyed by participant.
+  const flagsByParticipant = useMemo(() => {
+    const map = new Map<string, ParticipantFlag[]>();
+    flags.forEach((flag) => map.set(flag.participantId, [...(map.get(flag.participantId) ?? []), flag]));
+    return map;
+  }, [flags]);
+  const flaggedCount = useMemo(
+    () => participants.filter((p) => p.status === 'ACTIVE' && flagsByParticipant.has(p.id)).length,
+    [participants, flagsByParticipant]
+  );
+
   const displayed = useMemo(() => {
     let ps = showArchived
       ? participants.filter((p) => p.status === 'ARCHIVED')
@@ -925,12 +973,13 @@ const AdminParticipantsPage: React.FC = () => {
     } else if (groupFilter) {
       ps = ps.filter((p) => p.groupId === groupFilter);
     }
+    if (flaggedOnly) ps = ps.filter((p) => flagsByParticipant.has(p.id));
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, showArchived, search, groupFilter, groupIdsForSupport]);
+  }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant]);
 
   const unassignedCount = useMemo(
     () => participants.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
@@ -1023,10 +1072,22 @@ const AdminParticipantsPage: React.FC = () => {
                 </div>
               )}
             </div>
-            <label className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-600">
-              <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="accent-primary" />
-              Show archived
-            </label>
+            <div className="flex items-center gap-3">
+              {flaggedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFlaggedOnly((value) => !value)}
+                  aria-pressed={flaggedOnly}
+                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${flaggedOnly ? 'bg-amber-500 text-white' : 'bg-amber-100/80 text-amber-700'}`}
+                >
+                  Needs attention ({flaggedCount})
+                </button>
+              )}
+              <label className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-600">
+                <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="accent-primary" />
+                Show archived
+              </label>
+            </div>
           </div>
 
           {loading ? (
@@ -1051,7 +1112,19 @@ const AdminParticipantsPage: React.FC = () => {
                 <tbody className="divide-y divide-orange-50">
                   {displayed.map((p) => (
                     <tr key={p.id} className="hover:bg-orange-50/30">
-                      <td className="px-4 py-3 font-medium text-gray-900">{p.fullName}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">
+                        {p.fullName}
+                        {flagsByParticipant.has(p.id) && (
+                          <button
+                            type="button"
+                            onClick={() => setViewing(p)}
+                            title={flagsByParticipant.get(p.id)?.map((flag) => flag.reason).join(', ')}
+                            className="ml-2 inline-flex items-center rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+                          >
+                            ⚠ Needs attention
+                          </button>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-gray-500">{p.phone ?? '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{p.groupName ?? '—'}</td>
                       <td className="px-4 py-3">
@@ -1145,7 +1218,13 @@ const AdminParticipantsPage: React.FC = () => {
         confirmText="Delete permanently"
       />
 
-      <ViewDetailsModal participant={viewing} onClose={() => setViewing(null)} />
+      <ViewDetailsModal
+        participant={viewing}
+        flags={viewing ? flagsByParticipant.get(viewing.id) ?? [] : []}
+        adminId={user?.id}
+        onFlagCleared={(flagId) => setFlags((prev) => prev.filter((flag) => flag.id !== flagId))}
+        onClose={() => setViewing(null)}
+      />
 
       {exportOpen && (
         <ParticipantsExportPopup participants={displayed} cohortName={activeCohort?.name ?? 'Cohort'} onClose={() => setExportOpen(false)} />

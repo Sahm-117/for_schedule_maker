@@ -72,6 +72,8 @@ export const ParticipantNotesModal: React.FC<ParticipantNotesModalProps> = ({ pa
 
 interface SundayClassPanelProps {
   supportId: string;
+  // Who is marking (differs from supportId when a covering support marks another support's group).
+  markedById?: string;
   participants: Participant[];
   weeks: Week[];
   weekId: number | null;
@@ -83,6 +85,7 @@ interface SundayClassPanelProps {
 // Sunday class register for a support's group. Marks save as they are tapped.
 const SundayClassPanel: React.FC<SundayClassPanelProps> = ({
   supportId,
+  markedById,
   participants,
   weeks,
   weekId,
@@ -114,7 +117,7 @@ const SundayClassPanel: React.FC<SundayClassPanelProps> = ({
     if (weekId === null) return;
     setSaving((prev) => new Set(prev).add(participantId));
     try {
-      const { record } = await attendanceApi.mark(participantId, weekId, status, supportId);
+      const { record } = await attendanceApi.mark(participantId, weekId, status, markedById ?? supportId);
       setRecords((prev) => new Map(prev).set(participantId, record));
     } catch { /* ignore */ }
     finally {

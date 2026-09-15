@@ -1,11 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AppSelect from '../AppSelect';
+import DocumentViewerSheet from '../DocumentViewerSheet';
 import InfoTip from '../InfoTip';
+import { meetingAttendanceApi } from '../../services/api';
 import type { FaithProject, Participant, Week } from '../../types';
 
 type MeetingMark = 'JOINED' | 'EXCUSED' | 'MISSED';
 
 const STEPS = ['Attendance', 'Prayer', 'Recap', 'Notes', 'Submit'];
+
+// Trim a typed note down to a readable phrase for the submit summary.
+const shorten = (text: string, max = 60) => {
+  const oneLine = text.replace(/\s+/g, ' ').trim();
+  if (oneLine.length <= max) return oneLine;
+  const cut = oneLine.slice(0, max);
+  const lastSpace = cut.lastIndexOf(' ');
+  return `${(lastSpace > 30 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
+};
 const DONE_STEP = STEPS.length;
 
 const MARK_BUTTONS: Array<{ mark: MeetingMark; label: string; activeCls: string }> = [
@@ -20,6 +31,8 @@ const TEXTAREA = 'w-full resize-y rounded-xl border border-gray-200 px-3.5 py-3 
 const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
 
 interface MeetingModePanelProps {
+  groupId: string | null;
+  userId: string;
   weeks: Week[];
   weekId: number | null;
   onWeekChange: (weekId: number) => void;
@@ -34,10 +47,14 @@ interface MeetingModePanelProps {
   onReopen: () => Promise<void>;
   recapSummary?: string | null;
   discussionPrompt?: string | null;
+  recapDocumentUrl?: string | null;
+  recapDocumentName?: string | null;
 }
 
 // Five-step weekly group meeting flow: Attendance → Prayer → Recap → Notes → Submit.
 const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
+  groupId,
+  userId,
   weeks,
   weekId,
   onWeekChange,
@@ -52,13 +69,17 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
   onReopen,
   recapSummary,
   discussionPrompt,
+  recapDocumentUrl,
+  recapDocumentName,
 }) => {
   const [step, setStep] = useState(submitted ? DONE_STEP : 0);
   const [marks, setMarks] = useState<Record<string, MeetingMark>>({});
   const [summary, setSummary] = useState('');
   const [concern, setConcern] = useState('');
   const [tipOpen, setTipOpen] = useState(false);
+  const [docOpen, setDocOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [markError, setMarkError] = useState('');
 
   // Each week starts its own run through the flow.
   useEffect(() => {
@@ -66,8 +87,37 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
     setMarks({});
     setSummary('');
     setConcern('');
+    setMarkError('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekId]);
+
+  useEffect(() => {
+    if (!groupId || weekId === null) return undefined;
+    let cancelled = false;
+    meetingAttendanceApi.getForGroupWeek(groupId, weekId)
+      .then(({ records }) => {
+        if (!cancelled) setMarks(Object.fromEntries(records.map((record) => [record.participantId, record.status])));
+      })
+      .catch(() => { /* marks stay empty */ });
+    return () => { cancelled = true; };
+  }, [groupId, weekId]);
+
+  const saveMark = async (participantId: string, mark: MeetingMark) => {
+    if (weekId === null) return;
+    const previous = marks[participantId];
+    setMarks((prev) => ({ ...prev, [participantId]: mark }));
+    setMarkError('');
+    try {
+      await meetingAttendanceApi.mark({ participantId, groupId, weekId, status: mark, markedById: userId });
+    } catch (err) {
+      setMarks((prev) => {
+        const next = { ...prev };
+        if (previous) next[participantId] = previous; else delete next[participantId];
+        return next;
+      });
+      setMarkError(err instanceof Error ? err.message : 'That mark could not be saved.');
+    }
+  };
 
   const week = weeks.find((entry) => entry.id === weekId) ?? null;
   const weekLabel = week ? `Week ${week.weekNumber}` : 'This week';
@@ -79,12 +129,30 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
     ? `Nobody marked yet · ${participants.length} in the group.`
     : `${joinedCount} of ${participants.length} here · ${participants.length - markedCount} still unmarked.`;
 
+  // Every part reports what was actually recorded, so the support can check it before submitting.
   const doneSummary = useMemo(() => {
-    const parts = [`${joinedCount} of ${participants.length} attended`];
-    if (focusParticipant) parts.push(`prayer focus on ${focusParticipant.fullName}`);
-    if (concern.trim()) parts.push('one concern raised for follow-up');
+    const excusedCount = Object.values(marks).filter((mark) => mark === 'EXCUSED').length;
+    const missedCount = Object.values(marks).filter((mark) => mark === 'MISSED').length;
+    const unmarked = participants.length - markedCount;
+    const parts: string[] = [];
+
+    if (participants.length === 0) {
+      parts.push('no participants in this group yet');
+    } else if (markedCount === 0) {
+      parts.push('attendance not marked');
+    } else {
+      const counts = [`${joinedCount} of ${participants.length} joined`];
+      if (excusedCount > 0) counts.push(`${excusedCount} excused`);
+      if (missedCount > 0) counts.push(`${missedCount} missed`);
+      if (unmarked > 0) counts.push(`${unmarked} still unmarked`);
+      parts.push(counts.join(', '));
+    }
+
+    parts.push(focusParticipant ? `prayer focus on ${focusParticipant.fullName}` : 'no prayer focus set');
+    if (summary.trim()) parts.push('notes added');
+    if (concern.trim()) parts.push(`flagged for follow-up: “${shorten(concern.trim())}”`);
     return `${parts.join(' · ')}.`;
-  }, [concern, focusParticipant, joinedCount, participants.length]);
+  }, [concern, focusParticipant, joinedCount, markedCount, marks, participants.length, summary]);
 
   const status = submitted
     ? { label: 'Submitted', cls: 'bg-emerald-100/80 text-emerald-700' }
@@ -167,9 +235,6 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
           {tipOpen && (
             <div className="px-3 py-[11px] text-xs leading-relaxed text-gray-500">
               <p>Sunday class attendance is recorded separately. This records who joined the group meeting.</p>
-              <p className="mt-2">
-                <strong className="text-[#c2410c]">Recap documents:</strong> the back office uploads each week’s recap and tags who it is for. Tagged “supports” it stays with the team; tagged “participants” it reaches them straight away.
-              </p>
             </div>
           )}
         </div>
@@ -177,10 +242,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
 
       {step === 0 && (
         <section className={CARD}>
-          <div className="flex items-center gap-2">
-            <h3 className="text-[15px] font-bold text-gray-900">Who joined the meeting?</h3>
-            <InfoTip label="About meeting attendance">Meeting attendance is not saved yet.</InfoTip>
-          </div>
+          <h3 className="text-[15px] font-bold text-gray-900">Who joined the meeting?</h3>
           <p className="mt-0.5 text-[13px] text-gray-500">Tap each person as they join the call.</p>
           {participants.length === 0 ? (
             <div className="mt-3.5 rounded-2xl border border-dashed border-orange-200 py-10 text-center text-sm text-gray-500">No participants are in this group yet.</div>
@@ -195,7 +257,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
                       <button
                         key={mark}
                         type="button"
-                        onClick={() => setMarks((prev) => ({ ...prev, [participant.id]: mark }))}
+                        onClick={() => { void saveMark(participant.id, mark); }}
                         className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${marks[participant.id] === mark ? activeCls : 'bg-[#f4f5f7] text-gray-500 hover:bg-gray-200/70'}`}
                       >
                         {label}
@@ -207,6 +269,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
             </div>
           )}
           <p className="mt-3 text-xs text-gray-500">{attendanceSummary}</p>
+          {markError && <p className="mt-1 text-xs text-red-600">{markError}</p>}
         </section>
       )}
 
@@ -242,14 +305,42 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
       {step === 2 && (
         <section className={CARD}>
           <h3 className="text-[15px] font-bold text-gray-900">{weekLabel} recap</h3>
-          <div className="mt-3 rounded-[14px] bg-[#fff8f3] p-3.5">
-            <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">{week?.title?.trim() || 'Topic not published yet'}</p>
-            <p className="mt-1.5 text-sm leading-normal text-gray-700">{recapSummary?.trim() || 'The programme team has not published this week yet.'}</p>
-          </div>
-          <div className="mt-2.5 rounded-[14px] border border-[#f1f2f5] p-3.5">
-            <p className="text-[13px] font-bold text-gray-900">Discussion prompt</p>
-            <p className="mt-1 text-sm leading-normal text-gray-700">{discussionPrompt?.trim() || 'No discussion prompt set.'}</p>
-          </div>
+          {week?.title?.trim() && <p className="mt-0.5 text-[13px] text-gray-500">{week.title.trim()}</p>}
+          {recapDocumentUrl ? (
+            <div className="mt-3 flex items-center gap-3 rounded-[14px] border border-[#f1f2f5] p-3">
+              <div className="grid h-11 w-11 flex-none place-items-center rounded-xl bg-red-50 text-[10px] font-bold text-red-600">PDF</div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-gray-900">{recapDocumentName || `${weekLabel} recap`}</p>
+                <p className="text-xs text-gray-500">Recap document</p>
+              </div>
+              <button type="button" onClick={() => setDocOpen(true)} className="flex-none rounded-xl bg-primary px-4 py-2 text-[13px] font-semibold text-white">
+                View
+              </button>
+            </div>
+          ) : (
+            <div className="mt-3 rounded-[14px] border border-dashed border-[#e5e7eb] px-3.5 py-6 text-center text-[13px] text-gray-500">
+              Recap not uploaded yet.
+            </div>
+          )}
+          {recapSummary?.trim() && (
+            <div className="mt-2.5 rounded-[14px] bg-[#fff8f3] p-3.5">
+              <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">Summary</p>
+              <p className="mt-1.5 text-sm leading-normal text-gray-700">{recapSummary.trim()}</p>
+            </div>
+          )}
+          {discussionPrompt?.trim() && (
+            <div className="mt-2.5 rounded-[14px] border border-[#f1f2f5] p-3.5">
+              <p className="text-[13px] font-bold text-gray-900">Discussion prompt</p>
+              <p className="mt-1 text-sm leading-normal text-gray-700">{discussionPrompt.trim()}</p>
+            </div>
+          )}
+          <DocumentViewerSheet
+            open={docOpen}
+            url={recapDocumentUrl ?? null}
+            title={`${weekLabel} recap`}
+            fileName={recapDocumentName}
+            onClose={() => setDocOpen(false)}
+          />
         </section>
       )}
 

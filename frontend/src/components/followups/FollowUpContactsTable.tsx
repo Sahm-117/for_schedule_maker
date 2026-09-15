@@ -279,6 +279,9 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                         {contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
                       </div>
                     )}
+                    {contact.registeredByName && (
+                      <p className="mt-0.5 text-[11px] text-gray-400">Registered by {contact.registeredByName}</p>
+                    )}
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
                       {contact.ownerName && (
                         <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
@@ -352,6 +355,9 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                     <p>{contact.phone || 'No phone'}</p>
                     {contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
                   </div>
+                )}
+                {contact.registeredByName && (
+                  <p className="mt-0.5 text-[11px] text-gray-400">Registered by {contact.registeredByName}</p>
                 )}
                 {canAssign && contact.ownerName && (
                   <p className="mt-0.5 text-xs text-gray-500">{contact.ownerName}</p>

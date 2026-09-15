@@ -33,6 +33,11 @@ import {
   participantOnboardingStatusApi as supabaseParticipantOnboardingStatusApi,
   participantNotesApi as supabaseParticipantNotesApi,
   participantHandoversApi as supabaseParticipantHandoversApi,
+  meetingAttendanceApi as supabaseMeetingAttendanceApi,
+  participantFlagsApi as supabaseParticipantFlagsApi,
+  supportChecklistApi as supabaseSupportChecklistApi,
+  coverRequestsApi as supabaseCoverRequestsApi,
+  recapDocumentsApi as supabaseRecapDocumentsApi,
   onboardingEventsApi as supabaseOnboardingEventsApi,
   hubApi as supabaseHubApi,
   setAuthToken as supabaseSetAuthToken,
@@ -442,8 +447,9 @@ export const notificationSettingsApi = USE_SUPABASE ? supabaseNotificationSettin
 };
 
 export const announcementsApi = USE_SUPABASE ? supabaseAnnouncementsApi : {
-  async send(_subject: string, _body: string, _sentBy: string, _options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null }): Promise<{ sent: number }> { return { sent: 0 }; },
+  async send(_subject: string, _body: string, _sentBy: string, _options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null; targetLabelId?: string | null; home?: { homeUntil: string; linkUrl?: string | null; linkLabel?: string | null } | null }): Promise<{ sent: number }> { return { sent: 0 }; },
   async delete(_announcementId: string): Promise<{ message: string }> { return { message: 'Not supported' }; },
+  async removeFromHome(_announcementId: string): Promise<void> {},
   async getHistory(_options?: {
     cohortId?: string | null;
     userId?: string;
@@ -528,6 +534,39 @@ export const participantNotesApi = USE_SUPABASE ? supabaseParticipantNotesApi : 
 
 export const participantHandoversApi = USE_SUPABASE ? supabaseParticipantHandoversApi : {
   async getForParticipants(_participantIds: string[]): Promise<{ handovers: import('../types').ParticipantHandover[] }> { return { handovers: [] }; },
+};
+
+export const meetingAttendanceApi = USE_SUPABASE ? supabaseMeetingAttendanceApi : {
+  async getForGroupWeek(_groupId: string, _weekId: number): Promise<{ records: import('../types').MeetingAttendance[] }> { return { records: [] }; },
+  async getForWeeks(_weekIds: number[]): Promise<{ records: import('../types').MeetingAttendance[] }> { return { records: [] }; },
+  async mark(_input: any): Promise<never> { return peopleUnavailable(); },
+};
+
+export const participantFlagsApi = USE_SUPABASE ? supabaseParticipantFlagsApi : {
+  async getOpenForParticipants(_participantIds: string[]): Promise<{ flags: import('../types').ParticipantFlag[] }> { return { flags: [] }; },
+  async getAll(_options?: { openOnly?: boolean }): Promise<{ flags: import('../types').ParticipantFlag[] }> { return { flags: [] }; },
+  async raise(_input: any): Promise<never> { return peopleUnavailable(); },
+  async clear(_flagId: string, _clearedById: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const supportChecklistApi = USE_SUPABASE ? supabaseSupportChecklistApi : {
+  async getForWeek(_userId: string, _weekId: number, _defaultLabels?: string[]): Promise<{ items: import('../types').SupportChecklistItem[] }> { return { items: [] }; },
+  async add(_userId: string, _weekId: number, _label: string, _position: number): Promise<never> { return peopleUnavailable(); },
+  async setDone(_itemId: string, _done: boolean): Promise<never> { return peopleUnavailable(); },
+  async remove(_itemId: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const coverRequestsApi = USE_SUPABASE ? supabaseCoverRequestsApi : {
+  async getMine(_supportId: string): Promise<{ requests: import('../types').CoverRequest[] }> { return { requests: [] }; },
+  async getAll(_options?: { status?: import('../types').CoverRequestStatus }): Promise<{ requests: import('../types').CoverRequest[] }> { return { requests: [] }; },
+  async create(_input: any): Promise<never> { return peopleUnavailable(); },
+  async getActiveForCover(_coverSupportId: string): Promise<{ requests: import('../types').CoverRequest[] }> { return { requests: [] }; },
+  async assign(_requestId: string, _coverSupportId: string, _assignedById: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const recapDocumentsApi = USE_SUPABASE ? supabaseRecapDocumentsApi : {
+  async upload(_weekId: number, _file: File): Promise<never> { return peopleUnavailable(); },
+  async remove(_weekId: number): Promise<never> { return peopleUnavailable(); },
 };
 
 export const groupPrayersApi = USE_SUPABASE ? supabaseGroupPrayersApi : {

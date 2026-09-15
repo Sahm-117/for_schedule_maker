@@ -6,7 +6,7 @@ import PageHeader from '../components/PageHeader';
 import { PeriodBadge } from '../components/PeriodIcon';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, resourcesApi, supportActivityCompletionsApi, usersApi } from '../services/api';
+import { announcementsApi, coverRequestsApi, resourcesApi, supportActivityCompletionsApi, usersApi } from '../services/api';
 import type { Activity, Announcement, Resource, SupportActivityCompletion, User } from '../types';
 import { sortByText } from '../utils/sort';
 import { formatDateTime } from '../utils/time';
@@ -16,6 +16,13 @@ const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(n
 const AdminDashboardPage: React.FC = () => {
   const { user, isAdmin } = useAuth();
   const { activeCohort, weeks, selectedWeek, globalPendingChanges, realtimeHealthy, newResourceCount, liveRevision } = useAppData();
+  const [pendingCoverCount, setPendingCoverCount] = useState(0);
+
+  useEffect(() => {
+    coverRequestsApi.getAll({ status: 'PENDING' })
+      .then(({ requests }) => setPendingCoverCount(requests.filter((request) => new Date(request.endsAt).getTime() >= Date.now()).length))
+      .catch(() => setPendingCoverCount(0));
+  }, [liveRevision]);
   const [users, setUsers] = useState<User[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -180,6 +187,12 @@ const AdminDashboardPage: React.FC = () => {
               </div>
               <NavLink to="/approvals" className="text-sm font-semibold text-primary hover:text-primary-dark">Review all</NavLink>
             </div>
+            {pendingCoverCount > 0 && (
+              <NavLink to="/approvals" className="mb-3 flex items-center justify-between gap-3 rounded-2xl bg-amber-100/80 px-4 py-3 text-sm font-semibold text-amber-700">
+                <span>{pendingCoverCount} cover request{pendingCoverCount === 1 ? '' : 's'} waiting for a support</span>
+                <span className="flex-none">Assign →</span>
+              </NavLink>
+            )}
             <div className="space-y-3">
               {globalPendingChanges.length === 0 ? (
                 <EmptyState text="No pending changes right now." />

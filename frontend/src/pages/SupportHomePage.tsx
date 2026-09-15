@@ -2,15 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, NavLink } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import ActivityText from '../components/ActivityText';
-import InfoTip from '../components/InfoTip';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, faithProjectsApi, groupsApi, participantsApi, resourcesApi, supportActivityCompletionsApi } from '../services/api';
-import type { Announcement, FaithProject, Group, Participant, SupportActivityCompletion } from '../types';
+import { announcementsApi, faithProjectsApi, groupsApi, participantsApi, resourcesApi, supportActivityCompletionsApi, supportChecklistApi } from '../services/api';
+import type { Announcement, FaithProject, Group, Participant, SupportActivityCompletion, SupportChecklistItem } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
 import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
 import { useWalkthrough } from '../hooks/useWalkthrough';
+import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
 
 type HomeActivity = {
@@ -29,7 +29,7 @@ const PERIOD_LABEL: Record<string, string> = {
   EVENING: 'Evening',
 };
 
-// Weekly checklist is UI-only for now: ticks are not saved until the checklist table is wired.
+// Duties every support starts the week with; each support can edit their own list on My Schedule.
 const DEFAULT_CHECKLIST = [
   'Contact assigned participants',
   'Confirm attendance',
@@ -56,7 +56,9 @@ const SupportHomePage: React.FC = () => {
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
   const [completionSavingIds, setCompletionSavingIds] = useState<number[]>([]);
   const [checklistOpen, setChecklistOpen] = useState(false);
-  const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set());
+  const [checklist, setChecklist] = useState<SupportChecklistItem[]>([]);
+  const [homeAnnouncement, setHomeAnnouncement] = useState<Announcement | null>(null);
+  const autoHide = useChecklistAutoHide();
 
   const wt = useWalkthrough('home');
 
@@ -67,8 +69,12 @@ const SupportHomePage: React.FC = () => {
       userId: user.id,
       isAdmin: false,
       accessibleCohortIds: userCohortIds,
-    }).then((res) => setAnnouncements(res.announcements.slice(0, 3))).catch(() => {});
-  }, [activeCohort?.id, liveRevision, user, userCohortIds]);
+      userLabelIds,
+    }).then((res) => {
+      setAnnouncements(res.announcements.slice(0, 3));
+      setHomeAnnouncement(res.announcements.find((item) => item.showOnHome && item.homeUntil && new Date(item.homeUntil).getTime() > Date.now()) ?? null);
+    }).catch(() => {});
+  }, [activeCohort?.id, liveRevision, user, userCohortIds, userLabelIds]);
 
   useEffect(() => {
     resourcesApi.getAll()
@@ -119,6 +125,15 @@ const SupportHomePage: React.FC = () => {
     return () => { cancelled = true; };
   }, [activeWeekId, user, liveRevision]);
 
+  useEffect(() => {
+    if (!user || activeWeekId === null) { setChecklist([]); return; }
+    let cancelled = false;
+    supportChecklistApi.getForWeek(user.id, activeWeekId, DEFAULT_CHECKLIST)
+      .then(({ items }) => { if (!cancelled) setChecklist(items); })
+      .catch(() => { if (!cancelled) setChecklist([]); });
+    return () => { cancelled = true; };
+  }, [activeWeekId, user, liveRevision]);
+
   if (user?.role !== 'SUPPORT') {
     return <Navigate to="/dashboard" replace />;
   }
@@ -166,6 +181,17 @@ const SupportHomePage: React.FC = () => {
     }
   };
 
+  const toggleChecklistItem = async (item: SupportChecklistItem) => {
+    setChecklist((prev) => prev.map((entry) => entry.id === item.id ? { ...entry, done: !item.done } : entry));
+    if (item.done) autoHide.cancel(item.id); else autoHide.start(item.id);
+    try {
+      await supportChecklistApi.setDone(item.id, !item.done);
+    } catch {
+      autoHide.cancel(item.id);
+      setChecklist((prev) => prev.map((entry) => entry.id === item.id ? { ...entry, done: item.done } : entry));
+    }
+  };
+
   // Next Group Prayer: computed from the group's locked meeting slot
   const myGroup = myGroups[0] ?? null;
   const nextGroupPrayerDisplay = (() => {
@@ -188,8 +214,8 @@ const SupportHomePage: React.FC = () => {
   const currentIdealIndex = cohortWeeks.findIndex((w) => w.weekNumber === currentIdealWeekNumber);
   const nextWeek = currentIdealIndex >= 0 ? cohortWeeks[currentIdealIndex + 1] ?? null : null;
 
-  const checkedCount = checkedItems.size;
-  const checklistPct = Math.round((checkedCount / DEFAULT_CHECKLIST.length) * 100);
+  const checkedCount = checklist.filter((item) => item.done).length;
+  const checklistPct = checklist.length > 0 ? Math.round((checkedCount / checklist.length) * 100) : 0;
   const todayEmptyText = !schedulePublished
     ? 'Schedule not published yet. Check back once your coordinator publishes it.'
     : userLabelIds.length === 0
@@ -227,6 +253,26 @@ const SupportHomePage: React.FC = () => {
               <QuickStat title="Next class" value={nextWeek?.title?.trim() || 'Not set'} detail={nextWeek ? "This week's topic" : 'Programme complete'} to="/support/schedule" tone="blue" />
             </div>
           </section>
+
+          {homeAnnouncement && (
+            <section className="rounded-[18px] border border-[#fecaca] bg-[#fef2f2] px-4 py-3.5">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.04em] text-[#b91c1c]">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="m3 11 18-5v12L3 13v-2ZM11.6 16.8a3 3 0 1 1-5.8-1.6" /></svg>
+                Urgent
+              </div>
+              <p className="mt-1.5 text-[15px] font-bold text-gray-900">{homeAnnouncement.subject}</p>
+              <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-gray-600">{homeAnnouncement.body}</p>
+              {homeAnnouncement.linkUrl && (/^https?:\/\//i.test(homeAnnouncement.linkUrl) ? (
+                <a href={homeAnnouncement.linkUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-[38px] items-center rounded-[10px] bg-[#b91c1c] px-3.5 text-[13px] font-semibold text-white">
+                  {homeAnnouncement.linkLabel || 'Open'}
+                </a>
+              ) : (
+                <NavLink to={homeAnnouncement.linkUrl} className="mt-3 inline-flex min-h-[38px] items-center rounded-[10px] bg-[#b91c1c] px-3.5 text-[13px] font-semibold text-white">
+                  {homeAnnouncement.linkLabel || 'Open'}
+                </NavLink>
+              ))}
+            </section>
+          )}
 
           <NavLink
             to="/support/participants?tab=sunday"
@@ -300,12 +346,10 @@ const SupportHomePage: React.FC = () => {
             >
               <div className="min-w-0">
                 <h2 className="text-[17px] font-bold text-gray-900">Weekly checklist</h2>
-                <p className="mt-0.5 text-[13px] text-gray-500">{checkedCount} of {DEFAULT_CHECKLIST.length} done this week</p>
+                <p className="mt-0.5 text-[13px] text-gray-500">{checkedCount} of {checklist.length} done this week</p>
               </div>
               <span className={`ml-auto flex-none text-[13px] text-gray-400 transition-transform ${checklistOpen ? 'rotate-180' : ''}`}>▾</span>
-            </button>
-            <span className="pb-3 pt-[18px]"><InfoTip label="About the weekly checklist">Ticks are not saved yet.</InfoTip></span>
-            </div>
+            </button>            </div>
             <div className="px-5 pb-4">
               <div className="h-[7px] overflow-hidden rounded-full bg-[#f4f5f7]">
                 <span className="block h-full rounded-full bg-primary transition-all" style={{ width: `${checklistPct}%` }} />
@@ -313,26 +357,30 @@ const SupportHomePage: React.FC = () => {
             </div>
             {checklistOpen && (
               <div className="flex flex-col gap-0.5 px-5 pb-5">
-                {DEFAULT_CHECKLIST.map((label, index) => {
-                  const checked = checkedItems.has(index);
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => setCheckedItems((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(index)) next.delete(index); else next.add(index);
-                        return next;
-                      })}
-                      className="flex w-full items-center gap-[11px] py-2 text-left"
-                    >
-                      <span className={`grid h-[19px] w-[19px] flex-none place-items-center rounded-md border-[1.5px] text-[11px] text-white ${checked ? 'border-primary bg-primary' : 'border-gray-300 bg-white'}`}>
-                        {checked ? '✓' : ''}
-                      </span>
-                      <span className={`text-sm ${checked ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{label}</span>
-                    </button>
-                  );
-                })}
+                {checklist.filter((item) => autoHide.isVisible(item)).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => { void toggleChecklistItem(item); }}
+                    className="flex w-full items-center gap-[11px] py-2 text-left"
+                  >
+                    <span className={`grid h-[19px] w-[19px] flex-none place-items-center rounded-md border-[1.5px] text-[11px] text-white ${item.done ? 'border-primary bg-primary' : 'border-gray-300 bg-white'}`}>
+                      {item.done ? '✓' : ''}
+                    </span>
+                    <span className={`text-sm ${item.done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.label}</span>
+                    {autoHide.countdowns[item.id] !== undefined && <CountdownRing seconds={autoHide.countdowns[item.id]} />}
+                  </button>
+                ))}
+                {checkedCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => autoHide.setShowCompleted((value) => !value)}
+                    aria-pressed={autoHide.showCompleted}
+                    className="mt-1.5 self-start text-xs font-semibold text-primary"
+                  >
+                    {autoHide.showCompleted ? 'Hide completed' : `Show completed (${checkedCount})`}
+                  </button>
+                )}
               </div>
             )}
           </section>

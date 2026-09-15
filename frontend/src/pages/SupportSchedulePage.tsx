@@ -3,14 +3,15 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 import ActivityText from '../components/ActivityText';
 import AppSelect from '../components/AppSelect';
 import SegmentedTabs from '../components/SegmentedTabs';
-import InfoTip from '../components/InfoTip';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { supportActivityCompletionsApi } from '../services/api';
+import { coverRequestsApi, supportActivityCompletionsApi, supportChecklistApi } from '../services/api';
 import { PROGRAM_DAY_ORDER, getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { exportWeekToPDF } from '../utils/pdfExport';
-import type { SupportActivityCompletion } from '../types';
+import type { CoverRequest, CoverRequestStatus, SupportActivityCompletion, SupportChecklistItem } from '../types';
 import { useWalkthrough } from '../hooks/useWalkthrough';
+import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
+import AppDateTimePicker from '../components/AppDateTimePicker';
 import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
 
 type WeeklyTab = 'schedule' | 'checklist' | 'cover';
@@ -18,7 +19,7 @@ type ViewMode = 'today' | 'tomorrow' | 'week';
 
 const PERIOD_LABEL: Record<string, string> = { MORNING: 'Morning', AFTERNOON: 'Afternoon', EVENING: 'Evening' };
 
-// Checklist and cover requests are UI-only until their tables exist.
+// Duties every support starts the week with; each support can edit their own list.
 const DEFAULT_CHECKLIST = [
   'Contact assigned participants',
   'Confirm attendance',
@@ -27,11 +28,14 @@ const DEFAULT_CHECKLIST = [
   'Submit weekly report',
 ];
 
-type ChecklistItem = { id: number; label: string; done: boolean };
-type CoverRequest = { id: number; reason: string; period: string; status: string };
+const COVER_STATUS: Record<CoverRequestStatus, { label: string; cls: string }> = {
+  PENDING: { label: 'Waiting for cover', cls: 'bg-amber-100/80 text-amber-700' },
+  ASSIGNED: { label: 'Covered', cls: 'bg-emerald-100/80 text-emerald-700' },
+};
 
 const CARD = 'rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
 const INPUT = 'w-full rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
+const EMPTY_COVER = { reason: '', from: '', until: '', note: '' };
 
 const formatPeriod = (from: string, until: string) => {
   const fmt = (value: string) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
@@ -52,14 +56,20 @@ const SupportSchedulePage: React.FC = () => {
   const [openDays, setOpenDays] = useState<Record<string, boolean>>(() => ({ [getCurrentProgramDayName()]: true }));
   const [downloading, setDownloading] = useState(false);
 
-  const [checklist, setChecklist] = useState<ChecklistItem[]>(() => DEFAULT_CHECKLIST.map((label, index) => ({ id: index, label, done: false })));
+  const [checklist, setChecklist] = useState<SupportChecklistItem[]>([]);
+  const [checklistLoading, setChecklistLoading] = useState(false);
+  const [checklistError, setChecklistError] = useState('');
   const [editingChecklist, setEditingChecklist] = useState(false);
-  const [hideDone, setHideDone] = useState(false);
+  const autoHide = useChecklistAutoHide();
   const [newDuty, setNewDuty] = useState('');
+  const [addingDuty, setAddingDuty] = useState(false);
 
-  const [cover, setCover] = useState({ reason: '', from: '', until: '', note: '' });
+  const [cover, setCover] = useState(EMPTY_COVER);
   const [coverTouched, setCoverTouched] = useState(false);
   const [coverRequests, setCoverRequests] = useState<CoverRequest[]>([]);
+  const [coverSaving, setCoverSaving] = useState(false);
+  const [coverError, setCoverError] = useState('');
+  const [coverSent, setCoverSent] = useState(false);
 
   const wt = useWalkthrough('schedule');
 
@@ -90,6 +100,30 @@ const SupportSchedulePage: React.FC = () => {
       cancelled = true;
     };
   }, [selectedWeek, user]);
+
+  useEffect(() => {
+    if (!selectedWeek || !user) return;
+    let cancelled = false;
+    setChecklistLoading(true);
+    supportChecklistApi.getForWeek(user.id, selectedWeek.id, DEFAULT_CHECKLIST)
+      .then(({ items }) => {
+        if (!cancelled) { setChecklist(items); setChecklistError(''); }
+      })
+      .catch((error) => {
+        if (!cancelled) setChecklistError(error instanceof Error ? error.message : 'Your checklist could not be loaded right now.');
+      })
+      .finally(() => { if (!cancelled) setChecklistLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedWeek, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    coverRequestsApi.getMine(user.id)
+      .then(({ requests }) => { if (!cancelled) setCoverRequests(requests); })
+      .catch(() => { /* list stays empty */ });
+    return () => { cancelled = true; };
+  }, [user]);
 
   const currentDayName = getCurrentProgramDayName();
   const tomorrowName = PROGRAM_DAY_ORDER[(getProgramDayIndex(currentDayName) + 1) % PROGRAM_DAY_ORDER.length];
@@ -142,11 +176,44 @@ const SupportSchedulePage: React.FC = () => {
   };
 
   const checklistDone = checklist.filter((item) => item.done).length;
-  const addDuty = () => {
+
+  const toggleDuty = async (item: SupportChecklistItem) => {
+    setChecklist((prev) => prev.map((entry) => entry.id === item.id ? { ...entry, done: !item.done } : entry));
+    if (item.done) autoHide.cancel(item.id); else autoHide.start(item.id);
+    try {
+      await supportChecklistApi.setDone(item.id, !item.done);
+    } catch (error) {
+      autoHide.cancel(item.id);
+      setChecklist((prev) => prev.map((entry) => entry.id === item.id ? { ...entry, done: item.done } : entry));
+      setChecklistError(error instanceof Error ? error.message : 'That duty could not be updated.');
+    }
+  };
+
+  const removeDuty = async (item: SupportChecklistItem) => {
+    setChecklist((prev) => prev.filter((entry) => entry.id !== item.id));
+    try {
+      await supportChecklistApi.remove(item.id);
+    } catch (error) {
+      setChecklist((prev) => [...prev, item].sort((a, b) => a.position - b.position));
+      setChecklistError(error instanceof Error ? error.message : 'That duty could not be removed.');
+    }
+  };
+
+  const addDuty = async () => {
     const label = newDuty.trim();
-    if (!label) return;
-    setChecklist((prev) => [...prev, { id: Date.now(), label, done: false }]);
-    setNewDuty('');
+    if (!label || !user || !selectedWeek || addingDuty) return;
+    setAddingDuty(true);
+    try {
+      const position = checklist.reduce((max, entry) => Math.max(max, entry.position), -1) + 1;
+      const { item } = await supportChecklistApi.add(user.id, selectedWeek.id, label, position);
+      setChecklist((prev) => [...prev, item]);
+      setNewDuty('');
+      setChecklistError('');
+    } catch (error) {
+      setChecklistError(error instanceof Error ? error.message : 'That duty could not be added.');
+    } finally {
+      setAddingDuty(false);
+    }
   };
 
   const coverReasonError = coverTouched && !cover.reason.trim() ? 'Give a reason for the cover request.' : '';
@@ -155,11 +222,32 @@ const SupportSchedulePage: React.FC = () => {
     : coverTouched && cover.from && cover.until && cover.until <= cover.from
       ? 'The end has to be after the start.'
       : '';
-  const submitCover = () => {
+
+  const submitCover = async () => {
+    if (!user || coverSaving) return;
+    setCoverSent(false);
     if (!cover.reason.trim() || !cover.from || !cover.until || cover.until <= cover.from) { setCoverTouched(true); return; }
-    setCoverRequests((prev) => [{ id: Date.now(), reason: cover.reason.trim(), period: formatPeriod(cover.from, cover.until), status: 'Pending' }, ...prev]);
-    setCover({ reason: '', from: '', until: '', note: '' });
-    setCoverTouched(false);
+    setCoverSaving(true);
+    setCoverError('');
+    try {
+      const { request } = await coverRequestsApi.create({
+        supportId: user.id,
+        supportName: user.name,
+        cohortId: activeCohort?.id ?? null,
+        reason: cover.reason.trim(),
+        startsAt: new Date(cover.from).toISOString(),
+        endsAt: new Date(cover.until).toISOString(),
+        note: cover.note.trim() || null,
+      });
+      setCoverRequests((prev) => [request, ...prev]);
+      setCover(EMPTY_COVER);
+      setCoverTouched(false);
+      setCoverSent(true);
+    } catch (error) {
+      setCoverError(error instanceof Error ? error.message : 'Your cover request could not be sent.');
+    } finally {
+      setCoverSaving(false);
+    }
   };
 
   const weekOptions = weeks.map((week) => ({
@@ -308,10 +396,7 @@ const SupportSchedulePage: React.FC = () => {
         <section className={`${CARD} p-5`}>
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-gray-900">This week's duties</h2>
-                <InfoTip label="About the checklist">Checklist changes are not saved yet.</InfoTip>
-              </div>
+              <h2 className="text-lg font-bold text-gray-900">This week's duties</h2>
               <p className="text-[13px] text-gray-500">{checklistDone} of {checklist.length} done</p>
             </div>
             <button
@@ -325,46 +410,54 @@ const SupportSchedulePage: React.FC = () => {
           {checklistDone > 0 && (
             <button
               type="button"
-              onClick={() => setHideDone((value) => !value)}
-              aria-pressed={hideDone}
+              onClick={() => autoHide.setShowCompleted((value) => !value)}
+              aria-pressed={autoHide.showCompleted}
               className="mt-2 text-xs font-semibold text-primary"
             >
-              {hideDone ? `Show done (${checklistDone})` : `Hide done (${checklistDone})`}
+              {autoHide.showCompleted ? 'Hide completed' : `Show completed (${checklistDone})`}
             </button>
           )}
+          {checklistError && <p className="mt-3 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{checklistError}</p>}
           {checklist.length > 0 && checklistDone === checklist.length && (
             <div className="mt-3 rounded-xl border border-[#d9f2e2] bg-[#f2fbf5] px-3.5 py-3 text-[13px] font-semibold text-[#15803d]">All duties complete for this week.</div>
           )}
-          <div className="mt-4 flex flex-col gap-2">
-            {checklist.filter((item) => !hideDone || !item.done).map((item) => (
-              <div key={item.id} className="flex items-center gap-3 rounded-[14px] border border-[#f1f2f5] p-[13px]">
-                <button
-                  type="button"
-                  onClick={() => setChecklist((prev) => prev.map((entry) => entry.id === item.id ? { ...entry, done: !entry.done } : entry))}
-                  aria-label={item.done ? `Mark ${item.label} not done` : `Mark ${item.label} done`}
-                  className={`grid h-6 w-6 flex-none place-items-center rounded-lg border text-[13px] font-bold text-white ${item.done ? 'border-primary bg-primary' : 'border-gray-300 bg-white'}`}
-                >
-                  {item.done ? '✓' : ''}
-                </button>
-                <span className={`text-sm font-semibold ${item.done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.label}</span>
-                {editingChecklist && (
-                  <button type="button" onClick={() => setChecklist((prev) => prev.filter((entry) => entry.id !== item.id))} className="ml-auto text-xs font-semibold text-red-700">
-                    Remove
+          {checklistLoading && checklist.length === 0 ? (
+            <p className="mt-4 text-sm text-gray-500">Loading your checklist…</p>
+          ) : (
+            <div className="mt-4 flex flex-col gap-2">
+              {checklist.filter((item) => autoHide.isVisible(item)).map((item) => (
+                <div key={item.id} className="flex items-center gap-3 rounded-[14px] border border-[#f1f2f5] p-[13px]">
+                  <button
+                    type="button"
+                    onClick={() => { void toggleDuty(item); }}
+                    aria-label={item.done ? `Mark ${item.label} not done` : `Mark ${item.label} done`}
+                    className={`grid h-6 w-6 flex-none place-items-center rounded-lg border text-[13px] font-bold text-white ${item.done ? 'border-primary bg-primary' : 'border-gray-300 bg-white'}`}
+                  >
+                    {item.done ? '✓' : ''}
                   </button>
-                )}
-              </div>
-            ))}
-          </div>
+                  <span className={`text-sm font-semibold ${item.done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.label}</span>
+                  {!editingChecklist && autoHide.countdowns[item.id] !== undefined && <CountdownRing seconds={autoHide.countdowns[item.id]} />}
+                  {editingChecklist && (
+                    <button type="button" onClick={() => { void removeDuty(item); }} className="ml-auto text-xs font-semibold text-red-700">
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           {editingChecklist && (
             <div className="mt-3.5 flex gap-2">
               <input
                 value={newDuty}
                 onChange={(event) => setNewDuty(event.target.value)}
-                onKeyDown={(event) => { if (event.key === 'Enter') addDuty(); }}
+                onKeyDown={(event) => { if (event.key === 'Enter') void addDuty(); }}
                 placeholder="Add a duty"
                 className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
-              <button type="button" onClick={addDuty} className="rounded-xl bg-[#3f4757] px-4 py-2.5 text-[13px] font-semibold text-white">Add</button>
+              <button type="button" onClick={() => { void addDuty(); }} disabled={addingDuty} className="rounded-xl bg-[#3f4757] px-4 py-2.5 text-[13px] font-semibold text-white disabled:opacity-60">
+                {addingDuty ? 'Adding…' : 'Add'}
+              </button>
             </div>
           )}
         </section>
@@ -373,11 +466,8 @@ const SupportSchedulePage: React.FC = () => {
       {tab === 'cover' && (
         <>
           <section className={`${CARD} p-5`}>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-gray-900">Request cover</h2>
-              <InfoTip label="About cover requests">Cover requests are not sent to Operations yet.</InfoTip>
-            </div>
-            <p className="mt-1 text-[13px] text-gray-500">Sent to Operations for review.</p>
+            <h2 className="text-lg font-bold text-gray-900">Request cover</h2>
+            <p className="mt-1 text-[13px] text-gray-500">Operations will arrange a support to cover your group.</p>
             <div className="mt-4 flex flex-col gap-3.5">
               <label className="block">
                 <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Reason</span>
@@ -386,18 +476,34 @@ const SupportSchedulePage: React.FC = () => {
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">From</span>
-                <input type="datetime-local" value={cover.from} onChange={(e) => setCover((prev) => ({ ...prev, from: e.target.value }))} className={`${INPUT} min-h-[46px]`} />
+                <AppDateTimePicker
+                  value={cover.from}
+                  onChange={(value) => setCover((prev) => ({ ...prev, from: value }))}
+                  placeholder="Pick a date and time"
+                  minDate={new Date().toISOString().slice(0, 10)}
+                  ariaLabel="Cover from"
+                />
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Until</span>
-                <input type="datetime-local" value={cover.until} onChange={(e) => setCover((prev) => ({ ...prev, until: e.target.value }))} className={`${INPUT} min-h-[46px]`} />
+                <AppDateTimePicker
+                  value={cover.until}
+                  onChange={(value) => setCover((prev) => ({ ...prev, until: value }))}
+                  placeholder="Pick a date and time"
+                  minDate={(cover.from || new Date().toISOString()).slice(0, 10)}
+                  ariaLabel="Cover until"
+                />
                 {coverPeriodError && <span className="mt-1.5 block text-xs text-red-700">{coverPeriodError}</span>}
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Note (optional)</span>
                 <textarea value={cover.note} onChange={(e) => setCover((prev) => ({ ...prev, note: e.target.value }))} rows={2} className={`${INPUT} resize-y`} />
               </label>
-              <button type="button" onClick={submitCover} className="min-h-[48px] rounded-xl bg-primary p-3 text-[15px] font-semibold text-white">Send request</button>
+              {coverError && <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{coverError}</p>}
+              {coverSent && <p className="rounded-xl bg-emerald-100/80 px-3.5 py-2.5 text-sm font-semibold text-emerald-700">Sent to Operations.</p>}
+              <button type="button" onClick={() => { void submitCover(); }} disabled={coverSaving} className="min-h-[48px] rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60">
+                {coverSaving ? 'Sending…' : 'Send request'}
+              </button>
             </div>
           </section>
           {coverRequests.length > 0 && (
@@ -406,11 +512,12 @@ const SupportSchedulePage: React.FC = () => {
               <div className="flex flex-col gap-2.5">
                 {coverRequests.map((request) => (
                   <div key={request.id} className="rounded-[14px] border border-[#f1f2f5] p-3">
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <span className="text-sm font-semibold text-gray-900">{request.reason}</span>
-                      <span className="ml-auto rounded-full bg-[#fff8f3] px-2.5 py-0.5 text-[11px] font-bold text-[#c2410c]">{request.status}</span>
+                    <div className="flex items-start gap-2.5">
+                      <span className="min-w-0 flex-1 text-sm font-semibold text-gray-900">{request.reason}</span>
+                      <span className={`flex-none rounded-full px-2.5 py-0.5 text-[11px] font-bold ${COVER_STATUS[request.status].cls}`}>{COVER_STATUS[request.status].label}</span>
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">{request.period}</p>
+                    <p className="mt-1 text-xs text-gray-500">{formatPeriod(request.startsAt, request.endsAt)}</p>
+                    {request.status === 'ASSIGNED' && request.coverSupportName && <p className="mt-1.5 text-xs font-semibold text-gray-700">Covered by {request.coverSupportName}</p>}
                   </div>
                 ))}
               </div>

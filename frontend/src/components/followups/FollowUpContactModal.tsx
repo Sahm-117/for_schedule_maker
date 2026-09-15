@@ -41,6 +41,11 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
   const [lastContactDate, setLastContactDate] = useState('');
   const [followUpCount, setFollowUpCount] = useState('0');
   const [notes, setNotes] = useState('');
+  const [email, setEmail] = useState('');
+  const [gender, setGender] = useState('');
+  const [ageRange, setAgeRange] = useState('');
+  const [occupation, setOccupation] = useState('');
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -55,6 +60,11 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
     setLastContactDate(contact?.lastContactDate || '');
     setFollowUpCount(String(contact?.followUpCount ?? 0));
     setNotes(contact?.notes || '');
+    setEmail(contact?.email || '');
+    setGender(contact?.gender || '');
+    setAgeRange(contact?.ageRange || '');
+    setOccupation(contact?.occupation || '');
+    setDetailsOpen(false);
     setError('');
     setSaving(false);
   }, [isOpen, contact, defaultCohortId]);
@@ -97,6 +107,10 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
         lastContactDate: contact ? (lastContactDate || null) : undefined,
         followUpCount: Number(followUpCount) || 0,
         notes: notes.trim() || null,
+        email: email.trim() || null,
+        gender: gender || null,
+        ageRange: ageRange || null,
+        occupation: occupation.trim() || null,
       };
       if (contact) {
         const { contact: updated } = await followUpContactsApi.update(contact.id, {
@@ -223,6 +237,50 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
           </div>
         )}
         <div>
+          <button
+            type="button"
+            onClick={() => setDetailsOpen((open) => !open)}
+            className="mb-3 flex w-full items-center justify-between rounded-xl border border-orange-100 bg-orange-50/40 px-3.5 py-2.5 text-sm font-semibold text-gray-700"
+          >
+            <span>
+              More details
+              {email || gender || ageRange || occupation
+                ? <span className="ml-1 text-xs font-normal text-primary">· added</span>
+                : <span className="ml-1 text-xs font-normal text-gray-400">(optional)</span>}
+            </span>
+            <span className={`text-xs text-gray-400 transition-transform ${detailsOpen ? 'rotate-180' : ''}`}>▾</span>
+          </button>
+          {detailsOpen && (
+            <div className="mb-4 space-y-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Email</label>
+                <input type="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Gender</label>
+                  <AppSelect value={gender} onChange={setGender} options={[{ value: '', label: 'Not set' }, { value: 'Male', label: 'Male' }, { value: 'Female', label: 'Female' }]} placeholder="Not set" compact />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Age range</label>
+                  <AppSelect
+                    value={ageRange}
+                    onChange={setAgeRange}
+                    options={[{ value: '', label: 'Not set' }, ...['18 - 24', '25 - 34', '35 - 44', '45 - 59', '60 and above'].map((value) => ({ value, label: value }))]}
+                    placeholder="Not set"
+                    compact
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Occupation</label>
+                <input type="text" className={inputClass} value={occupation} onChange={(e) => setOccupation(e.target.value)} placeholder="What they do for a living" />
+              </div>
+              {contact?.registeredByName && (
+                <p className="text-xs text-gray-500">Registered by {contact.registeredByName}</p>
+              )}
+            </div>
+          )}
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</label>
           <textarea className={`${inputClass} min-h-[80px]`} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything worth remembering" />
         </div>

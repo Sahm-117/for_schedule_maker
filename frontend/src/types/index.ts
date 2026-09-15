@@ -82,6 +82,10 @@ export interface Week {
   cohortId: string;
   weekNumber: number;
   title?: string | null;
+  recapSummary?: string | null;
+  discussionPrompt?: string | null;
+  recapDocumentUrl?: string | null;
+  recapDocumentName?: string | null;
   days: Day[];
 }
 
@@ -136,6 +140,10 @@ export interface Announcement {
   cohortId?: string | null;
   cohortName?: string | null;
   targetLabelId?: string | null;
+  showOnHome?: boolean;
+  homeUntil?: string | null;
+  linkUrl?: string | null;
+  linkLabel?: string | null;
 }
 
 export type NotificationType =
@@ -146,6 +154,8 @@ export type NotificationType =
   | 'FAITH_PROJECT_REVIEW'
   | 'FAITH_PROJECT_SUBMITTED'
   | 'GROUP_MEETING_COMPLETED'
+  | 'PARTICIPANT_FLAG'
+  | 'COVER_REQUEST'
   | 'HUB'
   | 'REMINDER'
   | 'GENERAL';
@@ -184,6 +194,12 @@ export interface FollowUpContact {
   lastContactDate?: string | null;
   followUpCount: number;
   notes?: string | null;
+  email?: string | null;
+  gender?: string | null;
+  ageRange?: string | null;
+  occupation?: string | null;
+  registeredById?: string | null;
+  registeredByName?: string | null;
   cohortId?: string | null;
   cohortName?: string | null;
   cohortVenue?: string | null;
@@ -208,6 +224,11 @@ export type FollowUpContactUpdate = Partial<Pick<
   | 'lastContactDate'
   | 'followUpCount'
   | 'notes'
+  | 'email'
+  | 'gender'
+  | 'ageRange'
+  | 'occupation'
+  | 'registeredById'
   | 'cohortId'
   | 'dueDate'
   | 'archivedAt'
@@ -278,7 +299,7 @@ export type ParticipantUpdate = Partial<Pick<Participant,
   'email' | 'gender' | 'ageRange' | 'departments' | 'registrationDate' | 'smartRequest'
 >>;
 
-export type ParticipantNoteType = 'HANDOVER' | 'MEETING';
+export type ParticipantNoteType = 'HANDOVER' | 'MEETING' | 'FAITH_COACH' | 'FAITH_OFFICE';
 
 export interface ParticipantNote {
   id: string;
@@ -321,9 +342,13 @@ export interface Group {
   meetingDay?: string | null;
   meetingTime?: string | null;
   meetingDurationMins?: number | null;
+  callPlatform?: GroupCallPlatform | null;
+  callLink?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
+
+export type GroupCallPlatform = 'WHATSAPP' | 'GOOGLE_MEET';
 
 export interface GroupOnboardingStatus {
   id: string;
@@ -389,6 +414,64 @@ export interface AttendanceRecord {
   status: AttendanceStatus;
   markedById?: string | null;
   markedAt?: string;
+}
+
+export type MeetingAttendanceStatus = 'JOINED' | 'EXCUSED' | 'MISSED';
+
+export interface MeetingAttendance {
+  id: string;
+  participantId: string;
+  groupId?: string | null;
+  weekId: number;
+  status: MeetingAttendanceStatus;
+  markedById?: string | null;
+  markedAt?: string;
+}
+
+export interface ParticipantFlag {
+  id: string;
+  participantId: string;
+  participantName?: string | null;
+  groupId?: string | null;
+  groupName?: string | null;
+  weekId?: number | null;
+  weekNumber?: number | null;
+  reason: string;
+  note?: string | null;
+  raisedById?: string | null;
+  raisedByName?: string | null;
+  raisedAt: string;
+  clearedById?: string | null;
+  clearedByName?: string | null;
+  clearedAt?: string | null;
+}
+
+export interface SupportChecklistItem {
+  id: string;
+  userId: string;
+  weekId: number;
+  label: string;
+  done: boolean;
+  position: number;
+}
+
+export type CoverRequestStatus = 'PENDING' | 'ASSIGNED';
+
+export interface CoverRequest {
+  id: string;
+  supportId: string;
+  supportName?: string | null;
+  cohortId?: string | null;
+  reason: string;
+  startsAt: string;
+  endsAt: string;
+  note?: string | null;
+  status: CoverRequestStatus;
+  coverSupportId?: string | null;
+  coverSupportName?: string | null;
+  assignedById?: string | null;
+  assignedAt?: string | null;
+  createdAt: string;
 }
 
 // ── Faith Projects ────────────────────────────────────────────────────────────

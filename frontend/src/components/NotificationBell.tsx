@@ -48,11 +48,12 @@ const timeAgo = (iso: string): string => {
 };
 
 const NotificationBell: React.FC = () => {
-  const { notifications, notificationUnreadCount, markNotificationsRead } = useAppData();
+  const { notifications, notificationUnreadCount, refreshNotifications } = useAppData();
   const { user } = useAuth();
   const isSupport = user?.role === 'SUPPORT';
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<'announcements' | 'activity'>('announcements');
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -93,6 +94,17 @@ const NotificationBell: React.FC = () => {
     setOpen(next);
   };
 
+  const announcementItems = notifications.filter((n) => n.type === 'ANNOUNCEMENT');
+  const activityItems = notifications.filter((n) => n.type !== 'ANNOUNCEMENT');
+  const visibleItems = tab === 'announcements' ? announcementItems : activityItems;
+  const unreadIn = (items: Notification[]) => items.filter((n) => !n.isRead).length;
+
+  const markTabRead = async () => {
+    const unread = visibleItems.filter((n) => !n.isRead);
+    await Promise.all(unread.map((n) => notificationsApi.markRead(n.id).catch(() => {})));
+    await refreshNotifications();
+  };
+
   const handleRowClick = (n: Notification) => {
     setOpen(false);
     if (!n.isRead) void notificationsApi.markRead(n.id).catch(() => {});
@@ -121,20 +133,37 @@ const NotificationBell: React.FC = () => {
 
       {open && createPortal(
         <div ref={menuRef} style={menuStyle} className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-xl">
-          <div className="flex items-center justify-between border-b border-orange-100 px-4 py-3">
-            <p className="text-sm font-bold text-gray-900">Notifications</p>
-            {notifications.some((n) => !n.isRead) && (
-              <button type="button" onClick={() => void markNotificationsRead()} className="text-xs font-semibold text-primary hover:opacity-80">
-                Mark all read
-              </button>
-            )}
+          <div className="border-b border-orange-100 px-4 pb-2.5 pt-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-bold text-gray-900">Notifications</p>
+              {unreadIn(visibleItems) > 0 && (
+                <button type="button" onClick={() => void markTabRead()} className="text-xs font-semibold text-primary hover:opacity-80">
+                  Mark all read
+                </button>
+              )}
+            </div>
+            <div role="tablist" className="mt-2.5 grid grid-cols-2 gap-1 rounded-xl bg-[#f4f5f7] p-1">
+              {([['announcements', 'Announcements', announcementItems], ['activity', 'Activity', activityItems]] as const).map(([key, label, items]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === key}
+                  onClick={() => setTab(key)}
+                  className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold transition ${tab === key ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}
+                >
+                  {label}
+                  {unreadIn(items) > 0 && <span className={`h-1.5 w-1.5 rounded-full ${tab === key ? 'bg-white' : 'bg-primary'}`} />}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="max-h-96 overflow-y-auto">
-            {notifications.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-gray-400">No notifications yet.</p>
+            {visibleItems.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-gray-400">{tab === 'announcements' ? 'No announcements yet.' : 'No activity yet.'}</p>
             ) : (
               <ul className="divide-y divide-orange-50">
-                {notifications.map((n) => (
+                {visibleItems.map((n) => (
                   <li key={n.id}>
                     <button
                       type="button"
@@ -153,6 +182,15 @@ const NotificationBell: React.FC = () => {
               </ul>
             )}
           </div>
+          {tab === 'announcements' && (
+            <button
+              type="button"
+              onClick={() => { setOpen(false); navigate(isSupport ? '/support/announcements' : '/team-announcements'); }}
+              className="block w-full border-t border-orange-100 px-4 py-3 text-center text-[13px] font-semibold text-primary hover:bg-orange-50/40"
+            >
+              View all announcements
+            </button>
+          )}
         </div>,
         document.body,
       )}
