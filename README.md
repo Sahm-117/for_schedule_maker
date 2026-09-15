@@ -1,63 +1,88 @@
 # FOF IKD Ops
 
-A Progressive Web App (PWA) for managing weekly programme schedules for the Foundation of Faith (FOF) discipleship programme at The Covenant Nation (TCN) Ikorodu.
+A Progressive Web App for running the Foundation of Faith (FOF) discipleship programme at The Covenant Nation (TCN) Ikorodu — the weekly schedule, the participants, and the support team's day-to-day work.
 
-**Live app:** https://for-schedule-maker.vercel.app  
+**Live app:** https://for-schedule-maker.vercel.app
 **GitHub:** https://github.com/Sahm-117/for_schedule_maker
 
 ---
 
 ## What it does
 
-FOF runs an 8-week discipleship programme with daily sessions, team assignments, and activities. This app gives the support team a single source of truth for the schedule — installable on any phone, works offline, and notifies users of changes via push notifications.
+FOF runs in cohorts. Each cohort has its own weeks, participants, and small groups led by a support person. The app is the single source of truth for all of it — installable on any phone, works offline, and pushes notifications when things change.
 
 **Three roles:**
-- **Admin** — full control: create weeks/days/activities, approve changes, manage users, post announcements
-- **SOP Preparer** — submit edits for admin approval, view the schedule
-- **Support** — read-only view + push notifications
+
+| Role | What they get |
+|---|---|
+| **Admin** | The back office: cohorts, participants, groups, attendance, faith projects, follow-ups, rota, users, announcements, resources, settings |
+| **SOP Preparer** | Submits schedule edits for admin approval, and views the schedule |
+| **Support** | Their own mobile-first app: schedule, group, participants, mobilisation, hub, resources |
+
+### The support app (`/support`)
+
+- **Home** — weekly progress, today's activities with "mark done", a weekly checklist that saves, recent announcements, and a pinned urgent announcement card
+- **Mobilisation** — register a lead, then work the follow-up list (statuses, message templates, WhatsApp/call, registration link)
+- **My Schedule** — the week's activities, a per-support checklist (ticked items tuck away after a short countdown), PDF download, and cover requests
+- **My Group** — participants, faith projects, notes, concerns; a five-step group meeting flow (attendance → prayer → recap → notes → submit); and Sunday class attendance
+- **Onboard** — onboarding steps and message templates (adding a support is coordinator-only)
+- **Hub, Resources, Profile** — team discussion, shared files, and personal settings
+
+### Notable flows
+
+- **Cover requests** — a support asks for cover; operations assigns a covering support in **Approvals**. During the cover period only, that support sees the away support's group and can mark its attendance.
+- **Recap documents** — the back office uploads a weekly recap PDF in **Cohorts**; supports read it inside the app (pdf.js viewer that minimises to a pill) rather than leaving for a browser tab.
+- **Concerns** — a support flags a participant; operations sees it on **Participants** with a "needs attention" filter and can clear it.
+- **Announcements** — sent as push + in-app, and optionally pinned to the support Home screen until a chosen date, with an optional link.
+- **Notifications** — the bell splits into *Announcements* and *Activity* tabs.
 
 ---
 
-## Tech Stack
+## Tech stack
 
 | Layer | Technology |
 |---|---|
 | Frontend | React 19 + TypeScript + Vite 7 + Tailwind CSS |
-| PWA | vite-plugin-pwa v1.3.0 (Workbox injectManifest) |
+| PWA | vite-plugin-pwa (Workbox `injectManifest`) |
 | Database | Supabase (PostgreSQL) |
+| Serverless | Supabase Edge Functions (push + announcements) |
 | Hosting | Vercel |
-| Push Notifications | Web Push (VAPID) |
+| Push | Web Push (VAPID) |
+| Documents | pdf.js (`pdfjs-dist`) for in-app viewing, jsPDF for exports |
 
 ---
 
-## Project Structure
+## Project structure
 
 ```
 fof_schedule/
-├── frontend/               # React PWA app
+├── frontend/                   # React PWA
 │   ├── src/
-│   │   ├── components/     # Reusable UI components
-│   │   ├── pages/          # Route-level pages (Login, Dashboard)
-│   │   ├── hooks/          # Custom hooks (useAuth, usePWAInstall, etc.)
-│   │   ├── services/       # Supabase API layer (supabase-api.ts)
-│   │   ├── sw.ts           # Service worker (Workbox + push handlers)
-│   │   └── main.tsx        # App entry point
-│   ├── public/             # Static assets + icons
-│   ├── index.html
-│   ├── vite.config.ts      # Vite + PWA config
-│   └── tailwind.config.js  # Brand colors
+│   │   ├── components/         # Shared UI (AppSelect, AppDateTimePicker,
+│   │   │   │                   #   DocumentViewerSheet, NotificationBell, …)
+│   │   │   ├── attendance/     # Sunday class panel
+│   │   │   ├── followups/      # Follow-up table, modals, message bank
+│   │   │   └── groups/         # Group call card, meeting mode, participant card
+│   │   ├── pages/              # Route-level pages (admin + /support/*)
+│   │   ├── hooks/              # useAuth, usePWAInstall, walkthrough, …
+│   │   ├── services/           # api.ts → supabase-api.ts (all data access)
+│   │   ├── context/            # AppDataContext (cohort, weeks, notifications)
+│   │   └── sw.ts               # Service worker (Workbox + push handlers)
+│   └── vite.config.ts
 ├── supabase/
-│   └── migrations/         # SQL migration files (run in Supabase SQL editor)
-└── supabase-schema.sql     # Full schema for fresh setup
+│   ├── migrations/             # SQL migrations, applied in order
+│   └── functions/              # Edge functions (notify-*, send-announcement,
+│                               #   push-reminders)
+└── supabase-schema.sql         # Full schema for a fresh setup
 ```
 
 ---
 
-## Local Development
+## Local development
 
 ### Prerequisites
 - Node.js 18+
-- A Supabase project ([supabase.com](https://supabase.com))
+- Access to the project's Supabase project (or your own)
 
 ### Setup
 
@@ -65,140 +90,137 @@ fof_schedule/
 git clone https://github.com/Sahm-117/for_schedule_maker.git
 cd for_schedule_maker/frontend
 npm install
-```
-
-Create `frontend/.env`:
-```
-VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
-VITE_SUPABASE_ANON_KEY=your_anon_key_here
-VITE_VAPID_PUBLIC_KEY=your_vapid_public_key_here
-```
-
-```bash
+cp .env.example .env.local     # then fill in the values
 npm run dev
 ```
 
-App runs at `http://localhost:5173`.
+The app runs at `http://localhost:5173` and talks to the hosted Supabase project — there is no local backend to start.
 
-### Build for production
+### Environment variables
+
+`frontend/.env.local` (see `frontend/.env.example`):
+
+| Variable | Purpose |
+|---|---|
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon key (safe for the browser) |
+| `VITE_VAPID_PUBLIC_KEY` | Web Push public key |
+| `VITE_DATA_PROVIDER` | `supabase` (default) |
+| `VITE_API_URL` | Only for the unused `backend` provider mode |
+
+A root `.env.local` holds **maintainer-only secrets** used by scripts and migrations — the service-role key, the database password and a Supabase access token. It is gitignored and must never reach the browser bundle or the repo.
+
+### Useful commands
 
 ```bash
-npm run build
+npm run dev               # dev server
+npm run build             # production build (no type-check)
+npm run build-with-types  # type-check then build
+npm run lint
+npm run preview           # serve the built app
 ```
-
-Output is in `frontend/dist/`. Vercel picks this up automatically on push to `main`.
 
 ---
 
-## Database Setup
+## Database
 
-### Fresh install
+- **Fresh setup:** run `supabase-schema.sql` in the Supabase SQL editor, then the files in `supabase/migrations/` in filename order.
+- **Existing database:** apply only the new migration files, in order.
+- Migrations are additive by convention, so a deployed app keeps working while a new frontend rolls out.
 
-1. Open your Supabase project → **SQL Editor**
-2. Run `supabase-schema.sql` to create all tables
-3. Create your first admin user by inserting directly into the `User` table:
+Create the first admin by inserting into `User`:
 
 ```sql
 INSERT INTO "User" (name, email, role, password)
-VALUES ('Your Name', 'your@email.com', 'ADMIN', 'yourpassword');
+VALUES ('Your Name', 'you@example.com', 'ADMIN', 'yourpassword');
 ```
 
-> **Note:** Passwords are stored as plain text in the current version. Do not reuse passwords from other services.
-
-### Migrations
-
-Migration files live in `supabase/migrations/`. Run them in order via the SQL Editor when upgrading an existing database.
+> **Security note:** passwords are still stored as plain text. Do not reuse a password from anywhere else. Replacing this is the first task of the planned auth rebuild.
 
 ---
 
-## Authentication
+## Authentication and RLS
 
-This app uses **custom authentication** — it does **not** use Supabase Auth.
+The app uses **custom authentication**, not Supabase Auth.
 
-- Login queries the `User` table directly using the Supabase anon key
-- On success, a mock token (`mock_token_${userId}`) is stored in `localStorage`
-- All database requests run under the PostgreSQL `anon` role
+- Login queries the `User` table directly using the anon key
+- A mock token (`mock_token_${userId}`) is kept in `localStorage`
+- Every request runs as the PostgreSQL `anon` role
 
-**Implication for RLS:** All Supabase RLS policies must use `USING (true)` without `TO authenticated`, because all requests go through the anon role. Access control is enforced in the UI layer, not the database layer.
+**So:** RLS policies are `USING (true)` and access control lives in the UI layer, not the database. Anyone adding tables should follow the same pattern (`"Allow all operations"`) or the app will break.
 
 ---
 
-## PWA & Service Worker
+## PWA and push
 
-The app uses `vite-plugin-pwa` with `injectManifest` strategy:
+- Service worker: `frontend/src/sw.ts` → `dist/sw.js`
+- `registerType: 'prompt'` — users get an update banner and tap Refresh
+- Push and notification clicks are handled in `sw.ts`; Edge Functions in `supabase/functions/` send them
 
-- **Service worker:** `frontend/src/sw.ts` (compiled to `dist/sw.js`)
-- **Precaching:** All static assets are precached by Workbox at build time
-- **Update flow:** `registerType: 'prompt'` — users see an update banner and tap "Refresh" to get the new version
-- **Push notifications:** Handled in `sw.ts` via the `push` and `notificationclick` event listeners
+Generate VAPID keys with `npx web-push generate-vapid-keys`. The public key goes in the frontend env; the private key stays in Supabase/Vercel secrets.
 
-To generate VAPID keys for push notifications:
-```bash
-npx web-push generate-vapid-keys
-```
-Add the public key to `.env` as `VITE_VAPID_PUBLIC_KEY` and store the private key securely in Supabase secrets or environment variables.
+Some in-app notifications (participant flags, cover requests) are written straight to the `Notification` table and appear in the bell without a push.
 
 ---
 
 ## Deployment
 
-The app deploys to Vercel automatically on every push to `main`.
+Every push to `main` deploys to Vercel automatically.
 
-**Vercel settings:**
 - Root directory: `frontend`
-- Build command: `npm run build`
-- Output directory: `dist`
-- Environment variables: set `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY` in the Vercel dashboard
+- Build: `npm run build`, output `dist`
+- Set `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `VITE_VAPID_PUBLIC_KEY` in the Vercel dashboard
 
----
+### Supabase keep-alive
 
-## Supabase Keep-Alive
-
-Supabase free tier pauses databases after 7 days of inactivity. A cron job on [cron-job.org](https://cron-job.org) pings the REST API daily to prevent this:
+The free tier pauses after 7 days idle, so a daily cron on [cron-job.org](https://cron-job.org) pings the REST API:
 
 ```
-URL: https://YOUR_PROJECT_REF.supabase.co/rest/v1/Week?select=id&limit=1&apikey=YOUR_ANON_KEY
-Schedule: 0 0 * * * (daily at midnight)
+https://YOUR_PROJECT_REF.supabase.co/rest/v1/Week?select=id&limit=1&apikey=YOUR_ANON_KEY
 ```
 
 ---
 
-## Brand Colors
+## Brand colours
 
 | Token | Hex | Usage |
 |---|---|---|
 | `primary` | `#FF914D` | Buttons, badges, key UI |
 | `primary-dark` | `#E5822D` | Hover states |
 
+Status chips follow a soft-pill palette: a pastel surface with saturated text (e.g. `bg-emerald-100/80 text-emerald-700`).
+
 ---
 
-## Key Files
+## Key files
 
 | File | Purpose |
 |---|---|
-| `src/services/supabase-api.ts` | All database calls. Entry point for any data change. |
-| `src/pages/Dashboard.tsx` | Main app shell — layout, sidebar, schedule view |
-| `src/hooks/useAuth.tsx` | Login/logout state, localStorage token management |
-| `src/sw.ts` | Service worker — caching, push, notification click |
-| `vite.config.ts` | PWA manifest, plugin config, build settings |
-| `supabase-schema.sql` | Full database schema for fresh setup |
+| `src/services/supabase-api.ts` | Every database call. Start here for any data change. |
+| `src/services/api.ts` | Thin wrapper that selects the provider |
+| `src/context/AppDataContext.tsx` | Active cohort, weeks, notifications, live refresh |
+| `src/components/AppShell.tsx` | Navigation for both the back office and the support app |
+| `src/components/groups/MeetingModePanel.tsx` | The five-step group meeting flow |
+| `src/components/DocumentViewerSheet.tsx` | In-app PDF/image viewer |
+| `src/sw.ts` | Service worker: caching, push, notification clicks |
 
 ---
 
 ## Contributing
 
-1. Fork the repo and create a branch from `main`
-2. Make your changes in `frontend/`
-3. Run `npm run build` and verify no TypeScript errors
-4. Test the PWA locally (`npm run preview` after build)
-5. Open a pull request — describe what changed and why
+1. Branch from `main`
+2. Make changes in `frontend/`
+3. `npm run build-with-types` and fix anything new
+4. Drive the change in a real browser as the role that uses it — not just admin
+5. Clean up any test data you create in the shared database
+6. Open a pull request describing what changed and why
 
-### Things to know before making changes
+### Before you change anything
 
-- **No backend** — all data operations go through `supabase-api.ts` using the Supabase JS client
-- **Custom auth** — do not integrate Supabase Auth without understanding the anon-role implications for RLS
-- **PWA manifest changes** — changing `name` or `short_name` in `vite.config.ts` will prompt installed users to update
-- **Service worker** — any change to `sw.ts` triggers a new SW install on next visit; test the update banner flow
+- **No custom backend** — all data goes through `supabase-api.ts`
+- **Custom auth** — don't introduce Supabase Auth without handling the anon-role RLS implications
+- **Shared database** — local development points at the live Supabase project, so treat writes with care
+- **Service worker / manifest** — changes prompt every installed user to update; test the update banner
 
 ---
 
