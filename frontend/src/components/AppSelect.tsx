@@ -5,6 +5,8 @@ type SelectOption = {
   value: string;
   label: string;
   meta?: string;
+  /** Shows a small green tick on the option — e.g. a week already submitted. */
+  done?: boolean;
 };
 
 interface AppSelectProps {
@@ -219,9 +221,18 @@ const AppSelect: React.FC<AppSelectProps> = ({
                     selected ? 'bg-orange-50 text-primary' : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold">{option.label}</p>
-                    {option.meta && <p className="text-xs leading-tight text-gray-500">{option.meta}</p>}
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    {option.done && (
+                      <span className="grid h-4 w-4 flex-none place-items-center rounded-full bg-emerald-100 text-emerald-700" aria-label="Submitted">
+                        <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3.5" d="m5 13 4 4L19 7" />
+                        </svg>
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold">{option.label}</p>
+                      {option.meta && <p className="text-xs leading-tight text-gray-500">{option.meta}</p>}
+                    </div>
                   </div>
                   {selected && (
                     <span className="ml-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-primary shadow-sm">

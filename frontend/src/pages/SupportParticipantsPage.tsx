@@ -445,8 +445,8 @@ const SupportParticipantsPage: React.FC = () => {
               savingFocus={savingPrayerFocus}
               onSetFocus={setPrayerFocus}
               submitted={!!currentPrayerStatus?.done}
+              submittedWeekIds={groupPrayerStatuses.filter((status) => status.groupId === selectedGroupId && status.done).map((status) => status.weekId)}
               onSubmit={handleMeetingSubmit}
-              onReopen={() => setPrayerDone(false)}
               groupId={selectedGroupId || null}
               userId={user.id}
               recapSummary={selectedWeek?.recapSummary}

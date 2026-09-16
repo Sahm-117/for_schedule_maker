@@ -43,8 +43,10 @@ interface MeetingModePanelProps {
   savingFocus: boolean;
   onSetFocus: (participantId: string) => Promise<void>;
   submitted: boolean;
+  /** Weeks whose report is already in, so the picker can tick them. */
+  submittedWeekIds?: number[];
   onSubmit: (notes: { summary: string; concern: string }) => Promise<void>;
-  onReopen: () => Promise<void>;
+  onReopen?: () => Promise<void>;
   recapSummary?: string | null;
   discussionPrompt?: string | null;
   recapDocumentUrl?: string | null;
@@ -65,8 +67,8 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
   savingFocus,
   onSetFocus,
   submitted,
+  submittedWeekIds = [],
   onSubmit,
-  onReopen,
   recapSummary,
   discussionPrompt,
   recapDocumentUrl,
@@ -162,20 +164,11 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
 
   const handleNext = async () => {
     if (step < STEPS.length - 1) { setStep(step + 1); return; }
+    if (submitted) { setStep(DONE_STEP); return; }
     setBusy(true);
     try {
       await onSubmit({ summary: summary.trim(), concern: concern.trim() });
       setStep(DONE_STEP);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleReopen = async () => {
-    setBusy(true);
-    try {
-      await onReopen();
-      setStep(0);
     } finally {
       setBusy(false);
     }
@@ -195,7 +188,12 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
             <AppSelect
               value={weekId ? String(weekId) : ''}
               onChange={(value) => onWeekChange(Number(value))}
-              options={weeks.map((entry) => ({ value: String(entry.id), label: `Week ${entry.weekNumber}` }))}
+              options={weeks.map((entry) => ({
+                value: String(entry.id),
+                label: `Week ${entry.weekNumber}`,
+                meta: submittedWeekIds.includes(entry.id) ? 'Submitted' : undefined,
+                done: submittedWeekIds.includes(entry.id),
+              }))}
               placeholder="Choose week"
               compact
             />
@@ -382,9 +380,9 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
               Record another week
             </button>
             {submitted && (
-              <button type="button" onClick={() => { void handleReopen(); }} disabled={busy} className="text-xs font-semibold text-gray-400 hover:text-gray-600 disabled:opacity-60">
-                Mark as not submitted
-              </button>
+              <p className="w-full text-xs text-gray-400">
+                Submitted — ask the back office if this needs to be reopened.
+              </p>
             )}
           </div>
         </section>

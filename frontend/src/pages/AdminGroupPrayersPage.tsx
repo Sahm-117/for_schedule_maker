@@ -215,6 +215,12 @@ const AdminGroupPrayersPage: React.FC = () => {
       <MeetingAttendanceModal
         target={markTarget}
         records={attendance}
+        submitted={!!markTarget && isDone(markTarget.group.id, markTarget.week.id)}
+        onSubmittedChange={async (next) => {
+          if (!markTarget) return;
+          const { status } = await groupPrayerStatusApi.setDone(markTarget.group.id, markTarget.week.id, next);
+          setStatuses((prev) => [...prev.filter((entry) => !(entry.groupId === status.groupId && entry.weekId === status.weekId)), status]);
+        }}
         onClose={() => setMarkTarget(null)}
         onMarked={(record) => setAttendance((prev) => [...prev.filter((entry) => !(entry.participantId === record.participantId && entry.weekId === record.weekId)), record])}
       />
@@ -234,13 +240,16 @@ const MARK_OPTIONS: Array<{ value: MeetingAttendanceStatus; label: string; cls: 
 const MeetingAttendanceModal: React.FC<{
   target: { group: Group; week: Week } | null;
   records: MeetingAttendance[];
+  submitted: boolean;
+  onSubmittedChange: (next: boolean) => Promise<void>;
   onClose: () => void;
   onMarked: (record: MeetingAttendance) => void;
-}> = ({ target, records, onClose, onMarked }) => {
+}> = ({ target, records, submitted, onSubmittedChange, onClose, onMarked }) => {
   const { user } = useAuth();
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [reopening, setReopening] = useState(false);
   const groupId = target?.group.id;
 
   useEffect(() => {
@@ -271,8 +280,23 @@ const MeetingAttendanceModal: React.FC<{
       isOpen={!!target}
       onClose={onClose}
       title={`${target.group.name} · Week ${target.week.weekNumber}`}
-      subtitle="Who joined the group meeting"
-      footer={<button type="button" onClick={onClose} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white">Close</button>}
+      subtitle={submitted ? 'Submitted by the support · who joined the group meeting' : 'Not submitted yet · who joined the group meeting'}
+      footer={(
+        <>
+          <button
+            type="button"
+            onClick={async () => {
+              setReopening(true);
+              try { await onSubmittedChange(!submitted); } finally { setReopening(false); }
+            }}
+            disabled={reopening}
+            className="rounded-2xl border border-orange-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-orange-50 disabled:opacity-60"
+          >
+            {reopening ? 'Saving…' : submitted ? 'Reopen for the support' : 'Mark as submitted'}
+          </button>
+          <button type="button" onClick={onClose} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white">Close</button>
+        </>
+      )}
     >
       {loading ? (
         <p className="py-6 text-center text-sm text-gray-400">Loading participants…</p>
