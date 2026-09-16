@@ -94,6 +94,8 @@ const SundayClassPanel: React.FC<SundayClassPanelProps> = ({
   onParticipantUpdated,
 }) => {
   const [records, setRecords] = useState<Map<string, AttendanceRecord>>(new Map());
+  // How many of this group's participants are marked, per week, for the picker.
+  const [markedByWeek, setMarkedByWeek] = useState<Map<number, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [noteParticipant, setNoteParticipant] = useState<Participant | null>(null);
@@ -113,12 +115,31 @@ const SundayClassPanel: React.FC<SundayClassPanelProps> = ({
 
   useEffect(() => { void load(); }, [load]);
 
+  const participantIds = useMemo(() => participants.map((participant) => participant.id), [participants]);
+  const weekIds = useMemo(() => weeks.map((week) => week.id), [weeks]);
+
+  const loadWeekTotals = useCallback(async () => {
+    if (participantIds.length === 0 || weekIds.length === 0) { setMarkedByWeek(new Map()); return; }
+    try {
+      const { records: rs } = await attendanceApi.getForWeeks({ weekIds, participantIds });
+      const counts = new Map<number, number>();
+      rs.forEach((record) => counts.set(record.weekId, (counts.get(record.weekId) ?? 0) + 1));
+      setMarkedByWeek(counts);
+    } catch { /* the picker simply shows no ticks */ }
+  }, [participantIds, weekIds]);
+
+  useEffect(() => { void loadWeekTotals(); }, [loadWeekTotals]);
+
   const handleMark = async (participantId: string, status: AttendanceStatus) => {
     if (weekId === null) return;
     setSaving((prev) => new Set(prev).add(participantId));
     try {
       const { record } = await attendanceApi.mark(participantId, weekId, status, markedById ?? supportId);
-      setRecords((prev) => new Map(prev).set(participantId, record));
+      setRecords((prev) => {
+        const next = new Map(prev).set(participantId, record);
+        setMarkedByWeek((counts) => new Map(counts).set(weekId, next.size));
+        return next;
+      });
     } catch { /* ignore */ }
     finally {
       setSaving((prev) => { const next = new Set(prev); next.delete(participantId); return next; });
@@ -169,7 +190,16 @@ const SundayClassPanel: React.FC<SundayClassPanelProps> = ({
             <AppSelect
               value={weekId ? String(weekId) : ''}
               onChange={(value) => onWeekChange(Number(value))}
-              options={weeks.map((week) => ({ value: String(week.id), label: `Week ${week.weekNumber}` }))}
+              options={weeks.map((week) => {
+                const marked = markedByWeek.get(week.id) ?? 0;
+                const complete = participants.length > 0 && marked >= participants.length;
+                return {
+                  value: String(week.id),
+                  label: `Week ${week.weekNumber}`,
+                  meta: complete ? 'All marked' : marked > 0 ? `${marked} of ${participants.length} marked` : undefined,
+                  done: complete,
+                };
+              })}
               placeholder="Choose week"
               compact
             />

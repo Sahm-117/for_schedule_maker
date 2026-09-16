@@ -2544,6 +2544,16 @@ export const followUpContactsApi = {
 
     const contact = mapFollowUpContact(data);
     if (input.ownerId) notifyFollowUpAssignment(input.ownerId, [contact.fullName]);
+    // A support registering a lead from Mobilisation: operations needs to pick it up.
+    if (input.registeredById && !input.ownerId) {
+      void notify(
+        { role: 'ADMIN' },
+        'New lead registered',
+        `${contact.registeredByName || 'A support'} registered ${contact.fullName}. It is waiting to be assigned.`,
+        '/follow-ups',
+        'FOLLOWUP_ASSIGNMENT',
+      );
+    }
     return { contact };
   },
 
@@ -4068,6 +4078,19 @@ export const attendanceApi = {
     return { records: ((data as any[]) || []).map(mapAttendance) };
   },
 
+  // Records for several weeks at once, so a week picker can show what's marked
+  // without a query per week.
+  async getForWeeks(options: { weekIds: number[]; participantIds: string[] }): Promise<{ records: import('../types').AttendanceRecord[] }> {
+    if (options.weekIds.length === 0 || options.participantIds.length === 0) return { records: [] };
+    const { data, error } = await supabase
+      .from('AttendanceRecord')
+      .select(ATTENDANCE_SELECT)
+      .in('weekId', options.weekIds)
+      .in('participantId', options.participantIds);
+    if (error) throw new Error(error.message);
+    return { records: ((data as any[]) || []).map(mapAttendance) };
+  },
+
   async mark(participantId: string, weekId: number, status: import('../types').AttendanceStatus, markedById?: string): Promise<{ record: import('../types').AttendanceRecord }> {
     const { data, error } = await supabase
       .from('AttendanceRecord')
@@ -4621,19 +4644,44 @@ export const hubApi = {
 // ── Support V2: meeting attendance, flags, checklist, cover requests ──────────
 
 // In-app notification for every admin. Failures are swallowed: alerting must never block the support's action.
-const notifyAdmins = async (title: string, body: string, path: string, type: import('../types').NotificationType) => {
+// Notifications go through one edge function: it writes the in-app row (which
+// everyone sees) and pushes to whoever has a subscription. Delivery must never
+// block the action that triggered it, so failures are swallowed.
+type NotifyTarget = {
+  userIds?: string[];
+  role?: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT';
+  cohortId?: string | null;
+  excludeUserId?: string | null;
+};
+
+const notify = async (
+  target: NotifyTarget,
+  title: string,
+  body: string,
+  path: string,
+  type: import('../types').NotificationType,
+) => {
   try {
-    const { data: admins } = await supabase.from('User').select('id').eq('role', 'ADMIN');
-    const rows = ((admins as Array<{ id: string }>) ?? []).map((admin) => ({ userId: admin.id, title, body, path, type }));
-    if (rows.length > 0) await supabase.from('Notification').insert(rows);
+    await supabase.functions.invoke('notify-users', {
+      body: {
+        userIds: target.userIds,
+        role: target.role,
+        cohortId: target.cohortId ?? undefined,
+        excludeUserId: target.excludeUserId ?? undefined,
+        title,
+        body,
+        path,
+        type,
+      },
+    });
   } catch { /* non-critical */ }
 };
 
-const notifyUser = async (userId: string, title: string, body: string, path: string, type: import('../types').NotificationType) => {
-  try {
-    await supabase.from('Notification').insert([{ userId, title, body, path, type }]);
-  } catch { /* non-critical */ }
-};
+const notifyAdmins = (title: string, body: string, path: string, type: import('../types').NotificationType) =>
+  notify({ role: 'ADMIN' }, title, body, path, type);
+
+const notifyUser = (userId: string, title: string, body: string, path: string, type: import('../types').NotificationType) =>
+  notify({ userIds: [userId] }, title, body, path, type);
 
 const mapMeetingAttendance = (row: any): import('../types').MeetingAttendance => ({
   id: row.id,
@@ -4731,7 +4779,18 @@ export const participantFlagsApi = {
       .select(PARTICIPANT_FLAG_SELECT)
       .single();
     if (error || !data) throw new Error(error?.message || 'Failed to clear flag');
-    return { flag: mapParticipantFlag(data) };
+    const flag = mapParticipantFlag(data);
+    // Tell whoever raised it that it has been dealt with (unless they cleared it).
+    if (flag.raisedById && flag.raisedById !== clearedById) {
+      void notify(
+        { userIds: [flag.raisedById] },
+        'Concern cleared',
+        `${flag.clearedByName || 'Operations'} cleared the concern you raised about ${flag.participantName || 'a participant'}.`,
+        '/support/participants',
+        'PARTICIPANT_FLAG',
+      );
+    }
+    return { flag };
   },
 };
 
@@ -4865,8 +4924,22 @@ export const recapDocumentsApi = {
     const { error: uploadError } = await supabase.storage.from('resources').upload(path, file, { upsert: false, contentType: file.type || undefined });
     if (uploadError) throw new Error(uploadError.message);
     const { data } = supabase.storage.from('resources').getPublicUrl(path);
-    const { error } = await supabase.from('Week').update({ recapDocumentUrl: data.publicUrl, recapDocumentName: file.name }).eq('id', weekId);
+    const { data: week, error } = await supabase
+      .from('Week')
+      .update({ recapDocumentUrl: data.publicUrl, recapDocumentName: file.name })
+      .eq('id', weekId)
+      .select('weekNumber, cohortId')
+      .single();
     if (error) throw new Error(error.message);
+
+    void notify(
+      { role: 'SUPPORT', cohortId: (week as any)?.cohortId ?? null },
+      'Week recap available',
+      `The recap for Week ${(week as any)?.weekNumber ?? ''} is ready to read in your group meeting.`.replace('Week  ', 'this week'),
+      '/support/participants',
+      'GENERAL',
+    );
+
     return { url: data.publicUrl, name: file.name };
   },
 

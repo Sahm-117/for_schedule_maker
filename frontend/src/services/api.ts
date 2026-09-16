@@ -522,6 +522,7 @@ export const onboardingEventsApi = USE_SUPABASE ? supabaseOnboardingEventsApi : 
 };
 
 export const attendanceApi = USE_SUPABASE ? supabaseAttendanceApi : {
+  async getForWeeks(_options: { weekIds: number[]; participantIds: string[] }): Promise<{ records: import('../types').AttendanceRecord[] }> { return { records: [] }; },
   async getForWeek(_options: any): Promise<{ records: import('../types').AttendanceRecord[] }> { return { records: [] }; },
   async mark(_participantId: string, _weekId: number, _status: any, _markedById?: string): Promise<never> { return peopleUnavailable(); },
   async bulkMark(_entries: any[], _markedById?: string): Promise<never> { return peopleUnavailable(); },

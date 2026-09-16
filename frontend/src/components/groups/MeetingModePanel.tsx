@@ -152,7 +152,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
 
     parts.push(focusParticipant ? `prayer focus on ${focusParticipant.fullName}` : 'no prayer focus set');
     if (summary.trim()) parts.push('notes added');
-    if (concern.trim()) parts.push(`flagged for follow-up: “${shorten(concern.trim())}”`);
+    if (concern.trim()) parts.push(`needs attention: “${shorten(concern.trim())}”`);
     return `${parts.join(' · ')}.`;
   }, [concern, focusParticipant, joinedCount, markedCount, marks, participants.length, summary]);
 
