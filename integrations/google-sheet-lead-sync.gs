@@ -1,34 +1,91 @@
 // FOF lead sync - Google Apps Script
-// Paste, save, then Deploy > Manage deployments > New version.
+//
+// Everything that might change (which tab, which question goes where)
+// lives in the "Sync settings" tab of this spreadsheet, not in this code.
+// Use the menu FOF Sync > Check setup after changing the form.
+//
+// Only paste this file again if a developer changes the code itself.
 
 // The real value lives in Apps Script, in Supabase (GOOGLE_SHEET_SECRET)
 // and in the maintainer's local .env.cron.local. Never commit it.
 var SECRET = 'PASTE-GOOGLE_SHEET_SECRET-HERE';
-var TAB_NAME = 'Form Responses 1';
 
-// Every lead is a new row; existing form responses are never changed.
-var APPEND_ONLY = true;
+var SETTINGS_TAB = 'Sync settings';
+var FIRST_MAP_ROW = 7;
 
-// Your form's headings -> the value to put there.
-// Headings are compared ignoring case, spaces and quote style.
-// A heading that appears twice gets the value in both columns.
-var MAP = [
-  ['Timestamp', 'registeredAt'],
-  ['Email Address', 'email'],
-  ['What is your first name', 'firstName'],
-  ['What is your surname', 'surname'],
-  ["What's your Gender?", 'gender'],
-  ['Age Range?', 'ageRange'],
-  ['Occupation', 'occupation'],
-  ["What's your occupation?", 'occupation'],
-  ['Any Other Questions or Concerns?', 'note'],
-  ['Please Share Your WhatsApp Number', 'phone'],
-  ['Who Registered You for FOF?', 'registeredBy'],
-  ['How did you learn about the FOF program?', 'source']
+// App fields a lead can carry. The names in column A of the settings tab
+// must be one of these (they are filled in for you).
+var APP_FIELDS = {
+  'Timestamp': 'registeredAt',
+  'Email': 'email',
+  'First name': 'firstName',
+  'Surname': 'surname',
+  'Gender': 'gender',
+  'Age range': 'ageRange',
+  'Occupation': 'occupation',
+  'Note': 'note',
+  'WhatsApp number': 'phone',
+  'Registered by': 'registeredBy',
+  'How they heard': 'source'
+};
+
+var DEFAULT_TAB = 'Form Responses 1';
+var DEFAULT_SOURCE = 'Registered in the FOF app';
+var DEFAULT_MAP = [
+  ['Timestamp', 'Timestamp'],
+  ['Email', 'Email Address'],
+  ['First name', 'What is your first name'],
+  ['Surname', 'What is your surname'],
+  ['Gender', "What's your Gender?"],
+  ['Age range', 'Age Range?'],
+  ['Occupation', 'Occupation'],
+  ['Occupation', "What's your occupation?"],
+  ['Note', 'Any Other Questions or Concerns?'],
+  ['WhatsApp number', 'Please Share Your WhatsApp Number'],
+  ['Registered by', 'Who Registered You for FOF?'],
+  ['How they heard', 'How did you learn about the FOF program?']
 ];
 
-// What goes in "How did you learn about the FOF program?" for app leads.
-var APP_SOURCE = 'Registered in the FOF app';
+// ---------------------------------------------------------------------
+// Menu
+// ---------------------------------------------------------------------
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('FOF Sync')
+    .addItem('Check setup', 'checkSetup')
+    .addItem('Rebuild settings tab', 'rebuildSettings')
+    .addToUi();
+}
+
+function checkSetup() {
+  var result = validate(true);
+  var ui = SpreadsheetApp.getUi();
+  if (result.ok) {
+    ui.alert('FOF Sync', 'All good. Every field has a matching column in "'
+      + result.tabName + '".', ui.ButtonSet.OK);
+  } else {
+    ui.alert('FOF Sync', 'Needs attention:\n\n- '
+      + result.problems.join('\n- ')
+      + '\n\nFix the red rows in "' + SETTINGS_TAB
+      + '", then run Check setup again.',
+      ui.ButtonSet.OK);
+  }
+}
+
+function rebuildSettings() {
+  var book = SpreadsheetApp.getActiveSpreadsheet();
+  var old = book.getSheetByName(SETTINGS_TAB);
+  if (old) {
+    book.deleteSheet(old);
+  }
+  createSettings(book);
+  checkSetup();
+}
+
+// ---------------------------------------------------------------------
+// Web app (called by the FOF app)
+// ---------------------------------------------------------------------
 
 function doPost(e) {
   var body = JSON.parse(e.postData.contents);
@@ -39,99 +96,222 @@ function doPost(e) {
     return json({ ok: false, error: 'fullName is required' });
   }
 
-  var sheet = getSheet();
+  var settings = readSettings();
+  var sheet = SpreadsheetApp.getActiveSpreadsheet()
+    .getSheetByName(settings.tabName);
+  if (!sheet) {
+    return json({ ok: false,
+      error: 'No tab named "' + settings.tabName + '" (check Sync settings)' });
+  }
+
   var width = Math.max(sheet.getLastColumn(), 1);
-  var fields = buildFields(body);
-  var targets = getTargets(sheet);
+  var heads = sheet.getRange(1, 1, 1, width).getValues()[0];
+  var fields = buildFields(body, settings.sourceText);
+  var plan = planColumns(settings.map, heads);
   var values = blank(width);
 
-  for (var i = 0; i < targets.length; i++) {
-    var col = targets[i][0];
-    var key = targets[i][1];
-    values[col - 1] = fields[key];
+  for (var i = 0; i < plan.targets.length; i++) {
+    values[plan.targets[i][0] - 1] = fields[plan.targets[i][1]];
   }
 
-  sheet.appendRow(values);
-  return json({ ok: true, action: 'added', row: sheet.getLastRow() });
-}
+  var row = sheet.getLastRow() + 1;
+  var target = sheet.getRange(row, 1, 1, width);
+  target.setValues([values]);
+  target
+    .setFontColor('#1f1f1f')
+    .setBackground('#ffffff')
+    .setFontWeight('normal')
+    .setFontSize(10)
+    .setVerticalAlignment('middle');
 
-// Open the /exec URL to see how each heading is mapped,
-// plus the answers already used for gender and age range.
-function doGet() {
-  var sheet = getSheet();
-  var width = sheet.getLastColumn();
-  var heads = sheet.getRange(1, 1, 1, width).getValues()[0];
-  var targets = getTargets(sheet);
-  var mapped = {};
-  for (var i = 0; i < targets.length; i++) {
-    mapped[heads[targets[i][0] - 1]] = targets[i][1];
+  for (var t = 0; t < plan.targets.length; t++) {
+    if (plan.targets[t][1] === 'registeredAt') {
+      var cell = sheet.getRange(row, plan.targets[t][0]);
+      cell.setValue(fields.registeredAt);
+      cell.setNumberFormat('M/d/yyyy H:mm:ss');
+      cell.setHorizontalAlignment('right');
+    }
   }
+
   return json({
     ok: true,
-    tab: TAB_NAME,
-    mapped: mapped,
-    existingGenders: distinct(sheet, targets, 'gender'),
-    existingAgeRanges: distinct(sheet, targets, 'ageRange')
+    action: 'added',
+    row: row,
+    tab: settings.tabName,
+    missingHeadings: plan.missing
   });
 }
 
-function buildFields(body) {
+function doGet() {
+  var result = validate(false);
+  return json({
+    ok: result.ok,
+    tab: result.tabName,
+    problems: result.problems
+  });
+}
+
+// ---------------------------------------------------------------------
+// Settings tab
+// ---------------------------------------------------------------------
+
+function createSettings(book) {
+  var sheet = book.insertSheet(SETTINGS_TAB);
+  sheet.getRange('A1').setValue('FOF lead sync settings')
+    .setFontSize(14).setFontWeight('bold');
+  sheet.getRange('A2').setValue('Leads go into this tab')
+    .setFontWeight('bold');
+  sheet.getRange('B2').setValue(DEFAULT_TAB);
+  sheet.getRange('A3').setValue('"How they heard" text for app leads')
+    .setFontWeight('bold');
+  sheet.getRange('B3').setValue(DEFAULT_SOURCE);
+  sheet.getRange('A4').setValue(
+    'If a form question is renamed, change it in column B below, '
+    + 'then run FOF Sync > Check setup. Do not rename column A.')
+    .setFontColor('#666666');
+
+  sheet.getRange(FIRST_MAP_ROW - 1, 1, 1, 3)
+    .setValues([['App field', 'Column heading in the form tab', 'Status']])
+    .setFontWeight('bold').setBackground('#eeeeee');
+
+  var rows = [];
+  for (var i = 0; i < DEFAULT_MAP.length; i++) {
+    rows.push([DEFAULT_MAP[i][0], DEFAULT_MAP[i][1], '']);
+  }
+  sheet.getRange(FIRST_MAP_ROW, 1, rows.length, 3).setValues(rows);
+  sheet.setColumnWidth(1, 260);
+  sheet.setColumnWidth(2, 380);
+  sheet.setColumnWidth(3, 200);
+  sheet.setFrozenRows(FIRST_MAP_ROW - 1);
+  return sheet;
+}
+
+function readSettings() {
+  var book = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = book.getSheetByName(SETTINGS_TAB) || createSettings(book);
+  var tabName = String(sheet.getRange('B2').getValue()).trim()
+    || DEFAULT_TAB;
+  var sourceText = String(sheet.getRange('B3').getValue()).trim();
+  var last = sheet.getLastRow();
+  var map = [];
+  if (last >= FIRST_MAP_ROW) {
+    var count = last - FIRST_MAP_ROW + 1;
+    var rows = sheet.getRange(FIRST_MAP_ROW, 1, count, 2).getValues();
+    for (var i = 0; i < rows.length; i++) {
+      var label = String(rows[i][0]).trim();
+      var heading = String(rows[i][1]).trim();
+      if (label || heading) {
+        map.push({ row: FIRST_MAP_ROW + i, label: label, heading: heading });
+      }
+    }
+  }
+  return { sheet: sheet, tabName: tabName, sourceText: sourceText, map: map };
+}
+
+// Checks every settings row against the form tab. When writeStatus is
+// true it also colours the Status column and refreshes the dropdowns.
+function validate(writeStatus) {
+  var settings = readSettings();
+  var problems = [];
+  var sheet = SpreadsheetApp.getActiveSpreadsheet()
+    .getSheetByName(settings.tabName);
+
+  if (!sheet) {
+    problems.push('No tab named "' + settings.tabName + '"');
+    return { ok: false, tabName: settings.tabName, problems: problems };
+  }
+
+  var width = Math.max(sheet.getLastColumn(), 1);
+  var heads = sheet.getRange(1, 1, 1, width).getValues()[0];
+  var headsClean = [];
+  var headList = [];
+  for (var h = 0; h < heads.length; h++) {
+    headsClean.push(clean(heads[h]));
+    if (String(heads[h]).trim()) {
+      headList.push(String(heads[h]).trim());
+    }
+  }
+
+  for (var i = 0; i < settings.map.length; i++) {
+    var entry = settings.map[i];
+    var status = 'OK';
+    if (!APP_FIELDS[entry.label]) {
+      status = 'Unknown app field';
+    } else if (!entry.heading) {
+      status = 'No heading chosen';
+    } else if (headsClean.indexOf(clean(entry.heading)) === -1) {
+      status = 'Heading not found';
+    }
+    if (status !== 'OK') {
+      problems.push(entry.label + ': ' + status
+        + (entry.heading ? ' ("' + entry.heading + '")' : ''));
+    }
+    if (writeStatus) {
+      var cell = settings.sheet.getRange(entry.row, 3);
+      cell.setValue(status);
+      cell.setBackground(status === 'OK' ? '#d9ead3' : '#f4cccc');
+    }
+  }
+
+  if (writeStatus && headList.length && settings.map.length) {
+    var rule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(headList, true)
+      .setAllowInvalid(true)
+      .build();
+    settings.sheet
+      .getRange(FIRST_MAP_ROW, 2, settings.map.length, 1)
+      .setDataValidation(rule);
+  }
+
+  return { ok: problems.length === 0, tabName: settings.tabName,
+    problems: problems };
+}
+
+// ---------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------
+
+// Returns columns to fill ([column, key]) and headings that were missing.
+function planColumns(map, heads) {
+  var targets = [];
+  var missing = [];
+  for (var i = 0; i < map.length; i++) {
+    var key = APP_FIELDS[map[i].label];
+    if (!key || !map[i].heading) {
+      continue;
+    }
+    var want = clean(map[i].heading);
+    var found = false;
+    for (var c = 0; c < heads.length; c++) {
+      if (clean(heads[c]) === want) {
+        targets.push([c + 1, key]);
+        found = true;
+      }
+    }
+    if (!found) {
+      missing.push(map[i].label + ' -> "' + map[i].heading + '"');
+    }
+  }
+  return { targets: targets, missing: missing };
+}
+
+function buildFields(body, sourceText) {
   var name = String(body.fullName || '').trim().replace(/\s+/g, ' ');
   var space = name.indexOf(' ');
-  var first = space === -1 ? name : name.substring(0, space);
-  var last = space === -1 ? '' : name.substring(space + 1);
   var when = body.registeredAt ? new Date(body.registeredAt) : new Date();
   return {
     registeredAt: when,
     email: String(body.email || ''),
-    firstName: first,
-    surname: last,
+    firstName: space === -1 ? name : name.substring(0, space),
+    surname: space === -1 ? '' : name.substring(space + 1),
     gender: String(body.gender || ''),
     ageRange: String(body.ageRange || ''),
     occupation: String(body.occupation || ''),
     note: String(body.note || ''),
-    phone: String(body.phone || ''),
+    phone: body.phone ? "'" + String(body.phone) : '',
     registeredBy: String(body.registeredBy || ''),
-    source: APP_SOURCE
+    source: sourceText || ''
   };
-}
-
-// Returns [column number, field key] for every heading in MAP.
-function getTargets(sheet) {
-  var width = sheet.getLastColumn();
-  var heads = sheet.getRange(1, 1, 1, width).getValues()[0];
-  var out = [];
-  for (var m = 0; m < MAP.length; m++) {
-    var want = clean(MAP[m][0]);
-    for (var c = 0; c < heads.length; c++) {
-      if (clean(heads[c]) === want) {
-        out.push([c + 1, MAP[m][1]]);
-      }
-    }
-  }
-  return out;
-}
-
-function distinct(sheet, targets, key) {
-  var last = sheet.getLastRow();
-  var seen = {};
-  if (last < 2) {
-    return [];
-  }
-  for (var i = 0; i < targets.length; i++) {
-    if (targets[i][1] !== key) {
-      continue;
-    }
-    var col = targets[i][0];
-    var vals = sheet.getRange(2, col, last - 1, 1).getValues();
-    for (var r = 0; r < vals.length; r++) {
-      var v = String(vals[r][0]).trim();
-      if (v) {
-        seen[v] = true;
-      }
-    }
-  }
-  return Object.keys(seen);
 }
 
 function clean(text) {
@@ -140,15 +320,6 @@ function clean(text) {
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
-}
-
-function getSheet() {
-  var book = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = book.getSheetByName(TAB_NAME);
-  if (!sheet) {
-    throw new Error('No tab named ' + TAB_NAME);
-  }
-  return sheet;
 }
 
 function blank(width) {

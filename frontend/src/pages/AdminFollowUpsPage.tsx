@@ -11,6 +11,7 @@ import ContactImportModal from '../components/followups/ContactImportModal';
 import MessageTemplatePicker from '../components/followups/MessageTemplatePicker';
 import MessageBankPanel from '../components/followups/MessageBankPanel';
 import FollowUpIssuesPanel from '../components/followups/FollowUpIssuesPanel';
+import SheetSyncBanner from '../components/followups/SheetSyncBanner';
 import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
@@ -298,6 +299,8 @@ const AdminFollowUpsPage: React.FC = () => {
           </div>
         )}
       />
+
+      <SheetSyncBanner contacts={contacts} onRetried={() => { void loadAll(); }} />
 
       {registrationLink && (
         <div className="mb-5 flex flex-wrap items-center gap-3 rounded-3xl border border-sky-100 bg-sky-50/60 px-4 py-3">

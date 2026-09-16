@@ -2460,6 +2460,9 @@ const mapFollowUpContact = (row: any): import('../types').FollowUpContact => ({
   occupation: row.occupation ?? null,
   registeredById: row.registeredById ?? null,
   registeredByName: row.registeredBy?.name ?? null,
+  sheetSyncedAt: row.sheetSyncedAt ?? null,
+  sheetSyncError: row.sheetSyncError ?? null,
+  sheetSyncWarning: row.sheetSyncWarning ?? null,
   cohortId: row.cohortId,
   cohortName: row.Cohort?.name || null,
   cohortVenue: row.Cohort?.venue || null,
@@ -2531,6 +2534,13 @@ export const followUpContactsApi = {
     if (error) throw new Error(error.message);
 
     return { contacts: ((data as any[]) || []).map(mapFollowUpContact) };
+  },
+
+  // Re-send every recent registered lead that hasn't reached the Google sheet.
+  async retrySheetSync(): Promise<{ attempted: number; sent: number }> {
+    const { data, error } = await supabase.functions.invoke('sync-lead-to-sheet', { body: { pending: true } });
+    if (error) throw new Error('Could not reach the sheet sync. Please try again.');
+    return { attempted: (data as any)?.attempted ?? 0, sent: (data as any)?.sent ?? 0 };
   },
 
   async create(input: FollowUpContactInput): Promise<{ contact: import('../types').FollowUpContact }> {

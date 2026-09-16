@@ -165,6 +165,34 @@ Deno.serve(async (req) => {
       console.error('daily-checks: lead sheet retry failed', String(error))
     }
 
+    // ── Lead sheet sync health: tell operations once a day if it's broken ────
+    const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
+    const { data: failing } = await supabase.from('FollowUpContact')
+      .select('fullName, sheetSyncError, createdAt')
+      .not('sheetSyncError', 'is', null).is('sheetSyncedAt', null).gte('createdAt', weekAgo)
+      .order('createdAt', { ascending: false })
+    const { data: warned } = await supabase.from('FollowUpContact')
+      .select('fullName, sheetSyncWarning, createdAt')
+      .not('sheetSyncWarning', 'is', null).gte('createdAt', weekAgo)
+      .order('createdAt', { ascending: false })
+    const failCount = (failing ?? []).length
+    const warnCount = (warned ?? []).length
+    if (failCount > 0 || warnCount > 0) {
+      const reason = failCount > 0 ? (failing as any[])[0].sheetSyncError : (warned as any[])[0].sheetSyncWarning
+      const summary = failCount > 0
+        ? `${failCount} lead${failCount === 1 ? '' : 's'} didn't reach the Google sheet`
+        : `${warnCount} lead${warnCount === 1 ? '' : 's'} reached the sheet with missing columns`
+      for (const adminId of admins) {
+        add({
+          userId: adminId,
+          title: 'Lead sheet sync needs attention',
+          body: `${summary}. ${String(reason).slice(0, 140)}`,
+          path: '/follow-ups',
+          type: 'REMINDER',
+        })
+      }
+    }
+
     // ── Skip anyone who already got the same reminder today ──────────────────
     const since = new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString()
     const { data: recent } = await supabase

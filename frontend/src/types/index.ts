@@ -202,6 +202,12 @@ export interface FollowUpContact {
   occupation?: string | null;
   registeredById?: string | null;
   registeredByName?: string | null;
+  /** When the lead reached the Google sheet (null until it does). */
+  sheetSyncedAt?: string | null;
+  /** Why the last attempt to reach the sheet failed. */
+  sheetSyncError?: string | null;
+  /** Reached the sheet, but some columns couldn't be found. */
+  sheetSyncWarning?: string | null;
   cohortId?: string | null;
   cohortName?: string | null;
   cohortVenue?: string | null;

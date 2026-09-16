@@ -25,7 +25,7 @@ const SHEET_SECRET = Deno.env.get('GOOGLE_SHEET_SECRET') ?? ''
 
 const SELECT = '*, registeredBy:User!FollowUpContact_registeredById_fkey(name)'
 
-const sendOne = async (contact: any): Promise<{ ok: boolean; detail: string }> => {
+const sendOne = async (contact: any): Promise<{ ok: boolean; detail: string; row?: number | null; warning?: string | null }> => {
   const payload = {
     secret: SHEET_SECRET,
     registeredAt: contact.createdAt,
@@ -56,10 +56,16 @@ const sendOne = async (contact: any): Promise<{ ok: boolean; detail: string }> =
       return { ok: false, detail }
     }
 
+    // Landed, but some columns couldn't be found: the form probably changed.
+    const missing: string[] = Array.isArray(parsed.missingHeadings) ? parsed.missingHeadings : []
+    const warning = missing.length > 0
+      ? `Missing in sheet: ${missing.join('; ')}`.slice(0, 300)
+      : null
+
     await supabase.from('FollowUpContact')
-      .update({ sheetSyncedAt: new Date().toISOString(), sheetSyncError: null })
+      .update({ sheetSyncedAt: new Date().toISOString(), sheetSyncError: null, sheetSyncWarning: warning })
       .eq('id', contact.id)
-    return { ok: true, detail: parsed.action ?? 'added' }
+    return { ok: true, detail: parsed.action ?? 'added', row: parsed.row ?? null, warning }
   } catch (error) {
     await supabase.from('FollowUpContact').update({ sheetSyncError: String(error).slice(0, 300) }).eq('id', contact.id)
     return { ok: false, detail: String(error) }
@@ -89,7 +95,7 @@ Deno.serve(async (req) => {
     if (!contact) return json({ ok: false, error: 'Lead not found' }, 404)
 
     const result = await sendOne(contact)
-    return json({ ok: result.ok, detail: result.detail }, result.ok ? 200 : 502)
+    return json({ ok: result.ok, detail: result.detail, row: result.row ?? null, warning: result.warning ?? null }, result.ok ? 200 : 502)
   } catch (error) {
     console.error('sync-lead-to-sheet error:', String(error))
     return json({ ok: false, error: String(error) }, 500)
