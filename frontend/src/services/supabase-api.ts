@@ -679,7 +679,7 @@ export const cohortsApi = {
   async getMembers(cohortId: string): Promise<{ users: User[] }> {
     const { data, error } = await supabase
       .from('UserCohort')
-      .select('userId, User(*)')
+      .select(`userId, User(${USER_SELECT})`)
       .eq('cohortId', cohortId);
 
     if (error) throw new Error(error.message);
