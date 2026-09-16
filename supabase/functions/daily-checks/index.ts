@@ -151,6 +151,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Leads that never reached the Google Sheet ────────────────────────────
+    let leadsRetried = 0
+    try {
+      const retry = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-lead-to-sheet`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+        body: JSON.stringify({ pending: true }),
+      })
+      const result = await retry.json().catch(() => null)
+      leadsRetried = result?.sent ?? 0
+    } catch (error) {
+      console.error('daily-checks: lead sheet retry failed', String(error))
+    }
+
     // ── Skip anyone who already got the same reminder today ──────────────────
     const since = new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString()
     const { data: recent } = await supabase
@@ -158,8 +172,8 @@ Deno.serve(async (req) => {
     const alreadySent = new Set(((recent ?? []) as any[]).map((r) => `${r.userId}|${r.title}`))
     const toSend = planned.filter((p) => !alreadySent.has(`${p.userId}|${p.title}`))
 
-    if (dryRun) return json({ ok: true, dryRun: true, planned: planned.length, wouldSend: toSend.length, items: toSend })
-    if (toSend.length === 0) return json({ ok: true, sent: 0, skipped: planned.length })
+    if (dryRun) return json({ ok: true, dryRun: true, planned: planned.length, wouldSend: toSend.length, leadsRetried, items: toSend })
+    if (toSend.length === 0) return json({ ok: true, sent: 0, skipped: planned.length, leadsRetried })
 
     await insertNotifications(supabase, toSend)
 
@@ -176,7 +190,7 @@ Deno.serve(async (req) => {
       sent += result.sent
     }
 
-    return json({ ok: true, notified: toSend.length, sent, skipped: planned.length - toSend.length })
+    return json({ ok: true, notified: toSend.length, sent, skipped: planned.length - toSend.length, leadsRetried })
   } catch (error) {
     console.error('daily-checks error:', String(error))
     return json({ ok: false, error: String(error) }, 500)

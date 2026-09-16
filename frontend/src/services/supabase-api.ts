@@ -2544,6 +2544,12 @@ export const followUpContactsApi = {
 
     const contact = mapFollowUpContact(data);
     if (input.ownerId) notifyFollowUpAssignment(input.ownerId, [contact.fullName]);
+    // Registered by a support: also send it to the Google Sheet. Failures are
+    // recorded on the row and retried by the daily job, never blocking the save.
+    if (input.registeredById) {
+      void supabase.functions.invoke('sync-lead-to-sheet', { body: { contactId: contact.id } }).catch(() => undefined);
+    }
+
     // A support registering a lead from Mobilisation: operations needs to pick it up.
     if (input.registeredById && !input.ownerId) {
       void notify(
