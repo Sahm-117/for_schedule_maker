@@ -115,48 +115,27 @@ const friendlyUserError = (rawMessage: string | undefined, fallback: string): st
 };
 
 // Auth API using Supabase Auth
-export const authApi = {
-  async login(identifier: string, _password: string): Promise<AuthResponse> {
-    const normalized = identifier.trim().toLowerCase();
-    const lookupColumn = normalized.includes('@') ? 'email' : 'phone';
+// Every column of "User" the app uses. password_hash is deliberately absent so a
+// stolen anon key (or DevTools) can never read password material.
+const USER_SELECT = 'id, email, phone, name, role, "isActive", "deactivatedAt", "isCoordinator", "avatarUrl", "themeColor", "hubLastSeenAt", "whatsappGroupUrl", "onboardingCompleted", "onboardingReplayCount", "onboardingLastReplayAt", "mustChangePassword", "createdAt", "updatedAt"';
 
-    // Look up one identifier at a time. PostgREST's `or` filter is parsed as a
-    // query expression, so a combined email/phone lookup can be rejected by an
-    // older cached client or database schema even when the email itself is a
-    // valid, active account. A login value is unambiguously either an email or a
-    // phone number, so a direct equality filter is both simpler and more robust.
-    // Do NOT use .single(): it throws on duplicate legacy accounts and would
-    // turn an otherwise usable account into a login failure.
-    const { data: matches, error } = await supabase
-      .from('User')
-      .select('*')
-      .eq(lookupColumn, normalized);
+export const authApi = {
+  async login(identifier: string, password: string): Promise<AuthResponse> {
+    // Verification happens in the database (login_user), so the password hash
+    // never reaches the browser and a wrong password is actually rejected.
+    const { data, error } = await supabase.rpc('login_user', {
+      identifier: identifier.trim(),
+      password,
+    });
 
     if (error) {
       throw new Error('Login service unavailable');
     }
-
-    const rows = (matches as any[]) || [];
-    if (rows.length === 0) {
+    if (!data) {
       throw new Error('Invalid credentials');
     }
 
-    // On a multi-match, prefer an active account, then the oldest (stable pick
-    // and consistent with which row an account merge would keep).
-    const pickUser = (candidates: any[]) => {
-      const active = candidates.filter((u) => u.isActive !== false);
-      const pool = active.length > 0 ? active : candidates;
-      return [...pool].sort((a, b) =>
-        new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime()
-      )[0];
-    };
-
-    const user = pickUser(rows);
-
-    if (user.isActive === false) {
-      throw new Error('Account deactivated');
-    }
-
+    const user = data as User;
     return {
       user,
       accessToken: `mock_token_${user.id}`,
@@ -171,23 +150,24 @@ export const authApi = {
     password: string;
     role?: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT'
   }): Promise<{ user: User }> {
-    const { data, error } = await supabase
-      .from('User')
-      .insert([{
-        ...(userData.email ? { email: userData.email.trim().toLowerCase() } : {}),
-        ...(userData.phone ? { phone: userData.phone.trim() } : {}),
-        name: userData.name,
-        password_hash: `hashed_${userData.password}`,
-        role: userData.role || 'SUPPORT',
-      }])
-      .select()
-      .single();
+    // The account and its hashed password are created together in the database,
+    // so no password material is ever written from the browser.
+    const { data, error } = await supabase.rpc('create_user', {
+      p_name: userData.name,
+      p_password: userData.password,
+      p_email: userData.email ? userData.email.trim().toLowerCase() : null,
+      p_phone: userData.phone ? userData.phone.trim() : null,
+      p_role: userData.role || 'SUPPORT',
+    });
 
     if (error) {
+      if (error.message.includes('at least 8')) {
+        throw new Error('Password must be at least 8 characters.');
+      }
       throw new Error(friendlyUserError(error.message, 'Could not create the account. Please try again.'));
     }
 
-    return { user: data };
+    return { user: data as unknown as User };
   },
 
   async getMe(): Promise<{ user: User }> {
@@ -208,7 +188,7 @@ export const authApi = {
 
     const { data, error } = await supabase
       .from('User')
-      .select('*')
+      .select(USER_SELECT)
       .eq('id', userId)
       .single();
 
@@ -216,11 +196,11 @@ export const authApi = {
       throw new Error('User not found');
     }
 
-    if (data.isActive === false) {
+    if ((data as any).isActive === false) {
       throw new Error('Account deactivated');
     }
 
-    return { user: data };
+    return { user: data as unknown as User };
   },
 
   async refresh(refreshToken: string): Promise<AuthResponse> {
@@ -231,7 +211,7 @@ export const authApi = {
 
     const { data, error } = await supabase
       .from('User')
-      .select('*')
+      .select(USER_SELECT)
       .eq('id', userId)
       .single();
 
@@ -239,14 +219,14 @@ export const authApi = {
       throw new Error('User not found');
     }
 
-    if (data.isActive === false) {
+    if ((data as any).isActive === false) {
       throw new Error('Account deactivated');
     }
 
     return {
-      user: data,
-      accessToken: `mock_token_${data.id}`,
-      refreshToken: `refresh_token_${data.id}`,
+      user: data as unknown as User,
+      accessToken: `mock_token_${(data as any).id}`,
+      refreshToken: `refresh_token_${(data as any).id}`,
     };
   },
 };
@@ -1897,7 +1877,7 @@ export const usersApi = {
   async getAll(options: { includeInactive?: boolean } = {}): Promise<{ users: User[] }> {
     let query = supabase
       .from('User')
-      .select('*')
+      .select(USER_SELECT)
       .order('createdAt', { ascending: false });
 
     if (!options.includeInactive) {
@@ -1916,7 +1896,7 @@ export const usersApi = {
   async getById(userId: string): Promise<{ user: User }> {
     const { data, error } = await supabase
       .from('User')
-      .select('*')
+      .select(USER_SELECT)
       .eq('id', userId)
       .single();
 
@@ -2027,24 +2007,67 @@ export const usersApi = {
   }): Promise<{ user: User }> {
     const finalUpdateData: any = { ...updateData };
 
-    // Simple hash for demo if password provided
-    if (updateData.password) {
-      finalUpdateData.password_hash = `hashed_${updateData.password}`;
-      delete finalUpdateData.password;
+    // The password is hashed in the database (set_user_password); it is never
+    // written from the browser.
+    const newPassword = updateData.password;
+    delete finalUpdateData.password;
+
+    if (newPassword) {
+      const { error: passwordError } = await supabase.rpc('set_user_password', {
+        target_user: userId,
+        new_password: newPassword,
+        force_change: true,
+      });
+      if (passwordError) {
+        throw new Error(passwordError.message.includes('at least 8')
+          ? 'Password must be at least 8 characters.'
+          : 'The password could not be updated.');
+      }
     }
 
     const { data, error } = await supabase
       .from('User')
       .update(finalUpdateData)
       .eq('id', userId)
-      .select()
+      .select(USER_SELECT)
       .single();
 
     if (error) {
       throw new Error(friendlyUserError(error.message, 'Could not save the changes. Please try again.'));
     }
 
-    return { user: data };
+    return { user: data as unknown as User };
+  },
+
+  // Admin-issued reset: the person must set their own password at next login.
+  async resetPassword(userId: string, temporaryPassword: string): Promise<void> {
+    const { error } = await supabase.rpc('set_user_password', {
+      target_user: userId,
+      new_password: temporaryPassword,
+      force_change: true,
+    });
+    if (error) {
+      throw new Error(error.message.includes('at least 8')
+        ? 'Password must be at least 8 characters.'
+        : 'The password could not be reset.');
+    }
+  },
+
+  // Self-service change; the current password must be correct.
+  async changeOwnPassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    const { data, error } = await supabase.rpc('change_own_password', {
+      target_user: userId,
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+    if (error) {
+      throw new Error(error.message.includes('at least 8')
+        ? 'Your new password must be at least 8 characters.'
+        : 'The password could not be changed.');
+    }
+    if (data !== true) {
+      throw new Error('Your current password is not correct.');
+    }
   },
 
   async delete(userId: string): Promise<{ message: string }> {

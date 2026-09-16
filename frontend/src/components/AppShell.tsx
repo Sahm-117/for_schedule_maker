@@ -10,6 +10,7 @@ import PWAInstallBanner from './PWAInstallBanner';
 import PWAUpdateBanner from './PWAUpdateBanner';
 import NeedSupportButton from './NeedSupportButton';
 import NotificationBell from './NotificationBell';
+import ForcePasswordChangeModal from './ForcePasswordChangeModal';
 import ErrorBoundary from './ErrorBoundary';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { isWalkthroughDismissed } from '../hooks/useWalkthrough';
@@ -546,6 +547,9 @@ const AppShell: React.FC = () => {
             <Outlet />
           </ErrorBoundary>
         </main>
+
+        {/* Blocks the app until a reset password is replaced by the person's own. */}
+        <ForcePasswordChangeModal />
       </div>
 
       <nav className={isSupport

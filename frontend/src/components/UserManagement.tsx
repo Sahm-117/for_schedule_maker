@@ -200,15 +200,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const handleResetPassword = async (userId: string) => {
-    if (resetPasswordValue.length < 6) {
-      setError('New password must be at least 6 characters.');
+    if (resetPasswordValue.length < 8) {
+      setError('New password must be at least 8 characters.');
       return;
     }
     setResetPasswordSaving(true);
     setError('');
     try {
       await usersApi.update(userId, { password: resetPasswordValue });
-      setSuccess('Password reset successfully.');
+      setSuccess('Password reset. They will be asked to choose a new one when they next sign in.');
       setResetPasswordUserId(null);
       setResetPasswordValue('');
     } catch (err: any) {

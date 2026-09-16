@@ -33,6 +33,8 @@ export interface User {
   themeColor?: string | null;
   hubLastSeenAt?: string | null;
   whatsappGroupUrl?: string | null;
+  /** Set by an admin-issued reset: the app blocks until they pick a new password. */
+  mustChangePassword?: boolean;
   createdAt?: string;
   updatedAt?: string;
   labels?: Label[];

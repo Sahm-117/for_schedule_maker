@@ -364,6 +364,14 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
     return response.data;
   },
 
+  async resetPassword(userId: string, temporaryPassword: string): Promise<void> {
+    await api.put(`/users/${userId}`, { password: temporaryPassword });
+  },
+
+  async changeOwnPassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+    await api.put(`/users/${userId}/password`, { currentPassword, newPassword });
+  },
+
   async update(userId: string, updateData: {
     name?: string;
     email?: string;
