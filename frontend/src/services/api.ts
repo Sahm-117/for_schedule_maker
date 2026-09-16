@@ -145,6 +145,7 @@ export const weeksApi = USE_SUPABASE ? supabaseWeeksApi : {
 
 export const cohortsApi = USE_SUPABASE ? supabaseCohortsApi : {
   async getAll(): Promise<{ cohorts: Cohort[] }> { return { cohorts: [] }; },
+  async getHealth(_cohortId: string): Promise<import('../components/dashboard/healthModel').CohortHealthPayload> { throw new Error('Cohorts are only available in Supabase mode.'); },
   async createFromCurrent(_input: {
     name: string;
     description?: string;
@@ -177,6 +178,7 @@ export const followUpContactsApi = USE_SUPABASE ? supabaseFollowUpContactsApi : 
   async logContact(_id: string): Promise<never> { return followUpsUnavailable(); },
   async delete(_id: string): Promise<never> { return followUpsUnavailable(); },
   async getNextCohortContacts(_cohortId: string): Promise<{ contacts: import('../types').FollowUpContact[] }> { return { contacts: [] }; },
+  async getWaitingForCohort(_cohortId: string): Promise<{ contacts: import('../types').FollowUpContact[] }> { return { contacts: [] }; },
   async bulkMoveNextCohortContacts(_ids: string[], _newCohortId: string): Promise<void> { return; },
 };
 

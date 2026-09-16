@@ -1,60 +1,107 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, NavLink } from 'react-router-dom';
 import ActivityText from '../components/ActivityText';
-import LabelChip from '../components/LabelChip';
 import PageHeader from '../components/PageHeader';
-import { PeriodBadge } from '../components/PeriodIcon';
+import { useToast } from '../components/Toast';
+import CohortTrendChart from '../components/dashboard/CohortTrendChart';
+import {
+  AttentionList,
+  ChecklistRow,
+  GroupHeatGrid,
+  HealthPill,
+  SegmentBar,
+  Sparkline,
+  VitalTile,
+} from '../components/dashboard/DashboardParts';
+import {
+  buildDashboardModel,
+  statusForRate,
+  worstStatus,
+  type AttentionItem,
+  type CohortHealthPayload,
+  type DashboardModel,
+  type HealthStatus,
+} from '../components/dashboard/healthModel';
+import NextCohortAssignModal from '../components/followups/NextCohortAssignModal';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, coverRequestsApi, resourcesApi, supportActivityCompletionsApi, usersApi } from '../services/api';
-import type { Activity, Announcement, Resource, SupportActivityCompletion, User } from '../types';
+import { announcementsApi, cohortsApi, followUpContactsApi, supportActivityCompletionsApi, usersApi } from '../services/api';
+import type { Announcement, FollowUpContact, SupportActivityCompletion, User } from '../types';
 import { sortByText } from '../utils/sort';
-import { formatDateTime } from '../utils/time';
+
+// Admin home: where the cohort is, whether it's healthy, what needs attention
+// and which groups need help. Switches to a registration view before a cohort
+// starts and to a final summary once it's over.
+
+const SUNDAY_COLOR = '#2a78d6';
+const MEETING_COLOR = '#eb6834';
 
 const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
 
+const parseDay = (value?: string | null) => {
+  if (!value) return null;
+  const [y, m, d] = String(value).slice(0, 10).split('-').map(Number);
+  return y && m && d ? new Date(y, m - 1, d) : null;
+};
+const shortDate = (value?: string | null) => {
+  const date = parseDay(value);
+  return date ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(date) : null;
+};
+const pct = (value: number | null) => (value === null ? '–' : `${Math.round(value * 100)}`);
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
 const AdminDashboardPage: React.FC = () => {
   const { user, isAdmin } = useAuth();
-  const { activeCohort, weeks, selectedWeek, globalPendingChanges, realtimeHealthy, newResourceCount, liveRevision } = useAppData();
-  const [pendingCoverCount, setPendingCoverCount] = useState(0);
+  const { activeCohort, weeks, selectedWeek, globalPendingChanges, liveRevision } = useAppData();
+  const showToast = useToast();
 
-  useEffect(() => {
-    coverRequestsApi.getAll({ status: 'PENDING' })
-      .then(({ requests }) => setPendingCoverCount(requests.filter((request) => new Date(request.endsAt).getTime() >= Date.now()).length))
-      .catch(() => setPendingCoverCount(0));
-  }, [liveRevision]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [resources, setResources] = useState<Resource[]>([]);
+  const [health, setHealth] = useState<CohortHealthPayload | null>(null);
+  const [healthError, setHealthError] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  const [supports, setSupports] = useState<User[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
 
-  useEffect(() => {
-    resourcesApi.getAll().then((res) => setResources(sortByText(res.resources, (resource) => resource.title))).catch(() => {});
-    announcementsApi.getHistory({ isAdmin: true, cohortId: activeCohort?.id || null }).then((res) => setAnnouncements(res.announcements.slice(0, 3))).catch(() => {});
-    if (isAdmin) {
-      usersApi.getAll()
-        .then(async (res) => {
-          const supportUsers = res.users.filter((member) => member.role === 'SUPPORT');
-          const labelResponses = await Promise.all(
-            supportUsers.map(async (member) => {
-              try {
-                const labelsResponse = await usersApi.getUserLabels(member.id);
-                return {
-                  ...member,
-                  labels: labelsResponse.labels,
-                };
-              } catch {
-                return {
-                  ...member,
-                  labels: [],
-                };
-              }
-            })
-          );
-          setUsers(sortByText(labelResponses, (member) => member.name));
-        })
-        .catch(() => {});
+  const [assignContacts, setAssignContacts] = useState<FollowUpContact[] | null>(null);
+  const [openingAssign, setOpeningAssign] = useState(false);
+
+  const loadHealth = useCallback(async () => {
+    if (!activeCohort?.id) {
+      setHealth(null);
+      setLoading(false);
+      return;
     }
+    try {
+      setHealthError('');
+      setHealth(await cohortsApi.getHealth(activeCohort.id));
+    } catch (error) {
+      setHealthError(error instanceof Error ? error.message : 'Could not load cohort health.');
+    } finally {
+      setLoading(false);
+    }
+  }, [activeCohort?.id]);
+
+  useEffect(() => { void loadHealth(); }, [loadHealth, liveRevision]);
+
+  useEffect(() => {
+    announcementsApi.getHistory({ isAdmin: true, cohortId: activeCohort?.id || null })
+      .then((res) => setAnnouncements(res.announcements.slice(0, 1)))
+      .catch(() => setAnnouncements([]));
+    if (!isAdmin) return;
+    usersApi.getAll()
+      .then(async (res) => {
+        const supportUsers = res.users.filter((member) => member.role === 'SUPPORT');
+        const withLabels = await Promise.all(supportUsers.map(async (member) => {
+          try {
+            return { ...member, labels: (await usersApi.getUserLabels(member.id)).labels };
+          } catch {
+            return { ...member, labels: [] };
+          }
+        }));
+        setSupports(sortByText(withLabels, (member) => member.name));
+      })
+      .catch(() => setSupports([]));
   }, [activeCohort?.id, isAdmin, liveRevision]);
 
   const activeWeek = selectedWeek || weeks[0] || null;
@@ -63,253 +110,400 @@ const AdminDashboardPage: React.FC = () => {
       setCompletions([]);
       return;
     }
-
     supportActivityCompletionsApi.getByWeek(activeWeek.id)
       .then((response) => setCompletions(response.completions))
       .catch(() => setCompletions([]));
   }, [activeWeek, isAdmin, liveRevision]);
 
+  const model = useMemo(() => {
+    if (!health || !activeCohort) return null;
+    return buildDashboardModel(
+      health,
+      { startDate: health.cohort?.startDate ?? activeCohort.startDate, endDate: health.cohort?.endDate ?? activeCohort.endDate, status: activeCohort.status },
+      globalPendingChanges.length,
+    );
+  }, [health, activeCohort, globalPendingChanges.length]);
+
   const todaysDay = useMemo(() => {
     if (!activeWeek) return null;
-    return activeWeek.days.find((day) => day.dayName === todayName) || activeWeek.days.find((day) => day.activities.length > 0) || activeWeek.days[0] || null;
+    return activeWeek.days.find((day) => day.dayName === todayName) || null;
   }, [activeWeek]);
 
-  const supportCount = users.filter((member) => member.role === 'SUPPORT').length;
-  const todayActivities = todaysDay?.activities || [];
-  const completionsByActivity = useMemo(() => {
-    const map = new Map<number, SupportActivityCompletion[]>();
-    completions.forEach((completion) => {
-      const current = map.get(completion.activityId) || [];
-      current.push(completion);
-      map.set(completion.activityId, current);
-    });
-    return map;
-  }, [completions]);
+  const handleAttentionAction = async (item: AttentionItem) => {
+    if (item.action !== 'assignNextCohort' || !activeCohort) return;
+    setOpeningAssign(true);
+    try {
+      const { contacts } = await followUpContactsApi.getWaitingForCohort(activeCohort.id);
+      if (contacts.length === 0) {
+        showToast({ message: 'Nobody is waiting for the next cohort any more.', tone: 'info' });
+        void loadHealth();
+      } else {
+        setAssignContacts(contacts);
+      }
+    } catch (error) {
+      showToast({ message: error instanceof Error ? error.message : 'Could not load them.', tone: 'error' });
+    } finally {
+      setOpeningAssign(false);
+    }
+  };
 
   if (user?.role === 'SUPPORT') {
     return <Navigate to="/support" replace />;
   }
 
+  if (!activeCohort) {
+    return (
+      <div>
+        <PageHeader title="Dashboard" subtitle="How the cohort is doing, and what needs you." />
+        <div className="surface-card p-8 text-center text-sm text-gray-500">
+          No cohort yet. <NavLink to="/cohorts" className="font-semibold text-primary">Create one</NavLink> to get started.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <PageHeader
-        title="Dashboard"
-        subtitle="A quick look at the programme, your team, and shared files."
-        action={activeWeek ? (
-          <div className="surface-muted px-4 py-3 text-sm text-gray-700">
-            <span className="font-semibold text-gray-900">Active focus:</span> {activeCohort?.name ? `${activeCohort.name} • ` : ''}Week {activeWeek.weekNumber}
+      <PageHeader title="Dashboard" subtitle="How the cohort is doing, and what needs you." />
+
+      {loading && !health ? (
+        <DashboardSkeleton />
+      ) : healthError && !health ? (
+        <div className="surface-card flex flex-wrap items-center justify-between gap-3 p-5 text-sm text-red-700">
+          <span>{healthError}</span>
+          <button type="button" onClick={() => { setLoading(true); void loadHealth(); }} className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700">Try again</button>
+        </div>
+      ) : health && model ? (
+        <div className="space-y-5">
+          <CohortStrip health={health} model={model} cohortName={activeCohort.name} />
+
+          {model.mode === 'upcoming' ? (
+            <RegistrationFunnel health={health} />
+          ) : (
+            <VitalSigns health={health} model={model} />
+          )}
+
+          <div className={openingAssign ? 'pointer-events-none opacity-70' : ''}>
+            <AttentionList items={model.attention} onAction={(item) => { void handleAttentionAction(item); }} />
           </div>
-        ) : null}
+
+          {model.mode === 'upcoming' ? (
+            <ReadinessChecklist health={health} />
+          ) : (
+            <div className="grid gap-5 xl:grid-cols-2">
+              <section className="surface-card min-w-0 p-5 sm:p-6">
+                <h3 className="text-base font-semibold text-gray-900">{model.mode === 'completed' ? 'How the cohort went' : 'Cohort trend'}</h3>
+                <p className="mb-4 text-xs text-gray-500">Share of groups each week. {model.mode === 'running' ? 'The current week is left out until it ends.' : ''}</p>
+                {model.judged.length === 0 ? (
+                  <p className="rounded-2xl bg-gray-50 px-4 py-10 text-center text-sm text-gray-500">The trend starts once Week 1 is over.</p>
+                ) : (
+                  <CohortTrendChart stats={model.stats} lastWeek={Math.max(...model.judged)} />
+                )}
+              </section>
+              <div className="min-w-0">
+                <GroupHeatGrid groups={model.engagement} data={health} weekNumbers={model.judged} />
+              </div>
+            </div>
+          )}
+
+          <OperationsRow
+            todayLabel={todaysDay ? `${todaysDay.dayName}, Week ${activeWeek?.weekNumber}` : null}
+            activities={todaysDay?.activities ?? []}
+            supports={supports}
+            completions={completions}
+            pendingApprovals={globalPendingChanges.length}
+            pendingCover={health.pendingCover}
+            announcement={announcements[0] ?? null}
+            isAdmin={isAdmin}
+          />
+        </div>
+      ) : null}
+
+      <NextCohortAssignModal
+        isOpen={!!assignContacts}
+        contacts={assignContacts ?? []}
+        targetCohortId={activeCohort.id}
+        targetCohortName={activeCohort.name}
+        supports={supports}
+        onClose={() => setAssignContacts(null)}
+        onDone={(message) => {
+          setAssignContacts(null);
+          showToast({ message });
+          void loadHealth();
+        }}
       />
-
-      <section className="surface-card mb-6 overflow-hidden bg-gradient-to-br from-primary to-orange-600 text-white">
-        <div className="grid gap-6 px-6 py-6 sm:px-8 lg:grid-cols-[1.4fr_1fr]">
-          <div>
-            <p className="text-sm font-medium text-white/85">Operations snapshot</p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight">FOF IKD weekly programme control room</h2>
-            <p className="mt-3 max-w-2xl text-sm text-white/85">
-              Keep the real schedule workflow intact while giving admins and SOP preparers a much clearer view of approvals, resources, and live programme activity.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <HeroMetric label="Pending approvals" value={globalPendingChanges.length} />
-            <HeroMetric label="Resources" value={resources.length} />
-            <HeroMetric label="Supports" value={supportCount} />
-            <HeroMetric label="Announcements" value={announcements.length} />
-          </div>
-        </div>
-      </section>
-
-      <section className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard title="Weeks set up" value={weeks.length} detail="Programme weeks available so far" />
-        <SummaryCard title="Today's activities" value={todayActivities.length} detail={todaysDay ? `${todaysDay.dayName} in Week ${activeWeek?.weekNumber}` : 'No day selected'} />
-        <SummaryCard title="Resources" value={resources.length} detail={newResourceCount > 0 ? `+${newResourceCount} new since the last check` : 'No new additions right now'} />
-        <SummaryCard title="Live updates" value={realtimeHealthy ? 'Live' : 'Catching up'} detail={realtimeHealthy ? 'Realtime sync connected' : 'Falling back to polling'} />
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[1.2fr_0.9fr]">
-        <div className="surface-card p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Today&apos;s activity snapshot</h3>
-              <p className="text-sm text-gray-500">{todaysDay ? `${todaysDay.dayName} in Week ${activeWeek?.weekNumber}` : 'No active day selected'}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <NavLink
-                to="/activity-overview"
-                className="rounded-full border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-primary hover:bg-orange-100"
-              >
-                Completion overview
-              </NavLink>
-              <NavLink to="/schedule" className="text-sm font-semibold text-primary hover:text-primary-dark">Open schedule</NavLink>
-            </div>
-          </div>
-          <div className="space-y-3">
-            {todayActivities.length === 0 ? (
-              <EmptyState text="No activities are scheduled in the current focus day." />
-            ) : todayActivities.slice(0, 5).map((activity) => (
-              <div key={activity.id} className="surface-muted rounded-2xl px-4 py-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900"><ActivityText text={activity.description} /></p>
-                    <p className="mt-1 text-xs text-gray-500">{activity.time}</p>
-                  </div>
-                  <PeriodBadge period={activity.period} compact />
-                </div>
-                <AdminActivityCompletionStatus
-                  activity={activity}
-                  users={users}
-                  completions={completionsByActivity.get(activity.id) || []}
-                />
-                {activity.labels && activity.labels.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {activity.labels.map((label) => (
-                      <LabelChip key={label.id} name={label.name} color={label.color} size="sm" />
-                    ))}
-                  </div>
-                )}
-                {(!activity.labels || activity.labels.length === 0) && (
-                  <div className="mt-3">
-                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-600">Open</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <div className="surface-card p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Approval queue</h3>
-                <p className="text-sm text-gray-500">Live requests from SOP preparers.</p>
-              </div>
-              <NavLink to="/approvals" className="text-sm font-semibold text-primary hover:text-primary-dark">Review all</NavLink>
-            </div>
-            {pendingCoverCount > 0 && (
-              <NavLink to="/approvals" className="mb-3 flex items-center justify-between gap-3 rounded-2xl bg-amber-100/80 px-4 py-3 text-sm font-semibold text-amber-700">
-                <span>{pendingCoverCount} cover request{pendingCoverCount === 1 ? '' : 's'} waiting for a support</span>
-                <span className="flex-none">Assign →</span>
-              </NavLink>
-            )}
-            <div className="space-y-3">
-              {globalPendingChanges.length === 0 ? (
-                <EmptyState text="No pending changes right now." />
-              ) : globalPendingChanges.slice(0, 4).map((change) => (
-                <div key={change.id} className="rounded-2xl border border-orange-100 bg-orange-50/80 px-4 py-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-orange-700">{change.changeType}</span>
-                    <span className="text-xs text-gray-500">{change.user.name}</span>
-                  </div>
-                  <p className="mt-2 text-sm font-medium text-gray-900">Week {change.weekId}</p>
-                  <p className="mt-1 text-xs text-gray-500">{formatDateTime(change.createdAt)}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="surface-card p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Recent announcements</h3>
-                <p className="text-sm text-gray-500">Latest messages sent to support teams.</p>
-              </div>
-              <NavLink to={isAdmin ? '/announcements' : '/team-announcements'} className="text-sm font-semibold text-primary hover:text-primary-dark">
-                {isAdmin ? 'Manage' : 'View all'}
-              </NavLink>
-            </div>
-            <div className="space-y-3">
-              {announcements.length === 0 ? (
-                <EmptyState text="No announcements have been sent yet." />
-              ) : announcements.map((item) => (
-                <div key={item.id} className="surface-muted px-4 py-4">
-                  <p className="text-sm font-semibold text-gray-900">{item.subject}</p>
-                  <p className="mt-1 line-clamp-2 text-xs text-gray-500">{item.body}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 };
 
-const HeroMetric: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div className="rounded-2xl bg-white/15 px-4 py-4 backdrop-blur-sm">
-    <p className="text-xs font-medium uppercase tracking-wide text-white/80">{label}</p>
-    <p className="mt-2 text-2xl font-bold text-white">{value}</p>
-  </div>
-);
+const CohortStrip: React.FC<{ health: CohortHealthPayload; model: DashboardModel; cohortName: string }> = ({ health, model, cohortName }) => {
+  const total = model.stats.length;
+  const start = shortDate(health.cohort?.startDate);
+  const end = shortDate(health.cohort?.endDate);
 
-const SummaryCard: React.FC<{ title: string; value: React.ReactNode; detail: string }> = ({ title, value, detail }) => (
-  <div className="surface-card p-5">
-    <p className="text-sm font-medium text-gray-500">{title}</p>
-    <p className="mt-3 text-3xl font-bold tracking-tight text-gray-900">{value}</p>
-    <p className="mt-2 text-sm text-gray-500">{detail}</p>
-  </div>
-);
+  let heading: string;
+  let progress: number;
+  let overall: HealthStatus;
+  let overallLabel: string | undefined;
 
-const EmptyState: React.FC<{ text: string }> = ({ text }) => (
-  <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/50 px-4 py-8 text-center text-sm text-gray-500">
-    {text}
-  </div>
-);
-
-const AdminActivityCompletionStatus: React.FC<{
-  activity: Activity;
-  users: User[];
-  completions: SupportActivityCompletion[];
-}> = ({ activity, users, completions }) => {
-  const activityLabelIds = new Set((activity.labels || []).map((label) => label.id));
-  const assignedSupports = users.filter((member) =>
-    member.role === 'SUPPORT'
-    && member.labels?.some((label) => activityLabelIds.has(label.id))
-  );
-  const completedUserIds = new Set(completions.map((completion) => completion.userId));
-  const completedCount = assignedSupports.filter((member) => completedUserIds.has(member.id)).length;
-
-  if ((activity.labels || []).length === 0) {
-    return (
-      <div className="mt-3 rounded-2xl border border-dashed border-gray-200 bg-white/70 px-3 py-3 text-xs text-gray-500">
-        No activity tag is assigned to this activity yet.
-      </div>
-    );
-  }
-
-  if (assignedSupports.length === 0) {
-    return (
-      <div className="mt-3 rounded-2xl border border-dashed border-gray-200 bg-white/70 px-3 py-3 text-xs text-gray-500">
-        No support users are assigned to the selected activity tags for this activity.
-      </div>
-    );
+  if (model.mode === 'upcoming') {
+    const startDay = parseDay(health.cohort?.startDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = startDay ? Math.round((startDay.getTime() - today.getTime()) / 86400000) : null;
+    heading = days === null ? 'Not started yet' : days === 1 ? 'Starts tomorrow' : `Starts in ${days} days`;
+    progress = 0;
+    overall = 'neutral';
+    overallLabel = 'Getting ready';
+  } else if (model.mode === 'completed') {
+    heading = start && end ? `Completed · ran ${start} – ${end}` : 'Completed';
+    progress = 1;
+    overall = 'neutral';
+    overallLabel = 'Final summary';
+  } else {
+    heading = `Week ${model.currentWeek} of ${total}${end ? ` · ends ${end}` : ''}`;
+    progress = total ? model.currentWeek / total : 0;
+    overall = model.lastJudged
+      ? worstStatus([statusForRate(model.lastJudged.recordingRate), statusForRate(model.lastJudged.meetingRate)])
+      : 'neutral';
   }
 
   return (
-    <div className="mt-3 rounded-2xl border border-emerald-100 bg-white/80 px-3 py-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Support completion</p>
-        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${completedCount === assignedSupports.length ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
-          {completedCount}/{assignedSupports.length} completed
-        </span>
+    <section className="surface-card p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{cohortName}</p>
+          <h2 className="mt-1 text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">{heading}</h2>
+        </div>
+        <HealthPill status={overall} label={overallLabel} />
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {assignedSupports.map((member) => {
-          const completed = completedUserIds.has(member.id);
-          return (
-            <span
-              key={member.id}
-              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${completed ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-gray-100 text-gray-600 ring-1 ring-gray-200'}`}
-            >
-              <span className={`h-1.5 w-1.5 rounded-full ${completed ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-              {member.name}
-            </span>
-          );
-        })}
+      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-gray-100" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
+        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round(progress * 100)}%` }} />
       </div>
+      {model.mode === 'upcoming' && start && <p className="mt-2 text-xs text-gray-500">First Sunday: {start}</p>}
+    </section>
+  );
+};
+
+const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel }> = ({ health, model }) => {
+  const { participants } = health;
+  const active = Number(participants.active);
+  const unplaced = Math.max(0, active - Number(participants.inGroups));
+  const completed = model.mode === 'completed';
+  const recordingSeries = model.judgedStats.map((s) => s.recordingRate);
+  const meetingSeries = model.judgedStats.map((s) => s.meetingRate);
+  const last = model.lastJudged;
+
+  // Final summary pools every week; a running cohort shows the last finished week.
+  const pooled = model.judgedStats.reduce(
+    (acc, s) => ({
+      marked: acc.marked + s.marked,
+      attended: acc.attended + s.attended,
+      recorded: acc.recorded + s.recordedGroups,
+      reports: acc.reports + s.meetingsSubmitted,
+      slots: acc.slots + s.groupsWithMembers,
+    }),
+    { marked: 0, attended: 0, recorded: 0, reports: 0, slots: 0 },
+  );
+
+  const sundayRate = completed ? (pooled.marked ? pooled.attended / pooled.marked : null) : last?.attendanceRate ?? null;
+  const recordingRate = completed ? (pooled.slots ? pooled.recorded / pooled.slots : null) : last?.recordingRate ?? null;
+  const meetingRate = completed ? (pooled.slots ? pooled.reports / pooled.slots : null) : last?.meetingRate ?? null;
+
+  const faith = model.faith;
+  const faithRate = active ? faith.started / active : null;
+  // Faith projects take time; don't flag them before the cohort's halfway point.
+  const judgeFaith = completed || model.currentWeek > model.stats.length / 2;
+
+  const retention = active + Number(participants.archived) > 0 ? active / (active + Number(participants.archived)) : null;
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <VitalTile
+        title="Participants"
+        status={completed ? statusForRate(retention) : statusForRate(active ? Number(participants.inGroups) / active : null)}
+        value={active}
+        unit={completed ? 'finished' : 'active'}
+        detail={completed
+          ? (Number(participants.archived) > 0 ? `${plural(Number(participants.archived), 'person', 'people')} left during the cohort` : 'Nobody left during the cohort')
+          : (unplaced > 0 ? `${unplaced} not in a group` : 'Everyone is in a group')}
+        to="/participants"
+      />
+      <VitalTile
+        title="Sunday class"
+        status={statusForRate(recordingRate)}
+        statusLabel={recordingRate === null ? 'No weeks yet' : undefined}
+        value={sundayRate === null ? '–' : `${pct(sundayRate)}%`}
+        unit="present"
+        detail={completed
+          ? `Recorded in ${pct(recordingRate)}% of group-weeks`
+          : last ? `Week ${last.weekNumber}: ${last.recordedGroups} of ${last.groupsWithMembers} groups recorded` : 'Starts after Week 1'}
+        to="/attendance"
+      >
+        <Sparkline values={recordingSeries} color={SUNDAY_COLOR} label="Groups recording attendance, week by week" />
+      </VitalTile>
+      <VitalTile
+        title="Group meetings"
+        status={statusForRate(meetingRate)}
+        statusLabel={meetingRate === null ? 'No weeks yet' : undefined}
+        value={completed ? pooled.reports : last ? `${last.meetingsSubmitted}/${last.groupsWithMembers}` : '–'}
+        unit="reports"
+        detail={completed
+          ? `${pct(meetingRate)}% of ${pooled.slots} expected`
+          : last ? `Submitted for Week ${last.weekNumber}` : 'Starts after Week 1'}
+        to="/group-prayers"
+      >
+        <Sparkline values={meetingSeries} color={MEETING_COLOR} label="Groups submitting meeting reports, week by week" />
+      </VitalTile>
+      <VitalTile
+        title="Faith projects"
+        status={judgeFaith ? statusForRate(faithRate) : 'neutral'}
+        statusLabel={judgeFaith ? undefined : 'In progress'}
+        value={faith.approved}
+        unit="approved"
+        detail={`${faith.started} of ${active} started`}
+        to="/faith-projects"
+      >
+        <SegmentBar
+          segments={[
+            { label: 'Approved', value: faith.approved, color: '#1f5fa8' },
+            { label: 'In progress', value: faith.started - faith.approved, color: '#8db8ec' },
+            { label: 'Not started', value: faith.notStarted, color: '#dfe3e8' },
+          ]}
+        />
+      </VitalTile>
     </div>
   );
 };
+
+const RegistrationFunnel: React.FC<{ health: CohortHealthPayload }> = ({ health }) => {
+  const f = health.followUps;
+  const steps = [
+    { title: 'Contacts', value: f.total, detail: `${f.open} still open`, base: null as number | null },
+    { title: 'Contacted', value: f.contacted, detail: 'Messaged or called', base: f.total },
+    { title: 'Replied', value: f.replied, detail: 'Wrote back', base: f.contacted },
+    { title: 'Registered', value: f.registered, detail: 'Signed up', base: f.total },
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      {steps.map((step) => (
+        <NavLink key={step.title} to="/follow-ups" className="surface-card block p-5 transition hover:-translate-y-0.5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{step.title}</p>
+          <p className="mt-3 text-3xl font-bold tracking-tight text-gray-900 tabular-nums">{step.value}</p>
+          <p className="mt-1 text-sm text-gray-600">
+            {step.base !== null && step.base > 0 ? `${Math.round((step.value / step.base) * 100)}% · ` : ''}{step.detail}
+          </p>
+          {step.base !== null && step.base > 0 && (
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-100">
+              <div className="h-full rounded-full" style={{ width: `${Math.min(100, (step.value / step.base) * 100)}%`, backgroundColor: SUNDAY_COLOR }} />
+            </div>
+          )}
+        </NavLink>
+      ))}
+    </div>
+  );
+};
+
+const ReadinessChecklist: React.FC<{ health: CohortHealthPayload }> = ({ health }) => {
+  const active = Number(health.participants.active);
+  const unplaced = Math.max(0, active - Number(health.participants.inGroups));
+  const noSupport = health.groups.filter((g) => !g.supportId).length;
+  return (
+    <section className="surface-card p-5 sm:p-6">
+      <h3 className="text-base font-semibold text-gray-900">Ready to start?</h3>
+      <ul className="mt-2 divide-y divide-gray-100">
+        <ChecklistRow done={health.weeks.length > 0} label="Weeks set up" detail={health.weeks.length ? `${health.weeks.length} weeks` : undefined} to="/cohorts" />
+        <ChecklistRow done={!!health.cohort?.schedulePublished} label="Schedule published to supports" to="/schedule" />
+        <ChecklistRow done={active > 0} label="Participants added" detail={active ? `${active} participants` : undefined} to="/participants" />
+        <ChecklistRow done={health.groups.length > 0} label="Groups created" detail={health.groups.length ? `${health.groups.length} groups` : undefined} to="/groups" />
+        <ChecklistRow done={health.groups.length > 0 && noSupport === 0} label="Every group has a support" detail={noSupport ? `${noSupport} without one` : undefined} to="/groups" />
+        <ChecklistRow done={active > 0 && unplaced === 0} label="Everyone placed in a group" detail={unplaced ? `${unplaced} not placed` : undefined} to="/allocation" />
+      </ul>
+    </section>
+  );
+};
+
+const OperationsRow: React.FC<{
+  todayLabel: string | null;
+  activities: NonNullable<ReturnType<typeof useAppData>['selectedWeek']>['days'][number]['activities'];
+  supports: User[];
+  completions: SupportActivityCompletion[];
+  pendingApprovals: number;
+  pendingCover: number;
+  announcement: Announcement | null;
+  isAdmin: boolean;
+}> = ({ todayLabel, activities, supports, completions, pendingApprovals, pendingCover, announcement, isAdmin }) => {
+  const doneFor = (activityId: number, labelIds: Set<string>) => {
+    const assigned = supports.filter((member) => member.labels?.some((label) => labelIds.has(label.id)));
+    const doneIds = new Set(completions.filter((c) => c.activityId === activityId).map((c) => c.userId));
+    return { assigned: assigned.length, done: assigned.filter((member) => doneIds.has(member.id)).length };
+  };
+
+  return (
+    <section>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Operations</h3>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.6fr_1fr_1fr_1.2fr]">
+        <div className="surface-card p-4">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-gray-900">Today's schedule</p>
+            <NavLink to="/schedule" className="text-xs font-semibold text-primary hover:text-primary-dark">Open</NavLink>
+          </div>
+          <p className="text-xs text-gray-500">{todayLabel ?? 'Nothing scheduled today'}</p>
+          {activities.length > 0 && (
+            <ul className="mt-2 space-y-1.5">
+              {activities.slice(0, 3).map((activity) => {
+                const labelIds = new Set((activity.labels || []).map((label) => label.id));
+                const { assigned, done } = doneFor(activity.id, labelIds);
+                return (
+                  <li key={activity.id} className="flex items-center gap-2 text-xs">
+                    <span className="w-14 flex-none text-gray-500 tabular-nums">{activity.time}</span>
+                    <span className="min-w-0 flex-1 truncate text-gray-800"><ActivityText text={activity.description} /></span>
+                    {assigned > 0 && (
+                      <span className={`flex-none rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${done === assigned ? 'bg-emerald-100/80 text-emerald-700' : 'bg-neutral-100 text-neutral-600'}`}>
+                        {done}/{assigned}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+              {activities.length > 3 && <li className="text-[11px] text-gray-500">+{activities.length - 3} more</li>}
+            </ul>
+          )}
+        </div>
+        <OpsStat title="Schedule approvals" value={pendingApprovals} empty="Nothing to approve" to="/approvals" />
+        <OpsStat title="Cover requests" value={pendingCover} empty="No one needs cover" to="/approvals" />
+        <NavLink to={isAdmin ? '/announcements' : '/team-announcements'} className="surface-card block p-4 transition hover:-translate-y-0.5">
+          <p className="text-sm font-semibold text-gray-900">Latest announcement</p>
+          {announcement ? (
+            <>
+              <p className="mt-1 truncate text-sm text-gray-800">{announcement.subject}</p>
+              <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{announcement.body}</p>
+            </>
+          ) : (
+            <p className="mt-1 text-xs text-gray-500">None sent yet</p>
+          )}
+        </NavLink>
+      </div>
+    </section>
+  );
+};
+
+const OpsStat: React.FC<{ title: string; value: number; empty: string; to: string }> = ({ title, value, empty, to }) => (
+  <NavLink to={to} className="surface-card block p-4 transition hover:-translate-y-0.5">
+    <p className="text-sm font-semibold text-gray-900">{title}</p>
+    <p className={`mt-1 text-2xl font-bold tabular-nums ${value > 0 ? 'text-gray-900' : 'text-gray-300'}`}>{value}</p>
+    <p className="text-xs text-gray-500">{value > 0 ? 'Waiting for you' : empty}</p>
+  </NavLink>
+);
+
+const DashboardSkeleton: React.FC = () => (
+  <div className="space-y-5" aria-busy="true">
+    <div className="surface-card h-28 animate-pulse" />
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {[0, 1, 2, 3].map((i) => <div key={i} className="surface-card h-40 animate-pulse" />)}
+    </div>
+    <div className="surface-card h-48 animate-pulse" />
+  </div>
+);
 
 export default AdminDashboardPage;

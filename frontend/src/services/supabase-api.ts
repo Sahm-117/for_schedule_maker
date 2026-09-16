@@ -342,6 +342,12 @@ export const weeksApi = {
 };
 
 export const cohortsApi = {
+  async getHealth(cohortId: string): Promise<import('../components/dashboard/healthModel').CohortHealthPayload> {
+    const { data, error } = await supabase.rpc('cohort_health', { p_cohort_id: cohortId });
+    if (error) throw new Error(error.message);
+    return data as import('../components/dashboard/healthModel').CohortHealthPayload;
+  },
+
   async getAll(): Promise<{ cohorts: Cohort[] }> {
     const { data, error } = await supabase
       .from('Cohort')
@@ -486,7 +492,7 @@ export const cohortsApi = {
     venue?: string | null;
     startDate?: string | null;
     endDate?: string | null;
-    status?: 'ACTIVE' | 'ARCHIVED';
+    status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
     schedulePublished?: boolean;
   }): Promise<{ cohort: Cohort }> {
     const { data, error } = await supabase
@@ -2726,12 +2732,30 @@ export const followUpContactsApi = {
     return { contacts: ((data as any[]) || []).map(mapFollowUpContact) };
   },
 
+  // Everyone marked "Will join next cohort" who hasn't been moved into this cohort yet.
+  async getWaitingForCohort(cohortId: string): Promise<{ contacts: import('../types').FollowUpContact[] }> {
+    const { data, error } = await supabase
+      .from('FollowUpContact')
+      .select(FOLLOW_UP_SELECT)
+      .eq('registrationStatus', 'NEXT_COHORT')
+      .is('archivedAt', null)
+      .or(`cohortId.is.null,cohortId.neq.${cohortId}`)
+      .order('fullName', { ascending: true });
+    if (error) throw new Error(error.message);
+    return { contacts: ((data as any[]) || []).map(mapFollowUpContact) };
+  },
+
   async bulkMoveNextCohortContacts(contactIds: string[], newCohortId: string): Promise<void> {
+    // Back to "To contact" so they re-enter the follow-up list for the new cohort.
     const { error } = await supabase
       .from('FollowUpContact')
       .update({
         cohortId: newCohortId,
         registrationStatus: 'NOT_REGISTERED',
+        messageStatus: 'NOT_SENT',
+        replyStatus: 'NO_REPLY',
+        callStatus: 'NOT_CALLED',
+        nextAction: 'SEND_MESSAGE',
         archivedAt: null,
         updatedAt: new Date().toISOString(),
       })

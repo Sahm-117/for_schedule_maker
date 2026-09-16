@@ -50,7 +50,7 @@ export interface Cohort {
   venue?: string | null
   startDate?: string | null
   endDate?: string | null
-  status?: 'ACTIVE' | 'ARCHIVED'
+  status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'
 }
 
 export interface Week {

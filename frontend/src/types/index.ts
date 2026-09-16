@@ -48,7 +48,8 @@ export interface Cohort {
   venue?: string | null;
   startDate?: string | null;
   endDate?: string | null;
-  status?: 'ACTIVE' | 'ARCHIVED';
+  /** COMPLETED: the cohort has finished; it stays viewable and selectable. */
+  status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
   schedulePublished?: boolean;
   createdAt?: string;
   updatedAt?: string;

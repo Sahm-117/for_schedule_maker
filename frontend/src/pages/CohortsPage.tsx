@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import PageHeader from '../components/PageHeader';
+import NextCohortAssignModal from '../components/followups/NextCohortAssignModal';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
 import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi } from '../services/api';
@@ -97,8 +98,7 @@ const CohortsPage: React.FC = () => {
   const [recapDocUploading, setRecapDocUploading] = useState(false);
   const [recapDocError, setRecapDocError] = useState('');
 
-  const [nextCohortPrompt, setNextCohortPrompt] = useState<{ contacts: FollowUpContact[]; newCohortId: string } | null>(null);
-  const [movingNextCohort, setMovingNextCohort] = useState(false);
+  const [nextCohortPrompt, setNextCohortPrompt] = useState<{ contacts: FollowUpContact[]; newCohortId: string; newCohortName?: string } | null>(null);
 
   const [savingCreate, setSavingCreate] = useState(false);
   const [savingDetails, setSavingDetails] = useState(false);
@@ -282,11 +282,12 @@ const CohortsPage: React.FC = () => {
       setStatus('New cohort created from the current cohort.');
       // Check for next-cohort follow-up contacts in the current cohort
       const newCohortId = (newCohort as { cohort: Cohort })?.cohort?.id;
+      const newCohortName = (newCohort as { cohort: Cohort })?.cohort?.name;
       if (newCohortId) {
         try {
           const { contacts } = await followUpContactsApi.getNextCohortContacts(activeCohort.id);
           if (contacts.length > 0) {
-            setNextCohortPrompt({ contacts, newCohortId });
+            setNextCohortPrompt({ contacts, newCohortId, newCohortName });
           }
         } catch { /* non-critical */ }
       }
@@ -470,6 +471,20 @@ const CohortsPage: React.FC = () => {
     }
   };
 
+  const handleCompletedToggle = async (cohort: Cohort) => {
+    setStatus('');
+    const completing = cohort.status !== 'COMPLETED';
+    try {
+      await cohortsApi.update(cohort.id, { status: completing ? 'COMPLETED' : 'ACTIVE' });
+      await reloadCohorts();
+      setStatus(completing
+        ? `${cohort.name} is marked completed. Reminders stop and the dashboard shows its final summary.`
+        : `${cohort.name} is running again.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Failed to update cohort status.');
+    }
+  };
+
   const handleDeleteCohort = async () => {
     if (!cohortToDelete) return;
     const remainingCohorts = cohorts.filter((cohort) => cohort.id !== cohortToDelete.id);
@@ -531,7 +546,10 @@ const CohortsPage: React.FC = () => {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Current Cohort</p>
-                <h2 className="mt-2 text-2xl font-bold text-gray-900">{activeCohort.name}</h2>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <h2 className="text-2xl font-bold text-gray-900">{activeCohort.name}</h2>
+                  {activeCohort.status === 'COMPLETED' && <CohortStatusPill status="COMPLETED" />}
+                </div>
                 <p className="mt-1 text-sm text-gray-500">{activeCohort.description || 'No cohort description yet.'}</p>
                 <p className="mt-1 text-sm text-gray-500">{activeCohort.venue ? `Venue: ${activeCohort.venue}` : 'Venue not set yet.'}</p>
               </div>
@@ -582,6 +600,7 @@ const CohortsPage: React.FC = () => {
               <AppOverflowMenu
                 align="right"
                 items={[
+                  { label: activeCohort.status === 'COMPLETED' ? 'Reopen cohort' : 'Mark completed', onClick: () => void handleCompletedToggle(activeCohort) },
                   { label: activeCohort.status === 'ARCHIVED' ? 'Unarchive' : 'Archive', onClick: () => void handleArchiveToggle(activeCohort) },
                   { label: 'Details', onClick: () => openDetailsModal(activeCohort) },
                   { label: 'Members', onClick: () => openMembersModal(activeCohort) },
@@ -636,9 +655,7 @@ const CohortsPage: React.FC = () => {
               <div className="text-sm text-gray-600">{formatDateRange(cohort.startDate, cohort.endDate)}</div>
               <div className="text-sm font-semibold text-gray-900">{weekCounts[cohort.id] || 0}</div>
               <div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                  {cohort.status || 'ACTIVE'}
-                </span>
+                <CohortStatusPill status={cohort.status} />
               </div>
               <div className="flex items-center justify-end">
                 <AppOverflowMenu
@@ -647,6 +664,7 @@ const CohortsPage: React.FC = () => {
                     { label: 'Set active', onClick: () => void setActiveCohort(cohort.id) },
                     { label: 'Details', onClick: () => openDetailsModal(cohort) },
                     { label: 'Members', onClick: () => openMembersModal(cohort) },
+                    { label: cohort.status === 'COMPLETED' ? 'Reopen cohort' : 'Mark completed', onClick: () => void handleCompletedToggle(cohort) },
                     { label: cohort.status === 'ARCHIVED' ? 'Unarchive' : 'Archive', onClick: () => void handleArchiveToggle(cohort) },
                     { label: 'Delete', onClick: () => openDeleteModal(cohort), tone: 'danger' },
                   ]}
@@ -665,9 +683,7 @@ const CohortsPage: React.FC = () => {
                   <p className="mt-1 text-sm text-gray-500">{cohort.description || 'No cohort description yet.'}</p>
                   {cohort.venue && <p className="mt-1 text-sm text-gray-500">{cohort.venue}</p>}
                 </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                  {cohort.status || 'ACTIVE'}
-                </span>
+                <CohortStatusPill status={cohort.status} />
               </div>
               <div className="mt-4 grid gap-2 text-sm text-gray-600">
                 <p><span className="font-semibold text-gray-900">Window:</span> {formatDateRange(cohort.startDate, cohort.endDate)}</p>
@@ -681,6 +697,7 @@ const CohortsPage: React.FC = () => {
                     { label: 'Set active', onClick: () => void setActiveCohort(cohort.id) },
                     { label: 'Details', onClick: () => openDetailsModal(cohort) },
                     { label: 'Members', onClick: () => openMembersModal(cohort) },
+                    { label: cohort.status === 'COMPLETED' ? 'Reopen cohort' : 'Mark completed', onClick: () => void handleCompletedToggle(cohort) },
                     { label: cohort.status === 'ARCHIVED' ? 'Unarchive' : 'Archive', onClick: () => void handleArchiveToggle(cohort) },
                     { label: 'Delete', onClick: () => openDeleteModal(cohort), tone: 'danger' },
                   ]}
@@ -1217,61 +1234,15 @@ const CohortsPage: React.FC = () => {
         </div>
       </ModalShell>
 
-      <ModalShell
+      <NextCohortAssignModal
         isOpen={!!nextCohortPrompt}
-        title="Add next-cohort follow-ups?"
-        subtitle={nextCohortPrompt ? `${nextCohortPrompt.contacts.length} follow-up contact${nextCohortPrompt.contacts.length === 1 ? '' : 's'} ${nextCohortPrompt.contacts.length === 1 ? 'is' : 'are'} marked "Will join next cohort" in the current cohort.` : ''}
-        onClose={() => !movingNextCohort && setNextCohortPrompt(null)}
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">Would you like to move them to the new cohort's follow-up list so they can be contacted for registration?</p>
-          {nextCohortPrompt && (
-            <div className="rounded-xl border border-sky-100 bg-sky-50/60 px-4 py-3">
-              <ul className="space-y-1">
-                {nextCohortPrompt.contacts.slice(0, 5).map((c) => (
-                  <li key={c.id} className="text-sm text-sky-900">{c.fullName}{c.phone ? <span className="ml-2 text-xs text-sky-600">{c.phone}</span> : null}</li>
-                ))}
-                {nextCohortPrompt.contacts.length > 5 && (
-                  <li className="text-xs text-sky-500">…and {nextCohortPrompt.contacts.length - 5} more</li>
-                )}
-              </ul>
-            </div>
-          )}
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setNextCohortPrompt(null)}
-              disabled={movingNextCohort}
-              className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Skip
-            </button>
-            <button
-              type="button"
-              disabled={movingNextCohort}
-              onClick={async () => {
-                if (!nextCohortPrompt) return;
-                setMovingNextCohort(true);
-                try {
-                  await followUpContactsApi.bulkMoveNextCohortContacts(
-                    nextCohortPrompt.contacts.map((c) => c.id),
-                    nextCohortPrompt.newCohortId,
-                  );
-                  setNextCohortPrompt(null);
-                  setStatus(`Moved ${nextCohortPrompt.contacts.length} contact${nextCohortPrompt.contacts.length === 1 ? '' : 's'} to the new cohort's follow-up list.`);
-                } catch (err) {
-                  setStatus(err instanceof Error ? err.message : 'Failed to move contacts.');
-                } finally {
-                  setMovingNextCohort(false);
-                }
-              }}
-              className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {movingNextCohort ? 'Moving…' : 'Yes, move them'}
-            </button>
-          </div>
-        </div>
-      </ModalShell>
+        contacts={nextCohortPrompt?.contacts ?? []}
+        targetCohortId={nextCohortPrompt?.newCohortId ?? ''}
+        targetCohortName={nextCohortPrompt?.newCohortName}
+        supports={sortedSupportUsers}
+        onClose={() => setNextCohortPrompt(null)}
+        onDone={(message) => { setNextCohortPrompt(null); setStatus(message); }}
+      />
     </div>
   );
 };
@@ -1437,3 +1408,14 @@ const ModalShell: React.FC<{
 };
 
 export default CohortsPage;
+
+const COHORT_STATUS_META: Record<'ACTIVE' | 'COMPLETED' | 'ARCHIVED', { label: string; cls: string }> = {
+  ACTIVE: { label: 'Active', cls: 'bg-emerald-100/80 text-emerald-700' },
+  COMPLETED: { label: 'Completed', cls: 'bg-violet-100/80 text-violet-700' },
+  ARCHIVED: { label: 'Archived', cls: 'bg-neutral-100 text-neutral-600' },
+};
+
+const CohortStatusPill: React.FC<{ status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED' }> = ({ status }) => {
+  const meta = COHORT_STATUS_META[status ?? 'ACTIVE'];
+  return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${meta.cls}`}>{meta.label}</span>;
+};
