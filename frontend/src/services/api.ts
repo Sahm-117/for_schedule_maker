@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label, SupportActivityCompletion, Cohort } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
+import { DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
 
 // Import Supabase API
 import {
@@ -145,6 +146,7 @@ export const weeksApi = USE_SUPABASE ? supabaseWeeksApi : {
 
 export const cohortsApi = USE_SUPABASE ? supabaseCohortsApi : {
   async getAll(): Promise<{ cohorts: Cohort[] }> { return { cohorts: [] }; },
+  async getPeople(_cohortId: string): Promise<import('../utils/programmeRules').CohortPeoplePayload> { throw new Error('Cohorts are only available in Supabase mode.'); },
   async getHealth(_cohortId: string): Promise<import('../components/dashboard/healthModel').CohortHealthPayload> { throw new Error('Cohorts are only available in Supabase mode.'); },
   async createFromCurrent(_input: {
     name: string;
@@ -433,6 +435,8 @@ export const supportActivityCompletionsApi = USE_SUPABASE ? supabaseSupportActiv
 };
 
 export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
+  async getProgrammeRules(): Promise<import('../utils/programmeRules').ProgrammeRules> { return { ...DEFAULT_PROGRAMME_RULES }; },
+  async setProgrammeRules(rules: import('../utils/programmeRules').ProgrammeRules): Promise<import('../utils/programmeRules').ProgrammeRules> { return rules; },
   async getRegistrationLink(): Promise<{ url: string }> {
     return { url: '' };
   },

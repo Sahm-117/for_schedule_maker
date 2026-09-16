@@ -1,5 +1,15 @@
 import type { Cohort } from '../../types';
 import { getIdealWeekNumberForCohort } from '../../utils/weekFocus';
+import {
+  MIN_RECORD_COVERAGE,
+  evaluateParticipants,
+  evaluateSupports,
+  sundayRecordCoverage,
+  type CohortPeoplePayload,
+  type ParticipantEvaluation,
+  type ProgrammeRules,
+  type SupportEvaluation,
+} from '../../utils/programmeRules';
 
 // Turns the raw cohort_health() payload into what the home page shows:
 // which mode the cohort is in, per-week figures, the four vital signs and the
@@ -33,8 +43,8 @@ export const statusForRate = (rate: number | null): HealthStatus => {
 
 export const STATUS_LABEL: Record<HealthStatus, string> = {
   good: 'On track',
-  warning: 'Needs attention',
-  critical: 'At risk',
+  warning: 'Keep an eye on',
+  critical: 'Needs attention',
   neutral: 'Not enough data',
 };
 
@@ -174,46 +184,50 @@ export const judgedWeekNumbers = (mode: CohortMode, stats: WeekStat[], currentWe
   return stats.filter((s) => s.weekNumber < currentWeek).map((s) => s.weekNumber);
 };
 
+export interface PeopleSummary {
+  participants: ParticipantEvaluation[];
+  supports: SupportEvaluation[];
+  /** Share of expected Sunday marks recorded in the judged weeks; null before any week is over. */
+  coverage: number | null;
+  /** False when records are too thin to judge participants fairly. */
+  judgeable: boolean;
+  rules: ProgrammeRules;
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
 export const buildAttention = (
   data: CohortHealthPayload,
   mode: CohortMode,
   stats: WeekStat[],
   currentWeek: number,
-  extras: { pendingApprovals: number },
+  extras: { pendingApprovals: number; people: PeopleSummary | null },
 ): AttentionItem[] => {
   const items: AttentionItem[] = [];
-  const activeGroups = data.groups.filter((g) => g.members > 0);
+  const people = extras.people;
+
+  if (mode === 'running' && people) {
+    if (people.judgeable) {
+      const red = people.participants.filter((p) => p.health === 'critical').length;
+      const amber = people.participants.filter((p) => p.health === 'warning').length;
+      if (red > 0) items.push({ key: 'participants-red', status: 'critical', text: `${plural(red, 'participant needs', 'participants need')} attention: missed ${people.rules.participantRedSundayMisses}+ Sunday classes and ${people.rules.participantRedMeetingMisses}+ group meetings`, actionLabel: 'View', to: '/participants' });
+      if (amber > 0) items.push({ key: 'participants-amber', status: 'warning', text: `${plural(amber, 'participant', 'participants')} to keep an eye on: missed a class or meeting`, actionLabel: 'View', to: '/participants' });
+    }
+    const supportRed = people.supports.filter((s) => s.missedWeeks.length >= people.rules.supportRedMissedWeeks).length;
+    const supportAmber = people.supports.filter((s) => s.missedWeeks.length >= people.rules.supportAmberMissedWeeks && s.missedWeeks.length < people.rules.supportRedMissedWeeks).length;
+    if (supportRed > 0) items.push({ key: 'supports-red', status: 'critical', text: `${plural(supportRed, 'support hasn’t', 'supports haven’t')} recorded attendance and meetings for ${people.rules.supportRedMissedWeeks}+ weeks`, actionLabel: 'View', to: '/groups' });
+    if (supportAmber > 0) items.push({ key: 'supports-amber', status: 'warning', text: `${plural(supportAmber, 'support', 'supports')} missed a week of records`, actionLabel: 'View', to: '/groups' });
+  }
+
+  if (mode !== 'completed' && people) {
+    const lateOnboarding = people.supports.filter((s) => s.onboarding.late && !(s.onboarding.completedAt && s.onboarding.allOnboarded)).length;
+    if (lateOnboarding > 0) items.push({ key: 'onboarding-late', status: 'warning', text: `${plural(lateOnboarding, 'group isn’t', 'groups aren’t')} fully onboarded after ${people.rules.onboardingMaxDays} days`, actionLabel: 'Open', to: '/onboarding' });
+  }
+
   const noSupport = data.groups.filter((g) => !g.supportId).length;
   const unplaced = Math.max(0, Number(data.participants.active) - Number(data.participants.inGroups));
 
   if (mode === 'running' && stats.length) {
-    const judged = judgedWeekNumbers(mode, stats, currentWeek);
-    const lastFull = judged.length ? Math.max(...judged) : null;
-    if (judged.length >= 3) {
-      const gaps = buildGroupEngagement(data, judged).filter((g) => g.recentGap === 3).length;
-      if (gaps > 0) {
-        items.push({
-          key: 'attendance-gap',
-          status: gaps / Math.max(activeGroups.length, 1) >= 0.5 ? 'critical' : 'warning',
-          text: `Attendance not recorded for the last 3 weeks in ${gaps} group${gaps === 1 ? '' : 's'}`,
-          actionLabel: 'Open attendance',
-          to: '/attendance',
-        });
-      }
-    }
-    if (lastFull !== null) {
-      const week = stats.find((s) => s.weekNumber === lastFull)!;
-      const missing = week.groupsWithMembers - week.meetingsSubmitted;
-      if (missing > 0) {
-        items.push({
-          key: 'reports-missing',
-          status: statusForRate(week.meetingRate),
-          text: `${missing} meeting report${missing === 1 ? '' : 's'} missing for Week ${lastFull}`,
-          actionLabel: 'Open meetings',
-          to: '/group-prayers',
-        });
-      }
-    }
     const recapsMissing = stats.filter((s) => s.weekNumber < currentWeek && !s.recapUploaded).length;
     if (recapsMissing > 0) {
       items.push({
@@ -268,6 +282,7 @@ export interface DashboardModel {
   lastJudged: WeekStat | null;
   engagement: GroupEngagement[];
   faith: ReturnType<typeof faithProjectCounts>;
+  people: PeopleSummary | null;
   attention: AttentionItem[];
 }
 
@@ -275,6 +290,8 @@ export const buildDashboardModel = (
   data: CohortHealthPayload,
   cohort: Pick<Cohort, 'startDate' | 'endDate' | 'status'>,
   pendingApprovals: number,
+  peopleData: CohortPeoplePayload | null,
+  rules: ProgrammeRules,
   now = new Date(),
 ): DashboardModel => {
   const mode = cohortMode(cohort, now);
@@ -284,6 +301,21 @@ export const buildDashboardModel = (
     : mode === 'upcoming' ? 0 : currentWeekNumber(cohort, stats, now);
   const judged = judgedWeekNumbers(mode, stats, currentWeek);
   const judgedStats = stats.filter((s) => judged.includes(s.weekNumber));
+
+  let people: PeopleSummary | null = null;
+  if (peopleData) {
+    const judgedWeeks = data.weeks.filter((w) => judged.includes(w.weekNumber));
+    const participants = evaluateParticipants(peopleData, judgedWeeks.map((w) => w.id), mode === 'completed', rules);
+    const coverage = sundayRecordCoverage(participants, judgedWeeks.length);
+    people = {
+      participants,
+      supports: evaluateSupports(peopleData, data.groups, data.meetings, judgedWeeks, rules, now),
+      coverage,
+      judgeable: coverage !== null && coverage >= MIN_RECORD_COVERAGE,
+      rules,
+    };
+  }
+
   return {
     mode,
     stats,
@@ -293,6 +325,7 @@ export const buildDashboardModel = (
     lastJudged: judgedStats[judgedStats.length - 1] ?? null,
     engagement: buildGroupEngagement(data, judged),
     faith: faithProjectCounts(data),
-    attention: buildAttention(data, mode, stats, currentWeek, { pendingApprovals }),
+    people,
+    attention: buildAttention(data, mode, stats, currentWeek, { pendingApprovals, people }),
   };
 };

@@ -25,7 +25,8 @@ import {
 import NextCohortAssignModal from '../components/followups/NextCohortAssignModal';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, cohortsApi, followUpContactsApi, supportActivityCompletionsApi, usersApi } from '../services/api';
+import { announcementsApi, cohortsApi, followUpContactsApi, settingsApi, supportActivityCompletionsApi, usersApi } from '../services/api';
+import { DEFAULT_PROGRAMME_RULES, type CohortPeoplePayload, type ProgrammeRules } from '../utils/programmeRules';
 import type { Announcement, FollowUpContact, SupportActivityCompletion, User } from '../types';
 import { sortByText } from '../utils/sort';
 
@@ -48,7 +49,6 @@ const shortDate = (value?: string | null) => {
   return date ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(date) : null;
 };
 const pct = (value: number | null) => (value === null ? '–' : `${Math.round(value * 100)}`);
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 const AdminDashboardPage: React.FC = () => {
   const { user, isAdmin } = useAuth();
@@ -56,6 +56,8 @@ const AdminDashboardPage: React.FC = () => {
   const showToast = useToast();
 
   const [health, setHealth] = useState<CohortHealthPayload | null>(null);
+  const [people, setPeople] = useState<CohortPeoplePayload | null>(null);
+  const [rules, setRules] = useState<ProgrammeRules>(DEFAULT_PROGRAMME_RULES);
   const [healthError, setHealthError] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -74,7 +76,15 @@ const AdminDashboardPage: React.FC = () => {
     }
     try {
       setHealthError('');
-      setHealth(await cohortsApi.getHealth(activeCohort.id));
+      const [nextHealth, nextPeople, nextRules] = await Promise.all([
+        cohortsApi.getHealth(activeCohort.id),
+        // Person-level rules are extra; the page still works without them.
+        cohortsApi.getPeople(activeCohort.id).catch(() => null),
+        settingsApi.getProgrammeRules(),
+      ]);
+      setHealth(nextHealth);
+      setPeople(nextPeople);
+      setRules(nextRules);
     } catch (error) {
       setHealthError(error instanceof Error ? error.message : 'Could not load cohort health.');
     } finally {
@@ -121,8 +131,10 @@ const AdminDashboardPage: React.FC = () => {
       health,
       { startDate: health.cohort?.startDate ?? activeCohort.startDate, endDate: health.cohort?.endDate ?? activeCohort.endDate, status: activeCohort.status },
       globalPendingChanges.length,
+      people,
+      rules,
     );
-  }, [health, activeCohort, globalPendingChanges.length]);
+  }, [health, activeCohort, globalPendingChanges.length, people, rules]);
 
   const todaysDay = useMemo(() => {
     if (!activeWeek) return null;
@@ -258,8 +270,9 @@ const CohortStrip: React.FC<{ health: CohortHealthPayload; model: DashboardModel
   } else if (model.mode === 'completed') {
     heading = start && end ? `Completed · ran ${start} – ${end}` : 'Completed';
     progress = 1;
-    overall = 'neutral';
-    overallLabel = 'Final summary';
+    const success = cohortSuccess(model);
+    overall = success.status;
+    overallLabel = success.label;
   } else {
     heading = `Week ${model.currentWeek} of ${total}${end ? ` · ends ${end}` : ''}`;
     progress = total ? model.currentWeek / total : 0;
@@ -286,9 +299,6 @@ const CohortStrip: React.FC<{ health: CohortHealthPayload; model: DashboardModel
 };
 
 const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel }> = ({ health, model }) => {
-  const { participants } = health;
-  const active = Number(participants.active);
-  const unplaced = Math.max(0, active - Number(participants.inGroups));
   const completed = model.mode === 'completed';
   const recordingSeries = model.judgedStats.map((s) => s.recordingRate);
   const meetingSeries = model.judgedStats.map((s) => s.meetingRate);
@@ -311,24 +321,14 @@ const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel 
   const meetingRate = completed ? (pooled.slots ? pooled.reports / pooled.slots : null) : last?.meetingRate ?? null;
 
   const faith = model.faith;
+  const active = Number(health.participants.active);
   const faithRate = active ? faith.started / active : null;
   // Faith projects take time; don't flag them before the cohort's halfway point.
   const judgeFaith = completed || model.currentWeek > model.stats.length / 2;
 
-  const retention = active + Number(participants.archived) > 0 ? active / (active + Number(participants.archived)) : null;
-
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <VitalTile
-        title="Participants"
-        status={completed ? statusForRate(retention) : statusForRate(active ? Number(participants.inGroups) / active : null)}
-        value={active}
-        unit={completed ? 'finished' : 'active'}
-        detail={completed
-          ? (Number(participants.archived) > 0 ? `${plural(Number(participants.archived), 'person', 'people')} left during the cohort` : 'Nobody left during the cohort')
-          : (unplaced > 0 ? `${unplaced} not in a group` : 'Everyone is in a group')}
-        to="/participants"
-      />
+      <ParticipantsTile health={health} model={model} />
       <VitalTile
         title="Sunday class"
         status={statusForRate(recordingRate)}
@@ -373,6 +373,88 @@ const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel 
         />
       </VitalTile>
     </div>
+  );
+};
+
+
+const HEALTH_COLORS = { good: '#10b981', warning: '#f59e0b', critical: '#ef4444' };
+
+/** Whether enough participants met the completion rule. */
+const cohortSuccess = (model: DashboardModel): { status: HealthStatus; label: string; completed: number; total: number; pct: number | null } => {
+  const people = model.people;
+  const evaluated = people?.participants ?? [];
+  const completed = evaluated.filter((p) => p.completion?.outcome === 'COMPLETED').length;
+  const total = evaluated.length;
+  const pct = total ? (completed / total) * 100 : null;
+  if (!people || !people.judgeable || pct === null) return { status: 'neutral', label: 'Not enough records', completed, total, pct };
+  return pct >= people.rules.cohortSuccessPct
+    ? { status: 'good', label: 'Successful cohort', completed, total, pct }
+    : { status: 'critical', label: 'Below success target', completed, total, pct };
+};
+
+const ParticipantsTile: React.FC<{ health: CohortHealthPayload; model: DashboardModel }> = ({ health, model }) => {
+  const active = Number(health.participants.active);
+  const unplaced = Math.max(0, active - Number(health.participants.inGroups));
+  const people = model.people;
+  const coverageNote = people?.coverage != null
+    ? `Only ${Math.round(people.coverage * 100)}% of Sunday attendance marks were recorded, too few to judge anyone.`
+    : 'Not judged yet.';
+
+  if (model.mode === 'completed') {
+    const success = cohortSuccess(model);
+    const retake = people?.participants.filter((p) => p.completion?.outcome === 'RETAKE').length ?? 0;
+    const missing = people?.participants.filter((p) => p.completion?.outcome === 'RECORDS_MISSING').length ?? 0;
+    const judged = !!people?.judgeable;
+    return (
+      <VitalTile
+        title="Completed"
+        status={success.status}
+        statusLabel={judged ? undefined : 'Not enough records'}
+        value={judged ? success.completed : '–'}
+        unit={judged ? `of ${success.total}` : undefined}
+        detail={judged
+          ? `Target ${people!.rules.cohortSuccessPct}% · ${retake} to retake FOF${missing ? ` · ${missing} missing records` : ''}`
+          : coverageNote}
+        to="/participants"
+      >
+        {judged && (
+          <SegmentBar
+            segments={[
+              { label: 'Completed', value: success.completed, color: HEALTH_COLORS.good },
+              { label: 'Retake', value: retake, color: HEALTH_COLORS.critical },
+              { label: 'Missing records', value: missing, color: '#dfe3e8' },
+            ]}
+          />
+        )}
+      </VitalTile>
+    );
+  }
+
+  const judged = !!people?.judgeable;
+  const count = (h: 'good' | 'warning' | 'critical') => people?.participants.filter((p) => p.health === h).length ?? 0;
+  const onTrack = count('good');
+  return (
+    <VitalTile
+      title="Participants"
+      status={judged ? statusForRate(active ? onTrack / active : null) : 'neutral'}
+      statusLabel={judged ? undefined : model.judged.length ? 'Not enough records' : 'Not judged yet'}
+      value={active}
+      unit="active"
+      detail={judged
+        ? `${count('critical')} need attention · ${count('warning')} to keep an eye on${unplaced ? ` · ${unplaced} not in a group` : ''}`
+        : model.judged.length ? coverageNote : (unplaced > 0 ? `${unplaced} not in a group` : 'Everyone is in a group')}
+      to="/participants"
+    >
+      {judged && (
+        <SegmentBar
+          segments={[
+            { label: 'On track', value: onTrack, color: HEALTH_COLORS.good },
+            { label: 'Keep an eye on', value: count('warning'), color: HEALTH_COLORS.warning },
+            { label: 'Needs attention', value: count('critical'), color: HEALTH_COLORS.critical },
+          ]}
+        />
+      )}
+    </VitalTile>
   );
 };
 

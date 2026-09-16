@@ -65,7 +65,7 @@ export const VitalTile: React.FC<{
 }> = ({ title, status, statusLabel, value, unit, detail, to, children }) => {
   const body = (
     <>
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-col items-start gap-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</p>
         <HealthPill status={status} label={statusLabel} />
       </div>
@@ -108,7 +108,7 @@ export const SegmentBar: React.FC<{ segments: Array<{ label: string; value: numb
 export const AttentionList: React.FC<{ items: AttentionItem[]; onAction: (item: AttentionItem) => void }> = ({ items, onAction }) => (
   <section className="surface-card p-5 sm:p-6">
     <div className="mb-3 flex items-center justify-between gap-3">
-      <h3 className="text-base font-semibold text-gray-900">Needs attention</h3>
+      <h3 className="text-base font-semibold text-gray-900">What needs you</h3>
       {items.length > 0 && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600 tabular-nums">{items.length}</span>}
     </div>
     {items.length === 0 ? (

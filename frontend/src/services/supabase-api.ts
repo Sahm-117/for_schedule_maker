@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { normaliseRules } from '../utils/programmeRules';
 import type {
   User,
   Cohort,
@@ -342,6 +343,12 @@ export const weeksApi = {
 };
 
 export const cohortsApi = {
+  async getPeople(cohortId: string): Promise<import('../utils/programmeRules').CohortPeoplePayload> {
+    const { data, error } = await supabase.rpc('cohort_people', { p_cohort_id: cohortId });
+    if (error) throw new Error(error.message);
+    return data as import('../utils/programmeRules').CohortPeoplePayload;
+  },
+
   async getHealth(cohortId: string): Promise<import('../components/dashboard/healthModel').CohortHealthPayload> {
     const { data, error } = await supabase.rpc('cohort_health', { p_cohort_id: cohortId });
     if (error) throw new Error(error.message);
@@ -1726,6 +1733,25 @@ export const settingsApi = {
     }
 
     return payload;
+  },
+
+  async getProgrammeRules(): Promise<import('../utils/programmeRules').ProgrammeRules> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'programme_rules')
+      .maybeSingle();
+    // No row yet (or a read error) means the agreed defaults apply.
+    return normaliseRules(error ? null : (data as any)?.value);
+  },
+
+  async setProgrammeRules(rules: import('../utils/programmeRules').ProgrammeRules): Promise<import('../utils/programmeRules').ProgrammeRules> {
+    const value = normaliseRules(rules);
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert([{ settingKey: 'programme_rules', value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+    if (error) throw new Error(error.message);
+    return value;
   },
 };
 
