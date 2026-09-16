@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import AppShell from './components/AppShell';
 import { AppDataProvider } from './context/AppDataContext';
+import { ToastProvider } from './components/Toast';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import RootRedirect from './pages/RootRedirect';
@@ -61,7 +62,9 @@ function App() {
               <ErrorBoundary>
                 <ProtectedRoute>
                   <AppDataProvider>
-                    <AppShell />
+                    <ToastProvider>
+                      <AppShell />
+                    </ToastProvider>
                   </AppDataProvider>
                 </ProtectedRoute>
               </ErrorBoundary>

@@ -5,6 +5,7 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
 import SegmentedTabs from '../components/SegmentedTabs';
 import InfoTip from '../components/InfoTip';
+import { useToast } from '../components/Toast';
 import ModalShell from '../components/followups/ModalShell';
 import FollowUpContactModal from '../components/followups/FollowUpContactModal';
 import FollowUpIssuesPanel from '../components/followups/FollowUpIssuesPanel';
@@ -95,6 +96,7 @@ const SupportMobilisationPage: React.FC = () => {
   const [leadSaved, setLeadSaved] = useState('');
 
   const [showClosed, setShowClosed] = useState(false);
+  const toast = useToast();
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
   const [messagingContact, setMessagingContact] = useState<FollowUpContact | null>(null);
   const [notInterestedContact, setNotInterestedContact] = useState<FollowUpContact | null>(null);
@@ -143,6 +145,10 @@ const SupportMobilisationPage: React.FC = () => {
   }, [contacts, openContacts, showClosed]);
   const closedCount = contacts.length - openContacts.length;
 
+  useEffect(() => {
+    if (showClosed && closedCount === 0) setShowClosed(false);
+  }, [showClosed, closedCount]);
+
   const visibleIssues = useMemo(() => {
     const contactIds = new Set(contacts.map((contact) => contact.id));
     return issues.filter((issue) => issue.reportedById === user?.id || (issue.contactId ? contactIds.has(issue.contactId) : false));
@@ -179,7 +185,33 @@ const SupportMobilisationPage: React.FC = () => {
       }
       const { contact: updated } = await followUpContactsApi.update(contact.id, patch);
       replaceContact(updated);
+
+      const wasClosed = !!contact.archivedAt;
+      const nowClosed = !!updated.archivedAt;
+      if (wasClosed !== nowClosed) {
+        const firstName = contact.fullName.split(' ')[0];
+        const reason = FOLLOW_UP_STATUS_META[computeFollowUpStatus(updated)].label;
+        const previous: FollowUpContactUpdate = {
+          messageStatus: contact.messageStatus,
+          replyStatus: contact.replyStatus,
+          callStatus: contact.callStatus,
+          registrationStatus: contact.registrationStatus,
+          nextAction: contact.nextAction,
+          archivedAt: contact.archivedAt ?? null,
+        };
+        toast({
+          tone: 'info',
+          message: nowClosed ? `${firstName} moved to Closed · ${reason}` : `${firstName} is open again`,
+          actionLabel: 'Undo',
+          onAction: () => {
+            void followUpContactsApi.update(contact.id, previous)
+              .then(({ contact: restored }) => replaceContact(restored))
+              .catch(() => void loadAll());
+          },
+        });
+      }
     } catch {
+      toast({ tone: 'error', message: "That change didn't save. Please try again." });
       void loadAll();
     }
   };
@@ -262,7 +294,7 @@ const SupportMobilisationPage: React.FC = () => {
           <div className="min-w-0 flex-1">
             <SegmentedTabs
               tabs={[
-                { key: 'register', label: 'Register a lead' },
+                { key: 'register', label: 'Registration' },
                 { key: 'follow', label: `Follow-ups (${openContacts.length})` },
               ]}
               active={tab}
@@ -339,7 +371,7 @@ const SupportMobilisationPage: React.FC = () => {
 
             {myLeads.length > 0 && (
               <section className={`${CARD} p-[18px]`}>
-                <h3 className="mb-3 text-sm font-bold text-gray-900">Leads you sent</h3>
+                <h3 className="mb-3 text-sm font-bold text-gray-900">People you registered</h3>
                 <div className="flex flex-col gap-2.5">
                   {myLeads.map((contact) => {
                     const statusLabel = contact.ownerId ? FOLLOW_UP_STATUS_META[computeFollowUpStatus(contact)].label : 'Waiting to be assigned';
@@ -363,25 +395,47 @@ const SupportMobilisationPage: React.FC = () => {
           <>
             <div className="flex items-center gap-2">
               <span className="text-[13px] font-semibold text-gray-700">{showClosed ? 'Closed contacts' : 'Assigned to you'}</span>
-              <InfoTip label="About follow-ups">These are the people the back office assigned to you. Registering someone does not add them here.</InfoTip>
-              {closedCount > 0 && (
-                <div className="ml-auto grid grid-cols-2 gap-0.5 rounded-full border border-[#eef0f4] bg-white p-0.5 text-xs font-semibold">
-                  <button type="button" onClick={() => setShowClosed(false)} aria-pressed={!showClosed} className={`rounded-full px-3 py-1.5 transition ${!showClosed ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}>
-                    Open ({openContacts.length})
-                  </button>
-                  <button type="button" onClick={() => setShowClosed(true)} aria-pressed={showClosed} className={`rounded-full px-3 py-1.5 transition ${showClosed ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}>
-                    Closed ({closedCount})
-                  </button>
-                </div>
-              )}
+              <InfoTip label="Open and Closed">
+                <span className="block font-bold text-white">Open</span>
+                <span className="block">People you are still following up: To contact, Waiting, Needs reminder, Replied, Call back later, Will join next cohort.</span>
+                <span className="mt-2 block font-bold text-white">Moves to Closed</span>
+                <span className="block">Registered, Wrong number, Not interested (including not a good time or not a TCN member), and No response.</span>
+                <span className="mt-2 block text-white/60">To reopen someone, change their status back. Registering someone yourself does not add them here.</span>
+              </InfoTip>
+              <div className="ml-auto grid grid-cols-2 gap-0.5 rounded-full border border-[#eef0f4] bg-white p-0.5 text-xs font-semibold">
+                <button type="button" onClick={() => setShowClosed(false)} aria-pressed={!showClosed} className={`rounded-full px-3 py-1.5 transition ${!showClosed ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}>
+                  Open ({openContacts.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowClosed(true)}
+                  disabled={closedCount === 0}
+                  aria-pressed={showClosed}
+                  className={`rounded-full px-3 py-1.5 transition disabled:cursor-default disabled:opacity-40 ${showClosed ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}
+                >
+                  Closed ({closedCount})
+                </button>
+              </div>
             </div>
 
             {loading ? (
               <p className={`${CARD} px-4 py-12 text-center text-sm text-gray-500`}>Loading your follow-ups…</p>
             ) : visibleContacts.length === 0 ? (
               <section className={`${CARD} px-5 py-9 text-center`}>
-                <p className="text-[14.5px] font-semibold text-gray-900">Nobody assigned to you</p>
-                <p className="mt-1 text-[13px] leading-normal text-gray-500">When the back office assigns someone for follow-up, they appear here.</p>
+                {contacts.length === 0 ? (
+                  <>
+                    <p className="text-[14.5px] font-semibold text-gray-900">Nobody assigned to you</p>
+                    <p className="mt-1 text-[13px] leading-normal text-gray-500">When the back office assigns someone for follow-up, they appear here.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[14.5px] font-semibold text-gray-900">All caught up</p>
+                    <p className="mt-1 text-[13px] leading-normal text-gray-500">
+                      Everyone assigned to you is closed.{' '}
+                      <button type="button" onClick={() => setShowClosed(true)} className="font-semibold text-[#c2410c]">See closed ({closedCount})</button>
+                    </p>
+                  </>
+                )}
               </section>
             ) : visibleContacts.map((contact) => {
               const status = computeFollowUpStatus(contact);

@@ -4,6 +4,7 @@ import ModalShell from '../followups/ModalShell';
 import PageLoader from '../PageLoader';
 import InfoTip from '../InfoTip';
 import { attendanceApi, participantsApi } from '../../services/api';
+import { useToast } from '../Toast';
 import type { AttendanceRecord, AttendanceStatus, Participant, Week } from '../../types';
 
 const STATUS_BUTTONS: Array<{ status: AttendanceStatus; label: string; activeCls: string }> = [
@@ -97,7 +98,8 @@ const SundayClassPanel: React.FC<SundayClassPanelProps> = ({
   // How many of this group's participants are marked, per week, for the picker.
   const [markedByWeek, setMarkedByWeek] = useState<Map<number, number>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState<Map<string, AttendanceStatus>>(new Map());
+  const toast = useToast();
   const [noteParticipant, setNoteParticipant] = useState<Participant | null>(null);
   const [savingNote, setSavingNote] = useState(false);
 
@@ -130,9 +132,13 @@ const SundayClassPanel: React.FC<SundayClassPanelProps> = ({
 
   useEffect(() => { void loadWeekTotals(); }, [loadWeekTotals]);
 
+  // Each tap saves straight away; the tapped pill spins, then a toast confirms.
   const handleMark = async (participantId: string, status: AttendanceStatus) => {
     if (weekId === null) return;
-    setSaving((prev) => new Set(prev).add(participantId));
+    const person = participants.find((participant) => participant.id === participantId);
+    const firstName = (person?.fullName ?? 'Participant').split(' ')[0];
+    const label = STATUS_BUTTONS.find((entry) => entry.status === status)?.label ?? status;
+    setSaving((prev) => new Map(prev).set(participantId, status));
     try {
       const { record } = await attendanceApi.mark(participantId, weekId, status, markedById ?? supportId);
       setRecords((prev) => {
@@ -140,9 +146,11 @@ const SundayClassPanel: React.FC<SundayClassPanelProps> = ({
         setMarkedByWeek((counts) => new Map(counts).set(weekId, next.size));
         return next;
       });
-    } catch { /* ignore */ }
-    finally {
-      setSaving((prev) => { const next = new Set(prev); next.delete(participantId); return next; });
+      toast({ message: `${firstName} marked ${label}` });
+    } catch {
+      toast({ tone: 'error', message: `Couldn't save ${firstName}'s attendance. Tap again.` });
+    } finally {
+      setSaving((prev) => { const next = new Map(prev); next.delete(participantId); return next; });
     }
   };
 
@@ -237,17 +245,26 @@ const SundayClassPanel: React.FC<SundayClassPanelProps> = ({
                     {participant.notes?.trim() && <span className="block text-[11px] text-gray-400">Has a note</span>}
                   </button>
                   <div className="ml-auto flex flex-wrap gap-1.5">
-                    {STATUS_BUTTONS.map(({ status, label, activeCls }) => (
-                      <button
-                        key={status}
-                        type="button"
-                        disabled={busy}
-                        onClick={() => { void handleMark(participant.id, status); }}
-                        className={`rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${current === status ? activeCls : 'bg-[#f4f5f7] text-gray-500 hover:bg-gray-200/70'}`}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                    {STATUS_BUTTONS.map(({ status, label, activeCls }) => {
+                      const pending = saving.get(participant.id) === status;
+                      return (
+                        <button
+                          key={status}
+                          type="button"
+                          disabled={busy}
+                          aria-busy={pending}
+                          onClick={() => { void handleMark(participant.id, status); }}
+                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:cursor-wait ${
+                            pending ? activeCls : current === status ? activeCls : 'bg-[#f4f5f7] text-gray-500 hover:bg-gray-200/70'
+                          } ${busy && !pending ? 'opacity-50' : ''}`}
+                        >
+                          {pending && (
+                            <span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-current border-t-transparent" aria-hidden="true" />
+                          )}
+                          {label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               );
