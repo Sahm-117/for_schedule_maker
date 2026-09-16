@@ -126,6 +126,9 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
   const focusParticipant = participants.find((participant) => participant.id === focusParticipantId) ?? null;
 
   const markedCount = Object.keys(marks).length;
+  // Every member needs a mark before the report goes in; Missed and Excused are marks too.
+  const unmarkedParticipants = participants.filter((participant) => !marks[participant.id]);
+  const blockedByMarks = !submitted && unmarkedParticipants.length > 0;
   const joinedCount = Object.values(marks).filter((mark) => mark === 'JOINED').length;
   const attendanceSummary = markedCount === 0
     ? `Nobody marked yet · ${participants.length} in the group.`
@@ -165,6 +168,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
   const handleNext = async () => {
     if (step < STEPS.length - 1) { setStep(step + 1); return; }
     if (submitted) { setStep(DONE_STEP); return; }
+    if (blockedByMarks) return;
     setBusy(true);
     try {
       await onSubmit({ summary: summary.trim(), concern: concern.trim() });
@@ -241,7 +245,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
       {step === 0 && (
         <section className={CARD}>
           <h3 className="text-[15px] font-bold text-gray-900">Who joined the meeting?</h3>
-          <p className="mt-0.5 text-[13px] text-gray-500">Tap each person as they join the call.</p>
+          <p className="mt-0.5 text-[13px] text-gray-500">Mark everyone, including anyone who missed it. The report can't be submitted until each person has a mark.</p>
           {participants.length === 0 ? (
             <div className="mt-3.5 rounded-2xl border border-dashed border-orange-200 py-10 text-center text-sm text-gray-500">No participants are in this group yet.</div>
           ) : (
@@ -367,6 +371,19 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
           <h3 className="text-[15px] font-bold text-gray-900">Submit</h3>
           <p className="mt-0.5 text-[13px] text-gray-500">Check the summary, then submit the report for {weekLabel}.</p>
           <p className="mt-3 rounded-[14px] bg-[#f6f7f9] p-3.5 text-sm leading-normal text-gray-700">{doneSummary}</p>
+          {blockedByMarks && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-2 rounded-[14px] bg-amber-100/80 p-3.5 text-sm text-amber-800">
+              <span className="min-w-0 flex-1">
+                {unmarkedParticipants.length === 1
+                  ? `${unmarkedParticipants[0].fullName} still needs a mark.`
+                  : `${unmarkedParticipants.length} people still need a mark.`}
+                {' '}Missed and Excused count.
+              </span>
+              <button type="button" onClick={() => setStep(0)} className="flex-none rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-amber-800">
+                Mark attendance
+              </button>
+            </div>
+          )}
         </section>
       )}
 
@@ -401,7 +418,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
           <button
             type="button"
             onClick={() => { void handleNext(); }}
-            disabled={busy}
+            disabled={busy || (step >= STEPS.length - 1 && blockedByMarks)}
             className="min-h-[46px] flex-1 rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60"
           >
             {busy ? 'Submitting…' : step >= STEPS.length - 1 ? 'Submit report' : 'Next'}
