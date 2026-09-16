@@ -10,6 +10,8 @@
  *   POST /functions/v1/daily-checks       — send
  *   POST /functions/v1/daily-checks?dry=1 — report what it would send
  *
+ * Both need the header  x-cron-key: <CRON_SECRET>  when that secret is set.
+ *
  * Re-running the same day is safe: a reminder is skipped when the same person
  * already has that reminder from the last 20 hours.
  */
@@ -47,6 +49,14 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ ok: false, error: 'Method not allowed' }, 405)
 
   const dryRun = new URL(req.url).searchParams.get('dry') === '1'
+
+  // The scheduler's URL is public, so a shared secret keeps strangers from
+  // firing everyone's reminders. Set it with:
+  //   supabase secrets set CRON_SECRET=...
+  const cronSecret = Deno.env.get('CRON_SECRET')
+  if (cronSecret && req.headers.get('x-cron-key') !== cronSecret) {
+    return json({ ok: false, error: 'Not authorised' }, 401)
+  }
 
   try {
     const now = lagosNow()
