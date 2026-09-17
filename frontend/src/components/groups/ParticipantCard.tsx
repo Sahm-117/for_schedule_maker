@@ -5,6 +5,7 @@ import InfoTip from '../InfoTip';
 import DepartmentHandoff from '../participants/DepartmentHandoff';
 import { useToast } from '../Toast';
 import { departmentReferralsApi, faithProjectsApi, participantFlagsApi, participantNotesApi, participantsApi } from '../../services/api';
+import { unreadTrails, type FaithTrail, type ThreadReads } from '../../utils/faithThread';
 import type { DepartmentReferral, FaithProject, FaithProjectStatus, Participant, ParticipantFlag, ParticipantHandover, ParticipantNote } from '../../types';
 
 // Faith project states mapped onto the V2 design's labels.
@@ -267,6 +268,8 @@ interface ParticipantCardProps {
   onNoteAdded: (note: ParticipantNote) => void;
   onFlagRaised: (flag: ParticipantFlag) => void;
   onFlagCleared: (flagId: string) => void;
+  threadReads: ThreadReads;
+  onThreadRead: (participantId: string, trail: FaithTrail) => void;
 }
 
 const ParticipantCard: React.FC<ParticipantCardProps> = ({
@@ -285,7 +288,10 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   onNoteAdded,
   onFlagRaised,
   onFlagCleared,
+  threadReads,
+  onThreadRead,
 }) => {
+  const unread = unreadTrails(participant.id, project, notes, userId, threadReads);
   const [menu, setMenu] = useState<'closed' | 'main' | 'concern'>('closed');
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -437,6 +443,12 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         >
           <span className="font-semibold opacity-70">Faith project</span>
           <span>{chip.label}</span>
+          {unread.size > 0 && (
+            <span className="relative flex h-2 w-2" aria-label="New messages" title={unread.has('office') && unread.has('coach') ? 'New messages from the back office and the participant' : unread.has('office') ? 'New message from the back office' : 'New message from the participant'}>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-40 motion-reduce:hidden" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+            </span>
+          )}
           <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="m9 5 7 7-7 7" /></svg>
         </button>
       </div>
@@ -561,6 +573,8 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         supportName={supportName}
         onSaved={onProjectSaved}
         onNoteAdded={onNoteAdded}
+        unread={unread}
+        onTrailRead={(trail) => onThreadRead(participant.id, trail)}
       />
 
       <EditNameModal
@@ -583,7 +597,9 @@ const FaithProjectSheet: React.FC<{
   supportName: string;
   onSaved: (project: FaithProject) => void;
   onNoteAdded: (note: ParticipantNote) => void;
-}> = ({ open, onClose, participant, project, notes, groupName, userId, supportName, onSaved, onNoteAdded }) => {
+  unread: Set<FaithTrail>;
+  onTrailRead: (trail: FaithTrail) => void;
+}> = ({ open, onClose, participant, project, notes, groupName, userId, supportName, onSaved, onNoteAdded, unread, onTrailRead }) => {
   const status = project?.status ?? 'NOT_DRAFTED';
   const chip = FP_CHIP[status];
   const editable = CAN_SEND_UP.includes(status);
@@ -599,8 +615,16 @@ const FaithProjectSheet: React.FC<{
     setBody(project?.body ?? '');
     setNote('');
     setError('');
-    setTab('coach');
+    // Open straight onto the trail with something new, if there is one.
+    setTab(unread.has('coach') || !unread.has('office') ? 'coach' : 'office');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, project?.body]);
+
+  // Reading a trail clears its dot.
+  useEffect(() => {
+    if (open && unread.has(tab)) onTrailRead(tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tab, unread.has(tab)]);
 
   const noteEntry = (entry: ParticipantNote): TrailEntry => ({
     key: entry.id,
@@ -714,9 +738,10 @@ const FaithProjectSheet: React.FC<{
             key={key}
             type="button"
             onClick={() => { setTab(key); setNote(''); }}
-            className={`flex-1 rounded-full px-2.5 py-[9px] text-[12.5px] font-semibold transition ${tab === key ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-2.5 py-[9px] text-[12.5px] font-semibold transition ${tab === key ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}
           >
             {label}
+            {unread.has(key) && tab !== key && <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-label="New" />}
           </button>
         ))}
       </div>

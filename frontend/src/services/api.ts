@@ -39,6 +39,7 @@ import {
   participantFlagsApi as supabaseParticipantFlagsApi,
   departmentReferralsApi as supabaseDepartmentReferralsApi,
   participantStageChangesApi as supabaseParticipantStageChangesApi,
+  faithThreadReadsApi as supabaseFaithThreadReadsApi,
   supportChecklistApi as supabaseSupportChecklistApi,
   coverRequestsApi as supabaseCoverRequestsApi,
   recapDocumentsApi as supabaseRecapDocumentsApi,
@@ -563,6 +564,11 @@ export const departmentReferralsApi = USE_SUPABASE ? supabaseDepartmentReferrals
 export const participantStageChangesApi = USE_SUPABASE ? supabaseParticipantStageChangesApi : {
   async getForParticipant(_participantId: string): Promise<{ changes: import('../types').ParticipantStageChange[] }> { return { changes: [] }; },
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
+};
+
+export const faithThreadReadsApi = USE_SUPABASE ? supabaseFaithThreadReadsApi : {
+  async getForUser(_userId: string): Promise<{ reads: Map<string, string> }> { return { reads: new Map() }; },
+  async markRead(_userId: string, _participantId: string, _trail: 'coach' | 'office'): Promise<string> { return new Date().toISOString(); },
 };
 
 export const participantHandoversApi = USE_SUPABASE ? supabaseParticipantHandoversApi : {

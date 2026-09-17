@@ -4,8 +4,9 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { faithProjectsApi, participantsApi, groupsApi } from '../services/api';
-import type { FaithProject, FaithProjectReviewEntry, FaithProjectStatus, Group, Participant } from '../types';
+import { faithProjectsApi, faithThreadReadsApi, participantNotesApi, participantsApi, groupsApi } from '../services/api';
+import type { FaithProject, FaithProjectReviewEntry, FaithProjectStatus, Group, Participant, ParticipantNote } from '../types';
+import { unreadTrails } from '../utils/faithThread';
 import ModalShell from '../components/followups/ModalShell';
 import AppSelect from '../components/AppSelect';
 import FaithProjectsExportPopup from '../components/faithProjects/FaithProjectsExportPopup';
@@ -25,34 +26,74 @@ const statusCls = (s: FaithProjectStatus) => STATUS_OPTIONS.find((o) => o.value 
 const formatReviewDate = (iso: string) =>
   new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso));
 
-// ── Review History Accordion ─────────────────────────────────────────────────
+// ── Conversation with the support ─────────────────────────────────────────────
+// The "back office" trail: review decisions plus notes from the support or the
+// back office. The support sees the same trail on their faith project sheet.
 
-const ReviewHistory: React.FC<{ history: FaithProjectReviewEntry[] }> = ({ history }) => {
-  const [open, setOpen] = useState(false);
-  if (history.length === 0) return null;
+const SupportConversation: React.FC<{
+  history: FaithProjectReviewEntry[];
+  notes: ParticipantNote[];
+  canReply: boolean;
+  onReply: (body: string) => Promise<void>;
+}> = ({ history, notes, canReply, onReply }) => {
+  const [reply, setReply] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const entries = [
+    ...history.map((entry, i) => ({ key: `r-${i}`, at: entry.at, who: entry.actorName, role: 'Back office', decision: entry.action, text: entry.note ?? '' })),
+    ...notes.map((note) => ({ key: note.id, at: note.createdAt, who: note.authorName || 'Support', role: null as string | null, decision: null as FaithProjectReviewEntry['action'] | null, text: note.body })),
+  ].sort((a, b) => a.at.localeCompare(b.at));
+
+  const send = async () => {
+    if (!reply.trim() || sending) return;
+    setSending(true);
+    setError('');
+    try {
+      await onReply(reply.trim());
+      setReply('');
+    } catch (e: any) {
+      setError(e?.message || 'Could not send.');
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
-    <div className="rounded-xl border border-orange-100 bg-orange-50/40">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-3.5 py-2.5 text-xs font-semibold text-gray-600"
-      >
-        <span>{history.length} review{history.length > 1 ? 's' : ''}</span>
-        <span className="text-gray-400">{open ? '▲' : '▼'}</span>
-      </button>
-      {open && (
-        <div className="divide-y divide-orange-100 border-t border-orange-100">
-          {[...history].reverse().map((entry, i) => (
-            <div key={i} className="px-3.5 py-2.5">
-              <div className="flex items-center gap-2">
-                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${entry.action === 'APPROVED' ? 'bg-emerald-100/80 text-emerald-700' : 'bg-orange-100/80 text-orange-700'}`}>
-                  {entry.action === 'APPROVED' ? 'Approved' : 'Needs Refinement'}
-                </span>
-                <span className="text-xs text-gray-500">{entry.actorName} · {formatReviewDate(entry.at)}</span>
+    <div className="rounded-xl border border-orange-100">
+      <p className="border-b border-orange-100 px-3.5 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Conversation with the support</p>
+      {entries.length === 0 ? (
+        <p className="px-3.5 py-4 text-sm text-gray-400">No messages yet.</p>
+      ) : (
+        <div className="max-h-72 divide-y divide-orange-50 overflow-y-auto">
+          {entries.map((entry) => (
+            <div key={entry.key} className="px-3.5 py-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-gray-800">{entry.who}</span>
+                {entry.decision && (
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${entry.decision === 'APPROVED' ? 'bg-emerald-100/80 text-emerald-700' : 'bg-orange-100/80 text-orange-700'}`}>
+                    {entry.decision === 'APPROVED' ? 'Approved' : 'Needs refinement'}
+                  </span>
+                )}
+                <span className="text-xs text-gray-400">{formatReviewDate(entry.at)}</span>
               </div>
-              {entry.note && <p className="mt-1.5 text-xs text-gray-600">{entry.note}</p>}
+              {entry.text && <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{entry.text}</p>}
             </div>
           ))}
+        </div>
+      )}
+      {canReply && (
+        <div className="flex flex-wrap gap-2 border-t border-orange-100 p-2.5">
+          <input
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') void send(); }}
+            placeholder="Reply to the support…"
+            className="min-w-0 flex-1 rounded-xl border border-orange-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+          <button type="button" onClick={() => void send()} disabled={!reply.trim() || sending} className="rounded-xl bg-primary px-3.5 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            {sending ? 'Sending…' : 'Send'}
+          </button>
+          {error && <p className="w-full text-xs text-red-600">{error}</p>}
         </div>
       )}
     </div>
@@ -70,9 +111,11 @@ interface ReviewModalProps {
   onSaved: (fp: FaithProject) => void;
   currentUser: { id: string; name: string } | null;
   supportUserId?: string | null;
+  officeNotes: ParticipantNote[];
+  onNoteAdded: (note: ParticipantNote) => void;
 }
 
-const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant, group, existing, onSaved, currentUser, supportUserId }) => {
+const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant, group, existing, onSaved, currentUser, supportUserId, officeNotes, onNoteAdded }) => {
   const [decision, setDecision] = useState<'APPROVED' | 'NEEDS_REFINEMENT' | null>(null);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
@@ -196,8 +239,22 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant,
           </div>
         )}
 
-        {/* Review history accordion */}
-        <ReviewHistory history={history} />
+        <SupportConversation
+          history={history}
+          notes={officeNotes}
+          canReply={!!currentUser}
+          onReply={async (body) => {
+            if (!currentUser) return;
+            const { note: saved } = await participantNotesApi.create({
+              participantId: participant.id,
+              body,
+              authorId: currentUser.id,
+              groupId: participant.groupId ?? null,
+              noteType: 'FAITH_OFFICE',
+            });
+            onNoteAdded({ ...saved, authorName: saved.authorName ?? currentUser.name });
+          }}
+        />
       </div>
     </ModalShell>
   );
@@ -217,6 +274,9 @@ const AdminFaithProjectsPage: React.FC = () => {
   const [groupFilter, setGroupFilter] = useState(''); // '' = all, '__UNASSIGNED__' = no group
   const [search, setSearch] = useState('');
   const [reviewTarget, setReviewTarget] = useState<{ participant: Participant; project: FaithProject | null } | null>(null);
+  const [officeNotes, setOfficeNotes] = useState<ParticipantNote[]>([]);
+  // When this admin last read each faith project's support conversation (drives the dot).
+  const [threadReads, setThreadReads] = useState<Map<string, string>>(new Map());
   const [showExportPopup, setShowExportPopup] = useState(false);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
@@ -231,11 +291,18 @@ const AdminFaithProjectsPage: React.FC = () => {
         groupsApi.getAll({ cohortId: activeCohort.id }),
       ]);
       setParticipants(sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName));
+      const ids = ps.filter((p) => p.status === 'ACTIVE').map((p) => p.id);
+      const [notesRes, readsRes] = await Promise.all([
+        participantNotesApi.getForParticipants(ids).catch(() => ({ notes: [] as ParticipantNote[] })),
+        user ? faithThreadReadsApi.getForUser(user.id).catch(() => ({ reads: new Map<string, string>() })) : Promise.resolve({ reads: new Map<string, string>() }),
+      ]);
+      setOfficeNotes(notesRes.notes.filter((n) => n.noteType === 'FAITH_OFFICE'));
+      setThreadReads(readsRes.reads);
       setProjects(sortByText(fps, (project) => project.title || project.participantName));
       setGroups(sortByText(gs, (group) => group.name));
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [activeCohort]);
+  }, [activeCohort, user]);
 
   useEffect(() => { void load(); }, [load, liveRevision]);
 
@@ -373,20 +440,28 @@ const AdminFaithProjectsPage: React.FC = () => {
                   {displayed.map((p) => {
                     const fp = projectByParticipant.get(p.id) ?? null;
                     const s: FaithProjectStatus = fp?.status ?? 'NOT_DRAFTED';
+                    const newMessages = !!user && unreadTrails(p.id, fp, officeNotes, user.id, threadReads).has('office');
                     return (
                       <tr key={p.id} className="hover:bg-orange-50/30">
                         <td className="px-4 py-3 font-medium text-gray-900">{p.fullName}</td>
                         <td className="px-4 py-3 text-gray-500">{p.groupName ?? '—'}</td>
                         <td className="px-4 py-3">
-                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCls(s)}`}>
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCls(s)}`}>
                             {statusLabel(s)}
+                            {newMessages && <span className="h-2 w-2 rounded-full bg-red-500" aria-label="New message from the support" title="New message from the support" />}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{fp?.title ?? '—'}</td>
                         <td className="sticky right-0 bg-white px-4 py-3 text-right">
                           <button
                             type="button"
-                            onClick={() => setReviewTarget({ participant: p, project: fp })}
+                            onClick={() => {
+                              setReviewTarget({ participant: p, project: fp });
+                              if (newMessages && user) {
+                                setThreadReads((prev) => new Map(prev).set(`${p.id}:office`, new Date().toISOString()));
+                                void faithThreadReadsApi.markRead(user.id, p.id, 'office').catch(() => undefined);
+                              }
+                            }}
                             className="rounded-xl border border-orange-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-orange-50 active:scale-95"
                           >
                             Review
@@ -419,6 +494,8 @@ const AdminFaithProjectsPage: React.FC = () => {
           }}
           currentUser={user ? { id: user.id, name: user.name ?? user.email ?? 'Admin' } : null}
           supportUserId={reviewTarget.participant.groupId ? (groupById.get(reviewTarget.participant.groupId)?.supportId ?? null) : null}
+          officeNotes={officeNotes.filter((n) => n.participantId === reviewTarget.participant.id)}
+          onNoteAdded={(note) => setOfficeNotes((prev) => [...prev, note])}
         />
       )}
 

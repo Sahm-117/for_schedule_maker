@@ -3376,6 +3376,22 @@ export const participantStageChangesApi = {
   },
 };
 
+export const faithThreadReadsApi = {
+  async getForUser(userId: string): Promise<{ reads: Map<string, string> }> {
+    const { data, error } = await supabase.from('FaithThreadRead').select('participantId, trail, lastReadAt').eq('userId', userId);
+    if (error) throw new Error(error.message);
+    return { reads: new Map(((data as any[]) || []).map((r) => [`${r.participantId}:${r.trail}`, r.lastReadAt])) };
+  },
+
+  async markRead(userId: string, participantId: string, trail: 'coach' | 'office'): Promise<string> {
+    const lastReadAt = new Date().toISOString();
+    const { error } = await supabase.from('FaithThreadRead')
+      .upsert([{ userId, participantId, trail, lastReadAt }], { onConflict: 'userId,participantId,trail' });
+    if (error) throw new Error(error.message);
+    return lastReadAt;
+  },
+};
+
 export const participantHandoversApi = {
   async getForParticipants(participantIds: string[]): Promise<{ handovers: import('../types').ParticipantHandover[] }> {
     if (participantIds.length === 0) return { handovers: [] };

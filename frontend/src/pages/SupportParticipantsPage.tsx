@@ -11,7 +11,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { faithProjectsApi, groupOnboardingStatusApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, participantsApi, coverRequestsApi } from '../services/api';
+import { faithProjectsApi, groupOnboardingStatusApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, coverRequestsApi } from '../services/api';
 import type { FaithProject, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, CoverRequest } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
@@ -42,6 +42,8 @@ const SupportParticipantsPage: React.FC = () => {
   const [groupPrayerFocuses, setGroupPrayerFocuses] = useState<GroupPrayerFocus[]>([]);
   const [groupPrayerStatuses, setGroupPrayerStatuses] = useState<GroupPrayerStatus[]>([]);
   const [participantNotes, setParticipantNotes] = useState<ParticipantNote[]>([]);
+  // When this support last opened each faith project conversation (drives the unread dot).
+  const [threadReads, setThreadReads] = useState<Map<string, string>>(new Map());
   const [participantHandovers, setParticipantHandovers] = useState<ParticipantHandover[]>([]);
   const [flags, setFlags] = useState<ParticipantFlag[]>([]);
   const [covers, setCovers] = useState<CoverRequest[]>([]);
@@ -138,11 +140,13 @@ const SupportParticipantsPage: React.FC = () => {
       const coveredParticipants = coveredParticipantLists.flat();
 
       const participantIds = participantsRes.participants.map((participant) => participant.id);
-      const [notesRes, handoversRes, flagsRes] = await Promise.all([
+      const [notesRes, handoversRes, flagsRes, readsRes] = await Promise.all([
         participantNotesApi.getForParticipants(participantIds).catch(() => ({ notes: [] as ParticipantNote[] })),
         participantHandoversApi.getForParticipants(participantIds).catch(() => ({ handovers: [] as ParticipantHandover[] })),
         participantFlagsApi.getOpenForParticipants(participantIds).catch(() => ({ flags: [] as ParticipantFlag[] })),
+        faithThreadReadsApi.getForUser(user.id).catch(() => ({ reads: new Map<string, string>() })),
       ]);
+      setThreadReads(readsRes.reads);
 
       setParticipants(sortByText([...participantsRes.participants, ...coveredParticipants], (participant) => participant.fullName));
       setCovers(activeCovers);
@@ -427,6 +431,12 @@ const SupportParticipantsPage: React.FC = () => {
                 }}
                 onAddNote={() => { setNoteParticipant(participant); setNoteBody(''); }}
                 onNoteAdded={(note) => setParticipantNotes((prev) => [note, ...prev])}
+                threadReads={threadReads}
+                onThreadRead={(participantId, trail) => {
+                  const key = `${participantId}:${trail}`;
+                  setThreadReads((prev) => new Map(prev).set(key, new Date().toISOString()));
+                  void faithThreadReadsApi.markRead(user.id, participantId, trail).catch(() => undefined);
+                }}
                 openFlag={flags.find((flag) => flag.participantId === participant.id) ?? null}
                 onFlagRaised={(flag) => setFlags((prev) => [flag, ...prev.filter((entry) => entry.participantId !== flag.participantId)])}
                 onFlagCleared={(flagId) => setFlags((prev) => prev.filter((entry) => entry.id !== flagId))}
