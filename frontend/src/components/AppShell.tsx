@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import SectionTabs, { sectionMatches } from './SectionTabs';
 import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -62,21 +63,17 @@ const ICONS = {
   rota: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 9h18M9 4v16M4 20h16a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" /></svg></IconBox>,
 };
 
+// Related pages sit under one item and share a tab strip (see SectionTabs):
+// Participants (+ Attendance, Faith projects, Onboarding), Groups (+ Allocation,
+// Group meetings), Schedule (+ Approvals, Rota, Activity overview).
 const adminNav: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: ICONS.dashboard },
   { to: '/schedule', label: 'Schedule', icon: ICONS.schedule },
-  { to: '/approvals', label: 'Approvals', icon: ICONS.approvals },
-  { to: '/activity-overview', label: 'Activity overview', icon: ICONS.overview, adminOnly: true },
-  { to: '/rota', label: 'Rota', icon: ICONS.rota, adminOnly: true },
-  { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
   { to: '/participants', label: 'Participants', icon: ICONS.participants, adminOnly: true },
   { to: '/groups', label: 'Groups', icon: ICONS.groups, adminOnly: true },
-  { to: '/supports', label: 'Supports', icon: ICONS.users, adminOnly: true },
-  { to: '/attendance', label: 'Attendance', icon: ICONS.attendance, adminOnly: true },
-  { to: '/faith-projects', label: 'Faith projects', icon: ICONS.faith, adminOnly: true },
-  { to: '/group-prayers', label: 'Group meetings', icon: ICONS.prayer, adminOnly: true },
+  { to: '/supports', label: 'Supports', icon: ICONS.attendance, adminOnly: true },
+  { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
   { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
-  { to: '/onboarding', label: 'Onboarding', icon: ICONS.onboarding, adminOnly: true },
   { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
   { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
   { to: '/hub', label: 'Hub', icon: ICONS.hub },
@@ -95,28 +92,21 @@ const adminNavGroups: NavGroup[] = [
     label: 'Programme',
     items: [
       { to: '/schedule', label: 'Schedule', icon: ICONS.schedule },
-      { to: '/approvals', label: 'Approvals', icon: ICONS.approvals },
-      { to: '/activity-overview', label: 'Activity overview', icon: ICONS.overview, adminOnly: true },
-      { to: '/rota', label: 'Rota', icon: ICONS.rota, adminOnly: true },
     ],
   },
   {
     label: 'People & groups',
     items: [
-      { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
       { to: '/participants', label: 'Participants', icon: ICONS.participants, adminOnly: true },
       { to: '/groups', label: 'Groups', icon: ICONS.groups, adminOnly: true },
-      { to: '/supports', label: 'Supports', icon: ICONS.users, adminOnly: true },
-      { to: '/faith-projects', label: 'Faith projects', icon: ICONS.faith, adminOnly: true },
-      { to: '/group-prayers', label: 'Group meetings', icon: ICONS.prayer, adminOnly: true },
-      { to: '/attendance', label: 'Attendance', icon: ICONS.attendance, adminOnly: true },
+      { to: '/supports', label: 'Supports', icon: ICONS.attendance, adminOnly: true },
+      { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
     ],
   },
   {
     label: 'Engagement',
     items: [
       { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
-      { to: '/onboarding', label: 'Onboarding', icon: ICONS.onboarding, adminOnly: true },
       { to: '/hub', label: 'Hub', icon: ICONS.hub },
     ],
   },
@@ -156,7 +146,7 @@ const isNavActive = (pathname: string, to: string) => {
     return pathname === to;
   }
 
-  return pathname === to || pathname.startsWith(`${to}/`);
+  return pathname === to || pathname.startsWith(`${to}/`) || sectionMatches(pathname, to);
 };
 
 const canShowNavItem = (item: NavItem, isAdmin: boolean, isSopPreparer: boolean) => {
@@ -186,7 +176,7 @@ const NavItemLink: React.FC<{
   >
     {item.icon}
     <span>{item.label}</span>
-    {item.to.includes('approvals') && <MobileBadge count={globalPendingCount} />}
+    {item.to === '/schedule' && <MobileBadge count={globalPendingCount} />}
     {item.to.includes('hub') && hasNewHubActivity && <NavDot />}
   </NavLink>
 );
@@ -291,7 +281,7 @@ const AppShell: React.FC = () => {
   };
   const mobileNavItems = useMemo(() => {
     if (isSupport) return supportNav.filter((item) => !item.mobileHidden && !item.mobileMore);
-    const mobileAdminRoutes = new Set(['/dashboard', '/schedule', '/approvals', '/hub', '/resources']);
+    const mobileAdminRoutes = new Set(['/dashboard', '/schedule', '/participants', '/supports', '/hub']);
     return navItems.filter((item) => mobileAdminRoutes.has(item.to));
   }, [isSupport, navItems]);
   const mobileMoreItems = useMemo(
@@ -546,6 +536,9 @@ const AppShell: React.FC = () => {
           {/* Route-level boundary: a single page crash shows a contained error
               (nav/shell survive) and auto-recovers when the route changes. */}
           <ErrorBoundary inline resetKey={location.pathname}>
+            {!isSupport && (
+              <SectionTabs pathname={location.pathname} isAdmin={isAdmin} pendingApprovals={globalPendingChanges.length} />
+            )}
             <Outlet />
           </ErrorBoundary>
         </main>
@@ -571,7 +564,7 @@ const AppShell: React.FC = () => {
               >
                 {item.icon}
                 <span className="truncate">{item.mobileLabel ?? item.label}</span>
-                {item.to.includes('approvals') && globalPendingChanges.length > 0 && (
+                {item.to === '/schedule' && globalPendingChanges.length > 0 && (
                   <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />
                 )}
                 {item.to.includes('hub') && hasNewHubActivity && (

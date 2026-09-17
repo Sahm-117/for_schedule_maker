@@ -126,6 +126,68 @@ const RegistrationDetails: React.FC<{ participant: Participant }> = ({ participa
   );
 };
 
+const NOTE_TITLE: Record<string, string> = { MEETING: 'Meeting note', HANDOVER: 'Handover note', CHECK_IN: 'Check-in' };
+
+// "How it went: …\n\nNeeds attention: …" becomes labelled paragraphs.
+const noteSections = (body: string) =>
+  body.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean).map((part) => {
+    const match = part.match(/^(How it went|Needs attention):\s*([\s\S]*)$/);
+    return match ? { label: match[1], text: match[2] } : { label: null as string | null, text: part };
+  });
+
+// Notes as a tidy accordion: title, author and date on one line; tap to read.
+const NotesAccordion: React.FC<{ notes: ParticipantNote[] }> = ({ notes }) => {
+  const [openId, setOpenId] = useState<string | null>(notes[0]?.id ?? null);
+  const [showAll, setShowAll] = useState(false);
+  if (notes.length === 0) return null;
+  const shown = showAll ? notes : notes.slice(0, 4);
+  return (
+    <div className="mt-3 space-y-2">
+      {shown.map((note) => {
+        const open = openId === note.id;
+        const sections = noteSections(note.body);
+        const date = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(new Date(note.createdAt));
+        return (
+          <div key={note.id} className="overflow-hidden rounded-xl border border-[#f1f2f5] bg-[#fafafb]">
+            <button
+              type="button"
+              onClick={() => setOpenId(open ? null : note.id)}
+              aria-expanded={open}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-semibold text-gray-900">{NOTE_TITLE[note.noteType] ?? 'Note'}</span>
+                <span className="block truncate text-[11.5px] text-gray-500">{note.authorName || 'Support'} · {date}</span>
+              </span>
+              {sections.some((section) => section.label === 'Needs attention') && (
+                <span className="flex-none rounded-full bg-amber-100/80 px-2 py-0.5 text-[10.5px] font-semibold text-amber-700">Concern</span>
+              )}
+              <svg className={`h-4 w-4 flex-none text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            {open && (
+              <div className="space-y-2.5 border-t border-[#f1f2f5] bg-white px-3 py-3">
+                {sections.map((section, index) => (
+                  <div key={index}>
+                    {section.label && <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{section.label}</p>}
+                    <p className="mt-0.5 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-gray-700">{section.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {notes.length > 4 && (
+        <button type="button" onClick={() => setShowAll((v) => !v)} className="text-xs font-semibold text-primary">
+          {showAll ? 'Show fewer' : `Show all ${notes.length} notes`}
+        </button>
+      )}
+    </div>
+  );
+};
+
 const EditNameModal: React.FC<{
   participant: Participant | null;
   onClose: () => void;
@@ -478,14 +540,12 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
                 ) : (
                   <p className="mt-1 text-xs text-gray-500">No previous support handover recorded yet.</p>
                 )}
-                {notes.filter((note) => note.noteType === 'HANDOVER' || note.noteType === 'MEETING').slice(0, 3).map((note) => (
-                  <p key={note.id} className="mt-1 text-xs text-gray-600">{note.noteType === 'MEETING' ? 'Meeting note' : 'Note'} — {note.authorName || 'Support'}: {note.body}</p>
-                ))}
               </div>
               <button type="button" onClick={() => { setViewOpen(false); onAddNote(); }} className="shrink-0 rounded-xl border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-primary hover:bg-orange-50">
                 Add note
               </button>
             </div>
+            <NotesAccordion notes={notes.filter((note) => note.noteType === 'HANDOVER' || note.noteType === 'MEETING' || note.noteType === 'CHECK_IN')} />
           </div>
         </div>
       </Sheet>
