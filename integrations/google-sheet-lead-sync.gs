@@ -10,6 +10,15 @@
 // and in the maintainer's local .env.cron.local. Never commit it.
 var SECRET = 'PASTE-GOOGLE_SHEET_SECRET-HERE';
 
+// Where form sign-ups are sent, so supports can see in the app who has
+// registered. Same project as everything else; only the path differs.
+var APP_ENDPOINT = 'https://vnmeeqvwqaeczjlvzoul.supabase.co/functions/v1/receive-form-registration';
+
+// Supabase will not accept a call without this header. It is the public key
+// that already ships inside the FOF web app, so it is not a secret -- SECRET
+// above is what actually proves the call came from this spreadsheet.
+var APP_ANON_KEY = 'PASTE-SUPABASE-ANON-KEY-HERE';
+
 var SETTINGS_TAB = 'Sync settings';
 var FIRST_MAP_ROW = 7;
 
@@ -47,6 +56,91 @@ var DEFAULT_MAP = [
 ];
 
 // ---------------------------------------------------------------------
+// Form sign-ups -> the FOF app
+// ---------------------------------------------------------------------
+
+// Runs on every form submission. Set it up once with
+// FOF Sync > Connect form sign-ups.
+//
+// Supports can then see who has registered without asking the back office.
+// A failure here is logged and left alone: it must never stop the response
+// reaching the spreadsheet, which is still the record of truth.
+function onFormSubmit(e) {
+  try {
+    if (!e || !e.namedValues) return;
+    var answers = {};
+    var keys = Object.keys(e.namedValues);
+    for (var i = 0; i < keys.length; i++) {
+      var value = e.namedValues[keys[i]];
+      answers[keys[i]] = Array.isArray(value) ? value.join(', ') : String(value);
+    }
+
+    var first = pickAnswer(answers, 'First name');
+    var surname = pickAnswer(answers, 'Surname');
+    var fullName = (first + ' ' + surname).replace(/\s+/g, ' ').trim();
+    var phone = pickAnswer(answers, 'WhatsApp number');
+
+    // Without these two there is nobody to match, so there is nothing to send.
+    if (!fullName || !phone) {
+      Logger.log('FOF sign-up skipped: no name or number in ' + JSON.stringify(answers));
+      return;
+    }
+
+    var payload = {
+      secret: SECRET,
+      responseId: e.range ? (e.range.getSheet().getName() + ':' + e.range.getRow()) : null,
+      fullName: fullName,
+      phone: phone,
+      email: pickAnswer(answers, 'Email'),
+      signedUpAt: new Date().toISOString(),
+      answers: answers
+    };
+
+    var response = UrlFetchApp.fetch(APP_ENDPOINT, {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + APP_ANON_KEY, apikey: APP_ANON_KEY },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    Logger.log('FOF sign-up sent: ' + response.getResponseCode() + ' ' + response.getContentText());
+  } catch (err) {
+    Logger.log('FOF sign-up failed: ' + err);
+  }
+}
+
+// Finds a submitted answer using the question titles already configured in the
+// Sync settings tab, so a renamed question is fixed in one place for both
+// directions. Falls back to matching on the field name itself.
+function pickAnswer(answers, label) {
+  var settings = readSettings();
+  var keys = Object.keys(answers);
+  for (var i = 0; i < settings.map.length; i++) {
+    if (settings.map[i].label !== label || !settings.map[i].heading) continue;
+    for (var j = 0; j < keys.length; j++) {
+      if (clean(keys[j]) === clean(settings.map[i].heading)) {
+        return String(answers[keys[j]]).trim();
+      }
+    }
+  }
+  for (var k = 0; k < keys.length; k++) {
+    if (clean(keys[k]).indexOf(clean(label)) !== -1) return String(answers[keys[k]] || '').trim();
+  }
+  return '';
+}
+
+// Creates the submit trigger. Safe to run twice: the old one is replaced.
+function connectFormSignUps() {
+  var book = SpreadsheetApp.getActiveSpreadsheet();
+  var existing = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < existing.length; i++) {
+    if (existing[i].getHandlerFunction() === 'onFormSubmit') ScriptApp.deleteTrigger(existing[i]);
+  }
+  ScriptApp.newTrigger('onFormSubmit').forSpreadsheet(book).onFormSubmit().create();
+  SpreadsheetApp.getUi().alert('Form sign-ups are now sent to the FOF app.');
+}
+
+// ---------------------------------------------------------------------
 // Menu
 // ---------------------------------------------------------------------
 
@@ -54,6 +148,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('FOF Sync')
     .addItem('Check setup', 'checkSetup')
+    .addItem('Connect form sign-ups', 'connectFormSignUps')
     .addItem('Rebuild settings tab', 'rebuildSettings')
     .addToUi();
 }

@@ -1,8 +1,36 @@
-# Lead sync to the Google Sheet
+# The Google Sheet and the FOF app
 
-When a support registers someone in the FOF app (Mobilisation → Register a lead),
-that person is also added to the **FOF Signup Form (Responses)** spreadsheet,
-alongside the people who filled in the Google Form themselves.
+Sign-ups on the **FOF Signup Form** are sent into the FOF app, so every support
+can see who has registered without having to ask the back office.
+
+Supports no longer register people in the app. They save a name and a number
+when they meet someone, and the person fills in the form themselves once they
+know what FOF is about. The form is what actually registers them.
+
+## Turning the sign-up feed on (once)
+
+1. Open the **FOF Signup Form (Responses)** spreadsheet.
+2. **Extensions → Apps Script**, paste in the latest `google-sheet-lead-sync.gs`,
+   and save.
+3. Back in the spreadsheet: menu **FOF Sync → Connect form sign-ups**.
+4. Google will ask you to authorise it. Accept.
+
+That's it. From then on, each new form response is sent to the app as it
+arrives. If it can't get through, the response still lands in the spreadsheet as
+normal — the sheet is never held up by the app.
+
+**People who filled in the form before you did this do not appear in the app.**
+Only sign-ups from this point on are sent.
+
+## The old direction (app → sheet) is off
+
+Leads saved in the app are no longer copied into this spreadsheet. The code that
+did it is still there and still works if it is ever switched back on, but
+nothing calls it now.
+
+---
+
+## Historical: how the app → sheet copy worked
 
 This page is for whoever looks after that spreadsheet. **You don't need to be a
 developer for anything in the first two sections.**

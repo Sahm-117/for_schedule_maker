@@ -2892,6 +2892,49 @@ const notifyFollowUpTerminalStatus = (
     .catch(() => undefined);
 };
 
+// ── Sign-ups from the Google Form ───────────────────────────────────────────
+
+export interface FormRegistration {
+  id: string;
+  fullName: string;
+  phone: string;
+  phoneNormalised: string | null;
+  email: string | null;
+  signedUpAt: string;
+  outcome: 'PENDING' | 'MATCHED' | 'CREATED' | 'DUPLICATE' | 'FAILED';
+  outcomeDetail: string | null;
+  contactId: string | null;
+  contactOwnerName: string | null;
+}
+
+const mapFormRegistration = (row: any): FormRegistration => ({
+  id: row.id,
+  fullName: row.fullName,
+  phone: row.phone,
+  phoneNormalised: row.phoneNormalised ?? null,
+  email: row.email ?? null,
+  signedUpAt: row.signedUpAt,
+  outcome: row.outcome,
+  outcomeDetail: row.outcomeDetail ?? null,
+  contactId: row.contactId ?? null,
+  contactOwnerName: row.contact?.owner?.name ?? null,
+});
+
+export const formRegistrationsApi = {
+  // Every support sees every sign-up: the point is that they can check whether
+  // someone has registered without asking the back office.
+  async getAll(options?: { limit?: number }): Promise<{ registrations: FormRegistration[] }> {
+    const { data, error } = await supabase
+      .from('SheetRegistration')
+      .select('*, contact:FollowUpContact(id, owner:User!FollowUpContact_ownerId_fkey(name))')
+      .order('signedUpAt', { ascending: false })
+      .limit(options?.limit ?? 500);
+
+    if (error) throw new Error(error.message);
+    return { registrations: ((data as any[]) || []).map(mapFormRegistration) };
+  },
+};
+
 export const followUpContactsApi = {
   async getAll(options?: {
     cohortId?: string | null;
@@ -2933,11 +2976,10 @@ export const followUpContactsApi = {
 
     const contact = mapFollowUpContact(data);
     if (input.ownerId) notifyFollowUpAssignment(input.ownerId, [contact.fullName]);
-    // Registered by a support: also send it to the Google Sheet. Failures are
-    // recorded on the row and retried by the daily job, never blocking the save.
-    if (input.registeredById) {
-      void supabase.functions.invoke('sync-lead-to-sheet', { body: { contactId: contact.id } }).catch(() => undefined);
-    }
+    // Leads are no longer pushed to the Google Sheet. A support saving someone's
+    // name and number is not a registration -- the person registers themselves
+    // on the form, and that submission comes back the other way. sync-lead-to-sheet
+    // and retrySheetSync are left in place, unused, in case this is reversed.
 
     // A support registering a lead from Mobilisation: operations needs to pick it up.
     if (input.registeredById && !input.ownerId) {

@@ -14,8 +14,9 @@ import NotInterestedPopup from '../components/followups/NotInterestedPopup';
 import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { followUpContactsApi, followUpIssuesApi, messageTemplatesApi, settingsApi } from '../services/api';
+import { followUpContactsApi, followUpIssuesApi, formRegistrationsApi, messageTemplatesApi, settingsApi } from '../services/api';
 import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, FollowUpStatus, MessageTemplate } from '../types';
+import type { FormRegistration } from '../services/supabase-api';
 import {
   FOLLOW_UP_STATUS_META,
   buildStatusPatch,
@@ -30,9 +31,10 @@ import LoginDetailsCard from '../components/participants/LoginDetailsCard';
 
 type MobTab = 'register' | 'follow';
 
-const GENDERS = ['Male', 'Female'];
-const AGE_RANGES = ['18 - 24', '25 - 34', '35 - 44', '45 - 59', '60 and above'];
-const EMPTY_LEAD = { email: '', first: '', last: '', gender: '', age: '', occupation: '', phone: '', note: '' };
+// A support meets someone and takes their name and number, nothing more. The
+// person fills in the Google Form themselves once they know what FOF is about,
+// and that form is what actually registers them.
+const EMPTY_LEAD = { fullName: '', phone: '' };
 
 const CARD = 'rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
 const INPUT = 'min-h-[48px] w-full rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
@@ -57,23 +59,6 @@ const shortDate = (value?: string | null) => {
   return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(date);
 };
 
-const ChipGroup: React.FC<{ label: string; options: string[]; value: string; onChange: (value: string) => void }> = ({ label, options, value, onChange }) => (
-  <div>
-    <span className="mb-2 block text-[13px] font-semibold text-gray-900">{label}</span>
-    <div className="flex flex-wrap gap-2">
-      {options.map((option) => (
-        <button
-          key={option}
-          type="button"
-          onClick={() => onChange(value === option ? '' : option)}
-          className={`min-h-[42px] rounded-full border px-3.5 py-2 text-[13px] font-semibold transition ${value === option ? 'border-primary bg-primary text-white' : 'border-gray-200 bg-white text-gray-700'}`}
-        >
-          {option}
-        </button>
-      ))}
-    </div>
-  </div>
-);
 
 const SupportMobilisationPage: React.FC = () => {
   const { user } = useAuth();
@@ -91,6 +76,8 @@ const SupportMobilisationPage: React.FC = () => {
   const initialLoadRef = useRef(true);
 
   const [lead, setLead] = useState(EMPTY_LEAD);
+  const [signUps, setSignUps] = useState<FormRegistration[]>([]);
+  const [signUpSearch, setSignUpSearch] = useState('');
   const [leadTouched, setLeadTouched] = useState(false);
   const [leadSaving, setLeadSaving] = useState(false);
   const [leadError, setLeadError] = useState('');
@@ -112,11 +99,14 @@ const SupportMobilisationPage: React.FC = () => {
     if (initialLoadRef.current) setLoading(true);
     setLoadError('');
     try {
-      const [contactsRes, allRes, templatesRes, linkRes] = await Promise.all([
+      // Every support sees every form sign-up, so nobody has to ask the back
+      // office whether someone has registered.
+      const [contactsRes, allRes, templatesRes, linkRes, signUpRes] = await Promise.all([
         followUpContactsApi.getAll({ ownerId: user.id }),
         followUpContactsApi.getAll(),
         messageTemplatesApi.getAll({ category: 'FOLLOW_UP' }),
         settingsApi.getRegistrationLink(),
+        formRegistrationsApi.getAll(),
       ]);
       const issuesRes = await followUpIssuesApi.getAll();
       setContacts(sortByText(contactsRes.contacts, (contact) => contact.fullName));
@@ -124,6 +114,7 @@ const SupportMobilisationPage: React.FC = () => {
       setIssues(issuesRes.issues);
       setTemplates(sortByText(templatesRes.templates, (template) => template.useCase));
       setRegistrationLink(linkRes.url);
+      setSignUps(signUpRes.registrations);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load mobilisation.');
     } finally {
@@ -227,7 +218,18 @@ const SupportMobilisationPage: React.FC = () => {
     replaceContact(logged);
   };
 
-  const leadNameError = leadTouched && !lead.first.trim();
+  // The sheet keeps growing, so searching is the only way to answer "has this
+  // person signed up?" once there are more rows than fit on a screen.
+  const visibleSignUps = useMemo(() => {
+    const needle = signUpSearch.trim().toLowerCase();
+    if (!needle) return signUps;
+    const digits = needle.replace(/\D/g, '');
+    return signUps.filter((row) =>
+      row.fullName.toLowerCase().includes(needle)
+      || (digits.length >= 3 && row.phone.replace(/\D/g, '').includes(digits)));
+  }, [signUps, signUpSearch]);
+
+  const leadNameError = leadTouched && !lead.fullName.trim();
   const leadPhoneError = leadTouched && !lead.phone.trim()
     ? 'A WhatsApp number is required.'
     : leadTouched && lead.phone.trim() && !normalizeToIntlPhone(lead.phone)
@@ -238,12 +240,12 @@ const SupportMobilisationPage: React.FC = () => {
     if (!user) return;
     setLeadSaved('');
     setLeadError('');
-    if (!lead.first.trim() || !lead.phone.trim() || !normalizeToIntlPhone(lead.phone)) { setLeadTouched(true); return; }
+    if (!lead.fullName.trim() || !lead.phone.trim() || !normalizeToIntlPhone(lead.phone)) { setLeadTouched(true); return; }
     const normalized = normalizeToIntlPhone(lead.phone);
     const duplicate = [...myLeads, ...contacts].find((contact) => normalizeToIntlPhone(contact.phone) === normalized);
     if (duplicate) { setLeadError(`This number already belongs to ${duplicate.fullName}.`); return; }
 
-    const fullName = `${lead.first.trim()} ${lead.last.trim()}`.trim();
+    const fullName = lead.fullName.trim();
 
     setLeadSaving(true);
     try {
@@ -253,17 +255,12 @@ const SupportMobilisationPage: React.FC = () => {
         source: leadSource,
         cohortId: activeCohort?.id ?? null,
         followUpCount: 0,
-        email: lead.email.trim() || null,
-        gender: lead.gender || null,
-        ageRange: lead.age || null,
-        occupation: lead.occupation.trim() || null,
         registeredById: user.id,
-        notes: lead.note.trim() || null,
       });
       setMyLeads((prev) => [contact, ...prev]);
       setLead(EMPTY_LEAD);
       setLeadTouched(false);
-      setLeadSaved(`${fullName} was sent to the back office to assign.`);
+      setLeadSaved(`${fullName} was saved and sent to the back office to assign.`);
     } catch (err) {
       setLeadError(err instanceof Error ? err.message : 'Could not register this person.');
     } finally {
@@ -288,7 +285,7 @@ const SupportMobilisationPage: React.FC = () => {
       <PageHeader
         title="Mobilisation"
         tourId="support:mobilisation"
-        subtitle="Register people you meet, and follow up the ones assigned to you."
+        subtitle="Save the details of people you meet, see who has signed up, and follow up the ones assigned to you."
       />
 
       <div className="flex max-w-[760px] flex-col gap-3">
@@ -330,46 +327,76 @@ const SupportMobilisationPage: React.FC = () => {
         {tab === 'register' && (
           <>
             <section data-wt="mob-register" className={`${CARD} p-[18px]`}>
-              <h2 className="text-base font-bold text-gray-900">Register someone</h2>
-              <p className="mt-1 text-[13px] leading-normal text-gray-500">The details we collect when someone signs up for a cohort.</p>
+              <h2 className="text-base font-bold text-gray-900">Save someone's details</h2>
+              <p className="mt-1 text-[13px] leading-normal text-gray-500">Take their name and number when you meet them. They register themselves on the form once they know what FOF is about.</p>
               <div className="mt-4 flex flex-col gap-3">
                 <label className="block">
-                  <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Email</span>
-                  <input type="email" value={lead.email} onChange={(e) => setLead((prev) => ({ ...prev, email: e.target.value }))} placeholder="name@example.com" className={INPUT} />
-                </label>
-                <label className="block">
-                  <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">First name</span>
-                  <input value={lead.first} onChange={(e) => setLead((prev) => ({ ...prev, first: e.target.value }))} placeholder="First name" className={INPUT} />
-                  {leadNameError && <span className="mt-1 block text-xs font-medium text-red-700">Enter their first name.</span>}
-                </label>
-                <label className="block">
-                  <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Surname</span>
-                  <input value={lead.last} onChange={(e) => setLead((prev) => ({ ...prev, last: e.target.value }))} placeholder="Surname" className={INPUT} />
-                </label>
-                <ChipGroup label="Gender" options={GENDERS} value={lead.gender} onChange={(value) => setLead((prev) => ({ ...prev, gender: value }))} />
-                <ChipGroup label="Age range" options={AGE_RANGES} value={lead.age} onChange={(value) => setLead((prev) => ({ ...prev, age: value }))} />
-                <label className="block">
-                  <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Occupation</span>
-                  <span className="mb-1.5 block text-xs text-gray-500">What they do for a living</span>
-                  <input value={lead.occupation} onChange={(e) => setLead((prev) => ({ ...prev, occupation: e.target.value }))} placeholder="Occupation" className={INPUT} />
+                  <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Full name</span>
+                  <input value={lead.fullName} onChange={(e) => setLead((prev) => ({ ...prev, fullName: e.target.value }))} placeholder="Full name" className={INPUT} />
+                  {leadNameError && <span className="mt-1 block text-xs font-medium text-red-700">Enter their full name.</span>}
                 </label>
                 <label className="block">
                   <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">WhatsApp number</span>
-                  <span className="mb-1.5 block text-xs text-gray-500">This becomes their username for the app</span>
                   <input type="tel" value={lead.phone} onChange={(e) => setLead((prev) => ({ ...prev, phone: e.target.value }))} placeholder="0803 000 0000" className={INPUT} />
                   {leadPhoneError && <span className="mt-1 block text-xs font-medium text-red-700">{leadPhoneError}</span>}
-                </label>
-                <label className="block">
-                  <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Any other questions or concerns?</span>
-                  <span className="mb-1.5 block text-xs text-gray-500">Optional</span>
-                  <textarea value={lead.note} onChange={(e) => setLead((prev) => ({ ...prev, note: e.target.value }))} rows={3} placeholder="Anything they asked or mentioned" className={`${INPUT} resize-y`} />
                 </label>
                 {leadError && <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{leadError}</p>}
                 {leadSaved && <p className="rounded-xl bg-emerald-100/80 px-3.5 py-2.5 text-sm font-semibold text-emerald-700">{leadSaved}</p>}
                 <button type="button" onClick={() => { void submitLead(); }} disabled={leadSaving} className="min-h-[48px] w-full rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60">
-                  {leadSaving ? 'Registering…' : 'Register'}
+                  {leadSaving ? 'Saving…' : 'Save details'}
                 </button>
               </div>
+            </section>
+
+            <section className={`${CARD} p-[18px]`}>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm font-bold text-gray-900">Signed up on the form</h3>
+                <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-bold text-neutral-600">{signUps.length}</span>
+              </div>
+              <p className="mt-1 text-[13px] leading-normal text-gray-500">Everyone who filled in the registration form. Check here before asking the back office.</p>
+
+              {signUps.length > 0 && (
+                <input
+                  value={signUpSearch}
+                  onChange={(e) => setSignUpSearch(e.target.value)}
+                  placeholder="Search by name or number"
+                  className={`${INPUT} mt-3`}
+                />
+              )}
+
+              {signUps.length === 0 ? (
+                <p className="mt-3 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">Nobody has signed up on the form yet.</p>
+              ) : visibleSignUps.length === 0 ? (
+                <p className="mt-3 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">Nobody matching “{signUpSearch.trim()}” has signed up.</p>
+              ) : (
+                <div className="mt-3 flex flex-col gap-2.5">
+                  {visibleSignUps.map((row) => (
+                    <div key={row.id} className="rounded-[14px] border border-[#f1f2f5] p-3">
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="text-sm font-semibold text-gray-900">{row.fullName}</span>
+                        <span className="ml-auto text-[11px] font-semibold text-gray-500">{shortDate(row.signedUpAt)}</span>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">{row.phone}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {row.contactId ? (
+                          <span className="rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">
+                            {row.outcome === 'MATCHED' ? 'Already a contact' : 'Added as a new lead'}
+                          </span>
+                        ) : row.outcome === 'FAILED' ? (
+                          <span className="rounded-full bg-red-100/80 px-2.5 py-0.5 text-[11px] font-bold text-red-700">Could not be added</span>
+                        ) : (
+                          <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">Not linked yet</span>
+                        )}
+                        {row.contactOwnerName ? (
+                          <span className="text-[11px] font-semibold text-gray-500">Followed up by {row.contactOwnerName}</span>
+                        ) : row.contactId ? (
+                          <span className="text-[11px] font-semibold text-gray-500">Waiting to be assigned</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
             {myLeads.length > 0 && (

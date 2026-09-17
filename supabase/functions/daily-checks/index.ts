@@ -367,18 +367,11 @@ Deno.serve(async (req) => {
     }
 
     // ── Leads that never reached the Google Sheet ────────────────────────────
-    let leadsRetried = 0
-    if (!dryRun) try {
-      const retry = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-lead-to-sheet`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
-        body: JSON.stringify({ pending: true }),
-      })
-      const result = await retry.json().catch(() => null)
-      leadsRetried = result?.sent ?? 0
-    } catch (error) {
-      console.error('daily-checks: lead sheet retry failed', String(error))
-    }
+    // The nightly retry is switched off along with the push itself: it selects
+    // every lead with no sheetSyncedAt, so leaving it on would carry new leads
+    // to the sheet within a day regardless. sync-lead-to-sheet still exists and
+    // still works if called directly.
+    const leadsRetried = 0
 
     // ── Lead sheet sync health: tell operations once a day if it's broken ────
     const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()

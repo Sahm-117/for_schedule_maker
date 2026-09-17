@@ -22,6 +22,7 @@ import {
   announcementsApi as supabaseAnnouncementsApi,
   resourcesApi as supabaseResourcesApi,
   followUpContactsApi as supabaseFollowUpContactsApi,
+  formRegistrationsApi as supabaseFormRegistrationsApi,
   messageTemplatesApi as supabaseMessageTemplatesApi,
   followUpIssuesApi as supabaseFollowUpIssuesApi,
   participantsApi as supabaseParticipantsApi,
@@ -734,6 +735,10 @@ export const profileFieldsApi = USE_SUPABASE ? supabaseProfileFieldsApi : {
   async getSummary(): Promise<Map<string, { applies: number; answered: number }>> { return new Map(); },
   async getCohortCompletion(_cohortId: string): Promise<Map<string, import('../types').ProfileCompletion>> { return new Map(); },
   async getOverview(_participantId: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const formRegistrationsApi = USE_SUPABASE ? supabaseFormRegistrationsApi : {
+  async getAll(_options?: any): Promise<{ registrations: import('./supabase-api').FormRegistration[] }> { return { registrations: [] }; },
 };
 
 export { SESSION_TOKEN_KEY };
