@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabase, SESSION_TOKEN_KEY } from '../lib/supabase';
 import { normaliseRules } from '../utils/programmeRules';
 import { DEFAULT_CHURCH_DEPARTMENTS } from '../constants/departments';
 import type {
@@ -38,8 +38,10 @@ const getCurrentUserFromStorage = (): User | null => {
 };
 
 // The database session token from sign_in. Private calls (participant data,
-// login details) pass it so the database knows who is asking.
-export const SESSION_TOKEN_KEY = 'sessionToken';
+// login details) pass it so the database knows who is asking; the Supabase
+// client also sends it as a header on every request. Defined next to that
+// client so the storage key lives in one place.
+export { SESSION_TOKEN_KEY };
 export const getSessionToken = (): string => {
   if (typeof window === 'undefined') return '';
   return localStorage.getItem(SESSION_TOKEN_KEY) || '';

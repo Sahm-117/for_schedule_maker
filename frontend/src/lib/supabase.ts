@@ -31,13 +31,38 @@ const routeLocally = (input: RequestInfo | URL): RequestInfo | URL => {
 // AbortSignal.any may be absent in older lib typings/runtimes; reference it
 // through a typed optional shape instead of `any`.
 const signalAny = (AbortSignal as { any?: (signals: AbortSignal[]) => AbortSignal }).any;
+
+// Carry the app's own session token on every request so table policies can tell
+// a signed-in member of the team from an anonymous caller. This app doesn't use
+// Supabase auth, so without this header every browser request looks identical
+// to a stranger holding the public key. PostgREST hands the header to SQL,
+// where app_is_staff() reads it back.
+//
+// Read from localStorage per request rather than once at module load, so a
+// fresh sign-in or a sign-out takes effect immediately.
+const SESSION_TOKEN_HEADER = 'x-session-token';
+export const SESSION_TOKEN_KEY = 'sessionToken';
+const withSessionToken = (init: RequestInit | undefined): RequestInit | undefined => {
+  let token = '';
+  try {
+    token = localStorage.getItem(SESSION_TOKEN_KEY) || '';
+  } catch {
+    // Storage can throw in private browsing; carry on without the header.
+    return init;
+  }
+  if (!token) return init;
+  const headers = new Headers(init?.headers);
+  headers.set(SESSION_TOKEN_HEADER, token);
+  return { ...init, headers };
+};
+
 const fetchWithTimeout: typeof fetch = (input, init) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   const timeoutSignal = AbortSignal.timeout(url.includes('/functions/v1/ai-assist') ? AI_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
   const signal = init?.signal
     ? (signalAny ? signalAny([init.signal, timeoutSignal]) : init.signal)
     : timeoutSignal;
-  return fetch(routeLocally(input), { ...init, signal });
+  return fetch(routeLocally(input), { ...withSessionToken(init), signal });
 };
 
 export const supabase = hasSupabaseConfig
