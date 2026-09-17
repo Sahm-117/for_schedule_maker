@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import AppSelect from '../AppSelect';
+import { departmentOptions, useChurchDepartments } from '../../hooks/useChurchDepartments';
 import { departmentReferralsApi } from '../../services/api';
 import type { DepartmentReferral, Participant } from '../../types';
 import { referralTimeline } from '../../utils/participantJourney';
@@ -25,6 +27,7 @@ const DepartmentHandoff: React.FC<{
 }> = ({ participant, referrals, userId, onChanged, onError }) => {
   const [adding, setAdding] = useState(false);
   const [department, setDepartment] = useState('');
+  const churchDepartments = useChurchDepartments();
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const setStatus = async (referral: DepartmentReferral, status: DepartmentReferral['status'], message: string) => {
@@ -96,15 +99,15 @@ const DepartmentHandoff: React.FC<{
       </ul>
       {adding && (
         <div className="mt-2 flex flex-wrap gap-2">
-          <input
-            type="text"
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') void logDepartment(); }}
-            placeholder="e.g. Ushering"
-            autoFocus
-            className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
+          <div className="min-w-0 flex-1 basis-56">
+            <AppSelect
+              value={department}
+              onChange={setDepartment}
+              options={departmentOptions(churchDepartments).filter((option) => !referrals.some((r) => r.department.toLowerCase() === option.value.toLowerCase()))}
+              placeholder="Choose a department"
+              compact
+            />
+          </div>
           <button type="button" disabled={!department.trim() || busyId === 'new'} onClick={() => { void logDepartment(); }} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Log</button>
           <button type="button" onClick={() => { setAdding(false); setDepartment(''); }} className="rounded-xl px-3 py-2 text-sm font-semibold text-gray-500">Cancel</button>
         </div>

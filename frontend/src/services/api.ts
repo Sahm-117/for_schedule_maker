@@ -2,6 +2,7 @@ import axios from 'axios';
 import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label, SupportActivityCompletion, Cohort } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
 import { DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
+import { DEFAULT_CHURCH_DEPARTMENTS } from '../constants/departments';
 
 // Import Supabase API
 import {
@@ -437,6 +438,8 @@ export const supportActivityCompletionsApi = USE_SUPABASE ? supabaseSupportActiv
 };
 
 export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
+  async getChurchDepartments(): Promise<import('../constants/departments').ChurchDepartment[]> { return DEFAULT_CHURCH_DEPARTMENTS; },
+  async setChurchDepartments(departments: import('../constants/departments').ChurchDepartment[]): Promise<import('../constants/departments').ChurchDepartment[]> { return departments; },
   async getProgrammeRules(): Promise<import('../utils/programmeRules').ProgrammeRules> { return { ...DEFAULT_PROGRAMME_RULES }; },
   async setProgrammeRules(rules: import('../utils/programmeRules').ProgrammeRules): Promise<import('../utils/programmeRules').ProgrammeRules> { return rules; },
   async getRegistrationLink(): Promise<{ url: string }> {

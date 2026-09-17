@@ -23,7 +23,8 @@ import {
 import { sortByText } from '../utils/sort';
 import { reconcileById } from '../utils/reconcile';
 import { normalizeToIntlPhone } from '../utils/phone';
-import { DEPARTMENTS, AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
+import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
+import { departmentOptions, useChurchDepartments } from '../hooks/useChurchDepartments';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,7 @@ const toDateInput = (value?: string | null): string => {
 };
 
 const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, onSaved, cohortId, existing }) => {
+  const churchDepartments = useChurchDepartments();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
@@ -217,7 +219,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
                   label="Department(s)"
                   values={departments}
                   onChange={setDepartments}
-                  options={toSelectOptions(DEPARTMENTS)}
+                  options={departmentOptions(churchDepartments, departments)}
                   placeholder="Select departments"
                 />
               </div>

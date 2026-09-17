@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { normaliseRules } from '../utils/programmeRules';
+import { DEFAULT_CHURCH_DEPARTMENTS } from '../constants/departments';
 import type {
   User,
   Cohort,
@@ -1733,6 +1734,27 @@ export const settingsApi = {
     }
 
     return payload;
+  },
+
+  async getChurchDepartments(): Promise<import('../constants/departments').ChurchDepartment[]> {
+    const { data, error } = await supabase.from('AppSetting').select('value').eq('settingKey', 'church_departments').maybeSingle();
+    const value = error ? null : (data as any)?.value;
+    if (!Array.isArray(value)) return DEFAULT_CHURCH_DEPARTMENTS;
+    return value
+      .filter((entry: any) => entry && typeof entry.name === 'string' && entry.name.trim())
+      .map((entry: any) => ({ name: entry.name.trim(), description: typeof entry.description === 'string' && entry.description.trim() ? entry.description.trim() : undefined }));
+  },
+
+  async setChurchDepartments(departments: import('../constants/departments').ChurchDepartment[]): Promise<import('../constants/departments').ChurchDepartment[]> {
+    const seen = new Set<string>();
+    const value = departments
+      .map((d) => ({ name: d.name.trim(), ...(d.description?.trim() ? { description: d.description.trim() } : {}) }))
+      .filter((d) => d.name && !seen.has(d.name.toLowerCase()) && seen.add(d.name.toLowerCase()))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const { error } = await supabase.from('AppSetting')
+      .upsert([{ settingKey: 'church_departments', value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+    if (error) throw new Error(error.message);
+    return value;
   },
 
   async getProgrammeRules(): Promise<import('../utils/programmeRules').ProgrammeRules> {
