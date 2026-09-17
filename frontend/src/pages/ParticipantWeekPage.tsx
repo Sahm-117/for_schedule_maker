@@ -105,8 +105,20 @@ const ParticipantWeekPage: React.FC = () => {
               </div>
               <div className="px-5 pb-5 pt-4">
                 {week.recapDocumentUrl && (
-                  <button type="button" onClick={() => setDocOpen(true)} className="min-h-[46px] w-full rounded-xl border border-[#ffdeca] bg-[#fff8f3] p-3 text-[13.5px] font-semibold text-[#c2410c]">
+                  /* This was a pale outline button and read as an optional
+                     extra, so it got skipped. It is the main thing to do on
+                     this card, so it carries the solid accent the rest of the
+                     app uses for a primary action. */
+                  <button
+                    type="button"
+                    onClick={() => setDocOpen(true)}
+                    className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[15px] font-semibold text-white"
+                  >
+                    <svg className="h-[18px] w-[18px] flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.5A3.5 3.5 0 0 0 8.5 3H4v14h5a3 3 0 0 1 3 3m0-13.5A3.5 3.5 0 0 1 15.5 3H20v14h-5a3 3 0 0 0-3 3m0-13.5V20" />
+                    </svg>
                     Read the full recap
+                    <span aria-hidden="true">→</span>
                   </button>
                 )}
               </div>

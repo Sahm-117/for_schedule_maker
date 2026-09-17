@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './hooks/useAuth';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
+import ScrollToTop from './components/ScrollToTop';
 import AppShell from './components/AppShell';
 import { AppDataProvider } from './context/AppDataContext';
 import { TourProvider } from './context/TourContext';
@@ -69,6 +70,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
+        <ScrollToTop />
         <TourProvider>
         <Routes>
           <Route path="/login" element={<Login />} />

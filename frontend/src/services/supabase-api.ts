@@ -2888,7 +2888,7 @@ export const followUpContactsApi = {
       void notify(
         { role: 'ADMIN' },
         'New lead registered',
-        `${contact.registeredByName || 'A support'} registered ${contact.fullName}. It is waiting to be assigned.`,
+        `${contact.registeredByName || 'A support'} registered ${contact.fullName}. They're waiting to be assigned.`,
         '/follow-ups',
         'FOLLOWUP_ASSIGNMENT',
       );

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
@@ -390,6 +390,7 @@ const AdminGroupsPage: React.FC = () => {
   const { isAdmin } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -402,10 +403,19 @@ const AdminGroupsPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<Group | null>(null);
   const [noSupportOnly, setNoSupportOnly] = useState(false);
   const [supportFilter, setSupportFilter] = useState('');
-  const [groupFilter, setGroupFilter] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
+
+  // "Open group" elsewhere (the Supports page) links straight to one group as
+  // /groups?group=<id>, so the URL — not local state — decides what's in view.
+  // That keeps the link shareable and survives a refresh.
+  const groupFilter = searchParams.get('group') ?? '';
+  const setGroupFilter = (next: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (next) params.set('group', next); else params.delete('group');
+    setSearchParams(params, { replace: true });
+  };
 
   // `silent` background refreshes (triggered by realtime liveRevision bumps)
   // update the data in place WITHOUT flipping `loading`, so the grid doesn't

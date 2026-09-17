@@ -246,7 +246,6 @@ const AppShell: React.FC = () => {
     unreadCount,
     refreshRejectedChanges,
     globalPendingChanges,
-    realtimeHealthy,
     newResourceCount,
     hasNewHubActivity,
   } = useAppData();
@@ -305,10 +304,6 @@ const AppShell: React.FC = () => {
       ? `${formatDateLabel(cohort.startDate)} to ${formatDateLabel(cohort.endDate)}`
       : 'No dates set',
   }));
-
-  const detailTone = realtimeHealthy
-    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    : 'bg-amber-50 text-amber-700 border-amber-200';
 
   return (
     <div className="app-shell-bg min-h-screen text-gray-900">
@@ -489,16 +484,6 @@ const AppShell: React.FC = () => {
                 {activeCohort && (
                   <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">
                     {activeCohort.name}
-                  </span>
-                )}
-                {!isSupport && (
-                  <span className={`rounded-full border px-2.5 py-1 ${detailTone}`}>
-                    {realtimeHealthy ? 'Live sync' : 'Polling fallback'}
-                  </span>
-                )}
-                {isAdmin && (
-                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">
-                    Pending approvals: {globalPendingChanges.length}
                   </span>
                 )}
               </div>

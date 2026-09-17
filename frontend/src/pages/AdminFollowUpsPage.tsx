@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import AppSelect from '../components/AppSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -22,7 +22,7 @@ import {
   settingsApi,
   usersApi,
 } from '../services/api';
-import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, MessageTemplate, User } from '../types';
+import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, FollowUpStatus, MessageTemplate, User } from '../types';
 import {
   REPLY_STATUS_META,
   CALL_STATUS_META,
@@ -30,6 +30,9 @@ import {
   NEXT_ACTION_META,
   isClosedContact,
   isClosedRegistrationStatus,
+  computeFollowUpStatus,
+  FOLLOW_UP_STAGE,
+  FOLLOW_UP_STATUS_META,
 } from '../utils/followUps';
 import { compareText, sortByText } from '../utils/sort';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -76,7 +79,23 @@ const AdminFollowUpsPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
   const { cohorts, activeCohort, liveRevision } = useAppData();
 
-  const [tab, setTab] = useState<Tab>('overview');
+  // The Overview tiles link into this page (?tab=contacts&status=…), so the tab
+  // and the status filter live in the URL rather than in state.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const tab: Tab = tabParam === 'contacts' || tabParam === 'messages' || tabParam === 'issues' ? tabParam : 'overview';
+  const statusParam = searchParams.get('status') ?? '';
+  const setTab = (next: Tab) => {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'overview') params.delete('tab'); else params.set('tab', next);
+    if (next !== 'contacts') params.delete('status');
+    setSearchParams(params, { replace: true });
+  };
+  const clearStatusParam = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('status');
+    setSearchParams(params, { replace: true });
+  };
   const [contacts, setContacts] = useState<FollowUpContact[]>([]);
   const [owners, setOwners] = useState<User[]>([]);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -147,6 +166,12 @@ const AdminFollowUpsPage: React.FC = () => {
       if (filters.call && c.callStatus !== filters.call) return false;
       if (filters.reg && c.registrationStatus !== filters.reg) return false;
       if (filters.next && c.nextAction !== filters.next) return false;
+      // Arrived from an Overview tile: a single derived status, or every status
+      // that still counts as open work.
+      if (statusParam) {
+        const derived = computeFollowUpStatus(c);
+        if (statusParam === 'open' ? FOLLOW_UP_STAGE[derived] !== 'open' : derived !== statusParam) return false;
+      }
       return true;
     });
     list.sort((a, b) => {
@@ -155,7 +180,7 @@ const AdminFollowUpsPage: React.FC = () => {
       return (aClosed - bClosed) || compareText(a.fullName, b.fullName);
     });
     return list;
-  }, [contacts, cohortFilter, ownerFilter, filters]);
+  }, [contacts, cohortFilter, ownerFilter, filters, statusParam]);
 
   const ownerOptionCounts = useMemo(() => {
     const scoped = cohortFilter ? contacts.filter((c) => c.cohortId === cohortFilter && !c.archivedAt) : contacts.filter((c) => !c.archivedAt);
@@ -407,6 +432,21 @@ const AdminFollowUpsPage: React.FC = () => {
       ) : (
         <>
           {tab === 'overview' && <FollowUpDashboard contacts={dashboardContacts} />}
+          {tab === 'contacts' && statusParam && (
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-xs text-gray-500">Showing</span>
+              <button
+                type="button"
+                onClick={clearStatusParam}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                {statusParam === 'open' ? 'Still open' : FOLLOW_UP_STATUS_META[statusParam as FollowUpStatus]?.label ?? statusParam}
+                <span aria-hidden="true">×</span>
+                <span className="sr-only">Clear this filter</span>
+              </button>
+              <span className="text-xs text-gray-500">{filteredContacts.length} contact{filteredContacts.length === 1 ? '' : 's'}</span>
+            </div>
+          )}
           {tab === 'contacts' && (
             <FollowUpContactsTable
               contacts={filteredContacts}

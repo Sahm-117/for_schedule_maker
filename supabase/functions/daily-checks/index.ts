@@ -361,7 +361,7 @@ Deno.serve(async (req) => {
     if (helpNames.length > 0) {
       for (const adminId of admins) {
         escalation(adminId, `${helpNames.length} participant${helpNames.length === 1 ? '' : 's'} asked for help 2+ days ago`,
-          `No support has marked it followed up yet: ${listOf(helpNames)}.`,
+          `No support has followed up yet: ${listOf(helpNames)}.`,
           '/participants')
       }
     }

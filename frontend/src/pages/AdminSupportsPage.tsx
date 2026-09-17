@@ -291,7 +291,7 @@ const SupportCard: React.FC<{
         {whatsapp && (
           <a href={whatsapp} target="_blank" rel="noreferrer" className="rounded-xl bg-emerald-100/80 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">WhatsApp</a>
         )}
-        <NavLink to="/groups" className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">Open group</NavLink>
+        <NavLink to={`/groups?group=${evaluation.groupId}`} className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">Open group</NavLink>
       </div>
 
       {open && (

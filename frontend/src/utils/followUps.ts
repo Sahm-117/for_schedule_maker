@@ -156,10 +156,14 @@ export interface OwnerBreakdownRow {
   stillOpen: number;
   notAGoodTime: number;
   notATcnMember: number;
+  /** Closed without registering. Its reasons are listed biggest first. */
+  stopped: number;
+  stoppedReasons: Array<{ label: string; value: number }>;
 }
 
 export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdownRow[] => {
   const map = new Map<string, OwnerBreakdownRow>();
+  const reasonsByOwner = new Map<string, string[]>();
   for (const c of contacts) {
     const key = c.ownerId || 'unassigned';
     let row = map.get(key);
@@ -169,10 +173,13 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
         ownerName: c.ownerName || (c.ownerId ? 'Unknown' : 'Unassigned'),
         assigned: 0, toContact: 0, waiting: 0, needsReminder: 0, replied: 0, callBackLater: 0, registered: 0, nextCohort: 0, wrongNumber: 0, notInterested: 0, noResponse: 0,
         uncontacted: 0, contacted: 0, stillOpen: 0, notAGoodTime: 0, notATcnMember: 0,
+        stopped: 0, stoppedReasons: [],
       };
       map.set(key, row);
     }
     row.assigned++;
+    const reason = stoppedReason(c);
+    if (reason) reasonsByOwner.set(key, [...(reasonsByOwner.get(key) ?? []), reason]);
     if (c.registrationStatus === 'NOT_A_GOOD_TIME') row.notAGoodTime++;
     if (c.registrationStatus === 'NOT_A_TCN_MEMBER') row.notATcnMember++;
     const status = computeFollowUpStatus(c);
@@ -189,7 +196,9 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       case 'NEXT_COHORT': row.nextCohort++; break;
     }
   }
-  for (const row of map.values()) {
+  for (const [key, row] of map) {
+    row.stopped = row.wrongNumber + row.notInterested + row.noResponse;
+    row.stoppedReasons = countReasons(reasonsByOwner.get(key) ?? []);
     row.uncontacted = row.toContact;
     row.contacted = row.replied + row.callBackLater + row.registered + row.wrongNumber + row.notInterested;
     // stillOpen = active (non-archived, non-closed) contacts only
@@ -301,3 +310,93 @@ export const todayISO = (): string => {
 
 export const isOverdue = (contact: FollowUpContact): boolean =>
   !!contact.dueDate && !contact.archivedAt && contact.dueDate < todayISO();
+
+// ── Overview funnel ──────────────────────────────────────────────────────────
+// `computeFollowUpMetrics` counts one contact under several headings on purpose
+// (Registered is also Closed; a NEXT_COHORT contact lands in neither), which is
+// fine for a single number but never reconciles as a set — Contacted + Not
+// contacted + No response falls short of the total. The funnel puts every
+// contact in exactly one bucket, so the Overview always adds up.
+
+export type FollowUpStage = 'open' | 'registered' | 'nextCohort' | 'stopped';
+
+export const FOLLOW_UP_STAGE: Record<FollowUpStatus, FollowUpStage> = {
+  TO_CONTACT: 'open',
+  WAITING: 'open',
+  NEEDS_REMINDER: 'open',
+  REPLIED: 'open',
+  CALL_BACK_LATER: 'open',
+  REGISTERED: 'registered',
+  NEXT_COHORT: 'nextCohort',
+  WRONG_NUMBER: 'stopped',
+  NOT_INTERESTED: 'stopped',
+  NO_RESPONSE: 'stopped',
+};
+
+/**
+ * Why a contact stopped, at the grain people actually ask about. The derived
+ * status folds "not a good time" and "not a TCN member" into NOT_INTERESTED, so
+ * the reason comes off the registration status instead.
+ */
+export const stoppedReason = (c: FollowUpContact): string | null => {
+  switch (computeFollowUpStatus(c)) {
+    case 'WRONG_NUMBER': return 'Wrong number';
+    case 'NO_RESPONSE': return 'No response';
+    case 'NOT_INTERESTED':
+      return c.registrationStatus === 'NOT_A_GOOD_TIME' ? 'Not a good time'
+        : c.registrationStatus === 'NOT_A_TCN_MEMBER' ? 'Not a TCN member'
+          : 'Not interested';
+    default: return null;
+  }
+};
+
+const countReasons = (reasons: string[]): Array<{ label: string; value: number }> => {
+  const map = new Map<string, number>();
+  for (const reason of reasons) map.set(reason, (map.get(reason) ?? 0) + 1);
+  return Array.from(map, ([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+};
+
+export interface FollowUpFunnel {
+  total: number;
+  open: number;
+  registered: number;
+  nextCohort: number;
+  stopped: number;
+  /** Registered as a share of every contact. Null when there are none. */
+  conversion: number | null;
+  /** One entry per status, in funnel order, zeros dropped. Always sums to total. */
+  buckets: Array<{ status: FollowUpStatus; label: string; value: number; stage: FollowUpStage }>;
+  stoppedReasons: Array<{ label: string; value: number }>;
+}
+
+const FUNNEL_ORDER: FollowUpStatus[] = [
+  'TO_CONTACT', 'WAITING', 'NEEDS_REMINDER', 'REPLIED', 'CALL_BACK_LATER',
+  'REGISTERED', 'NEXT_COHORT', 'WRONG_NUMBER', 'NOT_INTERESTED', 'NO_RESPONSE',
+];
+
+export const computeFollowUpFunnel = (contacts: FollowUpContact[]): FollowUpFunnel => {
+  const counts = new Map<FollowUpStatus, number>();
+  const reasons: string[] = [];
+  const stageTotals: Record<FollowUpStage, number> = { open: 0, registered: 0, nextCohort: 0, stopped: 0 };
+
+  for (const c of contacts) {
+    const status = computeFollowUpStatus(c);
+    counts.set(status, (counts.get(status) ?? 0) + 1);
+    stageTotals[FOLLOW_UP_STAGE[status]]++;
+    const reason = stoppedReason(c);
+    if (reason) reasons.push(reason);
+  }
+
+  return {
+    total: contacts.length,
+    open: stageTotals.open,
+    registered: stageTotals.registered,
+    nextCohort: stageTotals.nextCohort,
+    stopped: stageTotals.stopped,
+    conversion: contacts.length ? stageTotals.registered / contacts.length : null,
+    buckets: FUNNEL_ORDER
+      .map((status) => ({ status, label: FOLLOW_UP_STATUS_META[status].label, value: counts.get(status) ?? 0, stage: FOLLOW_UP_STAGE[status] }))
+      .filter((b) => b.value > 0),
+    stoppedReasons: countReasons(reasons),
+  };
+};
