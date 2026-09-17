@@ -169,8 +169,10 @@ export const authApi = {
     role?: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT'
   }): Promise<{ user: User }> {
     // The account and its hashed password are created together in the database,
-    // so no password material is ever written from the browser.
+    // so no password material is ever written from the browser. The session
+    // token goes with it because the database only lets an admin create users.
     const { data, error } = await supabase.rpc('create_user', {
+      p_token: getSessionToken(),
       p_name: userData.name,
       p_password: userData.password,
       p_email: userData.email ? userData.email.trim().toLowerCase() : null,
@@ -181,6 +183,9 @@ export const authApi = {
     if (error) {
       if (error.message.includes('at least 8')) {
         throw new Error('Password must be at least 8 characters.');
+      }
+      if (error.message.includes('NOT_AUTHORISED')) {
+        throw new Error('Only an admin can create accounts.');
       }
       throw new Error(friendlyUserError(error.message, 'Could not create the account. Please try again.'));
     }
@@ -2096,11 +2101,15 @@ export const usersApi = {
 
     if (newPassword) {
       const { error: passwordError } = await supabase.rpc('set_user_password', {
+        p_token: getSessionToken(),
         target_user: userId,
         new_password: newPassword,
         force_change: true,
       });
       if (passwordError) {
+        if (passwordError.message.includes('NOT_AUTHORISED')) {
+          throw new Error('Only an admin can change someone else’s password.');
+        }
         throw new Error(passwordError.message.includes('at least 8')
           ? 'Password must be at least 8 characters.'
           : 'The password could not be updated.');
@@ -2124,11 +2133,15 @@ export const usersApi = {
   // Admin-issued reset: the person must set their own password at next login.
   async resetPassword(userId: string, temporaryPassword: string): Promise<void> {
     const { error } = await supabase.rpc('set_user_password', {
+      p_token: getSessionToken(),
       target_user: userId,
       new_password: temporaryPassword,
       force_change: true,
     });
     if (error) {
+      if (error.message.includes('NOT_AUTHORISED')) {
+        throw new Error('Only an admin can reset a password.');
+      }
       throw new Error(error.message.includes('at least 8')
         ? 'Password must be at least 8 characters.'
         : 'The password could not be reset.');
