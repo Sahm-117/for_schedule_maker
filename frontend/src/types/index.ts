@@ -161,6 +161,7 @@ export type NotificationType =
   | 'COVER_REQUEST'
   | 'HUB'
   | 'REMINDER'
+  | 'ESCALATION'
   | 'GENERAL';
 
 export interface Notification {
