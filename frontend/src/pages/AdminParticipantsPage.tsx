@@ -952,9 +952,9 @@ const AdminParticipantsPage: React.FC = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search name or phone…"
-                className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-xs"
+                className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:min-w-[12rem] sm:max-w-xs sm:flex-1"
               />
-              <div className="w-full sm:w-52">
+              <div className="w-full sm:w-40 sm:shrink-0">
                 <AppSelect
                   value={groupFilter}
                   onChange={(v) => { setGroupFilter(v); setSupportFilter(''); }}
@@ -964,7 +964,7 @@ const AdminParticipantsPage: React.FC = () => {
                 />
               </div>
               {healthById.size > 0 && (
-                <div className="w-full sm:w-52">
+                <div className="w-full sm:w-52 sm:shrink-0">
                   <AppSelect
                     value={healthFilter}
                     onChange={setHealthFilter}
@@ -980,7 +980,7 @@ const AdminParticipantsPage: React.FC = () => {
                 </div>
               )}
               {supportOptions.length > 1 && (
-                <div className="w-full sm:w-52">
+                <div className="w-full sm:w-40 sm:shrink-0">
                   <AppSelect
                     value={supportFilter}
                     onChange={(v) => { setSupportFilter(v); setGroupFilter(''); }}
