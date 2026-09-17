@@ -2095,9 +2095,13 @@ export const usersApi = {
     const finalUpdateData: any = { ...updateData };
 
     // The password is hashed in the database (set_user_password); it is never
-    // written from the browser.
+    // written from the browser. The role goes the same way (set_user_role),
+    // because writing it straight to the table would let anyone holding the
+    // anon key promote an account to ADMIN.
     const newPassword = updateData.password;
     delete finalUpdateData.password;
+    const newRole = updateData.role;
+    delete finalUpdateData.role;
 
     if (newPassword) {
       const { error: passwordError } = await supabase.rpc('set_user_password', {
@@ -2114,6 +2118,43 @@ export const usersApi = {
           ? 'Password must be at least 8 characters.'
           : 'The password could not be updated.');
       }
+    }
+
+    let roleUser: User | null = null;
+    if (newRole) {
+      const { data: roleData, error: roleError } = await supabase.rpc('set_user_role', {
+        p_token: getSessionToken(),
+        target_user: userId,
+        p_role: newRole,
+      });
+      if (roleError) {
+        if (roleError.message.includes('NOT_AUTHORISED')) {
+          throw new Error('Only an admin can change a role.');
+        }
+        if (roleError.message.includes('CANNOT_DEMOTE_SELF')) {
+          throw new Error('You cannot remove your own admin access.');
+        }
+        throw new Error(friendlyUserError(roleError.message, 'The role could not be changed.'));
+      }
+      roleUser = roleData as unknown as User;
+    }
+
+    // With the password and role handled above there may be nothing left to
+    // write, and PostgREST rejects an empty patch.
+    if (Object.keys(finalUpdateData).length === 0) {
+      if (roleUser) return { user: roleUser };
+
+      const { data: current, error: readError } = await supabase
+        .from('User')
+        .select(USER_SELECT)
+        .eq('id', userId)
+        .single();
+
+      if (readError) {
+        throw new Error(friendlyUserError(readError.message, 'Could not save the changes. Please try again.'));
+      }
+
+      return { user: current as unknown as User };
     }
 
     const { data, error } = await supabase
