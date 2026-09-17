@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate, NavLink, useNavigate } from 'react-router-dom';
+import { Navigate, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { participantsApi, groupsApi, participantFlagsApi } from '../services/api';
+import { participantsApi, groupsApi, participantFlagsApi, cohortsApi, settingsApi } from '../services/api';
+import { buildDashboardModel, type PeopleSummary } from '../components/dashboard/healthModel';
+import { PERSON_HEALTH_LABEL, type PersonHealth } from '../utils/programmeRules';
 import type { Participant, Group, ParticipantFlag } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -748,6 +750,11 @@ const AdminParticipantsPage: React.FC = () => {
   const navigate = useNavigate();
   const [flags, setFlags] = useState<ParticipantFlag[]>([]);
   const [flaggedOnly, setFlaggedOnly] = useState(false);
+  // Status by the programme rules (On track / Keep an eye on / Needs attention).
+  const [people, setPeople] = useState<PeopleSummary | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const healthParam = searchParams.get('health');
+  const healthFilter: PersonHealth | '' = healthParam === 'critical' || healthParam === 'warning' || healthParam === 'good' ? healthParam : '';
   const [assigning, setAssigning] = useState<Participant | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
 
@@ -759,12 +766,18 @@ const AdminParticipantsPage: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     if (!silent) setLoading(true);
     try {
-      const [{ participants: ps }, { groups: gs }, { flags: fs }] = await Promise.all([
+      const [{ participants: ps }, { groups: gs }, { flags: fs }, health, peopleData, rules] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true }),
         groupsApi.getAll({ cohortId: activeCohort.id }),
         participantFlagsApi.getAll({ openOnly: true }).catch(() => ({ flags: [] as ParticipantFlag[] })),
+        cohortsApi.getHealth(activeCohort.id).catch(() => null),
+        cohortsApi.getPeople(activeCohort.id).catch(() => null),
+        settingsApi.getProgrammeRules(),
       ]);
       setFlags(fs);
+      setPeople(health && peopleData
+        ? buildDashboardModel(health, activeCohort, 0, peopleData, rules).people
+        : null);
       const sortedPs = sortByText(ps, (participant) => participant.fullName);
       const sortedGs = sortByText(gs, (group) => group.name);
       if (silent) {
@@ -831,6 +844,26 @@ const AdminParticipantsPage: React.FC = () => {
     [participants, flagsByParticipant]
   );
 
+  const healthById = useMemo(() => {
+    const map = new Map<string, { health: PersonHealth; detail: string }>();
+    if (!people?.judgeable) return map;
+    people.participants.forEach((e) => map.set(e.id, {
+      health: e.health,
+      detail: `${e.sundayMisses} Sunday miss${e.sundayMisses === 1 ? '' : 'es'} · ${e.meetingMisses} meeting miss${e.meetingMisses === 1 ? '' : 'es'}`,
+    }));
+    return map;
+  }, [people]);
+  const healthCounts = useMemo(() => {
+    const counts = { critical: 0, warning: 0, good: 0 };
+    healthById.forEach((value) => { counts[value.health] += 1; });
+    return counts;
+  }, [healthById]);
+  const setHealthFilter = (value: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (value) params.set('health', value); else params.delete('health');
+    setSearchParams(params, { replace: true });
+  };
+
   const displayed = useMemo(() => {
     let ps = showArchived
       ? participants.filter((p) => p.status === 'ARCHIVED')
@@ -843,12 +876,13 @@ const AdminParticipantsPage: React.FC = () => {
       ps = ps.filter((p) => p.groupId === groupFilter);
     }
     if (flaggedOnly) ps = ps.filter((p) => flagsByParticipant.has(p.id));
+    if (healthFilter && healthById.size > 0) ps = ps.filter((p) => healthById.get(p.id)?.health === healthFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant]);
+  }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant, healthFilter, healthById]);
 
   const unassignedCount = useMemo(
     () => participants.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
@@ -929,6 +963,22 @@ const AdminParticipantsPage: React.FC = () => {
                   compact
                 />
               </div>
+              {healthById.size > 0 && (
+                <div className="w-full sm:w-52">
+                  <AppSelect
+                    value={healthFilter}
+                    onChange={setHealthFilter}
+                    options={[
+                      { value: '', label: 'All statuses' },
+                      { value: 'critical', label: `Needs attention (${healthCounts.critical})` },
+                      { value: 'warning', label: `Keep an eye on (${healthCounts.warning})` },
+                      { value: 'good', label: `On track (${healthCounts.good})` },
+                    ]}
+                    placeholder="All statuses"
+                    compact
+                  />
+                </div>
+              )}
               {supportOptions.length > 1 && (
                 <div className="w-full sm:w-52">
                   <AppSelect
@@ -949,7 +999,7 @@ const AdminParticipantsPage: React.FC = () => {
                   aria-pressed={flaggedOnly}
                   className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${flaggedOnly ? 'bg-amber-500 text-white' : 'bg-amber-100/80 text-amber-700'}`}
                 >
-                  Needs attention ({flaggedCount})
+                  Concerns ({flaggedCount})
                 </button>
               )}
               <label className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-600">
@@ -963,7 +1013,7 @@ const AdminParticipantsPage: React.FC = () => {
             <PageLoader />
           ) : displayed.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
-              <p className="text-sm text-gray-500">No participants yet. Add one or import a list.</p>
+              <p className="text-sm text-gray-500">{participants.length === 0 ? 'No participants yet. Add one or import a list.' : 'No participants match these filters.'}</p>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-orange-100 bg-white shadow-sm">
@@ -990,9 +1040,21 @@ const AdminParticipantsPage: React.FC = () => {
                             title={flagsByParticipant.get(p.id)?.map((flag) => flag.reason).join(', ')}
                             className="ml-2 inline-flex items-center rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
                           >
-                            ⚠ Needs attention
+                            ⚠ Concern
                           </button>
                         )}
+                        {(() => {
+                          const status = healthById.get(p.id);
+                          if (!status || status.health === 'good') return null;
+                          return (
+                            <span
+                              title={status.detail}
+                              className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.health === 'critical' ? 'bg-red-100/80 text-red-700' : 'bg-amber-100/80 text-amber-700'}`}
+                            >
+                              {PERSON_HEALTH_LABEL[status.health]}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3 text-gray-500">{p.phone ?? '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{p.groupName ?? '—'}</td>

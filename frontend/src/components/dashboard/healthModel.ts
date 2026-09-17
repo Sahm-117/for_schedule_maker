@@ -210,8 +210,8 @@ export const buildAttention = (
     if (people.judgeable) {
       const red = people.participants.filter((p) => p.health === 'critical').length;
       const amber = people.participants.filter((p) => p.health === 'warning').length;
-      if (red > 0) items.push({ key: 'participants-red', status: 'critical', text: `${plural(red, 'participant needs', 'participants need')} attention: missed ${people.rules.participantRedSundayMisses}+ Sunday classes and ${people.rules.participantRedMeetingMisses}+ group meetings`, actionLabel: 'View', to: '/participants' });
-      if (amber > 0) items.push({ key: 'participants-amber', status: 'warning', text: `${plural(amber, 'participant', 'participants')} to keep an eye on: missed a class or meeting`, actionLabel: 'View', to: '/participants' });
+      if (red > 0) items.push({ key: 'participants-red', status: 'critical', text: `${plural(red, 'participant needs', 'participants need')} attention: missed ${people.rules.participantRedSundayMisses}+ Sunday classes and ${people.rules.participantRedMeetingMisses}+ group meetings`, actionLabel: 'View', to: '/participants?health=critical' });
+      if (amber > 0) items.push({ key: 'participants-amber', status: 'warning', text: `${plural(amber, 'participant', 'participants')} to keep an eye on: missed a class or meeting`, actionLabel: 'View', to: '/participants?health=warning' });
     }
     const supportRed = people.supports.filter((s) => s.missedWeeks.length >= people.rules.supportRedMissedWeeks).length;
     const supportAmber = people.supports.filter((s) => s.missedWeeks.length >= people.rules.supportAmberMissedWeeks && s.missedWeeks.length < people.rules.supportRedMissedWeeks).length;
