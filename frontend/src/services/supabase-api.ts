@@ -5053,7 +5053,7 @@ export const coverRequestsApi = {
       .select(COVER_REQUEST_SELECT)
       .single();
     if (error || !data) throw new Error(error?.message || 'Failed to send cover request');
-    void notifyAdmins('Cover request', `${input.supportName} asked for cover: ${input.reason.trim()}`, '/approvals', 'COVER_REQUEST');
+    void notifyAdmins('Cover request', `${input.supportName} asked for cover: ${input.reason.trim()}`, '/supports#cover', 'COVER_REQUEST');
     return { request: mapCoverRequest(data) };
   },
 

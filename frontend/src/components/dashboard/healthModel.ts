@@ -215,13 +215,13 @@ export const buildAttention = (
     }
     const supportRed = people.supports.filter((s) => s.missedWeeks.length >= people.rules.supportRedMissedWeeks).length;
     const supportAmber = people.supports.filter((s) => s.missedWeeks.length >= people.rules.supportAmberMissedWeeks && s.missedWeeks.length < people.rules.supportRedMissedWeeks).length;
-    if (supportRed > 0) items.push({ key: 'supports-red', status: 'critical', text: `${plural(supportRed, 'support hasn’t', 'supports haven’t')} recorded attendance and meetings for ${people.rules.supportRedMissedWeeks}+ weeks`, actionLabel: 'View', to: '/groups' });
-    if (supportAmber > 0) items.push({ key: 'supports-amber', status: 'warning', text: `${plural(supportAmber, 'support', 'supports')} missed a week of records`, actionLabel: 'View', to: '/groups' });
+    if (supportRed > 0) items.push({ key: 'supports-red', status: 'critical', text: `${plural(supportRed, 'support hasn’t', 'supports haven’t')} recorded attendance and meetings for ${people.rules.supportRedMissedWeeks}+ weeks`, actionLabel: 'View', to: '/supports?health=critical' });
+    if (supportAmber > 0) items.push({ key: 'supports-amber', status: 'warning', text: `${plural(supportAmber, 'support', 'supports')} missed a week of records`, actionLabel: 'View', to: '/supports?health=warning' });
   }
 
   if (mode !== 'completed' && people) {
     const lateOnboarding = people.supports.filter((s) => s.onboarding.late && !(s.onboarding.completedAt && s.onboarding.allOnboarded)).length;
-    if (lateOnboarding > 0) items.push({ key: 'onboarding-late', status: 'warning', text: `${plural(lateOnboarding, 'group isn’t', 'groups aren’t')} fully onboarded after ${people.rules.onboardingMaxDays} days`, actionLabel: 'Open', to: '/onboarding' });
+    if (lateOnboarding > 0) items.push({ key: 'onboarding-late', status: 'warning', text: `${plural(lateOnboarding, 'group isn’t', 'groups aren’t')} fully onboarded after ${people.rules.onboardingMaxDays} days`, actionLabel: 'View', to: '/supports' });
   }
 
   const noSupport = data.groups.filter((g) => !g.supportId).length;
@@ -260,7 +260,7 @@ export const buildAttention = (
     items.push({ key: 'flags', status: 'warning', text: `${data.openFlags} open concern${data.openFlags === 1 ? '' : 's'} about participants`, actionLabel: 'Review', to: '/participants' });
   }
   if (data.pendingCover > 0) {
-    items.push({ key: 'cover', status: 'warning', text: `${data.pendingCover} cover request${data.pendingCover === 1 ? '' : 's'} waiting for a support`, actionLabel: 'Assign', to: '/approvals' });
+    items.push({ key: 'cover', status: 'warning', text: `${data.pendingCover} cover request${data.pendingCover === 1 ? '' : 's'} waiting for a support`, actionLabel: 'Assign', to: '/supports#cover' });
   }
   if (extras.pendingApprovals > 0) {
     items.push({ key: 'approvals', status: 'warning', text: `${extras.pendingApprovals} schedule change${extras.pendingApprovals === 1 ? '' : 's'} to approve`, actionLabel: 'Review', to: '/approvals' });

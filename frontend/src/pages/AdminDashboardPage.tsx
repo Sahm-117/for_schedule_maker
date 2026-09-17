@@ -553,7 +553,7 @@ const OperationsRow: React.FC<{
           )}
         </div>
         <OpsStat title="Schedule approvals" value={pendingApprovals} empty="Nothing to approve" to="/approvals" />
-        <OpsStat title="Cover requests" value={pendingCover} empty="No one needs cover" to="/approvals" />
+        <OpsStat title="Cover requests" value={pendingCover} empty="No one needs cover" to="/supports#cover" />
         <NavLink to={isAdmin ? '/announcements' : '/team-announcements'} className="surface-card block p-4 transition hover:-translate-y-0.5">
           <p className="text-sm font-semibold text-gray-900">Latest announcement</p>
           {announcement ? (

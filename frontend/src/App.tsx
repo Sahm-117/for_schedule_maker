@@ -26,6 +26,7 @@ const CohortsPage = lazy(() => import('./pages/CohortsPage'));
 const AdminFollowUpsPage = lazy(() => import('./pages/AdminFollowUpsPage'));
 const AdminParticipantsPage = lazy(() => import('./pages/AdminParticipantsPage'));
 const AdminParticipantProfilePage = lazy(() => import('./pages/AdminParticipantProfilePage'));
+const AdminSupportsPage = lazy(() => import('./pages/AdminSupportsPage'));
 const AdminGroupsPage = lazy(() => import('./pages/AdminGroupsPage'));
 const AdminRotaPage = lazy(() => import('./pages/AdminRotaPage'));
 const AdminAllocationPage = lazy(() => import('./pages/AdminAllocationPage'));
@@ -86,6 +87,7 @@ function App() {
             <Route path="/participants" element={<Suspense fallback={<RouteFallback />}><AdminParticipantsPage /></Suspense>} />
             <Route path="/participants/:participantId" element={<Suspense fallback={<RouteFallback />}><AdminParticipantProfilePage /></Suspense>} />
             <Route path="/groups" element={<Suspense fallback={<RouteFallback />}><AdminGroupsPage /></Suspense>} />
+            <Route path="/supports" element={<Suspense fallback={<RouteFallback />}><AdminSupportsPage /></Suspense>} />
             <Route path="/rota" element={<Suspense fallback={<RouteFallback />}><AdminRotaPage /></Suspense>} />
             <Route path="/allocation" element={<Suspense fallback={<RouteFallback />}><AdminAllocationPage /></Suspense>} />
             <Route path="/attendance" element={<Suspense fallback={<RouteFallback />}><AdminAttendancePage /></Suspense>} />

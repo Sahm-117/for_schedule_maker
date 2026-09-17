@@ -1,7 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
-import CoverRequestsPanel from '../components/CoverRequestsPanel';
 import PendingChangesPanel from '../components/PendingChangesPanel';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
@@ -18,7 +17,7 @@ const AdminApprovalsPage: React.FC = () => {
     <div>
       <PageHeader
         title="Approvals"
-        subtitle="Review schedule change requests and arrange cover for supports."
+        subtitle="Review schedule change requests. Cover requests are on the Supports page."
       />
 
       <PendingChangesPanel
@@ -28,9 +27,6 @@ const AdminApprovalsPage: React.FC = () => {
         isAdmin
         weeks={weeks}
       />
-      <div className="mt-6">
-        <CoverRequestsPanel />
-      </div>
     </div>
   );
 };

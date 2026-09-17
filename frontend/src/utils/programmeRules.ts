@@ -168,9 +168,19 @@ export const sundayRecordCoverage = (evaluations: ParticipantEvaluation[], judge
   return recorded / expected;
 };
 
+export interface SupportWeekRecord {
+  weekNumber: number;
+  sundayMarked: boolean;
+  reportSubmitted: boolean;
+  meetingMarked: boolean;
+  recorded: boolean;
+}
+
 export interface SupportEvaluation {
   supportId: string;
   groupId: string;
+  members: number;
+  weeks: SupportWeekRecord[];
   missedWeeks: number[];
   health: PersonHealth;
   onboarding: {
@@ -209,13 +219,13 @@ export const evaluateSupports = (
       const members = activeMembers.get(g.id) ?? [];
       // A week counts as recorded when every member has a Sunday mark, the
       // meeting report is in, and every member has a meeting mark.
-      const missedWeeks = judgedWeeks
-        .filter((w) => !(
-          members.every((m) => sundayKeys.has(`${m}:${w.id}`))
-          && reportKeys.has(`${g.id}:${w.id}`)
-          && members.every((m) => meetingKeys.has(`${m}:${w.id}`))
-        ))
-        .map((w) => w.weekNumber);
+      const weeks = [...judgedWeeks].sort((a, b) => a.weekNumber - b.weekNumber).map((w) => {
+        const sundayMarked = members.every((m) => sundayKeys.has(`${m}:${w.id}`));
+        const reportSubmitted = reportKeys.has(`${g.id}:${w.id}`);
+        const meetingMarked = members.every((m) => meetingKeys.has(`${m}:${w.id}`));
+        return { weekNumber: w.weekNumber, sundayMarked, reportSubmitted, meetingMarked, recorded: sundayMarked && reportSubmitted && meetingMarked };
+      });
+      const missedWeeks = weeks.filter((w) => !w.recorded).map((w) => w.weekNumber);
 
       const o = onboardingBy.get(g.id);
       const allOnboarded = members.every((m) => onboardedIds.has(m));
@@ -231,6 +241,8 @@ export const evaluateSupports = (
       return {
         supportId: g.supportId as string,
         groupId: g.id,
+        members: members.length,
+        weeks,
         missedWeeks,
         health,
         onboarding: {
