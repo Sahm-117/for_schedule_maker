@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import type { Announcement, Label } from '../types';
 import AppSelect from './AppSelect';
+import type { AnnouncementAudience } from '../types';
 
 const EXTERNAL_LINK = '__external';
 const HOME_LINK_OPTIONS = [
@@ -17,6 +18,25 @@ const HOME_LINK_OPTIONS = [
   { value: EXTERNAL_LINK, label: 'Web address…' },
 ];
 import ConfirmationModal from './ConfirmationModal';
+
+// Home-screen link targets inside the participant app.
+const PARTICIPANT_HOME_LINK_OPTIONS = [
+  { value: '', label: 'No link' },
+  { value: '/me/feedback', label: 'Feedback' },
+  { value: '/me/group', label: 'My Group' },
+  { value: '/me/faith', label: 'Faith Project' },
+  { value: '/me/resources', label: 'Resources' },
+  { value: '/me/journey', label: 'My Journey' },
+  { value: EXTERNAL_LINK, label: 'Web address…' },
+];
+
+const AUDIENCE_OPTIONS: Array<{ value: AnnouncementAudience; label: string; hint: string }> = [
+  { value: 'SUPPORTS', label: 'Supports', hint: 'Support app' },
+  { value: 'PARTICIPANTS', label: 'Participants', hint: 'Participant app' },
+  { value: 'EVERYONE', label: 'Both', hint: 'Supports and participants' },
+];
+
+const AUDIENCE_LABEL: Record<AnnouncementAudience, string> = { SUPPORTS: 'Supports', PARTICIPANTS: 'Participants', EVERYONE: 'Supports and participants' };
 
 interface AnnouncementsModalProps {
   isOpen: boolean;
@@ -45,6 +65,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   const [body, setBody] = useState('');
   const [scope, setScope] = useState<'ACTIVE_COHORT' | 'ALL_USERS'>('ACTIVE_COHORT');
   const [targetLabelId, setTargetLabelId] = useState(''); // '' = everyone in scope
+  const [audience, setAudience] = useState<AnnouncementAudience>('SUPPORTS');
   const [showOnHome, setShowOnHome] = useState(false);
   const [homeUntil, setHomeUntil] = useState('');
   const [linkTarget, setLinkTarget] = useState('');
@@ -128,7 +149,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       const { sent } = await announcementsApi.send(subject.trim(), body.trim(), user.id, {
         scope,
         cohortId: scope === 'ACTIVE_COHORT' ? activeCohort?.id || null : null,
-        targetLabelId: targetLabelId || null,
+        targetLabelId: audience === 'PARTICIPANTS' ? null : targetLabelId || null,
+        audience,
         home: showOnHome
           ? { homeUntil: new Date(`${homeUntil}T23:59:59`).toISOString(), linkUrl: homeLinkUrl || null, linkLabel: linkLabel.trim() || null }
           : null,
@@ -138,6 +160,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       setSubject('');
       setBody('');
       setTargetLabelId('');
+      setAudience('SUPPORTS');
       setShowOnHome(false);
       setHomeUntil('');
       setLinkTarget('');
@@ -255,6 +278,27 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
               </div>
             </div>
 
+            {isAdmin && (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Who is it for?</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {AUDIENCE_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => { setAudience(option.value); setLinkTarget(''); }}
+                      aria-pressed={audience === option.value}
+                      className={`rounded-xl border px-3 py-2 text-sm font-semibold ${audience === option.value ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      {option.label}
+                      <span className="mt-1 block text-[11px] font-medium text-gray-500">{option.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {audience !== 'PARTICIPANTS' && (
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific tag (optional)</label>
               <AppSelect
@@ -268,6 +312,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                 Pick a group’s support tag to send to only that support. Leave as “Everyone” to notify the whole audience.
               </p>
             </div>
+            )}
 
             <div>
               <div className="flex justify-between items-center mb-1">
@@ -307,7 +352,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
               <label className="flex cursor-pointer items-center justify-between gap-3">
                 <span>
                   <span className="block text-sm font-medium text-gray-700">Show on home screen</span>
-                  <span className="block text-[11px] text-gray-500">Pinned on the support Home until the date you pick.</span>
+                  <span className="block text-[11px] text-gray-500">Pinned on {audience === 'SUPPORTS' ? 'the support Home' : audience === 'PARTICIPANTS' ? 'the participant Home' : 'both Homes'} until the date you pick.</span>
                 </span>
                 <input type="checkbox" checked={showOnHome} onChange={(e) => setShowOnHome(e.target.checked)} className="h-5 w-5 accent-[var(--color-primary)]" />
               </label>
@@ -326,7 +371,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-medium text-gray-700">Link (optional)</label>
-                    <AppSelect value={linkTarget} onChange={setLinkTarget} options={HOME_LINK_OPTIONS} placeholder="No link" compact />
+                    <AppSelect value={linkTarget} onChange={setLinkTarget} options={audience === 'PARTICIPANTS' ? PARTICIPANT_HOME_LINK_OPTIONS : HOME_LINK_OPTIONS} placeholder="No link" compact />
                   </div>
                   {linkTarget === EXTERNAL_LINK && (
                     <input
@@ -381,6 +426,9 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                         <p className="text-sm font-medium text-gray-900 truncate">{a.subject}</p>
                         <p className="mt-0.5 text-[11px] text-gray-400">
                           {a.scope === 'ALL_USERS' ? 'All Users' : a.cohortName || 'Active Cohort'}
+                          {isAdmin && a.audience && a.audience !== 'SUPPORTS' && (
+                            <span className="ml-1.5 rounded-full bg-sky-100/80 px-1.5 py-0.5 font-semibold text-sky-700">{AUDIENCE_LABEL[a.audience]}</span>
+                          )}
                           {a.targetLabelId && (
                             <span className="ml-1.5 rounded-full bg-violet-100/80 px-1.5 py-0.5 font-semibold text-violet-700">
                               To: {labelNameById.get(a.targetLabelId) || 'tag'}

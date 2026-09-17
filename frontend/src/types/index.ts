@@ -8,6 +8,8 @@ export interface Resource {
   fileSize?: number;
   addedBy?: string;
   createdAt: string;
+  /** Shown to participants in their app's Resources. */
+  visibleToParticipants?: boolean;
 }
 
 export interface Label {
@@ -25,7 +27,7 @@ export interface User {
   email: string;
   phone?: string;
   name: string;
-  role: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT';
+  role: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT' | 'PARTICIPANT';
   isActive?: boolean;
   deactivatedAt?: string | null;
   isCoordinator?: boolean;
@@ -35,6 +37,10 @@ export interface User {
   whatsappGroupUrl?: string | null;
   /** Set by an admin-issued reset: the app blocks until they pick a new password. */
   mustChangePassword?: boolean;
+  /** Participant app only: the participant record behind this sign-in. */
+  participantId?: string;
+  cohortId?: string | null;
+  cohortName?: string | null;
   createdAt?: string;
   updatedAt?: string;
   labels?: Label[];
@@ -51,6 +57,8 @@ export interface Cohort {
   /** COMPLETED: the cohort has finished; it stays viewable and selectable. */
   status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
   schedulePublished?: boolean;
+  /** Week the mid-programme participant feedback opens (open for two weeks). */
+  midFeedbackWeek?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -89,6 +97,10 @@ export interface Week {
   discussionPrompt?: string | null;
   recapDocumentUrl?: string | null;
   recapDocumentName?: string | null;
+  /** Whether this week's recap goes to participants (released by their support). */
+  shareWithParticipants?: boolean;
+  /** What participants should do this week, one item per line. */
+  expectations?: string | null;
   days: Day[];
 }
 
@@ -126,6 +138,8 @@ export interface AuthResponse {
   user: User;
   accessToken: string;
   refreshToken: string;
+  /** Database session from sign_in; private calls pass it. */
+  sessionToken?: string;
 }
 
 export interface ApiError {
@@ -147,7 +161,11 @@ export interface Announcement {
   homeUntil?: string | null;
   linkUrl?: string | null;
   linkLabel?: string | null;
+  /** Who it is for: supports (default), participants, or everyone. */
+  audience?: AnnouncementAudience;
 }
+
+export type AnnouncementAudience = 'SUPPORTS' | 'PARTICIPANTS' | 'EVERYONE';
 
 export type NotificationType =
   | 'ANNOUNCEMENT'
@@ -317,6 +335,8 @@ export interface ParticipantNote {
   body: string;
   authorId?: string | null;
   authorName?: string | null;
+  /** Written by the participant in their app (their submitted faith project). */
+  byParticipant?: boolean;
   groupId?: string | null;
   weekId?: number | null;
   noteType: ParticipantNoteType;
@@ -620,4 +640,166 @@ export interface HubReply {
   authorAvatarUrl?: string | null;
   body: string;
   createdAt: string;
+}
+
+// ── Participant app accounts ──────────────────────────────────────────────────
+
+/** NO_PARTICIPANT = lead has no participant record; NONE = no login yet; CODE_READY = first-time code issued, password not chosen; ACTIVE = password chosen. */
+export type ParticipantLoginStatus = 'NO_PARTICIPANT' | 'NONE' | 'CODE_READY' | 'ACTIVE';
+
+export interface ParticipantLoginDetails {
+  participantId: string;
+  name: string;
+  phone: string | null;
+  status: ParticipantLoginStatus;
+  /** Only present until the participant chooses their own password. */
+  setupCode: string | null;
+  issuedAt: string | null;
+  passwordSetAt: string | null;
+  lastSignInAt: string | null;
+}
+
+// ── Participant app ───────────────────────────────────────────────────────────
+
+export interface ParticipantReflection {
+  weekId: number;
+  stoodOut: string | null;
+  goal: string | null;
+  goalCheck: string | null;
+  goalDoneAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ParticipantHomeWeek {
+  id: number;
+  weekNumber: number;
+  title: string | null;
+  /** Sunday class start, "HH:MM", from the schedule. */
+  classTime: string | null;
+  expectations: string | null;
+  shared: boolean;
+  released: boolean;
+  releasedAt: string | null;
+  recapSummary: string | null;
+  discussionPrompt: string | null;
+  recapDocumentUrl: string | null;
+  recapDocumentName: string | null;
+}
+
+export type CheckInResponse = 'OKAY' | 'NEED_HELP';
+
+export interface ParticipantHome {
+  now: string;
+  participant: { id: string; name: string; phone: string | null };
+  cohort: { id: string; name: string; startDate: string | null; endDate: string | null; status: string; venue: string | null } | null;
+  group: {
+    id: string;
+    name: string;
+    meetingDay: string | null;
+    meetingTime: string | null;
+    meetingDurationMins: number | null;
+    callPlatform: GroupCallPlatform | null;
+    callLink: string | null;
+    supportName: string | null;
+    supportPhone: string | null;
+  } | null;
+  weeks: ParticipantHomeWeek[];
+  reflections: ParticipantReflection[];
+  sunday: Array<{ weekId: number; status: string }>;
+  meeting: Array<{ weekId: number; status: string }>;
+  faithProjectStatus: FaithProjectStatus | null;
+  rules: unknown;
+  scriptures: Array<{ dayNumber: number; imageUrl: string }>;
+  lastCheckIn: { response: CheckInResponse; sundayMisses: number; meetingMisses: number; createdAt: string } | null;
+  members: Array<{ name: string }>;
+  profile: { email: string | null; avatarUrl: string | null };
+  /** Their support wrote in the faith project conversation since they last read it. */
+  faithUnread: boolean;
+  reminders: { meetingRemindMinutes: number[]; recapReleased: boolean };
+  resources: Array<{ id: string; title: string; description: string | null; type: Resource['type']; url: string; fileName: string | null }>;
+  /** The feedback round open right now, if any. */
+  feedback: { round: FeedbackRound; opensAt: string; closesAt: string; submitted: boolean } | null;
+  announcement: { id: string; subject: string; body: string; linkUrl: string | null; linkLabel: string | null } | null;
+  wrapUp: { submitted: boolean };
+}
+
+export type FeedbackRound = 'MID' | 'END';
+export type FeedbackRating = 'NOT_GREAT' | 'OKAY' | 'GREAT';
+
+export interface FeedbackAnswers {
+  rating: FeedbackRating;
+  workingWell?: string;
+  needsAttention?: string;
+  /** End-of-cohort survey only. */
+  classesRating?: FeedbackRating;
+  meetingsRating?: FeedbackRating;
+  supportRating?: FeedbackRating;
+}
+
+export interface FeedbackResults {
+  eligible: number;
+  withApp: number;
+  rounds: Array<{
+    round: FeedbackRound;
+    opensAt: string;
+    closesAt: string;
+    responses: number;
+    /** Answers are shown only after the round closes with at least five responses. */
+    visible: boolean;
+    answers: FeedbackAnswers[] | null;
+  }>;
+}
+
+export interface ParticipantFaith {
+  project: { id: string; body: string | null; status: FaithProjectStatus; updatedAt: string } | null;
+  trail: Array<{ id: string; body: string; createdAt: string; byParticipant: boolean; authorName: string | null }>;
+}
+
+export interface ReflectionActivity {
+  participantId: string;
+  weekId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecapRelease {
+  groupId: string;
+  weekId: number;
+  releasedById: string | null;
+  releasedAt: string;
+}
+
+export interface Scripture {
+  id: string;
+  dayNumber: number;
+  imageUrl: string;
+  storagePath: string | null;
+  createdAt: string;
+}
+
+export interface ParticipantCheckIn {
+  id: string;
+  participantId: string;
+  response: CheckInResponse;
+  sundayMisses: number;
+  meetingMisses: number;
+  handledAt: string | null;
+  handledById: string | null;
+  createdAt: string;
+}
+
+// ── AI help (OpenRouter, via the ai-assist edge function) ─────────────────────
+
+export interface ParticipantSummaryState {
+  optedIn: boolean;
+  /** From the start of the cohort's last week. */
+  unlocked: boolean;
+  summary: { text: string; createdAt: string } | null;
+}
+
+export interface AiSettings {
+  enabled: boolean;
+  /** OpenRouter model ids, tried in order. */
+  models: string[];
 }

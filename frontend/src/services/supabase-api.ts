@@ -37,6 +37,14 @@ const getCurrentUserFromStorage = (): User | null => {
   }
 };
 
+// The database session token from sign_in. Private calls (participant data,
+// login details) pass it so the database knows who is asking.
+export const SESSION_TOKEN_KEY = 'sessionToken';
+export const getSessionToken = (): string => {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem(SESSION_TOKEN_KEY) || '';
+};
+
 const getUserIdFromToken = (token: string, prefix: string): string | null => {
   if (!token || !token.startsWith(prefix)) {
     return null;
@@ -58,6 +66,8 @@ const mapWeekRow = (week: any): Week => {
     discussionPrompt: week.discussionPrompt ?? null,
     recapDocumentUrl: week.recapDocumentUrl ?? null,
     recapDocumentName: week.recapDocumentName ?? null,
+    shareWithParticipants: week.shareWithParticipants ?? true,
+    expectations: week.expectations ?? null,
     days: sortedDays.map((day: any) => ({
       id: day.id,
       weekId: day.weekId,
@@ -123,9 +133,10 @@ const USER_SELECT = 'id, email, phone, name, role, "isActive", "deactivatedAt", 
 
 export const authApi = {
   async login(identifier: string, password: string): Promise<AuthResponse> {
-    // Verification happens in the database (login_user), so the password hash
-    // never reaches the browser and a wrong password is actually rejected.
-    const { data, error } = await supabase.rpc('login_user', {
+    // Verification happens in the database (sign_in checks staff, then
+    // participants), so the password hash never reaches the browser. It also
+    // returns a session token the database can check on private calls.
+    const { data, error } = await supabase.rpc('sign_in', {
       identifier: identifier.trim(),
       password,
     });
@@ -137,12 +148,17 @@ export const authApi = {
       throw new Error('Invalid credentials');
     }
 
-    const user = data as User;
+    const { token, user } = data as { token: string; user: User };
     return {
       user,
       accessToken: `mock_token_${user.id}`,
       refreshToken: `refresh_token_${user.id}`,
+      sessionToken: token,
     };
+  },
+
+  async signOut(sessionToken: string): Promise<void> {
+    await supabase.rpc('sign_out', { p_token: sessionToken });
   },
 
   async register(userData: {
@@ -175,6 +191,18 @@ export const authApi = {
   async getMe(): Promise<{ user: User }> {
     if (typeof window === 'undefined') {
       throw new Error('Cannot get current user outside browser context');
+    }
+
+    // Participants have no "User" row; the database resolves them from the session.
+    if (getCurrentUserFromStorage()?.role === 'PARTICIPANT') {
+      const { data, error } = await supabase.rpc('get_session_user', { p_token: getSessionToken() });
+      if (error) {
+        throw new Error('Login service unavailable');
+      }
+      if (!data) {
+        throw new Error('User not found');
+      }
+      return { user: data as User };
     }
 
     const token = localStorage.getItem('accessToken') || '';
@@ -316,7 +344,7 @@ export const weeksApi = {
     return { week, pendingChanges };
   },
 
-  async update(weekId: number, input: { title?: string | null; recapSummary?: string | null; discussionPrompt?: string | null; recapDocumentUrl?: string | null; recapDocumentName?: string | null }): Promise<{ week: Week }> {
+  async update(weekId: number, input: { title?: string | null; recapSummary?: string | null; discussionPrompt?: string | null; recapDocumentUrl?: string | null; recapDocumentName?: string | null; shareWithParticipants?: boolean; expectations?: string | null }): Promise<{ week: Week }> {
     const { data, error } = await supabase
       .from('Week')
       .update(input)
@@ -374,6 +402,7 @@ export const cohortsApi = {
         endDate: row.endDate,
         status: row.status,
         schedulePublished: row.schedulePublished ?? false,
+        midFeedbackWeek: row.midFeedbackWeek ?? 5,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
       })),
@@ -502,6 +531,7 @@ export const cohortsApi = {
     endDate?: string | null;
     status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
     schedulePublished?: boolean;
+    midFeedbackWeek?: number;
   }): Promise<{ cohort: Cohort }> {
     const { data, error } = await supabase
       .from('Cohort')
@@ -2283,6 +2313,7 @@ export const announcementsApi = {
       cohortId?: string | null;
       targetLabelId?: string | null;
       home?: { homeUntil: string; linkUrl?: string | null; linkLabel?: string | null } | null;
+      audience?: import('../types').AnnouncementAudience;
     }
   ): Promise<{ sent: number }> {
     const { data, error } = await supabase.functions.invoke('send-announcement', {
@@ -2293,6 +2324,7 @@ export const announcementsApi = {
         scope: options?.scope || 'ACTIVE_COHORT',
         cohortId: options?.cohortId || null,
         targetLabelId: options?.targetLabelId || null,
+        audience: options?.audience || 'SUPPORTS',
       },
     });
     if (error) throw new Error(error.message);
@@ -2359,6 +2391,7 @@ export const announcementsApi = {
       homeUntil: row.homeUntil ?? null,
       linkUrl: row.linkUrl ?? null,
       linkLabel: row.linkLabel ?? null,
+      audience: (row.audience ?? 'SUPPORTS') as import('../types').AnnouncementAudience,
     }));
 
     const isGlobal = (row: { scope?: string | null; cohortId?: string | null }) =>
@@ -2375,6 +2408,8 @@ export const announcementsApi = {
 
     const announcements = allAnnouncements.filter((row) => {
       if (!passesTarget(row)) return false;
+      // Participant-only announcements belong to the participant app.
+      if (!options?.isAdmin && row.audience === 'PARTICIPANTS') return false;
       if (options?.isAdmin) {
         if (!options.cohortId) return true;
         return isGlobal(row) || row.cohortId === options.cohortId;
@@ -2399,6 +2434,11 @@ export const announcementsApi = {
 };
 
 export const resourcesApi = {
+  async setVisibleToParticipants(id: string, visible: boolean): Promise<void> {
+    const { error } = await supabase.from('Resource').update({ visibleToParticipants: visible }).eq('id', id);
+    if (error) throw new Error(error.message);
+  },
+
   async getAll(): Promise<{ resources: import('../types').Resource[] }> {
     const { data, error } = await supabase
       .from('Resource')
@@ -2487,6 +2527,215 @@ export const setAuthToken = (token: string) => {
 export const clearAuthToken = () => {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
+  localStorage.removeItem(SESSION_TOKEN_KEY);
+};
+
+// ---------------------------------------------------------------------------
+// Participant app accounts
+// ---------------------------------------------------------------------------
+
+// Database errors raised by the account functions, turned into plain wording.
+const accountError = (rawMessage: string | undefined, fallback: string): Error => {
+  const msg = rawMessage || '';
+  if (msg.includes('SESSION_EXPIRED')) return new Error('SESSION_EXPIRED');
+  if (msg.includes('NOT_ALLOWED')) return new Error("You can only see login details for your own participants.");
+  if (msg.includes('NO_PHONE')) return new Error('Add a valid phone number for this person first. It is their username.');
+  if (msg.includes('at least 8')) return new Error('Use at least 8 characters.');
+  return new Error(friendlyUserError(msg, fallback));
+};
+
+export const participantAccountsApi = {
+  // Reads the login status; with issue=true creates the first-time code if none exists.
+  async getLoginDetails(target: { participantId?: string | null; followUpContactId?: string | null }, options: { issue?: boolean; newCode?: boolean } = {}): Promise<import('../types').ParticipantLoginDetails> {
+    const { data, error } = await supabase.rpc('participant_login_details', {
+      p_token: getSessionToken(),
+      p_participant_id: target.participantId ?? null,
+      p_follow_up_contact_id: target.followUpContactId ?? null,
+      p_issue: options.issue ?? false,
+      p_new_code: options.newCode ?? false,
+    });
+    if (error) throw accountError(error.message, 'Could not load the login details. Please try again.');
+    return data as import('../types').ParticipantLoginDetails;
+  },
+
+  // First sign-in: the participant swaps the code for their own password.
+  async setOwnPassword(newPassword: string): Promise<{ user: User }> {
+    const { data, error } = await supabase.rpc('set_participant_password', {
+      p_token: getSessionToken(),
+      p_new_password: newPassword,
+    });
+    if (error) throw accountError(error.message, 'Could not save your password. Please try again.');
+    return { user: data as User };
+  },
+};
+
+
+// Reflection and check-in errors raised by the database, in plain wording.
+const participantAppError = (rawMessage: string | undefined, fallback: string): Error => {
+  const msg = rawMessage || '';
+  if (msg.includes('SESSION_EXPIRED')) return new Error('SESSION_EXPIRED');
+  if (msg.includes('GOAL_REQUIRED')) return new Error('Write one thing you will do.');
+  if (msg.includes('RECAP_NOT_RELEASED')) return new Error("This week's recap is not out yet.");
+  if (msg.includes('REFLECTION_LOCKED')) return new Error('This reflection can no longer be changed.');
+  if (msg.includes('FEEDBACK_CLOSED')) return new Error('This feedback is closed now.');
+  if (msg.includes('FEEDBACK_ALREADY_SENT')) return new Error('You have already sent this feedback. Thank you.');
+  if (msg.includes('FEEDBACK_RATING_REQUIRED')) return new Error('Choose how the programme is going.');
+  if (msg.includes('DEPARTMENT_REQUIRED')) return new Error('Choose a department.');
+  if (msg.includes('PROJECT_REQUIRED')) return new Error('Write your project before submitting.');
+  if (msg.includes('PROJECT_LOCKED')) return new Error('Your faith project is with your support right now.');
+  if (msg.includes('at least 8')) return new Error('Use at least 8 characters.');
+  return new Error(friendlyUserError(msg, fallback));
+};
+
+// The signed-in participant's own data. Every call carries their session token.
+export const participantAppApi = {
+  async getHome(): Promise<import('../types').ParticipantHome> {
+    const { data, error } = await supabase.rpc('participant_home', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not load your FOF space. Please try again.');
+    return data as import('../types').ParticipantHome;
+  },
+
+  async saveReflection(weekId: number, input: { stoodOut: string; goal: string; goalCheck: string }): Promise<import('../types').ParticipantReflection> {
+    const { data, error } = await supabase.rpc('save_reflection', {
+      p_token: getSessionToken(),
+      p_week_id: weekId,
+      p_stood_out: input.stoodOut,
+      p_goal: input.goal,
+      p_goal_check: input.goalCheck,
+    });
+    if (error) throw participantAppError(error.message, 'Could not save your reflection. Please try again.');
+    return data as import('../types').ParticipantReflection;
+  },
+
+  async setGoalDone(weekId: number, done: boolean): Promise<import('../types').ParticipantReflection> {
+    const { data, error } = await supabase.rpc('set_reflection_goal_done', { p_token: getSessionToken(), p_week_id: weekId, p_done: done });
+    if (error) throw participantAppError(error.message, 'Could not update your goal. Please try again.');
+    return data as import('../types').ParticipantReflection;
+  },
+
+  // Opening the faith project also marks the conversation read.
+  async getFaith(): Promise<import('../types').ParticipantFaith> {
+    const { data, error } = await supabase.rpc('participant_faith', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not load your faith project.');
+    return data as import('../types').ParticipantFaith;
+  },
+
+  async saveFaithProject(body: string, submit: boolean, participantName: string): Promise<NonNullable<import('../types').ParticipantFaith['project']>> {
+    const { data, error } = await supabase.rpc('save_faith_project', { p_token: getSessionToken(), p_body: body, p_submit: submit });
+    if (error) throw participantAppError(error.message, 'Could not save your faith project.');
+    const result = data as { project: NonNullable<import('../types').ParticipantFaith['project']>; supportId: string | null };
+    if (submit && result.supportId) {
+      void notify(
+        { userIds: [result.supportId] },
+        `${participantName} sent their faith project`,
+        'It is waiting for you to review in My Group.',
+        '/support/participants',
+        'FAITH_PROJECT_SUBMITTED',
+      );
+    }
+    return result.project;
+  },
+
+  async saveReminders(meetingRemindMinutes: number[], recapReleased: boolean): Promise<void> {
+    const { error } = await supabase.rpc('save_participant_reminders', {
+      p_token: getSessionToken(),
+      p_meeting_minutes: meetingRemindMinutes,
+      p_recap_released: recapReleased,
+    });
+    if (error) throw participantAppError(error.message, 'Could not save your reminders.');
+  },
+
+  async savePushSubscription(subscription: PushSubscriptionJSON): Promise<void> {
+    const keys = subscription.keys as { p256dh: string; auth: string } | undefined;
+    if (!subscription.endpoint || !keys?.p256dh || !keys?.auth) throw new Error('Invalid push subscription');
+    const { error } = await supabase.rpc('save_participant_push', {
+      p_token: getSessionToken(),
+      p_endpoint: subscription.endpoint,
+      p_p256dh: keys.p256dh,
+      p_auth: keys.auth,
+    });
+    if (error) throw participantAppError(error.message, 'Could not turn on notifications.');
+  },
+
+  // Resized to 256px JPEG in the browser before upload.
+  async uploadAvatar(participantId: string, file: File): Promise<{ avatarUrl: string }> {
+    const compressed = await new Promise<Blob>((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const size = 256;
+        const canvas = document.createElement('canvas');
+        const scale = Math.min(size / img.width, size / img.height, 1);
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not read this photo.'))), 'image/jpeg', 0.8);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read this photo.')); };
+      img.src = url;
+    });
+    const path = `avatars/participants/${participantId}-${Date.now()}.jpg`;
+    const { error: uploadError } = await supabase.storage.from('resources').upload(path, compressed, { upsert: false, contentType: 'image/jpeg' });
+    if (uploadError) throw new Error(uploadError.message);
+    const { data: urlData } = supabase.storage.from('resources').getPublicUrl(path);
+    const { error } = await supabase.rpc('set_participant_avatar', { p_token: getSessionToken(), p_url: urlData.publicUrl });
+    if (error) throw participantAppError(error.message, 'Could not save your photo.');
+    return { avatarUrl: urlData.publicUrl };
+  },
+
+  async changePassword(current: string, next: string): Promise<void> {
+    const { data, error } = await supabase.rpc('change_participant_password', { p_token: getSessionToken(), p_current: current, p_new: next });
+    if (error) throw participantAppError(error.message, 'Could not change your password.');
+    if (data !== true) throw new Error('Your current password is not right.');
+  },
+
+  // Anonymous: the database stores the answers without who sent them.
+  async submitFeedback(round: import('../types').FeedbackRound, answers: import('../types').FeedbackAnswers): Promise<void> {
+    const { error } = await supabase.rpc('submit_feedback', { p_token: getSessionToken(), p_round: round, p_answers: answers });
+    if (error) throw participantAppError(error.message, 'Could not send your feedback.');
+  },
+
+  async submitWrapUp(input: { department: string; wantsReferral: boolean; note: string }, participantName: string): Promise<void> {
+    const { data, error } = await supabase.rpc('submit_wrap_up', {
+      p_token: getSessionToken(),
+      p_department: input.department,
+      p_wants_referral: input.wantsReferral,
+      p_note: input.note,
+    });
+    if (error) throw participantAppError(error.message, 'Could not send that.');
+    const supportId = (data as { supportId: string | null } | null)?.supportId;
+    if (supportId && input.wantsReferral) {
+      void notify(
+        { userIds: [supportId] },
+        `${participantName} wants to join ${input.department}`,
+        'They asked for a referral in the participant app. Confirm it on their profile once they have joined.',
+        '/support/participants',
+        'GENERAL',
+      );
+    }
+  },
+
+  // Saves the popup answer; "I need help" also alerts their support straight away.
+  async recordCheckIn(response: import('../types').CheckInResponse, misses: { sunday: number; meeting: number }, participantName: string): Promise<void> {
+    const { data, error } = await supabase.rpc('record_check_in', {
+      p_token: getSessionToken(),
+      p_response: response,
+      p_sunday_misses: misses.sunday,
+      p_meeting_misses: misses.meeting,
+    });
+    if (error) throw participantAppError(error.message, 'Could not send that. Please try again.');
+    const supportId = (data as { supportId: string | null } | null)?.supportId;
+    if (response === 'NEED_HELP' && supportId) {
+      void notify(
+        { userIds: [supportId] },
+        `${participantName} asked for help`,
+        `They answered "I need help" in the participant app. Please reach out to ${participantName.split(' ')[0]} today.`,
+        '/support',
+        'PARTICIPANT_FLAG',
+      );
+    }
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -3262,6 +3511,7 @@ const mapParticipantNote = (row: any): import('../types').ParticipantNote => ({
   authorId: row.authorId ?? null, authorName: row.author?.name ?? null,
   groupId: row.groupId ?? null, weekId: row.weekId ?? null,
   noteType: row.noteType ?? 'HANDOVER', createdAt: row.createdAt,
+  byParticipant: row.byParticipant ?? false,
 });
 
 const mapParticipantHandover = (row: any): import('../types').ParticipantHandover => ({
@@ -5148,6 +5398,198 @@ export const recapDocumentsApi = {
 
   async remove(weekId: number): Promise<void> {
     const { error } = await supabase.from('Week').update({ recapDocumentUrl: null, recapDocumentName: null }).eq('id', weekId);
+    if (error) throw new Error(error.message);
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Participant app: staff side
+// ---------------------------------------------------------------------------
+
+// When participants reflected, never what they wrote.
+export const reflectionActivityApi = {
+  async getForCohort(cohortId: string): Promise<{ activity: import('../types').ReflectionActivity[] }> {
+    const { data, error } = await supabase.rpc('reflection_activity', { p_token: getSessionToken(), p_cohort_id: cohortId });
+    if (error) throw new Error(error.message.includes('SESSION_EXPIRED') ? 'SESSION_EXPIRED' : error.message);
+    return { activity: (data as import('../types').ReflectionActivity[]) || [] };
+  },
+};
+
+export const recapReleasesApi = {
+  async get(groupId: string, weekId: number): Promise<{ release: import('../types').RecapRelease | null }> {
+    const { data, error } = await supabase.from('RecapRelease').select('groupId, weekId, releasedById, releasedAt')
+      .eq('groupId', groupId).eq('weekId', weekId).maybeSingle();
+    if (error) throw new Error(error.message);
+    return { release: (data as import('../types').RecapRelease | null) ?? null };
+  },
+
+  async release(groupId: string, weekId: number, userId: string): Promise<{ release: import('../types').RecapRelease }> {
+    const { data, error } = await supabase.from('RecapRelease')
+      .upsert({ groupId, weekId, releasedById: userId, releasedAt: new Date().toISOString() }, { onConflict: 'groupId,weekId' })
+      .select('groupId, weekId, releasedById, releasedAt')
+      .single();
+    if (error) throw new Error(error.message);
+    return { release: data as import('../types').RecapRelease };
+  },
+};
+
+const mapCheckIn = (row: any): import('../types').ParticipantCheckIn => ({
+  id: row.id,
+  participantId: row.participantId,
+  response: row.response,
+  sundayMisses: row.sundayMisses ?? 0,
+  meetingMisses: row.meetingMisses ?? 0,
+  handledAt: row.handledAt ?? null,
+  handledById: row.handledById ?? null,
+  createdAt: row.createdAt,
+});
+
+export const participantCheckInsApi = {
+  async getForParticipants(participantIds: string[]): Promise<{ checkIns: import('../types').ParticipantCheckIn[] }> {
+    if (participantIds.length === 0) return { checkIns: [] };
+    const { data, error } = await supabase.from('ParticipantCheckIn').select('*')
+      .in('participantId', participantIds).order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { checkIns: ((data as any[]) || []).map(mapCheckIn) };
+  },
+
+  async markHandled(id: string, userId: string): Promise<{ checkIn: import('../types').ParticipantCheckIn }> {
+    const { data, error } = await supabase.from('ParticipantCheckIn')
+      .update({ handledAt: new Date().toISOString(), handledById: userId })
+      .eq('id', id).select('*').single();
+    if (error) throw new Error(error.message);
+    return { checkIn: mapCheckIn(data) };
+  },
+};
+
+export const scripturesApi = {
+  async getAll(): Promise<{ scriptures: import('../types').Scripture[] }> {
+    const { data, error } = await supabase.from('Scripture').select('id, dayNumber, imageUrl, storagePath, createdAt').order('dayNumber');
+    if (error) throw new Error(error.message);
+    return { scriptures: (data as import('../types').Scripture[]) || [] };
+  },
+
+  // Uploads the (already resized) image and sets it as that day's scripture,
+  // replacing any design already on that day.
+  async upload(dayNumber: number, image: Blob, userId: string): Promise<{ scripture: import('../types').Scripture }> {
+    const extension = image.type === 'image/webp' ? 'webp' : image.type === 'image/png' ? 'png' : 'jpg';
+    const path = `scriptures/day-${dayNumber}-${Date.now()}.${extension}`;
+    const { error: uploadError } = await supabase.storage.from('resources').upload(path, image, { upsert: false, contentType: image.type || undefined });
+    if (uploadError) throw new Error(uploadError.message);
+    const { data: publicUrl } = supabase.storage.from('resources').getPublicUrl(path);
+
+    const { data: previous } = await supabase.from('Scripture').select('storagePath').eq('dayNumber', dayNumber).maybeSingle();
+    const { data, error } = await supabase.from('Scripture')
+      .upsert({ dayNumber, imageUrl: publicUrl.publicUrl, storagePath: path, createdById: userId, updatedAt: new Date().toISOString() }, { onConflict: 'dayNumber' })
+      .select('id, dayNumber, imageUrl, storagePath, createdAt')
+      .single();
+    if (error) throw new Error(error.message);
+    // The replaced design's file is no longer used by anything.
+    if (previous?.storagePath && previous.storagePath !== path) {
+      void supabase.storage.from('resources').remove([previous.storagePath]);
+    }
+    return { scripture: data as import('../types').Scripture };
+  },
+
+  async remove(scripture: import('../types').Scripture): Promise<void> {
+    const { error } = await supabase.from('Scripture').delete().eq('id', scripture.id);
+    if (error) throw new Error(error.message);
+    if (scripture.storagePath) void supabase.storage.from('resources').remove([scripture.storagePath]);
+  },
+};
+
+// Push to participants' devices (they have no in-app feed). Used when a support
+// replies in a participant's faith project conversation.
+export const participantPushApi = {
+  async notify(participantIds: string[], title: string, body: string, path: string): Promise<void> {
+    if (participantIds.length === 0) return;
+    try {
+      await supabase.functions.invoke('notify-users', { body: { participantIds, title, body, path } });
+    } catch { /* non-critical */ }
+  },
+};
+
+export const feedbackApi = {
+  async getResults(cohortId: string): Promise<import('../types').FeedbackResults> {
+    const { data, error } = await supabase.rpc('feedback_results', { p_token: getSessionToken(), p_cohort_id: cohortId });
+    if (error) throw new Error(error.message.includes('SESSION_EXPIRED') ? 'Please sign out and sign in again.' : error.message);
+    return data as import('../types').FeedbackResults;
+  },
+};
+
+// ---------------------------------------------------------------------------
+// AI help (ai-assist edge function, OpenRouter free models)
+// ---------------------------------------------------------------------------
+
+// Keep in sync with DEFAULT_MODELS in supabase/functions/ai-assist/index.ts.
+export const DEFAULT_AI_MODELS = ['nex-agi/nex-n2.5-pro:free', 'poolside/laguna-s-2.1:free', 'inclusionai/ling-3.0-flash-vl:free', 'google/gemma-4-31b-it:free'];
+
+const AI_ERRORS: Record<string, string> = {
+  AI_BUSY: 'The free AI service is busy right now. Try again in a few minutes.',
+  AI_DISABLED: 'AI help is turned off in Settings.',
+  AI_NOT_CONFIGURED: 'AI help is not set up yet.',
+  AI_NOT_OPTED_IN: 'Turn on the AI summary first.',
+  SUMMARY_LOCKED: 'Your summary unlocks in the last week of FOF.',
+  NO_REFLECTIONS: 'Write at least one weekly reflection first.',
+  NOTES_TOO_SHORT: 'Paste more of the class notes first.',
+  FEEDBACK_NOT_VISIBLE: 'The answers for this round are not visible yet.',
+  NO_COMMENTS: 'There are no written comments to summarise.',
+  SESSION_EXPIRED: 'Please sign out and sign in again.',
+  NOT_ALLOWED: 'Only admins can do this.',
+};
+
+const invokeAi = async <T,>(body: Record<string, unknown>): Promise<T> => {
+  const { data, error } = await supabase.functions.invoke('ai-assist', { body: { ...body, token: getSessionToken() } });
+  if (error) {
+    let code = '';
+    try { code = (await (error as any).context?.json())?.error ?? ''; } catch { /* no body */ }
+    throw new Error(AI_ERRORS[code] || 'AI help is not available right now. Please try again.');
+  }
+  return data as T;
+};
+
+export const aiApi = {
+  async getSummaryState(): Promise<import('../types').ParticipantSummaryState> {
+    const { data, error } = await supabase.rpc('participant_summary', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not load your summary.');
+    return data as import('../types').ParticipantSummaryState;
+  },
+
+  async setOptIn(optIn: boolean): Promise<void> {
+    const { error } = await supabase.rpc('set_ai_opt_in', { p_token: getSessionToken(), p_opt_in: optIn });
+    if (error) throw participantAppError(error.message, 'Could not save that.');
+  },
+
+  async generateSummary(): Promise<{ text: string; createdAt: string }> {
+    return (await invokeAi<{ summary: { text: string; createdAt: string } }>({ action: 'participant-summary' })).summary;
+  },
+
+  async draftRecap(weekTitle: string, notes: string): Promise<{ summary: string; prompt: string }> {
+    return invokeAi<{ summary: string; prompt: string }>({ action: 'recap-draft', weekTitle, notes });
+  },
+
+  async summariseFeedback(cohortId: string, round: import('../types').FeedbackRound): Promise<{ themes: string; createdAt: string }> {
+    return invokeAi<{ themes: string; createdAt: string }>({ action: 'feedback-themes', cohortId, round });
+  },
+
+  async getFeedbackThemes(cohortId: string): Promise<Array<{ round: import('../types').FeedbackRound; themes: string; createdAt: string }>> {
+    const { data, error } = await supabase.rpc('feedback_themes', { p_token: getSessionToken(), p_cohort_id: cohortId });
+    if (error) throw new Error(error.message);
+    return (data as Array<{ round: import('../types').FeedbackRound; themes: string; createdAt: string }>) || [];
+  },
+
+  async getSettings(): Promise<import('../types').AiSettings> {
+    const { data } = await supabase.from('AppSetting').select('value').eq('settingKey', 'ai_settings').maybeSingle();
+    const value = ((data as any)?.value ?? {}) as { enabled?: boolean; models?: unknown };
+    const models = Array.isArray(value.models) ? value.models.map(String).filter((m) => m.trim()) : [];
+    return { enabled: value.enabled !== false, models: models.length ? models : DEFAULT_AI_MODELS };
+  },
+
+  async saveSettings(settings: import('../types').AiSettings): Promise<void> {
+    const value = { enabled: settings.enabled, models: settings.models.map((m) => m.trim()).filter(Boolean) };
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert([{ settingKey: 'ai_settings', value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
     if (error) throw new Error(error.message);
   },
 };

@@ -41,7 +41,7 @@ const SupportConversation: React.FC<{
   const [error, setError] = useState('');
   const entries = [
     ...history.map((entry, i) => ({ key: `r-${i}`, at: entry.at, who: entry.actorName, role: 'Back office', decision: entry.action, text: entry.note ?? '' })),
-    ...notes.map((note) => ({ key: note.id, at: note.createdAt, who: note.authorName || 'Support', role: null as string | null, decision: null as FaithProjectReviewEntry['action'] | null, text: note.body })),
+    ...notes.map((note) => ({ key: note.id, at: note.createdAt, who: note.byParticipant ? 'Participant' : note.authorName || 'Support', role: (note.byParticipant ? 'Participant app' : null) as string | null, decision: null as FaithProjectReviewEntry['action'] | null, text: note.body })),
   ].sort((a, b) => a.at.localeCompare(b.at));
 
   const send = async () => {

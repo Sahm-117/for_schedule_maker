@@ -168,6 +168,17 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
     }
   };
 
+  // Admins choose which resources appear in the participant app.
+  const toggleParticipantVisibility = async (id: string, visible: boolean) => {
+    setResources((prev) => prev.map((resource) => (resource.id === id ? { ...resource, visibleToParticipants: visible } : resource)));
+    try {
+      await resourcesApi.setVisibleToParticipants(id, visible);
+    } catch (err: any) {
+      setResources((prev) => prev.map((resource) => (resource.id === id ? { ...resource, visibleToParticipants: !visible } : resource)));
+      setError(err?.message || 'Could not update this resource.');
+    }
+  };
+
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
@@ -410,6 +421,17 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
                     {r.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{r.description}</p>}
                     {r.fileName && r.fileSize && (
                       <p className="text-xs text-gray-400 mt-0.5">{r.fileName} · {formatBytes(r.fileSize)}</p>
+                    )}
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => { void toggleParticipantVisibility(r.id, !r.visibleToParticipants); }}
+                        aria-pressed={!!r.visibleToParticipants}
+                        className={`mt-1.5 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${r.visibleToParticipants ? 'bg-emerald-100/80 text-emerald-700' : 'bg-neutral-100 text-neutral-600'}`}
+                        title="Show this resource in the participant app"
+                      >
+                        {r.visibleToParticipants ? 'Shown to participants' : 'Team only · show to participants'}
+                      </button>
                     )}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">

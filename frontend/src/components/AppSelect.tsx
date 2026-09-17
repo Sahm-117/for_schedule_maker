@@ -123,7 +123,8 @@ const AppSelect: React.FC<AppSelectProps> = ({
         minWidth: width,
         maxWidth: maxMenuWidth,
         maxHeight,
-        zIndex: 100,
+        // Above every sheet and popup (they sit at 120–140) so the menu is never hidden behind the overlay it opens from.
+        zIndex: 250,
       });
     };
 

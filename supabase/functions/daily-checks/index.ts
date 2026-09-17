@@ -347,6 +347,50 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── "I need help" from the participant app, not followed up in 48 hours ──
+    const helpCutoff = new Date(nowMs - 2 * MS_PER_DAY).toISOString()
+    const { data: staleHelp } = await supabase.from('ParticipantCheckIn')
+      .select('id, createdAt, participant:Participant!ParticipantCheckIn_participantId_fkey(fullName, cohortId)')
+      .eq('response', 'NEED_HELP').is('handledAt', null).lte('createdAt', helpCutoff)
+    const helpNames: string[] = []
+    for (const row of (staleHelp ?? []) as any[]) {
+      if (!row.participant?.cohortId) continue
+      if (!firstTime(`help-stale:${row.id}`, row.participant.cohortId)) continue
+      helpNames.push(row.participant.fullName)
+    }
+    if (helpNames.length > 0) {
+      for (const adminId of admins) {
+        escalation(adminId, `${helpNames.length} participant${helpNames.length === 1 ? '' : 's'} asked for help 2+ days ago`,
+          `No support has marked it followed up yet: ${listOf(helpNames)}.`,
+          '/participants')
+      }
+    }
+
+    // ── Participant feedback rounds: remind admins when a round opens, at the
+    //    halfway point with the response rate, and the day before it closes. ──
+    const { data: feedbackCohorts } = await supabase.from('Cohort').select('id, name').eq('status', 'ACTIVE')
+    for (const cohort of (feedbackCohorts ?? []) as any[]) {
+      const { data: rounds } = await supabase.rpc('feedback_rounds', { p_cohort_id: cohort.id })
+      for (const round of (rounds ?? []) as any[]) {
+        const opens = new Date(round.opensAt).getTime()
+        const closes = new Date(round.closesAt).getTime()
+        if (nowMs < opens || nowMs >= closes) continue
+        const label = round.round === 'MID' ? 'Mid-programme feedback' : 'The end of FOF survey'
+        const [{ count: responses }, { count: eligible }] = await Promise.all([
+          supabase.from('FeedbackSubmission').select('participantId', { count: 'exact', head: true }).eq('cohortId', cohort.id).eq('round', round.round),
+          supabase.from('Participant').select('id', { count: 'exact', head: true }).eq('cohortId', cohort.id).eq('status', 'ACTIVE'),
+        ])
+        const rate = `${responses ?? 0} of ${eligible ?? 0} participants have answered`
+        const notice = (key: string, title: string, body: string) => {
+          if (!firstTime(`feedback-${key}:${cohort.id}:${round.round}`, cohort.id)) return
+          for (const adminId of admins) add({ userId: adminId, title, body, path: '/feedback', type: 'REMINDER' })
+        }
+        notice('open', `${label} is open for ${cohort.name}`, 'Pin a participant announcement on Home, linked to Feedback, so everyone sees it.')
+        if (nowMs >= opens + (closes - opens) / 2) notice('half', `${label}: halfway`, `${rate}. A nudge from supports helps.`)
+        if (closes - nowMs <= 36 * 3600000) notice('closing', `${label} closes tomorrow`, `${rate} so far.`)
+      }
+    }
+
     // ── Leads that never reached the Google Sheet ────────────────────────────
     let leadsRetried = 0
     if (!dryRun) try {

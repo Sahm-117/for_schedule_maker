@@ -4,9 +4,11 @@ import ModalShell from '../followups/ModalShell';
 import InfoTip from '../InfoTip';
 import DepartmentHandoff from '../participants/DepartmentHandoff';
 import { useToast } from '../Toast';
-import { departmentReferralsApi, faithProjectsApi, participantFlagsApi, participantNotesApi, participantsApi } from '../../services/api';
+import { departmentReferralsApi, faithProjectsApi, participantCheckInsApi, participantPushApi, participantFlagsApi, participantNotesApi, participantsApi } from '../../services/api';
+import { buildWhatsAppLink } from '../../utils/phone';
+import { shortMoment } from '../../utils/participantApp';
 import { unreadTrails, type FaithTrail, type ThreadReads } from '../../utils/faithThread';
-import type { DepartmentReferral, FaithProject, FaithProjectStatus, Participant, ParticipantFlag, ParticipantHandover, ParticipantNote } from '../../types';
+import type { DepartmentReferral, FaithProject, FaithProjectStatus, Participant, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote } from '../../types';
 
 // Faith project states mapped onto the V2 design's labels.
 const FP_CHIP: Record<FaithProjectStatus, { label: string; cls: string }> = {
@@ -270,6 +272,11 @@ interface ParticipantCardProps {
   onFlagCleared: (flagId: string) => void;
   threadReads: ThreadReads;
   onThreadRead: (participantId: string, trail: FaithTrail) => void;
+  /** When they wrote this week's reflection in the participant app (never the text). */
+  reflectedAt?: string | null;
+  /** An unanswered "I need help" from the participant app. */
+  helpRequest?: ParticipantCheckIn | null;
+  onHelpHandled?: (checkIn: ParticipantCheckIn) => void;
 }
 
 const ParticipantCard: React.FC<ParticipantCardProps> = ({
@@ -290,7 +297,20 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   onFlagCleared,
   threadReads,
   onThreadRead,
+  reflectedAt,
+  helpRequest,
+  onHelpHandled,
 }) => {
+  const [handlingHelp, setHandlingHelp] = useState(false);
+  const markHelpHandled = async () => {
+    if (!helpRequest) return;
+    setHandlingHelp(true);
+    try {
+      onHelpHandled?.((await participantCheckInsApi.markHandled(helpRequest.id, userId)).checkIn);
+    } catch { /* stays visible to try again */ } finally {
+      setHandlingHelp(false);
+    }
+  };
   const unread = unreadTrails(participant.id, project, notes, userId, threadReads);
   const [menu, setMenu] = useState<'closed' | 'main' | 'concern'>('closed');
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
@@ -451,7 +471,27 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
           )}
           <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="m9 5 7 7-7 7" /></svg>
         </button>
+        {reflectedAt && (
+          <span className="rounded-full bg-sky-100/80 px-2.5 py-1 text-[11px] font-semibold text-sky-700" title="They wrote this week's reflection in the app. Only they can read it.">
+            Reflected {shortMoment(reflectedAt)}
+          </span>
+        )}
       </div>
+
+      {helpRequest && (
+        <div className="mt-2.5 rounded-xl bg-red-100/80 px-[13px] py-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-red-700">Asked for help · {shortMoment(helpRequest.createdAt)}</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-gray-700">They answered &ldquo;I need help&rdquo; in the app. Reach out today.</p>
+          <div className="mt-2.5 flex gap-2">
+            {buildWhatsAppLink(participant.phone, '') && (
+              <a href={buildWhatsAppLink(participant.phone, '') ?? undefined} target="_blank" rel="noreferrer" className="inline-flex min-h-[38px] items-center rounded-[10px] bg-white px-3 text-[12.5px] font-semibold text-gray-700">WhatsApp</a>
+            )}
+            <button type="button" onClick={() => { void markHelpHandled(); }} disabled={handlingHelp} className="min-h-[38px] rounded-[10px] bg-red-700 px-3 text-[12.5px] font-semibold text-white disabled:opacity-60">
+              {handlingHelp ? 'Saving…' : 'I have reached out'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {flag && concernOpen && (
         <div className="mt-2.5 rounded-xl border border-[#fde68a] bg-[#fffbeb] px-[13px] py-3">
@@ -628,8 +668,8 @@ const FaithProjectSheet: React.FC<{
 
   const noteEntry = (entry: ParticipantNote): TrailEntry => ({
     key: entry.id,
-    who: entry.authorName || 'Support',
-    role: 'Support',
+    who: entry.byParticipant ? participant.fullName : entry.authorName || 'Support',
+    role: entry.byParticipant ? 'Participant' : 'Support',
     at: formatDate(entry.createdAt),
     text: entry.body,
     sortAt: entry.createdAt,
@@ -662,6 +702,9 @@ const FaithProjectSheet: React.FC<{
         noteType: tab === 'office' ? 'FAITH_OFFICE' : 'FAITH_COACH',
       });
       onNoteAdded(saved);
+      if (tab === 'coach') {
+        void participantPushApi.notify([participant.id], 'Your support replied', 'New feedback on your faith project.', '/me/faith');
+      }
       setNote('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'This note could not be saved.');

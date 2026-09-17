@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import NotificationSettings from '../components/NotificationSettings';
-import { settingsApi } from '../services/api';
+import { aiApi, settingsApi } from '../services/api';
+import type { AiSettings } from '../types';
 import { DEFAULT_PROGRAMME_RULES, type ProgrammeRules } from '../utils/programmeRules';
 import type { ChurchDepartment } from '../constants/departments';
 import { setChurchDepartmentsCache } from '../hooks/useChurchDepartments';
@@ -329,12 +330,79 @@ const ChurchDepartmentsCard: React.FC = () => {
   );
 };
 
+// AI help (OpenRouter free models) for participant summaries, recap drafts and
+// feedback themes. Free models come and go, so admins can change the list.
+const AiSettingsCard: React.FC = () => {
+  const [settings, setSettings] = useState<AiSettings | null>(null);
+  const [modelsText, setModelsText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    aiApi.getSettings().then((value) => { setSettings(value); setModelsText(value.models.join('\n')); }).catch(() => setMessage('Could not load AI settings.'));
+  }, []);
+
+  const save = async (next: AiSettings) => {
+    setSaving(true);
+    setMessage('');
+    try {
+      await aiApi.saveSettings(next);
+      setSettings(next);
+      setMessage('Saved.');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Could not save.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!settings) return <div className="surface-card p-6 text-sm text-gray-500">{message || 'Loading AI settings…'}</div>;
+
+  const models = modelsText.split('\n').map((line) => line.trim()).filter(Boolean);
+  const dirty = models.join('\n') !== settings.models.join('\n');
+
+  return (
+    <div className="surface-card p-6">
+      <div className="flex items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-semibold text-gray-900">AI help</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            End-of-FOF summaries (only for participants who opt in), recap drafts and feedback themes, using free OpenRouter models. The free plan allows about 50 requests a day.
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={settings.enabled}
+          aria-label="AI help"
+          onClick={() => { void save({ ...settings, enabled: !settings.enabled }); }}
+          disabled={saving}
+          className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition disabled:opacity-60 ${settings.enabled ? 'bg-primary' : 'bg-slate-200'}`}
+        >
+          <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${settings.enabled ? 'translate-x-7' : 'translate-x-1'}`} />
+        </button>
+      </div>
+      <label className="mt-4 block">
+        <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Models, tried in order</span>
+        <textarea value={modelsText} onChange={(e) => setModelsText(e.target.value)} rows={4} className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 font-mono text-xs focus:border-primary focus:outline-none" />
+        <span className="mt-1 block text-xs text-gray-500">One OpenRouter model id per line. If one is busy, the next is used.</span>
+      </label>
+      <div className="mt-3 flex items-center gap-3">
+        {message && <p className="text-xs text-gray-500">{message}</p>}
+        <button type="button" onClick={() => { void save({ ...settings, models }); }} disabled={!dirty || saving || models.length === 0} className="ml-auto rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          {saving ? 'Saving…' : 'Save models'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const AdminSettingsPage: React.FC = () => {
   return (
     <div>
       <PageHeader
         title="Settings"
-        subtitle="Notification timings, the support contact, programme rules and church departments."
+        subtitle="Notification timings, the support contact, programme rules, church departments and AI help."
       />
 
       <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
@@ -346,6 +414,10 @@ const AdminSettingsPage: React.FC = () => {
       <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
         <ProgrammeRulesCard />
         <ChurchDepartmentsCard />
+      </div>
+
+      <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <AiSettingsCard />
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { authApi, setAuthToken, clearAuthToken, usersApi } from '../services/api';
+import { authApi, setAuthToken, clearAuthToken, usersApi, getSessionToken, SESSION_TOKEN_KEY } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { applyTheme } from '../utils/theme';
 import type { Label, User } from '../types';
@@ -77,6 +77,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const response = await authApi.login(email, password);
     setAuthToken(response.accessToken);
     localStorage.setItem('refreshToken', response.refreshToken);
+    if (response.sessionToken) localStorage.setItem(SESSION_TOKEN_KEY, response.sessionToken);
     localStorage.setItem('user', JSON.stringify(response.user));
     setUser(response.user);
     await fetchUserLabels(response.user.id, response.user.role);
@@ -84,6 +85,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const clearSession = () => {
+    const sessionToken = getSessionToken();
+    if (sessionToken) void authApi.signOut(sessionToken).catch(() => undefined);
     clearAuthToken();
     localStorage.removeItem('user');
     setUser(null);
@@ -113,6 +116,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const checkAuth = async () => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    // Signed in before database sessions existed: sign in once more to get one.
+    if (!getSessionToken()) {
+      clearSession();
       setLoading(false);
       return;
     }

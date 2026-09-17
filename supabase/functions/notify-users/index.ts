@@ -9,7 +9,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore
 import webPush from 'https://esm.sh/web-push@3'
-import { sendToSubscriptions } from '../_shared/webpush.ts'
+import { PARTICIPANT_PUSH_STORE, sendToSubscriptions } from '../_shared/webpush.ts'
 import { insertNotifications } from '../_shared/notifications.ts'
 
 const corsHeaders = {
@@ -30,6 +30,8 @@ webPush.setVapidDetails(
 
 interface NotifyRequest {
   userIds?: string[]
+  /** Participant app devices. Push only: participants have no in-app feed. */
+  participantIds?: string[]
   role?: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT'
   cohortId?: string
   excludeUserId?: string
@@ -71,7 +73,25 @@ Deno.serve(async (req) => {
   try {
     const input = await req.json() as NotifyRequest
     if (!input?.title || !input?.body) return json({ ok: false, error: 'title and body are required' }, 400)
-    if (!input.userIds?.length && !input.role) return json({ ok: false, error: 'userIds or role is required' }, 400)
+    if (!input.userIds?.length && !input.role && !input.participantIds?.length) return json({ ok: false, error: 'userIds, role or participantIds is required' }, 400)
+
+    if (input.participantIds?.length) {
+      const { data: participantSubs } = await supabase
+        .from('ParticipantPushSubscription')
+        .select('participantId, endpoint, p256dh, auth')
+        .in('participantId', input.participantIds)
+      const rows = ((participantSubs ?? []) as any[]).map((row) => ({ userId: row.participantId, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth }))
+      const participantPayload = JSON.stringify({
+        title: input.title,
+        body: input.body,
+        icon: '/icon-192.png',
+        tag: `fof-participant-${Date.now()}`,
+        data: { path: input.path ?? '/me' },
+      })
+      const result = rows.length ? await sendToSubscriptions(webPush, supabase, rows, participantPayload, undefined, PARTICIPANT_PUSH_STORE) : { sent: 0, failed: 0, removed: 0, errors: [] }
+      if (result.failed > 0) console.error(`notify-users(participants): ${result.sent} sent, ${result.failed} failed, ${result.removed} removed`, JSON.stringify(result.errors))
+      if (!input.userIds?.length && !input.role) return json({ ok: true, participants: input.participantIds.length, sent: result.sent })
+    }
 
     const recipients = await resolveRecipients(input)
     if (recipients.length === 0) return json({ ok: true, notified: 0, sent: 0 })

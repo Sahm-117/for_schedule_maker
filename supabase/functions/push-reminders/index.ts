@@ -15,6 +15,8 @@
  * Test modes (body JSON, both safe against the 20 real users):
  *   { "dryRun": true }            — compute everything, send nothing, log nothing
  *   { "onlyUserIds": ["<uuid>"] } — restrict delivery to specific users
+ *   { "onlyParticipantIds": [...], "cohortId": "<uuid>", "asOf": "<ISO>" } — participant
+ *     reminders only for those participants / that cohort, as if it were that moment
  *
  * Required Supabase secrets:
  *   VAPID_PUBLIC_KEY  — from `npx web-push generate-vapid-keys`
@@ -27,7 +29,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore — web-push ESM build
 import webPush from 'https://esm.sh/web-push@3'
-import { sendToSubscriptions } from '../_shared/webpush.ts'
+import { PARTICIPANT_PUSH_STORE, sendToSubscriptions } from '../_shared/webpush.ts'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -221,11 +223,23 @@ Deno.serve(async (req) => {
     // shrinks the blast radius to specific users for a live smoke test.
     let dryRun = false
     let onlyUserIds: string[] | null = null
+    let onlyParticipantIds: string[] | null = null
+    // Replay a moment in time (dry runs of the participant reminders).
+    let asOf: Date | null = null
+    // Limit the participant reminders to one cohort, whatever its status (dry runs).
+    let onlyCohortId: string | null = null
     try {
       const body = await req.json()
       dryRun = body?.dryRun === true
       if (Array.isArray(body?.onlyUserIds) && body.onlyUserIds.length > 0) {
         onlyUserIds = body.onlyUserIds.map(String)
+      }
+      if (Array.isArray(body?.onlyParticipantIds) && body.onlyParticipantIds.length > 0) {
+        onlyParticipantIds = body.onlyParticipantIds.map(String)
+      }
+      if (typeof body?.cohortId === 'string') onlyCohortId = body.cohortId
+      if (typeof body?.asOf === 'string' && !Number.isNaN(Date.parse(body.asOf))) {
+        asOf = new Date(body.asOf)
       }
     } catch {
       // No/invalid body — normal cron invocation.
@@ -454,6 +468,148 @@ Deno.serve(async (req) => {
 
           const r = await sendToSubscriptions(webPush, supabase, subs as any[], payload, notified)
           if (r.failed > 0) console.error(`push-reminders (group-meeting): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
+        }
+      }
+    }
+
+    // 8. Participant app reminders: Sunday class nudges (always on), group call
+    //    reminders at the timings each participant picked, and "recap is out".
+    //    Deduped per participant in ParticipantReminderLog. Staff filters
+    //    (onlyUserIds) skip this block; use onlyParticipantIds to test it.
+    if (!onlyUserIds) {
+      const clock = asOf ?? now
+      const pLagos = getLagosDateParts(clock)
+      const pNowMinutes = pLagos.hour * 60 + pLagos.minute
+      const pToday = pLagos.isoDate
+      const pDayIndex = lagosDayIndex(pToday)
+
+      const claimParticipant = async (kind: string, targetKey: string, participantId: string, occurrence: string) => {
+        if (dryRun) return true
+        const { error } = await supabase.from('ParticipantReminderLog').insert([{ kind, targetKey, participantId, occurrence }])
+        if (!error) return true
+        if (error.code === '23505') return false
+        throw new Error(error.message)
+      }
+      const pushParticipants = async (participantIds: string[], message: { title: string; body: string; path: string; tag: string }) => {
+        const targets = onlyParticipantIds ? participantIds.filter((id) => onlyParticipantIds!.includes(id)) : participantIds
+        if (targets.length === 0) return
+        if (dryRun) { debug.push({ wouldSendParticipants: message.tag, count: targets.length, title: message.title, body: message.body }); return }
+        const claimed: string[] = []
+        // Each tag already names the week, group or date it is about, so one send per participant per tag.
+        for (const id of targets) if (await claimParticipant(message.tag.split(':')[0], message.tag, id, 'once')) claimed.push(id)
+        if (claimed.length === 0) return
+        const { data: subs } = await supabase.from('ParticipantPushSubscription').select('participantId, endpoint, p256dh, auth').in('participantId', claimed)
+        const rows = ((subs ?? []) as any[]).map((row) => ({ userId: row.participantId, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth }))
+        if (rows.length === 0) return
+        const payload = JSON.stringify({ title: message.title, body: message.body, icon: '/icon-192.png', tag: message.tag, data: { path: message.path } })
+        const r = await sendToSubscriptions(webPush, supabase, rows, payload, undefined, PARTICIPANT_PUSH_STORE)
+        if (r.failed > 0) console.error(`push-reminders (participants ${message.tag}): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
+      }
+      const autoReleaseAt = (startIso: string, weekNumber: number, meetingDay: string | null, meetingTime: string | null) => {
+        const start = new Date(`${startIso}T00:00:00Z`).getTime()
+        const t = meetingTime ? parseTime(meetingTime) : null
+        const dayOffset = meetingDay ? DAY_NAMES_UPPER.indexOf(String(meetingDay).toUpperCase()) : -1
+        if (dayOffset >= 0 && t !== null) {
+          // Lagos wall clock is UTC+1: one hour after the meeting is the meeting's UTC clock reading.
+          return start + ((weekNumber - 1) * 7 + dayOffset) * 86400000 + t * 60000
+        }
+        return start + weekNumber * 7 * 86400000 - 3600000
+      }
+
+      const { data: pCohorts } = onlyCohortId
+        ? await supabase.from('Cohort').select('id, startDate, endDate, status').eq('id', onlyCohortId)
+        : await supabase.from('Cohort').select('id, startDate, endDate, status').eq('status', 'ACTIVE')
+      for (const cohort of (pCohorts ?? []) as any[]) {
+        if (!cohort.startDate) continue
+        const startIso = String(cohort.startDate).slice(0, 10)
+        const endIso = cohort.endDate ? String(cohort.endDate).slice(0, 10) : null
+        if (daysBetweenIso(startIso, pToday) < -1) continue
+        if (endIso && daysBetweenIso(endIso, pToday) > 7) continue
+
+        const [{ data: accounts }, { data: pWeeks }, { data: pGroups }, { data: settings }] = await Promise.all([
+          supabase.from('ParticipantAccount').select('participantId, participant:Participant!inner(id, cohortId, status)').eq('isActive', true).eq('participant.cohortId', cohort.id).eq('participant.status', 'ACTIVE'),
+          supabase.from('Week').select('id, weekNumber, title, shareWithParticipants, recapSummary, recapDocumentUrl').eq('cohortId', cohort.id),
+          supabase.from('Group').select('id, name, meetingDay, meetingTime, members:GroupParticipant(participantId)').eq('cohortId', cohort.id),
+          supabase.from('ParticipantReminderSetting').select('participantId, meetingRemindMinutes, recapReleased'),
+        ])
+        const participantIds = new Set(((accounts ?? []) as any[]).map((a) => a.participantId))
+        if (participantIds.size === 0) continue
+        const settingBy = new Map(((settings ?? []) as any[]).map((row) => [row.participantId, row]))
+        const meetingMinutesFor = (id: string): number[] => {
+          const row = settingBy.get(id)
+          return Array.isArray(row?.meetingRemindMinutes) ? row.meetingRemindMinutes.map(Number).filter(Number.isFinite) : DEFAULT_REMIND_BEFORE_MINUTES
+        }
+        const weeks = ((pWeeks ?? []) as any[])
+        const groups = ((pGroups ?? []) as any[])
+
+        // a) Sunday class nudges: Saturday 12:00, Saturday 20:00, Sunday 06:00.
+        const NUDGES = [
+          { day: 6, minutes: 12 * 60, key: 'SAT_NOON' },
+          { day: 6, minutes: 20 * 60, key: 'SAT_EVENING' },
+          { day: 0, minutes: 6 * 60, key: 'SUN_MORNING' },
+        ]
+        for (const nudge of NUDGES) {
+          if (pDayIndex !== nudge.day || pNowMinutes < nudge.minutes || pNowMinutes >= nudge.minutes + 10) continue
+          const sundayIso = nudge.day === 6 ? addLagosDays(pToday, 1) : pToday
+          const sinceStart = daysBetweenIso(startIso, sundayIso)
+          if (sinceStart < 0 || sinceStart % 7 !== 0) continue
+          const week = weeks.find((w) => w.weekNumber === sinceStart / 7 + 1)
+          if (!week) continue
+          const { data: days } = await supabase.from('Day').select('Activity(time, description)').eq('weekId', week.id).eq('dayName', 'Sunday')
+          const classActivity = ((days ?? []) as any[]).flatMap((d) => d.Activity ?? []).find((a: any) => /^\s*class\s*\d|introductory class/i.test(String(a.description || '')))
+          if (!classActivity) continue
+          const minutes = parseTime(String(classActivity.time))
+          const time = minutes === null ? '' : `${((Math.floor(minutes / 60) + 11) % 12) + 1}:${String(minutes % 60).padStart(2, '0')} ${minutes >= 720 ? 'PM' : 'AM'}`
+          const topic = String(week.title || '').trim()
+          const message = nudge.key === 'SAT_NOON'
+            ? { title: 'See you tomorrow! 🙌', body: `FOF class is at ${time}. We can't wait to see you in church.` }
+            : nudge.key === 'SAT_EVENING'
+            ? { title: "Tomorrow's the day", body: topic ? `This week's topic is ${topic}. Get some rest, your seat is waiting.` : 'Get some rest, your seat is waiting.' }
+            : { title: 'Good morning! Church today 🙏', body: `FOF class starts at ${time}. See you soon.` }
+          await pushParticipants([...participantIds], { ...message, path: '/me', tag: `SUNDAY_NUDGE:${week.id}:${nudge.key}` })
+        }
+
+        // b) Group call reminders at each participant's chosen timings.
+        const intervals = [...new Set([...participantIds].flatMap(meetingMinutesFor))]
+        for (const interval of intervals) {
+          const target = resolveTarget(pNowMinutes, interval, pToday)
+          if (endIso && target.isoDate > endIso) continue
+          for (const group of groups) {
+            if (!group.meetingDay || !group.meetingTime) continue
+            if (String(group.meetingDay).toUpperCase() !== DAY_NAMES_UPPER[target.dayIndex]) continue
+            const t = parseTime(group.meetingTime)
+            if (t === null || Math.abs(t - target.targetMinutes) > WINDOW) continue
+            const members = ((group.members ?? []) as any[]).map((m) => m.participantId).filter((id: string) => participantIds.has(id) && meetingMinutesFor(id).includes(interval))
+            const away = interval === 1440 ? 'tomorrow' : interval >= 60 ? `in ${Math.round(interval / 60)} hour${interval === 60 ? '' : 's'}` : `in ${interval} minutes`
+            await pushParticipants(members, {
+              title: `🙏 Your group call is ${away}`,
+              body: `${group.name} meets ${interval === 1440 ? 'tomorrow' : 'today'} at ${group.meetingTime}.`,
+              path: '/me/group',
+              tag: `GROUP_MEETING:${group.id}:${interval}:${target.isoDate}`,
+            })
+          }
+        }
+
+        // c) "Recap is out": within a day of the release (by the support, or automatic).
+        const sharedWeeks = weeks.filter((w) => w.shareWithParticipants !== false && (String(w.recapSummary || '').trim() || w.recapDocumentUrl))
+        if (sharedWeeks.length > 0) {
+          const { data: releases } = await supabase.from('RecapRelease').select('groupId, weekId, releasedAt').in('weekId', sharedWeeks.map((w) => w.id))
+          const releasedAt = new Map(((releases ?? []) as any[]).map((r) => [`${r.groupId}:${r.weekId}`, new Date(r.releasedAt).getTime()]))
+          const nowMs = clock.getTime()
+          for (const week of sharedWeeks) {
+            for (const group of groups) {
+              const at = releasedAt.get(`${group.id}:${week.id}`) ?? autoReleaseAt(startIso, week.weekNumber, group.meetingDay, group.meetingTime)
+              if (at > nowMs || nowMs - at > 86400000) continue
+              const members = ((group.members ?? []) as any[]).map((m) => m.participantId)
+                .filter((id: string) => participantIds.has(id) && settingBy.get(id)?.recapReleased !== false)
+              await pushParticipants(members, {
+                title: `Week ${week.weekNumber} recap is out`,
+                body: `${week.title ? `${String(week.title).trim()}. ` : ''}Read it and write this week's reflection.`,
+                path: `/me/week/${week.weekNumber}`,
+                tag: `RECAP:${week.id}`,
+              })
+            }
+          }
         }
       }
     }

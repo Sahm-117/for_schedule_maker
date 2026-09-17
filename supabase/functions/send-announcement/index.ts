@@ -22,7 +22,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore
 import webPush from 'https://esm.sh/web-push@3'
-import { sendToSubscriptions } from '../_shared/webpush.ts'
+import { PARTICIPANT_PUSH_STORE, sendToSubscriptions } from '../_shared/webpush.ts'
 import { insertNotifications } from '../_shared/notifications.ts'
 
 const corsHeaders = {
@@ -55,13 +55,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null } = await req.json() as {
+    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, audience = 'SUPPORTS' } = await req.json() as {
       subject: string
       body: string
       sentBy?: string
       scope?: 'ACTIVE_COHORT' | 'ALL_USERS'
       cohortId?: string | null
       targetLabelId?: string | null
+      // SUPPORTS (default), PARTICIPANTS (participant app only) or EVERYONE.
+      audience?: 'SUPPORTS' | 'PARTICIPANTS' | 'EVERYONE'
     }
 
     if (!subject || !body) {
@@ -81,12 +83,49 @@ Deno.serve(async (req) => {
     // 1. Record the announcement
     const { data: announcement, error: insertError } = await supabase
       .from('Announcement')
-      .insert([{ subject, body, sentBy: sentBy || null, scope, cohortId, targetLabelId }])
+      .insert([{ subject, body, sentBy: sentBy || null, scope, cohortId, targetLabelId: audience === 'PARTICIPANTS' ? null : targetLabelId, audience }])
       .select('id')
       .single()
 
     if (insertError || !announcement) {
       throw new Error(insertError?.message || 'Failed to insert announcement')
+    }
+
+    // 1b. Participants: push to their devices (they have no in-app feed; the
+    //     announcement shows on their Home when pinned there).
+    let participantSent = 0
+    if (audience === 'PARTICIPANTS' || audience === 'EVERYONE') {
+      let participantQuery = supabase
+        .from('ParticipantAccount')
+        .select('participantId, participant:Participant!inner(cohortId, status)')
+        .eq('isActive', true)
+        .eq('participant.status', 'ACTIVE')
+      if (scope === 'ACTIVE_COHORT' && cohortId) participantQuery = participantQuery.eq('participant.cohortId', cohortId)
+      const { data: accounts } = await participantQuery
+      const participantIds = ((accounts ?? []) as any[]).map((row) => row.participantId)
+      if (participantIds.length > 0) {
+        const { data: participantSubs } = await supabase
+          .from('ParticipantPushSubscription')
+          .select('participantId, endpoint, p256dh, auth')
+          .in('participantId', participantIds)
+        const rows = ((participantSubs ?? []) as any[]).map((row) => ({ userId: row.participantId, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth }))
+        if (rows.length > 0) {
+          const result = await sendToSubscriptions(webPush, supabase, rows, JSON.stringify({
+            title: `📢 ${subject}`,
+            body,
+            icon: '/icon-192.png',
+            tag: `fof-announcement-${announcement.id}`,
+            data: { path: '/me' },
+          }), undefined, PARTICIPANT_PUSH_STORE)
+          participantSent = result.sent
+          if (result.failed > 0) console.error(`send-announcement (participants): ${result.sent} sent, ${result.failed} failed, ${result.removed} removed`, JSON.stringify(result.errors))
+        }
+      }
+    }
+    if (audience === 'PARTICIPANTS') {
+      return new Response(JSON.stringify({ ok: true, sent: participantSent, announcementId: announcement.id }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     // 2. Resolve final recipients from scope, optional tag, and active users.

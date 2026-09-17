@@ -11,7 +11,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { faithProjectsApi, groupOnboardingStatusApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, coverRequestsApi } from '../services/api';
+import { faithProjectsApi, groupOnboardingStatusApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, coverRequestsApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
 import type { FaithProject, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, CoverRequest } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
@@ -46,6 +46,8 @@ const SupportParticipantsPage: React.FC = () => {
   const [threadReads, setThreadReads] = useState<Map<string, string>>(new Map());
   const [participantHandovers, setParticipantHandovers] = useState<ParticipantHandover[]>([]);
   const [flags, setFlags] = useState<ParticipantFlag[]>([]);
+  const [reflectionActivity, setReflectionActivity] = useState<import('../types').ReflectionActivity[]>([]);
+  const [checkIns, setCheckIns] = useState<import('../types').ParticipantCheckIn[]>([]);
   const [covers, setCovers] = useState<CoverRequest[]>([]);
   const [noteParticipant, setNoteParticipant] = useState<Participant | null>(null);
   const [noteBody, setNoteBody] = useState('');
@@ -140,13 +142,18 @@ const SupportParticipantsPage: React.FC = () => {
       const coveredParticipants = coveredParticipantLists.flat();
 
       const participantIds = participantsRes.participants.map((participant) => participant.id);
-      const [notesRes, handoversRes, flagsRes, readsRes] = await Promise.all([
+      const allParticipantIds = [...participantIds, ...coveredParticipants.map((participant) => participant.id)];
+      const [notesRes, handoversRes, flagsRes, readsRes, activityRes, checkInsRes] = await Promise.all([
         participantNotesApi.getForParticipants(participantIds).catch(() => ({ notes: [] as ParticipantNote[] })),
         participantHandoversApi.getForParticipants(participantIds).catch(() => ({ handovers: [] as ParticipantHandover[] })),
         participantFlagsApi.getOpenForParticipants(participantIds).catch(() => ({ flags: [] as ParticipantFlag[] })),
         faithThreadReadsApi.getForUser(user.id).catch(() => ({ reads: new Map<string, string>() })),
+        reflectionActivityApi.getForCohort(activeCohort.id).catch(() => ({ activity: [] as import('../types').ReflectionActivity[] })),
+        participantCheckInsApi.getForParticipants(allParticipantIds).catch(() => ({ checkIns: [] as import('../types').ParticipantCheckIn[] })),
       ]);
       setThreadReads(readsRes.reads);
+      setReflectionActivity(activityRes.activity);
+      setCheckIns(checkInsRes.checkIns);
 
       setParticipants(sortByText([...participantsRes.participants, ...coveredParticipants], (participant) => participant.fullName));
       setCovers(activeCovers);
@@ -438,6 +445,9 @@ const SupportParticipantsPage: React.FC = () => {
                   void faithThreadReadsApi.markRead(user.id, participantId, trail).catch(() => undefined);
                 }}
                 openFlag={flags.find((flag) => flag.participantId === participant.id) ?? null}
+                reflectedAt={reflectionActivity.find((entry) => entry.participantId === participant.id && entry.weekId === selectedWeek?.id)?.createdAt ?? null}
+                helpRequest={checkIns.find((entry) => entry.participantId === participant.id && entry.response === 'NEED_HELP' && !entry.handledAt) ?? null}
+                onHelpHandled={(checkIn) => setCheckIns((prev) => prev.map((entry) => (entry.id === checkIn.id ? checkIn : entry)))}
                 onFlagRaised={(flag) => setFlags((prev) => [flag, ...prev.filter((entry) => entry.participantId !== flag.participantId)])}
                 onFlagCleared={(flagId) => setFlags((prev) => prev.filter((entry) => entry.id !== flagId))}
               />

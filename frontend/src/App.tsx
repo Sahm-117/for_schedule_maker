@@ -7,13 +7,25 @@ import AppShell from './components/AppShell';
 import { AppDataProvider } from './context/AppDataContext';
 import { ToastProvider } from './components/Toast';
 import Login from './pages/Login';
-import Signup from './pages/Signup';
 import RootRedirect from './pages/RootRedirect';
 
 // Lazy-loaded pages — each becomes its own chunk, so the initial load only
 // ships the shell + the route the user actually lands on.
 const SopDownload = lazy(() => import('./pages/SopDownload'));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
+const AdminScripturesPage = lazy(() => import('./pages/AdminScripturesPage'));
+const ParticipantHomePage = lazy(() => import('./pages/ParticipantHomePage'));
+const ParticipantWelcomePage = lazy(() => import('./pages/ParticipantWelcomePage'));
+const ParticipantWeekPage = lazy(() => import('./pages/ParticipantWeekPage'));
+const ParticipantJourneyPage = lazy(() => import('./pages/ParticipantJourneyPage'));
+const ParticipantShell = lazy(() => import('./components/participantApp/ParticipantShell'));
+const ParticipantGroupPage = lazy(() => import('./pages/ParticipantGroupPage'));
+const ParticipantFaithPage = lazy(() => import('./pages/ParticipantFaithPage'));
+const ParticipantResourcesPage = lazy(() => import('./pages/ParticipantResourcesPage'));
+const ParticipantProfilePage = lazy(() => import('./pages/ParticipantProfilePage'));
+const ParticipantFeedbackPage = lazy(() => import('./pages/ParticipantFeedbackPage'));
+const ParticipantCompletePage = lazy(() => import('./pages/ParticipantCompletePage'));
+const AdminFeedbackPage = lazy(() => import('./pages/AdminFeedbackPage'));
 const AdminSchedulePage = lazy(() => import('./pages/AdminSchedulePage'));
 const AdminApprovalsPage = lazy(() => import('./pages/AdminApprovalsPage'));
 const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage'));
@@ -58,7 +70,21 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+          {/* Support self sign-up is paused; accounts are created by admins. */}
+          <Route path="/signup" element={<Navigate to="/login" replace />} />
+          {/* Participant app: its own screens, never the staff shell. */}
+          <Route element={<ErrorBoundary><ProtectedRoute audience="participant"><Suspense fallback={<RouteFallback />}><ParticipantShell /></Suspense></ProtectedRoute></ErrorBoundary>}>
+            <Route path="/me" element={<Suspense fallback={<RouteFallback />}><ParticipantHomePage /></Suspense>} />
+            <Route path="/me/week/:weekNumber" element={<Suspense fallback={<RouteFallback />}><ParticipantWeekPage /></Suspense>} />
+            <Route path="/me/journey" element={<Suspense fallback={<RouteFallback />}><ParticipantJourneyPage /></Suspense>} />
+            <Route path="/me/group" element={<Suspense fallback={<RouteFallback />}><ParticipantGroupPage /></Suspense>} />
+            <Route path="/me/faith" element={<Suspense fallback={<RouteFallback />}><ParticipantFaithPage /></Suspense>} />
+            <Route path="/me/resources" element={<Suspense fallback={<RouteFallback />}><ParticipantResourcesPage /></Suspense>} />
+            <Route path="/me/profile" element={<Suspense fallback={<RouteFallback />}><ParticipantProfilePage /></Suspense>} />
+            <Route path="/me/feedback" element={<Suspense fallback={<RouteFallback />}><ParticipantFeedbackPage /></Suspense>} />
+            <Route path="/me/complete" element={<Suspense fallback={<RouteFallback />}><ParticipantCompletePage /></Suspense>} />
+          </Route>
+          <Route path="/me/welcome" element={<ErrorBoundary><ProtectedRoute audience="participant"><Suspense fallback={<RouteFallback />}><ParticipantWelcomePage /></Suspense></ProtectedRoute></ErrorBoundary>} />
           <Route
             element={
               <ErrorBoundary>
@@ -80,6 +106,7 @@ function App() {
             <Route path="/announcements" element={<Suspense fallback={<RouteFallback />}><AdminAnnouncementsPage /></Suspense>} />
             <Route path="/team-announcements" element={<Suspense fallback={<RouteFallback />}><AnnouncementsFeedPage /></Suspense>} />
             <Route path="/resources" element={<Suspense fallback={<RouteFallback />}><AdminResourcesPage /></Suspense>} />
+            <Route path="/scriptures" element={<Suspense fallback={<RouteFallback />}><AdminScripturesPage /></Suspense>} />
             <Route path="/settings" element={<Suspense fallback={<RouteFallback />}><AdminSettingsPage /></Suspense>} />
             <Route path="/activity-overview" element={<Suspense fallback={<RouteFallback />}><ActivityOverviewPage /></Suspense>} />
             <Route path="/cohorts" element={<Suspense fallback={<RouteFallback />}><CohortsPage /></Suspense>} />
@@ -94,6 +121,7 @@ function App() {
             <Route path="/faith-projects" element={<Suspense fallback={<RouteFallback />}><AdminFaithProjectsPage /></Suspense>} />
             <Route path="/group-prayers" element={<Suspense fallback={<RouteFallback />}><AdminGroupPrayersPage /></Suspense>} />
             <Route path="/onboarding" element={<Suspense fallback={<RouteFallback />}><AdminOnboardingPage /></Suspense>} />
+            <Route path="/feedback" element={<Suspense fallback={<RouteFallback />}><AdminFeedbackPage /></Suspense>} />
             <Route path="/support/onboarding" element={<Suspense fallback={<RouteFallback />}><SupportOnboardingPage /></Suspense>} />
             <Route path="/support/follow-ups" element={<Navigate to="/support/mobilisation?tab=follow" replace />} />
             <Route path="/support/mobilisation" element={<Suspense fallback={<RouteFallback />}><SupportMobilisationPage /></Suspense>} />

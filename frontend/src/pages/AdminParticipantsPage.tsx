@@ -27,6 +27,7 @@ import { reconcileById } from '../utils/reconcile';
 import { normalizeToIntlPhone } from '../utils/phone';
 import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
 import { departmentOptions, useChurchDepartments } from '../hooks/useChurchDepartments';
+import LoginDetailsCard from '../components/participants/LoginDetailsCard';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -743,6 +744,8 @@ const AdminParticipantsPage: React.FC = () => {
   const [groupFilter, setGroupFilter] = useState(''); // '' = all, '__UNASSIGNED__' = no group, else groupId
   const [supportFilter, setSupportFilter] = useState(''); // '' = all, else supportId
   const [addOpen, setAddOpen] = useState(false);
+  // A participant just added here: show their login details straight away.
+  const [loginFor, setLoginFor] = useState<Participant | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Participant | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Participant | null>(null);
@@ -1108,6 +1111,7 @@ const AdminParticipantsPage: React.FC = () => {
         isOpen={addOpen}
         onClose={() => { setAddOpen(false); setEditing(null); }}
         onSaved={(p) => {
+          if (!editing) setLoginFor(p);
           setParticipants((prev) => {
             const idx = prev.findIndex((x) => x.id === p.id);
             const next = idx >= 0 ? prev.map((x) => x.id === p.id ? p : x) : [...prev, p];
@@ -1117,6 +1121,15 @@ const AdminParticipantsPage: React.FC = () => {
         cohortId={activeCohort?.id ?? ''}
         existing={editing}
       />
+
+      <ModalShell
+        isOpen={!!loginFor}
+        onClose={() => setLoginFor(null)}
+        title="Login details"
+        subtitle={loginFor ? `${loginFor.fullName} was added. Send them their login for the app.` : undefined}
+      >
+        {loginFor && <LoginDetailsCard participantId={loginFor.id} defaultOpen />}
+      </ModalShell>
 
       <ImportModal
         isOpen={importOpen}

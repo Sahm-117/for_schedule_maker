@@ -4,9 +4,11 @@ import { useAuth } from '../hooks/useAuth';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  /** Staff pages send participants to their app, and the participant app sends staff home. */
+  audience?: 'staff' | 'participant';
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, audience = 'staff' }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -22,6 +24,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  const isParticipant = user.role === 'PARTICIPANT';
+  if (audience === 'staff' && isParticipant) {
+    return <Navigate to="/me" replace />;
+  }
+  if (audience === 'participant' && !isParticipant) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

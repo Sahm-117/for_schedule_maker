@@ -45,6 +45,17 @@ import {
   recapDocumentsApi as supabaseRecapDocumentsApi,
   onboardingEventsApi as supabaseOnboardingEventsApi,
   hubApi as supabaseHubApi,
+  participantAccountsApi as supabaseParticipantAccountsApi,
+  participantAppApi as supabaseParticipantAppApi,
+  participantPushApi as supabaseParticipantPushApi,
+  feedbackApi as supabaseFeedbackApi,
+  aiApi as supabaseAiApi,
+  reflectionActivityApi as supabaseReflectionActivityApi,
+  recapReleasesApi as supabaseRecapReleasesApi,
+  participantCheckInsApi as supabaseParticipantCheckInsApi,
+  scripturesApi as supabaseScripturesApi,
+  getSessionToken as supabaseGetSessionToken,
+  SESSION_TOKEN_KEY,
   setAuthToken as supabaseSetAuthToken,
   clearAuthToken as supabaseClearAuthToken,
 } from './supabase-api';
@@ -126,6 +137,8 @@ export const authApi = USE_SUPABASE ? supabaseAuthApi : {
     const response = await api.post('/auth/refresh', { refreshToken });
     return response.data;
   },
+
+  async signOut(_sessionToken: string): Promise<void> { return; },
 };
 
 // Weeks API
@@ -143,7 +156,7 @@ export const weeksApi = USE_SUPABASE ? supabaseWeeksApi : {
     };
   },
 
-  async update(_weekId: number, _input: { title?: string | null }): Promise<{ week: Week }> {
+  async update(_weekId: number, _input: { title?: string | null; shareWithParticipants?: boolean; expectations?: string | null }): Promise<{ week: Week }> {
     throw new Error('Weeks are only editable in Supabase mode.');
   },
 };
@@ -484,6 +497,7 @@ export const resourcesApi = USE_SUPABASE ? supabaseResourcesApi : {
   async addLink(_input: any): Promise<any> { return {}; },
   async uploadFile(_input: any): Promise<any> { return {}; },
   async delete(_id: string): Promise<void> {},
+  async setVisibleToParticipants(_id: string, _visible: boolean): Promise<void> {},
   async getNewCount(_since?: string): Promise<number> { return 0; },
 };
 
@@ -645,5 +659,67 @@ export const hubApi = USE_SUPABASE ? supabaseHubApi : {
   async updateComment(_commentId: string, _body: string): Promise<never> { return peopleUnavailable(); },
   async updateReply(_replyId: string, _body: string): Promise<never> { return peopleUnavailable(); },
 };
+
+export const participantAccountsApi = USE_SUPABASE ? supabaseParticipantAccountsApi : {
+  async getLoginDetails(_target: { participantId?: string | null; followUpContactId?: string | null }, _options?: { issue?: boolean; newCode?: boolean }): Promise<never> { return peopleUnavailable(); },
+  async setOwnPassword(_newPassword: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
+  async getHome(): Promise<never> { return peopleUnavailable(); },
+  async saveReflection(_weekId: number, _input: { stoodOut: string; goal: string; goalCheck: string }): Promise<never> { return peopleUnavailable(); },
+  async setGoalDone(_weekId: number, _done: boolean): Promise<never> { return peopleUnavailable(); },
+  async recordCheckIn(_response: import('../types').CheckInResponse, _misses: { sunday: number; meeting: number }, _participantName: string): Promise<never> { return peopleUnavailable(); },
+  async getFaith(): Promise<never> { return peopleUnavailable(); },
+  async saveFaithProject(_body: string, _submit: boolean, _participantName: string): Promise<never> { return peopleUnavailable(); },
+  async saveReminders(_minutes: number[], _recapReleased: boolean): Promise<never> { return peopleUnavailable(); },
+  async savePushSubscription(_subscription: PushSubscriptionJSON): Promise<never> { return peopleUnavailable(); },
+  async uploadAvatar(_participantId: string, _file: File): Promise<never> { return peopleUnavailable(); },
+  async changePassword(_current: string, _next: string): Promise<never> { return peopleUnavailable(); },
+  async submitFeedback(_round: import('../types').FeedbackRound, _answers: import('../types').FeedbackAnswers): Promise<never> { return peopleUnavailable(); },
+  async submitWrapUp(_input: { department: string; wantsReferral: boolean; note: string }, _participantName: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const feedbackApi = USE_SUPABASE ? supabaseFeedbackApi : {
+  async getResults(_cohortId: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const participantPushApi = USE_SUPABASE ? supabaseParticipantPushApi : {
+  async notify(_participantIds: string[], _title: string, _body: string, _path: string): Promise<void> { return; },
+};
+
+export const reflectionActivityApi = USE_SUPABASE ? supabaseReflectionActivityApi : {
+  async getForCohort(_cohortId: string): Promise<{ activity: import('../types').ReflectionActivity[] }> { return { activity: [] }; },
+};
+
+export const recapReleasesApi = USE_SUPABASE ? supabaseRecapReleasesApi : {
+  async get(_groupId: string, _weekId: number): Promise<{ release: import('../types').RecapRelease | null }> { return { release: null }; },
+  async release(_groupId: string, _weekId: number, _userId: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const participantCheckInsApi = USE_SUPABASE ? supabaseParticipantCheckInsApi : {
+  async getForParticipants(_participantIds: string[]): Promise<{ checkIns: import('../types').ParticipantCheckIn[] }> { return { checkIns: [] }; },
+  async markHandled(_id: string, _userId: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const scripturesApi = USE_SUPABASE ? supabaseScripturesApi : {
+  async getAll(): Promise<{ scriptures: import('../types').Scripture[] }> { return { scriptures: [] }; },
+  async upload(_dayNumber: number, _image: Blob, _userId: string): Promise<never> { return peopleUnavailable(); },
+  async remove(_scripture: import('../types').Scripture): Promise<void> { return; },
+};
+
+export const aiApi = USE_SUPABASE ? supabaseAiApi : {
+  async getSummaryState(): Promise<never> { return peopleUnavailable(); },
+  async setOptIn(_optIn: boolean): Promise<never> { return peopleUnavailable(); },
+  async generateSummary(): Promise<never> { return peopleUnavailable(); },
+  async draftRecap(_weekTitle: string, _notes: string): Promise<never> { return peopleUnavailable(); },
+  async summariseFeedback(_cohortId: string, _round: import('../types').FeedbackRound): Promise<never> { return peopleUnavailable(); },
+  async getFeedbackThemes(_cohortId: string): Promise<never> { return peopleUnavailable(); },
+  async getSettings(): Promise<never> { return peopleUnavailable(); },
+  async saveSettings(_settings: import('../types').AiSettings): Promise<never> { return peopleUnavailable(); },
+};
+
+export { SESSION_TOKEN_KEY };
+export const getSessionToken = USE_SUPABASE ? supabaseGetSessionToken : () => '';
 
 export default api;

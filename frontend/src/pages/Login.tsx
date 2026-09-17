@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import PWAUpdateBanner from '../components/PWAUpdateBanner';
 
 const isValidNigerianPhone = (value: string) => /^0[7-9][0-1]\d{8}$/.test(value);
@@ -56,7 +56,7 @@ const Login: React.FC = () => {
     try {
       await login(trimmed.toLowerCase(), password);
       const cachedUser = JSON.parse(localStorage.getItem('user') || 'null');
-      navigate(cachedUser?.role === 'SUPPORT' ? '/support' : '/dashboard');
+      navigate(cachedUser?.role === 'SUPPORT' ? '/support' : cachedUser?.role === 'PARTICIPANT' ? '/me' : '/dashboard');
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || 'Login failed';
 
@@ -245,13 +245,6 @@ const Login: React.FC = () => {
                   )}
                 </button>
               </form>
-
-              <p className="mt-7 text-center text-[13px] text-gray-500">
-                Support staff?{' '}
-                <Link to="/signup" className="font-semibold text-[#c2410c] hover:underline">
-                  Create an account
-                </Link>
-              </p>
             </div>
 
             <p className="mt-6 text-center text-xs text-gray-400 lg:hidden">The Covenant Nation · Ikorodu</p>

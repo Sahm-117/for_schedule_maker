@@ -20,6 +20,7 @@ export const ADMIN_SECTIONS: Array<{ root: string; tabs: SectionTab[] }> = [
       { to: '/attendance', label: 'Attendance' },
       { to: '/faith-projects', label: 'Faith projects' },
       { to: '/onboarding', label: 'Onboarding' },
+      { to: '/feedback', label: 'Feedback', adminOnly: true },
     ],
   },
   {
@@ -37,6 +38,13 @@ export const ADMIN_SECTIONS: Array<{ root: string; tabs: SectionTab[] }> = [
       { to: '/approvals', label: 'Approvals', adminOnly: true, badge: 'pendingApprovals' },
       { to: '/rota', label: 'Rota', adminOnly: true },
       { to: '/activity-overview', label: 'Activity overview', adminOnly: true },
+    ],
+  },
+  {
+    root: '/resources',
+    tabs: [
+      { to: '/resources', label: 'Resources' },
+      { to: '/scriptures', label: 'Scriptures', adminOnly: true },
     ],
   },
 ];

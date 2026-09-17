@@ -26,6 +26,7 @@ import {
 } from '../utils/followUps';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
 import { compareText, sortByText } from '../utils/sort';
+import LoginDetailsCard from '../components/participants/LoginDetailsCard';
 
 type MobTab = 'register' | 'follow';
 
@@ -382,6 +383,7 @@ const SupportMobilisationPage: React.FC = () => {
                           <span className="ml-auto rounded-full bg-[#fff8f3] px-2.5 py-0.5 text-[11px] font-bold text-[#c2410c]">{statusLabel}</span>
                         </div>
                         <p className="mt-1 text-xs text-gray-500">{contact.phone}</p>
+                        {contact.registrationStatus === 'REGISTERED' && <LoginDetailsCard followUpContactId={contact.id} className="mt-2.5" />}
                       </div>
                     );
                   })}
@@ -485,6 +487,7 @@ const SupportMobilisationPage: React.FC = () => {
                       placeholder="Choose status"
                     />
                   </div>
+                  {status === 'REGISTERED' && <LoginDetailsCard followUpContactId={contact.id} className="mt-3" />}
                 </section>
               );
             })}

@@ -6,7 +6,7 @@ import PageHeader from '../components/PageHeader';
 import NextCohortAssignModal from '../components/followups/NextCohortAssignModal';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi } from '../services/api';
+import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, aiApi } from '../services/api';
 import type { Cohort, FollowUpContact, User, Week } from '../types';
 import { sortByText } from '../utils/sort';
 
@@ -94,6 +94,13 @@ const CohortsPage: React.FC = () => {
   const [addWeekChoice, setAddWeekChoice] = useState('blank');
   const [weekTitleDraft, setWeekTitleDraft] = useState('');
   const [recapSummaryDraft, setRecapSummaryDraft] = useState('');
+  const [shareWithParticipantsDraft, setShareWithParticipantsDraft] = useState(true);
+  const [expectationsDraft, setExpectationsDraft] = useState('');
+  // "Draft with AI": admins paste the class notes and get a recap summary and prompt to edit.
+  const [aiNotesOpen, setAiNotesOpen] = useState(false);
+  const [aiNotes, setAiNotes] = useState('');
+  const [aiDrafting, setAiDrafting] = useState(false);
+  const [aiError, setAiError] = useState('');
   const [discussionPromptDraft, setDiscussionPromptDraft] = useState('');
   const [recapDocUploading, setRecapDocUploading] = useState(false);
   const [recapDocError, setRecapDocError] = useState('');
@@ -359,6 +366,11 @@ const CohortsPage: React.FC = () => {
     setWeekTitleDraft(week.title || '');
     setRecapSummaryDraft(week.recapSummary || '');
     setDiscussionPromptDraft(week.discussionPrompt || '');
+    setShareWithParticipantsDraft(week.shareWithParticipants !== false);
+    setExpectationsDraft(week.expectations || '');
+    setAiNotesOpen(false);
+    setAiNotes('');
+    setAiError('');
     setStatus('');
   };
 
@@ -428,6 +440,23 @@ const CohortsPage: React.FC = () => {
     }
   };
 
+  const handleAiDraft = async () => {
+    if (!weekEditTarget) return;
+    setAiDrafting(true);
+    setAiError('');
+    try {
+      const draft = await aiApi.draftRecap(weekTitleDraft.trim() || weekEditTarget.week.title || '', aiNotes);
+      setRecapSummaryDraft(draft.summary);
+      if (draft.prompt) setDiscussionPromptDraft(draft.prompt);
+      setAiNotesOpen(false);
+      setAiNotes('');
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : 'AI help is not available right now.');
+    } finally {
+      setAiDrafting(false);
+    }
+  };
+
   const handleSaveWeekTitle = async () => {
     if (!weekEditTarget) return;
     setWeekActionPending(true);
@@ -437,6 +466,8 @@ const CohortsPage: React.FC = () => {
         title: weekTitleDraft.trim() || null,
         recapSummary: recapSummaryDraft.trim() || null,
         discussionPrompt: discussionPromptDraft.trim() || null,
+        shareWithParticipants: shareWithParticipantsDraft,
+        expectations: expectationsDraft.split('\n').map((line) => line.trim()).filter(Boolean).join('\n') || null,
       });
       await syncCohortWeeks(weekEditTarget.cohortId);
       if (activeCohort?.id === weekEditTarget.cohortId) {
@@ -1117,7 +1148,30 @@ const CohortsPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Recap summary (optional)</label>
+            <div className="mb-1.5 flex items-center gap-3">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500">Recap summary (optional)</label>
+              <button type="button" onClick={() => setAiNotesOpen((open) => !open)} className="ml-auto text-xs font-semibold text-primary">
+                {aiNotesOpen ? 'Close' : 'Draft with AI'}
+              </button>
+            </div>
+            {aiNotesOpen && (
+              <div className="mb-3 rounded-2xl border border-orange-100 bg-orange-50/40 p-3">
+                <textarea
+                  value={aiNotes}
+                  onChange={(event) => { setAiNotes(event.target.value); setAiError(''); }}
+                  placeholder="Paste the class notes or manual text. The AI writes a short recap summary and a discussion prompt for you to check and edit."
+                  rows={5}
+                  className="w-full resize-y rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none"
+                />
+                {aiError && <p className="mt-1.5 text-xs text-red-700">{aiError}</p>}
+                <div className="mt-2 flex items-center gap-3">
+                  <p className="text-[11px] text-gray-500">Sent to a free AI service (OpenRouter). Check the result before saving.</p>
+                  <button type="button" onClick={() => { void handleAiDraft(); }} disabled={aiDrafting || aiNotes.trim().length < 40} className="ml-auto flex-none rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">
+                    {aiDrafting ? 'Drafting…' : 'Draft summary and prompt'}
+                  </button>
+                </div>
+              </div>
+            )}
             <textarea
               value={recapSummaryDraft}
               onChange={(event) => setRecapSummaryDraft(event.target.value)}
@@ -1136,6 +1190,35 @@ const CohortsPage: React.FC = () => {
               rows={2}
               className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
             />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">What&apos;s expected this week (optional)</label>
+            <textarea
+              value={expectationsDraft}
+              onChange={(event) => setExpectationsDraft(event.target.value)}
+              placeholder={'Bring your Bible and a journal\nBe ready to share one takeaway with your group'}
+              rows={3}
+              className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
+            />
+            <p className="mt-1.5 text-xs text-gray-500">One item per line. Shows on the participant Home under “This week”.</p>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-orange-100 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900">Share recap with participants</p>
+              <p className="mt-0.5 text-xs text-gray-500">Each support releases it to their group after the meeting. If they don&apos;t, it releases 1 hour after the meeting.</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={shareWithParticipantsDraft}
+              aria-label="Share recap with participants"
+              onClick={() => setShareWithParticipantsDraft((prev) => !prev)}
+              className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition ${shareWithParticipantsDraft ? 'bg-primary' : 'bg-slate-200'}`}
+            >
+              <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${shareWithParticipantsDraft ? 'translate-x-7' : 'translate-x-1'}`} />
+            </button>
           </div>
 
           <div className="flex justify-end gap-2">

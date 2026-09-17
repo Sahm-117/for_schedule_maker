@@ -39,6 +39,8 @@ const endpointTail = (endpoint: string) => endpoint.slice(-12)
  * Send one payload to many subscriptions reliably.
  * @param notifiedUserIds optional array that receives the userId of each
  *        successful delivery (some callers track who was reached).
+ * @param store which subscription table the rows came from, so expired ones are
+ *        removed from the right place (defaults to staff PushSubscription).
  */
 export async function sendToSubscriptions(
   webPush: WebPush,
@@ -46,6 +48,8 @@ export async function sendToSubscriptions(
   subs: PushSubRow[],
   payload: string,
   notifiedUserIds?: string[],
+  // Participant devices live in their own table; `userId` then holds the participantId.
+  store: { table: string; ownerColumn: string } = { table: 'PushSubscription', ownerColumn: 'userId' },
 ): Promise<DeliverySummary> {
   const summary: DeliverySummary = { sent: 0, failed: 0, removed: 0, errors: [] }
   const maxAttempts = 3
@@ -68,9 +72,9 @@ export async function sendToSubscriptions(
 
         if (status === 404 || status === 410) {
           await supabase
-            .from('PushSubscription')
+            .from(store.table)
             .delete()
-            .eq('userId', sub.userId)
+            .eq(store.ownerColumn, sub.userId)
             .eq('endpoint', sub.endpoint)
           summary.removed++
           break
@@ -102,3 +106,5 @@ export async function sendToSubscriptions(
 
   return summary
 }
+
+export const PARTICIPANT_PUSH_STORE = { table: 'ParticipantPushSubscription', ownerColumn: 'participantId' }

@@ -40,6 +40,8 @@ import type {
   ParticipantStageChange,
 } from '../types';
 import DepartmentHandoff from '../components/participants/DepartmentHandoff';
+import LoginDetailsCard from '../components/participants/LoginDetailsCard';
+import ParticipantAppActivity from '../components/participants/ParticipantAppActivity';
 import { JOURNEY_STAGES, buildJourney } from '../utils/participantJourney';
 import {
   COMPLETION_SCORE_ALL_MEETINGS,
@@ -238,7 +240,7 @@ const AdminParticipantProfilePage: React.FC = () => {
   const openFlags = data.flags.filter((f) => !f.clearedAt);
 
   const history = [
-    ...data.notes.map((n) => ({ id: `n-${n.id}`, at: n.createdAt, title: NOTE_LABEL[n.noteType] ?? 'Note', body: n.body, by: n.authorName })),
+    ...data.notes.map((n) => ({ id: `n-${n.id}`, at: n.createdAt, title: NOTE_LABEL[n.noteType] ?? 'Note', body: n.body, by: n.byParticipant ? 'Participant' : n.authorName })),
     ...data.handovers.map((h) => ({
       id: `h-${h.id}`,
       at: h.createdAt,
@@ -307,6 +309,14 @@ const AdminParticipantProfilePage: React.FC = () => {
         {participant.notes && (
           <p className="mt-4 whitespace-pre-wrap rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-700">{participant.notes}</p>
         )}
+      </section>
+
+      {/* Participant app */}
+      <section className={CARD}>
+        <h2 className="text-lg font-semibold text-gray-900">Participant app</h2>
+        <p className="mt-1 text-sm text-gray-500">Send {participant.fullName.split(' ')[0]} their login, and see what they have done in the app.</p>
+        <LoginDetailsCard participantId={participant.id} className="mt-4 max-w-xl" />
+        <ParticipantAppActivity participantId={participant.id} cohortId={participant.cohortId} weeks={weeks} />
       </section>
 
       {/* Journey */}

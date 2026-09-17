@@ -4,8 +4,8 @@ import PageHeader from '../components/PageHeader';
 import ActivityText from '../components/ActivityText';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, faithProjectsApi, groupsApi, participantsApi, resourcesApi, supportActivityCompletionsApi, supportChecklistApi } from '../services/api';
-import type { Announcement, FaithProject, Group, Participant, SupportActivityCompletion, SupportChecklistItem } from '../types';
+import { announcementsApi, faithProjectsApi, groupsApi, participantCheckInsApi, participantsApi, resourcesApi, supportActivityCompletionsApi, supportChecklistApi } from '../services/api';
+import type { Announcement, FaithProject, Group, Participant, ParticipantCheckIn, SupportActivityCompletion, SupportChecklistItem } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
 import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
@@ -51,6 +51,7 @@ const SupportHomePage: React.FC = () => {
   const [resourceCount, setResourceCount] = useState(0);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [faithProjects, setFaithProjects] = useState<FaithProject[]>([]);
+  const [helpRequests, setHelpRequests] = useState<ParticipantCheckIn[]>([]);
   const [myGroups, setMyGroups] = useState<Group[]>([]);
   const [tickNow, setTickNow] = useState(() => new Date());
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
@@ -94,6 +95,10 @@ const SupportHomePage: React.FC = () => {
     ])
       .then(([participantsRes, faithProjectsRes]) => {
         setParticipants(sortByText(participantsRes.participants, (participant) => participant.fullName));
+        // Unanswered "I need help" from the participant app.
+        participantCheckInsApi.getForParticipants(participantsRes.participants.map((participant) => participant.id))
+          .then(({ checkIns }) => setHelpRequests(checkIns.filter((checkIn) => checkIn.response === 'NEED_HELP' && !checkIn.handledAt)))
+          .catch(() => setHelpRequests([]));
         setFaithProjects(sortByText(faithProjectsRes.projects, (project) => project.title || project.participantName));
       })
       .catch(() => {
@@ -271,6 +276,22 @@ const SupportHomePage: React.FC = () => {
                   {homeAnnouncement.linkLabel || 'Open'}
                 </NavLink>
               ))}
+            </section>
+          )}
+
+          {helpRequests.length > 0 && (
+            <section className="rounded-[18px] bg-red-100/80 px-4 py-3.5">
+              <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-red-700">Asked for help</p>
+              <p className="mt-1.5 text-[15px] font-bold text-gray-900">
+                {helpRequests
+                  .map((request) => participants.find((participant) => participant.id === request.participantId)?.fullName)
+                  .filter(Boolean)
+                  .join(', ')}
+              </p>
+              <p className="mt-1 text-[13px] leading-relaxed text-gray-600">They answered &ldquo;I need help&rdquo; in the participant app. Please reach out today.</p>
+              <NavLink to="/support/participants" className="mt-3 inline-flex min-h-[38px] items-center rounded-[10px] bg-red-700 px-3.5 text-[13px] font-semibold text-white">
+                Open my group
+              </NavLink>
             </section>
           )}
 
