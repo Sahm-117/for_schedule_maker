@@ -46,6 +46,7 @@ const AdminAnnouncementsPage: React.FC = () => {
     <div>
       <PageHeader
         title="Announcements"
+        tourId="admin:announcements"
         subtitle="Send updates and urgent messages to support users."
         action={(
           <button
@@ -57,7 +58,9 @@ const AdminAnnouncementsPage: React.FC = () => {
           </button>
         )}
       />
-      <AnnouncementsModal isOpen onClose={() => {}} embedded showComposer={false} showHistory history={history} loadingHistory={loadingHistory} onSent={fetchHistory} />
+      <div data-wt="announcements-history">
+        <AnnouncementsModal isOpen onClose={() => {}} embedded showComposer={false} showHistory history={history} loadingHistory={loadingHistory} onSent={fetchHistory} />
+      </div>
       <AnnouncementsModal
         isOpen={showComposer}
         onClose={() => setShowComposer(false)}

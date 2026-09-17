@@ -18,8 +18,6 @@ import { usersApi } from '../services/api';
 import type { Label } from '../types';
 import NotificationSettings from '../components/NotificationSettings';
 import { useAuth } from '../hooks/useAuth';
-import { useWalkthrough } from '../hooks/useWalkthrough';
-import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
 import Avatar from '../components/Avatar';
 import { applyTheme, DEFAULT_THEME } from '../utils/theme';
 
@@ -35,7 +33,6 @@ const SupportProfilePage: React.FC = () => {
   const [savingWhatsapp, setSavingWhatsapp] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { liveRevision, activeCohort } = useAppData();
-  const wt = useWalkthrough('profile');
 
   if (user?.role !== 'SUPPORT') {
     return <Navigate to="/settings" replace />;
@@ -105,7 +102,7 @@ const SupportProfilePage: React.FC = () => {
       <PageHeader
         title="Profile"
         subtitle="Your details, activity tags, and how you want to receive reminders."
-        onHelp={wt.reopen}
+        tourId="support:profile"
       />
 
       <div className="mb-6 grid items-start gap-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
@@ -202,6 +199,7 @@ const SupportProfilePage: React.FC = () => {
         </section>
 
         <section className={CARD}>
+          <div data-wt="profile-theme">
           <h2 className="mb-1.5 text-lg font-bold text-gray-900">Accent colour</h2>
           <p className="text-[13px] text-gray-500">Your theme colour, applied across the app.</p>
           <div className="mt-4 flex flex-wrap gap-2.5">
@@ -236,6 +234,8 @@ const SupportProfilePage: React.FC = () => {
             </div>
           )}
 
+          </div>
+
           <h2 className="mb-1.5 mt-6 text-lg font-bold text-gray-900">Alerts</h2>
           <div data-wt="profile-notifications">
             <NotificationSettings isOpen onClose={() => {}} embedded />
@@ -243,16 +243,6 @@ const SupportProfilePage: React.FC = () => {
         </section>
       </div>
 
-      {wt.show && (
-        <WalkthroughPopup
-          steps={[
-            { targetSelector: '[data-wt="profile-groups"]', title: 'Your activity tags', body: 'These are the tags assigned to you. Your schedule and activities are filtered to these tags.', position: 'top' },
-            { targetSelector: '[data-wt="profile-notifications"]', title: 'Reminder alerts', body: 'Set up reminder alerts here so you never miss a follow-up.', position: 'top' },
-          ]}
-          onDone={wt.done}
-          onSkip={wt.skipAll}
-        />
-      )}
     </div>
   );
 };

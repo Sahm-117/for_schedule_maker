@@ -151,6 +151,7 @@ const AdminScripturesPage: React.FC = () => {
     <div>
       <PageHeader
         title="Scriptures"
+        tourId="admin:scriptures"
         subtitle="The daily Inspirational Scripture on the participant Home. Day 1 shows from 2:00 PM on the cohort's first day; after the last design the set starts again."
         action={(
           <button type="button" onClick={() => addInput.current?.click()} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
@@ -207,7 +208,7 @@ const AdminScripturesPage: React.FC = () => {
           <p className="mt-1 text-sm text-gray-500">Upload the daily designs to show them to participants.</p>
         </section>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+        <div data-wt="scriptures-grid" className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
           {scriptures.map((scripture) => (
             <div key={scripture.id} className="surface-card p-2">
               <img src={scripture.imageUrl} alt={`Scripture for day ${scripture.dayNumber}`} className="aspect-[4/5] w-full rounded-xl bg-gray-50 object-cover" loading="lazy" />

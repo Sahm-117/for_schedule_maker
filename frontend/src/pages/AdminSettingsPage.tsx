@@ -402,22 +402,23 @@ const AdminSettingsPage: React.FC = () => {
     <div>
       <PageHeader
         title="Settings"
+        tourId="admin:settings"
         subtitle="Notification timings, the support contact, programme rules, church departments and AI help."
       />
 
       <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <NotificationSettings isOpen onClose={() => {}} embedded />
+        <div data-wt="settings-notifications"><NotificationSettings isOpen onClose={() => {}} embedded /></div>
 
-        <SupportContactCard />
+        <div data-wt="settings-contact"><SupportContactCard /></div>
       </div>
 
       <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <ProgrammeRulesCard />
-        <ChurchDepartmentsCard />
+        <div data-wt="settings-rules"><ProgrammeRulesCard /></div>
+        <div data-wt="settings-departments"><ChurchDepartmentsCard /></div>
       </div>
 
       <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <AiSettingsCard />
+        <div data-wt="settings-ai"><AiSettingsCard /></div>
       </div>
     </div>
   );

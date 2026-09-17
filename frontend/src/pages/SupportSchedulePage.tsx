@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import ActivityText from '../components/ActivityText';
 import AppSelect from '../components/AppSelect';
+import TourHelpButton from '../components/tour/TourHelpButton';
 import SegmentedTabs from '../components/SegmentedTabs';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
@@ -9,10 +10,8 @@ import { coverRequestsApi, supportActivityCompletionsApi, supportChecklistApi } 
 import { PROGRAM_DAY_ORDER, getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { exportWeekToPDF } from '../utils/pdfExport';
 import type { CoverRequest, CoverRequestStatus, SupportActivityCompletion, SupportChecklistItem } from '../types';
-import { useWalkthrough } from '../hooks/useWalkthrough';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import AppDateTimePicker from '../components/AppDateTimePicker';
-import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
 
 type WeeklyTab = 'schedule' | 'checklist' | 'cover';
 type ViewMode = 'today' | 'tomorrow' | 'week';
@@ -71,7 +70,6 @@ const SupportSchedulePage: React.FC = () => {
   const [coverError, setCoverError] = useState('');
   const [coverSent, setCoverSent] = useState(false);
 
-  const wt = useWalkthrough('schedule');
 
   if (user?.role !== 'SUPPORT') {
     return <Navigate to="/schedule" replace />;
@@ -258,12 +256,15 @@ const SupportSchedulePage: React.FC = () => {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-xl font-bold text-gray-900">Your activities for the week...</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-bold text-gray-900">Your activities for the week...</h2>
+          <TourHelpButton tourId="support:schedule" />
+        </div>
         <p className="mt-0.5 text-sm text-gray-500">Foundation of Faith Programme{selectedWeek ? ` · Week ${selectedWeek.weekNumber}` : ''}</p>
       </div>
 
       <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-        <div className="min-w-0 sm:flex-1">
+        <div data-wt="schedule-tabs" className="min-w-0 sm:flex-1">
           <SegmentedTabs
             tabs={[
               { key: 'schedule', label: 'Schedule' },
@@ -275,7 +276,7 @@ const SupportSchedulePage: React.FC = () => {
           />
         </div>
         {weekOptions.length > 0 && (
-          <div className="w-full flex-none sm:w-44">
+          <div data-wt="schedule-week" className="w-full flex-none sm:w-44">
             <AppSelect
               value={selectedWeek ? String(selectedWeek.id) : ''}
               onChange={(value) => { void handleWeekSelect(Number(value)); }}
@@ -526,16 +527,6 @@ const SupportSchedulePage: React.FC = () => {
         </>
       )}
 
-      {wt.show && tab === 'schedule' && (
-        <WalkthroughPopup
-          steps={[
-            { targetSelector: '[data-wt="schedule-view-modes"]', title: 'View modes', body: 'Switch between today, tomorrow, or the whole week.', position: 'bottom' },
-            { targetSelector: '[data-wt="activity-mark-done"]', title: 'Mark activities done', body: 'Tap "Mark done" when you finish an activity. It saves instantly. Tap again to undo.', position: 'top' },
-          ]}
-          onDone={wt.done}
-          onSkip={wt.skipAll}
-        />
-      )}
     </div>
   );
 };

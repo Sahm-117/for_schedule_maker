@@ -26,10 +26,10 @@ const ParticipantJourneyPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="My Journey" subtitle="What you have written, and what you said you would do." />
+      <PageHeader title="My Journey" subtitle="What you have written, and what you said you would do." tourId="participant:journey" />
 
       <div className="flex flex-col gap-4">
-        <section className="rounded-3xl bg-[linear-gradient(150deg,#ff914d_0%,#f2703a_55%,#d95f2e_100%)] px-[22px] py-[26px] text-white shadow-[0_12px_30px_-16px_rgba(217,95,46,0.7)]">
+        <section data-wt="pj-summary" className="rounded-3xl bg-[linear-gradient(150deg,#ff914d_0%,#f2703a_55%,#d95f2e_100%)] px-[22px] py-[26px] text-white shadow-[0_12px_30px_-16px_rgba(217,95,46,0.7)]">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/80">Your journey so far</p>
           <div className="mt-2.5 flex flex-wrap items-end gap-2.5">
             <span className="text-[46px] font-extrabold leading-none tracking-[-0.03em]">{weeksIn}</span>
@@ -60,7 +60,7 @@ const ParticipantJourneyPage: React.FC = () => {
           </section>
         )}
 
-        <section className={`${CARD} px-5 pb-2 pt-5`}>
+        <section data-wt="pj-weeks" className={`${CARD} px-5 pb-2 pt-5`}>
           <h3 className="mb-1 text-base font-bold text-gray-900">Week by week</h3>
           <p className="mb-3.5 text-[13px] text-gray-500">Tap any week you have reached to read it back.</p>
 

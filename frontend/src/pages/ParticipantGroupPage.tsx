@@ -52,7 +52,7 @@ const ParticipantGroupPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="My group" subtitle="Your meeting and group contacts." />
+      <PageHeader title="My group" subtitle="Your meeting and group contacts." tourId="participant:group" />
       {!group ? (
         <section className={`${CARD} text-center`}>
           <p className="text-[15px] font-bold text-gray-900">You are not in a group yet</p>
@@ -62,7 +62,7 @@ const ParticipantGroupPage: React.FC = () => {
         <div className="flex flex-col gap-4">
           <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">{group.name}</p>
 
-          <section className={CARD}>
+          <section data-wt="pg-meeting" className={CARD}>
             <div className="flex flex-wrap items-baseline gap-3">
               <p className="text-xs font-bold uppercase tracking-[0.04em] text-gray-400">Next meeting</p>
               <span className={`ml-auto rounded-full px-2.5 py-1 text-[11px] font-bold ${scheduled ? 'bg-[#f2fbf5] text-[#15803d]' : 'bg-[#f6f7f9] text-gray-500'}`}>
@@ -104,7 +104,7 @@ const ParticipantGroupPage: React.FC = () => {
             )}
           </section>
 
-          <section className={CARD}>
+          <section data-wt="pg-members" className={CARD}>
             <h2 className="text-base font-bold text-gray-900">Group members</h2>
             <div className="mt-3.5 flex flex-col gap-2.5">
               {group.supportName && (
@@ -132,7 +132,7 @@ const ParticipantGroupPage: React.FC = () => {
             </div>
           </section>
 
-          <aside className="rounded-[22px] border border-[#ffeadb] bg-[#fffaf5] p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
+          <aside data-wt="pg-help" className="rounded-[22px] border border-[#ffeadb] bg-[#fffaf5] p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
             <h2 className="text-sm font-bold text-gray-600">Need help?</h2>
             <p className="mt-2 text-[15px] font-bold text-gray-900">Contact {supportName}</p>
             <p className="mt-1.5 text-[13px] text-gray-500">Ask a question or let your group know if you cannot attend.</p>

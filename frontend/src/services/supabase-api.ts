@@ -5484,6 +5484,21 @@ export const participantCheckInsApi = {
   },
 };
 
+// Which welcome + page tours this person has seen. Saved per account through
+// session-checked functions, so it follows them across devices.
+export const tourProgressApi = {
+  async getSeen(): Promise<string[]> {
+    const { data, error } = await supabase.rpc('get_tour_progress', { p_token: getSessionToken() });
+    if (error) throw new Error(error.message);
+    return (data as string[] | null) || [];
+  },
+
+  async markSeen(key: string): Promise<void> {
+    const { error } = await supabase.rpc('mark_tour_seen', { p_token: getSessionToken(), p_key: key });
+    if (error) throw new Error(error.message);
+  },
+};
+
 export const scripturesApi = {
   async getAll(): Promise<{ scriptures: import('../types').Scripture[] }> {
     const { data, error } = await supabase.from('Scripture').select('id, dayNumber, imageUrl, storagePath, createdAt').order('dayNumber');

@@ -428,6 +428,7 @@ const HubPage: React.FC = () => {
     <div>
       <PageHeader
         title="Hub"
+        tourId="hub"
         subtitle="Share questions, ideas, and updates with everyone."
         action={
           <button
@@ -441,7 +442,7 @@ const HubPage: React.FC = () => {
         }
       />
 
-      <div role="tablist" className="mb-3 grid max-w-[360px] grid-cols-2 gap-1.5 rounded-2xl border border-[#eef0f4] bg-white p-[5px]">
+      <div data-wt="hub-tabs" role="tablist" className="mb-3 grid max-w-[360px] grid-cols-2 gap-1.5 rounded-2xl border border-[#eef0f4] bg-white p-[5px]">
         {(['OPEN', 'CLOSED'] as Tab[]).map((t) => (
           <button
             key={t}
@@ -463,7 +464,7 @@ const HubPage: React.FC = () => {
           {tab === 'OPEN' ? 'No open topics yet. Start a conversation.' : 'No closed topics.'}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div data-wt="hub-topics" className="space-y-3">
           {topics.map((topic) => (
             <TopicCard
               key={topic.id}

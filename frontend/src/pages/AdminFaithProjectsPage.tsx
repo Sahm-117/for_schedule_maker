@@ -360,6 +360,7 @@ const AdminFaithProjectsPage: React.FC = () => {
     <div className="page-content">
       <PageHeader
         title="Faith projects"
+        tourId="admin:faith-projects"
         subtitle={activeCohort ? activeCohort.name : 'No active cohort'}
         action={
           !loading && groups.length > 0 && (
@@ -383,7 +384,7 @@ const AdminFaithProjectsPage: React.FC = () => {
         <>
           {/* Summary */}
           {!loading && (
-            <div className="mb-6 flex flex-wrap gap-3">
+            <div data-wt="faith-status" className="mb-6 flex flex-wrap gap-3">
               {STATUS_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}

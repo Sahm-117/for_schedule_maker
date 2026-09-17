@@ -8,6 +8,7 @@ import ErrorBoundary from '../ErrorBoundary';
 import PWAUpdateBanner from '../PWAUpdateBanner';
 import CheckInModal from './CheckInModal';
 import { shouldAskCheckIn } from '../../utils/participantApp';
+import { useTourState } from '../../context/TourContext';
 
 // Layout for the participant app: sidebar on desktop, floating bar on mobile, the
 // same look as the support app. Also asks "are you okay?" when their attendance
@@ -45,11 +46,13 @@ const lagosDateKey = () => new Date(Date.now() + 60 * 60 * 1000).toISOString().s
 
 const CheckInPrompt: React.FC = () => {
   const { home, applyCheckIn } = useParticipantApp();
+  // Waits for the Welcome + Home tour on first sign-in.
+  const { busy: tourBusy } = useTourState();
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem(LATER_KEY) === lagosDateKey(); } catch { return false; }
   });
   const decision = useMemo(() => (home ? shouldAskCheckIn(home, new Date()) : null), [home]);
-  if (!home || !decision?.ask || dismissed) return null;
+  if (tourBusy || !home || !decision?.ask || dismissed) return null;
 
   return (
     <CheckInModal
@@ -90,7 +93,7 @@ const ShellLayout: React.FC = () => {
             </div>
           </div>
         </div>
-        <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-5">
+        <nav data-wt="app-nav" className="flex-1 space-y-2 overflow-y-auto px-4 py-5">
           {[...NAV, ...MORE].map((item) => {
             const active = isActive(location.pathname, item.to, item.exact);
             return (
@@ -142,7 +145,7 @@ const ShellLayout: React.FC = () => {
         </main>
       </div>
 
-      <nav className="fixed bottom-4 left-1/2 z-30 w-[calc(100%-24px)] max-w-[400px] -translate-x-1/2 rounded-[22px] border border-[#eef0f4] bg-white p-1.5 shadow-[0_18px_40px_-20px_rgba(17,24,39,0.28)] lg:hidden">
+      <nav data-wt="app-nav" className="fixed bottom-4 left-1/2 z-30 w-[calc(100%-24px)] max-w-[400px] -translate-x-1/2 rounded-[22px] border border-[#eef0f4] bg-white p-1.5 shadow-[0_18px_40px_-20px_rgba(17,24,39,0.28)] lg:hidden">
         <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${NAV.length + 1}, minmax(0, 1fr))` }}>
           {NAV.map((item) => {
             const active = isActive(location.pathname, item.to, item.exact);

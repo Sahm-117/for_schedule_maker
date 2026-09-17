@@ -23,8 +23,6 @@ import {
   isClosedContact,
   isClosedRegistrationStatus,
 } from '../utils/followUps';
-import { useWalkthrough } from '../hooks/useWalkthrough';
-import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
 import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { compareText, sortByText } from '../utils/sort';
 
@@ -108,7 +106,6 @@ const SupportFollowUpsPage: React.FC = () => {
   const [messagingContact, setMessagingContact] = useState<FollowUpContact | null>(null);
   const [showExport, setShowExport] = useState(false);
 
-  const wt = useWalkthrough('followups');
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
@@ -263,7 +260,6 @@ const SupportFollowUpsPage: React.FC = () => {
       <PageHeader
         title="My Follow-ups"
         subtitle="People assigned to you — update statuses right after each message or call."
-        onHelp={wt.reopen}
         action={(
           <button
             type="button"
@@ -455,18 +451,6 @@ const SupportFollowUpsPage: React.FC = () => {
         />
       )}
 
-      {wt.show && (
-        <WalkthroughPopup
-          steps={[
-            { targetSelector: '[data-wt="fu-contacts"]', title: 'Your contacts', body: 'Each person you are following up with has four statuses you can update: Reply, Call, Registration, and Next Action.', position: 'top' },
-            { targetSelector: '[data-wt="fu-status-dropdown"]', title: 'Update a status', body: 'Tap any status to change it. If you pick a closed reason like Wrong Number or Not Interested, you will be asked to add a note.', position: 'bottom' },
-            { targetSelector: '[data-wt="fu-whatsapp"]', title: 'Send a message', body: 'Tap Message to send a pre-written WhatsApp template. Pick the template, preview it, then open WhatsApp.', position: 'top' },
-            { targetSelector: '[data-wt="fu-filter"]', title: 'Filter contacts', body: 'Use filters to narrow down your list by reply status, call status, or registration status.', position: 'left' },
-          ]}
-          onDone={wt.done}
-          onSkip={wt.skipAll}
-        />
-      )}
     </div>
   );
 };

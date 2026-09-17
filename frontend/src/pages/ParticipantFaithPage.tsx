@@ -73,10 +73,10 @@ const ParticipantFaithPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="Faith Project" subtitle="A private space to reflect, visible to you and your support team." />
+      <PageHeader title="Faith Project" subtitle="A private space to reflect, visible to you and your support team." tourId="participant:faith" />
 
       <div className="flex flex-col gap-3.5">
-        <section className={CARD}>
+        <section data-wt="pf-project" className={CARD}>
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
               <h2 className="text-[17px] font-bold text-gray-900">Your faith project</h2>
@@ -118,7 +118,7 @@ const ParticipantFaithPage: React.FC = () => {
           )}
         </section>
 
-        <section className={CARD}>
+        <section data-wt="pf-thread" className={CARD}>
           <button type="button" onClick={() => setTrailOpen((open) => !open)} className="flex w-full items-center gap-2.5 text-left" aria-expanded={trailOpen}>
             <div className="min-w-0 flex-1">
               <h3 className="text-base font-bold text-gray-900">Feedback from your support</h3>

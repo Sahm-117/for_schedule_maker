@@ -60,8 +60,8 @@ const ParticipantFeedbackPage: React.FC = () => {
 
   return (
     <div className="max-w-[480px]">
-      <PageHeader title="Feedback" subtitle="Anonymous. Share how the programme is going." />
-      <section className={CARD}>
+      <PageHeader title="Feedback" subtitle="Anonymous. Share how the programme is going." tourId="participant:feedback" />
+      <section data-wt="pfb-form" className={CARD}>
         {sent ? (
           <div className="px-2.5 py-5 text-center">
             <p className="text-[15px] font-bold text-gray-900">Thank you.</p>

@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import AppShell from './components/AppShell';
 import { AppDataProvider } from './context/AppDataContext';
+import { TourProvider } from './context/TourContext';
 import { ToastProvider } from './components/Toast';
 import Login from './pages/Login';
 import RootRedirect from './pages/RootRedirect';
@@ -68,6 +69,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
+        <TourProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
           {/* Support self sign-up is paused; accounts are created by admins. */}
@@ -138,6 +140,7 @@ function App() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </TourProvider>
       </Router>
     </AuthProvider>
   );

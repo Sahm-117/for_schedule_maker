@@ -227,7 +227,7 @@ const ParticipantProfilePage: React.FC = () => {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="Profile" subtitle="Your details, photo and reminders." />
+      <PageHeader title="Profile" subtitle="Your details, photo and reminders." tourId="participant:profile" />
       <input ref={photoInput} type="file" accept="image/*" className="hidden" onChange={(e) => { void uploadPhoto(e.target.files?.[0]); e.target.value = ''; }} />
 
       <div className="flex flex-col gap-3.5">
@@ -237,7 +237,7 @@ const ParticipantProfilePage: React.FC = () => {
           </p>
         )}
 
-        <section className={CARD}>
+        <section data-wt="pp-card" className={CARD}>
           <div className="flex items-start gap-3.5">
             <Avatar name={home.participant.name} avatarUrl={home.profile.avatarUrl} size="lg" />
             <div className="min-w-0 flex-1">
@@ -350,6 +350,7 @@ const ParticipantProfilePage: React.FC = () => {
           </dl>
         </section>
 
+        <div data-wt="pp-reminders">
         <Fold title="Reminders" summary={reminderSummary}>
           {push.status !== 'enabled' && (
             <div className="mb-2 flex items-center gap-3 rounded-xl bg-[#fff8f3] px-3 py-2.5">
@@ -404,6 +405,7 @@ const ParticipantProfilePage: React.FC = () => {
             </div>
           </div>
         </Fold>
+        </div>
 
         <Fold title="Password" summary="Change your password">
           <div className="flex flex-col gap-2.5">

@@ -619,11 +619,12 @@ const SupportOnboardingPage: React.FC = () => {
     <div className="page-content">
       <PageHeader
         title="Onboard"
+        tourId="support:onboarding"
         subtitle="Activate your participants, and help a fellow support get started."
       />
 
       {user.isCoordinator && (
-        <div className="mb-3 max-w-[760px]">
+        <div data-wt="onb-tabs" className="mb-3 max-w-[760px]">
           <SegmentedTabs
             tabs={[
               { key: 'people', label: 'My participants' },
@@ -660,7 +661,7 @@ const SupportOnboardingPage: React.FC = () => {
             </section>
           ) : (
             <>
-              <section className={CARD}>
+              <section data-wt="onb-steps" className={CARD}>
                 <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
                   <h2 className="text-base font-bold text-gray-900">{selectedGroupStatus?.groupName || groupOptions.find((option) => option.value === selectedGroupId)?.label}</h2>
                   <p className="text-xs text-gray-500">
@@ -692,7 +693,7 @@ const SupportOnboardingPage: React.FC = () => {
                 </div>
               </section>
 
-              <section className={CARD}>
+              <section data-wt="onb-people" className={CARD}>
                 <div>
                   <h2 className="text-base font-bold text-gray-900">People</h2>
                   <p className="mt-0.5 text-[13px] text-gray-500">Tap a person to open message templates.</p>

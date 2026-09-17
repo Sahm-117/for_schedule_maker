@@ -44,6 +44,7 @@ import LoginDetailsCard from '../components/participants/LoginDetailsCard';
 import ParticipantAppActivity from '../components/participants/ParticipantAppActivity';
 import ProfileOverview from '../components/participants/ProfileOverview';
 import { JOURNEY_STAGES, buildJourney } from '../utils/participantJourney';
+import TourHelpButton from '../components/tour/TourHelpButton';
 import {
   COMPLETION_SCORE_ALL_MEETINGS,
   PERSON_HEALTH_LABEL,
@@ -267,13 +268,16 @@ const AdminParticipantProfilePage: React.FC = () => {
       </NavLink>
 
       {/* Header */}
-      <section className={CARD}>
+      <section data-wt="pp-header" className={CARD}>
         <div className="flex flex-wrap items-start gap-4">
           <span className="grid h-16 w-16 flex-none place-items-center rounded-full bg-[#fff1e7] text-xl font-bold text-[#c2410c]">
             {initialsOf(participant.fullName)}
           </span>
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">{participant.fullName}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">{participant.fullName}</h1>
+              <TourHelpButton tourId="admin:participant-profile" />
+            </div>
             <p className="mt-1 text-sm text-gray-500">
               {[participant.cohortName ?? cohort?.name, group?.name ?? participant.groupName ?? 'No group', group?.supportName ? `Support: ${group.supportName}` : null].filter(Boolean).join(' · ')}
             </p>
@@ -318,7 +322,7 @@ const AdminParticipantProfilePage: React.FC = () => {
       </section>
 
       {/* Participant app */}
-      <section className={CARD}>
+      <section data-wt="pp-app" className={CARD}>
         <h2 className="text-lg font-semibold text-gray-900">Participant app</h2>
         <p className="mt-1 text-sm text-gray-500">Send {participant.fullName.split(' ')[0]} their login, and see what they have done in the app.</p>
         <LoginDetailsCard participantId={participant.id} className="mt-4 max-w-xl" />
@@ -326,7 +330,7 @@ const AdminParticipantProfilePage: React.FC = () => {
       </section>
 
       {/* Journey */}
-      <section className={CARD}>
+      <section data-wt="pp-journey" className={CARD}>
         <h2 className="text-lg font-semibold text-gray-900">Journey</h2>
         <p className="text-sm text-gray-500">Worked out from records. Manual moves show who moved them and when.</p>
         <ol className="mt-4">
@@ -439,7 +443,7 @@ const AdminParticipantProfilePage: React.FC = () => {
       </section>
 
       {/* Concerns */}
-      <section className={CARD}>
+      <section data-wt="pp-concerns" className={CARD}>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-lg font-semibold text-gray-900">Concerns</h2>
           {openFlags.length > 0 && <span className="rounded-full bg-amber-100/80 px-2.5 py-1 text-xs font-semibold text-amber-700">{openFlags.length} open</span>}

@@ -69,7 +69,7 @@ const ParticipantWeekPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title={`Week ${week.weekNumber}`} subtitle="The recap and your reflection." />
+      <PageHeader title={`Week ${week.weekNumber}`} subtitle="The recap and your reflection." tourId="participant:week" />
 
       <div className="flex flex-col gap-3.5">
         {!week.released ? (
@@ -84,7 +84,7 @@ const ParticipantWeekPage: React.FC = () => {
           </section>
         ) : (
           <>
-            <section className={`${CARD} overflow-hidden`}>
+            <section data-wt="pw-recap" className={`${CARD} overflow-hidden`}>
               <div className="px-5 pt-5">
                 <div className="flex flex-wrap items-center gap-2.5">
                   <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Week {week.weekNumber} recap</span>
@@ -112,7 +112,7 @@ const ParticipantWeekPage: React.FC = () => {
               </div>
             </section>
 
-            <section className={`${CARD} p-5`}>
+            <section data-wt="pw-reflection" className={`${CARD} p-5`}>
               <h3 className="text-base font-bold text-gray-900">Your reflection</h3>
               <p className="mt-[3px] text-[13px] leading-normal text-gray-500">Three short questions. Only you can read your answers.</p>
 

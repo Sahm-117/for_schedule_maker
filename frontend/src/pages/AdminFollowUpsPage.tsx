@@ -277,6 +277,7 @@ const AdminFollowUpsPage: React.FC = () => {
     <div>
       <PageHeader
         title="Follow-ups"
+        tourId="admin:follow-ups"
         subtitle="Track interested people, assign follow-up reps, and move them to registration."
         action={(
           <div className="flex items-center gap-2">
@@ -303,7 +304,7 @@ const AdminFollowUpsPage: React.FC = () => {
       <SheetSyncBanner contacts={contacts} onRetried={() => { void loadAll(); }} />
 
       {registrationLink && (
-        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-3xl border border-sky-100 bg-sky-50/60 px-4 py-3">
+        <div data-wt="fu-link" className="mb-5 flex flex-wrap items-center gap-3 rounded-3xl border border-sky-100 bg-sky-50/60 px-4 py-3">
           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-sky-700">Registration link</span>
           <div className="relative inline-flex">
             <button
@@ -345,6 +346,7 @@ const AdminFollowUpsPage: React.FC = () => {
       )}
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
+        <div data-wt="fu-tabs" className="flex flex-wrap items-center gap-2">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -355,6 +357,7 @@ const AdminFollowUpsPage: React.FC = () => {
             {t.label}
           </button>
         ))}
+        </div>
         {(tab === 'overview' || tab === 'contacts') && (
           <div className="ml-auto flex items-center gap-2">
             <div className="w-52">

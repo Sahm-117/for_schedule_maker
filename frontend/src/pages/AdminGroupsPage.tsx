@@ -484,6 +484,7 @@ const AdminGroupsPage: React.FC = () => {
     <div className="page-content">
       <PageHeader
         title="Groups"
+        tourId="admin:groups"
         subtitle={activeCohort ? `${groups.length} groups · ${participants.length} participants · ${activeCohort.name}` : 'No active cohort'}
         action={
           activeCohort && (
@@ -504,7 +505,7 @@ const AdminGroupsPage: React.FC = () => {
       />
 
       {activeCohort && !loading && groups.length > 0 && (
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div data-wt="groups-filters" className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           {supportUsers.length > 0 && (
             <div className="w-full sm:w-56">
               <AppSelect
@@ -549,7 +550,7 @@ const AdminGroupsPage: React.FC = () => {
           <p className="text-sm text-gray-500">All groups have a support assigned. 🎉</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div data-wt="groups-grid" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {displayedGroups.map((g) => {
             const members = membersByGroupId.get(g.id) ?? [];
             return (

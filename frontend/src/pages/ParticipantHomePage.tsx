@@ -105,6 +105,7 @@ const ParticipantHomePage: React.FC = () => {
     <div>
       <PageHeader
         title={`Welcome back, ${firstName}`}
+        tourId="participant:home"
         subtitle="Everything for this week, at a glance."
         action={home.profileCompletion.percent < 100 ? (
           // Kept to a small pill so Home stays about the week.
@@ -122,7 +123,7 @@ const ParticipantHomePage: React.FC = () => {
       />
 
       <div className="flex flex-col gap-4">
-        <section className="rounded-[22px] border border-[#ffdeca] bg-white p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
+        <section data-wt="ph-progress" className="rounded-[22px] border border-[#ffdeca] bg-white p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
           <div className="flex flex-wrap items-baseline gap-3">
             <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">Programme progress</p>
             <span className="rounded-full bg-[#fff1e6] px-2.5 py-[3px] text-[11px] font-bold text-[#c2410c]">{stageLabel}</span>
@@ -171,7 +172,7 @@ const ParticipantHomePage: React.FC = () => {
         </section>
 
         {group?.callLink && (
-          <section className="flex flex-wrap items-center gap-3.5 rounded-[20px] border border-[#ffdeca] bg-white p-[18px] shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+          <section data-wt="ph-call" className="flex flex-wrap items-center gap-3.5 rounded-[20px] border border-[#ffdeca] bg-white p-[18px] shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
             <span className="grid h-11 w-11 flex-none place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]" aria-hidden="true">
               <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" /></svg>
             </span>
@@ -256,7 +257,7 @@ const ParticipantHomePage: React.FC = () => {
         ) : null}
 
         {scripture && todayScriptureDay && scriptureDay && (
-          <section className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+          <section data-wt="ph-scripture" className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
             <div className="flex flex-wrap items-center gap-2.5 px-5 pb-3 pt-[18px]">
               <div className="min-w-0">
                 <h2 className="text-[17px] font-bold text-gray-900">Inspirational Scriptures</h2>
@@ -282,7 +283,7 @@ const ParticipantHomePage: React.FC = () => {
         )}
 
         {week && started && !finished && (
-          <section className={CARD}>
+          <section data-wt="ph-week" className={CARD}>
             <h2 className="text-lg font-bold text-gray-900">This week</h2>
             {expectations.length > 0 ? (
               <div className="mt-3.5">

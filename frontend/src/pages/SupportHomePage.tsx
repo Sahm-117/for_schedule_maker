@@ -9,9 +9,7 @@ import type { Announcement, FaithProject, Group, Participant, ParticipantCheckIn
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
 import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
-import { useWalkthrough } from '../hooks/useWalkthrough';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
-import WalkthroughPopup from '../components/walkthrough/WalkthroughPopup';
 
 type HomeActivity = {
   id: number;
@@ -61,7 +59,6 @@ const SupportHomePage: React.FC = () => {
   const [homeAnnouncement, setHomeAnnouncement] = useState<Announcement | null>(null);
   const autoHide = useChecklistAutoHide();
 
-  const wt = useWalkthrough('home');
 
   useEffect(() => {
     if (!user) return;
@@ -232,7 +229,7 @@ const SupportHomePage: React.FC = () => {
       <PageHeader
         title={`Welcome back, ${user.name.split(' ')[0]}`}
         subtitle={activeCohort ? `${activeCohort.name} is running. Here is what is lined up for you.` : 'Here is what is lined up for you today.'}
-        onHelp={wt.reopen}
+        tourId="support:home"
       />
 
       <div className="flex flex-wrap items-start gap-5">
@@ -297,13 +294,14 @@ const SupportHomePage: React.FC = () => {
 
           <NavLink
             to="/support/participants?tab=sunday"
+            data-wt="home-attendance"
             className="flex min-h-[44px] items-center justify-center gap-2 rounded-2xl bg-[#3f4757] px-2.5 py-3.5 text-[13px] font-bold text-white sm:min-h-[56px] sm:justify-start sm:gap-2.5 sm:px-[22px] sm:py-4 sm:text-[15px]"
           >
             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 5h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0-2h6v3H9V3Zm-1 9 2 2 4-4" /></svg>
             Mark attendance
           </NavLink>
 
-          <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))' }}>
+          <div data-wt="home-quick-links" className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))' }}>
             <QuickLink to="/support/participants" label="Group call" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" />} />
             <QuickLink to="/support/resources" label="Resources" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Zm0 17A2.5 2.5 0 0 1 6.5 19H20" />} />
             <QuickLink to="/support/schedule?tab=checklist" label="My Tasks" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 11l3 3L22 4M2 12a10 10 0 1 0 5-8.66" />} />
@@ -357,7 +355,7 @@ const SupportHomePage: React.FC = () => {
             </NavLink>
           </section>
 
-          <section className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+          <section data-wt="home-checklist" className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
             <div className="flex items-center gap-2 pr-5">
             <button
               type="button"
@@ -428,16 +426,6 @@ const SupportHomePage: React.FC = () => {
         </aside>
       </div>
 
-      {wt.show && (
-        <WalkthroughPopup
-          steps={[
-            { targetSelector: '[data-wt="home-metrics"]', title: 'Your week at a glance', body: 'This top section shows where you are in the cohort and the most useful next numbers to check before you move.', position: 'bottom' },
-            { targetSelector: '[data-wt="home-schedule"]', title: "Today's activities", body: 'Your activities for today show up here. Tap "Mark done" as you finish each one, or "See the full week" for everything else.', position: 'top' },
-          ]}
-          onDone={wt.done}
-          onSkip={wt.skipAll}
-        />
-      )}
     </div>
   );
 };

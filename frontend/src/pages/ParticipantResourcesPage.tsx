@@ -29,9 +29,9 @@ const ParticipantResourcesPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="Resources" subtitle="Class materials and guides posted by the FOF team." />
+      <PageHeader title="Resources" subtitle="Class materials and guides posted by the FOF team." tourId="participant:resources" />
       <div className="flex flex-col gap-4">
-        <section className={CARD}>
+        <section data-wt="pr-guides" className={CARD}>
           <h2 className="text-base font-bold text-gray-900">General guides</h2>
           {home.resources.length === 0 ? (
             <p className="mt-2 text-[13px] text-gray-500">Nothing shared yet.</p>
@@ -58,7 +58,7 @@ const ParticipantResourcesPage: React.FC = () => {
           )}
         </section>
 
-        <section className={CARD}>
+        <section data-wt="pr-materials" className={CARD}>
           <h2 className="text-base font-bold text-gray-900">Class materials</h2>
           {classMaterials.length === 0 ? (
             <p className="mt-2 text-[13px] text-gray-500">Each week&apos;s material appears here once it is released to you.</p>

@@ -932,6 +932,7 @@ const AdminParticipantsPage: React.FC = () => {
     <div className="page-content">
       <PageHeader
         title="Participants"
+        tourId="admin:participants"
         subtitle={activeCohort ? `${activeCount} active · ${unassignedCount} unassigned · ${activeCohort.name}` : 'No active cohort'}
         action={
           activeCohort && (
@@ -956,7 +957,7 @@ const AdminParticipantsPage: React.FC = () => {
         <p className="text-sm text-gray-500">Select or create a cohort first.</p>
       ) : (
         <>
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div data-wt="participants-filters" className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
               <input
                 type="search"
@@ -1037,7 +1038,7 @@ const AdminParticipantsPage: React.FC = () => {
               <p className="text-sm text-gray-500">{participants.length === 0 ? 'No participants yet. Add one or import a list.' : 'No participants match these filters.'}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-orange-100 bg-white shadow-sm">
+            <div data-wt="participants-table" className="overflow-x-auto rounded-2xl border border-orange-100 bg-white shadow-sm">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-orange-100 bg-orange-50/60">

@@ -14,7 +14,7 @@ import NotificationBell from './NotificationBell';
 import ForcePasswordChangeModal from './ForcePasswordChangeModal';
 import ErrorBoundary from './ErrorBoundary';
 import { usePushNotifications } from '../hooks/usePushNotifications';
-import { isWalkthroughDismissed } from '../hooks/useWalkthrough';
+import { useTourState } from '../context/TourContext';
 import { sortByText } from '../utils/sort';
 
 type NavItem = {
@@ -258,7 +258,8 @@ const AppShell: React.FC = () => {
   const navigate = useNavigate();
 
   const isSupport = user?.role === 'SUPPORT';
-  const walkthroughDone = !isSupport || isWalkthroughDismissed();
+  // First-login order: password change, Welcome + Home tour, then the notification prompt.
+  const { busy: tourBusy } = useTourState();
   const navItems = useMemo(() => {
     if (isSupport) return supportNav;
     return adminNav.filter((item) => canShowNavItem(item, isAdmin, isSopPreparer));
@@ -312,7 +313,7 @@ const AppShell: React.FC = () => {
   return (
     <div className="app-shell-bg min-h-screen text-gray-900">
       <PWAUpdateBanner />
-      {walkthroughDone && showPrompt && <NotificationPromptModal onEnable={enable} onDismiss={dismiss} />}
+      {!tourBusy && showPrompt && <NotificationPromptModal onEnable={enable} onDismiss={dismiss} />}
       {isSopPreparer && unreadCount > 0 && (
         <RejectedChangesNotification
           rejectedChanges={rejectedChanges}
@@ -348,7 +349,7 @@ const AppShell: React.FC = () => {
           </div>
         </div>
 
-        <nav className="flex-1 space-y-5 overflow-y-auto px-4 py-5">
+        <nav data-wt="app-nav" className="flex-1 space-y-5 overflow-y-auto px-4 py-5">
           {isSupport ? (
             <div className="space-y-2">
               {navItems.map((item) => (
@@ -547,7 +548,7 @@ const AppShell: React.FC = () => {
         <ForcePasswordChangeModal />
       </div>
 
-      <nav className={isSupport
+      <nav data-wt="app-nav" className={isSupport
         ? 'fixed bottom-4 left-1/2 z-30 w-[calc(100%-24px)] max-w-[400px] -translate-x-1/2 rounded-[22px] border border-[#eef0f4] bg-white p-1.5 shadow-[0_18px_40px_-20px_rgba(17,24,39,0.28)] lg:hidden'
         : 'fixed inset-x-0 bottom-0 z-30 border-t border-orange-100 bg-white/95 px-2 py-2 backdrop-blur lg:hidden'}
       >

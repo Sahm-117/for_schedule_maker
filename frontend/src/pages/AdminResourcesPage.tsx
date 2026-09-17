@@ -10,9 +10,12 @@ const AdminResourcesPage: React.FC = () => {
     <div>
       <PageHeader
         title="Resources"
+        tourId="admin:resources"
         subtitle="Share links and files with the support team."
       />
-      <ResourceHubModal isOpen onClose={() => {}} embedded onViewed={markResourcesViewed} />
+      <div data-wt="resources-hub">
+        <ResourceHubModal isOpen onClose={() => {}} embedded onViewed={markResourcesViewed} />
+      </div>
     </div>
   );
 };

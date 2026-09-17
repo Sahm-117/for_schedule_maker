@@ -331,6 +331,7 @@ const SupportParticipantsPage: React.FC = () => {
     <div className="page-content">
       <PageHeader
         title="My Group"
+        tourId="support:group"
         subtitle="Your group's faith projects and weekly prayer check-ins."
       />
 
@@ -379,7 +380,7 @@ const SupportParticipantsPage: React.FC = () => {
               </p>
             )}
 
-            <div>
+            <div data-wt="group-tabs">
               <SegmentedTabs
                 tabs={[
                   ...(coveringFor ? [] : [{ key: 'faith', label: 'Participants', shortLabel: 'People' }]),
@@ -407,11 +408,13 @@ const SupportParticipantsPage: React.FC = () => {
             />
           ) : activeTab === 'faith' ? (
             <div className="space-y-3">
+            <div data-wt="group-call">
             <GroupCallCard
               group={selectedGroupData}
               fallbackLink={user.whatsappGroupUrl ?? null}
               onGroupUpdated={(updated) => setGroups((prev) => prev.map((g) => g.id === updated.id ? updated : g))}
             />
+            </div>
             {selectedParticipants.length === 0 ? (
               <div className="rounded-[18px] border border-dashed border-orange-200 bg-white py-12 text-center text-sm text-gray-500">
                 No participants are in this group yet.

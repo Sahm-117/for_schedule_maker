@@ -166,7 +166,7 @@ const AdminDashboardPage: React.FC = () => {
   if (!activeCohort) {
     return (
       <div>
-        <PageHeader title="Dashboard" subtitle="How the cohort is doing, and what needs you." />
+        <PageHeader title="Dashboard" subtitle="How the cohort is doing, and what needs you." tourId="admin:dashboard" />
         <div className="surface-card p-8 text-center text-sm text-gray-500">
           No cohort yet. <NavLink to="/cohorts" className="font-semibold text-primary">Create one</NavLink> to get started.
         </div>
@@ -176,7 +176,7 @@ const AdminDashboardPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle="How the cohort is doing, and what needs you." />
+      <PageHeader title="Dashboard" subtitle="How the cohort is doing, and what needs you." tourId="admin:dashboard" />
 
       {loading && !health ? (
         <DashboardSkeleton />
@@ -187,22 +187,24 @@ const AdminDashboardPage: React.FC = () => {
         </div>
       ) : health && model ? (
         <div className="space-y-5">
-          <CohortStrip health={health} model={model} cohortName={activeCohort.name} />
+          <div data-wt="dash-strip"><CohortStrip health={health} model={model} cohortName={activeCohort.name} /></div>
 
-          {model.mode === 'upcoming' ? (
-            <RegistrationFunnel health={health} />
-          ) : (
-            <VitalSigns health={health} model={model} />
-          )}
+          <div data-wt="dash-vitals">
+            {model.mode === 'upcoming' ? (
+              <RegistrationFunnel health={health} />
+            ) : (
+              <VitalSigns health={health} model={model} />
+            )}
+          </div>
 
-          <div className={openingAssign ? 'pointer-events-none opacity-70' : ''}>
+          <div data-wt="dash-attention" className={openingAssign ? 'pointer-events-none opacity-70' : ''}>
             <AttentionList items={model.attention} onAction={(item) => { void handleAttentionAction(item); }} />
           </div>
 
           {model.mode === 'upcoming' ? (
             <ReadinessChecklist health={health} />
           ) : (
-            <div className="grid gap-5 xl:grid-cols-2">
+            <div data-wt="dash-trend" className="grid gap-5 xl:grid-cols-2">
               <section className="surface-card min-w-0 p-5 sm:p-6">
                 <h3 className="text-base font-semibold text-gray-900">{model.mode === 'completed' ? 'How the cohort went' : 'Cohort trend'}</h3>
                 <p className="mb-4 text-xs text-gray-500">Share of groups each week. {model.mode === 'running' ? 'The current week is left out until it ends.' : ''}</p>
@@ -218,6 +220,7 @@ const AdminDashboardPage: React.FC = () => {
             </div>
           )}
 
+          <div data-wt="dash-ops">
           <OperationsRow
             todayLabel={todaysDay ? `${todaysDay.dayName}, Week ${activeWeek?.weekNumber}` : null}
             activities={todaysDay?.activities ?? []}
@@ -228,6 +231,7 @@ const AdminDashboardPage: React.FC = () => {
             announcement={announcements[0] ?? null}
             isAdmin={isAdmin}
           />
+          </div>
         </div>
       ) : null}
 

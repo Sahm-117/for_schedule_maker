@@ -55,6 +55,7 @@ import {
   recapReleasesApi as supabaseRecapReleasesApi,
   participantCheckInsApi as supabaseParticipantCheckInsApi,
   scripturesApi as supabaseScripturesApi,
+  tourProgressApi as supabaseTourProgressApi,
   getSessionToken as supabaseGetSessionToken,
   SESSION_TOKEN_KEY,
   setAuthToken as supabaseSetAuthToken,
@@ -708,6 +709,11 @@ export const scripturesApi = USE_SUPABASE ? supabaseScripturesApi : {
   async getAll(): Promise<{ scriptures: import('../types').Scripture[] }> { return { scriptures: [] }; },
   async upload(_dayNumber: number, _image: Blob, _userId: string): Promise<never> { return peopleUnavailable(); },
   async remove(_scripture: import('../types').Scripture): Promise<void> { return; },
+};
+
+export const tourProgressApi = USE_SUPABASE ? supabaseTourProgressApi : {
+  async getSeen(): Promise<string[]> { return []; },
+  async markSeen(_key: string): Promise<void> { return; },
 };
 
 export const aiApi = USE_SUPABASE ? supabaseAiApi : {

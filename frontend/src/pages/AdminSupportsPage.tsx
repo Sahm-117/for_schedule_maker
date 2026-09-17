@@ -125,7 +125,7 @@ const AdminSupportsPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader title="Supports" subtitle="Weekly records, onboarding and cover for every support." />
+      <PageHeader title="Supports" subtitle="Weekly records, onboarding and cover for every support." tourId="admin:supports" />
 
       {loading && !model ? (
         <div className="space-y-3" aria-busy="true">
@@ -140,7 +140,7 @@ const AdminSupportsPage: React.FC = () => {
         <div className="surface-card p-8 text-center text-sm text-gray-500">No cohort selected.</div>
       ) : (
         <div className="space-y-5">
-          <section className="surface-card p-4 sm:p-5">
+          <section data-wt="supports-rules" className="surface-card p-4 sm:p-5">
             <p className="text-sm text-gray-600">
               Each week a support logs Sunday attendance, submits the group meeting report and records meeting attendance for everyone.
               {' '}{rules.supportAmberMissedWeeks} unrecorded week{rules.supportAmberMissedWeeks === 1 ? '' : 's'} = keep an eye on, {rules.supportRedMissedWeeks} = needs attention.
@@ -176,7 +176,7 @@ const AdminSupportsPage: React.FC = () => {
           {visible.length === 0 ? (
             <div className="surface-card p-8 text-center text-sm text-gray-500">No supports here.</div>
           ) : (
-            <ul className="space-y-3">
+            <ul data-wt="supports-list" className="space-y-3">
               {visible.map((evaluation) => (
                 <SupportCard
                   key={evaluation.groupId}
@@ -211,7 +211,7 @@ const AdminSupportsPage: React.FC = () => {
             </section>
           )}
 
-          <div id="cover">
+          <div id="cover" data-wt="supports-cover">
             <CoverRequestsPanel />
           </div>
         </div>

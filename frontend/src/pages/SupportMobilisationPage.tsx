@@ -287,12 +287,13 @@ const SupportMobilisationPage: React.FC = () => {
     <div>
       <PageHeader
         title="Mobilisation"
+        tourId="support:mobilisation"
         subtitle="Register people you meet, and follow up the ones assigned to you."
       />
 
       <div className="flex max-w-[760px] flex-col gap-3">
         <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
+          <div data-wt="mob-tabs" className="min-w-0 flex-1">
             <SegmentedTabs
               tabs={[
                 { key: 'register', label: 'Registration' },
@@ -302,13 +303,14 @@ const SupportMobilisationPage: React.FC = () => {
               onChange={(key) => setTab(key as MobTab)}
             />
           </div>
-          <AppOverflowMenu items={overflowItems} />
+          <div data-wt="mob-more"><AppOverflowMenu items={overflowItems} /></div>
         </div>
 
         {registrationLink && (
           <button
             type="button"
             onClick={copyRegistrationLink}
+            data-wt="mob-link"
             title="Copy registration link"
             aria-label={linkCopied ? 'Registration link copied' : 'Copy registration link'}
             className={`inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1.5 text-xs font-semibold transition ${linkCopied ? 'bg-emerald-100/80 text-emerald-700' : 'bg-[#f6f7f9] text-gray-600 hover:bg-gray-100'}`}
@@ -327,7 +329,7 @@ const SupportMobilisationPage: React.FC = () => {
 
         {tab === 'register' && (
           <>
-            <section className={`${CARD} p-[18px]`}>
+            <section data-wt="mob-register" className={`${CARD} p-[18px]`}>
               <h2 className="text-base font-bold text-gray-900">Register someone</h2>
               <p className="mt-1 text-[13px] leading-normal text-gray-500">The details we collect when someone signs up for a cohort.</p>
               <div className="mt-4 flex flex-col gap-3">

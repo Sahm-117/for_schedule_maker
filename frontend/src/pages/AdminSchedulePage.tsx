@@ -229,11 +229,13 @@ const AdminSchedulePage: React.FC = () => {
     <div>
       <PageHeader
         title="Schedule"
+        tourId="admin:schedule"
         subtitle="Manage weekly programme activities, exports, and edits that go through approval."
         action={headerAction}
       />
 
       <div className="mb-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr_0.8fr]">
+        <div data-wt="sched-week" className="relative z-30">
         <WeekSelector
           weeks={weeks}
           selectedWeek={selectedWeek}
@@ -243,8 +245,9 @@ const AdminSchedulePage: React.FC = () => {
             void handleWeekSelect(weekId);
           }}
         />
+        </div>
         {isAdmin && (
-          <div className="surface-card relative z-20 rounded-3xl border border-orange-100 p-4">
+          <div data-wt="sched-filters" className="surface-card relative z-20 rounded-3xl border border-orange-100 p-4">
             <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Activity tags</p>
             <p className="mt-1 text-sm font-semibold text-gray-900">Filter assignments fast</p>
             <p className="mt-1 text-xs text-gray-500">See one tag’s exact workload without opening the native browser picker.</p>
@@ -292,7 +295,7 @@ const AdminSchedulePage: React.FC = () => {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)]">
-        <div className="space-y-4">
+        <div data-wt="sched-view" className="space-y-4">
           {selectedWeek ? (
             <ScheduleView
               week={selectedWeek}

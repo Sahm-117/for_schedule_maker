@@ -17,9 +17,12 @@ const SupportResourcesPage: React.FC = () => {
     <div>
       <PageHeader
         title="Resources"
+        tourId="support:resources"
         subtitle="Browse links, files, and reference materials shared with the support team."
       />
-      <ResourceHubModal isOpen onClose={() => {}} embedded layout="grid" onViewed={markResourcesViewed} />
+      <div data-wt="resources-hub">
+        <ResourceHubModal isOpen onClose={() => {}} embedded layout="grid" onViewed={markResourcesViewed} />
+      </div>
     </div>
   );
 };
