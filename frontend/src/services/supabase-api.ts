@@ -3023,6 +3023,12 @@ const mapParticipant = (row: any): import('../types').Participant => {
 };
 
 export const participantsApi = {
+  async getById(participantId: string): Promise<{ participant: import('../types').Participant | null }> {
+    const { data, error } = await supabase.from('Participant').select(PARTICIPANT_SELECT).eq('id', participantId).maybeSingle();
+    if (error) throw new Error(error.message);
+    return { participant: data ? mapParticipant(data) : null };
+  },
+
   async getAll(options?: {
     cohortId?: string;
     supportId?: string;
@@ -3259,6 +3265,92 @@ export const participantNotesApi = {
       .select(PARTICIPANT_NOTE_SELECT).single();
     if (error || !data) throw new Error(error?.message || 'Failed to save participant note');
     return { note: mapParticipantNote(data) };
+  },
+};
+
+const DEPARTMENT_REFERRAL_SELECT = '*, loggedBy:User!DepartmentReferral_loggedById_fkey(id, name), updatedBy:User!DepartmentReferral_updatedById_fkey(id, name)';
+
+const mapDepartmentReferral = (row: any): import('../types').DepartmentReferral => ({
+  id: row.id,
+  participantId: row.participantId,
+  department: row.department,
+  status: row.status,
+  loggedAt: row.loggedAt,
+  loggedById: row.loggedById ?? null,
+  loggedByName: row.loggedBy?.name ?? null,
+  joinedAt: row.joinedAt ?? null,
+  updatedById: row.updatedById ?? null,
+  updatedByName: row.updatedBy?.name ?? null,
+  note: row.note ?? null,
+  updatedAt: row.updatedAt,
+});
+
+export const departmentReferralsApi = {
+  async getForParticipants(participantIds: string[]): Promise<{ referrals: import('../types').DepartmentReferral[] }> {
+    if (participantIds.length === 0) return { referrals: [] };
+    const { data, error } = await supabase.from('DepartmentReferral').select(DEPARTMENT_REFERRAL_SELECT)
+      .in('participantId', participantIds).order('loggedAt', { ascending: true });
+    if (error) throw new Error(error.message);
+    return { referrals: ((data as any[]) || []).map(mapDepartmentReferral) };
+  },
+
+  /** Log a department choice. Also keeps the participant's department list in step. */
+  async log(input: { participantId: string; department: string; loggedById: string }): Promise<{ referral: import('../types').DepartmentReferral }> {
+    const department = input.department.trim();
+    const { data, error } = await supabase.from('DepartmentReferral')
+      .insert([{ participantId: input.participantId, department, loggedById: input.loggedById, status: 'LOGGED' }])
+      .select(DEPARTMENT_REFERRAL_SELECT)
+      .single();
+    if (error || !data) {
+      throw new Error(error?.code === '23505' ? `${department} is already logged for this participant.` : error?.message || 'Failed to log department');
+    }
+    const { data: current } = await supabase.from('Participant').select('departments').eq('id', input.participantId).maybeSingle();
+    const existing: string[] = ((current as any)?.departments as string[] | null) ?? [];
+    if (!existing.some((d) => d.trim().toLowerCase() === department.toLowerCase())) {
+      await supabase.from('Participant').update({ departments: [...existing, department], updatedAt: new Date().toISOString() }).eq('id', input.participantId);
+    }
+    return { referral: mapDepartmentReferral(data) };
+  },
+
+  async setStatus(referralId: string, status: import('../types').DepartmentReferralStatus, updatedById: string): Promise<{ referral: import('../types').DepartmentReferral }> {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase.from('DepartmentReferral')
+      .update({ status, joinedAt: status === 'JOINED' ? now : null, updatedById, updatedAt: now })
+      .eq('id', referralId)
+      .select(DEPARTMENT_REFERRAL_SELECT)
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to update department');
+    return { referral: mapDepartmentReferral(data) };
+  },
+};
+
+const STAGE_CHANGE_SELECT = '*, changedBy:User!ParticipantStageChange_changedById_fkey(id, name)';
+
+const mapStageChange = (row: any): import('../types').ParticipantStageChange => ({
+  id: row.id,
+  participantId: row.participantId,
+  stage: row.stage,
+  note: row.note ?? null,
+  changedById: row.changedById ?? null,
+  changedByName: row.changedBy?.name ?? null,
+  changedAt: row.changedAt,
+});
+
+export const participantStageChangesApi = {
+  async getForParticipant(participantId: string): Promise<{ changes: import('../types').ParticipantStageChange[] }> {
+    const { data, error } = await supabase.from('ParticipantStageChange').select(STAGE_CHANGE_SELECT)
+      .eq('participantId', participantId).order('changedAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { changes: ((data as any[]) || []).map(mapStageChange) };
+  },
+
+  async create(input: { participantId: string; stage: import('../types').JourneyStage; note?: string | null; changedById: string }): Promise<{ change: import('../types').ParticipantStageChange }> {
+    const { data, error } = await supabase.from('ParticipantStageChange')
+      .insert([{ participantId: input.participantId, stage: input.stage, note: input.note?.trim() || null, changedById: input.changedById }])
+      .select(STAGE_CHANGE_SELECT)
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to move journey stage');
+    return { change: mapStageChange(data) };
   },
 };
 
@@ -4809,6 +4901,13 @@ export const participantFlagsApi = {
     if (participantIds.length === 0) return { flags: [] };
     const { data, error } = await supabase.from('ParticipantFlag').select(PARTICIPANT_FLAG_SELECT)
       .in('participantId', participantIds).is('clearedAt', null).order('raisedAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { flags: ((data as any[]) || []).map(mapParticipantFlag) };
+  },
+
+  async getForParticipant(participantId: string): Promise<{ flags: import('../types').ParticipantFlag[] }> {
+    const { data, error } = await supabase.from('ParticipantFlag').select(PARTICIPANT_FLAG_SELECT)
+      .eq('participantId', participantId).order('raisedAt', { ascending: false });
     if (error) throw new Error(error.message);
     return { flags: ((data as any[]) || []).map(mapParticipantFlag) };
   },

@@ -308,7 +308,7 @@ export type ParticipantUpdate = Partial<Pick<Participant,
   'email' | 'gender' | 'ageRange' | 'departments' | 'registrationDate' | 'smartRequest'
 >>;
 
-export type ParticipantNoteType = 'HANDOVER' | 'MEETING' | 'FAITH_COACH' | 'FAITH_OFFICE';
+export type ParticipantNoteType = 'HANDOVER' | 'MEETING' | 'FAITH_COACH' | 'FAITH_OFFICE' | 'CHECK_IN';
 
 export interface ParticipantNote {
   id: string;
@@ -453,6 +453,36 @@ export interface ParticipantFlag {
   clearedById?: string | null;
   clearedByName?: string | null;
   clearedAt?: string | null;
+}
+
+export type DepartmentReferralStatus = 'LOGGED' | 'JOINED' | 'NOT_JOINED';
+
+/** A department choice, logged and then confirmed as joined (or not). */
+export interface DepartmentReferral {
+  id: string;
+  participantId: string;
+  department: string;
+  status: DepartmentReferralStatus;
+  loggedAt: string;
+  loggedById?: string | null;
+  loggedByName?: string | null;
+  joinedAt?: string | null;
+  updatedById?: string | null;
+  updatedByName?: string | null;
+  note?: string | null;
+  updatedAt: string;
+}
+
+export type JourneyStage = 'REGISTERED' | 'ONBOARDED' | 'ACTIVE' | 'COMPLETED' | 'REFERRED' | 'INTEGRATED';
+
+export interface ParticipantStageChange {
+  id: string;
+  participantId: string;
+  stage: JourneyStage;
+  note?: string | null;
+  changedById?: string | null;
+  changedByName?: string | null;
+  changedAt: string;
 }
 
 export interface SupportChecklistItem {

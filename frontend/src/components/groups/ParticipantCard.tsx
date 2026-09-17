@@ -2,8 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import ModalShell from '../followups/ModalShell';
 import InfoTip from '../InfoTip';
-import { faithProjectsApi, participantFlagsApi, participantNotesApi, participantsApi } from '../../services/api';
-import type { FaithProject, FaithProjectStatus, Participant, ParticipantFlag, ParticipantHandover, ParticipantNote } from '../../types';
+import DepartmentHandoff from '../participants/DepartmentHandoff';
+import { useToast } from '../Toast';
+import { departmentReferralsApi, faithProjectsApi, participantFlagsApi, participantNotesApi, participantsApi } from '../../services/api';
+import type { DepartmentReferral, FaithProject, FaithProjectStatus, Participant, ParticipantFlag, ParticipantHandover, ParticipantNote } from '../../types';
 
 // Faith project states mapped onto the V2 design's labels.
 const FP_CHIP: Record<FaithProjectStatus, { label: string; cls: string }> = {
@@ -227,6 +229,17 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
+  const showToast = useToast();
+  const [referrals, setReferrals] = useState<DepartmentReferral[]>([]);
+  const loadReferrals = () => {
+    departmentReferralsApi.getForParticipants([participant.id])
+      .then((r) => setReferrals(r.referrals))
+      .catch(() => setReferrals([]));
+  };
+  useEffect(() => {
+    if (viewOpen) loadReferrals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewOpen, participant.id]);
   const [editingName, setEditingName] = useState(false);
   const [fpOpen, setFpOpen] = useState(false);
 
@@ -446,6 +459,13 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
             </button>
           </div>
           <RegistrationDetails participant={participant} />
+          <DepartmentHandoff
+            participant={participant}
+            referrals={referrals}
+            userId={userId}
+            onChanged={(message) => { showToast({ message }); loadReferrals(); }}
+            onError={(message) => showToast({ message, tone: 'error' })}
+          />
           <div className="rounded-[14px] border border-[#f1f2f5] p-3.5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">

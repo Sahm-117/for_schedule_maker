@@ -36,6 +36,8 @@ import {
   participantHandoversApi as supabaseParticipantHandoversApi,
   meetingAttendanceApi as supabaseMeetingAttendanceApi,
   participantFlagsApi as supabaseParticipantFlagsApi,
+  departmentReferralsApi as supabaseDepartmentReferralsApi,
+  participantStageChangesApi as supabaseParticipantStageChangesApi,
   supportChecklistApi as supabaseSupportChecklistApi,
   coverRequestsApi as supabaseCoverRequestsApi,
   recapDocumentsApi as supabaseRecapDocumentsApi,
@@ -486,6 +488,7 @@ const peopleUnavailable = () => {
 };
 
 export const participantsApi = USE_SUPABASE ? supabaseParticipantsApi : {
+  async getById(_participantId: string): Promise<{ participant: import('../types').Participant | null }> { return { participant: null }; },
   async getAll(_options?: any): Promise<{ participants: import('../types').Participant[] }> { return { participants: [] }; },
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
   async createMany(_rows: any[]): Promise<never> { return peopleUnavailable(); },
@@ -548,6 +551,17 @@ export const participantNotesApi = USE_SUPABASE ? supabaseParticipantNotesApi : 
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
 };
 
+export const departmentReferralsApi = USE_SUPABASE ? supabaseDepartmentReferralsApi : {
+  async getForParticipants(_participantIds: string[]): Promise<{ referrals: import('../types').DepartmentReferral[] }> { return { referrals: [] }; },
+  async log(_input: any): Promise<never> { return peopleUnavailable(); },
+  async setStatus(_id: string, _status: import('../types').DepartmentReferralStatus, _updatedById: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const participantStageChangesApi = USE_SUPABASE ? supabaseParticipantStageChangesApi : {
+  async getForParticipant(_participantId: string): Promise<{ changes: import('../types').ParticipantStageChange[] }> { return { changes: [] }; },
+  async create(_input: any): Promise<never> { return peopleUnavailable(); },
+};
+
 export const participantHandoversApi = USE_SUPABASE ? supabaseParticipantHandoversApi : {
   async getForParticipants(_participantIds: string[]): Promise<{ handovers: import('../types').ParticipantHandover[] }> { return { handovers: [] }; },
 };
@@ -560,6 +574,7 @@ export const meetingAttendanceApi = USE_SUPABASE ? supabaseMeetingAttendanceApi 
 
 export const participantFlagsApi = USE_SUPABASE ? supabaseParticipantFlagsApi : {
   async getOpenForParticipants(_participantIds: string[]): Promise<{ flags: import('../types').ParticipantFlag[] }> { return { flags: [] }; },
+  async getForParticipant(_participantId: string): Promise<{ flags: import('../types').ParticipantFlag[] }> { return { flags: [] }; },
   async getAll(_options?: { openOnly?: boolean }): Promise<{ flags: import('../types').ParticipantFlag[] }> { return { flags: [] }; },
   async raise(_input: any): Promise<never> { return peopleUnavailable(); },
   async clear(_flagId: string, _clearedById: string): Promise<never> { return peopleUnavailable(); },

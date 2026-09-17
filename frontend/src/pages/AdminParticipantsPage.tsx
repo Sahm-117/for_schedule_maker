@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, NavLink, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { participantsApi, groupsApi, participantHandoversApi, participantNotesApi, participantFlagsApi } from '../services/api';
-import type { Participant, Group, ParticipantHandover, ParticipantNote, ParticipantFlag } from '../types';
+import { participantsApi, groupsApi, participantFlagsApi } from '../services/api';
+import type { Participant, Group, ParticipantFlag } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
@@ -652,139 +652,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
   );
 };
 
-// ── View Details Modal (read-only) ──────────────────────────────────────────────
-
-const DetailRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div>
-    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
-    <div className="mt-0.5 text-sm text-gray-800">{children}</div>
-  </div>
-);
-
-const ViewDetailsModal: React.FC<{ participant: Participant | null; flags: ParticipantFlag[]; adminId?: string; onFlagCleared: (flagId: string) => void; onClose: () => void }> = ({ participant, flags, adminId, onFlagCleared, onClose }) => {
-  const [clearingId, setClearingId] = useState<string | null>(null);
-  const [handoverNotes, setHandoverNotes] = useState<ParticipantNote[]>([]);
-  const [handovers, setHandovers] = useState<ParticipantHandover[]>([]);
-  const participantId = participant?.id;
-  useEffect(() => {
-    if (!participantId) { setHandoverNotes([]); setHandovers([]); return; }
-    void Promise.all([
-      participantNotesApi.getForParticipants([participantId]),
-      participantHandoversApi.getForParticipants([participantId]),
-    ]).then(([notesRes, handoversRes]) => {
-      setHandoverNotes(notesRes.notes);
-      setHandovers(handoversRes.handovers);
-    }).catch(() => { setHandoverNotes([]); setHandovers([]); });
-  }, [participantId]);
-  if (!participant) return null;
-  const p = participant;
-  const regDate = p.registrationDate ? p.registrationDate.slice(0, 10) : null;
-  const dash = <span className="text-gray-400">—</span>;
-
-  return (
-    <ModalShell
-      isOpen={!!participant}
-      onClose={onClose}
-      title={p.fullName}
-      subtitle="Participant details"
-      footer={<button type="button" onClick={onClose} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95">Close</button>}
-    >
-      <div className="flex flex-col gap-5">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <DetailRow label="Phone">{p.phone || dash}</DetailRow>
-          <DetailRow label="Group">{p.groupName || dash}</DetailRow>
-          <DetailRow label="Source">{SOURCE_LABEL[p.source] ?? p.source}</DetailRow>
-          <DetailRow label="Status">{p.status === 'ACTIVE' ? 'Active' : 'Archived'}</DetailRow>
-        </div>
-
-        <div className="border-t border-orange-100 pt-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Registration details</p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <DetailRow label="Email">{p.email ? <span className="break-all">{p.email}</span> : dash}</DetailRow>
-            <DetailRow label="Gender">{p.gender || dash}</DetailRow>
-            <DetailRow label="Age range">{p.ageRange || dash}</DetailRow>
-            <DetailRow label="Registration date">{regDate || dash}</DetailRow>
-            <div className="sm:col-span-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Department(s)</p>
-              {p.departments && p.departments.length > 0 ? (
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  {p.departments.map((d) => (
-                    <span key={d} className="rounded-full bg-indigo-100/80 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">{d}</span>
-                  ))}
-                </div>
-              ) : <div className="mt-0.5 text-sm">{dash}</div>}
-            </div>
-            <div className="sm:col-span-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">SMART request</p>
-              {p.smartRequest ? (
-                <p className="mt-0.5 whitespace-pre-wrap text-sm leading-6 text-gray-700">{p.smartRequest}</p>
-              ) : <div className="mt-0.5 text-sm">{dash}</div>}
-            </div>
-          </div>
-        </div>
-
-        {p.notes && (
-          <div className="border-t border-orange-100 pt-4">
-            <DetailRow label="Notes"><p className="whitespace-pre-wrap leading-6 text-gray-700">{p.notes}</p></DetailRow>
-          </div>
-        )}
-
-        {flags.length > 0 && (
-          <div className="border-t border-orange-100 pt-4">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Concerns raised by support</p>
-            <div className="space-y-2">
-              {flags.map((flag) => (
-                <div key={flag.id} className="rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2.5">
-                  <div className="flex items-start gap-2">
-                    <p className="min-w-0 flex-1 text-sm font-semibold text-amber-900">{flag.reason}</p>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!adminId) return;
-                        setClearingId(flag.id);
-                        try { await participantFlagsApi.clear(flag.id, adminId); onFlagCleared(flag.id); } catch { /* ignore */ }
-                        finally { setClearingId(null); }
-                      }}
-                      disabled={clearingId === flag.id}
-                      className="flex-none text-xs font-semibold text-gray-600 hover:text-gray-900 disabled:opacity-50"
-                    >
-                      {clearingId === flag.id ? 'Clearing…' : 'Clear'}
-                    </button>
-                  </div>
-                  {flag.note && <p className="mt-1 text-sm text-gray-700">{flag.note}</p>}
-                  <p className="mt-1 text-xs text-gray-500">
-                    Flagged by {flag.raisedByName || 'Support'}{flag.weekNumber ? ` · Week ${flag.weekNumber}` : ''} · {new Date(flag.raisedAt).toLocaleDateString()}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="border-t border-orange-100 pt-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Support handover</p>
-          {handovers[0]?.fromSupportName ? (
-            <p className="text-sm text-gray-700" title={`Previously supported by ${handovers[0].fromSupportName}`}>
-              Previously supported by <span className="font-semibold">{handovers[0].fromSupportName}</span>
-              {handovers[0].faithProjectStatus ? ` · Faith project: ${handovers[0].faithProjectStatus.replaceAll('_', ' ').toLowerCase()}` : ''}
-            </p>
-          ) : <p className="text-sm text-gray-500">No reassignment history recorded yet.</p>}
-          {handoverNotes.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {handoverNotes.map((note) => (
-                <div key={note.id} className="rounded-xl bg-orange-50/60 px-3 py-2 text-sm text-gray-700">
-                  <p className="whitespace-pre-wrap">{note.body}</p>
-                  <p className="mt-1 text-xs text-gray-500">{note.authorName || 'Support'} · {new Date(note.createdAt).toLocaleDateString()}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </ModalShell>
-  );
-};
-
 // ── Assign to Group Modal ───────────────────────────────────────────────────────
 
 interface AssignGroupModalProps {
@@ -861,7 +728,7 @@ const AssignGroupModal: React.FC<AssignGroupModalProps> = ({ participant, groups
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const AdminParticipantsPage: React.FC = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
 
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -876,7 +743,7 @@ const AdminParticipantsPage: React.FC = () => {
   const [editing, setEditing] = useState<Participant | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Participant | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Participant | null>(null);
-  const [viewing, setViewing] = useState<Participant | null>(null);
+  const navigate = useNavigate();
   const [flags, setFlags] = useState<ParticipantFlag[]>([]);
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [assigning, setAssigning] = useState<Participant | null>(null);
@@ -1113,11 +980,11 @@ const AdminParticipantsPage: React.FC = () => {
                   {displayed.map((p) => (
                     <tr key={p.id} className="hover:bg-orange-50/30">
                       <td className="px-4 py-3 font-medium text-gray-900">
-                        {p.fullName}
+                        <NavLink to={`/participants/${p.id}`} className="hover:text-primary hover:underline">{p.fullName}</NavLink>
                         {flagsByParticipant.has(p.id) && (
                           <button
                             type="button"
-                            onClick={() => setViewing(p)}
+                            onClick={() => navigate(`/participants/${p.id}`)}
                             title={flagsByParticipant.get(p.id)?.map((flag) => flag.reason).join(', ')}
                             className="ml-2 inline-flex items-center rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
                           >
@@ -1147,7 +1014,7 @@ const AdminParticipantsPage: React.FC = () => {
                             <AppOverflowMenu
                               align="right"
                               items={[
-                                { label: 'View details', onClick: () => setViewing(p) },
+                                { label: 'View profile', onClick: () => navigate(`/participants/${p.id}`) },
                                 { label: 'Edit', onClick: () => { setEditing(p); setAddOpen(true); } },
                                 { label: 'Assign to group', onClick: () => setAssigning(p) },
                                 { label: 'Archive', onClick: () => setArchiveTarget(p), tone: 'danger' },
@@ -1216,14 +1083,6 @@ const AdminParticipantsPage: React.FC = () => {
         title="Delete permanently"
         message={`Permanently delete ${deleteTarget?.fullName}? This cannot be undone — all their attendance records will also be removed.`}
         confirmText="Delete permanently"
-      />
-
-      <ViewDetailsModal
-        participant={viewing}
-        flags={viewing ? flagsByParticipant.get(viewing.id) ?? [] : []}
-        adminId={user?.id}
-        onFlagCleared={(flagId) => setFlags((prev) => prev.filter((flag) => flag.id !== flagId))}
-        onClose={() => setViewing(null)}
       />
 
       {exportOpen && (
