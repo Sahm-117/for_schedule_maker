@@ -397,7 +397,7 @@ const ParticipantsTile: React.FC<{ health: CohortHealthPayload; model: Dashboard
   const unplaced = Math.max(0, active - Number(health.participants.inGroups));
   const people = model.people;
   const coverageNote = people?.coverage != null
-    ? `Only ${Math.round(people.coverage * 100)}% of Sunday attendance marks were recorded, too few to judge anyone.`
+    ? `Only ${Math.round(people.coverage * 100)}% of Sunday attendance was recorded, too little to judge anyone.`
     : 'Not judged yet.';
 
   if (model.mode === 'completed') {

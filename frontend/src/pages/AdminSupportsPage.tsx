@@ -40,7 +40,7 @@ type Filter = 'all' | PersonHealth;
 const weekParts = (w: SupportWeekRecord) => [
   w.sundayMarked ? null : 'Sunday attendance',
   w.reportSubmitted ? null : 'meeting report',
-  w.meetingMarked ? null : 'meeting marks',
+  w.meetingMarked ? null : 'meeting attendance',
 ].filter(Boolean) as string[];
 
 const AdminSupportsPage: React.FC = () => {
@@ -142,7 +142,7 @@ const AdminSupportsPage: React.FC = () => {
         <div className="space-y-5">
           <section className="surface-card p-4 sm:p-5">
             <p className="text-sm text-gray-600">
-              Each week a support logs Sunday attendance, submits the group meeting report and marks everyone at the meeting.
+              Each week a support logs Sunday attendance, submits the group meeting report and records meeting attendance for everyone.
               {' '}{rules.supportAmberMissedWeeks} unrecorded week{rules.supportAmberMissedWeeks === 1 ? '' : 's'} = keep an eye on, {rules.supportRedMissedWeeks} = needs attention.
               {' '}Groups should be fully onboarded within {rules.onboardingMaxDays} days.
               {' '}<NavLink to="/settings" className="font-semibold text-primary">Change rules</NavLink>
@@ -300,9 +300,9 @@ const SupportCard: React.FC<{
             <thead className="text-gray-500">
               <tr>
                 <th className="py-1.5 pr-3 font-semibold">Week</th>
-                <th className="py-1.5 pr-3 font-semibold">Sunday marks</th>
+                <th className="py-1.5 pr-3 font-semibold">Sunday attendance</th>
                 <th className="py-1.5 pr-3 font-semibold">Meeting report</th>
-                <th className="py-1.5 font-semibold">Meeting marks</th>
+                <th className="py-1.5 font-semibold">Meeting attendance</th>
               </tr>
             </thead>
             <tbody className="text-gray-800">
