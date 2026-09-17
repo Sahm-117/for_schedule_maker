@@ -103,7 +103,23 @@ const ParticipantHomePage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader title={`Welcome back, ${firstName}`} subtitle="Everything for this week, at a glance." />
+      <PageHeader
+        title={`Welcome back, ${firstName}`}
+        subtitle="Everything for this week, at a glance."
+        action={home.profileCompletion.percent < 100 ? (
+          // Kept to a small pill so Home stays about the week.
+          <NavLink to="/me/profile" className="inline-flex items-center gap-2 rounded-full border border-[#ffdeca] bg-white py-1.5 pl-1.5 pr-3 text-xs font-semibold text-gray-700">
+            <span
+              className="grid h-6 w-6 place-items-center rounded-full"
+              style={{ background: `conic-gradient(var(--color-primary, #ff914d) ${home.profileCompletion.percent * 3.6}deg, #f1f2f5 0deg)` }}
+              aria-hidden="true"
+            >
+              <span className="h-4 w-4 rounded-full bg-white" />
+            </span>
+            Profile {home.profileCompletion.percent}% · Complete it
+          </NavLink>
+        ) : undefined}
+      />
 
       <div className="flex flex-col gap-4">
         <section className="rounded-[22px] border border-[#ffdeca] bg-white p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
@@ -188,16 +204,6 @@ const ParticipantHomePage: React.FC = () => {
           </section>
         )}
 
-        {home.feedback && !home.feedback.submitted && (
-          <div className="flex flex-wrap items-center gap-3.5 rounded-[14px] border border-[#ffeadb] border-l-4 border-l-primary bg-white px-[18px] py-4">
-            <div className="min-w-0 flex-[1_1_220px]">
-              <p className="text-[15px] font-bold text-gray-900">{home.feedback.round === 'END' ? 'End of FOF survey' : 'How is FOF going?'}</p>
-              <p className="mt-1 text-[13px] text-gray-500">A few quick questions. Anonymous, your name is never attached.</p>
-            </div>
-            <NavLink to="/me/feedback" className="inline-flex min-h-[44px] items-center rounded-xl bg-[#3f4757] px-4 text-[13px] font-semibold text-white">Give feedback</NavLink>
-          </div>
-        )}
-
         {(finished || home.cohort?.status === 'COMPLETED' || (totalWeeks > 0 && weekNumber === totalWeeks)) && !home.wrapUp.submitted && (
           <div className="flex flex-wrap items-center gap-3.5 rounded-[14px] border border-[#ffeadb] border-l-4 border-l-primary bg-white px-[18px] py-4">
             <div className="min-w-0 flex-[1_1_220px]">
@@ -214,7 +220,7 @@ const ParticipantHomePage: React.FC = () => {
               <span className="grid h-11 w-11 place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]" aria-hidden="true">
                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d={link.icon} /></svg>
               </span>
-              <span className="text-[13px] font-semibold text-gray-800">{link.label}</span>
+              <span className="text-center text-[13px] font-semibold leading-snug text-gray-800">{link.label}</span>
               {link.to === '/me/faith' && home.faithUnread && <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-red-500" aria-label="New reply" />}
             </NavLink>
           ))}

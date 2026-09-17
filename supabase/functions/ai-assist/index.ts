@@ -6,8 +6,8 @@
  *       → end-of-FOF summary of their own reflections, saved in ReflectionSummary
  *   recap-draft          (admin) { weekTitle, notes }
  *       → a short recap summary and a discussion prompt, not saved
- *   feedback-themes      (admin) { cohortId, round }
- *       → themes from the anonymous feedback answers, saved in FeedbackThemes
+ *   feedback-themes      (admin) { cohortId }
+ *       → themes from the cohort's anonymous feedback, saved in FeedbackThemes
  *
  * Principle agreed with leadership: AI summarises, organises and highlights; it
  * never scores faith or judges anyone's spiritual growth.
@@ -159,10 +159,10 @@ Deno.serve(async (req) => {
 
     if (body.action === 'feedback-themes') {
       await adminFromToken(token)
-      const round = body.round === 'END' ? 'END' : 'MID'
+      const round = 'GENERAL'
       const { data: results, error: resultsError } = await supabase.rpc('feedback_results', { p_token: token, p_cohort_id: body.cohortId })
       if (resultsError) throw new Error(resultsError.message)
-      const answers = ((results?.rounds ?? []) as any[]).find((r) => r.round === round)?.answers as any[] | null
+      const answers = results?.answers as any[] | null
       if (!answers) throw new AiError('FEEDBACK_NOT_VISIBLE', 400)
       const comments = answers.flatMap((a) => [
         a.workingWell ? `Working well: ${a.workingWell}` : '',

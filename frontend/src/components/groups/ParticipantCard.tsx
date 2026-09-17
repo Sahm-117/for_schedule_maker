@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import ModalShell from '../followups/ModalShell';
 import InfoTip from '../InfoTip';
 import DepartmentHandoff from '../participants/DepartmentHandoff';
+import ProfileOverview from '../participants/ProfileOverview';
 import { useToast } from '../Toast';
 import { departmentReferralsApi, faithProjectsApi, participantCheckInsApi, participantPushApi, participantFlagsApi, participantNotesApi, participantsApi } from '../../services/api';
 import { buildWhatsAppLink } from '../../utils/phone';
@@ -573,6 +574,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
             </button>
           </div>
           <RegistrationDetails participant={participant} />
+          <ProfileOverview participant={participant} showBasics />
           <DepartmentHandoff
             participant={participant}
             referrals={referrals}

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import PageHeader from '../components/PageHeader';
-import { useParticipantApp } from '../context/ParticipantAppContext';
 import { participantAppApi } from '../services/api';
 import type { FeedbackAnswers, FeedbackRating } from '../types';
 
-// Anonymous feedback, mid-programme and at the end. The answers are stored with
-// no name, account or time attached. Matches the V2 design.
+// Anonymous feedback, any time. The answers are stored with no name, account or
+// time attached. Surveys go out separately (e.g. a Google Form link in an
+// announcement). Matches the V2 design.
 
 const CARD = 'rounded-[20px] border border-[#eef0f4] bg-white p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
 const FIELD = 'min-h-[70px] w-full resize-y rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
@@ -32,32 +32,25 @@ const RatingRow: React.FC<{ label: string; value: FeedbackRating | undefined; on
 );
 
 const ParticipantFeedbackPage: React.FC = () => {
-  const { home, loading, reload } = useParticipantApp();
   const [answers, setAnswers] = useState<Partial<FeedbackAnswers>>({});
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
 
-  if (loading || !home) return <p className="py-16 text-center text-sm text-gray-500">Loading…</p>;
-
-  const round = home.feedback;
-  const isEnd = round?.round === 'END';
   const set = (patch: Partial<FeedbackAnswers>) => { setAnswers((prev) => ({ ...prev, ...patch })); setError(''); };
 
   const submit = async () => {
-    if (!round) return;
     if (!answers.rating) { setError('Choose how the programme is going.'); return; }
     setSending(true);
     setError('');
     try {
-      await participantAppApi.submitFeedback(round.round, {
+      await participantAppApi.submitFeedback({
         rating: answers.rating,
-        workingWell: answers.workingWell?.trim() || undefined,
-        needsAttention: answers.needsAttention?.trim() || undefined,
-        ...(isEnd ? { classesRating: answers.classesRating, meetingsRating: answers.meetingsRating, supportRating: answers.supportRating } : {}),
+        workingWell: answers.workingWell?.trim() || null,
+        needsAttention: answers.needsAttention?.trim() || null,
       });
       setSent(true);
-      void reload();
+      setAnswers({});
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send your feedback.');
     } finally {
@@ -69,29 +62,16 @@ const ParticipantFeedbackPage: React.FC = () => {
     <div className="max-w-[480px]">
       <PageHeader title="Feedback" subtitle="Anonymous. Share how the programme is going." />
       <section className={CARD}>
-        {sent || round?.submitted ? (
+        {sent ? (
           <div className="px-2.5 py-5 text-center">
             <p className="text-[15px] font-bold text-gray-900">Thank you.</p>
             <p className="mt-1.5 text-[13px] text-gray-500">Your response is anonymous. We can&apos;t identify you or link it to your account.</p>
-          </div>
-        ) : !round ? (
-          <div className="px-2.5 py-5 text-center">
-            <p className="text-[15px] font-bold text-gray-900">Feedback is closed right now</p>
-            <p className="mt-1.5 text-[13px] text-gray-500">We ask for feedback in the middle of the programme and at the end. You will see it here when it opens.</p>
+            <button type="button" onClick={() => setSent(false)} className="mt-4 text-[13px] font-semibold text-[#c2410c]">Send more feedback</button>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <p className="text-[13px] text-gray-500">
-              {isEnd ? 'End of FOF survey. ' : ''}Anonymous. Your name is never attached to this.
-            </p>
+            <p className="text-[13px] text-gray-500">Anonymous. Your name is never attached to this.</p>
             <RatingRow label="How is the programme going for you?" value={answers.rating} onChange={(rating) => set({ rating })} />
-            {isEnd && (
-              <>
-                <RatingRow label="Sunday classes" value={answers.classesRating} onChange={(classesRating) => set({ classesRating })} />
-                <RatingRow label="Group meetings" value={answers.meetingsRating} onChange={(meetingsRating) => set({ meetingsRating })} />
-                <RatingRow label="Your support" value={answers.supportRating} onChange={(supportRating) => set({ supportRating })} />
-              </>
-            )}
             <label className="block">
               <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">What&apos;s working well?</span>
               <textarea value={answers.workingWell ?? ''} onChange={(e) => set({ workingWell: e.target.value })} className={FIELD} />

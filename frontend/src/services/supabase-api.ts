@@ -402,7 +402,6 @@ export const cohortsApi = {
         endDate: row.endDate,
         status: row.status,
         schedulePublished: row.schedulePublished ?? false,
-        midFeedbackWeek: row.midFeedbackWeek ?? 5,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
       })),
@@ -531,7 +530,6 @@ export const cohortsApi = {
     endDate?: string | null;
     status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
     schedulePublished?: boolean;
-    midFeedbackWeek?: number;
   }): Promise<{ cohort: Cohort }> {
     const { data, error } = await supabase
       .from('Cohort')
@@ -2577,9 +2575,9 @@ const participantAppError = (rawMessage: string | undefined, fallback: string): 
   if (msg.includes('GOAL_REQUIRED')) return new Error('Write one thing you will do.');
   if (msg.includes('RECAP_NOT_RELEASED')) return new Error("This week's recap is not out yet.");
   if (msg.includes('REFLECTION_LOCKED')) return new Error('This reflection can no longer be changed.');
-  if (msg.includes('FEEDBACK_CLOSED')) return new Error('This feedback is closed now.');
-  if (msg.includes('FEEDBACK_ALREADY_SENT')) return new Error('You have already sent this feedback. Thank you.');
   if (msg.includes('FEEDBACK_RATING_REQUIRED')) return new Error('Choose how the programme is going.');
+  if (msg.includes('INVALID_EMAIL')) return new Error('Enter a valid email address.');
+  if (msg.includes('INVALID_DATE_OF_BIRTH')) return new Error('Enter a valid date of birth.');
   if (msg.includes('DEPARTMENT_REQUIRED')) return new Error('Choose a department.');
   if (msg.includes('PROJECT_REQUIRED')) return new Error('Write your project before submitting.');
   if (msg.includes('PROJECT_LOCKED')) return new Error('Your faith project is with your support right now.');
@@ -2684,6 +2682,28 @@ export const participantAppApi = {
     return { avatarUrl: urlData.publicUrl };
   },
 
+  // Saves their details and answers to requested fields; returns the new completion.
+  async saveProfile(input: {
+    email: string;
+    gender: string;
+    ageRange: string;
+    occupation: string;
+    dateOfBirth: string;
+    answers: Record<string, string>;
+  }): Promise<import('../types').ProfileCompletion> {
+    const { data, error } = await supabase.rpc('save_participant_profile', {
+      p_token: getSessionToken(),
+      p_email: input.email,
+      p_gender: input.gender,
+      p_age_range: input.ageRange,
+      p_occupation: input.occupation,
+      p_date_of_birth: input.dateOfBirth || null,
+      p_answers: input.answers,
+    });
+    if (error) throw participantAppError(error.message, 'Could not save your details.');
+    return data as import('../types').ProfileCompletion;
+  },
+
   async changePassword(current: string, next: string): Promise<void> {
     const { data, error } = await supabase.rpc('change_participant_password', { p_token: getSessionToken(), p_current: current, p_new: next });
     if (error) throw participantAppError(error.message, 'Could not change your password.');
@@ -2691,8 +2711,8 @@ export const participantAppApi = {
   },
 
   // Anonymous: the database stores the answers without who sent them.
-  async submitFeedback(round: import('../types').FeedbackRound, answers: import('../types').FeedbackAnswers): Promise<void> {
-    const { error } = await supabase.rpc('submit_feedback', { p_token: getSessionToken(), p_round: round, p_answers: answers });
+  async submitFeedback(answers: import('../types').FeedbackAnswers): Promise<void> {
+    const { error } = await supabase.rpc('submit_feedback', { p_token: getSessionToken(), p_answers: answers });
     if (error) throw participantAppError(error.message, 'Could not send your feedback.');
   },
 
@@ -3286,6 +3306,8 @@ const mapParticipant = (row: any): import('../types').Participant => {
     departments: row.departments ?? [],
     registrationDate: row.registrationDate ?? null,
     smartRequest: row.smartRequest ?? null,
+    dateOfBirth: row.dateOfBirth ?? null,
+    occupation: row.occupation ?? null,
     groupId: gp?.group?.id ?? null,
     groupName: gp?.group?.name ?? null,
     createdAt: row.createdAt,
@@ -5532,7 +5554,7 @@ const AI_ERRORS: Record<string, string> = {
   SUMMARY_LOCKED: 'Your summary unlocks in the last week of FOF.',
   NO_REFLECTIONS: 'Write at least one weekly reflection first.',
   NOTES_TOO_SHORT: 'Paste more of the class notes first.',
-  FEEDBACK_NOT_VISIBLE: 'The answers for this round are not visible yet.',
+  FEEDBACK_NOT_VISIBLE: 'Themes are available once at least five people have sent feedback.',
   NO_COMMENTS: 'There are no written comments to summarise.',
   SESSION_EXPIRED: 'Please sign out and sign in again.',
   NOT_ALLOWED: 'Only admins can do this.',
@@ -5568,14 +5590,15 @@ export const aiApi = {
     return invokeAi<{ summary: string; prompt: string }>({ action: 'recap-draft', weekTitle, notes });
   },
 
-  async summariseFeedback(cohortId: string, round: import('../types').FeedbackRound): Promise<{ themes: string; createdAt: string }> {
-    return invokeAi<{ themes: string; createdAt: string }>({ action: 'feedback-themes', cohortId, round });
+  async summariseFeedback(cohortId: string): Promise<{ themes: string; createdAt: string }> {
+    return invokeAi<{ themes: string; createdAt: string }>({ action: 'feedback-themes', cohortId });
   },
 
-  async getFeedbackThemes(cohortId: string): Promise<Array<{ round: import('../types').FeedbackRound; themes: string; createdAt: string }>> {
+  // The saved themes for the cohort's anonymous feedback, if any.
+  async getFeedbackThemes(cohortId: string): Promise<{ themes: string; createdAt: string } | null> {
     const { data, error } = await supabase.rpc('feedback_themes', { p_token: getSessionToken(), p_cohort_id: cohortId });
     if (error) throw new Error(error.message);
-    return (data as Array<{ round: import('../types').FeedbackRound; themes: string; createdAt: string }>) || [];
+    return ((data as Array<{ round: string; themes: string; createdAt: string }>) || []).find((row) => row.round === 'GENERAL') ?? null;
   },
 
   async getSettings(): Promise<import('../types').AiSettings> {
@@ -5591,5 +5614,61 @@ export const aiApi = {
       .from('AppSetting')
       .upsert([{ settingKey: 'ai_settings', value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
     if (error) throw new Error(error.message);
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Participant profile fields ("Request information")
+// ---------------------------------------------------------------------------
+
+const mapProfileField = (row: any): import('../types').ProfileField => ({
+  id: row.id,
+  label: row.label,
+  helpText: row.helpText ?? null,
+  fieldType: row.fieldType,
+  options: Array.isArray(row.options) ? row.options.map(String) : [],
+  required: row.required !== false,
+  cohortIds: row.cohortIds ?? [],
+  groupIds: row.groupIds ?? null,
+  participantIds: row.participantIds ?? null,
+  createdAt: row.createdAt,
+  archivedAt: row.archivedAt ?? null,
+});
+
+export const profileFieldsApi = {
+  async getAll(): Promise<{ fields: import('../types').ProfileField[] }> {
+    const { data, error } = await supabase.from('ProfileField').select('*').order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { fields: ((data as any[]) || []).map(mapProfileField) };
+  },
+
+  async create(input: Omit<import('../types').ProfileField, 'id' | 'createdAt' | 'archivedAt'>, createdById: string): Promise<{ field: import('../types').ProfileField }> {
+    const { data, error } = await supabase.from('ProfileField').insert([{ ...input, createdById }]).select('*').single();
+    if (error) throw new Error(error.message);
+    return { field: mapProfileField(data) };
+  },
+
+  // Stop asking for a field. Answers already given are kept.
+  async archive(id: string): Promise<void> {
+    const { error } = await supabase.from('ProfileField').update({ archivedAt: new Date().toISOString() }).eq('id', id);
+    if (error) throw new Error(error.message);
+  },
+
+  async getSummary(): Promise<Map<string, { applies: number; answered: number }>> {
+    const { data, error } = await supabase.rpc('profile_field_summary');
+    if (error) throw new Error(error.message);
+    return new Map(((data as any[]) || []).map((row) => [row.fieldId, { applies: Number(row.applies), answered: Number(row.answered) }]));
+  },
+
+  async getCohortCompletion(cohortId: string): Promise<Map<string, import('../types').ProfileCompletion>> {
+    const { data, error } = await supabase.rpc('cohort_profile_completion', { p_cohort_id: cohortId });
+    if (error) throw new Error(error.message);
+    return new Map(((data as any[]) || []).map((row) => [row.participantId, row.completion]));
+  },
+
+  async getOverview(participantId: string): Promise<{ completion: import('../types').ProfileCompletion; fields: import('../types').ProfileFieldEntry[] }> {
+    const { data, error } = await supabase.rpc('participant_profile_overview', { p_participant_id: participantId });
+    if (error) throw new Error(error.message);
+    return data as { completion: import('../types').ProfileCompletion; fields: import('../types').ProfileFieldEntry[] };
   },
 };

@@ -14,15 +14,30 @@ if (!hasSupabaseConfig) {
 // This only affects REST/PostgREST + auth HTTP calls — realtime uses a
 // WebSocket and is untouched. Any caller-supplied AbortSignal is preserved.
 const REQUEST_TIMEOUT_MS = 20000;
+// AI help can wait on a busy free model and fall back to the next, so give it longer.
+const AI_REQUEST_TIMEOUT_MS = 150000;
+
+// Local development only: send the named edge functions to locally running copies
+// (VITE_LOCAL_FUNCTIONS_URL, e.g. http://localhost:54330) so unreleased function
+// changes can be tried before they are deployed. Never set in production.
+const localFunctionsUrl = import.meta.env.DEV ? (import.meta.env.VITE_LOCAL_FUNCTIONS_URL as string | undefined) : undefined;
+const LOCAL_FUNCTIONS = /\/functions\/v1\/(ai-assist|notify-users|send-announcement)(?=$|\?)/;
+const routeLocally = (input: RequestInfo | URL): RequestInfo | URL => {
+  if (!localFunctionsUrl) return input;
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  const match = url.match(LOCAL_FUNCTIONS);
+  return match ? `${localFunctionsUrl}/${match[1]}` : input;
+};
 // AbortSignal.any may be absent in older lib typings/runtimes; reference it
 // through a typed optional shape instead of `any`.
 const signalAny = (AbortSignal as { any?: (signals: AbortSignal[]) => AbortSignal }).any;
 const fetchWithTimeout: typeof fetch = (input, init) => {
-  const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  const timeoutSignal = AbortSignal.timeout(url.includes('/functions/v1/ai-assist') ? AI_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
   const signal = init?.signal
     ? (signalAny ? signalAny([init.signal, timeoutSignal]) : init.signal)
     : timeoutSignal;
-  return fetch(input, { ...init, signal });
+  return fetch(routeLocally(input), { ...init, signal });
 };
 
 export const supabase = hasSupabaseConfig

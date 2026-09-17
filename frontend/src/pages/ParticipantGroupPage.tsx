@@ -74,21 +74,23 @@ const ParticipantGroupPage: React.FC = () => {
             </p>
             <p className="mt-0.5 text-[13px] text-gray-500">Weekly prayer and check-in · {group.meetingDurationMins || 45} minutes · {platformLabel(group.callPlatform)}</p>
 
-            <div className="mt-4 flex flex-wrap items-center gap-2">
+            {/* The meeting's order, as a simple step line (not buttons). */}
+            <ol className="mt-5 grid grid-cols-3" aria-label="How the meeting runs">
               {[
                 ['Prayer', '20–30 minutes'],
                 ['Recap', weekNumber >= 1 ? `Week ${Math.min(weekNumber, home.weeks.length)}` : 'This week'],
                 ['Questions', 'Apply the lesson'],
-              ].map(([title, sub], index) => (
-                <React.Fragment key={title}>
-                  {index > 0 && <span className="flex-none text-gray-400" aria-hidden="true">→</span>}
-                  <div className="min-w-0 flex-[1_1_120px] rounded-[14px] border border-[#f1ece7] bg-[#fffdfb] px-3.5 py-3">
-                    <p className="text-[13px] font-bold text-gray-900">{title}</p>
-                    <p className="mt-0.5 text-xs text-gray-500">{sub}</p>
-                  </div>
-                </React.Fragment>
+              ].map(([title, sub], index, steps) => (
+                <li key={title} className="relative flex flex-col items-center px-1 text-center">
+                  {index < steps.length - 1 && (
+                    <span className="absolute left-1/2 top-[13px] h-0.5 w-full bg-[#ffdeca]" aria-hidden="true" />
+                  )}
+                  <span className="relative grid h-7 w-7 place-items-center rounded-full bg-primary text-xs font-bold text-white">{index + 1}</span>
+                  <span className="mt-2 text-[13px] font-bold text-gray-900">{title}</span>
+                  <span className="mt-0.5 text-xs text-gray-500">{sub}</span>
+                </li>
               ))}
-            </div>
+            </ol>
 
             {scheduled && (
               <div className="mt-[18px] grid gap-2.5 sm:grid-cols-2">

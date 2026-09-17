@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { participantAccountsApi } from '../services/api';
 
@@ -49,15 +49,16 @@ const PasswordField: React.FC<{
 
 const ParticipantWelcomePage: React.FC = () => {
   const { user, refreshUser, logout } = useAuth();
-  const navigate = useNavigate();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // Straight after choosing a password, go to Profile to complete it.
+  const [justSet, setJustSet] = useState(false);
 
   if (!user) return null;
-  if (!user.mustChangePassword) return <Navigate to="/me" replace />;
+  if (!user.mustChangePassword) return <Navigate to={justSet ? '/me/profile?welcome=1' : '/me'} replace />;
 
   const passwordError = touched && password.length < 8 ? 'Use at least 8 characters.' : '';
   const confirmError = touched && !passwordError && password !== confirm ? 'These do not match.' : '';
@@ -69,8 +70,8 @@ const ParticipantWelcomePage: React.FC = () => {
     setError('');
     try {
       await participantAccountsApi.setOwnPassword(password);
+      setJustSet(true);
       refreshUser({ mustChangePassword: false });
-      navigate('/me', { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
       if (message === 'SESSION_EXPIRED') { logout(); return; }

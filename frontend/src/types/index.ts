@@ -57,8 +57,6 @@ export interface Cohort {
   /** COMPLETED: the cohort has finished; it stays viewable and selectable. */
   status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
   schedulePublished?: boolean;
-  /** Week the mid-programme participant feedback opens (open for two weeks). */
-  midFeedbackWeek?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -316,6 +314,9 @@ export interface Participant {
   departments?: string[];
   registrationDate?: string | null;
   smartRequest?: string | null;
+  /** Added by the participant in their app. */
+  dateOfBirth?: string | null;
+  occupation?: string | null;
   groupId?: string | null;
   groupName?: string | null;
   createdAt?: string;
@@ -713,42 +714,39 @@ export interface ParticipantHome {
   scriptures: Array<{ dayNumber: number; imageUrl: string }>;
   lastCheckIn: { response: CheckInResponse; sundayMisses: number; meetingMisses: number; createdAt: string } | null;
   members: Array<{ name: string }>;
-  profile: { email: string | null; avatarUrl: string | null };
+  profile: {
+    email: string | null;
+    avatarUrl: string | null;
+    gender: string | null;
+    ageRange: string | null;
+    /** YYYY-MM-DD, added by the participant. */
+    dateOfBirth: string | null;
+    occupation: string | null;
+  };
   /** Their support wrote in the faith project conversation since they last read it. */
   faithUnread: boolean;
   reminders: { meetingRemindMinutes: number[]; recapReleased: boolean };
   resources: Array<{ id: string; title: string; description: string | null; type: Resource['type']; url: string; fileName: string | null }>;
-  /** The feedback round open right now, if any. */
-  feedback: { round: FeedbackRound; opensAt: string; closesAt: string; submitted: boolean } | null;
   announcement: { id: string; subject: string; body: string; linkUrl: string | null; linkLabel: string | null } | null;
   wrapUp: { submitted: boolean };
+  /** Fields admins requested that apply to this participant, with their answers. */
+  profileFields: ProfileFieldEntry[];
+  profileCompletion: ProfileCompletion;
 }
 
-export type FeedbackRound = 'MID' | 'END';
 export type FeedbackRating = 'NOT_GREAT' | 'OKAY' | 'GREAT';
 
 export interface FeedbackAnswers {
   rating: FeedbackRating;
-  workingWell?: string;
-  needsAttention?: string;
-  /** End-of-cohort survey only. */
-  classesRating?: FeedbackRating;
-  meetingsRating?: FeedbackRating;
-  supportRating?: FeedbackRating;
+  workingWell?: string | null;
+  needsAttention?: string | null;
 }
 
 export interface FeedbackResults {
-  eligible: number;
-  withApp: number;
-  rounds: Array<{
-    round: FeedbackRound;
-    opensAt: string;
-    closesAt: string;
-    responses: number;
-    /** Answers are shown only after the round closes with at least five responses. */
-    visible: boolean;
-    answers: FeedbackAnswers[] | null;
-  }>;
+  count: number;
+  /** Answers show once a cohort has at least five, so nobody can be picked out. */
+  visible: boolean;
+  answers: FeedbackAnswers[] | null;
 }
 
 export interface ParticipantFaith {
@@ -802,4 +800,41 @@ export interface AiSettings {
   enabled: boolean;
   /** OpenRouter model ids, tried in order. */
   models: string[];
+}
+
+// ── Participant profile fields ("Request information") ──────────────────────
+
+export type ProfileFieldType = 'SHORT_TEXT' | 'LONG_TEXT' | 'DATE' | 'CHOICE' | 'YES_NO';
+
+export interface ProfileField {
+  id: string;
+  label: string;
+  helpText: string | null;
+  fieldType: ProfileFieldType;
+  /** Choices for CHOICE fields. */
+  options: string[];
+  /** Required fields count towards profile completion; optional ones do not. */
+  required: boolean;
+  /** Applies to participants in these cohorts (all groups when groupIds is null)... */
+  cohortIds: string[];
+  groupIds: string[] | null;
+  /** ...or only to these participants, when set. */
+  participantIds: string[] | null;
+  createdAt: string;
+  archivedAt: string | null;
+}
+
+export interface ProfileFieldEntry {
+  id: string;
+  label: string;
+  helpText: string | null;
+  fieldType: ProfileFieldType;
+  options: string[];
+  required: boolean;
+  value: string | null;
+}
+
+export interface ProfileCompletion {
+  percent: number;
+  missing: number;
 }

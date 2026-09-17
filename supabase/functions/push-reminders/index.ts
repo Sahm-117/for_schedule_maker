@@ -580,10 +580,11 @@ Deno.serve(async (req) => {
             const t = parseTime(group.meetingTime)
             if (t === null || Math.abs(t - target.targetMinutes) > WINDOW) continue
             const members = ((group.members ?? []) as any[]).map((m) => m.participantId).filter((id: string) => participantIds.has(id) && meetingMinutesFor(id).includes(interval))
-            const away = interval === 1440 ? 'tomorrow' : interval >= 60 ? `in ${Math.round(interval / 60)} hour${interval === 60 ? '' : 's'}` : `in ${interval} minutes`
+            // Same wording as the support group meeting reminder above.
+            const minuteLabel = interval < 60 ? `${interval} mins` : interval === 60 ? '1 hour' : interval === 1440 ? 'tomorrow' : `${Math.round(interval / 60)} hours`
             await pushParticipants(members, {
-              title: `🙏 Your group call is ${away}`,
-              body: `${group.name} meets ${interval === 1440 ? 'tomorrow' : 'today'} at ${group.meetingTime}.`,
+              title: `🙏 Group meeting reminder — ${minuteLabel} away`,
+              body: `${group.name} prayer meeting at ${group.meetingTime}`,
               path: '/me/group',
               tag: `GROUP_MEETING:${group.id}:${interval}:${target.isoDate}`,
             })

@@ -4,7 +4,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { participantsApi, groupsApi, participantFlagsApi, cohortsApi, settingsApi } from '../services/api';
+import { participantsApi, groupsApi, participantFlagsApi, cohortsApi, settingsApi, profileFieldsApi } from '../services/api';
 import { buildDashboardModel, type PeopleSummary } from '../components/dashboard/healthModel';
 import { PERSON_HEALTH_LABEL, type PersonHealth } from '../utils/programmeRules';
 import type { Participant, Group, ParticipantFlag } from '../types';
@@ -28,6 +28,7 @@ import { normalizeToIntlPhone } from '../utils/phone';
 import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
 import { departmentOptions, useChurchDepartments } from '../hooks/useChurchDepartments';
 import LoginDetailsCard from '../components/participants/LoginDetailsCard';
+import RequestInfoModal from '../components/participants/RequestInfoModal';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -760,6 +761,10 @@ const AdminParticipantsPage: React.FC = () => {
   const healthFilter: PersonHealth | '' = healthParam === 'critical' || healthParam === 'warning' || healthParam === 'good' ? healthParam : '';
   const [assigning, setAssigning] = useState<Participant | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [requestInfoOpen, setRequestInfoOpen] = useState(false);
+  // Profile completion (%) per participant, and the "Incomplete profiles" filter.
+  const [completionById, setCompletionById] = useState<Map<string, import('../types').ProfileCompletion>>(new Map());
+  const [incompleteOnly, setIncompleteOnly] = useState(false);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -769,6 +774,7 @@ const AdminParticipantsPage: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     if (!silent) setLoading(true);
     try {
+      profileFieldsApi.getCohortCompletion(activeCohort.id).then(setCompletionById).catch(() => { /* column stays empty */ });
       const [{ participants: ps }, { groups: gs }, { flags: fs }, health, peopleData, rules] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true }),
         groupsApi.getAll({ cohortId: activeCohort.id }),
@@ -879,13 +885,14 @@ const AdminParticipantsPage: React.FC = () => {
       ps = ps.filter((p) => p.groupId === groupFilter);
     }
     if (flaggedOnly) ps = ps.filter((p) => flagsByParticipant.has(p.id));
+    if (incompleteOnly) ps = ps.filter((p) => (completionById.get(p.id)?.percent ?? 0) < 100);
     if (healthFilter && healthById.size > 0) ps = ps.filter((p) => healthById.get(p.id)?.health === healthFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant, healthFilter, healthById]);
+  }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant, healthFilter, healthById, incompleteOnly, completionById]);
 
   const unassignedCount = useMemo(
     () => participants.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
@@ -935,6 +942,7 @@ const AdminParticipantsPage: React.FC = () => {
               <AppOverflowMenu
                 align="right"
                 items={[
+                  { label: 'Request information', onClick: () => setRequestInfoOpen(true) },
                   { label: 'Import participants', onClick: () => setImportOpen(true) },
                   { label: 'Export for WhatsApp', onClick: () => setExportOpen(true) },
                 ]}
@@ -1005,6 +1013,16 @@ const AdminParticipantsPage: React.FC = () => {
                   Concerns ({flaggedCount})
                 </button>
               )}
+              {completionById.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIncompleteOnly((value) => !value)}
+                  aria-pressed={incompleteOnly}
+                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${incompleteOnly ? 'bg-sky-600 text-white' : 'bg-sky-100/80 text-sky-700'}`}
+                >
+                  Incomplete profiles ({participants.filter((p) => p.status === 'ACTIVE' && (completionById.get(p.id)?.percent ?? 0) < 100).length})
+                </button>
+              )}
               <label className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-600">
                 <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="accent-primary" />
                 Show archived
@@ -1026,6 +1044,7 @@ const AdminParticipantsPage: React.FC = () => {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Name</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Phone</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Profile</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Source</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Support</th>
                     <th className="sticky right-0 bg-orange-50/60 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
@@ -1061,6 +1080,13 @@ const AdminParticipantsPage: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 text-gray-500">{p.phone ?? '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{p.groupName ?? '—'}</td>
+                      <td className="px-4 py-3">
+                        {completionById.has(p.id) ? (
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${completionById.get(p.id)!.percent === 100 ? 'bg-emerald-100/80 text-emerald-700' : 'bg-neutral-100 text-neutral-600'}`}>
+                            {completionById.get(p.id)!.percent}%
+                          </span>
+                        ) : <span className="text-gray-400">—</span>}
+                      </td>
                       <td className="px-4 py-3">
                         <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
                           {SOURCE_LABEL[p.source] ?? p.source}
@@ -1130,6 +1156,8 @@ const AdminParticipantsPage: React.FC = () => {
       >
         {loginFor && <LoginDetailsCard participantId={loginFor.id} defaultOpen />}
       </ModalShell>
+
+      <RequestInfoModal isOpen={requestInfoOpen} onClose={() => setRequestInfoOpen(false)} />
 
       <ImportModal
         isOpen={importOpen}

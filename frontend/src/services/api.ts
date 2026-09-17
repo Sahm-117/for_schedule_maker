@@ -50,6 +50,7 @@ import {
   participantPushApi as supabaseParticipantPushApi,
   feedbackApi as supabaseFeedbackApi,
   aiApi as supabaseAiApi,
+  profileFieldsApi as supabaseProfileFieldsApi,
   reflectionActivityApi as supabaseReflectionActivityApi,
   recapReleasesApi as supabaseRecapReleasesApi,
   participantCheckInsApi as supabaseParticipantCheckInsApi,
@@ -675,8 +676,9 @@ export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async saveReminders(_minutes: number[], _recapReleased: boolean): Promise<never> { return peopleUnavailable(); },
   async savePushSubscription(_subscription: PushSubscriptionJSON): Promise<never> { return peopleUnavailable(); },
   async uploadAvatar(_participantId: string, _file: File): Promise<never> { return peopleUnavailable(); },
+  async saveProfile(_input: { email: string; gender: string; ageRange: string; occupation: string; dateOfBirth: string; answers: Record<string, string> }): Promise<never> { return peopleUnavailable(); },
   async changePassword(_current: string, _next: string): Promise<never> { return peopleUnavailable(); },
-  async submitFeedback(_round: import('../types').FeedbackRound, _answers: import('../types').FeedbackAnswers): Promise<never> { return peopleUnavailable(); },
+  async submitFeedback(_answers: import('../types').FeedbackAnswers): Promise<never> { return peopleUnavailable(); },
   async submitWrapUp(_input: { department: string; wantsReferral: boolean; note: string }, _participantName: string): Promise<never> { return peopleUnavailable(); },
 };
 
@@ -713,10 +715,19 @@ export const aiApi = USE_SUPABASE ? supabaseAiApi : {
   async setOptIn(_optIn: boolean): Promise<never> { return peopleUnavailable(); },
   async generateSummary(): Promise<never> { return peopleUnavailable(); },
   async draftRecap(_weekTitle: string, _notes: string): Promise<never> { return peopleUnavailable(); },
-  async summariseFeedback(_cohortId: string, _round: import('../types').FeedbackRound): Promise<never> { return peopleUnavailable(); },
+  async summariseFeedback(_cohortId: string): Promise<never> { return peopleUnavailable(); },
   async getFeedbackThemes(_cohortId: string): Promise<never> { return peopleUnavailable(); },
   async getSettings(): Promise<never> { return peopleUnavailable(); },
   async saveSettings(_settings: import('../types').AiSettings): Promise<never> { return peopleUnavailable(); },
+};
+
+export const profileFieldsApi = USE_SUPABASE ? supabaseProfileFieldsApi : {
+  async getAll(): Promise<{ fields: import('../types').ProfileField[] }> { return { fields: [] }; },
+  async create(_input: Omit<import('../types').ProfileField, 'id' | 'createdAt' | 'archivedAt'>, _createdById: string): Promise<never> { return peopleUnavailable(); },
+  async archive(_id: string): Promise<void> { return; },
+  async getSummary(): Promise<Map<string, { applies: number; answered: number }>> { return new Map(); },
+  async getCohortCompletion(_cohortId: string): Promise<Map<string, import('../types').ProfileCompletion>> { return new Map(); },
+  async getOverview(_participantId: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export { SESSION_TOKEN_KEY };

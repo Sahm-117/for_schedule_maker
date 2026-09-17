@@ -42,6 +42,7 @@ import type {
 import DepartmentHandoff from '../components/participants/DepartmentHandoff';
 import LoginDetailsCard from '../components/participants/LoginDetailsCard';
 import ParticipantAppActivity from '../components/participants/ParticipantAppActivity';
+import ProfileOverview from '../components/participants/ProfileOverview';
 import { JOURNEY_STAGES, buildJourney } from '../utils/participantJourney';
 import {
   COMPLETION_SCORE_ALL_MEETINGS,
@@ -297,6 +298,8 @@ const AdminParticipantProfilePage: React.FC = () => {
             ['Email', participant.email],
             ['Age range', participant.ageRange],
             ['Gender', participant.gender],
+            ['Occupation', participant.occupation],
+            ['Date of birth', participant.dateOfBirth ? formatDate(participant.dateOfBirth) : null],
             ['Registered', participant.registrationDate || participant.createdAt ? formatDate(participant.registrationDate ?? participant.createdAt) : null],
             ['Source', SOURCE_LABEL[participant.source] ?? participant.source],
           ].map(([label, value]) => (
@@ -309,6 +312,9 @@ const AdminParticipantProfilePage: React.FC = () => {
         {participant.notes && (
           <p className="mt-4 whitespace-pre-wrap rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-700">{participant.notes}</p>
         )}
+        <div className="mt-4 max-w-xl">
+          <ProfileOverview participant={participant} />
+        </div>
       </section>
 
       {/* Participant app */}
