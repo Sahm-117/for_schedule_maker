@@ -8,27 +8,7 @@ import { currentWeekNumber, formatTime, platformLabel, titleCaseDay } from '../u
 // their support. Other members' phone numbers are not shared. Matches the V2 design.
 
 const CARD = 'rounded-[22px] border border-[#eef0f4] bg-white p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
-const DAY_INDEX: Record<string, number> = { SUNDAY: 0, MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6 };
 const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
-
-// A weekly repeating calendar event for the group meeting, until the cohort ends.
-const calendarFile = (title: string, day: string, time: string, minutes: number, until: string | null, link: string | null) => {
-  const now = new Date(Date.now() + 60 * 60 * 1000);
-  const offset = ((DAY_INDEX[day] ?? 0) - now.getUTCDay() + 7) % 7;
-  const [h, m] = time.split(':').map(Number);
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + offset, h - 1, m));
-  const end = new Date(start.getTime() + minutes * 60000);
-  const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//FOF IKD//Participant app//EN', 'BEGIN:VEVENT',
-    `UID:fof-group-${start.getTime()}@fof-ikd`, `DTSTAMP:${stamp(new Date())}`,
-    `DTSTART:${stamp(start)}`, `DTEND:${stamp(end)}`,
-    `RRULE:FREQ=WEEKLY${until ? `;UNTIL=${until.replace(/-/g, '')}T235959Z` : ''}`,
-    `SUMMARY:${title}`, link ? `DESCRIPTION:Join: ${link}` : '', link ? `URL:${link}` : '',
-    'END:VEVENT', 'END:VCALENDAR',
-  ].filter(Boolean);
-  return URL.createObjectURL(new Blob([lines.join('\r\n')], { type: 'text/calendar' }));
-};
 
 const ParticipantGroupPage: React.FC = () => {
   const { home, loading } = useParticipantApp();
@@ -39,16 +19,6 @@ const ParticipantGroupPage: React.FC = () => {
   const weekNumber = currentWeekNumber(home.cohort?.startDate, new Date());
   const supportName = group?.supportName || 'your support';
   const supportLink = buildWhatsAppLink(group?.supportPhone, `Hi ${supportName.split(' ')[0]}, it's ${home.participant.name.split(' ')[0]} from FOF.`);
-
-  const addToCalendar = () => {
-    if (!group?.meetingDay || !group.meetingTime) return;
-    const url = calendarFile(`FOF ${group.name} meeting`, group.meetingDay, group.meetingTime, group.meetingDurationMins || 45, home.cohort?.endDate ?? null, group.callLink);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'fof-group-meeting.ics';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
 
   return (
     <div className="max-w-2xl">
@@ -92,16 +62,6 @@ const ParticipantGroupPage: React.FC = () => {
               ))}
             </ol>
 
-            {scheduled && (
-              <div className="mt-[18px] grid gap-2.5 sm:grid-cols-2">
-                {group.callLink ? (
-                  <a href={group.callLink} target="_blank" rel="noreferrer" className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-[#3f4757] px-[18px] text-sm font-semibold text-white">Join meeting</a>
-                ) : (
-                  <span className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-[#f6f7f9] px-[18px] text-sm font-semibold text-gray-400">Link not shared yet</span>
-                )}
-                <button type="button" onClick={addToCalendar} className="min-h-[44px] rounded-xl border border-gray-200 bg-white px-[18px] text-sm font-semibold text-gray-700">Add to calendar</button>
-              </div>
-            )}
           </section>
 
           <section data-wt="pg-members" className={CARD}>

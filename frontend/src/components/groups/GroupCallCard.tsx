@@ -87,35 +87,11 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
 
   return (
     <section className="rounded-[20px] border border-[#ffdeca] bg-white p-[18px] shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-      <h2 className="text-base font-bold text-gray-900">Group call</h2>
-      <p className="mt-0.5 text-[13px] text-gray-500">Set the recurring call link your group joins each week.</p>
+      <h2 className="text-base font-bold text-gray-900">Group meeting</h2>
+      <p className="mt-0.5 text-[13px] text-gray-500">Set the day and time your group meets each week.</p>
 
       {editing ? (
         <div className="mt-4 flex flex-col gap-3.5">
-          <div>
-            <span className="mb-2 block text-[13px] font-semibold text-gray-900">Call platform</span>
-            <div className="flex gap-2">
-              {([['WHATSAPP', 'WhatsApp'], ['GOOGLE_MEET', 'Google Meet']] as Array<[GroupCallPlatform, string]>).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setPlatform(value)}
-                  className={`min-h-[40px] rounded-full border px-3.5 py-2 text-[13px] font-semibold transition ${platform === value ? 'border-[#ffdeca] bg-[#fff8f3] text-[#c2410c]' : 'border-gray-200 bg-white text-gray-700'}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <label className="block">
-            <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Recurring call link</span>
-            <input
-              value={linkDraft}
-              onChange={(event) => setLinkDraft(event.target.value)}
-              placeholder={platform === 'GOOGLE_MEET' ? 'Paste the Google Meet link' : 'Paste the WhatsApp or Google Meet link'}
-              className="min-h-[48px] w-full rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </label>
           {group ? (
             <div>
               <div className="mb-1.5 flex items-center gap-2">
@@ -135,7 +111,7 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
               </button>
             )}
             <button type="button" onClick={() => { void save(); }} disabled={saving} className="min-h-[46px] min-w-0 flex-auto rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">
-              {saving ? 'Saving…' : 'Save call schedule'}
+              {saving ? 'Saving…' : 'Save meeting time'}
             </button>
           </div>
         </div>
@@ -145,20 +121,14 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" /></svg>
           </span>
           <div className="min-w-0 flex-auto overflow-hidden">
-            <p className="text-sm font-bold text-gray-900">{savedPlatform === 'GOOGLE_MEET' ? 'Google Meet' : 'WhatsApp'}</p>
-            <p className="mt-px text-[13px] text-gray-500">{slotText ? `every ${slotText}` : 'Meeting time not set'}</p>
-            <p className="mt-0.5 truncate text-[13px] text-gray-500">{callLink || 'No call link yet'}</p>
+            <p className="text-sm font-bold text-gray-900">{slotText ? `Every ${slotText}` : 'Meeting time not set'}</p>
+            <p className="mt-px text-[13px] text-gray-500">{slotText ? 'Your group meets at this time each week.' : 'Set when your group meets.'}</p>
           </div>
-          {callLink && (
-            <a href={callLink} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[40px] flex-none items-center whitespace-nowrap rounded-[10px] bg-primary px-3 py-2 text-xs font-semibold text-white">
-              Join call
-            </a>
-          )}
           <button
             type="button"
             onClick={startEditing}
-            title="Edit meeting time and link"
-            aria-label="Edit meeting time and link"
+            title="Edit meeting time"
+            aria-label="Edit meeting time"
             className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-[10px] border border-gray-200 bg-white text-gray-500"
           >
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Z" /></svg>

@@ -9,7 +9,6 @@ import {
   FAITH_PROJECT_PARTICIPANT_LABEL,
   currentWeekNumber,
   formatTime,
-  platformLabel,
   reflectionFor,
   scriptureDayIndex,
   scriptureForDay,
@@ -161,7 +160,7 @@ const ParticipantHomePage: React.FC = () => {
               <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">
                 {callSet ? `${titleCaseDay(group!.meetingDay)}, ${formatTime(group!.meetingTime)}` : 'Not set yet'}
               </p>
-              <p className="mt-0.5 text-xs text-[#3c6da3]">{group ? platformLabel(group.callPlatform) : 'No group yet'}</p>
+              <p className="mt-0.5 text-xs text-[#3c6da3]">{group ? 'Your group meeting' : 'No group yet'}</p>
             </div>
             <div className="rounded-2xl border border-[#dcefe1] bg-[#f0f9f2] p-3.5">
               <p className="text-xs font-semibold text-[#3f7a52]">Faith Project</p>
@@ -170,23 +169,6 @@ const ParticipantHomePage: React.FC = () => {
             </div>
           </div>
         </section>
-
-        {group?.callLink && (
-          <section data-wt="ph-call" className="flex flex-wrap items-center gap-3.5 rounded-[20px] border border-[#ffdeca] bg-white p-[18px] shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-            <span className="grid h-11 w-11 flex-none place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]" aria-hidden="true">
-              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" /></svg>
-            </span>
-            <div className="min-w-0 flex-[1_1_200px]">
-              <p className="text-[15px] font-bold text-gray-900">Group call</p>
-              <p className="mt-0.5 text-[13px] text-gray-500">
-                {platformLabel(group.callPlatform)}{callSet ? ` · every ${titleCaseDay(group.meetingDay)} at ${formatTime(group.meetingTime)}` : ''}
-              </p>
-            </div>
-            <a href={group.callLink} target="_blank" rel="noreferrer" className="inline-flex min-h-[44px] flex-none items-center rounded-xl bg-primary px-[18px] text-[13px] font-semibold text-white">
-              Join call
-            </a>
-          </section>
-        )}
 
         {home.announcement && (
           <section className="rounded-[18px] border border-[#ffdeca] bg-[#fff8f3] px-4 py-3.5">
