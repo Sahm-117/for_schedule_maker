@@ -2,13 +2,14 @@
  * Notify Follow-up Terminal Status Edge Function
  *
  * Sends a push notification to all admins when a non-admin user newly marks
- * a follow-up contact as closed, not interested, or not a TCN member.
+ * a follow-up prospect with an end-of-the-road status.
  *
  * POST body:
  * {
  *   contactId: string,
  *   actorId: string,
  *   terminalState: 'CLOSE' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER'
+ *                 | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE'
  * }
  */
 
@@ -35,10 +36,15 @@ const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@fof.com'
 
 webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 
+// Every state the app can send. A missing entry used to fall through to the
+// word "closed", so three different outcomes all read as "Closed" to admins.
 const TERMINAL_LABELS: Record<string, string> = {
   CLOSE: 'Closed',
-  NOT_INTERESTED: 'Not Interested',
-  NOT_A_TCN_MEMBER: 'Not a TCN Member',
+  NOT_INTERESTED: 'Not interested',
+  NOT_A_TCN_MEMBER: 'Not a TCN member',
+  NOT_A_GOOD_TIME: 'Not a good time',
+  INCORRECT_NUMBER: 'Wrong number',
+  NO_RESPONSE: 'No response',
 }
 
 Deno.serve(async (req) => {
@@ -57,7 +63,7 @@ Deno.serve(async (req) => {
     const { contactId, actorId, terminalState } = await req.json() as {
       contactId: string
       actorId: string
-      terminalState: 'CLOSE' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER'
+      terminalState: 'CLOSE' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE'
     }
 
     if (!contactId || !actorId || !terminalState) {
@@ -109,8 +115,9 @@ Deno.serve(async (req) => {
       })
     }
 
-    const title = 'Follow-up updated'
-    const body = `${actor.name} marked ${contact.fullName} as ${TERMINAL_LABELS[terminalState] || 'closed'}.`
+    // Who it is about leads; the one-word outcome is what an admin scans for.
+    const title = `${contact.fullName} — ${TERMINAL_LABELS[terminalState] || 'Updated'}`
+    const body = `Follow up update from ${actor.name}`
 
     // In-app feed for every admin, regardless of push subscription.
     await insertNotifications(
