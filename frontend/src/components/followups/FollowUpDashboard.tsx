@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { FollowUpContact, FollowUpStatus } from '../../types';
 import { computeFollowUpFunnel, computeOwnerBreakdown } from '../../utils/followUps';
-import { SegmentBar, VitalTile } from '../dashboard/DashboardParts';
+import { VitalTile } from '../dashboard/DashboardParts';
 
 // One colour per status, matching the tone each status already carries on its
 // pill: slate before contact, amber while waiting, emerald once they reply or
@@ -19,27 +19,7 @@ const STATUS_COLOR: Record<FollowUpStatus, string> = {
   NO_RESPONSE: '#dfe3e8',
 };
 
-const STAGE_COLOR = { open: '#f59e0b', registered: '#10b981', nextCohort: '#38bdf8', stopped: '#dfe3e8' };
-
 const pct = (rate: number) => Math.round(rate * 100);
-
-/** A SegmentBar without its legend — inside a table row the columns already name the parts. */
-const MiniBar: React.FC<{ segments: Array<{ label: string; value: number; color: string }> }> = ({ segments }) => {
-  const total = segments.reduce((sum, s) => sum + s.value, 0);
-  if (total === 0) return null;
-  return (
-    <div className="flex h-1.5 w-full max-w-[180px] gap-0.5 overflow-hidden rounded-full">
-      {segments.filter((s) => s.value > 0).map((s) => (
-        <span
-          key={s.label}
-          className="h-full first:rounded-l-full last:rounded-r-full"
-          style={{ width: `${(s.value / total) * 100}%`, backgroundColor: s.color }}
-          title={`${s.label}: ${s.value}`}
-        />
-      ))}
-    </div>
-  );
-};
 
 const Chevron: React.FC<{ open: boolean }> = ({ open }) => (
   <svg className={`h-3.5 w-3.5 flex-none text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -74,6 +54,11 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
       ? `Spread across ${funnel.stoppedReasons.length} reasons`
       : `Most common: ${topReason.label.toLowerCase()} (${topReason.value})`;
 
+  // One row per status, biggest first, so the list reads as a ranking rather
+  // than as a single bar the eye has to take apart.
+  const ranked = [...funnel.buckets].sort((a, b) => b.value - a.value);
+  const biggest = ranked.length ? ranked[0].value : 0;
+
   return (
     <div className="space-y-6">
       {/* The three numbers worth acting on. Everything else is detail below. */}
@@ -81,60 +66,72 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
         <VitalTile
           title="Registered"
           status="neutral"
-          statusLabel={funnel.conversion === null ? 'No contacts yet' : `${pct(funnel.conversion)}% of ${funnel.total}`}
+          statusLabel={funnel.conversion === null ? 'No prospects yet' : `${pct(funnel.conversion)}% of ${funnel.total}`}
           value={funnel.registered}
           unit={funnel.total ? `of ${funnel.total}` : undefined}
-          detail={funnel.nextCohort > 0 ? `${funnel.nextCohort} more waiting for the next cohort` : 'Contacts who made it to registration'}
+          detail={funnel.nextCohort > 0 ? `${funnel.nextCohort} more waiting for the next cohort` : 'They signed up and are in the programme'}
           to={contactsLink('REGISTERED')}
         />
         <VitalTile
-          title="Still open"
+          title="Still to chase"
           status={funnel.open > 0 ? 'warning' : 'good'}
           statusLabel={funnel.open > 0 ? 'Needs work' : 'All handled'}
           value={funnel.open}
-          unit={funnel.open === 1 ? 'contact' : 'contacts'}
-          detail={funnel.open > 0 ? 'Waiting on a first message, a reply, or a call back' : 'Nobody is waiting on a follow-up'}
+          unit={funnel.open === 1 ? 'prospect' : 'prospects'}
+          detail={funnel.open > 0 ? 'Someone still has to message, call or chase them' : 'Nobody is waiting on a follow-up'}
           to={contactsLink('open')}
         />
         <VitalTile
-          title="Stopped"
+          title="Not joining"
           status="neutral"
-          statusLabel="Closed, not registered"
+          statusLabel="Follow-up is over"
           value={funnel.stopped}
-          unit={funnel.stopped === 1 ? 'contact' : 'contacts'}
+          unit={funnel.stopped === 1 ? 'prospect' : 'prospects'}
           detail={stoppedDetail}
         />
       </div>
 
-      {/* The honest total: one bucket per contact, so the parts always sum to the whole. */}
+      {/* One line per status, so the parts always add up to the whole. */}
       <section className="surface-card p-5 sm:p-6">
         <h3 className="text-base font-semibold text-gray-900">Where all {funnel.total} stand</h3>
-        <p className="mb-4 text-xs text-gray-500">Every contact counted once, in one place only.</p>
+        <p className="mb-4 text-xs text-gray-500">Each prospect counted once, in one place only.</p>
         {funnel.total === 0 ? (
-          <p className="rounded-2xl bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">No contacts yet.</p>
+          <p className="rounded-2xl bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">No prospects yet.</p>
         ) : (
-          <SegmentBar segments={funnel.buckets.map((b) => ({ label: b.label, value: b.value, color: STATUS_COLOR[b.status] }))} />
+          <ul className="space-y-2.5">
+            {ranked.map((bucket) => (
+              <li key={bucket.status} className="flex items-center gap-3">
+                <span className="w-32 flex-none truncate text-sm text-gray-700 sm:w-44">{bucket.label}</span>
+                <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+                  <span
+                    className="block h-full rounded-full"
+                    style={{ width: `${biggest ? Math.max((bucket.value / biggest) * 100, 4) : 0}%`, backgroundColor: STATUS_COLOR[bucket.status] }}
+                  />
+                </span>
+                <span className="w-14 flex-none text-right text-sm font-bold tabular-nums text-gray-900">{bucket.value}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 
       <section className="surface-card overflow-hidden">
         <div className="border-b border-orange-100 px-5 py-4">
           <p className="text-sm font-bold text-gray-900">By follow-up rep</p>
-          <p className="text-xs text-gray-500">Most still-open work first. Open a row to see why contacts stopped.</p>
+          <p className="text-xs text-gray-500">Most work left first. Open a row to see who is not joining, and why.</p>
         </div>
         <table className="w-full text-left text-sm">
           <thead className="bg-orange-50/60 text-xs uppercase tracking-wide text-gray-500">
             <tr>
               <th scope="col" className="px-5 py-3">Follow-up rep</th>
-              <th scope="col" className="px-3 py-3 text-right">Assigned</th>
-              <th scope="col" className="px-3 py-3 text-right">Still open</th>
-              <th scope="col" className="px-3 py-3 text-right">Registered</th>
-              <th scope="col" className="px-5 py-3 text-right">Stopped</th>
+              <th scope="col" className="px-3 py-3 text-right">Given</th>
+              <th scope="col" className="px-3 py-3 text-right">Still to chase</th>
+              <th scope="col" className="px-5 py-3 text-right">Registered</th>
             </tr>
           </thead>
           <tbody>
             {owners.length === 0 ? (
-              <tr><td colSpan={5} className="px-5 py-8 text-center text-gray-400">No contacts yet.</td></tr>
+              <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400">No prospects yet.</td></tr>
             ) : (
               owners.map((row) => {
                 const key = row.ownerId || 'unassigned';
@@ -152,27 +149,19 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
                           <Chevron open={open} />
                           <span className={`truncate font-semibold ${row.ownerId ? 'text-gray-900' : 'text-amber-700'}`}>{row.ownerName}</span>
                         </button>
-                        <div className="mt-1.5 pl-5">
-                          <MiniBar segments={[
-                            { label: 'Still open', value: row.stillOpen, color: STAGE_COLOR.open },
-                            { label: 'Registered', value: row.registered, color: STAGE_COLOR.registered },
-                            { label: 'Next cohort', value: row.nextCohort, color: STAGE_COLOR.nextCohort },
-                            { label: 'Stopped', value: row.stopped, color: STAGE_COLOR.stopped },
-                          ]} />
-                        </div>
                       </td>
-                      <td className="px-3 py-3 text-right font-semibold tabular-nums align-top">{row.assigned}</td>
-                      <td className="px-3 py-3 text-right font-bold tabular-nums align-top text-amber-700">{row.stillOpen}</td>
-                      <td className="px-3 py-3 text-right font-semibold tabular-nums align-top text-emerald-700">{row.registered}</td>
-                      <td className="px-5 py-3 text-right tabular-nums align-top text-gray-600">{row.stopped}</td>
+                      <td className="px-3 py-3 text-right font-semibold tabular-nums">{row.assigned}</td>
+                      <td className="px-3 py-3 text-right font-bold tabular-nums text-amber-700">{row.stillOpen}</td>
+                      <td className="px-5 py-3 text-right font-semibold tabular-nums text-emerald-700">{row.registered}</td>
                     </tr>
                     {open && (
                       <tr className="border-t border-orange-50 bg-orange-50/30">
-                        <td colSpan={5} className="px-5 py-3">
-                          {row.stoppedReasons.length === 0 && row.nextCohort === 0 ? (
-                            <p className="text-xs text-gray-500">Nobody assigned to {row.ownerName} has stopped.</p>
+                        <td colSpan={4} className="px-5 py-3">
+                          {row.stopped === 0 && row.nextCohort === 0 ? (
+                            <p className="text-xs text-gray-500">Everyone given to {row.ownerName} is still in play.</p>
                           ) : (
                             <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                              <span className="text-xs font-semibold text-gray-700">Not joining <span className="tabular-nums text-gray-900">{row.stopped}</span></span>
                               {row.nextCohort > 0 && (
                                 <span className="text-xs text-gray-600">Will join next cohort <span className="font-semibold tabular-nums text-gray-900">{row.nextCohort}</span></span>
                               )}
@@ -194,11 +183,10 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
           {owners.length > 0 && (
             <tfoot className="border-t-2 border-orange-100 bg-orange-50/40 text-sm">
               <tr>
-                <td className="px-5 py-3 font-bold text-gray-900">All reps</td>
+                <td className="px-5 py-3 font-bold text-gray-900">Everyone</td>
                 <td className="px-3 py-3 text-right font-bold tabular-nums">{totals.assigned}</td>
                 <td className="px-3 py-3 text-right font-bold tabular-nums text-amber-700">{totals.stillOpen}</td>
-                <td className="px-3 py-3 text-right font-bold tabular-nums text-emerald-700">{totals.registered}</td>
-                <td className="px-5 py-3 text-right font-bold tabular-nums text-gray-600">{totals.stopped}</td>
+                <td className="px-5 py-3 text-right font-bold tabular-nums text-emerald-700">{totals.registered}</td>
               </tr>
             </tfoot>
           )}
