@@ -11,8 +11,8 @@ import {
 } from '../components/dashboard/healthModel';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { cohortsApi, settingsApi, usersApi } from '../services/api';
-import type { User } from '../types';
+import { cohortsApi, participantNotesApi, settingsApi, usersApi } from '../services/api';
+import type { ParticipantNote, User } from '../types';
 import { buildWhatsAppLink } from '../utils/phone';
 import {
   PERSON_HEALTH_LABEL,
@@ -52,6 +52,9 @@ const AdminSupportsPage: React.FC = () => {
   const [people, setPeople] = useState<CohortPeoplePayload | null>(null);
   const [rules, setRules] = useState<ProgrammeRules | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  // The weekly meeting reports supports write in Meeting Mode. They are stored as
+  // MEETING notes keyed by group and week, so they are fetched separately.
+  const [reports, setReports] = useState<ParticipantNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -72,6 +75,8 @@ const AdminSupportsPage: React.FC = () => {
       setPeople(p);
       setRules(r);
       setUsers(u);
+      const groupIds = h.groups.map((g) => g.id);
+      setReports(await participantNotesApi.getMeetingReports(groupIds).then((res) => res.notes).catch(() => [] as ParticipantNote[]));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load supports.');
     } finally {
@@ -108,8 +113,19 @@ const AdminSupportsPage: React.FC = () => {
     const unsupported = health.groups.filter((g) => !g.supportId && g.members > 0);
     const leading = new Set(health.groups.map((g) => g.supportId).filter(Boolean));
     const notLeading = users.filter((u) => u.role === 'SUPPORT' && !leading.has(u.id));
-    return { mode, judged, evaluations, counts, total: bySupport.size, unsupported, notLeading };
+    const weekIdByNumber = new Map(health.weeks.map((w) => [w.weekNumber, w.id]));
+    return { mode, judged, evaluations, counts, total: bySupport.size, unsupported, notLeading, weekIdByNumber };
   }, [health, people, rules, users, activeCohort]);
+
+  // Newest report per group+week: a support can submit more than once, and the
+  // latest one is what the back office should read.
+  const reportByKey = useMemo(() => {
+    const map = new Map<string, ParticipantNote>();
+    for (const note of [...reports].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
+      if (note.groupId && note.weekId != null) map.set(`${note.groupId}:${note.weekId}`, note);
+    }
+    return map;
+  }, [reports]);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -186,6 +202,10 @@ const AdminSupportsPage: React.FC = () => {
                   supportName={groupById.get(evaluation.groupId)?.supportName ?? 'Support'}
                   rules={rules}
                   judgedCount={model.judged.length}
+                  reportFor={(weekNumber) => {
+                    const weekId = model.weekIdByNumber.get(weekNumber);
+                    return weekId == null ? null : reportByKey.get(`${evaluation.groupId}:${weekId}`) ?? null;
+                  }}
                 />
               ))}
             </ul>
@@ -227,8 +247,10 @@ const SupportCard: React.FC<{
   supportName: string;
   rules: ProgrammeRules;
   judgedCount: number;
-}> = ({ evaluation, user, groupName, supportName, rules, judgedCount }) => {
+  reportFor: (weekNumber: number) => ParticipantNote | null;
+}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, reportFor }) => {
   const [open, setOpen] = useState(false);
+  const [openReport, setOpenReport] = useState<number | null>(null);
   const whatsapp = buildWhatsAppLink(user?.phone, `Hi ${supportName.split(' ')[0]}, checking in on ${groupName}'s weekly records.`);
   const { onboarding } = evaluation;
 
@@ -306,14 +328,44 @@ const SupportCard: React.FC<{
               </tr>
             </thead>
             <tbody className="text-gray-800">
-              {evaluation.weeks.map((w) => (
-                <tr key={w.weekNumber} className="border-t border-gray-100">
-                  <td className="py-1.5 pr-3 font-semibold">{w.weekNumber}</td>
-                  {[w.sundayMarked, w.reportSubmitted, w.meetingMarked].map((ok, i) => (
-                    <td key={i} className={`py-1.5 pr-3 ${ok ? 'text-emerald-700' : 'font-semibold text-red-700'}`}>{ok ? '✓ Done' : '× Missing'}</td>
-                  ))}
-                </tr>
-              ))}
+              {evaluation.weeks.map((w) => {
+                const report = reportFor(w.weekNumber);
+                const showing = openReport === w.weekNumber;
+                return (
+                  <React.Fragment key={w.weekNumber}>
+                    <tr className="border-t border-gray-100">
+                      <td className="py-1.5 pr-3 font-semibold">{w.weekNumber}</td>
+                      <td className={`py-1.5 pr-3 ${w.sundayMarked ? 'text-emerald-700' : 'font-semibold text-red-700'}`}>{w.sundayMarked ? '✓ Done' : '× Missing'}</td>
+                      <td className="py-1.5 pr-3">
+                        <span className={w.reportSubmitted ? 'text-emerald-700' : 'font-semibold text-red-700'}>{w.reportSubmitted ? '✓ Done' : '× Missing'}</span>
+                        {report ? (
+                          <button
+                            type="button"
+                            onClick={() => setOpenReport(showing ? null : w.weekNumber)}
+                            aria-expanded={showing}
+                            className="ml-2 rounded-lg bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700 hover:bg-gray-200"
+                          >
+                            {showing ? 'Hide notes' : 'Read notes'}
+                          </button>
+                        ) : w.reportSubmitted ? (
+                          <span className="ml-2 text-[11px] text-gray-400">no notes</span>
+                        ) : null}
+                      </td>
+                      <td className={`py-1.5 ${w.meetingMarked ? 'text-emerald-700' : 'font-semibold text-red-700'}`}>{w.meetingMarked ? '✓ Done' : '× Missing'}</td>
+                    </tr>
+                    {showing && report && (
+                      <tr className="border-t border-gray-100 bg-gray-50/70">
+                        <td colSpan={4} className="px-1 py-2.5">
+                          <p className="whitespace-pre-line text-[13px] leading-normal text-gray-800">{report.body}</p>
+                          <p className="mt-1.5 text-[11px] text-gray-500">
+                            {report.authorName || 'A support'} · {new Date(report.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </p>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

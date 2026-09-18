@@ -569,6 +569,7 @@ export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {
 
 export const participantNotesApi = USE_SUPABASE ? supabaseParticipantNotesApi : {
   async getForParticipants(_participantIds: string[]): Promise<{ notes: import('../types').ParticipantNote[] }> { return { notes: [] }; },
+  async getMeetingReports(_groupIds: string[]): Promise<{ notes: import('../types').ParticipantNote[] }> { return { notes: [] }; },
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
 };
 
