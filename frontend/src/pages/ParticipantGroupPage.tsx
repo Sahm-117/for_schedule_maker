@@ -2,7 +2,7 @@ import React from 'react';
 import PageHeader from '../components/PageHeader';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { buildWhatsAppLink } from '../utils/phone';
-import { currentWeekNumber, formatTime, platformLabel, titleCaseDay } from '../utils/participantApp';
+import { currentWeekNumber, formatTime, titleCaseDay } from '../utils/participantApp';
 
 // My Group: the weekly group meeting, who is in the group, and a way to reach
 // their support. Other members' phone numbers are not shared. Matches the V2 design.
@@ -42,7 +42,7 @@ const ParticipantGroupPage: React.FC = () => {
             <p className="mt-2 text-[22px] font-extrabold text-gray-900">
               {scheduled ? `${titleCaseDay(group.meetingDay)} · ${formatTime(group.meetingTime)}` : 'Waiting on your support to schedule this'}
             </p>
-            <p className="mt-0.5 text-[13px] text-gray-500">Weekly prayer and check-in · {group.meetingDurationMins || 45} minutes · {platformLabel(group.callPlatform)}</p>
+            <p className="mt-0.5 text-[13px] text-gray-500">Weekly prayer and check-in · {group.meetingDurationMins || 45} minutes</p>
 
             {/* The meeting's order, as a simple step line (not buttons). */}
             <ol className="mt-5 grid grid-cols-3" aria-label="How the meeting runs">
