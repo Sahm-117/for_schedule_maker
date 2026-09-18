@@ -83,6 +83,16 @@ export const followUpStatusOptions = (Object.keys(FOLLOW_UP_STATUS_META) as Foll
   meta: FOLLOW_UP_STATUS_META[value].description,
 }));
 
+/**
+ * Follow-ups that were finished and filed away before the participant app
+ * existed. They sit at REGISTERED with no login to hand over, because there was
+ * no app to let anyone into. Counting them as "login to share" would park the
+ * whole historical backlog on the dashboard as work that nobody will ever do,
+ * so they are read as finished. Nothing about them is changed or rewritten.
+ */
+export const isPreAppRegistered = (c: FollowUpContact): boolean =>
+  !!c.archivedAt && c.registrationStatus === 'REGISTERED';
+
 export const computeFollowUpStatus = (c: FollowUpContact): FollowUpStatus => {
   if (c.registrationStatus === 'LOGIN_SHARED') return 'LOGIN_SHARED';
   if (c.registrationStatus === 'REGISTERED') return 'REGISTERED';
@@ -136,7 +146,10 @@ export const computeFollowUpMetrics = (contacts: FollowUpContact[]): FollowUpMet
     else if (status === 'NEEDS_REMINDER') { m.needsReminder++; m.noResponse++; }
     else if (status === 'REPLIED') { m.replied++; m.contacted++; }
     else if (status === 'CALL_BACK_LATER') { m.callBackLater++; m.contacted++; }
-    else if (status === 'REGISTERED') { m.registered++; m.contacted++; }
+    else if (status === 'REGISTERED') {
+      m.contacted++;
+      if (isPreAppRegistered(c)) { m.loginShared++; m.closed++; } else { m.registered++; }
+    }
     else if (status === 'LOGIN_SHARED') { m.loginShared++; m.contacted++; m.closed++; }
     else if (status === 'WRONG_NUMBER') { m.wrongNumber++; m.contacted++; m.closed++; }
     else if (status === 'NOT_INTERESTED') { m.notInterested++; m.contacted++; m.closed++; }
@@ -203,7 +216,7 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       case 'NEEDS_REMINDER': row.needsReminder++; break;
       case 'REPLIED': row.replied++; break;
       case 'CALL_BACK_LATER': row.callBackLater++; break;
-      case 'REGISTERED': row.registered++; break;
+      case 'REGISTERED': if (isPreAppRegistered(c)) row.loginShared++; else row.registered++; break;
       case 'LOGIN_SHARED': row.loginShared++; break;
       case 'WRONG_NUMBER': row.wrongNumber++; break;
       case 'NOT_INTERESTED': row.notInterested++; break;
@@ -261,7 +274,7 @@ export const computeIntroducerBreakdown = (contacts: FollowUpContact[]): Introdu
     row.met++;
     const status = computeFollowUpStatus(c);
     if (status === 'REGISTERED' || status === 'LOGIN_SHARED') row.signedUp++;
-    if (status === 'LOGIN_SHARED') row.loginShared++;
+    if (status === 'LOGIN_SHARED' || isPreAppRegistered(c)) row.loginShared++;
     if (FOLLOW_UP_STAGE[status] === 'open') row.stillOpen++;
   }
   return Array.from(map.values()).sort((a, b) => b.met - a.met || a.supportName.localeCompare(b.supportName));
@@ -453,9 +466,12 @@ export const computeFollowUpFunnel = (contacts: FollowUpContact[]): FollowUpFunn
   const stageTotals: Record<FollowUpStage, number> = { open: 0, registered: 0, done: 0, nextCohort: 0, stopped: 0 };
 
   for (const c of contacts) {
+    // The ranked list names what each prospect IS. A pre-app one is registered;
+    // saying "login shared" would claim a handover that never happened. Only the
+    // tiles and the per-rep columns treat them as finished work.
     const status = computeFollowUpStatus(c);
     counts.set(status, (counts.get(status) ?? 0) + 1);
-    stageTotals[FOLLOW_UP_STAGE[status]]++;
+    stageTotals[isPreAppRegistered(c) ? 'done' : FOLLOW_UP_STAGE[status]]++;
     const reason = stoppedReason(c);
     if (reason) reasons.push(reason);
   }

@@ -82,7 +82,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
           statusLabel={funnel.registered > 0 ? 'Waiting on us' : 'All handed over'}
           value={funnel.registered}
           unit={funnel.registered === 1 ? 'prospect' : 'prospects'}
-          detail={funnel.registered > 0 ? 'Signed up, but still cannot get into the app' : 'Everyone who signed up has their login'}
+          detail={funnel.registered > 0 ? 'Signed up, but still cannot get into the app' : 'Nobody is waiting on a login'}
           to={contactsLink('REGISTERED')}
         />
         <VitalTile
