@@ -42,7 +42,9 @@ const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@fof.com'
 
 webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 
-const TERMINAL_REGISTRATION_STATUSES = new Set(['NOT_INTERESTED', 'NOT_A_TCN_MEMBER'])
+// LOGIN_SHARED is the successful end of a follow-up, so it stops reminders the
+// same way the give-up statuses do.
+const TERMINAL_REGISTRATION_STATUSES = new Set(['LOGIN_SHARED', 'NOT_INTERESTED', 'NOT_A_TCN_MEMBER'])
 
 const getLagosDateParts = (date: Date) => {
   const formatter = new Intl.DateTimeFormat('en-GB', {
@@ -505,16 +507,6 @@ Deno.serve(async (req) => {
         const r = await sendToSubscriptions(webPush, supabase, rows, payload, undefined, PARTICIPANT_PUSH_STORE)
         if (r.failed > 0) console.error(`push-reminders (participants ${message.tag}): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
       }
-      const autoReleaseAt = (startIso: string, weekNumber: number, meetingDay: string | null, meetingTime: string | null) => {
-        const start = new Date(`${startIso}T00:00:00Z`).getTime()
-        const t = meetingTime ? parseTime(meetingTime) : null
-        const dayOffset = meetingDay ? DAY_NAMES_UPPER.indexOf(String(meetingDay).toUpperCase()) : -1
-        if (dayOffset >= 0 && t !== null) {
-          // Lagos wall clock is UTC+1: one hour after the meeting is the meeting's UTC clock reading.
-          return start + ((weekNumber - 1) * 7 + dayOffset) * 86400000 + t * 60000
-        }
-        return start + weekNumber * 7 * 86400000 - 3600000
-      }
 
       const { data: pCohorts } = onlyCohortId
         ? await supabase.from('Cohort').select('id, startDate, endDate, status').eq('id', onlyCohortId)
@@ -591,25 +583,21 @@ Deno.serve(async (req) => {
           }
         }
 
-        // c) "Recap is out": within a day of the release (by the support, or automatic).
+        // c) "Recap is out". There is no release step any more: a recap is out as
+        //    soon as the admin has shared the week and there is something to read.
+        //    pushParticipants claims one RECAP:<weekId> row per participant, so the
+        //    10-minute cron tells each person exactly once however long it stays up.
         const sharedWeeks = weeks.filter((w) => w.shareWithParticipants !== false && (String(w.recapSummary || '').trim() || w.recapDocumentUrl))
-        if (sharedWeeks.length > 0) {
-          const { data: releases } = await supabase.from('RecapRelease').select('groupId, weekId, releasedAt').in('weekId', sharedWeeks.map((w) => w.id))
-          const releasedAt = new Map(((releases ?? []) as any[]).map((r) => [`${r.groupId}:${r.weekId}`, new Date(r.releasedAt).getTime()]))
-          const nowMs = clock.getTime()
-          for (const week of sharedWeeks) {
-            for (const group of groups) {
-              const at = releasedAt.get(`${group.id}:${week.id}`) ?? autoReleaseAt(startIso, week.weekNumber, group.meetingDay, group.meetingTime)
-              if (at > nowMs || nowMs - at > 86400000) continue
-              const members = ((group.members ?? []) as any[]).map((m) => m.participantId)
-                .filter((id: string) => participantIds.has(id) && settingBy.get(id)?.recapReleased !== false)
-              await pushParticipants(members, {
-                title: `Week ${week.weekNumber} recap is out`,
-                body: `${week.title ? `${String(week.title).trim()}. ` : ''}Read it and write this week's reflection.`,
-                path: `/me/week/${week.weekNumber}`,
-                tag: `RECAP:${week.id}`,
-              })
-            }
+        for (const week of sharedWeeks) {
+          for (const group of groups) {
+            const members = ((group.members ?? []) as any[]).map((m) => m.participantId)
+              .filter((id: string) => participantIds.has(id) && settingBy.get(id)?.recapReleased !== false)
+            await pushParticipants(members, {
+              title: `Week ${week.weekNumber} recap is out`,
+              body: `${week.title ? `${String(week.title).trim()}. ` : ''}Read it and write this week's reflection.`,
+              path: `/me/week/${week.weekNumber}`,
+              tag: `RECAP:${week.id}`,
+            })
           }
         }
       }

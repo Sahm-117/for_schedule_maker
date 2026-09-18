@@ -2,9 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import AppSelect from '../AppSelect';
 import DocumentViewerSheet from '../DocumentViewerSheet';
 import InfoTip from '../InfoTip';
-import { meetingAttendanceApi, recapReleasesApi } from '../../services/api';
-import { shortMoment } from '../../utils/participantApp';
-import type { FaithProject, Participant, RecapRelease, Week } from '../../types';
+import { meetingAttendanceApi } from '../../services/api';
+import type { FaithProject, Participant, Week } from '../../types';
 
 type MeetingMark = 'JOINED' | 'EXCUSED' | 'MISSED';
 
@@ -83,9 +82,6 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
   const [docOpen, setDocOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [markError, setMarkError] = useState('');
-  const [release, setRelease] = useState<RecapRelease | null>(null);
-  const [releasing, setReleasing] = useState(false);
-  const [releaseError, setReleaseError] = useState('');
 
   // Each week starts its own run through the flow.
   useEffect(() => {
@@ -107,31 +103,6 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
       .catch(() => { /* marks stay empty */ });
     return () => { cancelled = true; };
   }, [groupId, weekId]);
-
-  // Whether this week's recap has been released to the group's participants.
-  useEffect(() => {
-    setRelease(null);
-    setReleaseError('');
-    if (!groupId || weekId === null) return undefined;
-    let cancelled = false;
-    recapReleasesApi.get(groupId, weekId)
-      .then(({ release: current }) => { if (!cancelled) setRelease(current); })
-      .catch(() => { /* shows as not released */ });
-    return () => { cancelled = true; };
-  }, [groupId, weekId]);
-
-  const releaseRecap = async () => {
-    if (!groupId || weekId === null || !userId) return;
-    setReleasing(true);
-    setReleaseError('');
-    try {
-      setRelease((await recapReleasesApi.release(groupId, weekId, userId)).release);
-    } catch (err) {
-      setReleaseError(err instanceof Error ? err.message : 'Could not release the recap.');
-    } finally {
-      setReleasing(false);
-    }
-  };
 
   const saveMark = async (participantId: string, mark: MeetingMark) => {
     if (weekId === null) return;
@@ -367,19 +338,10 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
           )}
           {week && groupId && (week.shareWithParticipants === false ? (
             <p className="mt-2.5 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">This week&apos;s recap is not shared with participants.</p>
-          ) : release ? (
-            <p className="mt-2.5 rounded-[14px] bg-[#f2fbf5] px-3.5 py-3 text-[13px] font-semibold text-[#15803d]">
-              &#10003; Released to your group · {shortMoment(release.releasedAt)}
-            </p>
           ) : (
-            <div className="mt-2.5 rounded-[14px] border border-[#ffdeca] bg-[#fff8f3] p-3.5">
-              <p className="text-[13px] font-bold text-gray-900">Share with your group</p>
-              <p className="mt-1 text-[13px] leading-normal text-gray-600">Participants read this recap in their app once you release it. If you don&apos;t, it releases on its own 1 hour after your meeting.</p>
-              {releaseError && <p className="mt-2 text-xs font-medium text-red-700">{releaseError}</p>}
-              <button type="button" onClick={() => { void releaseRecap(); }} disabled={releasing} className="mt-3 min-h-[44px] w-full rounded-xl bg-primary px-4 text-[14px] font-semibold text-white disabled:opacity-60">
-                {releasing ? 'Releasing…' : 'Release to participants'}
-              </button>
-            </div>
+            <p className="mt-2.5 rounded-[14px] bg-[#f2fbf5] px-3.5 py-3 text-[13px] text-[#15803d]">
+              Your group reads this recap in their own app. Nothing to do here.
+            </p>
           ))}
           <DocumentViewerSheet
             open={docOpen}

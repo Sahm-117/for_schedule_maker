@@ -1207,7 +1207,7 @@ const CohortsPage: React.FC = () => {
           <div className="flex items-center justify-between gap-4 rounded-2xl border border-orange-100 px-4 py-3">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900">Share recap with participants</p>
-              <p className="mt-0.5 text-xs text-gray-500">Each support releases it to their group after the meeting. If they don&apos;t, it releases 1 hour after the meeting.</p>
+              <p className="mt-0.5 text-xs text-gray-500">Participants read it in their own app once this week&apos;s meeting has happened. Turn it off to keep this week&apos;s recap staff-only.</p>
             </div>
             <button
               type="button"

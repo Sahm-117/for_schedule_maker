@@ -75,10 +75,10 @@ const ParticipantWeekPage: React.FC = () => {
         {!week.released ? (
           <section className={`${CARD} px-[22px] py-[34px] text-center`}>
             <p className="text-[15px] font-bold text-gray-900">
-              {week.shared ? 'This week’s recap is not out yet' : 'No recap for this week'}
+              {week.shared ? `Week ${week.weekNumber} recap pending` : 'No recap for this week'}
             </p>
             <p className="mx-auto mt-1.5 max-w-[38ch] text-[13.5px] leading-[1.55] text-gray-500">
-              {week.shared ? 'Your support will release it after your group meeting.' : 'There is no recap to read this week. See you on Sunday.'}
+              {week.shared ? 'Stay tuned — you will be notified as soon as it is out.' : 'There is no recap to read this week. See you on Sunday.'}
             </p>
             <NavLink to="/me" className="mt-4 inline-block text-[13px] font-semibold text-[#c2410c]">Back to Home</NavLink>
           </section>
