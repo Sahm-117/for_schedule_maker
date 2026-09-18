@@ -155,6 +155,8 @@ export interface Announcement {
   cohortId?: string | null;
   cohortName?: string | null;
   targetLabelId?: string | null;
+  /** Group id: narrows a PARTICIPANTS-audience send to one group's roster. */
+  targetGroupId?: string | null;
   showOnHome?: boolean;
   homeUntil?: string | null;
   linkUrl?: string | null;

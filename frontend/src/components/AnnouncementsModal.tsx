@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { announcementsApi, labelsApi } from '../services/api';
+import { announcementsApi, labelsApi, groupsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import type { Announcement, Label } from '../types';
+import type { Announcement, Label, Group } from '../types';
 import AppSelect from './AppSelect';
 import type { AnnouncementAudience } from '../types';
 
@@ -65,6 +65,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   const [body, setBody] = useState('');
   const [scope, setScope] = useState<'ACTIVE_COHORT' | 'ALL_USERS'>('ACTIVE_COHORT');
   const [targetLabelId, setTargetLabelId] = useState(''); // '' = everyone in scope
+  const [targetGroupId, setTargetGroupId] = useState(''); // '' = everyone; participants-only group filter
+  const [groups, setGroups] = useState<Group[]>([]);
   const [audience, setAudience] = useState<AnnouncementAudience>('SUPPORTS');
   const [showOnHome, setShowOnHome] = useState(false);
   const [homeUntil, setHomeUntil] = useState('');
@@ -128,6 +130,19 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     labelsApi.getAll().then((res) => setLabels(res.labels)).catch(() => setLabels([]));
   }, [shouldRender]);
 
+  // Groups (rosters of participants) for narrowing the Participants audience.
+  useEffect(() => {
+    if (!shouldRender || !activeCohort?.id) { setGroups([]); return; }
+    groupsApi.getAll({ cohortId: activeCohort.id }).then((res) => setGroups(res.groups)).catch(() => setGroups([]));
+  }, [shouldRender, activeCohort?.id]);
+
+  const groupNameById = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
+
+  const groupOptions = useMemo(() => {
+    const sorted = [...groups].sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name));
+    return [{ value: '', label: 'Everyone in audience' }, ...sorted.map((g) => ({ value: g.id, label: g.name }))];
+  }, [groups]);
+
   const labelNameById = useMemo(() => new Map(labels.map((l) => [l.id, l.name])), [labels]);
 
   const labelOptions = useMemo(() => {
@@ -150,16 +165,20 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
         scope,
         cohortId: scope === 'ACTIVE_COHORT' ? activeCohort?.id || null : null,
         targetLabelId: audience === 'PARTICIPANTS' ? null : targetLabelId || null,
+        targetGroupId: audience === 'PARTICIPANTS' ? targetGroupId || null : null,
         audience,
         home: showOnHome
           ? { homeUntil: new Date(`${homeUntil}T23:59:59`).toISOString(), linkUrl: homeLinkUrl || null, linkLabel: linkLabel.trim() || null }
           : null,
       });
-      const targetName = targetLabelId ? labels.find((l) => l.id === targetLabelId)?.name : null;
+      const targetName = audience === 'PARTICIPANTS'
+        ? (targetGroupId ? groupNameById.get(targetGroupId) : null)
+        : (targetLabelId ? labels.find((l) => l.id === targetLabelId)?.name : null);
       setStatus({ type: 'success', message: targetName ? `Sent to ${targetName}.` : `Sent to ${sent} device${sent !== 1 ? 's' : ''}.` });
       setSubject('');
       setBody('');
       setTargetLabelId('');
+      setTargetGroupId('');
       setAudience('SUPPORTS');
       setShowOnHome(false);
       setHomeUntil('');
@@ -286,7 +305,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => { setAudience(option.value); setLinkTarget(''); }}
+                      onClick={() => { setAudience(option.value); setLinkTarget(''); setTargetLabelId(''); setTargetGroupId(''); }}
                       aria-pressed={audience === option.value}
                       className={`rounded-xl border px-3 py-2 text-sm font-semibold ${audience === option.value ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                     >
@@ -298,7 +317,21 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
               </div>
             )}
 
-            {audience !== 'PARTICIPANTS' && (
+            {audience === 'PARTICIPANTS' ? (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific group (optional)</label>
+              <AppSelect
+                value={targetGroupId}
+                onChange={setTargetGroupId}
+                options={groupOptions}
+                placeholder="Everyone in audience"
+                compact
+              />
+              <p className="mt-1 text-[11px] text-gray-500">
+                Pick a group to send only to the participants in that group. Leave as “Everyone” to notify all participants.
+              </p>
+            </div>
+            ) : (
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific tag (optional)</label>
               <AppSelect
@@ -432,6 +465,11 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                           {a.targetLabelId && (
                             <span className="ml-1.5 rounded-full bg-violet-100/80 px-1.5 py-0.5 font-semibold text-violet-700">
                               To: {labelNameById.get(a.targetLabelId) || 'tag'}
+                            </span>
+                          )}
+                          {a.targetGroupId && (
+                            <span className="ml-1.5 rounded-full bg-violet-100/80 px-1.5 py-0.5 font-semibold text-violet-700">
+                              To: {groupNameById.get(a.targetGroupId) || 'group'}
                             </span>
                           )}
                         </p>

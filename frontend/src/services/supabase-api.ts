@@ -2366,6 +2366,7 @@ export const announcementsApi = {
       scope?: 'ACTIVE_COHORT' | 'ALL_USERS';
       cohortId?: string | null;
       targetLabelId?: string | null;
+      targetGroupId?: string | null;
       home?: { homeUntil: string; linkUrl?: string | null; linkLabel?: string | null } | null;
       audience?: import('../types').AnnouncementAudience;
     }
@@ -2378,6 +2379,7 @@ export const announcementsApi = {
         scope: options?.scope || 'ACTIVE_COHORT',
         cohortId: options?.cohortId || null,
         targetLabelId: options?.targetLabelId || null,
+        targetGroupId: options?.targetGroupId || null,
         audience: options?.audience || 'SUPPORTS',
       },
     });
@@ -2441,6 +2443,7 @@ export const announcementsApi = {
       cohortId: row.cohortId,
       cohortName: row.Cohort?.name || null,
       targetLabelId: row.targetLabelId ?? null,
+      targetGroupId: row.targetGroupId ?? null,
       showOnHome: !!row.showOnHome,
       homeUntil: row.homeUntil ?? null,
       linkUrl: row.linkUrl ?? null,

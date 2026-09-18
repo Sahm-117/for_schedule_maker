@@ -11,7 +11,8 @@
  *   sentBy: string (userId),
  *   scope?: 'ACTIVE_COHORT' | 'ALL_USERS',
  *   cohortId?: string | null,
- *   targetLabelId?: string | null
+ *   targetLabelId?: string | null,
+ *   targetGroupId?: string | null (PARTICIPANTS audience only: narrows to one group's roster)
  * }
  *
  * Required Supabase secrets:
@@ -55,13 +56,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, audience = 'SUPPORTS' } = await req.json() as {
+    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, targetGroupId = null, audience = 'SUPPORTS' } = await req.json() as {
       subject: string
       body: string
       sentBy?: string
       scope?: 'ACTIVE_COHORT' | 'ALL_USERS'
       cohortId?: string | null
       targetLabelId?: string | null
+      targetGroupId?: string | null
       // SUPPORTS (default), PARTICIPANTS (participant app only) or EVERYONE.
       audience?: 'SUPPORTS' | 'PARTICIPANTS' | 'EVERYONE'
     }
@@ -83,7 +85,7 @@ Deno.serve(async (req) => {
     // 1. Record the announcement
     const { data: announcement, error: insertError } = await supabase
       .from('Announcement')
-      .insert([{ subject, body, sentBy: sentBy || null, scope, cohortId, targetLabelId: audience === 'PARTICIPANTS' ? null : targetLabelId, audience }])
+      .insert([{ subject, body, sentBy: sentBy || null, scope, cohortId, targetLabelId: audience === 'PARTICIPANTS' ? null : targetLabelId, targetGroupId: audience === 'PARTICIPANTS' ? targetGroupId : null, audience }])
       .select('id')
       .single()
 
@@ -102,7 +104,16 @@ Deno.serve(async (req) => {
         .eq('participant.status', 'ACTIVE')
       if (scope === 'ACTIVE_COHORT' && cohortId) participantQuery = participantQuery.eq('participant.cohortId', cohortId)
       const { data: accounts } = await participantQuery
-      const participantIds = ((accounts ?? []) as any[]).map((row) => row.participantId)
+      let participantIds = ((accounts ?? []) as any[]).map((row) => row.participantId)
+      if (targetGroupId) {
+        const { data: groupMembers, error: groupMembersError } = await supabase
+          .from('GroupParticipant')
+          .select('participantId')
+          .eq('groupId', targetGroupId)
+        if (groupMembersError) throw new Error(groupMembersError.message)
+        const groupParticipantIds = new Set((groupMembers || []).map((row: any) => row.participantId))
+        participantIds = participantIds.filter((id) => groupParticipantIds.has(id))
+      }
       if (participantIds.length > 0) {
         const { data: participantSubs } = await supabase
           .from('ParticipantPushSubscription')
