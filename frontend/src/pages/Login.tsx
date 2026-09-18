@@ -152,7 +152,7 @@ const Login: React.FC = () => {
             <div className="mx-auto w-full max-w-[440px] rounded-[28px] border border-white/70 bg-white/85 p-7 shadow-[0_24px_70px_-28px_rgba(31,26,23,0.35)] backdrop-blur-xl sm:p-9">
               <div>
                 <h2 className="text-[28px] font-extrabold tracking-tight text-gray-900">Welcome back</h2>
-                <p className="mt-1.5 text-[15px] text-gray-500">Sign in to FOF IKD Ops</p>
+                <p className="mt-1.5 text-[15px] text-gray-500">Sign in to FOF Ops</p>
               </div>
 
               <form className="mt-8 space-y-4" onSubmit={handleSubmit} noValidate>

@@ -88,7 +88,7 @@ const ShellLayout: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-primary to-orange-600 text-lg font-bold text-white shadow-lg shadow-orange-200">F</div>
             <div>
-              <p className="text-base font-bold text-gray-900">FOF IKD</p>
+              <p className="text-base font-bold text-gray-900">FOF</p>
               <p className="text-xs text-gray-400">Participant</p>
             </div>
           </div>

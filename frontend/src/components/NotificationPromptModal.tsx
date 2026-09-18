@@ -16,7 +16,7 @@ const NotificationPromptModal: React.FC<Props> = ({ onEnable, onDismiss }) => (
           </svg>
         </div>
         <h2 className="text-lg font-bold">Stay in the loop</h2>
-        <p className="text-sm text-white/80 mt-1">Enable notifications for FOF IKD Ops</p>
+        <p className="text-sm text-white/80 mt-1">Enable notifications for FOF Ops</p>
       </div>
 
       {/* Body */}

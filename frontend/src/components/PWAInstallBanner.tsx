@@ -1,7 +1,7 @@
 import React from 'react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
-const APP_NAME = 'FOF IKD Ops';
+const APP_NAME = 'FOF Ops';
 const APP_SHORT_NAME = 'FOF Ops';
 const APP_ICON_SRC = '/icon-192.png';
 

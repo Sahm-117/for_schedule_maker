@@ -11,7 +11,7 @@ export default defineConfig({
       filename: 'sw.ts',
       strategies: 'injectManifest',
       manifest: {
-        name: 'FOF IKD Ops',
+        name: 'FOF Ops',
         short_name: 'FOF Ops',
         description: 'TCN Ikorodu Foundation of Faith Support Schedule',
         theme_color: '#ffffff',

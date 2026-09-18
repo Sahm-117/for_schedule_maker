@@ -86,7 +86,7 @@ const SopDownload: React.FC = () => {
         </div>
 
         <h1 className="text-xl font-bold text-gray-900 text-center">
-          FOF IKD - SOP Manager
+          FOF - SOP Manager
         </h1>
         <p className="text-sm text-gray-600 text-center mt-2">
           {week

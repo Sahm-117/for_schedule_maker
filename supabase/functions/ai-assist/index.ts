@@ -53,7 +53,7 @@ const complete = async (models: string[], system: string, user: string, maxToken
     try {
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-Title': 'FOF IKD' },
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-Title': 'FOF' },
         body: JSON.stringify({ model, max_tokens: maxTokens, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }),
         signal: AbortSignal.timeout(75000),
       })

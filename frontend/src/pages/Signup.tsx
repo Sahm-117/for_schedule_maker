@@ -59,7 +59,7 @@ const Signup: React.FC = () => {
         <div className="flex justify-center">
           <img src="/logo-mark.png" alt="FOF Ops" className="h-16 w-16 rounded-xl border border-gray-200 p-2 bg-white object-contain" />
         </div>
-        <h2 className="mt-4 text-center text-2xl font-bold text-gray-900">FOF IKD Ops</h2>
+        <h2 className="mt-4 text-center text-2xl font-bold text-gray-900">FOF Ops</h2>
         <p className="mt-1 text-center text-sm text-gray-500">Create your Support account</p>
       </div>
 

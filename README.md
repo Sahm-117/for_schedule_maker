@@ -1,4 +1,4 @@
-# FOF IKD Ops
+# FOF Ops
 
 A Progressive Web App for running the Foundation of Faith (FOF) discipleship programme at The Covenant Nation (TCN) Ikorodu — the weekly schedule, the participants, and the support team's day-to-day work.
 

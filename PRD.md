@@ -1,4 +1,4 @@
-# Product Requirements Document — FOF IKD Ops
+# Product Requirements Document — FOF Ops
 
 **Version:** 1.0  
 **Date:** May 2026  
@@ -9,7 +9,7 @@
 
 ## 1. Overview
 
-**FOF IKD Ops** is a Progressive Web App (PWA) that manages the weekly programme schedules for the Foundation of Faith (FOF) discipleship programme at The Covenant Nation (TCN) Ikorodu. It replaces ad-hoc WhatsApp coordination and manual spreadsheets with a structured, role-based tool that the entire support team can access from any device.
+**FOF Ops** is a Progressive Web App (PWA) that manages the weekly programme schedules for the Foundation of Faith (FOF) discipleship programme at The Covenant Nation (TCN) Ikorodu. It replaces ad-hoc WhatsApp coordination and manual spreadsheets with a structured, role-based tool that the entire support team can access from any device.
 
 ---
 
@@ -17,7 +17,7 @@
 
 FOF is an 8-week discipleship programme running weekly, typically across one church season. The programme involves dozens of daily activities (talks, sessions, team movements, service assignments) spread across multiple days each week. Coordination failures — wrong times, missing assignments, last-minute changes not communicated — directly impact programme quality and participant experience.
 
-Before FOF IKD Ops:
+Before FOF Ops:
 - Programme schedules were maintained in a shared spreadsheet and circulated via WhatsApp
 - Last-minute changes required an admin to update the sheet, screenshot it, and broadcast to the team
 - Support team members had no way to check the live schedule from their phones without scrolling through a chat history

@@ -332,7 +332,7 @@ const AppShell: React.FC = () => {
               F
             </div>
             <div>
-              <p className="text-base font-bold text-gray-900">FOF IKD Ops</p>
+              <p className="text-base font-bold text-gray-900">FOF Ops</p>
               <button
                 type="button"
                 onClick={(event) => { event.stopPropagation(); window.location.reload(); }}
@@ -398,7 +398,7 @@ const AppShell: React.FC = () => {
           <div className="surface-card relative m-4 flex w-80 flex-col overflow-hidden">
             <div className="flex items-center justify-between border-b border-orange-100 px-5 py-5">
             <div>
-              <p className="text-base font-bold text-gray-900">FOF IKD Ops</p>
+              <p className="text-base font-bold text-gray-900">FOF Ops</p>
               <button
                 type="button"
                 onClick={() => { window.location.reload(); setOpen(false); }}

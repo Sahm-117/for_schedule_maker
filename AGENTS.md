@@ -1,4 +1,4 @@
-# FOF IKD Ops Agent Notes
+# FOF Ops Agent Notes
 
 This file is project-specific. Keep changes here limited to guidance for this repository.
 
