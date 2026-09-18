@@ -112,8 +112,16 @@ function onFormSubmit(e) {
 // Finds a submitted answer using the question titles already configured in the
 // Sync settings tab, so a renamed question is fixed in one place for both
 // directions. Falls back to matching on the field name itself.
+// Cached for the life of one run: readSettings() reads the spreadsheet, and
+// importing a few hundred rows calls this four times per row.
+var SETTINGS_CACHE = null;
+function cachedSettings() {
+  if (!SETTINGS_CACHE) SETTINGS_CACHE = readSettings();
+  return SETTINGS_CACHE;
+}
+
 function pickAnswer(answers, label) {
-  var settings = readSettings();
+  var settings = cachedSettings();
   var keys = Object.keys(answers);
   for (var i = 0; i < settings.map.length; i++) {
     if (settings.map[i].label !== label || !settings.map[i].heading) continue;
@@ -127,6 +135,118 @@ function pickAnswer(answers, label) {
     if (clean(keys[k]).indexOf(clean(label)) !== -1) return String(answers[keys[k]] || '').trim();
   }
   return '';
+}
+
+// ---------------------------------------------------------------------
+// Bringing in the sign-ups that were already here
+// ---------------------------------------------------------------------
+//
+// The submit trigger only catches new responses. These two read the rows
+// already sitting in the form tab and offer them to the app.
+//
+// Preview writes nothing at all. Import writes, but stays quiet: the app skips
+// its usual "new sign-up" alert to the admins, which would otherwise mean one
+// notification per historical row.
+//
+// Both are safe to run more than once. Each row is keyed by its position, so a
+// row that has already been imported is recognised and skipped.
+
+function previewPastSignUps() {
+  runPastSignUps(true);
+}
+
+function importPastSignUps() {
+  var ui = SpreadsheetApp.getUi();
+  var answer = ui.alert(
+    'Import past sign-ups',
+    'This adds everyone already in the form tab to the FOF app. Rows already imported are skipped. Continue?',
+    ui.ButtonSet.YES_NO
+  );
+  if (answer !== ui.Button.YES) return;
+  runPastSignUps(false);
+}
+
+function runPastSignUps(dryRun) {
+  SETTINGS_CACHE = null;
+  var settings = cachedSettings();
+  var book = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = book.getSheetByName(settings.tabName);
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert('Cannot find the tab "' + settings.tabName + '". Check Sync settings B2.');
+    return;
+  }
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    SpreadsheetApp.getUi().alert('There are no form responses in "' + settings.tabName + '" yet.');
+    return;
+  }
+
+  var width = sheet.getLastColumn();
+  var heads = sheet.getRange(1, 1, 1, width).getValues()[0];
+  var rows = sheet.getRange(2, 1, lastRow - 1, width).getValues();
+
+  var counts = { matched: 0, created: 0, duplicate: 0, skipped: 0, failed: 0 };
+  var examples = [];
+
+  for (var i = 0; i < rows.length; i++) {
+    var answers = {};
+    for (var c = 0; c < width; c++) {
+      var head = String(heads[c]).trim();
+      if (head) answers[head] = String(rows[i][c]);
+    }
+
+    var first = pickAnswer(answers, 'First name');
+    var surname = pickAnswer(answers, 'Surname');
+    var fullName = (first + ' ' + surname).replace(/\s+/g, ' ').trim();
+    var phone = pickAnswer(answers, 'WhatsApp number');
+    if (!fullName || !phone) { counts.skipped++; continue; }
+
+    var stamp = pickAnswer(answers, 'Timestamp');
+    var payload = {
+      secret: SECRET,
+      responseId: settings.tabName + ':' + (i + 2),
+      fullName: fullName,
+      phone: phone,
+      email: pickAnswer(answers, 'Email'),
+      signedUpAt: stamp ? new Date(stamp).toISOString() : null,
+      answers: answers,
+      backfill: true,
+      dryRun: dryRun === true
+    };
+
+    try {
+      var response = UrlFetchApp.fetch(APP_ENDPOINT, {
+        method: 'post',
+        contentType: 'application/json',
+        headers: { Authorization: 'Bearer ' + APP_ANON_KEY, apikey: APP_ANON_KEY },
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      });
+      var body = JSON.parse(response.getContentText());
+      if (body.outcome === 'MATCHED') counts.matched++;
+      else if (body.outcome === 'CREATED') counts.created++;
+      else if (body.outcome === 'DUPLICATE') counts.duplicate++;
+      else counts.failed++;
+      if (body.wouldDo && examples.length < 8) examples.push('- ' + body.wouldDo);
+    } catch (err) {
+      counts.failed++;
+      Logger.log('Past sign-up row ' + (i + 2) + ' failed: ' + err);
+    }
+  }
+
+  var title = dryRun ? 'Preview: nothing was changed' : 'Past sign-ups imported';
+  var lines = [
+    'Rows read: ' + rows.length,
+    '',
+    (dryRun ? 'Would match an existing contact: ' : 'Matched an existing contact: ') + counts.matched,
+    (dryRun ? 'Would be added as a new lead: ' : 'Added as a new lead: ') + counts.created,
+    'Already imported, skipped: ' + counts.duplicate,
+    'No name or number, skipped: ' + counts.skipped,
+    'Failed: ' + counts.failed
+  ];
+  if (examples.length) lines.push('', 'For example:', examples.join('\n'));
+  SpreadsheetApp.getUi().alert(title, lines.join('\n'), SpreadsheetApp.getUi().ButtonSet.OK);
 }
 
 // Creates the submit trigger. Safe to run twice: the old one is replaced.
@@ -149,6 +269,8 @@ function onOpen() {
     .createMenu('FOF Sync')
     .addItem('Check setup', 'checkSetup')
     .addItem('Connect form sign-ups', 'connectFormSignUps')
+    .addItem('Preview past sign-ups', 'previewPastSignUps')
+    .addItem('Import past sign-ups', 'importPastSignUps')
     .addItem('Rebuild settings tab', 'rebuildSettings')
     .addToUi();
 }

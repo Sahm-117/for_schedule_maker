@@ -20,7 +20,27 @@ arrives. If it can't get through, the response still lands in the spreadsheet as
 normal — the sheet is never held up by the app.
 
 **People who filled in the form before you did this do not appear in the app.**
-Only sign-ups from this point on are sent.
+Only sign-ups from this point on are sent automatically -- but you can bring the
+older ones in, below.
+
+## Bringing in the people who signed up earlier
+
+1. Menu **FOF Sync -> Preview past sign-ups**. This changes nothing at all. It
+   reads the form tab and tells you what it would do: how many match someone the
+   app already knows, how many would be added as new leads, and how many have no
+   name or number to work with.
+2. If that looks right, menu **FOF Sync -> Import past sign-ups**, and confirm.
+
+Worth knowing before you run the import:
+
+- Someone who **matches a contact** is marked registered, which adds them as a
+  participant in the back office -- the same thing that happens when a support
+  marks them registered by hand.
+- Someone who **matches nobody** becomes a lead waiting to be assigned.
+- The admins are **not** notified for these, unlike a live sign-up. Otherwise an
+  import would fire one alert per row.
+- Running it twice is safe. Rows already brought in are recognised and skipped.
+- A long sheet may take a few minutes; Google will show a script running.
 
 ## The old direction (app → sheet) is off
 

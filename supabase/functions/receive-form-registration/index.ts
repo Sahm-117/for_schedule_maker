@@ -15,6 +15,14 @@
  *                                  the admins, the same as any unassigned lead
  *
  *   POST { secret, responseId?, fullName, phone, email?, signedUpAt?, answers? }
+ *
+ * Two flags exist for bringing in the sign-ups that were already in the sheet
+ * before any of this was connected:
+ *
+ *   dryRun   -- work out what would happen and say so, writing nothing at all
+ *   backfill -- do the work, but stay quiet: no admin notification per row,
+ *               which would otherwise mean one alert for every historical
+ *               sign-up the moment the import runs
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { insertNotifications } from '../_shared/notifications.ts'
@@ -104,9 +112,37 @@ Deno.serve(async (req) => {
     return json({ error: 'fullName and phone are required' }, 400)
   }
 
+  const dryRun = payload.dryRun === true
+  const backfill = payload.backfill === true
   const normalised = normalisePhone(phone)
   const signedUpAt = payload.signedUpAt ? new Date(String(payload.signedUpAt)).toISOString() : new Date().toISOString()
   const rowKey = payload.responseId ? String(payload.responseId) : null
+
+  if (dryRun) {
+    // Say what would happen and stop. Nothing is written, not even the
+    // SheetRegistration row, so this can be run as often as it takes to decide.
+    if (rowKey) {
+      const { data: already } = await supabase
+        .from('SheetRegistration').select('id').eq('sheetRowKey', rowKey).maybeSingle()
+      if (already) return json({ ok: true, outcome: 'DUPLICATE', wouldDo: 'Already imported; nothing would change.' })
+    }
+
+    let match: { fullName: string; registrationStatus: string } | null = null
+    if (normalised) {
+      const { data: candidates } = await supabase
+        .from('FollowUpContact').select('fullName, phone, registrationStatus').is('archivedAt', null).limit(5000)
+      match = (candidates ?? []).find((c: { phone: string }) => normalisePhone(c.phone) === normalised) ?? null
+    }
+    return json({
+      ok: true,
+      outcome: match ? 'MATCHED' : 'CREATED',
+      wouldDo: match
+        ? (match.registrationStatus === 'REGISTERED'
+            ? `${match.fullName} is already registered; only the sign-up would be recorded.`
+            : `Mark ${match.fullName} registered and add them as a participant.`)
+        : `Add ${fullName} as a new lead waiting to be assigned.`,
+    })
+  }
 
   // Record the sign-up first, so it is never lost even if the rest fails.
   const { data: registration, error: insertError } = await supabase
@@ -194,7 +230,10 @@ Deno.serve(async (req) => {
       return await finish('FAILED', createError.message, null)
     }
 
-    await tellAdmins('New sign-up from the form', `${fullName} signed up on the registration form. They're waiting to be assigned.`)
+    // An import of old sign-ups would otherwise raise one alert per row.
+    if (!backfill) {
+      await tellAdmins('New sign-up from the form', `${fullName} signed up on the registration form. They're waiting to be assigned.`)
+    }
     return await finish('CREATED', 'Created a new lead waiting to be assigned.', created.id)
   } catch (error) {
     console.error('receive-form-registration: failed', String(error))
