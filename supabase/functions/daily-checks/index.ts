@@ -366,14 +366,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Leads that never reached the Google Sheet ────────────────────────────
+    // ── Prospects that never reached the Google Sheet ────────────────────────
     // The nightly retry is switched off along with the push itself: it selects
-    // every lead with no sheetSyncedAt, so leaving it on would carry new leads
+    // every prospect with no sheetSyncedAt, so leaving it on would carry new ones
     // to the sheet within a day regardless. sync-lead-to-sheet still exists and
     // still works if called directly.
     const leadsRetried = 0
 
-    // ── Lead sheet sync health: tell operations once a day if it's broken ────
+    // ── Sign-up sheet sync health: tell operations once a day if it's broken ─
     const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
     const { data: failing } = await supabase.from('FollowUpContact')
       .select('fullName, sheetSyncError, createdAt')
@@ -388,12 +388,12 @@ Deno.serve(async (req) => {
     if (failCount > 0 || warnCount > 0) {
       const reason = failCount > 0 ? (failing as any[])[0].sheetSyncError : (warned as any[])[0].sheetSyncWarning
       const summary = failCount > 0
-        ? `${failCount} lead${failCount === 1 ? '' : 's'} didn't reach the Google sheet`
-        : `${warnCount} lead${warnCount === 1 ? '' : 's'} reached the sheet with missing columns`
+        ? `${failCount} prospect${failCount === 1 ? '' : 's'} didn't reach the Google sheet`
+        : `${warnCount} prospect${warnCount === 1 ? '' : 's'} reached the sheet with missing columns`
       for (const adminId of admins) {
         add({
           userId: adminId,
-          title: 'Lead sheet sync needs attention',
+          title: 'Sign-up sheet sync needs attention',
           body: `${summary}. ${String(reason).slice(0, 140)}`,
           path: '/follow-ups',
           type: 'REMINDER',

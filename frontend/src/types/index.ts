@@ -220,7 +220,7 @@ export interface FollowUpContact {
   occupation?: string | null;
   registeredById?: string | null;
   registeredByName?: string | null;
-  /** When the lead reached the Google sheet (null until it does). */
+  /** When the prospect reached the Google sheet (null until it does). */
   sheetSyncedAt?: string | null;
   /** Why the last attempt to reach the sheet failed. */
   sheetSyncError?: string | null;
@@ -645,7 +645,7 @@ export interface HubReply {
 
 // ── Participant app accounts ──────────────────────────────────────────────────
 
-/** NO_PARTICIPANT = lead has no participant record; NONE = no login yet; CODE_READY = first-time code issued, password not chosen; ACTIVE = password chosen. */
+/** NO_PARTICIPANT = prospect has no participant record; NONE = no login yet; CODE_READY = first-time code issued, password not chosen; ACTIVE = password chosen. */
 export type ParticipantLoginStatus = 'NO_PARTICIPANT' | 'NONE' | 'CODE_READY' | 'ACTIVE';
 
 export interface ParticipantLoginDetails {

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { followUpContactsApi } from '../../services/api';
 import type { FollowUpContact } from '../../types';
 
-// Shows operations when leads registered in the app aren't reaching the
+// Shows operations when prospects registered in the app aren't reaching the
 // Google sheet, and why, so a changed form is noticed quickly.
 // Failures can be retried; warnings (a missing column) need the sheet's
 // Sync settings updated, since resending would add a duplicate row.
@@ -59,8 +59,8 @@ const SheetSyncBanner: React.FC<{ contacts: FollowUpContact[]; onRetried: () => 
       <div className="flex flex-wrap items-center gap-2">
         <p className="min-w-0 flex-1 text-sm font-semibold">
           {isFailure
-            ? `${failed.length} lead${failed.length === 1 ? '' : 's'} didn't reach the Google sheet`
-            : `${warned.length} lead${warned.length === 1 ? '' : 's'} reached the sheet with missing columns`}
+            ? `${failed.length} prospect${failed.length === 1 ? '' : 's'} didn't reach the Google sheet`
+            : `${warned.length} prospect${warned.length === 1 ? '' : 's'} reached the sheet with missing columns`}
         </p>
         <button type="button" onClick={() => setOpen((value) => !value)} className="text-xs font-semibold underline-offset-2 hover:underline">
           {open ? 'Hide' : 'View'}

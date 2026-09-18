@@ -12,7 +12,7 @@
  *   matches a contact by phone  -> mark that contact REGISTERED, which is what
  *                                  promotes them to a Participant
  *   matches nobody              -> create an unowned FollowUpContact and tell
- *                                  the admins, the same as any unassigned lead
+ *                                  the admins, the same as any unassigned prospect
  *
  *   POST { secret, responseId?, fullName, phone, email?, signedUpAt?, answers? }
  *
@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
         ? (match.registrationStatus === 'REGISTERED'
             ? `${match.fullName} is already registered; only the sign-up would be recorded.`
             : `Mark ${match.fullName} registered and add them as a participant.`)
-        : `Add ${fullName} as a new lead waiting to be assigned.`,
+        : `Add ${fullName} as a new prospect waiting to be assigned.`,
     })
   }
 
@@ -175,7 +175,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Which cohort a new lead belongs to.
+    // Which cohort a new prospect belongs to.
     const { data: activeCohort } = await supabase
       .from('Cohort')
       .select('id')
@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
     let contact: Record<string, unknown> | null = null
     if (normalised) {
       // Match on the normalised number rather than the raw text, so formatting
-      // differences between the form and the app don't hide an existing lead.
+      // differences between the form and the app don't hide an existing prospect.
       // Numbers are stored as typed, so this compares in code rather than SQL;
       // with tens of active contacts that is cheaper than it looks, but it is
       // the thing to revisit if the table ever grows into the thousands.
@@ -210,8 +210,8 @@ Deno.serve(async (req) => {
       return await finish('MATCHED', `Matched ${contact.fullName} and marked them registered.`, String(contact.id))
     }
 
-    // Nobody in the app knows this person yet: make them a lead waiting to be
-    // assigned, exactly like any other unowned lead.
+    // Nobody in the app knows this person yet: make them a prospect waiting to be
+    // assigned, exactly like any other unowned prospect.
     const { data: created, error: createError } = await supabase
       .from('FollowUpContact')
       .insert([{
@@ -234,7 +234,7 @@ Deno.serve(async (req) => {
     if (!backfill) {
       await tellAdmins('New sign-up from the form', `${fullName} signed up on the registration form. They're waiting to be assigned.`)
     }
-    return await finish('CREATED', 'Created a new lead waiting to be assigned.', created.id)
+    return await finish('CREATED', 'Created a new prospect waiting to be assigned.', created.id)
   } catch (error) {
     console.error('receive-form-registration: failed', String(error))
     return await finish('FAILED', String(error), null)

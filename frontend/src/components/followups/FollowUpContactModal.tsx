@@ -135,7 +135,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={contact ? 'Edit contact' : 'Add contact'}
-      subtitle="Follow-up contacts are leads — they never become app users."
+      subtitle="Follow-up contacts are prospects — they never become app users."
       footer={(
         <>
           <button

@@ -4,7 +4,7 @@ import { buildWhatsAppLink } from '../../utils/phone';
 import type { ParticipantLoginDetails } from '../../types';
 
 // "Their login details" card from the V2 design. Shown to a support once they mark
-// a lead as Registered, and to admins on a participant. Opening it creates the
+// a prospect as Registered, and to admins on a participant. Opening it creates the
 // first-time code (if none yet) and builds the message to copy or send on WhatsApp.
 // Once the participant has chosen their own password, the code is gone for good:
 // staff can only issue a new one, which signs the participant out.
@@ -40,7 +40,7 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
     setError('');
     try {
       let result = await participantAccountsApi.getLoginDetails(target, options);
-      // A lead just marked Registered gets its participant record a moment later,
+      // A prospect just marked Registered gets its participant record a moment later,
       // so when sending, wait briefly before calling it missing.
       for (let attempt = 0; options.issue && result.status === 'NO_PARTICIPANT' && attempt < 3; attempt += 1) {
         await new Promise((resolve) => setTimeout(resolve, 1200));

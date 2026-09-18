@@ -1,4 +1,4 @@
-// FOF lead sync - Google Apps Script
+// FOF sign-up sync - Google Apps Script
 //
 // Everything that might change (which tab, which question goes where)
 // lives in the "Sync settings" tab of this spreadsheet, not in this code.
@@ -22,7 +22,7 @@ var APP_ANON_KEY = 'PASTE-SUPABASE-ANON-KEY-HERE';
 var SETTINGS_TAB = 'Sync settings';
 var FIRST_MAP_ROW = 7;
 
-// App fields a lead can carry. The names in column A of the settings tab
+// App fields a prospect can carry. The names in column A of the settings tab
 // must be one of these (they are filled in for you).
 var APP_FIELDS = {
   'Timestamp': 'registeredAt',
@@ -240,7 +240,7 @@ function runPastSignUps(dryRun) {
     'Rows read: ' + rows.length,
     '',
     (dryRun ? 'Would match an existing contact: ' : 'Matched an existing contact: ') + counts.matched,
-    (dryRun ? 'Would be added as a new lead: ' : 'Added as a new lead: ') + counts.created,
+    (dryRun ? 'Would be added as a new prospect: ' : 'Added as a new prospect: ') + counts.created,
     'Already imported, skipped: ' + counts.duplicate,
     'No name or number, skipped: ' + counts.skipped,
     'Failed: ' + counts.failed
@@ -374,12 +374,12 @@ function doGet() {
 
 function createSettings(book) {
   var sheet = book.insertSheet(SETTINGS_TAB);
-  sheet.getRange('A1').setValue('FOF lead sync settings')
+  sheet.getRange('A1').setValue('FOF sign-up sync settings')
     .setFontSize(14).setFontWeight('bold');
-  sheet.getRange('A2').setValue('Leads go into this tab')
+  sheet.getRange('A2').setValue('Sign-ups go into this tab')
     .setFontWeight('bold');
   sheet.getRange('B2').setValue(DEFAULT_TAB);
-  sheet.getRange('A3').setValue('"How they heard" text for app leads')
+  sheet.getRange('A3').setValue('"How they heard" text for app prospects')
     .setFontWeight('bold');
   sheet.getRange('B3').setValue(DEFAULT_SOURCE);
   sheet.getRange('A4').setValue(

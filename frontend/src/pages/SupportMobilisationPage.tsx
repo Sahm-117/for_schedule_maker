@@ -34,7 +34,7 @@ type MobTab = 'register' | 'follow';
 // A support meets someone and takes their name and number, nothing more. The
 // person fills in the Google Form themselves once they know what FOF is about,
 // and that form is what actually registers them.
-const EMPTY_LEAD = { fullName: '', phone: '' };
+const EMPTY_PROSPECT = { fullName: '', phone: '' };
 
 const CARD = 'rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
 const INPUT = 'min-h-[48px] w-full rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
@@ -67,7 +67,7 @@ const SupportMobilisationPage: React.FC = () => {
   const [tab, setTab] = useState<MobTab>(searchParams.get('tab') === 'follow' ? 'follow' : 'register');
 
   const [contacts, setContacts] = useState<FollowUpContact[]>([]);
-  const [myLeads, setMyLeads] = useState<FollowUpContact[]>([]);
+  const [myProspects, setMyProspects] = useState<FollowUpContact[]>([]);
   const [issues, setIssues] = useState<FollowUpIssue[]>([]);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [registrationLink, setRegistrationLink] = useState('');
@@ -75,13 +75,13 @@ const SupportMobilisationPage: React.FC = () => {
   const [loadError, setLoadError] = useState('');
   const initialLoadRef = useRef(true);
 
-  const [lead, setLead] = useState(EMPTY_LEAD);
+  const [prospect, setProspect] = useState(EMPTY_PROSPECT);
   const [signUps, setSignUps] = useState<FormRegistration[]>([]);
   const [signUpSearch, setSignUpSearch] = useState('');
-  const [leadTouched, setLeadTouched] = useState(false);
-  const [leadSaving, setLeadSaving] = useState(false);
-  const [leadError, setLeadError] = useState('');
-  const [leadSaved, setLeadSaved] = useState('');
+  const [prospectTouched, setProspectTouched] = useState(false);
+  const [prospectSaving, setProspectSaving] = useState(false);
+  const [prospectError, setProspectError] = useState('');
+  const [prospectSaved, setProspectSaved] = useState('');
 
   const [showClosed, setShowClosed] = useState(false);
   const toast = useToast();
@@ -92,7 +92,7 @@ const SupportMobilisationPage: React.FC = () => {
   const [showExport, setShowExport] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
-  const leadSource = user ? `Registered by ${user.name}` : '';
+  const prospectSource = user ? `Registered by ${user.name}` : '';
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
@@ -110,7 +110,7 @@ const SupportMobilisationPage: React.FC = () => {
       ]);
       const issuesRes = await followUpIssuesApi.getAll();
       setContacts(sortByText(contactsRes.contacts, (contact) => contact.fullName));
-      setMyLeads(allRes.contacts.filter((contact) => contact.registeredById === user.id || contact.source === `Registered by ${user.name}`));
+      setMyProspects(allRes.contacts.filter((contact) => contact.registeredById === user.id || contact.source === `Registered by ${user.name}`));
       setIssues(issuesRes.issues);
       setTemplates(sortByText(templatesRes.templates, (template) => template.useCase));
       setRegistrationLink(linkRes.url);
@@ -229,42 +229,42 @@ const SupportMobilisationPage: React.FC = () => {
       || (digits.length >= 3 && row.phone.replace(/\D/g, '').includes(digits)));
   }, [signUps, signUpSearch]);
 
-  const leadNameError = leadTouched && !lead.fullName.trim();
-  const leadPhoneError = leadTouched && !lead.phone.trim()
+  const prospectNameError = prospectTouched && !prospect.fullName.trim();
+  const prospectPhoneError = prospectTouched && !prospect.phone.trim()
     ? 'A WhatsApp number is required.'
-    : leadTouched && lead.phone.trim() && !normalizeToIntlPhone(lead.phone)
+    : prospectTouched && prospect.phone.trim() && !normalizeToIntlPhone(prospect.phone)
       ? 'Enter a valid WhatsApp number.'
       : '';
 
-  const submitLead = async () => {
+  const submitProspect = async () => {
     if (!user) return;
-    setLeadSaved('');
-    setLeadError('');
-    if (!lead.fullName.trim() || !lead.phone.trim() || !normalizeToIntlPhone(lead.phone)) { setLeadTouched(true); return; }
-    const normalized = normalizeToIntlPhone(lead.phone);
-    const duplicate = [...myLeads, ...contacts].find((contact) => normalizeToIntlPhone(contact.phone) === normalized);
-    if (duplicate) { setLeadError(`This number already belongs to ${duplicate.fullName}.`); return; }
+    setProspectSaved('');
+    setProspectError('');
+    if (!prospect.fullName.trim() || !prospect.phone.trim() || !normalizeToIntlPhone(prospect.phone)) { setProspectTouched(true); return; }
+    const normalized = normalizeToIntlPhone(prospect.phone);
+    const duplicate = [...myProspects, ...contacts].find((contact) => normalizeToIntlPhone(contact.phone) === normalized);
+    if (duplicate) { setProspectError(`This number already belongs to ${duplicate.fullName}.`); return; }
 
-    const fullName = lead.fullName.trim();
+    const fullName = prospect.fullName.trim();
 
-    setLeadSaving(true);
+    setProspectSaving(true);
     try {
       const { contact } = await followUpContactsApi.create({
         fullName,
-        phone: lead.phone.trim(),
-        source: leadSource,
+        phone: prospect.phone.trim(),
+        source: prospectSource,
         cohortId: activeCohort?.id ?? null,
         followUpCount: 0,
         registeredById: user.id,
       });
-      setMyLeads((prev) => [contact, ...prev]);
-      setLead(EMPTY_LEAD);
-      setLeadTouched(false);
-      setLeadSaved(`${fullName} was saved and sent to the back office to assign.`);
+      setMyProspects((prev) => [contact, ...prev]);
+      setProspect(EMPTY_PROSPECT);
+      setProspectTouched(false);
+      setProspectSaved(`${fullName} was saved and sent to the back office to assign.`);
     } catch (err) {
-      setLeadError(err instanceof Error ? err.message : 'Could not register this person.');
+      setProspectError(err instanceof Error ? err.message : 'Could not register this person.');
     } finally {
-      setLeadSaving(false);
+      setProspectSaving(false);
     }
   };
 
@@ -332,18 +332,18 @@ const SupportMobilisationPage: React.FC = () => {
               <div className="mt-4 flex flex-col gap-3">
                 <label className="block">
                   <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Full name</span>
-                  <input value={lead.fullName} onChange={(e) => setLead((prev) => ({ ...prev, fullName: e.target.value }))} placeholder="Full name" className={INPUT} />
-                  {leadNameError && <span className="mt-1 block text-xs font-medium text-red-700">Enter their full name.</span>}
+                  <input value={prospect.fullName} onChange={(e) => setProspect((prev) => ({ ...prev, fullName: e.target.value }))} placeholder="Full name" className={INPUT} />
+                  {prospectNameError && <span className="mt-1 block text-xs font-medium text-red-700">Enter their full name.</span>}
                 </label>
                 <label className="block">
                   <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">WhatsApp number</span>
-                  <input type="tel" value={lead.phone} onChange={(e) => setLead((prev) => ({ ...prev, phone: e.target.value }))} placeholder="0803 000 0000" className={INPUT} />
-                  {leadPhoneError && <span className="mt-1 block text-xs font-medium text-red-700">{leadPhoneError}</span>}
+                  <input type="tel" value={prospect.phone} onChange={(e) => setProspect((prev) => ({ ...prev, phone: e.target.value }))} placeholder="0803 000 0000" className={INPUT} />
+                  {prospectPhoneError && <span className="mt-1 block text-xs font-medium text-red-700">{prospectPhoneError}</span>}
                 </label>
-                {leadError && <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{leadError}</p>}
-                {leadSaved && <p className="rounded-xl bg-emerald-100/80 px-3.5 py-2.5 text-sm font-semibold text-emerald-700">{leadSaved}</p>}
-                <button type="button" onClick={() => { void submitLead(); }} disabled={leadSaving} className="min-h-[48px] w-full rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60">
-                  {leadSaving ? 'Saving…' : 'Save details'}
+                {prospectError && <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{prospectError}</p>}
+                {prospectSaved && <p className="rounded-xl bg-emerald-100/80 px-3.5 py-2.5 text-sm font-semibold text-emerald-700">{prospectSaved}</p>}
+                <button type="button" onClick={() => { void submitProspect(); }} disabled={prospectSaving} className="min-h-[48px] w-full rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60">
+                  {prospectSaving ? 'Saving…' : 'Save details'}
                 </button>
               </div>
             </section>
@@ -369,7 +369,10 @@ const SupportMobilisationPage: React.FC = () => {
               ) : visibleSignUps.length === 0 ? (
                 <p className="mt-3 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">Nobody matching “{signUpSearch.trim()}” has signed up.</p>
               ) : (
-                <div className="mt-3 flex flex-col gap-2.5">
+                // Everyone who ever signed up lives here, so the list is capped at
+                // roughly five cards and scrolls. The fade tells you there's more.
+                <div className="relative mt-3">
+                  <div className="flex max-h-[32rem] flex-col gap-2.5 overflow-y-auto overscroll-contain pb-1 pr-0.5">
                   {visibleSignUps.map((row) => (
                     <div key={row.id} className="rounded-[14px] border border-[#f1f2f5] p-3">
                       <div className="flex flex-wrap items-center gap-2.5">
@@ -380,7 +383,7 @@ const SupportMobilisationPage: React.FC = () => {
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         {row.contactId ? (
                           <span className="rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">
-                            {row.outcome === 'MATCHED' ? 'Already a contact' : 'Added as a new lead'}
+                            {row.outcome === 'MATCHED' ? 'Already a contact' : 'Added as a new prospect'}
                           </span>
                         ) : row.outcome === 'FAILED' ? (
                           <span className="rounded-full bg-red-100/80 px-2.5 py-0.5 text-[11px] font-bold text-red-700">Could not be added</span>
@@ -395,15 +398,19 @@ const SupportMobilisationPage: React.FC = () => {
                       </div>
                     </div>
                   ))}
+                  </div>
+                  {visibleSignUps.length > 5 && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 rounded-b-[14px] bg-gradient-to-t from-white to-transparent" />
+                  )}
                 </div>
               )}
             </section>
 
-            {myLeads.length > 0 && (
+            {myProspects.length > 0 && (
               <section className={`${CARD} p-[18px]`}>
                 <h3 className="mb-3 text-sm font-bold text-gray-900">People you registered</h3>
                 <div className="flex flex-col gap-2.5">
-                  {myLeads.map((contact) => {
+                  {myProspects.map((contact) => {
                     const statusLabel = contact.ownerId ? FOLLOW_UP_STATUS_META[computeFollowUpStatus(contact)].label : 'Waiting to be assigned';
                     return (
                       <div key={contact.id} className="rounded-[14px] border border-[#f1f2f5] p-3">

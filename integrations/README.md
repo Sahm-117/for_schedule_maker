@@ -1,7 +1,9 @@
 # The Google Sheet and the FOF app
 
 Sign-ups on the **FOF Signup Form** are sent into the FOF app, so every support
-can see who has registered without having to ask the back office.
+can see who has registered without having to ask the back office. Someone who
+has signed up but not yet started the programme is a **prospect** in the app —
+they only become a participant once they are registered.
 
 Supports no longer register people in the app. They save a name and a number
 when they meet someone, and the person fills in the form themselves once they
@@ -27,7 +29,7 @@ older ones in, below.
 
 1. Menu **FOF Sync -> Preview past sign-ups**. This changes nothing at all. It
    reads the form tab and tells you what it would do: how many match someone the
-   app already knows, how many would be added as new leads, and how many have no
+   app already knows, how many would be added as new prospects, and how many have no
    name or number to work with.
 2. If that looks right, menu **FOF Sync -> Import past sign-ups**, and confirm.
 
@@ -36,7 +38,7 @@ Worth knowing before you run the import:
 - Someone who **matches a contact** is marked registered, which adds them as a
   participant in the back office -- the same thing that happens when a support
   marks them registered by hand.
-- Someone who **matches nobody** becomes a lead waiting to be assigned.
+- Someone who **matches nobody** becomes a prospect waiting to be assigned.
 - The admins are **not** notified for these, unlike a live sign-up. Otherwise an
   import would fire one alert per row.
 - Running it twice is safe. Rows already brought in are recognised and skipped.
@@ -44,8 +46,8 @@ Worth knowing before you run the import:
 
 ## The old direction (app → sheet) is off
 
-Leads saved in the app are no longer copied into this spreadsheet. The code that
-did it is still there and still works if it is ever switched back on, but
+Prospects saved in the app are no longer copied into this spreadsheet. The code
+that did it is still there and still works if it is ever switched back on, but
 nothing calls it now.
 
 ---
@@ -63,8 +65,8 @@ All the settings live in the spreadsheet, in a tab called **Sync settings**:
 
 | Cell | What it controls |
 |---|---|
-| **B2** | Which tab new leads go into (e.g. `Form Responses 1`) |
-| **B3** | What goes in "How did you learn about the FOF program?" for app leads |
+| **B2** | Which tab new sign-ups go into (e.g. `Form Responses 1`) |
+| **B3** | What goes in "How did you learn about the FOF program?" for app prospects |
 | **Table from row 7** | Which form column each piece of information goes into |
 
 ### A question was renamed
@@ -77,7 +79,7 @@ All the settings live in the spreadsheet, in a tab called **Sync settings**:
 Nothing to do. That column simply stays empty for people registered in the app.
 If the app should *collect* that information too, that needs a developer.
 
-### Leads should go into a different tab (e.g. a new cohort)
+### Sign-ups should go into a different tab (e.g. a new cohort)
 1. Change **B2** to the exact tab name.
 2. **FOF Sync → Check setup**.
 
@@ -92,17 +94,17 @@ the app sends. Only change column **B**.
 
 ## How you'll know something is wrong
 
-- **A notification** to operations each morning: *"Lead sheet sync needs attention"*,
-  with the reason.
+- **A notification** to operations each morning: *"Sign-up sheet sync needs
+  attention"*, with the reason.
 - **A banner on Follow-ups** in the app:
-  - **Red — "N leads didn't reach the Google sheet".** Fix the cause (usually
+  - **Red — "N prospects didn't reach the Google sheet".** Fix the cause (usually
     the tab name in B2), then press **Retry now**.
   - **Amber — "reached the sheet with missing columns".** A question was
     renamed. Update Sync settings and run **Check setup**. Don't retry these —
     they're already in the sheet, and retrying would add them twice.
 
-Leads are never lost: they're saved in the app first, and anything that fails
-is retried automatically every morning for 30 days.
+Prospects are never lost: they're saved in the app first, and anything that
+fails is retried automatically every morning for 30 days.
 
 ---
 
@@ -116,15 +118,19 @@ The script lives in the spreadsheet under **Extensions → Apps Script**
    On a Mac: `pbcopy < integrations/google-sheet-lead-sync.gs`, then Cmd+V.
 2. Replace `PASTE-GOOGLE_SHEET_SECRET-HERE` with the real secret
    (Supabase secret `GOOGLE_SHEET_SECRET`; also in the maintainer's
-   `.env.cron.local`).
+   `.env.cron.local`), and `PASTE-SUPABASE-ANON-KEY-HERE` with the app's public
+   key (`VITE_SUPABASE_ANON_KEY` in `frontend/.env.local`). Supabase refuses a
+   function call with no `Authorization` header, so the public key is sent as
+   bearer; the shared secret is what actually proves the call came from the
+   spreadsheet.
 3. **Deploy → Manage deployments → pencil → Version: New version → Deploy.**
-   - Not *New deployment* — that creates a new URL and every lead will fail
+   - Not *New deployment* — that creates a new URL and every sign-up will fail
      until Supabase secret `GOOGLE_SHEET_WEBHOOK_URL` is updated.
 4. Open the /exec URL in a browser. `{"ok":true,...}` means it's working.
 
 ### Good to know
 - The script runs **as the Google account that deployed it**. If that account
-  loses access to the spreadsheet, every lead fails with an authorisation
+  loses access to the spreadsheet, every sign-up fails with an authorisation
   error — the red banner will say so. Redeploy from an account that has access.
 - Rows are **append-only**: existing form responses are never changed.
 - Pressing **Run** on `doPost` in the Apps Script editor always errors
@@ -141,4 +147,4 @@ The script lives in the spreadsheet under **Extensions → Apps Script**
 | Sender | Supabase Edge Function `sync-lead-to-sheet` |
 | Daily retry + alert | Supabase Edge Function `daily-checks` (called daily by cron-job.org) |
 | Secrets | Supabase: `GOOGLE_SHEET_WEBHOOK_URL`, `GOOGLE_SHEET_SECRET` |
-| Per-lead status | `FollowUpContact.sheetSyncedAt`, `sheetSyncError`, `sheetSyncWarning` |
+| Per-prospect status | `FollowUpContact.sheetSyncedAt`, `sheetSyncError`, `sheetSyncWarning` |

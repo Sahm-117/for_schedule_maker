@@ -1,12 +1,12 @@
 /**
- * Sends a registered lead to the Google Sheet (Apps Script web app).
+ * Sends a registered prospect to the Google Sheet (Apps Script web app).
  *
- * The lead is read from the database here rather than taken from the caller, so
+ * The prospect is read from the database here rather than taken from the caller, so
  * the browser can't put arbitrary rows in the sheet. Success and failure are
  * both recorded on the row: sheetSyncedAt when it lands, sheetSyncError when it
  * doesn't, which is what the daily retry looks for.
  *
- *   POST { contactId }            — send one lead
+ *   POST { contactId }            — send one prospect
  *   POST { pending: true }        — send everything still outstanding (daily job)
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
 
     if (!contactId) return json({ ok: false, error: 'contactId is required' }, 400)
     const { data: contact } = await supabase.from('FollowUpContact').select(SELECT).eq('id', contactId).maybeSingle()
-    if (!contact) return json({ ok: false, error: 'Lead not found' }, 404)
+    if (!contact) return json({ ok: false, error: 'Prospect not found' }, 404)
 
     const result = await sendOne(contact)
     return json({ ok: result.ok, detail: result.detail, row: result.row ?? null, warning: result.warning ?? null }, result.ok ? 200 : 502)

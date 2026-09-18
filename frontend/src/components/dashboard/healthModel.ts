@@ -266,7 +266,7 @@ export const buildAttention = (
     items.push({ key: 'approvals', status: 'warning', text: `${extras.pendingApprovals} schedule change${extras.pendingApprovals === 1 ? '' : 's'} to approve`, actionLabel: 'Review', to: '/approvals' });
   }
   if (data.sheetSyncProblems > 0) {
-    items.push({ key: 'sheet', status: 'critical', text: `${data.sheetSyncProblems} lead${data.sheetSyncProblems === 1 ? '' : 's'} had trouble reaching the Google sheet`, actionLabel: 'View', to: '/follow-ups' });
+    items.push({ key: 'sheet', status: 'critical', text: `${data.sheetSyncProblems} prospect${data.sheetSyncProblems === 1 ? '' : 's'} had trouble reaching the Google sheet`, actionLabel: 'View', to: '/follow-ups' });
   }
 
   const order: Record<HealthStatus, number> = { critical: 0, warning: 1, good: 2, neutral: 3 };
