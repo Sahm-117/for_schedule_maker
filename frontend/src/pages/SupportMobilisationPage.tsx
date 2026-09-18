@@ -68,6 +68,10 @@ const SupportMobilisationPage: React.FC = () => {
 
   const [contacts, setContacts] = useState<FollowUpContact[]>([]);
   const [myProspects, setMyProspects] = useState<FollowUpContact[]>([]);
+  // Every contact in the app, not just this support's. The duplicate check has to
+  // see people other supports saved and people who registered on their own,
+  // otherwise saving someone already in the app silently creates a second row.
+  const [allContacts, setAllContacts] = useState<FollowUpContact[]>([]);
   const [issues, setIssues] = useState<FollowUpIssue[]>([]);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [registrationLink, setRegistrationLink] = useState('');
@@ -110,6 +114,7 @@ const SupportMobilisationPage: React.FC = () => {
       ]);
       const issuesRes = await followUpIssuesApi.getAll();
       setContacts(sortByText(contactsRes.contacts, (contact) => contact.fullName));
+      setAllContacts(allRes.contacts);
       setMyProspects(allRes.contacts.filter((contact) => contact.registeredById === user.id || contact.source === `Registered by ${user.name}`));
       setIssues(issuesRes.issues);
       setTemplates(sortByText(templatesRes.templates, (template) => template.useCase));
@@ -159,7 +164,13 @@ const SupportMobilisationPage: React.FC = () => {
   const handleFieldChange = async (contact: FollowUpContact, patch: FollowUpContactUpdate) => {
     try {
       if (patch.registrationStatus) {
-        if (patch.registrationStatus === 'REGISTERED' || isClosedRegistrationStatus(patch.registrationStatus)) {
+        if (patch.registrationStatus === 'REGISTERED') {
+          // Signing up no longer closes the follow-up -- their app login is still
+          // owed. LOGIN_SHARED is what closes it, and it is covered below.
+          patch.replyStatus = 'REPLIED';
+          patch.nextAction = 'SEND_MESSAGE';
+          patch.archivedAt = null;
+        } else if (isClosedRegistrationStatus(patch.registrationStatus)) {
           patch.replyStatus = 'REPLIED';
           patch.nextAction = 'CLOSE';
         } else if (isClosedRegistrationStatus(contact.registrationStatus) && !isClosedRegistrationStatus(patch.registrationStatus)) {
@@ -242,8 +253,30 @@ const SupportMobilisationPage: React.FC = () => {
     setProspectError('');
     if (!prospect.fullName.trim() || !prospect.phone.trim() || !normalizeToIntlPhone(prospect.phone)) { setProspectTouched(true); return; }
     const normalized = normalizeToIntlPhone(prospect.phone);
-    const duplicate = [...myProspects, ...contacts].find((contact) => normalizeToIntlPhone(contact.phone) === normalized);
-    if (duplicate) { setProspectError(`This number already belongs to ${duplicate.fullName}.`); return; }
+
+    // Checked against EVERY contact, not just this support's. Someone who signed
+    // up on the form, or whom another support met, is already in the app, and a
+    // second row would leave the back office with two of the same person --
+    // one Registered, one To contact.
+    const duplicate = allContacts.find((contact) => normalizeToIntlPhone(contact.phone) === normalized);
+    if (duplicate) {
+      const owner = duplicate.ownerName
+        ? `being followed up by ${duplicate.ownerName}`
+        : 'waiting to be assigned';
+      const signedUp = duplicate.registrationStatus === 'REGISTERED' || duplicate.registrationStatus === 'LOGIN_SHARED';
+      setProspectError(
+        `${duplicate.fullName} is already in the app${signedUp ? ' and has signed up' : ''} — ${owner}. No need to save them again.`,
+      );
+      return;
+    }
+
+    // They registered on the form but no contact was created for them, so this is
+    // the same person arriving from the other side.
+    const signUpMatch = signUps.find((row) => (row.phoneNormalised ?? normalizeToIntlPhone(row.phone)) === normalized);
+    if (signUpMatch && !signUpMatch.contactId) {
+      setProspectError(`${signUpMatch.fullName} already signed up on the form. The back office will assign them.`);
+      return;
+    }
 
     const fullName = prospect.fullName.trim();
 

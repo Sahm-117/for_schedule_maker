@@ -8,7 +8,7 @@
  * {
  *   contactId: string,
  *   actorId: string,
- *   terminalState: 'CLOSE' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER'
+ *   terminalState: 'CLOSE' | 'LOGIN_SHARED' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER'
  *                 | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE'
  * }
  */
@@ -40,6 +40,7 @@ webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 // word "closed", so three different outcomes all read as "Closed" to admins.
 const TERMINAL_LABELS: Record<string, string> = {
   CLOSE: 'Closed',
+  LOGIN_SHARED: 'Login shared',
   NOT_INTERESTED: 'Not interested',
   NOT_A_TCN_MEMBER: 'Not a TCN member',
   NOT_A_GOOD_TIME: 'Not a good time',
@@ -63,7 +64,7 @@ Deno.serve(async (req) => {
     const { contactId, actorId, terminalState } = await req.json() as {
       contactId: string
       actorId: string
-      terminalState: 'CLOSE' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE'
+      terminalState: 'CLOSE' | 'LOGIN_SHARED' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE'
     }
 
     if (!contactId || !actorId || !terminalState) {

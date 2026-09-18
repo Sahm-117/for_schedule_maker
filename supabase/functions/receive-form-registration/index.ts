@@ -212,6 +212,12 @@ Deno.serve(async (req) => {
 
     // Nobody in the app knows this person yet: make them a prospect waiting to be
     // assigned, exactly like any other unowned prospect.
+    //
+    // They are born REGISTERED. Filling in this form IS registering, and someone
+    // a support had already saved gets stamped REGISTERED on the branch above --
+    // leaving this one at the NOT_REGISTERED default meant the same act produced
+    // two different statuses depending on whether a support happened to know them,
+    // and these people could never reach LOGIN_SHARED to close.
     const { data: created, error: createError } = await supabase
       .from('FollowUpContact')
       .insert([{
@@ -220,6 +226,8 @@ Deno.serve(async (req) => {
         source: 'Google Form',
         cohortId: activeCohort?.id ?? null,
         followUpCount: 0,
+        registrationStatus: 'REGISTERED',
+        replyStatus: 'REPLIED',
         email: payload.email ? String(payload.email).trim() : null,
       }])
       .select('id')
@@ -230,11 +238,21 @@ Deno.serve(async (req) => {
       return await finish('FAILED', createError.message, null)
     }
 
+    // Registered with no Participant row means participant_login_details returns
+    // NO_PARTICIPANT, so their login could never be issued and the follow-up could
+    // never close. The matched branch above already does this.
+    await upsertParticipant({
+      id: created.id,
+      fullName,
+      phone,
+      cohortId: activeCohort?.id ?? null,
+    })
+
     // An import of old sign-ups would otherwise raise one alert per row.
     if (!backfill) {
-      await tellAdmins('New sign-up from the form', `${fullName} signed up on the registration form. They're waiting to be assigned.`)
+      await tellAdmins('New sign-up from the form', `${fullName} signed up on the registration form. They're waiting to be assigned their login.`)
     }
-    return await finish('CREATED', 'Created a new prospect waiting to be assigned.', created.id)
+    return await finish('CREATED', 'Registered them and created a prospect waiting to be assigned.', created.id)
   } catch (error) {
     console.error('receive-form-registration: failed', String(error))
     return await finish('FAILED', String(error), null)

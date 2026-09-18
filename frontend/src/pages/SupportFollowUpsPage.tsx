@@ -179,8 +179,12 @@ const SupportFollowUpsPage: React.FC = () => {
     try {
       if (patch.registrationStatus) {
         if (patch.registrationStatus === 'REGISTERED') {
+          // Signing up no longer closes the follow-up -- their app login is still
+          // owed. LOGIN_SHARED is what closes it, and isClosedRegistrationStatus
+          // covers that below.
           patch.replyStatus = 'REPLIED';
-          patch.nextAction = 'CLOSE';
+          patch.nextAction = 'SEND_MESSAGE';
+          patch.archivedAt = null;
         } else if (isClosedRegistrationStatus(patch.registrationStatus)) {
           patch.replyStatus = 'REPLIED';
           patch.nextAction = 'CLOSE';

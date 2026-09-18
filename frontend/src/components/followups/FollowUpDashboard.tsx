@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { FollowUpContact, FollowUpStatus } from '../../types';
-import { computeFollowUpFunnel, computeOwnerBreakdown } from '../../utils/followUps';
+import { computeFollowUpFunnel, computeIntroducerBreakdown, computeOwnerBreakdown } from '../../utils/followUps';
 import { VitalTile } from '../dashboard/DashboardParts';
 
 // One colour per status, matching the tone each status already carries on its
@@ -12,7 +12,8 @@ const STATUS_COLOR: Record<FollowUpStatus, string> = {
   NEEDS_REMINDER: '#f59e0b',
   REPLIED: '#6ee7b7',
   CALL_BACK_LATER: '#c4b5fd',
-  REGISTERED: '#10b981',
+  REGISTERED: '#6ee7b7',
+  LOGIN_SHARED: '#10b981',
   NEXT_COHORT: '#38bdf8',
   WRONG_NUMBER: '#fb7185',
   NOT_INTERESTED: '#f43f5e',
@@ -33,16 +34,19 @@ const contactsLink = (status?: FollowUpStatus | 'open') =>
 const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts }) => {
   const funnel = computeFollowUpFunnel(contacts);
   const owners = computeOwnerBreakdown(contacts);
+  const introducers = computeIntroducerBreakdown(contacts);
+  const totalMet = introducers.reduce((sum, row) => sum + row.met, 0);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const totals = owners.reduce(
     (sum, row) => ({
       assigned: sum.assigned + row.assigned,
       stillOpen: sum.stillOpen + row.stillOpen,
-      registered: sum.registered + row.registered,
+      loginToShare: sum.loginToShare + row.loginToShare,
+      loginShared: sum.loginShared + row.loginShared,
       stopped: sum.stopped + row.stopped,
     }),
-    { assigned: 0, stillOpen: 0, registered: 0, stopped: 0 },
+    { assigned: 0, stillOpen: 0, loginToShare: 0, loginShared: 0, stopped: 0 },
   );
 
   // Only name a top reason when one actually leads; otherwise say how many
@@ -61,15 +65,24 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
 
   return (
     <div className="space-y-6">
-      {/* The three numbers worth acting on. Everything else is detail below. */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* The four numbers worth acting on. Everything else is detail below. */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <VitalTile
-          title="Registered"
+          title="Signed up"
           status="neutral"
           statusLabel={funnel.conversion === null ? 'No prospects yet' : `${pct(funnel.conversion)}% of ${funnel.total}`}
-          value={funnel.registered}
+          value={funnel.signedUp}
           unit={funnel.total ? `of ${funnel.total}` : undefined}
-          detail={funnel.nextCohort > 0 ? `${funnel.nextCohort} more waiting for the next cohort` : 'They signed up and are in the programme'}
+          detail={funnel.nextCohort > 0 ? `${funnel.nextCohort} more waiting for the next cohort` : 'They filled in the registration form'}
+          to={contactsLink('REGISTERED')}
+        />
+        <VitalTile
+          title="Login to share"
+          status={funnel.registered > 0 ? 'warning' : 'good'}
+          statusLabel={funnel.registered > 0 ? 'Waiting on us' : 'All handed over'}
+          value={funnel.registered}
+          unit={funnel.registered === 1 ? 'prospect' : 'prospects'}
+          detail={funnel.registered > 0 ? 'Signed up, but still cannot get into the app' : 'Everyone who signed up has their login'}
           to={contactsLink('REGISTERED')}
         />
         <VitalTile
@@ -118,7 +131,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
       <section className="surface-card overflow-hidden">
         <div className="border-b border-orange-100 px-5 py-4">
           <p className="text-sm font-bold text-gray-900">By follow-up rep</p>
-          <p className="text-xs text-gray-500">Most work left first. Open a row to see who is not joining, and why.</p>
+          <p className="text-xs text-gray-500">Most work left first. A follow-up is only done once the prospect has their app login. Open a row to see who is not joining, and why.</p>
         </div>
         <table className="w-full text-left text-sm">
           <thead className="bg-orange-50/60 text-xs uppercase tracking-wide text-gray-500">
@@ -126,12 +139,13 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
               <th scope="col" className="px-5 py-3">Follow-up rep</th>
               <th scope="col" className="px-3 py-3 text-right">Given</th>
               <th scope="col" className="px-3 py-3 text-right">Still to chase</th>
-              <th scope="col" className="px-5 py-3 text-right">Registered</th>
+              <th scope="col" className="px-3 py-3 text-right">Login to share</th>
+              <th scope="col" className="px-5 py-3 text-right">Done</th>
             </tr>
           </thead>
           <tbody>
             {owners.length === 0 ? (
-              <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-400">No prospects yet.</td></tr>
+              <tr><td colSpan={5} className="px-5 py-8 text-center text-gray-400">No prospects yet.</td></tr>
             ) : (
               owners.map((row) => {
                 const key = row.ownerId || 'unassigned';
@@ -152,11 +166,12 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
                       </td>
                       <td className="px-3 py-3 text-right font-semibold tabular-nums">{row.assigned}</td>
                       <td className="px-3 py-3 text-right font-bold tabular-nums text-amber-700">{row.stillOpen}</td>
-                      <td className="px-5 py-3 text-right font-semibold tabular-nums text-emerald-700">{row.registered}</td>
+                      <td className={`px-3 py-3 text-right font-bold tabular-nums ${row.loginToShare > 0 ? 'text-amber-700' : 'text-gray-400'}`}>{row.loginToShare}</td>
+                      <td className="px-5 py-3 text-right font-semibold tabular-nums text-emerald-700">{row.loginShared}</td>
                     </tr>
                     {open && (
                       <tr className="border-t border-orange-50 bg-orange-50/30">
-                        <td colSpan={4} className="px-5 py-3">
+                        <td colSpan={5} className="px-5 py-3">
                           {row.stopped === 0 && row.nextCohort === 0 ? (
                             <p className="text-xs text-gray-500">Everyone given to {row.ownerName} is still in play.</p>
                           ) : (
@@ -186,11 +201,64 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
                 <td className="px-5 py-3 font-bold text-gray-900">Everyone</td>
                 <td className="px-3 py-3 text-right font-bold tabular-nums">{totals.assigned}</td>
                 <td className="px-3 py-3 text-right font-bold tabular-nums text-amber-700">{totals.stillOpen}</td>
-                <td className="px-5 py-3 text-right font-bold tabular-nums text-emerald-700">{totals.registered}</td>
+                <td className="px-3 py-3 text-right font-bold tabular-nums text-amber-700">{totals.loginToShare}</td>
+                <td className="px-5 py-3 text-right font-bold tabular-nums text-emerald-700">{totals.loginShared}</td>
               </tr>
             </tfoot>
           )}
         </table>
+      </section>
+
+      {/* Who is meeting people, as opposed to who is chasing them. These are two
+          different supports on the same prospect, and the back office needs both. */}
+      <section className="surface-card overflow-hidden">
+        <div className="border-b border-orange-100 px-5 py-4">
+          <p className="text-sm font-bold text-gray-900">Met by</p>
+          <p className="text-xs text-gray-500">
+            {totalMet === 0
+              ? 'Nobody has recorded meeting someone yet.'
+              : `${totalMet} ${totalMet === 1 ? 'prospect was' : 'prospects were'} brought in by a support. People who found the form on their own are not counted here.`}
+          </p>
+        </div>
+        {introducers.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-gray-400">
+            When a support taps “Met someone” in Mobilisation, they show up here.
+          </p>
+        ) : (
+          <table className="w-full text-left text-sm">
+            <thead className="bg-orange-50/60 text-xs uppercase tracking-wide text-gray-500">
+              <tr>
+                <th scope="col" className="px-5 py-3">Support</th>
+                <th scope="col" className="px-3 py-3 text-right">People met</th>
+                <th scope="col" className="px-3 py-3 text-right">Still open</th>
+                <th scope="col" className="px-3 py-3 text-right">Signed up</th>
+                <th scope="col" className="px-5 py-3 text-right">Done</th>
+              </tr>
+            </thead>
+            <tbody>
+              {introducers.map((row) => (
+                <tr key={row.supportId} className="border-t border-orange-50">
+                  <td className="px-5 py-3 font-semibold text-gray-900">{row.supportName}</td>
+                  <td className="px-3 py-3 text-right font-bold tabular-nums text-gray-900">{row.met}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-amber-700">{row.stillOpen}</td>
+                  <td className="px-3 py-3 text-right font-semibold tabular-nums text-emerald-700">{row.signedUp}</td>
+                  <td className="px-5 py-3 text-right font-semibold tabular-nums text-emerald-700">{row.loginShared}</td>
+                </tr>
+              ))}
+            </tbody>
+            {introducers.length > 1 && (
+              <tfoot className="border-t-2 border-orange-100 bg-orange-50/40 text-sm">
+                <tr>
+                  <td className="px-5 py-3 font-bold text-gray-900">Everyone</td>
+                  <td className="px-3 py-3 text-right font-bold tabular-nums text-gray-900">{totalMet}</td>
+                  <td className="px-3 py-3 text-right font-bold tabular-nums text-amber-700">{introducers.reduce((n, r) => n + r.stillOpen, 0)}</td>
+                  <td className="px-3 py-3 text-right font-bold tabular-nums text-emerald-700">{introducers.reduce((n, r) => n + r.signedUp, 0)}</td>
+                  <td className="px-5 py-3 text-right font-bold tabular-nums text-emerald-700">{introducers.reduce((n, r) => n + r.loginShared, 0)}</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        )}
       </section>
     </div>
   );

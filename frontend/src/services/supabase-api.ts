@@ -2870,7 +2870,8 @@ const getTerminalFollowUpReason = (contact: {
   registrationStatus?: string | null;
   replyStatus?: string | null;
   callStatus?: string | null;
-}): 'CLOSE' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE' | null => {
+}): 'CLOSE' | 'LOGIN_SHARED' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE' | null => {
+  if (contact.registrationStatus === 'LOGIN_SHARED') return 'LOGIN_SHARED';
   if (contact.nextAction === 'CLOSE') return 'CLOSE';
   if (contact.registrationStatus === 'NOT_INTERESTED') return 'NOT_INTERESTED';
   if (contact.registrationStatus === 'NOT_A_TCN_MEMBER') return 'NOT_A_TCN_MEMBER';
@@ -2883,7 +2884,7 @@ const getTerminalFollowUpReason = (contact: {
 const notifyFollowUpTerminalStatus = (
   contactId: string,
   actorId: string,
-  terminalState: 'CLOSE' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE'
+  terminalState: 'CLOSE' | 'LOGIN_SHARED' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE'
 ) => {
   void supabase.functions
     .invoke('notify-followup-terminal-status', {
@@ -3648,6 +3649,16 @@ export const participantNotesApi = {
     if (participantIds.length === 0) return { notes: [] };
     const { data, error } = await supabase.from('ParticipantNote').select(PARTICIPANT_NOTE_SELECT)
       .in('participantId', participantIds).order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { notes: ((data as any[]) || []).map(mapParticipantNote) };
+  },
+  // The weekly group meeting report. It is stored as a MEETING note hung off the
+  // week's prayer-focus participant, so the back office has to read it by group
+  // and week rather than by person.
+  async getMeetingReports(groupIds: string[]): Promise<{ notes: import('../types').ParticipantNote[] }> {
+    if (groupIds.length === 0) return { notes: [] };
+    const { data, error } = await supabase.from('ParticipantNote').select(PARTICIPANT_NOTE_SELECT)
+      .eq('noteType', 'MEETING').in('groupId', groupIds).order('createdAt', { ascending: false });
     if (error) throw new Error(error.message);
     return { notes: ((data as any[]) || []).map(mapParticipantNote) };
   },
