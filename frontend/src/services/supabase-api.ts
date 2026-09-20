@@ -4740,7 +4740,7 @@ export const attendanceApi = {
 
 // ── Faith Projects ────────────────────────────────────────────────────────────
 
-const FAITH_PROJECT_SELECT = '*, participant:Participant(id, fullName), updatedBy:User!FaithProject_updatedById_fkey(id, name)';
+const FAITH_PROJECT_SELECT = '*, participant:Participant(id, fullName), updatedBy:User!FaithProject_updatedById_fkey(id, name), category:FaithProjectCategory(id, name)';
 
 const mapFaithProject = (row: any): import('../types').FaithProject => ({
   id: row.id,
@@ -4748,6 +4748,8 @@ const mapFaithProject = (row: any): import('../types').FaithProject => ({
   participantName: row.participant?.fullName ?? null,
   title: row.title ?? null,
   body: row.body ?? null,
+  categoryId: row.categoryId ?? null,
+  categoryName: row.category?.name ?? null,
   status: row.status ?? 'NOT_DRAFTED',
   updatedById: row.updatedById ?? null,
   updatedByName: row.updatedBy?.name ?? null,
@@ -4791,7 +4793,7 @@ export const faithProjectsApi = {
     return { projects: ((data as any[]) || []).map(mapFaithProject) };
   },
 
-  async upsertForParticipant(participantId: string, input: { title?: string | null; body?: string | null; status?: import('../types').FaithProjectStatus; updatedById?: string | null }): Promise<{ project: import('../types').FaithProject }> {
+  async upsertForParticipant(participantId: string, input: { title?: string | null; body?: string | null; categoryId?: string | null; status?: import('../types').FaithProjectStatus; updatedById?: string | null }): Promise<{ project: import('../types').FaithProject }> {
     const { data: existing } = await supabase
       .from('FaithProject')
       .select('id')
@@ -4857,6 +4859,44 @@ export const faithProjectsApi = {
     const { error } = await supabase.from('FaithProject').delete().eq('id', projectId);
     if (error) throw new Error(error.message);
     return { message: 'Faith project deleted' };
+  },
+};
+
+const mapFaithProjectCategory = (row: any): import('../types').FaithProjectCategory => ({
+  id: row.id, cohortId: row.cohortId, name: row.name, archivedAt: row.archivedAt ?? null, createdAt: row.createdAt,
+});
+
+export const faithProjectSettingsApi = {
+  async get(cohortId: string): Promise<{ settings: import('../types').FaithProjectSettings }> {
+    const { data, error } = await supabase.from('FaithProjectSetting').select('cohortId, deadlineAt').eq('cohortId', cohortId).maybeSingle();
+    if (error) throw new Error(error.message);
+    return { settings: { cohortId, deadlineAt: data?.deadlineAt ?? null } };
+  },
+  async set(cohortId: string, deadlineAt: string | null): Promise<{ settings: import('../types').FaithProjectSettings }> {
+    const { data, error } = await supabase.from('FaithProjectSetting')
+      .upsert([{ cohortId, deadlineAt, updatedAt: new Date().toISOString() }], { onConflict: 'cohortId' })
+      .select('cohortId, deadlineAt').single();
+    if (error || !data) throw new Error(error?.message || 'Could not save the Faith Project deadline.');
+    return { settings: { cohortId: data.cohortId, deadlineAt: data.deadlineAt ?? null } };
+  },
+};
+
+export const faithProjectCategoriesApi = {
+  async getAll(cohortId: string, includeArchived = false): Promise<{ categories: import('../types').FaithProjectCategory[] }> {
+    let query = supabase.from('FaithProjectCategory').select('*').eq('cohortId', cohortId).order('name');
+    if (!includeArchived) query = query.is('archivedAt', null);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return { categories: ((data as any[]) ?? []).map(mapFaithProjectCategory) };
+  },
+  async create(cohortId: string, name: string): Promise<{ category: import('../types').FaithProjectCategory }> {
+    const { data, error } = await supabase.from('FaithProjectCategory').insert([{ cohortId, name: name.trim() }]).select('*').single();
+    if (error || !data) throw new Error(error?.message || 'Could not add category.');
+    return { category: mapFaithProjectCategory(data) };
+  },
+  async archive(categoryId: string): Promise<void> {
+    const { error } = await supabase.from('FaithProjectCategory').update({ archivedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }).eq('id', categoryId);
+    if (error) throw new Error(error.message);
   },
 };
 

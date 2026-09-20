@@ -11,8 +11,8 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { faithProjectsApi, groupOnboardingStatusApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, coverRequestsApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
-import type { FaithProject, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, CoverRequest, User } from '../types';
+import { faithProjectsApi, faithProjectCategoriesApi, groupOnboardingStatusApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, coverRequestsApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
+import type { FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, CoverRequest, User } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 
@@ -44,6 +44,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const [groupStatuses, setGroupStatuses] = useState<GroupOnboardingStatus[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [faithProjects, setFaithProjects] = useState<FaithProject[]>([]);
+  const [faithProjectCategories, setFaithProjectCategories] = useState<FaithProjectCategory[]>([]);
   const [groupPrayerFocuses, setGroupPrayerFocuses] = useState<GroupPrayerFocus[]>([]);
   const [groupPrayerStatuses, setGroupPrayerStatuses] = useState<GroupPrayerStatus[]>([]);
   const [participantNotes, setParticipantNotes] = useState<ParticipantNote[]>([]);
@@ -81,7 +82,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
     try {
       // These reads are independent — fire them in one parallel batch
       // instead of waterfalling (each round-trip to eu-west-1 is ~300-900ms).
-      const [participantsRes, faithRes, prayerFocusRes, groupStatusInitial, prayerStatusRes, groupsRes] = await Promise.all([
+      const [participantsRes, faithRes, prayerFocusRes, groupStatusInitial, prayerStatusRes, groupsRes, categoriesRes] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id, supportId: user.id }).catch((err) => {
           console.error('Failed to load participants:', err);
           return { participants: [] as Participant[] };
@@ -103,6 +104,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
           return { statuses: [] as GroupPrayerStatus[] };
         }),
         groupsApi.getAll({ cohortId: activeCohort.id }).catch(() => ({ groups: [] as Group[] })),
+        faithProjectCategoriesApi.getAll(activeCohort.id).catch(() => ({ categories: [] as FaithProjectCategory[] })),
       ]);
       let groupStatusRes = groupStatusInitial;
 
@@ -175,6 +177,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       setGroupStatuses([...ownStatuses, ...coveredStatuses]);
       setGroups(groupsRes.groups.filter((g) => g.supportId === user.id || coveredGroups.some((covered) => covered.id === g.id)));
       setFaithProjects(sortByText(faithRes.projects, (project) => project.title || project.participantName));
+      setFaithProjectCategories(categoriesRes.categories);
       setGroupPrayerFocuses(prayerFocusRes.focuses);
       setGroupPrayerStatuses(prayerStatusRes.statuses);
 
@@ -433,6 +436,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
                 weekId={selectedWeek?.id ?? null}
                 userId={user.id}
                 supportName={user.name}
+                faithProjectCategories={faithProjectCategories}
                 onProjectSaved={(savedProject) => {
                   setFaithProjects((prev) => {
                     const others = prev.filter((entry) => entry.participantId !== savedProject.participantId);

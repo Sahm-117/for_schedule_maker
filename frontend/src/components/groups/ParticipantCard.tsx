@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import ModalShell from '../followups/ModalShell';
 import InfoTip from '../InfoTip';
+import AppSelect from '../AppSelect';
 import DepartmentHandoff from '../participants/DepartmentHandoff';
 import ProfileOverview from '../participants/ProfileOverview';
 import { useToast } from '../Toast';
@@ -9,7 +10,7 @@ import { departmentReferralsApi, faithProjectsApi, participantCheckInsApi, parti
 import { buildWhatsAppLink } from '../../utils/phone';
 import { shortMoment } from '../../utils/participantApp';
 import { unreadTrails, type FaithTrail, type ThreadReads } from '../../utils/faithThread';
-import type { DepartmentReferral, FaithProject, FaithProjectStatus, Participant, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote } from '../../types';
+import type { DepartmentReferral, FaithProject, FaithProjectCategory, FaithProjectStatus, Participant, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote } from '../../types';
 
 // Faith project states mapped onto the V2 design's labels.
 const FP_CHIP: Record<FaithProjectStatus, { label: string; cls: string }> = {
@@ -264,6 +265,7 @@ interface ParticipantCardProps {
   weekId: number | null;
   userId: string;
   supportName: string;
+  faithProjectCategories: FaithProjectCategory[];
   openFlag: ParticipantFlag | null;
   onProjectSaved: (project: FaithProject) => void;
   onParticipantUpdated: (participant: Participant) => void;
@@ -289,6 +291,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   weekId,
   userId,
   supportName,
+  faithProjectCategories,
   openFlag,
   onProjectSaved,
   onParticipantUpdated,
@@ -613,6 +616,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         groupName={groupName}
         userId={userId}
         supportName={supportName}
+        categories={faithProjectCategories}
         onSaved={onProjectSaved}
         onNoteAdded={onNoteAdded}
         unread={unread}
@@ -637,11 +641,12 @@ const FaithProjectSheet: React.FC<{
   groupName: string | null;
   userId: string;
   supportName: string;
+  categories: FaithProjectCategory[];
   onSaved: (project: FaithProject) => void;
   onNoteAdded: (note: ParticipantNote) => void;
   unread: Set<FaithTrail>;
   onTrailRead: (trail: FaithTrail) => void;
-}> = ({ open, onClose, participant, project, notes, groupName, userId, supportName, onSaved, onNoteAdded, unread, onTrailRead }) => {
+}> = ({ open, onClose, participant, project, notes, groupName, userId, supportName, categories, onSaved, onNoteAdded, unread, onTrailRead }) => {
   const status = project?.status ?? 'NOT_DRAFTED';
   const chip = FP_CHIP[status];
   const editable = CAN_SEND_UP.includes(status);
@@ -651,12 +656,14 @@ const FaithProjectSheet: React.FC<{
   const [noteSaving, setNoteSaving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [categoryId, setCategoryId] = useState(project?.categoryId ?? '');
 
   useEffect(() => {
     if (!open) return;
     setBody(project?.body ?? '');
     setNote('');
     setError('');
+    setCategoryId(project?.categoryId ?? '');
     // Open straight onto the trail with something new, if there is one.
     setTab(unread.has('coach') || !unread.has('office') ? 'coach' : 'office');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -717,11 +724,13 @@ const FaithProjectSheet: React.FC<{
 
   const save = async (nextStatus: FaithProjectStatus) => {
     if (nextStatus === 'UNDER_REFINEMENT' && !body.trim()) { setError('Write the faith project before sending it to the back office.'); return; }
+    if (nextStatus === 'UNDER_REFINEMENT' && !categoryId) { setError('Choose a category before sending this to the back office.'); return; }
     setSaving(true);
     setError('');
     try {
       const { project: saved } = await faithProjectsApi.upsertForParticipant(participant.id, {
         body: body.trim() || null,
+        categoryId: categoryId || null,
         status: nextStatus,
         updatedById: userId,
       });
@@ -775,6 +784,13 @@ const FaithProjectSheet: React.FC<{
         </div>
       )}
       {error && <p className="mt-3 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-600">{error}</p>}
+
+      {editable && (
+        <div className="mt-4">
+          <AppSelect label="Faith Project category" value={categoryId} onChange={setCategoryId} options={[{ value: '', label: 'Choose a category' }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} placeholder="Choose a category" />
+          {categories.length === 0 && <p className="mt-2 text-xs text-amber-700">Back office needs to add Faith Project categories in Faith Project settings before this can be sent up.</p>}
+        </div>
+      )}
 
       <div className="mt-4 flex items-center gap-2">
       <div className="flex flex-1 gap-2 rounded-full bg-[#f6f7f9] p-1">

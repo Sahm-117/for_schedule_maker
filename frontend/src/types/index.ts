@@ -557,12 +557,27 @@ export interface FaithProject {
   participantName?: string | null;
   title?: string | null;
   body?: string | null;
+  categoryId?: string | null;
+  categoryName?: string | null;
   status: FaithProjectStatus;
   updatedById?: string | null;
   updatedByName?: string | null;
   reviewHistory?: FaithProjectReviewEntry[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface FaithProjectCategory {
+  id: string;
+  cohortId: string;
+  name: string;
+  archivedAt: string | null;
+  createdAt: string;
+}
+
+export interface FaithProjectSettings {
+  cohortId: string;
+  deadlineAt: string | null;
 }
 
 // ── Group Prayers ─────────────────────────────────────────────────────────────
@@ -755,6 +770,7 @@ export interface FeedbackResults {
 
 export interface ParticipantFaith {
   project: { id: string; body: string | null; status: FaithProjectStatus; updatedAt: string } | null;
+  deadlineAt: string | null;
   trail: Array<{ id: string; body: string; createdAt: string; byParticipant: boolean; authorName: string | null }>;
 }
 

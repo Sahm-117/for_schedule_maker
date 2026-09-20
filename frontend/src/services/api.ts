@@ -29,6 +29,8 @@ import {
   groupsApi as supabaseGroupsApi,
   attendanceApi as supabaseAttendanceApi,
   faithProjectsApi as supabaseFaithProjectsApi,
+  faithProjectSettingsApi as supabaseFaithProjectSettingsApi,
+  faithProjectCategoriesApi as supabaseFaithProjectCategoriesApi,
   groupPrayersApi as supabaseGroupPrayersApi,
   groupPrayerFocusApi as supabaseGroupPrayerFocusApi,
   groupPrayerStatusApi as supabaseGroupPrayerStatusApi,
@@ -567,6 +569,17 @@ export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {
   async upsertForParticipant(_participantId: string, _input: any): Promise<never> { return peopleUnavailable(); },
   async reviewProject(_projectId: string, _input: any): Promise<never> { return peopleUnavailable(); },
   async delete(_id: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const faithProjectSettingsApi = USE_SUPABASE ? supabaseFaithProjectSettingsApi : {
+  async get(_cohortId: string): Promise<{ settings: import('../types').FaithProjectSettings }> { return { settings: { cohortId: _cohortId, deadlineAt: null } }; },
+  async set(_cohortId: string, _deadlineAt: string | null): Promise<never> { return peopleUnavailable(); },
+};
+
+export const faithProjectCategoriesApi = USE_SUPABASE ? supabaseFaithProjectCategoriesApi : {
+  async getAll(_cohortId: string, _includeArchived?: boolean): Promise<{ categories: import('../types').FaithProjectCategory[] }> { return { categories: [] }; },
+  async create(_cohortId: string, _name: string): Promise<never> { return peopleUnavailable(); },
+  async archive(_categoryId: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const participantNotesApi = USE_SUPABASE ? supabaseParticipantNotesApi : {

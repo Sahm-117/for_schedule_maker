@@ -4,12 +4,13 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { faithProjectsApi, faithThreadReadsApi, participantNotesApi, participantsApi, groupsApi } from '../services/api';
-import type { FaithProject, FaithProjectReviewEntry, FaithProjectStatus, Group, Participant, ParticipantNote } from '../types';
+import { faithProjectsApi, faithProjectCategoriesApi, faithProjectSettingsApi, faithThreadReadsApi, participantNotesApi, participantsApi, groupsApi } from '../services/api';
+import type { FaithProject, FaithProjectCategory, FaithProjectReviewEntry, FaithProjectSettings, FaithProjectStatus, Group, Participant, ParticipantNote } from '../types';
 import { unreadTrails } from '../utils/faithThread';
 import ModalShell from '../components/followups/ModalShell';
 import AppSelect from '../components/AppSelect';
 import FaithProjectsExportPopup from '../components/faithProjects/FaithProjectsExportPopup';
+import FaithProjectSettingsModal from '../components/faithProjects/FaithProjectSettingsModal';
 import { sortByText } from '../utils/sort';
 
 const STATUS_OPTIONS: Array<{ value: FaithProjectStatus; label: string; cls: string }> = [
@@ -284,15 +285,21 @@ const AdminFaithProjectsContent: React.FC = () => {
   // When this admin last read each faith project's support conversation (drives the dot).
   const [threadReads, setThreadReads] = useState<Map<string, string>>(new Map());
   const [showExportPopup, setShowExportPopup] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [categories, setCategories] = useState<FaithProjectCategory[]>([]);
+  const [settings, setSettings] = useState<FaithProjectSettings | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState('');
 
   const load = useCallback(async () => {
     if (!activeCohort) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [{ participants: ps }, { projects: fps }, { groups: gs }] = await Promise.all([
+      const [{ participants: ps }, { projects: fps }, { groups: gs }, { categories: cs }, { settings: projectSettings }] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id }),
         faithProjectsApi.getAll({ cohortId: activeCohort.id }),
         groupsApi.getAll({ cohortId: activeCohort.id }),
+        faithProjectCategoriesApi.getAll(activeCohort.id),
+        faithProjectSettingsApi.get(activeCohort.id),
       ]);
       setParticipants(sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName));
       const ids = ps.filter((p) => p.status === 'ACTIVE').map((p) => p.id);
@@ -304,6 +311,8 @@ const AdminFaithProjectsContent: React.FC = () => {
       setThreadReads(readsRes.reads);
       setProjects(sortByText(fps, (project) => project.title || project.participantName));
       setGroups(sortByText(gs, (group) => group.name));
+      setCategories(cs);
+      setSettings(projectSettings);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [activeCohort, user]);
@@ -344,12 +353,13 @@ const AdminFaithProjectsContent: React.FC = () => {
         return (fp?.status ?? 'NOT_DRAFTED') === filterStatus;
       });
     }
+    if (categoryFilter) ps = ps.filter((p) => projectByParticipant.get(p.id)?.categoryId === categoryFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, filterStatus, search, projectByParticipant, groupFilter]);
+  }, [participants, filterStatus, search, projectByParticipant, groupFilter, categoryFilter]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { NOT_DRAFTED: 0, UNDER_REFINEMENT: 0, APPROVED: 0 };
@@ -367,8 +377,12 @@ const AdminFaithProjectsContent: React.FC = () => {
         tourId="admin:faith-projects"
         subtitle={activeCohort ? activeCohort.name : 'No active cohort'}
         action={
-          !loading && groups.length > 0 && (
-            <button
+          !loading && (
+            <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setShowSettings(true)} aria-label="Faith Project settings" title="Faith Project settings" className="grid h-11 w-11 place-items-center rounded-2xl border border-orange-200 bg-white text-gray-700 shadow-sm transition hover:bg-orange-50">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317a1.5 1.5 0 0 1 2.85 0l.267.879a1.5 1.5 0 0 0 1.81 1.004l.88-.267a1.5 1.5 0 0 1 2.015 2.015l-.267.88a1.5 1.5 0 0 0 1.004 1.81l.879.267a1.5 1.5 0 0 1 0 2.85l-.879.267a1.5 1.5 0 0 0-1.004 1.81l.267.88a1.5 1.5 0 0 1-2.015 2.015l-.88-.267a1.5 1.5 0 0 0-1.81 1.004l-.267.879a1.5 1.5 0 0 1-2.85 0l-.267-.879a1.5 1.5 0 0 0-1.81-1.004l-.88.267a1.5 1.5 0 0 1-2.015-2.015l.267-.88a1.5 1.5 0 0 0-1.004-1.81l-.879-.267a1.5 1.5 0 0 1 0-2.85l.879-.267a1.5 1.5 0 0 0 1.004-1.81l-.267-.88a1.5 1.5 0 0 1 2.015-2.015l.88.267a1.5 1.5 0 0 0 1.81-1.004l.267-.879Z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+            </button>
+            {groups.length > 0 && <button
               type="button"
               onClick={() => setShowExportPopup(true)}
               className="inline-flex items-center gap-1.5 rounded-2xl border border-orange-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-orange-50 hover:border-orange-300 active:scale-95"
@@ -377,7 +391,8 @@ const AdminFaithProjectsContent: React.FC = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Export
-            </button>
+            </button>}
+            </div>
           )
         }
       />
@@ -421,7 +436,11 @@ const AdminFaithProjectsContent: React.FC = () => {
                 compact
               />
             </div>
+            <div className="w-full sm:w-52">
+              <AppSelect value={categoryFilter} onChange={setCategoryFilter} options={[{ value: '', label: 'All categories' }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} placeholder="All categories" compact />
+            </div>
           </div>
+          {settings?.deadlineAt && <p className="mb-4 text-sm font-semibold text-[#9a6a4b]">Submission deadline: {formatReviewDate(settings.deadlineAt)}</p>}
 
           {loading ? (
             <PageLoader />
@@ -437,6 +456,7 @@ const AdminFaithProjectsContent: React.FC = () => {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Participant</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Category</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Title</th>
                     <th className="sticky right-0 bg-orange-50/60 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
                   </tr>
@@ -456,6 +476,7 @@ const AdminFaithProjectsContent: React.FC = () => {
                             {newMessages && <span className="h-2 w-2 rounded-full bg-red-500" aria-label="New message from the support" title="New message from the support" />}
                           </span>
                         </td>
+                        <td className="px-4 py-3 text-gray-500">{fp?.categoryName ?? '—'}</td>
                         <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{fp?.title ?? '—'}</td>
                         <td className="sticky right-0 bg-white px-4 py-3 text-right">
                           <button
@@ -513,6 +534,7 @@ const AdminFaithProjectsContent: React.FC = () => {
           onClose={() => setShowExportPopup(false)}
         />
       )}
+      {activeCohort && settings && <FaithProjectSettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} cohortId={activeCohort.id} categories={categories} settings={settings} onChanged={(nextSettings, nextCategories) => { setSettings(nextSettings); setCategories(nextCategories); }} />}
     </div>
   );
 };
