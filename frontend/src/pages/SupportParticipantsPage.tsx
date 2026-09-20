@@ -39,7 +39,7 @@ const SupportParticipantsPage: React.FC = () => {
 };
 
 const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
-  const { activeCohort, weeks } = useAppData();
+  const { activeCohort, weeks, liveRevision } = useAppData();
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [groupStatuses, setGroupStatuses] = useState<GroupOnboardingStatus[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -198,6 +198,24 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Categories are managed by back office while supports may already have this
+  // page open. Re-read them whenever the app receives fresh workspace activity
+  // or the support returns to the app, without reopening every faith record to
+  // realtime.
+  useEffect(() => {
+    if (!activeCohort) return;
+    let cancelled = false;
+    const refreshCategories = () => {
+      if (document.visibilityState !== 'visible') return;
+      void faithProjectCategoriesApi.getAll(activeCohort.id)
+        .then(({ categories }) => { if (!cancelled) setFaithProjectCategories(categories); })
+        .catch(() => undefined);
+    };
+    refreshCategories();
+    window.addEventListener('focus', refreshCategories);
+    return () => { cancelled = true; window.removeEventListener('focus', refreshCategories); };
+  }, [activeCohort?.id, liveRevision]);
 
   useEffect(() => {
     if (cohortWeeks.length === 0) return;

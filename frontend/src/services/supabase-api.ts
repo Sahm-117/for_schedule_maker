@@ -2670,11 +2670,15 @@ export const participantAppApi = {
     return data as import('../types').ParticipantReflection;
   },
 
-  // Opening the faith project also marks the conversation read.
   async getFaith(): Promise<import('../types').ParticipantFaith> {
     const { data, error } = await supabase.rpc('participant_faith', { p_token: getSessionToken() });
     if (error) throw participantAppError(error.message, 'Could not load your faith project.');
     return data as import('../types').ParticipantFaith;
+  },
+
+  async markFaithRead(): Promise<void> {
+    const { error } = await supabase.rpc('mark_participant_faith_read', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not mark the reply as read.');
   },
 
   async saveFaithProject(body: string, submit: boolean, participantName: string): Promise<NonNullable<import('../types').ParticipantFaith['project']>> {
@@ -4882,15 +4886,25 @@ export const faithProjectSettingsApi = {
 };
 
 export const faithProjectCategoriesApi = {
-  async getAll(cohortId: string, includeArchived = false): Promise<{ categories: import('../types').FaithProjectCategory[] }> {
-    let query = supabase.from('FaithProjectCategory').select('*').eq('cohortId', cohortId).order('name');
+  // Categories are shared across the programme. `cohortId` remains an argument
+  // for compatibility with callers and is only recorded as the creation context.
+  async getAll(_cohortId: string, includeArchived = false): Promise<{ categories: import('../types').FaithProjectCategory[] }> {
+    let query = supabase.from('FaithProjectCategory').select('*').order('name');
     if (!includeArchived) query = query.is('archivedAt', null);
     const { data, error } = await query;
     if (error) throw new Error(error.message);
     return { categories: ((data as any[]) ?? []).map(mapFaithProjectCategory) };
   },
   async create(cohortId: string, name: string): Promise<{ category: import('../types').FaithProjectCategory }> {
-    const { data, error } = await supabase.from('FaithProjectCategory').insert([{ cohortId, name: name.trim() }]).select('*').single();
+    const cleanName = name.trim();
+    const { data: existing, error: existingError } = await supabase.from('FaithProjectCategory')
+      .select('id')
+      .ilike('name', cleanName)
+      .is('archivedAt', null)
+      .maybeSingle();
+    if (existingError) throw new Error(existingError.message);
+    if (existing) throw new Error('That category already exists.');
+    const { data, error } = await supabase.from('FaithProjectCategory').insert([{ cohortId, name: cleanName }]).select('*').single();
     if (error || !data) throw new Error(error?.message || 'Could not add category.');
     return { category: mapFaithProjectCategory(data) };
   },

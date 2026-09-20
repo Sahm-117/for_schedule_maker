@@ -1,0 +1,29 @@
+.faith-guide-entry{display:flex;align-items:center;gap:12px;width:100%;padding:16px;text-align:left;border:1px solid #ffdeca;border-radius:20px;background:linear-gradient(110deg,#fff8f0,#fff);color:#723c24}
+.faith-guide-entry-mark{display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:50%;background:#ffead5;color:#b64b1d;font-size:24px}
+.faith-reader{padding:0;border:0;width:min(940px,calc(100% - 48px));max-width:none;height:min(880px,calc(100dvh - 48px));max-height:none;border-radius:24px;background:#fcf8f1;color:#302b29;overflow:hidden;box-shadow:0 30px 100px #0004}
+.faith-reader::backdrop{background:#171927b8;backdrop-filter:blur(8px)}
+.faith-reader-layout{height:100%;display:flex;flex-direction:column}
+.faith-reader-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 24px;border-bottom:1px solid #e7dfd4;flex:none}
+.faith-reader-header>span{font-size:10px;font-weight:800;letter-spacing:.13em}.faith-reader-header>span>span{padding:0 10px;color:#c88250}
+.faith-reader-header button{width:44px;height:44px;border-radius:50%;background:#eee7dc;font-size:18px;flex:none}
+.faith-reader-nav{display:flex;overflow-x:auto;flex:none;gap:8px;padding:12px 24px;border-bottom:1px solid #e7dfd4}
+.faith-reader-nav button{white-space:nowrap;padding:10px 12px;border-radius:999px;font-size:12px;min-height:44px;color:#6d6259}
+.faith-reader-nav button span{margin-right:7px;opacity:.65}.faith-reader-nav button[aria-current]{background:#34322e;color:#fff}
+.faith-reader-scroll{overflow-y:auto;overscroll-behavior:contain;flex:1;min-height:0}
+.faith-reader-article{max-width:690px;margin:auto;padding:40px 40px 28px}
+.faith-reader-eyebrow{font-size:10px!important;letter-spacing:.18em;font-weight:800;color:#a44e27;margin:0 0 22px!important}
+.faith-reader h2{font-family:Georgia,'Times New Roman',serif;font-size:clamp(42px,6vw,68px);font-weight:400;line-height:1.03;letter-spacing:-.045em;margin:0 0 24px;outline:none}
+.faith-reader h2 em{font-weight:400;color:#b54f28}.faith-reader p{font-size:15px;line-height:1.8;margin:14px 0}
+.faith-reader .faith-reader-lead{font-size:19px;line-height:1.6;color:#5b5147;margin-bottom:24px}
+.faith-reader h3{font-size:18px;font-weight:750;line-height:1.4;margin:20px 0 8px}
+.faith-reader-callout,.faith-reader-example,.faith-reader-confession{margin:26px 0;padding:24px;border-radius:18px;background:#f0e7d9}
+.faith-reader-callout{background:#eee9d9;border-left:3px solid #a68045}.faith-reader-example{background:#fff;border:1px solid #e7dfd4}
+.faith-reader-callout>span,.faith-reader-example>span,.faith-reader-confession>span{font-size:10px;letter-spacing:.13em;font-weight:800;color:#725133}
+.faith-reader-callout p:last-child,.faith-reader-example p:last-child,.faith-reader-confession p:last-child{margin-bottom:0}
+.faith-reader .faith-reader-note{font-size:13px;color:#6d6259}.faith-reader ul,.faith-reader ol{padding-left:24px;line-height:1.8;font-size:15px;list-style:disc}.faith-reader ol{list-style:decimal}.faith-reader li{padding-left:6px;margin:12px 0}
+.faith-smart-list>section{display:flex;align-items:flex-start;gap:20px;padding:24px 0;border-top:1px solid #e7dfd4}.faith-smart-letter{font-family:Georgia,serif;font-size:48px;color:#b54f28;line-height:1;width:38px;flex:none}.faith-smart-list h3{margin:0}.faith-smart-list p{margin:6px 0}.faith-reader .faith-smart-example{font-size:13px;color:#6d6259;padding-top:8px}
+.faith-reader blockquote{margin:28px 0;padding:4px 0 4px 24px;border-left:2px solid #bd7a43}.faith-reader blockquote p{font-family:Georgia,serif;font-size:23px;line-height:1.5}.faith-reader cite{font-size:12px;font-style:normal;font-weight:700;color:#a44e27}
+.faith-reader .faith-reader-source{font-size:10px;color:#7c7165;border-top:1px solid #e7dfd4;padding-top:20px;margin-top:32px}
+.faith-reader-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:16px 24px;border-top:1px solid #e7dfd4;flex:none;background:#fcf8f1}.faith-reader-footer button{min-height:44px;padding:10px 16px;border-radius:12px;font-size:13px;font-weight:700}.faith-reader-footer button:disabled{opacity:.35}.faith-reader-footer>span{font-size:11px;color:#6d6259}.faith-reader-footer .faith-reader-next{background:#34322e;color:#fff}
+.faith-reader button:focus-visible,.faith-guide-entry:focus-visible{outline:3px solid #b54f28;outline-offset:3px}
+@media(max-width:600px){.faith-reader{width:100%;height:100dvh;margin:0;border-radius:0}.faith-reader-header{padding:calc(8px + env(safe-area-inset-top)) 16px 8px}.faith-reader-nav{padding:8px 16px}.faith-reader-article{padding:30px 24px 24px}.faith-reader-footer{padding:12px 16px calc(12px + env(safe-area-inset-bottom))}.faith-reader-footer button{padding:10px 12px}.faith-reader-callout,.faith-reader-example,.faith-reader-confession{padding:20px}.faith-reader h2{font-size:48px}}

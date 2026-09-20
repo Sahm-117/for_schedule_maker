@@ -26,7 +26,7 @@ const ParticipantJourneyPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="My Journey" subtitle="What you have written, and what you said you would do." tourId="participant:journey" />
+      <PageHeader title="My Journey" tourId="participant:journey" />
 
       <div className="flex flex-col gap-4">
         <section data-wt="pj-summary" className="rounded-3xl bg-[linear-gradient(150deg,#ff914d_0%,#f2703a_55%,#d95f2e_100%)] px-[22px] py-[26px] text-white shadow-[0_12px_30px_-16px_rgba(217,95,46,0.7)]">
@@ -62,7 +62,6 @@ const ParticipantJourneyPage: React.FC = () => {
 
         <section data-wt="pj-weeks" className={`${CARD} px-5 pb-2 pt-5`}>
           <h3 className="mb-1 text-base font-bold text-gray-900">Week by week</h3>
-          <p className="mb-3.5 text-[13px] text-gray-500">Tap any week you have reached to read it back.</p>
 
           {home.weeks.map((week, index) => {
             const reflection = reflectionFor(home.reflections, week.id);

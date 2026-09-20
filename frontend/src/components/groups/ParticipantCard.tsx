@@ -657,6 +657,8 @@ const FaithProjectSheet: React.FC<{
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [categoryId, setCategoryId] = useState(project?.categoryId ?? '');
+  const [showFullTrail, setShowFullTrail] = useState(false);
+  const [trailOpen, setTrailOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -664,16 +666,18 @@ const FaithProjectSheet: React.FC<{
     setNote('');
     setError('');
     setCategoryId(project?.categoryId ?? '');
-    // Open straight onto the trail with something new, if there is one.
-    setTab(unread.has('coach') || !unread.has('office') ? 'coach' : 'office');
+    setShowFullTrail(false);
+    const nextTab = unread.has('coach') ? 'coach' : unread.has('office') ? 'office' : 'coach';
+    setTab(nextTab);
+    setTrailOpen(unread.size > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, project?.body]);
 
   // Reading a trail clears its dot.
   useEffect(() => {
-    if (open && unread.has(tab)) onTrailRead(tab);
+    if (open && trailOpen && unread.has(tab)) onTrailRead(tab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, tab, unread.has(tab)]);
+  }, [open, trailOpen, tab, unread.has(tab)]);
 
   const noteEntry = (entry: ParticipantNote): TrailEntry => ({
     key: entry.id,
@@ -697,6 +701,7 @@ const FaithProjectSheet: React.FC<{
     ...notes.filter((entry) => entry.noteType === 'FAITH_OFFICE').map(noteEntry),
   ].sort(byTime);
   const trail = tab === 'office' ? officeTrail : coachTrail;
+  const visibleTrail = showFullTrail ? trail : trail.slice(-2);
 
   const addNote = async () => {
     if (!note.trim() || noteSaving) return;
@@ -758,7 +763,10 @@ const FaithProjectSheet: React.FC<{
       onClose={onClose}
       title={participant.fullName}
       subtitle="Faith project"
-      headerExtra={<span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${chip.cls}`}>{chip.label}</span>}
+      headerExtra={<div className="flex flex-wrap items-center justify-end gap-1.5">
+        {project?.categoryName && <span className="rounded-full bg-[#eef2f7] px-2.5 py-1 text-[11px] font-bold text-[#4b5563]">{project.categoryName}</span>}
+        <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${chip.cls}`}>{chip.label}</span>
+      </div>}
       footer={editable ? (
         <>
           <button type="button" onClick={() => { void save('AWAITING_DRAFT'); }} disabled={saving} className="min-h-[46px] rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 disabled:opacity-60">
@@ -787,18 +795,27 @@ const FaithProjectSheet: React.FC<{
 
       {editable && (
         <div className="mt-4">
-          <AppSelect label="Faith Project category" value={categoryId} onChange={setCategoryId} options={[{ value: '', label: 'Choose a category' }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} placeholder="Choose a category" />
-          {categories.length === 0 && <p className="mt-2 text-xs text-amber-700">Back office needs to add Faith Project categories in Faith Project settings before this can be sent up.</p>}
+          <AppSelect label="Faith Project category" value={categoryId} onChange={setCategoryId} options={categories.map((category) => ({ value: category.id, label: category.name }))} placeholder="Choose a category" />
+          {categories.length === 0 && <p className="mt-2 text-xs text-amber-700">No categories available yet.</p>}
         </div>
       )}
 
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4">
+        <button type="button" onClick={() => setTrailOpen((shown) => !shown)} className="flex w-full items-center gap-2 text-left">
+          <span className="flex-1 text-[13px] font-semibold text-gray-900">Comments{trail.length ? ` (${trail.length})` : ''}</span>
+          {unread.size > 0 && !trailOpen && <span className="h-2 w-2 rounded-full bg-red-500" aria-label="New reply" />}
+          <svg className={`h-4 w-4 text-gray-500 transition-transform ${trailOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
+        </button>
+      </div>
+
+      {trailOpen && <>
+      <div className="mt-3 flex items-center gap-2">
       <div className="flex flex-1 gap-2 rounded-full bg-[#f6f7f9] p-1">
         {([['coach', 'With participant'], ['office', 'With back office']] as Array<['coach' | 'office', string]>).map(([key, label]) => (
           <button
             key={key}
             type="button"
-            onClick={() => { setTab(key); setNote(''); }}
+            onClick={() => { setTab(key); setNote(''); setShowFullTrail(false); }}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-2.5 py-[9px] text-[12.5px] font-semibold transition ${tab === key ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}
           >
             {label}
@@ -817,7 +834,7 @@ const FaithProjectSheet: React.FC<{
         <p className="px-4 py-6 text-center text-[13.5px] text-gray-400">No notes on this trail yet.</p>
       ) : (
         <div className="mt-3 flex flex-col gap-2.5">
-          {trail.map((entry) => (
+          {visibleTrail.map((entry) => (
             <div key={entry.key} className={`rounded-xl px-3.5 py-3 ${entry.role === 'Participant' ? 'bg-[#fff8f3]' : 'bg-[#f6f7f9]'}`}>
               <div className="flex flex-wrap items-baseline gap-2">
                 <span className="text-[13px] font-bold text-gray-900">{entry.who}</span>
@@ -827,23 +844,28 @@ const FaithProjectSheet: React.FC<{
               <p className="mt-1 text-[13.5px] leading-relaxed text-gray-700">{entry.text}</p>
             </div>
           ))}
+          {trail.length > visibleTrail.length && (
+            <button type="button" onClick={() => setShowFullTrail(true)} className="self-start px-1 py-1.5 text-[12.5px] font-semibold text-primary">
+              Show {trail.length - visibleTrail.length} earlier {trail.length - visibleTrail.length === 1 ? 'note' : 'notes'}
+            </button>
+          )}
         </div>
       )}
 
       <label className="mt-4 block">
-        <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Add a note</span>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="Write your feedback" className={`${TEXT_INPUT} resize-y`} />
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Write feedback…" aria-label="Write feedback" className={`${TEXT_INPUT} resize-y`} />
       </label>
-      <div className="mt-2 flex items-center gap-3">
+      {note.trim() && <div className="mt-2 flex items-center gap-3">
         <button
           type="button"
           onClick={() => { void addNote(); }}
           disabled={noteSaving}
-          className={`rounded-xl px-4 py-[11px] text-[13.5px] font-semibold transition disabled:opacity-60 ${note.trim() ? 'bg-primary text-white' : 'border border-gray-200 bg-white text-gray-400'}`}
+          className="rounded-xl bg-primary px-4 py-[11px] text-[13.5px] font-semibold text-white transition disabled:opacity-60"
         >
           {noteSaving ? 'Saving…' : 'Add note'}
         </button>
-      </div>
+      </div>}
+      </>}
     </Sheet>
   );
 };

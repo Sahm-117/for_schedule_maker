@@ -60,17 +60,15 @@ const ParticipantFeedbackPage: React.FC = () => {
 
   return (
     <div className="max-w-[480px]">
-      <PageHeader title="Feedback" subtitle="Anonymous. Share how the programme is going." tourId="participant:feedback" />
+      <PageHeader title="Feedback" tourId="participant:feedback" />
       <section data-wt="pfb-form" className={CARD}>
         {sent ? (
           <div className="px-2.5 py-5 text-center">
             <p className="text-[15px] font-bold text-gray-900">Thank you.</p>
-            <p className="mt-1.5 text-[13px] text-gray-500">Your response is anonymous. We can&apos;t identify you or link it to your account.</p>
             <button type="button" onClick={() => setSent(false)} className="mt-4 text-[13px] font-semibold text-[#c2410c]">Send more feedback</button>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <p className="text-[13px] text-gray-500">Anonymous. Your name is never attached to this.</p>
             <RatingRow label="How is the programme going for you?" value={answers.rating} onChange={(rating) => set({ rating })} />
             <label className="block">
               <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">What&apos;s working well?</span>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import FaithProjectGuide from '../components/FaithProjectGuide';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
 import { useParticipantApp } from '../context/ParticipantAppContext';
@@ -33,8 +34,7 @@ const ParticipantFaithPage: React.FC = () => {
   const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState<'draft' | 'submit' | null>(null);
   const [error, setError] = useState('');
-  const [trailOpen, setTrailOpen] = useState(true);
-  const [guideOpen, setGuideOpen] = useState(true);
+  const [trailOpen, setTrailOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,14 +43,18 @@ const ParticipantFaithPage: React.FC = () => {
         if (cancelled) return;
         setFaith(data);
         setDraft(data.project?.body ?? '');
-        setGuideOpen(!data.project || data.project.status === 'NOT_DRAFTED' || data.project.status === 'AWAITING_DRAFT');
-        // Opening it marked the conversation read, so clear the dot.
-        if (home?.faithUnread) void reload();
+        // A new support reply deserves attention once; otherwise keep this compact.
+        setTrailOpen(!!home?.faithUnread);
       })
       .catch((err) => { if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Could not load your faith project.'); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!trailOpen || !home?.faithUnread) return;
+    void participantAppApi.markFaithRead().then(() => reload()).catch(() => undefined);
+  }, [trailOpen, home?.faithUnread, reload]);
 
   if (loadError) return <p className="py-16 text-center text-sm text-gray-500">{loadError}</p>;
   if (!faith) return <p className="py-16 text-center text-sm text-gray-500">Loading…</p>;
@@ -84,40 +88,20 @@ const ParticipantFaithPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="Faith Project" subtitle="A private space to reflect, visible to you and your support team." tourId="participant:faith" />
+      <PageHeader title="Faith Project" tourId="participant:faith" />
 
       <div className="flex flex-col gap-3.5">
-        <section className={CARD}>
-          <button type="button" onClick={() => setGuideOpen((open) => !open)} className="flex w-full items-center gap-3 text-left" aria-expanded={guideOpen}>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-[17px] font-bold text-gray-900">How your Faith Project works</h2>
-              <p className="mt-0.5 text-[13px] text-gray-500">One clear thing you are trusting God for during FOF.</p>
-            </div>
-            <span className={`inline-flex h-8 w-8 flex-none items-center justify-center text-gray-500 transition-transform ${guideOpen ? 'rotate-90' : ''}`} aria-hidden="true"><svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg></span>
-          </button>
-          {guideOpen && (
-            <div className="mt-4 space-y-3 border-t border-gray-100 pt-4 text-[13px] leading-relaxed text-gray-600">
-              <p><strong className="text-gray-900">1. Write one clear thing.</strong> Be specific about what you are believing God for.</p>
-              <p><strong className="text-gray-900">2. Save as you go.</strong> You can return to your draft anytime before submitting it.</p>
-              <p><strong className="text-gray-900">3. Submit when ready.</strong> Your support reviews it first and replies below.</p>
-              <p><strong className="text-gray-900">4. Respond to feedback.</strong> If changes are requested, update it and submit again. Your support sends it to the programme team when it is ready.</p>
-              {deadlineText && <p className={`rounded-xl px-3 py-2.5 font-semibold ${late ? 'bg-amber-50 text-amber-800' : 'bg-[#fff8f3] text-[#9a6a4b]'}`}>{late ? `Past the submission deadline: ${deadlineText}. You can still submit.` : `Submit by ${deadlineText}.`}</p>}
-              <div className="flex flex-wrap items-center gap-3 pt-1">
-                {supportLink ? <a href={supportLink} target="_blank" rel="noreferrer" className="font-semibold text-[#c2410c]">Ask {supportFirst} a question</a> : <button type="button" onClick={() => navigate('/me/group')} className="font-semibold text-[#c2410c]">Find your support in My Group</button>}
-              </div>
-            </div>
-          )}
-        </section>
+        <FaithProjectGuide />
 
         <section data-wt="pf-project" className={CARD}>
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
               <h2 className="text-[17px] font-bold text-gray-900">Your faith project</h2>
-              <p className="mt-0.5 text-[13px] text-gray-500">One thing you are trusting God for across the programme.</p>
             </div>
             <span className={`flex-none rounded-full px-2.5 py-1 text-[11px] font-bold ${status.cls}`}>{status.label}</span>
           </div>
 
+          {deadlineText && <p className={`mt-3 rounded-xl px-3 py-2 text-xs font-semibold ${late ? 'bg-amber-50 text-amber-800' : 'bg-[#fff8f3] text-[#9a6a4b]'}`}>{late ? `Past the submission deadline: ${deadlineText}. You can still submit.` : `Submit by ${deadlineText}.`}</p>}
           {status.editable ? (
             <>
               <label className="mt-4 block">
@@ -143,26 +127,29 @@ const ParticipantFaithPage: React.FC = () => {
             <>
               <div className="mt-4 whitespace-pre-wrap rounded-[14px] border border-[#ffdeca] bg-[#fff8f3] p-3.5 text-[14.5px] leading-relaxed text-gray-800">{faith.project?.body || '—'}</div>
               <p className="mt-2.5 text-[12.5px] leading-[1.55] text-gray-500">
-                {faith.project?.status === 'APPROVED'
-                  ? 'Approved. You can still talk to your support about how it is going.'
-                  : `With ${supportFirst} to review. They will reply here.`}
+                {faith.project?.status === 'APPROVED' ? 'Approved' : `With ${supportFirst}`}
               </p>
             </>
           )}
         </section>
 
+        <div className="px-1 text-xs">
+          {supportLink ? <a href={supportLink} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-[#c2410c]">Got questions? Reach out to your support <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 17 17 7m0 0H9m8 0v8" /></svg></a> : <button type="button" onClick={() => navigate('/me/group')} className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-[#c2410c]">Got questions? Find your support <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 17 17 7m0 0H9m8 0v8" /></svg></button>}
+        </div>
         <section data-wt="pf-thread" className={CARD}>
           <button type="button" onClick={() => setTrailOpen((open) => !open)} className="flex w-full items-center gap-2.5 text-left" aria-expanded={trailOpen}>
             <div className="min-w-0 flex-1">
               <h3 className="text-base font-bold text-gray-900">Feedback from your support</h3>
               <p className="mt-0.5 text-[13px] text-gray-500">{replies === 0 ? 'No replies yet' : `${replies} ${replies === 1 ? 'reply' : 'replies'}`}</p>
             </div>
-            <span className={`flex-none text-xs text-gray-400 transition-transform ${trailOpen ? 'rotate-180' : ''}`} aria-hidden="true">&#9662;</span>
+            <span className={`inline-flex h-8 w-8 flex-none items-center justify-center text-gray-500 transition-transform ${trailOpen ? 'rotate-90' : ''}`} aria-hidden="true">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
+            </span>
           </button>
           {trailOpen && (
             <>
               {faith.trail.length === 0 ? (
-                <p className="mt-3 text-[13px] text-gray-500">Nothing yet. Your support will reply once you submit.</p>
+                <p className="mt-3 text-[13px] text-gray-500">No replies yet.</p>
               ) : (
                 <div className="mt-3.5 flex flex-col gap-2.5">
                   {faith.trail.map((entry) => (

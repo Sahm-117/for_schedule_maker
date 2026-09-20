@@ -69,7 +69,7 @@ const ParticipantWeekPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title={`Week ${week.weekNumber}`} subtitle="The recap and your reflection." tourId="participant:week" />
+      <PageHeader title={`Week ${week.weekNumber}`} tourId="participant:week" />
 
       <div className="flex flex-col gap-3.5">
         {!week.released ? (
@@ -126,7 +126,6 @@ const ParticipantWeekPage: React.FC = () => {
 
             <section data-wt="pw-reflection" className={`${CARD} p-5`}>
               <h3 className="text-base font-bold text-gray-900">Your reflection</h3>
-              <p className="mt-[3px] text-[13px] leading-normal text-gray-500">Three short questions. Only you can read your answers.</p>
 
               {editable ? (
                 <>
@@ -136,13 +135,11 @@ const ParticipantWeekPage: React.FC = () => {
                   </label>
                   <label className="mt-4 block">
                     <span className="mb-[3px] block text-[13.5px] font-semibold text-gray-900">2. What is one thing you will do this week because of it?</span>
-                    <span className="mb-[7px] block text-[12.5px] text-gray-500">This becomes your goal. Keep it small enough to actually do.</span>
                     <textarea value={goal} onChange={(e) => { setGoal(e.target.value); setGoalError(false); }} placeholder="Pray with my sister on Wednesday evening." className={`${FIELD} min-h-[76px] resize-y`} />
                     {goalError && <span className="mt-[5px] block text-xs font-medium text-red-700">Write one thing you will do.</span>}
                   </label>
                   <label className="mt-4 block">
                     <span className="mb-[3px] block text-[13.5px] font-semibold text-gray-900">3. How will you know you did it?</span>
-                    <span className="mb-[7px] block text-[12.5px] text-gray-500">Optional.</span>
                     <input value={goalCheck} onChange={(e) => setGoalCheck(e.target.value)} placeholder="We prayed, even for five minutes." className={`${FIELD} min-h-[48px]`} />
                   </label>
                   {saveError && <p className="mt-3 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{saveError}</p>}

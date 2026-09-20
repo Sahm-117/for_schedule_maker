@@ -22,11 +22,10 @@ const ParticipantGroupPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="My group" subtitle="Your meeting and group contacts." tourId="participant:group" />
+      <PageHeader title="My group" tourId="participant:group" />
       {!group ? (
         <section className={`${CARD} text-center`}>
           <p className="text-[15px] font-bold text-gray-900">You are not in a group yet</p>
-          <p className="mx-auto mt-1.5 max-w-[38ch] text-[13.5px] text-gray-500">The FOF team will add you to a group and introduce your support soon.</p>
         </section>
       ) : (
         <div className="flex flex-col gap-4">
@@ -42,7 +41,7 @@ const ParticipantGroupPage: React.FC = () => {
             <p className="mt-2 text-[22px] font-extrabold text-gray-900">
               {scheduled ? `${titleCaseDay(group.meetingDay)} · ${formatTime(group.meetingTime)}` : 'Waiting on your support to schedule this'}
             </p>
-            <p className="mt-0.5 text-[13px] text-gray-500">Weekly prayer and check-in · {group.meetingDurationMins || 45} minutes</p>
+            <p className="mt-0.5 text-[13px] text-gray-500">{group.meetingDurationMins || 45} min</p>
 
             {/* The meeting's order, as a simple step line (not buttons). */}
             <ol className="mt-5 grid grid-cols-3" aria-label="How the meeting runs">
@@ -95,11 +94,10 @@ const ParticipantGroupPage: React.FC = () => {
           <aside data-wt="pg-help" className="rounded-[22px] border border-[#ffeadb] bg-[#fffaf5] p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
             <h2 className="text-sm font-bold text-gray-600">Need help?</h2>
             <p className="mt-2 text-[15px] font-bold text-gray-900">Contact {supportName}</p>
-            <p className="mt-1.5 text-[13px] text-gray-500">Ask a question or let your group know if you cannot attend.</p>
             {supportLink ? (
               <a href={supportLink} target="_blank" rel="noreferrer" className="mt-4 flex min-h-[44px] w-full items-center justify-center rounded-xl bg-[#25d366] p-3 text-sm font-semibold text-white">Contact support</a>
             ) : (
-              <p className="mt-4 text-[13px] text-gray-500">Your support&apos;s number is not set yet. Ask at Sunday class.</p>
+              <p className="mt-4 text-[13px] text-gray-500">Number not available yet.</p>
             )}
           </aside>
         </div>

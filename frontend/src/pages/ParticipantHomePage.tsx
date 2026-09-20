@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
@@ -36,6 +36,8 @@ const ParticipantHomePage: React.FC = () => {
   const toast = useToast();
   const [goalSaving, setGoalSaving] = useState(false);
   const [scriptureDay, setScriptureDay] = useState<number | null>(null);
+  const [scriptureMotion, setScriptureMotion] = useState<'next' | 'previous' | null>(null);
+  const scriptureSwipeStart = useRef<{ x: number; y: number } | null>(null);
 
   const now = new Date();
   const firstName = (user?.name || '').split(' ')[0];
@@ -99,13 +101,29 @@ const ParticipantHomePage: React.FC = () => {
   const scripture = scriptureDay ? scriptureForDay(home.scriptures, scriptureDay) : null;
   const firstDotDay = todayScriptureDay ? Math.max(1, todayScriptureDay - 5) : 1;
   const expectations = (week?.expectations || '').split('\n').map((line) => line.trim()).filter(Boolean);
+  const changeScripture = (direction: 1 | -1) => setScriptureDay((day) => {
+    const current = day ?? 1;
+    const next = Math.min(todayScriptureDay ?? 1, Math.max(1, current + direction));
+    if (next !== current) setScriptureMotion(direction === 1 ? 'next' : 'previous');
+    return next;
+  });
+
+  const finishScriptureSwipe = (event: React.PointerEvent<HTMLImageElement>) => {
+    const start = scriptureSwipeStart.current;
+    scriptureSwipeStart.current = null;
+    if (!start) return;
+    const horizontalDistance = event.clientX - start.x;
+    const verticalDistance = event.clientY - start.y;
+    // A short, mostly-horizontal swipe changes the post; normal vertical scrolling does not.
+    if (Math.abs(horizontalDistance) < 42 || Math.abs(horizontalDistance) <= Math.abs(verticalDistance)) return;
+    changeScripture(horizontalDistance < 0 ? 1 : -1);
+  };
 
   return (
     <div>
       <PageHeader
         title={`Welcome back, ${firstName}`}
         tourId="participant:home"
-        subtitle="Everything for this week, at a glance."
         action={home.profileCompletion.percent < 100 ? (
           // Kept to a small pill so Home stays about the week.
           <NavLink to="/me/profile" className="inline-flex items-center gap-2 rounded-full border border-[#ffdeca] bg-white py-1.5 pl-1.5 pr-3 text-xs font-semibold text-gray-700">
@@ -160,12 +178,10 @@ const ParticipantHomePage: React.FC = () => {
               <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">
                 {callSet ? `${titleCaseDay(group!.meetingDay)}, ${formatTime(group!.meetingTime)}` : 'Not set yet'}
               </p>
-              <p className="mt-0.5 text-xs text-[#3c6da3]">{group ? 'Your group meeting' : 'No group yet'}</p>
             </div>
             <div className="rounded-2xl border border-[#dcefe1] bg-[#f0f9f2] p-3.5">
               <p className="text-xs font-semibold text-[#3f7a52]">Faith Project</p>
               <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{FAITH_PROJECT_PARTICIPANT_LABEL[home.faithProjectStatus ?? 'NOT_DRAFTED']}</p>
-              <p className="mt-0.5 text-xs text-[#3f7a52]">Your personal step</p>
             </div>
           </div>
         </section>
@@ -191,7 +207,6 @@ const ParticipantHomePage: React.FC = () => {
           <div className="flex flex-wrap items-center gap-3.5 rounded-[14px] border border-[#ffeadb] border-l-4 border-l-primary bg-white px-[18px] py-4">
             <div className="min-w-0 flex-[1_1_220px]">
               <p className="text-[15px] font-bold text-gray-900">Your cohort is wrapping up</p>
-              <p className="mt-1 text-[13px] text-gray-500">Tell us how it went and what&apos;s next for you.</p>
             </div>
             <NavLink to="/me/complete" className="inline-flex min-h-[44px] items-center rounded-xl bg-[#3f4757] px-4 text-[13px] font-semibold text-white">Continue</NavLink>
           </div>
@@ -231,7 +246,7 @@ const ParticipantHomePage: React.FC = () => {
         ) : week?.released && started && !finished ? (
           <section className="rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
             <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">This week&apos;s recap is out</p>
-            <p className="mt-2 text-base font-semibold leading-[1.45] text-gray-900">Read it and write a short reflection. Three questions, only you can read your answers.</p>
+            <p className="mt-2 text-base font-semibold leading-[1.45] text-gray-900">Read. Reflect.</p>
             <NavLink to={`/me/week/${week.weekNumber}`} className="mt-3.5 flex min-h-[46px] w-full items-center justify-center rounded-xl bg-primary p-3 text-sm font-semibold text-white">
               Open this week
             </NavLink>
@@ -246,20 +261,17 @@ const ParticipantHomePage: React.FC = () => {
                 <p className="mt-0.5 text-[12.5px] text-gray-500">{scriptureDay === todayScriptureDay ? 'Today' : `Day ${scriptureDay}`}</p>
               </div>
               <div className="ml-auto flex gap-1.5">
-                <button type="button" aria-label="Previous scripture" onClick={() => setScriptureDay((d) => Math.max(1, (d ?? 1) - 1))} disabled={scriptureDay <= 1} className="h-[38px] w-[38px] rounded-[10px] border border-gray-200 bg-white text-[15px] text-gray-700 disabled:bg-[#f6f7f9] disabled:text-gray-300">&#8249;</button>
-                <button type="button" aria-label="Next scripture" onClick={() => setScriptureDay((d) => Math.min(todayScriptureDay, (d ?? 1) + 1))} disabled={scriptureDay >= todayScriptureDay} className="h-[38px] w-[38px] rounded-[10px] border border-gray-200 bg-white text-[15px] text-gray-700 disabled:bg-[#f6f7f9] disabled:text-gray-300">&#8250;</button>
+                <button type="button" aria-label="Previous scripture" onClick={() => changeScripture(-1)} disabled={scriptureDay <= 1} className="h-[38px] w-[38px] rounded-[10px] border border-gray-200 bg-white text-[15px] text-gray-700 disabled:bg-[#f6f7f9] disabled:text-gray-300">&#8249;</button>
+                <button type="button" aria-label="Next scripture" onClick={() => changeScripture(1)} disabled={scriptureDay >= todayScriptureDay} className="h-[38px] w-[38px] rounded-[10px] border border-gray-200 bg-white text-[15px] text-gray-700 disabled:bg-[#f6f7f9] disabled:text-gray-300">&#8250;</button>
               </div>
             </div>
             <div className="px-5 pb-4">
-              <img src={scripture.imageUrl} alt={`Inspirational scripture, day ${scriptureDay}`} className="aspect-[4/5] w-full rounded-2xl bg-[#f6f7f9] object-cover" loading="lazy" />
-              <div className="mt-3 flex justify-center gap-[5px]">
+              <img key={scriptureDay} src={scripture.imageUrl} alt={`Inspirational scripture, day ${scriptureDay}. Swipe left or right to change post.`} onPointerDown={(event) => { scriptureSwipeStart.current = { x: event.clientX, y: event.clientY }; }} onPointerUp={finishScriptureSwipe} onPointerCancel={() => { scriptureSwipeStart.current = null; }} className={`aspect-[4/5] w-full touch-pan-y rounded-2xl bg-[#f6f7f9] object-cover ${scriptureMotion === 'next' ? 'fof-scripture-in-next' : scriptureMotion === 'previous' ? 'fof-scripture-in-previous' : ''}`} loading="lazy" />
+              <div className="mt-3 flex justify-center gap-[5px]" aria-hidden="true">
                 {Array.from({ length: todayScriptureDay - firstDotDay + 1 }, (_, i) => firstDotDay + i).map((day) => (
                   <span key={day} className={`h-1.5 w-1.5 rounded-full ${day === scriptureDay ? 'bg-primary' : 'bg-gray-200'}`} />
                 ))}
               </div>
-              {scriptureDay === todayScriptureDay && (
-                <p className="mt-2.5 text-center text-xs text-gray-400">Tomorrow&#8217;s scripture opens at 2:00 PM.</p>
-              )}
             </div>
           </section>
         )}

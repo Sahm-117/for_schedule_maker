@@ -39,7 +39,9 @@ const MORE: NavEntry[] = [
 const Dot: React.FC = () => <span className="h-2 w-2 flex-none rounded-full bg-red-500" aria-label="New reply" />;
 
 const isActive = (pathname: string, to: string, exact?: boolean) =>
-  exact ? pathname === to || pathname.startsWith('/me/week') : pathname === to || pathname.startsWith(`${to}/`);
+  exact ? pathname === to : to === '/me/journey'
+    ? pathname === to || pathname.startsWith('/me/journey/') || pathname.startsWith('/me/week/')
+    : pathname === to || pathname.startsWith(`${to}/`);
 
 const LATER_KEY = 'fof_checkin_later';
 const lagosDateKey = () => new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 10);

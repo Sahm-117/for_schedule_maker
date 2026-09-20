@@ -11,7 +11,7 @@ interface PageHeaderProps {
 }
 
 const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, action, onHelp, tourId }) => (
-  <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
+  <div className="mb-4 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
     <div className="min-w-0">
       {/* The "?" sits right beside the page name. */}
       <div className="flex items-center gap-2.5">
