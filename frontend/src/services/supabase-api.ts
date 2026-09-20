@@ -3626,6 +3626,21 @@ export const participantsApi = {
       followUpContactId: contact.id,
     });
   },
+
+  async ensureFromFollowUpContact(contactId: string): Promise<{ participant: import('../types').Participant }> {
+    const { data, error } = await supabase
+      .from('FollowUpContact')
+      .select(FOLLOW_UP_SELECT)
+      .eq('id', contactId)
+      .single();
+
+    if (error || !data) throw new Error(error?.message || 'This registered contact could not be found.');
+    const contact = mapFollowUpContact(data);
+    if (contact.registrationStatus !== 'REGISTERED') {
+      throw new Error('Mark this contact as Registered before adding them to Participants.');
+    }
+    return participantsApi.upsertFromFollowUpContact(contact);
+  },
 };
 
 // ── Participant handovers and support notes ─────────────────────────────────

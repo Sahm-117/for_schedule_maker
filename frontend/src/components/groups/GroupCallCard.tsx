@@ -133,9 +133,6 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
         </div>
       ) : (
         <div className="mt-4 flex items-center gap-2.5 rounded-2xl border border-[#ffdeca] bg-[#fff8f3] p-3.5">
-          <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]">
-            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" /></svg>
-          </span>
           <div className="min-w-0 flex-auto overflow-hidden">
             <p className="text-sm font-bold text-gray-900">{slotText ? `Every ${slotText}` : 'Meeting time not set'}</p>
             <p className="mt-px text-[13px] text-gray-500">{slotText ? 'Your group meets at this time each week.' : 'Set when your group meets.'}</p>
@@ -152,9 +149,11 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
             <button
               type="button"
               onClick={startEditing}
-              className="inline-flex min-h-10 items-center justify-center rounded-[10px] border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700"
+              aria-label="Edit group meeting"
+              title="Edit group meeting"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-gray-200 bg-white text-gray-600 hover:text-gray-900"
             >
-              Edit
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Z" /></svg>
             </button>
           </div>
         </div>

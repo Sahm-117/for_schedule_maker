@@ -169,8 +169,8 @@ const AppSelect: React.FC<AppSelectProps> = ({
             <p className="text-xs text-gray-500">{selectedOption.meta}</p>
           )}
         </div>
-        <span className={`ml-2 inline-flex flex-shrink-0 items-center justify-center rounded-full transition-transform ${open ? 'rotate-180' : ''} ${
-          compact ? 'h-5 w-5 bg-gray-100 text-gray-400' : 'h-8 w-8 bg-orange-50 text-gray-500'
+        <span className={`ml-2 inline-flex flex-shrink-0 items-center justify-center transition-transform ${open ? 'rotate-180' : ''} ${
+          compact ? 'h-5 w-5 text-gray-400' : 'h-6 w-6 text-gray-500'
         }`}>
           {loading ? (
             <svg className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">

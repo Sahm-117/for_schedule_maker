@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { participantAccountsApi } from '../../services/api';
+import { participantAccountsApi, participantsApi } from '../../services/api';
 import { buildWhatsAppLink } from '../../utils/phone';
 import type { ParticipantLoginDetails } from '../../types';
 
@@ -32,6 +32,7 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [confirmNewCode, setConfirmNewCode] = useState(false);
+  const [addingParticipant, setAddingParticipant] = useState(false);
 
   const target = { participantId, followUpContactId };
 
@@ -86,6 +87,20 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
     }
   };
 
+  const addToParticipants = async () => {
+    if (!followUpContactId) return;
+    setAddingParticipant(true);
+    setError('');
+    try {
+      await participantsApi.ensureFromFollowUpContact(followUpContactId);
+      await load({ issue: true });
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setAddingParticipant(false);
+    }
+  };
+
   const subline = details?.status === 'NO_PARTICIPANT'
     ? 'Not in Participants yet'
     : details?.status === 'ACTIVE'
@@ -125,9 +140,14 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
               </div>
             </>
           ) : details?.status === 'NO_PARTICIPANT' ? (
-            <p className="rounded-[10px] bg-white px-3 py-2.5 text-[13px] leading-normal text-gray-600">
-              This person is not in Participants yet, so there is no login to send. Ask the back office to add them.
-            </p>
+            <div className="rounded-[10px] bg-white p-3 text-[13px] leading-normal text-gray-600">
+              <p>This registration is missing its participant record, so there is no login to send yet.</p>
+              {followUpContactId && (
+                <button type="button" onClick={() => { void addToParticipants(); }} disabled={addingParticipant} className="mt-2.5 min-h-[40px] rounded-[10px] bg-primary px-3.5 text-[13px] font-semibold text-white disabled:opacity-60">
+                  {addingParticipant ? 'Adding…' : 'Add to Participants'}
+                </button>
+              )}
+            </div>
           ) : details?.status === 'ACTIVE' ? (
             <div className="rounded-[10px] border border-[#d9f2e2] bg-white p-3 text-[13px] leading-normal text-gray-700">
               <p>{firstName} has chosen their own password. Only they know it.</p>

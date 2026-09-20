@@ -153,7 +153,7 @@ const ActivityLabelPicker: React.FC<ActivityLabelPickerProps> = ({
             </p>
           )}
         </div>
-        <span className={`inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-orange-50 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`}>
+        <span className={`inline-flex h-6 w-6 flex-shrink-0 items-center justify-center text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`}>
           {loading ? (
             <svg className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" strokeWidth="4" stroke="currentColor" fill="none" />

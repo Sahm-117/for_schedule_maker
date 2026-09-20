@@ -519,6 +519,7 @@ export const participantsApi = USE_SUPABASE ? supabaseParticipantsApi : {
   async unarchive(_id: string): Promise<never> { return peopleUnavailable(); },
   async delete(_id: string): Promise<never> { return peopleUnavailable(); },
   async upsertFromFollowUpContact(_contact: any): Promise<never> { return peopleUnavailable(); },
+  async ensureFromFollowUpContact(_contactId: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const groupsApi = USE_SUPABASE ? supabaseGroupsApi : {
