@@ -351,24 +351,22 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
         </div>
 
         {registrationLink && (
-          <section data-wt="mob-link" className="flex flex-wrap items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/60 px-3.5 py-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-sky-700">Registration link</p>
-              <a href={registrationLink} target="_blank" rel="noopener noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-sm font-semibold text-sky-800 underline decoration-sky-300 underline-offset-2 hover:text-sky-950">
-                Open sign-up form
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5h5v5m0-5L10 14" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4" /></svg>
-              </a>
-            </div>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => { void shareRegistrationLink(); }} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-sky-600 px-3 text-xs font-semibold text-white hover:bg-sky-700">
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12v7a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-7M12 3v12m0-12 4 4m-4-4-4 4" /></svg>
-                Share
-              </button>
-              <button type="button" onClick={copyRegistrationLink} aria-label={linkCopied ? 'Registration link copied' : 'Copy registration link'} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-3 text-xs font-semibold text-sky-700 hover:bg-sky-100">
-                {linkCopied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
-          </section>
+          <div data-wt="mob-link" className="inline-flex self-start items-center rounded-full bg-[#f6f7f9] text-xs font-semibold text-gray-600">
+            <a href={registrationLink} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-8 items-center gap-1 rounded-l-full py-1 pl-3 pr-2 hover:bg-gray-100 hover:text-gray-800" title="Open registration form">
+              Registration link
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5h5v5m0-5L10 14" /></svg>
+            </a>
+            <button type="button" onClick={() => { void shareRegistrationLink(); }} aria-label="Share registration link" title="Share registration link" className="grid h-8 w-8 place-items-center border-l border-gray-200 hover:bg-gray-100">
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12v7a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-7M12 3v12m0-12 4 4m-4-4-4 4" /></svg>
+            </button>
+            <button type="button" onClick={copyRegistrationLink} aria-label={linkCopied ? 'Registration link copied' : 'Copy registration link'} title={linkCopied ? 'Copied' : 'Copy registration link'} className={`grid h-8 w-8 place-items-center rounded-r-full border-l border-gray-200 ${linkCopied ? 'text-emerald-700' : 'hover:bg-gray-100'}`}>
+              {linkCopied ? (
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="m5 13 4 4L19 7" /></svg>
+              ) : (
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v10a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2Z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" /></svg>
+              )}
+            </button>
+          </div>
         )}
 
         {loadError && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>}
