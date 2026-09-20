@@ -314,19 +314,6 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     setTimeout(() => setLinkCopied(false), 2000);
   };
 
-  const shareRegistrationLink = async () => {
-    if (!registrationLink) return;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'FOF registration', text: 'Register for FOF here:', url: registrationLink });
-        return;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-      }
-    }
-    copyRegistrationLink();
-  };
-
   return (
     <div>
       <PageHeader
@@ -351,15 +338,12 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
         </div>
 
         {registrationLink && (
-          <div data-wt="mob-link" className="inline-flex self-start items-center rounded-full bg-[#f6f7f9] text-xs font-semibold text-gray-600">
-            <a href={registrationLink} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-8 items-center gap-1 rounded-l-full py-1 pl-3 pr-2 hover:bg-gray-100 hover:text-gray-800" title="Open registration form">
-              Registration link
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5h5v5m0-5L10 14" /></svg>
+          <div data-wt="mob-link" className="inline-flex self-start items-center gap-1.5 text-xs font-semibold text-gray-600">
+            <span className="px-1">Registration link</span>
+            <a href={registrationLink} target="_blank" rel="noopener noreferrer" aria-label="Open registration form" title="Open registration form" className="grid h-10 w-10 place-items-center rounded-full bg-[#f6f7f9] hover:bg-gray-100 hover:text-gray-800">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5h5v5m0-5L10 14" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4" /></svg>
             </a>
-            <button type="button" onClick={() => { void shareRegistrationLink(); }} aria-label="Share registration link" title="Share registration link" className="grid h-8 w-8 place-items-center border-l border-gray-200 hover:bg-gray-100">
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12v7a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-7M12 3v12m0-12 4 4m-4-4-4 4" /></svg>
-            </button>
-            <button type="button" onClick={copyRegistrationLink} aria-label={linkCopied ? 'Registration link copied' : 'Copy registration link'} title={linkCopied ? 'Copied' : 'Copy registration link'} className={`grid h-8 w-8 place-items-center rounded-r-full border-l border-gray-200 ${linkCopied ? 'text-emerald-700' : 'hover:bg-gray-100'}`}>
+            <button type="button" onClick={copyRegistrationLink} aria-label={linkCopied ? 'Registration link copied' : 'Copy registration link'} title={linkCopied ? 'Copied' : 'Copy registration link'} className={`grid h-10 w-10 place-items-center rounded-full bg-[#f6f7f9] ${linkCopied ? 'text-emerald-700' : 'hover:bg-gray-100'}`}>
               {linkCopied ? (
                 <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="m5 13 4 4L19 7" /></svg>
               ) : (
