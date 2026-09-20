@@ -27,7 +27,7 @@ interface GroupCallCardProps {
   onGroupUpdated: (group: Group) => void;
 }
 
-// Recurring group call: platform, link and meeting slot, all stored on the group.
+// Recurring group call and meeting slot, all stored on the group.
 const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGroupUpdated }) => {
   const callLink = group?.callLink?.trim() || fallbackLink?.trim() || null;
   const savedSlot: MeetingSlot = {
@@ -35,7 +35,7 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
     meetingTime: group?.meetingTime ?? null,
     meetingDurationMins: group?.meetingDurationMins ?? null,
   };
-  const hasSetup = !!callLink || !!savedSlot.meetingDay;
+  const hasSetup = !!callLink && !!savedSlot.meetingDay && !!savedSlot.meetingTime;
   const savedPlatform: GroupCallPlatform = group?.callPlatform ?? platformFromLink(callLink) ?? 'WHATSAPP';
 
   const [editing, setEditing] = useState(!hasSetup);
@@ -66,6 +66,10 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
       setError('Your group is not set up yet. Ask an admin to assign you a group.');
       return;
     }
+    if (!linkDraft.trim() || !slotDraft.meetingDay || !slotDraft.meetingTime) {
+      setError('Add the group call link and meeting time before saving.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -87,19 +91,31 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
 
   return (
     <section className="rounded-[20px] border border-[#ffdeca] bg-white p-[18px] shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-      <h2 className="text-base font-bold text-gray-900">Group meeting</h2>
-      <p className="mt-0.5 text-[13px] text-gray-500">Set the day and time your group meets each week.</p>
+      <h2 className="text-base font-bold text-gray-900">{hasSetup ? 'Group meeting' : 'Set up group meeting'}</h2>
+      <p className="mt-0.5 text-[13px] text-gray-500">{hasSetup ? 'Your group’s weekly call and meeting time.' : 'Add the group call link and weekly meeting time.'}</p>
 
       {editing ? (
         <div className="mt-4 flex flex-col gap-3.5">
           {group ? (
-            <div>
+            <>
+              <div>
+                <label className="mb-1.5 block text-[13px] font-semibold text-gray-900">Group Call Link</label>
+                <input
+                  type="url"
+                  value={linkDraft}
+                  onChange={(event) => setLinkDraft(event.target.value)}
+                  placeholder="Paste the call link"
+                  className="min-h-[46px] w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div>
               <div className="mb-1.5 flex items-center gap-2">
                 <span className="text-[13px] font-semibold text-gray-900">Day and time</span>
                 <InfoTip label="Meeting time rules">Group meetings run on Wednesday, Friday or Saturday, between 5 and 9 pm, for 45 minutes to 1 hour.</InfoTip>
               </div>
               <GroupMeetingSlotEditor value={slotDraft} onChange={setSlotDraft} />
-            </div>
+              </div>
+            </>
           ) : (
             <p className="text-xs text-gray-400">The meeting day and time can be set once your group is linked to you.</p>
           )}
@@ -111,7 +127,7 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
               </button>
             )}
             <button type="button" onClick={() => { void save(); }} disabled={saving} className="min-h-[46px] min-w-0 flex-auto rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">
-              {saving ? 'Saving…' : 'Save meeting time'}
+              {saving ? 'Saving…' : 'Save group meeting'}
             </button>
           </div>
         </div>
@@ -124,15 +140,23 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
             <p className="text-sm font-bold text-gray-900">{slotText ? `Every ${slotText}` : 'Meeting time not set'}</p>
             <p className="mt-px text-[13px] text-gray-500">{slotText ? 'Your group meets at this time each week.' : 'Set when your group meets.'}</p>
           </div>
-          <button
-            type="button"
-            onClick={startEditing}
-            title="Edit meeting time"
-            aria-label="Edit meeting time"
-            className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-[10px] border border-gray-200 bg-white text-gray-500"
-          >
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Z" /></svg>
-          </button>
+          <div className="flex flex-none gap-2">
+            <a
+              href={callLink ?? '#'}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-10 items-center justify-center rounded-[10px] bg-primary px-3 text-sm font-semibold text-white"
+            >
+              Join Call
+            </a>
+            <button
+              type="button"
+              onClick={startEditing}
+              className="inline-flex min-h-10 items-center justify-center rounded-[10px] border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700"
+            >
+              Edit
+            </button>
+          </div>
         </div>
       )}
     </section>

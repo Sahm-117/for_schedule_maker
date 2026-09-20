@@ -430,6 +430,11 @@ const CoordinatorSection: React.FC<CoordinatorSectionProps> = ({ coordinatorId, 
 
 const SupportOnboardingPage: React.FC = () => {
   const { user } = useAuth();
+  if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
+  return <SupportOnboardingContent user={user} />;
+};
+
+const SupportOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
   const { activeCohort } = useAppData();
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [groupStatuses, setGroupStatuses] = useState<GroupOnboardingStatus[]>([]);
@@ -441,8 +446,6 @@ const SupportOnboardingPage: React.FC = () => {
   const [savingGroup, setSavingGroup] = useState(false);
   const [savingParticipantSteps, setSavingParticipantSteps] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-
-  if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
 
   const load = useCallback(async () => {
     if (!activeCohort || !user.id) {

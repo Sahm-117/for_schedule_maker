@@ -132,25 +132,13 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
         </div>
         {existing && (
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Group call</label>
-            <div className="mb-2 grid grid-cols-2 gap-2">
-              {([['WHATSAPP', 'WhatsApp'], ['GOOGLE_MEET', 'Google Meet']] as Array<[GroupCallPlatform, string]>).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setCallPlatform(value)}
-                  className={`rounded-xl border px-3 py-2 text-sm font-semibold ${callPlatform === value ? 'border-primary bg-primary/10 text-primary' : 'border-orange-200 text-gray-600 hover:bg-orange-50'}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Group Call Link</label>
             <input
               type="url"
               value={callLink}
               onChange={(e) => setCallLink(e.target.value)}
               className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              placeholder="Call link (the support can also set this)"
+              placeholder="Paste the group call link"
             />
           </div>
         )}
@@ -388,6 +376,12 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
 
 const AdminGroupsPage: React.FC = () => {
   const { isAdmin } = useAuth();
+  if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  return <AdminGroupsContent />;
+};
+
+const AdminGroupsContent: React.FC = () => {
+  const { user } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -400,12 +394,11 @@ const AdminGroupsPage: React.FC = () => {
   const [editing, setEditing] = useState<Group | null>(null);
   const [membersTarget, setMembersTarget] = useState<Group | null>(null);
   const [supportTarget, setSupportTarget] = useState<Group | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Group | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<Group | null>(null);
   const [noSupportOnly, setNoSupportOnly] = useState(false);
   const [supportFilter, setSupportFilter] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-
-  if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   // "Open group" elsewhere (the Supports page) links straight to one group as
   // /groups?group=<id>, so the URL — not local state — decides what's in view.
@@ -425,7 +418,7 @@ const AdminGroupsPage: React.FC = () => {
     if (!silent) setLoading(true);
     try {
       const [{ groups: gs }, { participants: ps }, { users }] = await Promise.all([
-        groupsApi.getAll({ cohortId: activeCohort.id }),
+        groupsApi.getAll({ cohortId: activeCohort.id, includeArchived: showArchived }),
         participantsApi.getAll({ cohortId: activeCohort.id }),
         usersApi.getAll(),
       ]);
@@ -445,7 +438,7 @@ const AdminGroupsPage: React.FC = () => {
       }
     } catch { /* ignore */ }
     finally { if (!silent) setLoading(false); }
-  }, [activeCohort]);
+  }, [activeCohort, showArchived]);
 
   // Initial / cohort-change load shows the loader.
   useEffect(() => { void load(false); }, [load]);
@@ -457,14 +450,21 @@ const AdminGroupsPage: React.FC = () => {
     void load(true);
   }, [liveRevision, load]);
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    const g = deleteTarget;
+  const handleArchive = async () => {
+    if (!archiveTarget) return;
+    const g = archiveTarget;
     try {
-      await groupsApi.delete(g.id);
+      await groupsApi.archive(g.id, user?.id);
       setGroups((prev) => prev.filter((x) => x.id !== g.id));
     } catch { /* ignore */ }
-    finally { setDeleteTarget(null); }
+    finally { setArchiveTarget(null); }
+  };
+
+  const handleRestore = async (group: Group) => {
+    try {
+      const { group: restored } = await groupsApi.unarchive(group.id);
+      setGroups((prev) => sortGroupsByName(prev.map((entry) => entry.id === restored.id ? restored : entry)));
+    } catch { /* ignore */ }
   };
 
   const noSupportCount = groups.filter((g) => !g.supportId).length;
@@ -507,7 +507,10 @@ const AdminGroupsPage: React.FC = () => {
               </button>
               <AppOverflowMenu
                 align="right"
-                items={[{ label: 'Export for WhatsApp', onClick: () => setExportOpen(true) }]}
+                items={[
+                  { label: 'Export for WhatsApp', onClick: () => setExportOpen(true) },
+                  { label: showArchived ? 'Hide archived groups' : 'Show archived groups', onClick: () => setShowArchived((current) => !current) },
+                ]}
               />
             </div>
           )
@@ -573,6 +576,7 @@ const AdminGroupsPage: React.FC = () => {
                     <p className={`truncate text-xs ${g.supportName ? 'text-gray-500' : 'text-neutral-400'}`}>
                       {g.supportName || 'No support assigned'}
                     </p>
+                    {g.archivedAt && <p className="mt-1 text-[11px] font-semibold text-amber-700">Archived</p>}
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-1">
                     <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
@@ -580,12 +584,14 @@ const AdminGroupsPage: React.FC = () => {
                     </span>
                     <AppOverflowMenu
                       align="right"
-                      items={[
-                        { label: 'Manage members', onClick: () => setMembersTarget(g) },
-                        { label: 'Assign support', onClick: () => setSupportTarget(g) },
-                        { label: 'Edit', onClick: () => { setEditing(g); setFormOpen(true); } },
-                        { label: 'Delete', onClick: () => setDeleteTarget(g), tone: 'danger' },
-                      ]}
+                      items={g.archivedAt
+                        ? [{ label: 'Restore group', onClick: () => void handleRestore(g) }]
+                        : [
+                            { label: 'Manage members', onClick: () => setMembersTarget(g) },
+                            { label: 'Assign support', onClick: () => setSupportTarget(g) },
+                            { label: 'Edit', onClick: () => { setEditing(g); setFormOpen(true); } },
+                            { label: 'Archive group', onClick: () => setArchiveTarget(g), tone: 'danger' },
+                          ]}
                     />
                   </div>
                 </div>
@@ -666,12 +672,12 @@ const AdminGroupsPage: React.FC = () => {
       )}
 
       <ConfirmationModal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={() => { void handleDelete(); }}
-        title="Delete group"
-        message={`Delete "${deleteTarget?.name}"? This also removes all member assignments.`}
-        confirmText="Delete"
+        isOpen={!!archiveTarget}
+        onClose={() => setArchiveTarget(null)}
+        onConfirm={() => { void handleArchive(); }}
+        title="Archive group"
+        message={`Archive "${archiveTarget?.name}"? Its members and history stay preserved, but it will be hidden from active group and allocation views.`}
+        confirmText="Archive"
       />
 
       {exportOpen && (

@@ -31,7 +31,13 @@ const STATUS_LABEL: Record<AttendanceStatus, string> = {
 };
 
 const AdminAttendancePage: React.FC = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin } = useAuth();
+  if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  return <AdminAttendanceContent />;
+};
+
+const AdminAttendanceContent: React.FC = () => {
+  const { user } = useAuth();
   const { activeCohort, weeks } = useAppData();
 
   const cohortWeeks: Week[] = useMemo(
@@ -49,8 +55,6 @@ const AdminAttendancePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [bulkSaving, setBulkSaving] = useState(false);
-
-  if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   // Groups change per cohort, not per week — load once per cohort.
   useEffect(() => {

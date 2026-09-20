@@ -7,7 +7,7 @@ import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { attendanceApi, participantsApi } from '../services/api';
-import type { AttendanceRecord, AttendanceStatus, Participant, Week } from '../types';
+import type { AttendanceRecord, AttendanceStatus, Participant, User, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 
@@ -82,6 +82,11 @@ const ParticipantNotesModal: React.FC<ParticipantNotesModalProps> = ({ participa
 
 const SupportAttendancePage: React.FC = () => {
   const { user } = useAuth();
+  if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
+  return <SupportAttendanceContent user={user} />;
+};
+
+const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
   const { activeCohort, weeks } = useAppData();
 
   const cohortWeeks: Week[] = useMemo(
@@ -97,8 +102,6 @@ const SupportAttendancePage: React.FC = () => {
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
   const [savingNote, setSavingNote] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'' | AttendanceStatus | 'UNMARKED'>('');
-
-  if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
 
   useEffect(() => {
     if (cohortWeeks.length === 0) return;

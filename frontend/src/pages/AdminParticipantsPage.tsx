@@ -735,6 +735,11 @@ const AssignGroupModal: React.FC<AssignGroupModalProps> = ({ participant, groups
 
 const AdminParticipantsPage: React.FC = () => {
   const { isAdmin } = useAuth();
+  if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  return <AdminParticipantsContent />;
+};
+
+const AdminParticipantsContent: React.FC = () => {
   const { activeCohort, liveRevision } = useAppData();
 
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -765,8 +770,6 @@ const AdminParticipantsPage: React.FC = () => {
   // Profile completion (%) per participant, and the "Incomplete profiles" filter.
   const [completionById, setCompletionById] = useState<Map<string, import('../types').ProfileCompletion>>(new Map());
   const [incompleteOnly, setIncompleteOnly] = useState(false);
-
-  if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   // `silent` background refreshes (realtime liveRevision bumps) update data in
   // place without the full-page "Loading…" flash.

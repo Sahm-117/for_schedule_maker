@@ -9,7 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import { coverRequestsApi, supportActivityCompletionsApi, supportChecklistApi } from '../services/api';
 import { PROGRAM_DAY_ORDER, getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { exportWeekToPDF } from '../utils/pdfExport';
-import type { CoverRequest, CoverRequestStatus, SupportActivityCompletion, SupportChecklistItem } from '../types';
+import type { CoverRequest, CoverRequestStatus, SupportActivityCompletion, SupportChecklistItem, User } from '../types';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import AppDateTimePicker from '../components/AppDateTimePicker';
 
@@ -42,7 +42,13 @@ const formatPeriod = (from: string, until: string) => {
 };
 
 const SupportSchedulePage: React.FC = () => {
-  const { user, userLabelIds } = useAuth();
+  const { user } = useAuth();
+  if (user?.role !== 'SUPPORT') return <Navigate to="/schedule" replace />;
+  return <SupportScheduleContent user={user} />;
+};
+
+const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
+  const { userLabelIds } = useAuth();
   const { weeks, selectedWeek, handleWeekSelect, activeCohort } = useAppData();
   const [searchParams] = useSearchParams();
   const schedulePublished = activeCohort?.schedulePublished !== false;
@@ -69,11 +75,6 @@ const SupportSchedulePage: React.FC = () => {
   const [coverSaving, setCoverSaving] = useState(false);
   const [coverError, setCoverError] = useState('');
   const [coverSent, setCoverSent] = useState(false);
-
-
-  if (user?.role !== 'SUPPORT') {
-    return <Navigate to="/schedule" replace />;
-  }
 
   useEffect(() => {
     if (!selectedWeek || !user) return;

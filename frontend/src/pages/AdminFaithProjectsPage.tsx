@@ -263,7 +263,13 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant,
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const AdminFaithProjectsPage: React.FC = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin } = useAuth();
+  if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  return <AdminFaithProjectsContent />;
+};
+
+const AdminFaithProjectsContent: React.FC = () => {
+  const { user } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
 
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -278,8 +284,6 @@ const AdminFaithProjectsPage: React.FC = () => {
   // When this admin last read each faith project's support conversation (drives the dot).
   const [threadReads, setThreadReads] = useState<Map<string, string>>(new Map());
   const [showExportPopup, setShowExportPopup] = useState(false);
-
-  if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   const load = useCallback(async () => {
     if (!activeCohort) { setLoading(false); return; }

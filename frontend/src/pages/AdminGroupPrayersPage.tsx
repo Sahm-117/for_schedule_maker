@@ -13,6 +13,11 @@ import { sortByText } from '../utils/sort';
 
 const AdminGroupPrayersPage: React.FC = () => {
   const { isAdmin } = useAuth();
+  if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  return <AdminGroupPrayersContent />;
+};
+
+const AdminGroupPrayersContent: React.FC = () => {
   const { activeCohort, weeks } = useAppData();
 
   const cohortWeeks: Week[] = useMemo(
@@ -27,8 +32,6 @@ const AdminGroupPrayersPage: React.FC = () => {
   const [attendance, setAttendance] = useState<MeetingAttendance[]>([]);
   const [markTarget, setMarkTarget] = useState<{ group: Group; week: Week } | null>(null);
   const [loading, setLoading] = useState(true);
-
-  if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   const load = useCallback(async () => {
     if (!activeCohort) { setLoading(false); return; }

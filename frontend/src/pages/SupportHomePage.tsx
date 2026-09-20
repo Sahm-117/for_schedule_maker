@@ -5,7 +5,7 @@ import ActivityText from '../components/ActivityText';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { announcementsApi, faithProjectsApi, groupsApi, participantCheckInsApi, participantsApi, resourcesApi, supportActivityCompletionsApi, supportChecklistApi } from '../services/api';
-import type { Announcement, FaithProject, Group, Participant, ParticipantCheckIn, SupportActivityCompletion, SupportChecklistItem } from '../types';
+import type { Announcement, FaithProject, Group, Participant, ParticipantCheckIn, SupportActivityCompletion, SupportChecklistItem, User } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
 import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
@@ -43,7 +43,13 @@ const formatWhen = (value: string) => {
 };
 
 const SupportHomePage: React.FC = () => {
-  const { user, userLabelIds, userCohortIds } = useAuth();
+  const { user } = useAuth();
+  if (user?.role !== 'SUPPORT') return <Navigate to="/dashboard" replace />;
+  return <SupportHomeContent user={user} />;
+};
+
+const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
+  const { userLabelIds, userCohortIds } = useAuth();
   const { activeCohort, selectedWeek, weeks, newResourceCount, liveRevision } = useAppData();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [resourceCount, setResourceCount] = useState(0);
@@ -135,10 +141,6 @@ const SupportHomePage: React.FC = () => {
       .catch(() => { if (!cancelled) setChecklist([]); });
     return () => { cancelled = true; };
   }, [activeWeekId, user, liveRevision]);
-
-  if (user?.role !== 'SUPPORT') {
-    return <Navigate to="/dashboard" replace />;
-  }
 
   const activeWeek = selectedWeek || weeks[0] || null;
   const todayName = getCurrentProgramDayName();

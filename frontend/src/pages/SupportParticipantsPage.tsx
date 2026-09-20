@@ -12,7 +12,7 @@ import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
 import { faithProjectsApi, groupOnboardingStatusApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, coverRequestsApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
-import type { FaithProject, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, CoverRequest } from '../types';
+import type { FaithProject, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, CoverRequest, User } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 
@@ -34,6 +34,11 @@ const virtualGroupStatus = (groupId: string, groupName: string | null | undefine
 
 const SupportParticipantsPage: React.FC = () => {
   const { user } = useAuth();
+  if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
+  return <SupportParticipantsContent user={user} />;
+};
+
+const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const { activeCohort, weeks } = useAppData();
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [groupStatuses, setGroupStatuses] = useState<GroupOnboardingStatus[]>([]);
@@ -59,8 +64,6 @@ const SupportParticipantsPage: React.FC = () => {
   const [savingPrayerFocus, setSavingPrayerFocus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-
-  if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
 
   const cohortWeeks = useMemo(
     () => (weeks ?? []).filter((week) => week.cohortId === activeCohort?.id).sort((a, b) => a.weekNumber - b.weekNumber),

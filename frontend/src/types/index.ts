@@ -377,6 +377,8 @@ export interface Group {
   meetingDurationMins?: number | null;
   callPlatform?: GroupCallPlatform | null;
   callLink?: string | null;
+  archivedAt?: string | null;
+  archivedById?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }

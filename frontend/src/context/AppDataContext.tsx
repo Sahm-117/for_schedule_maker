@@ -51,7 +51,7 @@ export const useAppData = () => {
 };
 
 export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAdmin, isSopPreparer, userCohortIds, refreshUser } = useAuth();
+  const { user, isAdmin, isSopPreparer, userCohortIds, refreshUser, refreshUserCohorts } = useAuth();
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [activeCohort, setActiveCohortState] = useState<Cohort | null>(null);
   const [weeks, setWeeks] = useState<Week[]>([]);
@@ -327,7 +327,15 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupPrayerStatus' }, scheduleWorkspaceRefresh)
       // Notification rows are per-user and cheap — refresh just the feed (not
       // the whole workspace) so the badge updates live.
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Notification', filter: `userId=eq.${user.id}` }, () => { void refreshNotifications(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Notification', filter: `userId=eq.${user.id}` }, (payload: { new?: { path?: string } }) => {
+        void refreshNotifications();
+        // Group-assignment notifications are the one signal that a support's
+        // cohort access may have changed. Refresh that narrow membership list;
+        // the dependent workspace load then brings their group into view.
+        if (payload.new?.path === '/support/participants') {
+          void refreshUserCohorts();
+        }
+      })
       // Hub activity — refresh just the unread-dot check, not the whole workspace.
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'HubTopic' }, () => { void refreshHubActivity(); })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'HubComment' }, () => { void refreshHubActivity(); })
@@ -352,7 +360,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // Depend on user.id (not the whole user object) so avatar/theme updates that
     // replace the user object don't tear down and rebuild the realtime channel.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshHubActivity, refreshNotifications, scheduleWorkspaceRefresh, user?.id]);
+  }, [refreshHubActivity, refreshNotifications, refreshUserCohorts, scheduleWorkspaceRefresh, user?.id]);
 
   useEffect(() => {
     if (!user || realtimeHealthy) return;

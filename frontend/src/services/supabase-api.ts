@@ -3354,6 +3354,7 @@ const resolveSupportScopedGroups = async (supportId: string, cohortId?: string |
     .from('Group')
     .select(GROUP_SELECT)
     .eq('supportId', supportId)
+    .is('archivedAt', null)
     .order('name', { ascending: true });
 
   if (cohortId) directQuery = directQuery.eq('cohortId', cohortId);
@@ -3367,6 +3368,7 @@ const resolveSupportScopedGroups = async (supportId: string, cohortId?: string |
   let fallbackQuery = supabase
     .from('Group')
     .select(GROUP_SELECT)
+    .is('archivedAt', null)
     .order('name', { ascending: true });
 
   if (cohortId) fallbackQuery = fallbackQuery.eq('cohortId', cohortId);
@@ -3802,6 +3804,8 @@ const mapGroup = (row: any): import('../types').Group => ({
   meetingDurationMins: row.meetingDurationMins ?? null,
   callPlatform: row.callPlatform ?? null,
   callLink: row.callLink ?? null,
+  archivedAt: row.archivedAt ?? null,
+  archivedById: row.archivedById ?? null,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
@@ -4066,13 +4070,14 @@ const syncGroupTag = async (
 };
 
 export const groupsApi = {
-  async getAll(options?: { cohortId?: string }): Promise<{ groups: import('../types').Group[] }> {
+  async getAll(options?: { cohortId?: string; includeArchived?: boolean }): Promise<{ groups: import('../types').Group[] }> {
     let query = supabase
       .from('Group')
       .select(GROUP_SELECT)
       .order('name', { ascending: true });
 
     if (options?.cohortId) query = query.eq('cohortId', options.cohortId);
+    if (!options?.includeArchived) query = query.is('archivedAt', null);
 
     const { data, error } = await query;
     if (error) throw new Error(error.message);
@@ -4088,6 +4093,7 @@ export const groupsApi = {
       .from('Group')
       .select(GROUP_SELECT)
       .eq('supportId', userId)
+      .is('archivedAt', null)
       .maybeSingle();
 
     if (error) throw new Error(error.message);
@@ -4156,12 +4162,26 @@ export const groupsApi = {
     return { group };
   },
 
-  async delete(groupId: string): Promise<{ message: string }> {
-    // Label.groupId and UserLabel.labelId both cascade ON DELETE, so deleting the
-    // group automatically removes its tag and that tag's support links.
-    const { error } = await supabase.from('Group').delete().eq('id', groupId);
-    if (error) throw new Error(error.message);
-    return { message: 'Group deleted' };
+  async archive(groupId: string, archivedById?: string | null): Promise<{ group: import('../types').Group }> {
+    const { data, error } = await supabase
+      .from('Group')
+      .update({ archivedAt: new Date().toISOString(), archivedById: archivedById ?? null, updatedAt: new Date().toISOString() })
+      .eq('id', groupId)
+      .select(GROUP_SELECT)
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to archive group');
+    return { group: mapGroup(data) };
+  },
+
+  async unarchive(groupId: string): Promise<{ group: import('../types').Group }> {
+    const { data, error } = await supabase
+      .from('Group')
+      .update({ archivedAt: null, archivedById: null, updatedAt: new Date().toISOString() })
+      .eq('id', groupId)
+      .select(GROUP_SELECT)
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to restore group');
+    return { group: mapGroup(data) };
   },
 
   // One-off: ensure every group in a cohort has its tag created/adopted and its

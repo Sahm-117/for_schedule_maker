@@ -15,7 +15,7 @@ import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { followUpContactsApi, followUpIssuesApi, formRegistrationsApi, messageTemplatesApi, settingsApi } from '../services/api';
-import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, FollowUpStatus, MessageTemplate } from '../types';
+import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, FollowUpStatus, MessageTemplate, User } from '../types';
 import type { FormRegistration } from '../services/supabase-api';
 import {
   FOLLOW_UP_STATUS_META,
@@ -62,6 +62,11 @@ const shortDate = (value?: string | null) => {
 
 const SupportMobilisationPage: React.FC = () => {
   const { user } = useAuth();
+  if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
+  return <SupportMobilisationContent user={user} />;
+};
+
+const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const { cohorts, activeCohort, liveRevision } = useAppData();
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<MobTab>(searchParams.get('tab') === 'follow' ? 'follow' : 'register');
@@ -151,10 +156,6 @@ const SupportMobilisationPage: React.FC = () => {
     return issues.filter((issue) => issue.reportedById === user?.id || (issue.contactId ? contactIds.has(issue.contactId) : false));
   }, [contacts, issues, user?.id]);
   const unread = unreadIssueCount(visibleIssues);
-
-  if (user && user.role !== 'SUPPORT') {
-    return <Navigate to="/dashboard" replace />;
-  }
 
   const replaceContact = (updated: FollowUpContact) => {
     setContacts((prev) => sortByText(prev.map((c) => (c.id === updated.id ? updated : c)), (contact) => contact.fullName));

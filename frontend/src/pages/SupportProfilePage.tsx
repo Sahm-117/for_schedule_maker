@@ -15,14 +15,20 @@ import LabelChip from '../components/LabelChip';
 import PageHeader from '../components/PageHeader';
 import { useAppData } from '../context/AppDataContext';
 import { usersApi } from '../services/api';
-import type { Label } from '../types';
+import type { Label, User } from '../types';
 import NotificationSettings from '../components/NotificationSettings';
 import { useAuth } from '../hooks/useAuth';
 import Avatar from '../components/Avatar';
 import { applyTheme, DEFAULT_THEME } from '../utils/theme';
 
 const SupportProfilePage: React.FC = () => {
-  const { user, userLabelIds, userLabels, refreshUser } = useAuth();
+  const { user } = useAuth();
+  if (user?.role !== 'SUPPORT') return <Navigate to="/settings" replace />;
+  return <SupportProfileContent user={user} />;
+};
+
+const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
+  const { userLabelIds, userLabels, refreshUser } = useAuth();
   const [activityTags, setActivityTags] = useState<Label[]>([]);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
@@ -33,10 +39,6 @@ const SupportProfilePage: React.FC = () => {
   const [savingWhatsapp, setSavingWhatsapp] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { liveRevision, activeCohort } = useAppData();
-
-  if (user?.role !== 'SUPPORT') {
-    return <Navigate to="/settings" replace />;
-  }
 
   useEffect(() => {
     let cancelled = false;

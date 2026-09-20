@@ -187,6 +187,11 @@ const GroupPickerSheet: React.FC<GroupPickerSheetProps> = ({ participantName, cu
 
 const AdminAllocationPage: React.FC = () => {
   const { isAdmin } = useAuth();
+  if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  return <AdminAllocationContent />;
+};
+
+const AdminAllocationContent: React.FC = () => {
   const { activeCohort, liveRevision } = useAppData();
   const navigate = useNavigate();
 
@@ -207,8 +212,6 @@ const AdminAllocationPage: React.FC = () => {
     useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
     useSensor(KeyboardSensor)
   );
-
-  if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   const load = useCallback(async () => {
     if (!activeCohort) { setLoading(false); return; }

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { authApi, setAuthToken, clearAuthToken, usersApi, getSessionToken, SESSION_TOKEN_KEY } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { applyTheme } from '../utils/theme';
@@ -15,6 +15,7 @@ interface AuthContextType {
   userLabelIds: string[];
   userLabels: Label[];
   userCohortIds: string[];
+  refreshUserCohorts: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,7 +61,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const fetchUserCohorts = async (userId: string, role: string) => {
+  const fetchUserCohorts = useCallback(async (userId: string, role: string) => {
     if (role !== 'SUPPORT') {
       setUserCohortIds([]);
       return;
@@ -71,7 +72,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch {
       setUserCohortIds([]);
     }
-  };
+  }, []);
+
+  const refreshUserCohorts = useCallback(async () => {
+    if (!user) return;
+    await fetchUserCohorts(user.id, user.role);
+  }, [fetchUserCohorts, user]);
 
   const login = async (email: string, password: string) => {
     const response = await authApi.login(email, password);
@@ -255,6 +261,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     userLabelIds,
     userLabels,
     userCohortIds,
+    refreshUserCohorts,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

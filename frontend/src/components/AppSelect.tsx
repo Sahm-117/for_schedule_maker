@@ -213,11 +213,11 @@ const AppSelect: React.FC<AppSelectProps> = ({
                 <button
                   key={option.value}
                   type="button"
-                  onPointerDown={() => {
+                  onClick={() => {
                     onChange(option.value);
                     setSearchQuery('');
+                    setOpen(false);
                   }}
-                  onClick={() => setOpen(false)}
                   className={`flex w-full items-start justify-between rounded-2xl px-3 py-2.5 text-left transition ${
                     selected ? 'bg-orange-50 text-primary' : 'text-gray-700 hover:bg-gray-50'
                   }`}

@@ -60,6 +60,11 @@ const describeEvent = (event: OnboardingEvent) => {
 
 const AdminOnboardingPage: React.FC = () => {
   const { user } = useAuth();
+  if (!user || user.role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
+  return <AdminOnboardingContent user={user} />;
+};
+
+const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
   const { activeCohort } = useAppData();
   const [templateTab, setTemplateTab] = useState<TemplateTab>('ONBOARDING');
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -87,8 +92,6 @@ const AdminOnboardingPage: React.FC = () => {
   const [eventLimit, setEventLimit] = useState(10); // infinite scroll page size
   const [coordinatorOpen, setCoordinatorOpen] = useState(false); // settings modal
   const fileRef = useRef<HTMLInputElement>(null);
-
-  if (!user || user.role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
 
   const placeholderSummary = buildTemplatePlaceholderSummary(user);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
