@@ -108,7 +108,11 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
           <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#15803d]">Their login details</p>
           <p className="mt-[3px] text-[12.5px] text-gray-600">{subline}</p>
         </div>
-        <span className={`flex-none text-xs text-[#15803d] transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true">▾</span>
+        <span className={`inline-flex h-8 w-8 flex-none items-center justify-center text-[#15803d] transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true">
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 9-7 7-7-7" />
+          </svg>
+        </span>
       </button>
 
       {open && (
