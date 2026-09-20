@@ -3076,7 +3076,7 @@ export const followUpContactsApi = {
       fields.registrationStatus === 'REGISTERED' &&
       (current as any).registrationStatus !== 'REGISTERED'
     ) {
-      void participantsApi.upsertFromFollowUpContact(contact).catch(() => undefined);
+      await participantsApi.upsertFromFollowUpContact(contact);
     }
 
     return { contact };

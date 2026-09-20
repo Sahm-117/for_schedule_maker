@@ -32,7 +32,6 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [confirmNewCode, setConfirmNewCode] = useState(false);
-  const [addingParticipant, setAddingParticipant] = useState(false);
 
   const target = { participantId, followUpContactId };
 
@@ -45,6 +44,13 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
       // so when sending, wait briefly before calling it missing.
       for (let attempt = 0; options.issue && result.status === 'NO_PARTICIPANT' && attempt < 3; attempt += 1) {
         await new Promise((resolve) => setTimeout(resolve, 1200));
+        result = await participantAccountsApi.getLoginDetails(target, options);
+      }
+      // Registered always means Participant. Older registrations may predate that
+      // hand-off, so repair the record automatically rather than asking support to
+      // decide or perform a back-office task.
+      if (options.issue && result.status === 'NO_PARTICIPANT' && followUpContactId) {
+        await participantsApi.ensureFromFollowUpContact(followUpContactId);
         result = await participantAccountsApi.getLoginDetails(target, options);
       }
       setDetails(result);
@@ -84,20 +90,6 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setError('Could not copy. Select the message and copy it instead.');
-    }
-  };
-
-  const addToParticipants = async () => {
-    if (!followUpContactId) return;
-    setAddingParticipant(true);
-    setError('');
-    try {
-      await participantsApi.ensureFromFollowUpContact(followUpContactId);
-      await load({ issue: true });
-    } catch (err) {
-      setError(errorText(err));
-    } finally {
-      setAddingParticipant(false);
     }
   };
 
@@ -141,12 +133,7 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
             </>
           ) : details?.status === 'NO_PARTICIPANT' ? (
             <div className="rounded-[10px] bg-white p-3 text-[13px] leading-normal text-gray-600">
-              <p>This registration is missing its participant record, so there is no login to send yet.</p>
-              {followUpContactId && (
-                <button type="button" onClick={() => { void addToParticipants(); }} disabled={addingParticipant} className="mt-2.5 min-h-[40px] rounded-[10px] bg-primary px-3.5 text-[13px] font-semibold text-white disabled:opacity-60">
-                  {addingParticipant ? 'Adding…' : 'Add to Participants'}
-                </button>
-              )}
+              This registration is still being checked by the back office. There is no login to send yet.
             </div>
           ) : details?.status === 'ACTIVE' ? (
             <div className="rounded-[10px] border border-[#d9f2e2] bg-white p-3 text-[13px] leading-normal text-gray-700">
