@@ -131,9 +131,9 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
       setLoading(false);
       initialLoadRef.current = false;
     }
-  }, [user?.id, user?.name, liveRevision]);
+  }, [user?.id, user?.name]);
 
-  useEffect(() => { void loadAll(); }, [loadAll]);
+  useEffect(() => { void loadAll(); }, [liveRevision, loadAll]);
   useEffect(() => {
     const interval = setInterval(() => void loadAll(), 30000);
     return () => clearInterval(interval);

@@ -244,7 +244,7 @@ const AdminAllocationContent: React.FC = () => {
     return map;
   }, [groups, participants]);
 
-  const unassigned = byGroup.get(UNASSIGNED) ?? [];
+  const unassigned = useMemo(() => byGroup.get(UNASSIGNED) ?? [], [byGroup]);
   const filteredUnassigned = useMemo(() => {
     if (!search.trim()) return unassigned;
     const q = search.toLowerCase();

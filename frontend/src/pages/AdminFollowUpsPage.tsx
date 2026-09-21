@@ -141,11 +141,11 @@ const AdminFollowUpsPage: React.FC = () => {
       setLoading(false);
       initialLoadRef.current = false;
     }
-  }, [liveRevision]);
+  }, []);
 
   useEffect(() => {
     void loadAll();
-  }, [loadAll]);
+  }, [liveRevision, loadAll]);
 
   useEffect(() => {
     const interval = setInterval(() => void loadAll(), 30000);

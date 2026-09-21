@@ -451,7 +451,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const reloadWeeks = useCallback(async () => {
       await loadWeeksForCohort(activeCohort?.id, activeCohort);
-  }, [activeCohort?.id, loadWeeksForCohort]);
+  }, [activeCohort, loadWeeksForCohort]);
 
   const hasNewHubActivity = useMemo(() => {
     if (!latestHubActivityAt) return false;

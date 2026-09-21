@@ -9,15 +9,16 @@ import type { Announcement } from '../types';
 const AnnouncementsFeedPage: React.FC = () => {
   const { user, isAdmin, isSopPreparer, userCohortIds, userLabelIds } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
+  const userId = user?.id;
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     setLoading(true);
     announcementsApi.getHistory({
       cohortId: activeCohort?.id || null,
-      userId: user.id,
+      userId,
       isAdmin: isAdmin || isSopPreparer,
       accessibleCohortIds: userCohortIds,
         userLabelIds,
@@ -25,14 +26,14 @@ const AnnouncementsFeedPage: React.FC = () => {
       .then((res) => setAnnouncements(res.announcements))
       .catch(() => setAnnouncements([]))
       .finally(() => setLoading(false));
-  }, [activeCohort?.id, isAdmin, isSopPreparer, liveRevision, user?.id, userCohortIds, userLabelIds]);
+  }, [activeCohort?.id, isAdmin, isSopPreparer, liveRevision, userId, userCohortIds, userLabelIds]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     const interval = setInterval(() => {
       announcementsApi.getHistory({
         cohortId: activeCohort?.id || null,
-        userId: user.id,
+        userId,
         isAdmin: isAdmin || isSopPreparer,
         accessibleCohortIds: userCohortIds,
         userLabelIds,
@@ -41,7 +42,7 @@ const AnnouncementsFeedPage: React.FC = () => {
         .catch(() => {});
     }, 15000);
     return () => clearInterval(interval);
-  }, [activeCohort?.id, isAdmin, isSopPreparer, user?.id, userCohortIds, userLabelIds]);
+  }, [activeCohort?.id, isAdmin, isSopPreparer, userId, userCohortIds, userLabelIds]);
 
   if (!user) return null;
 

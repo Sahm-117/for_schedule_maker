@@ -128,11 +128,11 @@ const SupportFollowUpsPage: React.FC = () => {
       setLoading(false);
       initialLoadRef.current = false;
     }
-  }, [user?.id, liveRevision]);
+  }, [user?.id]);
 
   useEffect(() => {
     void loadAll();
-  }, [loadAll]);
+  }, [liveRevision, loadAll]);
 
   useEffect(() => {
     const interval = setInterval(() => void loadAll(), 30000);

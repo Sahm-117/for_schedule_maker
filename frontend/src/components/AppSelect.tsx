@@ -54,6 +54,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
       return label.includes(query) || meta.includes(query);
     });
   }, [options, searchQuery]);
+  const filteredOptionsHaveMeta = useMemo(() => filteredOptions.some((option) => !!option.meta), [filteredOptions]);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -94,8 +95,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
       const width = rect.width;
       // Options that carry a `meta` line render taller; estimate accordingly so
       // the flip-up math doesn't undershoot and let the menu bleed over the nav.
-      const hasMeta = filteredOptions.some((option) => !!option.meta);
-      const itemHeight = hasMeta ? 64 : 48;
+      const itemHeight = filteredOptionsHaveMeta ? 64 : 48;
       const searchHeight = searchable ? 58 : 0;
       const visibleItemCount = Math.max(1, Math.min(filteredOptions.length, 6));
       const margin = 12;
@@ -136,7 +136,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
-  }, [filteredOptions.length, open, options.length, searchable]);
+  }, [filteredOptions.length, filteredOptionsHaveMeta, open, searchable]);
 
   return (
     <div ref={rootRef} className={`relative ${open ? 'z-[90]' : 'z-10'} ${className}`}>

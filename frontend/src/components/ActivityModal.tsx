@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { activitiesApi, pendingChangesApi, labelsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import type { Day, Activity, Week, Label } from '../types';
@@ -81,7 +81,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
     ? weeks.filter((w) => w.weekNumber !== currentWeekNumber)
     : weeks;
 
-  const checkDuplicates = async () => {
+  const checkDuplicates = useCallback(async () => {
     if (!time || !description) return;
 
     try {
@@ -90,14 +90,14 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
     } catch (error) {
       console.error('Failed to check duplicates:', error);
     }
-  };
+  }, [day.dayName, description, time]);
 
   useEffect(() => {
     if (time && description) {
       const timer = setTimeout(checkDuplicates, 500);
       return () => clearTimeout(timer);
     }
-  }, [time, description, day.dayName]);
+  }, [checkDuplicates, description, time]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

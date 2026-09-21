@@ -40,6 +40,7 @@ const SupportParticipantsPage: React.FC = () => {
 
 const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const { activeCohort, weeks, liveRevision } = useAppData();
+  const activeCohortId = activeCohort?.id;
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [groupStatuses, setGroupStatuses] = useState<GroupOnboardingStatus[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -72,7 +73,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   );
 
   const load = useCallback(async () => {
-    if (!activeCohort || !user.id) {
+    if (!activeCohortId || !user.id) {
       setLoading(false);
       return;
     }
@@ -193,7 +194,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
     } finally {
       setLoading(false);
     }
-  }, [activeCohort?.id, user.id]);
+  }, [activeCohort, activeCohortId, user.id]);
 
   useEffect(() => {
     void load();
@@ -204,18 +205,18 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   // or the support returns to the app, without reopening every faith record to
   // realtime.
   useEffect(() => {
-    if (!activeCohort) return;
+    if (!activeCohortId) return;
     let cancelled = false;
     const refreshCategories = () => {
       if (document.visibilityState !== 'visible') return;
-      void faithProjectCategoriesApi.getAll(activeCohort.id)
+      void faithProjectCategoriesApi.getAll(activeCohortId)
         .then(({ categories }) => { if (!cancelled) setFaithProjectCategories(categories); })
         .catch(() => undefined);
     };
     refreshCategories();
     window.addEventListener('focus', refreshCategories);
     return () => { cancelled = true; window.removeEventListener('focus', refreshCategories); };
-  }, [activeCohort?.id, liveRevision]);
+  }, [activeCohortId, liveRevision]);
 
   useEffect(() => {
     if (cohortWeeks.length === 0) return;

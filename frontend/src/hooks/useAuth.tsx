@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [userLabels, setUserLabels] = useState<Label[]>([]);
   const [userCohortIds, setUserCohortIds] = useState<string[]>([]);
 
-  const fetchUserLabels = async (userId: string, role: string) => {
+  const fetchUserLabels = useCallback(async (userId: string, role: string) => {
     if (role !== 'SUPPORT') {
       setUserLabelIds([]);
       setUserLabels([]);
@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUserLabelIds([]);
       setUserLabels([]);
     }
-  };
+  }, []);
 
   const fetchUserCohorts = useCallback(async (userId: string, role: string) => {
     if (role !== 'SUPPORT') {
@@ -90,7 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     await fetchUserCohorts(response.user.id, response.user.role);
   };
 
-  const clearSession = () => {
+  const clearSession = useCallback(() => {
     const sessionToken = getSessionToken();
     if (sessionToken) void authApi.signOut(sessionToken).catch(() => undefined);
     clearAuthToken();
@@ -100,7 +100,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUserLabels([]);
     setUserCohortIds([]);
     applyTheme(null); // reset to default orange on logout
-  };
+  }, []);
 
   const logout = () => {
     clearSession();
@@ -109,7 +109,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Patch the current user in-place (e.g. after an avatar or theme change) so the
   // updated value propagates everywhere the global user is read, and persist it to
   // the cached session. Re-applies the theme in case themeColor changed.
-  const refreshUser = (patch?: Partial<User>) => {
+  const refreshUser = useCallback((patch?: Partial<User>) => {
     _setUser((prev) => {
       if (!prev) return prev;
       const next = patch ? { ...prev, ...patch } : prev;
@@ -117,9 +117,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       applyTheme(next.themeColor);
       return next;
     });
-  };
+  }, []);
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
       setLoading(false);
@@ -171,11 +171,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [clearSession, fetchUserCohorts, fetchUserLabels]);
 
   useEffect(() => {
     checkAuth();
-  }, []);
+  }, [checkAuth]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -248,7 +248,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       void supabaseClient.removeChannel?.(channel);
     };
-  }, [user?.id]);
+  }, [clearSession, user?.id]);
 
   const value: AuthContextType = {
     user,

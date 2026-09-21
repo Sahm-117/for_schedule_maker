@@ -95,6 +95,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
 
   const placeholderSummary = buildTemplatePlaceholderSummary(user);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const activeCohortId = activeCohort?.id;
 
   useEffect(() => {
     void (async () => {
@@ -112,11 +113,11 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
           return supports.find((entry) => !entry.isCoordinator)?.id ?? '';
         });
 
-        if (activeCohort) {
+        if (activeCohortId) {
           const [statusRes, participantStatusRes, eventRes] = await Promise.all([
-            groupOnboardingStatusApi.getForCohort(activeCohort.id),
-            participantOnboardingStatusApi.getForCohort(activeCohort.id),
-            onboardingEventsApi.getForCohort(activeCohort.id),
+            groupOnboardingStatusApi.getForCohort(activeCohortId),
+            participantOnboardingStatusApi.getForCohort(activeCohortId),
+            onboardingEventsApi.getForCohort(activeCohortId),
           ]);
           setStatuses(statusRes.statuses);
           setParticipantStatuses(participantStatusRes.statuses);
@@ -132,7 +133,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
         setLoading(false);
       }
     })();
-  }, [activeCohort?.id]);
+  }, [activeCohortId]);
 
   const filteredTemplates = useMemo(
     () => templates.filter((template) => template.category === templateTab),

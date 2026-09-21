@@ -61,7 +61,7 @@ const AdminGroupPrayersContent: React.FC = () => {
     return map;
   }, [statuses]);
 
-  const isDone = (groupId: string, weekId: number) => doneMap.get(`${groupId}:${weekId}`) === true;
+  const isDone = useCallback((groupId: string, weekId: number) => doneMap.get(`${groupId}:${weekId}`) === true, [doneMap]);
 
   const focusMap = useMemo(() => {
     const map = new Map<string, GroupPrayerFocus>();
@@ -95,7 +95,7 @@ const AdminGroupPrayersContent: React.FC = () => {
       done: groups.filter((g) => isDone(g.id, w.id)).length,
       total: groups.length,
     })),
-    [cohortWeeks, groups, doneMap]
+    [cohortWeeks, groups, isDone]
   );
 
   const groupOptions = useMemo(

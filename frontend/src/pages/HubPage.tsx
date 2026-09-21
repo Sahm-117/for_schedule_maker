@@ -350,10 +350,7 @@ const HubPage: React.FC = () => {
 
   useEffect(() => { void load(tab); }, [tab, load]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per Hub visit;
-  // markHubSeen's identity is unstable (depends on useAuth's unmemoized refreshUser),
-  // so including it in deps re-fires this every render and loops.
-  useEffect(() => { markHubSeen(); }, []);
+  useEffect(() => { markHubSeen(); }, [markHubSeen]);
 
   // Realtime: silently refresh the topic list on any HubTopic or HubComment change.
   // We refetch authoritative counts (rather than doing fragile +1/-1 math, which

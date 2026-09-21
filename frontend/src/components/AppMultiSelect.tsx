@@ -54,6 +54,7 @@ const AppMultiSelect: React.FC<AppMultiSelectProps> = ({
     if (!query) return options;
     return options.filter((option) => option.label.toLowerCase().includes(query));
   }, [options, searchQuery]);
+  const filteredOptionsHaveMeta = useMemo(() => filteredOptions.some((option) => !!option.meta), [filteredOptions]);
 
   const toggle = (value: string) => {
     if (disabled) return;
@@ -99,8 +100,7 @@ const AppMultiSelect: React.FC<AppMultiSelectProps> = ({
       const rect = rootRef.current?.getBoundingClientRect();
       if (!rect) return;
       const width = rect.width;
-      const hasMeta = filteredOptions.some((option) => !!option.meta);
-      const itemHeight = hasMeta ? 64 : 48;
+      const itemHeight = filteredOptionsHaveMeta ? 64 : 48;
       const searchHeight = searchable ? 58 : 0;
       const visibleItemCount = Math.max(1, Math.min(filteredOptions.length, 6));
       const margin = 12;
@@ -138,7 +138,7 @@ const AppMultiSelect: React.FC<AppMultiSelectProps> = ({
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
-  }, [filteredOptions.length, open, options.length, searchable]);
+  }, [filteredOptions.length, filteredOptionsHaveMeta, open, searchable]);
 
   return (
     <div ref={rootRef} className={`relative ${open ? 'z-[90]' : 'z-10'} ${className}`}>

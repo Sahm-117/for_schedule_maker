@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { weeksApi } from '../services/api';
 import { exportWeekToPDF } from '../utils/pdfExport';
@@ -52,7 +52,7 @@ const SopDownload: React.FC = () => {
     loadWeek();
   }, [requestedWeek]);
 
-  const handleDownload = async () => {
+  const handleDownload = useCallback(async () => {
     if (!week) return;
 
     setDownloading(true);
@@ -66,13 +66,13 @@ const SopDownload: React.FC = () => {
     } finally {
       setDownloading(false);
     }
-  };
+  }, [week]);
 
   useEffect(() => {
     if (loading || !week || autoAttempted) return;
     setAutoAttempted(true);
     void handleDownload();
-  }, [loading, week, autoAttempted]);
+  }, [autoAttempted, handleDownload, loading, week]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
