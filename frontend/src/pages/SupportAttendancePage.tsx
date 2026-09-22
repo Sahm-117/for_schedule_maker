@@ -51,6 +51,8 @@ const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
   const [weekResults, setWeekResults] = useState<AttendanceWeekResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Map<string, AttendanceStatus>>(new Map());
+  const [search, setSearch] = useState('');
+  const [selectedGroupId, setSelectedGroupId] = useState('');
 
   useEffect(() => {
     if (cohortWeeks.length === 0) return;
@@ -114,6 +116,25 @@ const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
     return { present: count('PRESENT'), absent: count('ABSENT'), late: count('LATE'), excused: count('EXCUSED') };
   }, [records]);
 
+  const groupOptions = useMemo(() => {
+    const names = new Map<string, string>();
+    participants.forEach((participant) => { if (participant.groupId && participant.groupName) names.set(participant.groupId, participant.groupName); });
+    return [
+      { value: '', label: 'All groups' },
+      ...Array.from(names, ([value, label]) => ({ value, label }))
+        .sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.label, b.label)),
+    ];
+  }, [participants]);
+
+  const visibleParticipants = useMemo(() => {
+    let ps = selectedGroupId ? participants.filter((p) => p.groupId === selectedGroupId) : participants;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
+    }
+    return ps;
+  }, [participants, selectedGroupId, search]);
+
   const mark = async (participant: Participant, status: AttendanceStatus) => {
     if (typeof selectedWeekId !== 'number' || finalised || saving.has(participant.id)) return;
     const previous = records.get(participant.id);
@@ -152,6 +173,10 @@ const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
               <div className="min-w-[10rem] flex-1 sm:max-w-xs"><AppSelect value={selectedWeekId === 'ALL' ? 'ALL' : selectedWeekId ? String(selectedWeekId) : ''} onChange={(value) => setSelectedWeekId(value === 'ALL' ? 'ALL' : Number(value))} options={[{ value: 'ALL', label: 'All weeks' }, ...cohortWeeks.map((week) => ({ value: String(week.id), label: `Week ${week.weekNumber}` }))]} placeholder="Choose week" compact /></div>
               {!allWeeks && <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${finalised ? 'bg-emerald-100 text-emerald-700' : allMarked ? 'bg-sky-100 text-sky-700' : 'bg-neutral-100 text-neutral-600'}`}>{finalised ? 'Report sent' : `${markedCount} of ${participants.length} marked`}</span>}
             </div>
+            {!allWeeks && participants.length > 0 && <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or phone…" className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:flex-1" />
+              {groupOptions.length > 1 && <div className="w-full sm:w-56"><AppSelect value={selectedGroupId} onChange={setSelectedGroupId} options={groupOptions} placeholder="All groups" compact /></div>}
+            </div>}
             {!allWeeks && finalised && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance report sent.</p>}
             {!allWeeks && !finalised && allMarked && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance taken.{activeSession.autoFinalizeAtNoon ? ' It will be sent automatically at noon on Sunday.' : ' Waiting for the admin to send the report.'}</p>}
           </section>
@@ -162,8 +187,10 @@ const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
           {!loading && <div className="mb-4 grid grid-cols-4 gap-2">{[
             ['Present', summary.present, 'bg-emerald-100 text-emerald-700'], ['Absent', summary.absent, 'bg-red-100 text-red-700'], ['Late', summary.late, 'bg-amber-100 text-amber-700'], ['Excused', summary.excused, 'bg-sky-100 text-sky-700'],
           ].map(([label, value, cls]) => <div key={String(label)} className={`rounded-xl px-2 py-2 text-center ${cls}`}><p className="text-[11px] font-semibold">{label}</p><p className="text-lg font-bold">{value}</p></div>)}</div>}
-          {loading ? <PageLoader /> : participants.length === 0 ? <p className="rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">No active participants in this cohort.</p> : (
-            <section className="rounded-[20px] border border-[#eef0f4] bg-white p-3 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]"><div className="flex flex-col gap-2">{participants.map((participant) => {
+          {loading ? <PageLoader /> : participants.length === 0 ? <p className="rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">No active participants in this cohort.</p> : visibleParticipants.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center"><p className="text-sm text-gray-500">No one matches.</p><button type="button" onClick={() => { setSearch(''); setSelectedGroupId(''); }} className="mt-2 rounded-full px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100">Clear</button></div>
+          ) : (
+            <section className="rounded-[20px] border border-[#eef0f4] bg-white p-3 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]"><div className="flex flex-col gap-2">{visibleParticipants.map((participant) => {
               const current = records.get(participant.id)?.status;
               const busy = saving.has(participant.id);
               return <div key={participant.id} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2.5 gap-y-2 rounded-[14px] border border-[#f1f2f5] px-3 py-2.5">
