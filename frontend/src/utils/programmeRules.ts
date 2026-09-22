@@ -8,7 +8,7 @@
 // - Completion: every class run and attended (threshold adjustable). Score 100%
 //   with every group meeting attended, 90% otherwise. Below it = retake FOF.
 // - Cohort success: enough participants completed (default 75%).
-// - Supports: each week they log Sunday attendance and the group meeting.
+// - Supports: each week they submit the group meeting report and mark attendance.
 //   1 unrecorded week = keep an eye on, 2 = needs attention. Their group must be
 //   fully onboarded within a week of being assigned.
 
@@ -170,7 +170,6 @@ export const sundayRecordCoverage = (evaluations: ParticipantEvaluation[], judge
 
 export interface SupportWeekRecord {
   weekNumber: number;
-  sundayMarked: boolean;
   reportSubmitted: boolean;
   meetingMarked: boolean;
   recorded: boolean;
@@ -207,7 +206,6 @@ export const evaluateSupports = (
     if (p.status !== 'ACTIVE' || !p.groupId) return;
     activeMembers.set(p.groupId, [...(activeMembers.get(p.groupId) ?? []), p.id]);
   });
-  const sundayKeys = new Set(people.sunday.map((r) => `${r.participantId}:${r.weekId}`));
   const meetingKeys = new Set(people.meeting.map((r) => `${r.participantId}:${r.weekId}`));
   const reportKeys = new Set(meetingReports.map((r) => `${r.groupId}:${r.weekId}`));
   const onboardingBy = new Map(people.onboarding.map((o) => [o.groupId, o]));
@@ -217,13 +215,12 @@ export const evaluateSupports = (
     .filter((g) => g.supportId && (activeMembers.get(g.id)?.length ?? 0) > 0)
     .map((g) => {
       const members = activeMembers.get(g.id) ?? [];
-      // A week counts as recorded when every member has a Sunday mark, the
-      // meeting report is in, and every member has a meeting mark.
+      // A week counts as recorded when the meeting report is in and every
+      // member has a meeting attendance mark.
       const weeks = [...judgedWeeks].sort((a, b) => a.weekNumber - b.weekNumber).map((w) => {
-        const sundayMarked = members.every((m) => sundayKeys.has(`${m}:${w.id}`));
         const reportSubmitted = reportKeys.has(`${g.id}:${w.id}`);
         const meetingMarked = members.every((m) => meetingKeys.has(`${m}:${w.id}`));
-        return { weekNumber: w.weekNumber, sundayMarked, reportSubmitted, meetingMarked, recorded: sundayMarked && reportSubmitted && meetingMarked };
+        return { weekNumber: w.weekNumber, reportSubmitted, meetingMarked, recorded: reportSubmitted && meetingMarked };
       });
       const missedWeeks = weeks.filter((w) => !w.recorded).map((w) => w.weekNumber);
 

@@ -17,7 +17,7 @@ const AdminApprovalsPage: React.FC = () => {
     <div>
       <PageHeader
         title="Approvals"
-        subtitle="Review schedule change requests. Cover requests are on the Supports page."
+        subtitle="Review schedule change requests."
       />
 
       <PendingChangesPanel

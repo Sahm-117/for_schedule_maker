@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate, NavLink, useLocation, useSearchParams } from 'react-router-dom';
-import CoverRequestsPanel from '../components/CoverRequestsPanel';
+import { Navigate, NavLink, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import {
   buildWeekStats,
@@ -24,9 +23,7 @@ import {
   type SupportWeekRecord,
 } from '../utils/programmeRules';
 
-// Supports at a glance, judged by the agreed minimums: each week they log Sunday
-// attendance, submit the group meeting report and mark everyone at the meeting;
-// and their group is fully onboarded within the allowed days. Cover requests live here too.
+// Supports are judged by their group meeting records and onboarding progress.
 
 const HEALTH_PILL: Record<PersonHealth, string> = {
   good: 'bg-emerald-100/80 text-emerald-700',
@@ -38,7 +35,6 @@ const SEVERITY: Record<PersonHealth, number> = { critical: 0, warning: 1, good: 
 type Filter = 'all' | PersonHealth;
 
 const weekParts = (w: SupportWeekRecord) => [
-  w.sundayMarked ? null : 'Sunday attendance',
   w.reportSubmitted ? null : 'meeting report',
   w.meetingMarked ? null : 'meeting attendance',
 ].filter(Boolean) as string[];
@@ -85,13 +81,6 @@ const AdminSupportsPage: React.FC = () => {
   }, [activeCohort?.id]);
 
   useEffect(() => { void load(); }, [load, liveRevision]);
-
-  // Links to cover requests (notifications, dashboard) land on that section.
-  const location = useLocation();
-  const loaded = !loading;
-  useEffect(() => {
-    if (loaded && location.hash === '#cover') document.getElementById('cover')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [loaded, location.hash]);
 
   const model = useMemo(() => {
     if (!health || !people || !rules || !activeCohort) return null;
@@ -141,7 +130,7 @@ const AdminSupportsPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader title="Supports" subtitle="Weekly records, onboarding and cover for every support." tourId="admin:supports" />
+      <PageHeader title="Supports" subtitle="Group meeting records and onboarding for every support." tourId="admin:supports" />
 
       {loading && !model ? (
         <div className="space-y-3" aria-busy="true">
@@ -158,7 +147,7 @@ const AdminSupportsPage: React.FC = () => {
         <div className="space-y-5">
           <section data-wt="supports-rules" className="surface-card p-4 sm:p-5">
             <p className="text-sm text-gray-600">
-              Each week a support logs Sunday attendance, submits the group meeting report and records meeting attendance for everyone.
+              Each week a support submits the group meeting report and records meeting attendance for everyone.
               {' '}{rules.supportAmberMissedWeeks} unrecorded week{rules.supportAmberMissedWeeks === 1 ? '' : 's'} = keep an eye on, {rules.supportRedMissedWeeks} = needs attention.
               {' '}Groups should be fully onboarded within {rules.onboardingMaxDays} days.
               {' '}<NavLink to="/settings" className="font-semibold text-primary">Change rules</NavLink>
@@ -231,9 +220,6 @@ const AdminSupportsPage: React.FC = () => {
             </section>
           )}
 
-          <div id="cover" data-wt="supports-cover">
-            <CoverRequestsPanel />
-          </div>
         </div>
       )}
     </div>
@@ -280,7 +266,7 @@ const SupportCard: React.FC<{
         <div className="mt-3 flex flex-wrap gap-1">
           {evaluation.weeks.map((w) => {
             const missing = weekParts(w);
-            const none = missing.length === 3;
+            const none = missing.length === 2;
             const label = w.recorded ? `Week ${w.weekNumber}: recorded` : `Week ${w.weekNumber}: missing ${missing.join(', ')}`;
             return (
               <span
@@ -322,7 +308,6 @@ const SupportCard: React.FC<{
             <thead className="text-gray-500">
               <tr>
                 <th className="py-1.5 pr-3 font-semibold">Week</th>
-                <th className="py-1.5 pr-3 font-semibold">Sunday attendance</th>
                 <th className="py-1.5 pr-3 font-semibold">Meeting report</th>
                 <th className="py-1.5 font-semibold">Meeting attendance</th>
               </tr>
@@ -335,7 +320,6 @@ const SupportCard: React.FC<{
                   <React.Fragment key={w.weekNumber}>
                     <tr className="border-t border-gray-100">
                       <td className="py-1.5 pr-3 font-semibold">{w.weekNumber}</td>
-                      <td className={`py-1.5 pr-3 ${w.sundayMarked ? 'text-emerald-700' : 'font-semibold text-red-700'}`}>{w.sundayMarked ? '✓ Done' : '× Missing'}</td>
                       <td className="py-1.5 pr-3">
                         <span className={w.reportSubmitted ? 'text-emerald-700' : 'font-semibold text-red-700'}>{w.reportSubmitted ? '✓ Done' : '× Missing'}</span>
                         {report ? (
@@ -355,7 +339,7 @@ const SupportCard: React.FC<{
                     </tr>
                     {showing && report && (
                       <tr className="border-t border-gray-100 bg-gray-50/70">
-                        <td colSpan={4} className="px-1 py-2.5">
+                        <td colSpan={3} className="px-1 py-2.5">
                           <p className="whitespace-pre-line text-[13px] leading-normal text-gray-800">{report.body}</p>
                           <p className="mt-1.5 text-[11px] text-gray-500">
                             {report.authorName || 'A support'} · {new Date(report.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}

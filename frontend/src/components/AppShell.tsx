@@ -39,6 +39,12 @@ const IconBox: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <span className="grid h-5 w-5 place-items-center">{children}</span>
 );
 
+const BrandMark: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <span className={`relative block h-12 w-[52px] overflow-hidden ${className}`}>
+    <img src="/logo-full.png" alt="" className="absolute left-0 top-0 h-12 w-auto max-w-none" />
+  </span>
+);
+
 const ICONS = {
   dashboard: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-18v7h6V2h-6z" /></svg></IconBox>,
   schedule: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></IconBox>,
@@ -126,6 +132,7 @@ const supportNav: NavItem[] = [
   { to: '/support/mobilisation', label: 'Mobilisation', icon: ICONS.mobilisation },
   { to: '/support/schedule', label: 'My Schedule', mobileLabel: 'Schedule', icon: ICONS.schedule },
   { to: '/support/participants', label: 'My Group', mobileLabel: 'Group', icon: ICONS.participants },
+  { to: '/support/attendance', label: 'Attendance', icon: ICONS.attendance, mobileMore: true },
   { to: '/support/onboarding', label: 'Onboard', icon: ICONS.onboarding, mobileMore: true },
   { to: '/support/hub', label: 'Hub', icon: ICONS.hub, mobileMore: true },
   { to: '/support/resources', label: 'Resources', icon: ICONS.resources, mobileMore: true },
@@ -326,11 +333,10 @@ const AppShell: React.FC = () => {
             tabIndex={0}
             onClick={() => navigate(isSupport ? '/support' : '/dashboard')}
             onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigate(isSupport ? '/support' : '/dashboard'); } }}
+            aria-label="FOF Ops home"
             className="flex items-center gap-3 text-left cursor-pointer"
           >
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-primary to-orange-600 text-lg font-bold text-white shadow-lg shadow-orange-200">
-              F
-            </div>
+            <BrandMark />
             <div>
               <p className="text-base font-bold text-gray-900">FOF Ops</p>
               <button
@@ -397,15 +403,18 @@ const AppShell: React.FC = () => {
           <button type="button" className="absolute inset-0 bg-slate-900/45" onClick={() => setOpen(false)} />
           <div className="surface-card relative m-4 flex w-80 flex-col overflow-hidden">
             <div className="flex items-center justify-between border-b border-orange-100 px-5 py-5">
-            <div>
-              <p className="text-base font-bold text-gray-900">FOF Ops</p>
-              <button
-                type="button"
-                onClick={() => { window.location.reload(); setOpen(false); }}
-                className="text-xs text-gray-400 hover:text-primary transition-colors"
-              >
-                ↻ Refresh
-              </button>
+            <div className="flex items-center gap-2">
+              <BrandMark className="h-10 w-[44px] [&>img]:h-10" />
+              <div>
+                <p className="text-base font-bold text-gray-900">FOF Ops</p>
+                <button
+                  type="button"
+                  onClick={() => { window.location.reload(); setOpen(false); }}
+                  className="text-xs text-gray-400 hover:text-primary transition-colors"
+                >
+                  ↻ Refresh
+                </button>
+              </div>
             </div>
               <button type="button" onClick={() => setOpen(false)} className="rounded-xl p-2 text-gray-400 hover:bg-orange-50 hover:text-gray-700">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18 18 6M6 6l12 12" /></svg>

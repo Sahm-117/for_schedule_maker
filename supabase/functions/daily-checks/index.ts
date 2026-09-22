@@ -135,21 +135,7 @@ Deno.serve(async (req) => {
           }
         }
 
-        // 3. Sunday class attendance unmarked from Monday
-        if (dayOfWeek >= 1 && participantIds.length > 0) {
-          const { data: marks } = await supabase
-            .from('AttendanceRecord').select('participantId').eq('weekId', weekRow.id).in('participantId', participantIds)
-          const markedCount = new Set((marks ?? []).map((m: any) => m.participantId)).size
-          if (markedCount < participantIds.length) {
-            add({
-              userId: group.supportId,
-              title: 'Sunday attendance not marked',
-              body: `${markedCount} of ${participantIds.length} marked for ${group.name} in Week ${weekRow.weekNumber}.`,
-              path: '/support/participants?tab=sunday',
-              type: 'REMINDER',
-            })
-          }
-        }
+        // Sunday attendance is a shared cohort register, not a group duty.
       }
     }
 
@@ -279,7 +265,6 @@ Deno.serve(async (req) => {
 
         const missed = judgedWeeks.map((w) => {
           const parts = [
-            members.every((m: string) => sundayKeys.has(`${m}:${w.id}`)) ? null : 'Sunday attendance',
             reportKeys.has(`${group.id}:${w.id}`) ? null : 'meeting report',
             members.every((m: string) => meetingKeys.has(`${m}:${w.id}`)) ? null : 'meeting attendance',
           ].filter(Boolean) as string[]

@@ -20,6 +20,15 @@ export const formatMeetingSlot = (day?: string | null, time?: string | null, dur
   return durationMins ? `${base} · ${durationMins} minutes` : base;
 };
 
+const formatMeetingTime = (day?: string | null, time?: string | null): string | null => {
+  if (!day || !time) return null;
+  const [h, m] = time.split(':').map(Number);
+  const dayLabel = day.charAt(0) + day.slice(1).toLowerCase();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${dayLabel} · ${displayH}:${String(m).padStart(2, '0')} ${ampm}`;
+};
+
 interface GroupCallCardProps {
   group: Group | null;
   // Shown until the group has its own link (older groups used the support's WhatsApp group link).
@@ -38,7 +47,7 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
   const hasSetup = !!callLink && !!savedSlot.meetingDay && !!savedSlot.meetingTime;
   const savedPlatform: GroupCallPlatform = group?.callPlatform ?? platformFromLink(callLink) ?? 'WHATSAPP';
 
-  const [editing, setEditing] = useState(!hasSetup);
+  const [editing, setEditing] = useState(false);
   const [platform, setPlatform] = useState<GroupCallPlatform>(savedPlatform);
   const [linkDraft, setLinkDraft] = useState(callLink ?? '');
   const [slotDraft, setSlotDraft] = useState<MeetingSlot>(savedSlot);
@@ -87,12 +96,11 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
     }
   };
 
-  const slotText = formatMeetingSlot(savedSlot.meetingDay, savedSlot.meetingTime, savedSlot.meetingDurationMins);
+  const meetingTime = formatMeetingTime(savedSlot.meetingDay, savedSlot.meetingTime);
 
   return (
     <section className="rounded-[20px] border border-[#ffdeca] bg-white p-[18px] shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-      <h2 className="text-base font-bold text-gray-900">{hasSetup ? 'Group meeting' : 'Set up group meeting'}</h2>
-      <p className="mt-0.5 text-[13px] text-gray-500">{hasSetup ? 'Your group’s weekly call and meeting time.' : 'Add the group call link and weekly meeting time.'}</p>
+      {editing && <h2 className="text-base font-bold text-gray-900">Meeting setup</h2>}
 
       {editing ? (
         <div className="mt-4 flex flex-col gap-3.5">
@@ -131,18 +139,18 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
             </button>
           </div>
         </div>
-      ) : (
-        <div className="mt-4 flex items-center gap-2.5 rounded-2xl border border-[#ffdeca] bg-[#fff8f3] p-3.5">
+      ) : !hasSetup ? <button type="button" onClick={startEditing} className="min-h-11 text-sm font-semibold text-primary">Set up meeting</button> : (
+        <div className="flex items-center gap-3">
           <div className="min-w-0 flex-auto overflow-hidden">
-            <p className="text-sm font-bold text-gray-900">{slotText ? `Every ${slotText}` : 'Meeting time not set'}</p>
-            <p className="mt-px text-[13px] text-gray-500">{slotText ? 'Your group meets at this time each week.' : 'Set when your group meets.'}</p>
+            <p className="truncate text-sm font-bold text-gray-900">{meetingTime ?? 'Meeting time not set'}</p>
+            {savedSlot.meetingDurationMins && <p className="mt-0.5 text-xs text-gray-500">{savedSlot.meetingDurationMins} min</p>}
           </div>
-          <div className="flex flex-none gap-2">
+          <div className="flex flex-none items-center gap-2">
             <a
               href={callLink ?? '#'}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex min-h-10 items-center justify-center rounded-[10px] bg-primary px-3 text-sm font-semibold text-white"
+              className="inline-flex h-11 min-h-11 shrink-0 items-center justify-center rounded-[10px] bg-primary px-3.5 py-0 text-sm font-semibold leading-none text-white"
             >
               Join Call
             </a>
@@ -151,7 +159,7 @@ const GroupCallCard: React.FC<GroupCallCardProps> = ({ group, fallbackLink, onGr
               onClick={startEditing}
               aria-label="Edit group meeting"
               title="Edit group meeting"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-gray-200 bg-white text-gray-600 hover:text-gray-900"
+              className="inline-flex h-11 min-h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-gray-200 bg-white p-0 leading-none text-gray-600 hover:text-gray-900"
             >
               <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Z" /></svg>
             </button>

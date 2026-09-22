@@ -6,10 +6,9 @@ import { useLocation } from 'react-router-dom';
  * left, so a long list dropped you halfway down the new screen. Every route
  * change now starts at the top.
  *
- * The one exception is a link that names a section (`/supports#cover`): that
- * navigation is asking for a specific part of the page, and the page scrolls
- * itself there. Query-string changes (tab switches, filters) are not route
- * changes for this purpose — they keep you where you are.
+ * Routes may opt into a named section by handling their own hash after load.
+ * Query-string changes (tab switches, filters) are not route changes for this
+ * purpose — they keep you where you are.
  */
 const ScrollToTop: React.FC = () => {
   const { pathname, hash } = useLocation();

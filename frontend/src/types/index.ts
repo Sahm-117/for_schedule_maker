@@ -175,6 +175,7 @@ export type NotificationType =
   | 'FAITH_PROJECT_REVIEW'
   | 'FAITH_PROJECT_SUBMITTED'
   | 'GROUP_MEETING_COMPLETED'
+  | 'ATTENDANCE_REPORT'
   | 'PARTICIPANT_FLAG'
   | 'COVER_REQUEST'
   | 'HUB'
@@ -439,7 +440,7 @@ export interface OnboardingEvent {
 
 // ── Attendance ────────────────────────────────────────────────────────────────
 
-export type AttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT';
+export type AttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT' | 'EXCUSED';
 
 export interface AttendanceRecord {
   id: string;
@@ -449,6 +450,31 @@ export interface AttendanceRecord {
   status: AttendanceStatus;
   markedById?: string | null;
   markedAt?: string;
+}
+
+export interface AttendanceSession {
+  weekId: number;
+  autoFinalizeAtNoon: boolean;
+  finalizedAt?: string | null;
+  finalizedById?: string | null;
+  finalizationMethod?: 'MANUAL' | 'AUTO' | null;
+  reopenedAt?: string | null;
+}
+
+export type AttendanceFollowUpTaskStatus = 'OPEN' | 'DONE' | 'CANCELLED';
+
+export interface AttendanceFollowUpTask {
+  id: string;
+  attendanceRecordId: string;
+  participantId: string;
+  participantName?: string | null;
+  weekId: number;
+  supportId: string;
+  supportName?: string | null;
+  dueAt: string;
+  status: AttendanceFollowUpTaskStatus;
+  completedAt?: string | null;
+  completionNote?: string | null;
 }
 
 export type MeetingAttendanceStatus = 'JOINED' | 'EXCUSED' | 'MISSED';

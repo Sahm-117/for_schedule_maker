@@ -140,7 +140,7 @@ const SundayClassPanel: React.FC<SundayClassPanelProps> = ({
     const label = STATUS_BUTTONS.find((entry) => entry.status === status)?.label ?? status;
     setSaving((prev) => new Map(prev).set(participantId, status));
     try {
-      const { record } = await attendanceApi.mark(participantId, weekId, status, markedById ?? supportId);
+      const { record } = await attendanceApi.mark(participantId, weekId, status);
       setRecords((prev) => {
         const next = new Map(prev).set(participantId, record);
         setMarkedByWeek((counts) => new Map(counts).set(weekId, next.size));

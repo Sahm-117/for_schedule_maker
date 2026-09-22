@@ -26,6 +26,8 @@ const resolvePath = (n: Notification, isSupport: boolean): string | null => {
       return n.path ?? '/faith-projects';
     case 'GROUP_MEETING_COMPLETED':
       return '/group-prayers';
+    case 'ATTENDANCE_REPORT':
+      return isSupport ? '/schedule' : '/attendance';
     default:
       return n.path ?? null;
   }

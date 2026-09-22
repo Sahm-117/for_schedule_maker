@@ -16,6 +16,7 @@ import {
 import {
   buildDashboardModel,
   statusForRate,
+  statusForRegister,
   worstStatus,
   type AttentionItem,
   type CohortHealthPayload,
@@ -207,7 +208,7 @@ const AdminDashboardPage: React.FC = () => {
             <div data-wt="dash-trend" className="grid gap-5 xl:grid-cols-2">
               <section className="surface-card min-w-0 p-5 sm:p-6">
                 <h3 className="text-base font-semibold text-gray-900">{model.mode === 'completed' ? 'How the cohort went' : 'Cohort trend'}</h3>
-                <p className="mb-4 text-xs text-gray-500">Share of groups each week. {model.mode === 'running' ? 'The current week is left out until it ends.' : ''}</p>
+                <p className="mb-4 text-xs text-gray-500">Attendance marked · meeting reports submitted. Completed weeks only.</p>
                 {model.judged.length === 0 ? (
                   <p className="rounded-2xl bg-gray-50 px-4 py-10 text-center text-sm text-gray-500">The trend starts once Week 1 is over.</p>
                 ) : (
@@ -227,7 +228,6 @@ const AdminDashboardPage: React.FC = () => {
             supports={supports}
             completions={completions}
             pendingApprovals={globalPendingChanges.length}
-            pendingCover={health.pendingCover}
             announcement={announcements[0] ?? null}
             isAdmin={isAdmin}
           />
@@ -281,7 +281,7 @@ const CohortStrip: React.FC<{ health: CohortHealthPayload; model: DashboardModel
     heading = `Week ${model.currentWeek} of ${total}${end ? ` · ends ${end}` : ''}`;
     progress = total ? model.currentWeek / total : 0;
     overall = model.lastJudged
-      ? worstStatus([statusForRate(model.lastJudged.recordingRate), statusForRate(model.lastJudged.meetingRate)])
+      ? worstStatus([statusForRegister(model.lastJudged.recordingRate), statusForRate(model.lastJudged.meetingRate)])
       : 'neutral';
   }
 
@@ -313,15 +313,16 @@ const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel 
     (acc, s) => ({
       marked: acc.marked + s.marked,
       attended: acc.attended + s.attended,
-      recorded: acc.recorded + s.recordedGroups,
+      recorded: acc.recorded + s.marked,
+      expected: acc.expected + s.expected,
       reports: acc.reports + s.meetingsSubmitted,
       slots: acc.slots + s.groupsWithMembers,
     }),
-    { marked: 0, attended: 0, recorded: 0, reports: 0, slots: 0 },
+    { marked: 0, attended: 0, recorded: 0, expected: 0, reports: 0, slots: 0 },
   );
 
   const sundayRate = completed ? (pooled.marked ? pooled.attended / pooled.marked : null) : last?.attendanceRate ?? null;
-  const recordingRate = completed ? (pooled.slots ? pooled.recorded / pooled.slots : null) : last?.recordingRate ?? null;
+  const recordingRate = completed ? (pooled.expected && model.judgedStats.every((s) => s.recordingRate !== null) ? pooled.marked / pooled.expected : null) : last?.recordingRate ?? null;
   const meetingRate = completed ? (pooled.slots ? pooled.reports / pooled.slots : null) : last?.meetingRate ?? null;
 
   const faith = model.faith;
@@ -334,17 +335,17 @@ const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel 
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <ParticipantsTile health={health} model={model} />
       <VitalTile
-        title="Sunday class"
-        status={statusForRate(recordingRate)}
-        statusLabel={recordingRate === null ? 'No weeks yet' : undefined}
-        value={sundayRate === null ? '–' : `${pct(sundayRate)}%`}
-        unit="present"
+        title="Class attendance"
+        status={statusForRegister(recordingRate)}
+        statusLabel={recordingRate === null ? 'No data yet' : recordingRate === 1 ? 'Fully marked' : 'Incomplete register'}
+        value={recordingRate === null ? '–' : completed ? `${pooled.marked}/${pooled.expected}` : `${last?.marked}/${last?.expected}`}
+        unit="marked"
         detail={completed
-          ? `Recorded in ${pct(recordingRate)}% of group-weeks`
-          : last ? `Week ${last.weekNumber}: ${last.recordedGroups} of ${last.groupsWithMembers} groups recorded` : 'Starts after Week 1'}
+          ? `${pct(sundayRate)}% attended among marked records`
+          : last ? `Week ${last.weekNumber} · ${last.marked ? `${last.attended} present or late` : 'Attendance not recorded'}` : 'No completed weeks yet'}
         to="/attendance"
       >
-        <Sparkline values={recordingSeries} color={SUNDAY_COLOR} label="Groups recording attendance, week by week" />
+        <Sparkline values={recordingSeries} color={SUNDAY_COLOR} label="Share of participants marked each week" />
       </VitalTile>
       <VitalTile
         title="Group meetings"
@@ -515,10 +516,9 @@ const OperationsRow: React.FC<{
   supports: User[];
   completions: SupportActivityCompletion[];
   pendingApprovals: number;
-  pendingCover: number;
   announcement: Announcement | null;
   isAdmin: boolean;
-}> = ({ todayLabel, activities, supports, completions, pendingApprovals, pendingCover, announcement, isAdmin }) => {
+}> = ({ todayLabel, activities, supports, completions, pendingApprovals, announcement, isAdmin }) => {
   const doneFor = (activityId: number, labelIds: Set<string>) => {
     const assigned = supports.filter((member) => member.labels?.some((label) => labelIds.has(label.id)));
     const doneIds = new Set(completions.filter((c) => c.activityId === activityId).map((c) => c.userId));
@@ -557,7 +557,6 @@ const OperationsRow: React.FC<{
           )}
         </div>
         <OpsStat title="Schedule approvals" value={pendingApprovals} empty="Nothing to approve" to="/approvals" />
-        <OpsStat title="Cover requests" value={pendingCover} empty="No one needs cover" to="/supports#cover" />
         <NavLink to={isAdmin ? '/announcements' : '/team-announcements'} className="surface-card block p-4 transition hover:-translate-y-0.5">
           <p className="text-sm font-semibold text-gray-900">Latest announcement</p>
           {announcement ? (

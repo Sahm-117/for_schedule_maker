@@ -4673,7 +4673,26 @@ const mapAttendance = (row: any): import('../types').AttendanceRecord => ({
   markedAt: row.markedAt,
 });
 
+const mapAttendanceSession = (row: any): import('../types').AttendanceSession => ({
+  weekId: row.weekId,
+  autoFinalizeAtNoon: row.autoFinalizeAtNoon ?? true,
+  finalizedAt: row.finalizedAt ?? null,
+  finalizedById: row.finalizedById ?? null,
+  finalizationMethod: row.finalizationMethod ?? null,
+  reopenedAt: row.reopenedAt ?? null,
+});
+
 export const attendanceApi = {
+  async getSession(weekId: number): Promise<{ session: import('../types').AttendanceSession | null }> {
+    const { data, error } = await supabase
+      .from('AttendanceSession')
+      .select('*')
+      .eq('weekId', weekId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return { session: data ? mapAttendanceSession(data) : null };
+  },
+
   async getForWeek(options: { weekId: number; supportId?: string }): Promise<{ records: import('../types').AttendanceRecord[] }> {
     let query = supabase
       .from('AttendanceRecord')
@@ -4710,35 +4729,89 @@ export const attendanceApi = {
     return { records: ((data as any[]) || []).map(mapAttendance) };
   },
 
-  async mark(participantId: string, weekId: number, status: import('../types').AttendanceStatus, markedById?: string): Promise<{ record: import('../types').AttendanceRecord }> {
-    const { data, error } = await supabase
-      .from('AttendanceRecord')
-      .upsert(
-        { participantId, weekId, status, markedById: markedById ?? null, markedAt: new Date().toISOString() },
-        { onConflict: 'participantId,weekId' }
-      )
-      .select(ATTENDANCE_SELECT)
-      .single();
-
+  async mark(participantId: string, weekId: number, status: import('../types').AttendanceStatus): Promise<{ record: import('../types').AttendanceRecord }> {
+    const { data, error } = await supabase.rpc('mark_shared_attendance', {
+      p_participant_id: participantId,
+      p_week_id: weekId,
+      p_status: status,
+    });
     if (error || !data) throw new Error(error?.message || 'Failed to mark attendance');
     return { record: mapAttendance(data) };
   },
 
-  async bulkMark(entries: Array<{ participantId: string; weekId: number; status: import('../types').AttendanceStatus }>, markedById?: string): Promise<{ records: import('../types').AttendanceRecord[] }> {
+  async bulkMark(entries: Array<{ participantId: string; weekId: number; status: import('../types').AttendanceStatus }>): Promise<{ records: import('../types').AttendanceRecord[] }> {
     if (entries.length === 0) return { records: [] };
-    const rows = entries.map((e) => ({
-      ...e,
-      markedById: markedById ?? null,
-      markedAt: new Date().toISOString(),
-    }));
+    const records = await Promise.all(entries.map((entry) => this.mark(entry.participantId, entry.weekId, entry.status).then((result) => result.record)));
+    return { records };
+  },
 
+  async finalize(weekId: number): Promise<{ session: import('../types').AttendanceSession }> {
+    const { data, error } = await supabase.rpc('finalize_shared_attendance', { p_week_id: weekId });
+    if (error || !data) throw new Error(error?.message || 'Failed to finalise attendance');
+    return { session: mapAttendanceSession(data) };
+  },
+
+  async setAutoFinalize(weekId: number, enabled: boolean): Promise<{ session: import('../types').AttendanceSession }> {
+    const { data, error } = await supabase.rpc('set_attendance_auto_finalize', { p_week_id: weekId, p_enabled: enabled });
+    if (error || !data) throw new Error(error?.message || 'Failed to update automatic finalisation');
+    return { session: mapAttendanceSession(data) };
+  },
+
+  async reopen(weekId: number): Promise<{ session: import('../types').AttendanceSession }> {
+    const { data, error } = await supabase.rpc('reopen_shared_attendance', { p_week_id: weekId });
+    if (error || !data) throw new Error(error?.message || 'Failed to reopen attendance');
+    return { session: mapAttendanceSession(data) };
+  },
+};
+
+const ATTENDANCE_FOLLOW_UP_TASK_SELECT = '*, participant:Participant(id, fullName), support:User!AttendanceFollowUpTask_supportId_fkey(id, name)';
+
+const mapAttendanceFollowUpTask = (row: any): import('../types').AttendanceFollowUpTask => ({
+  id: row.id,
+  attendanceRecordId: row.attendanceRecordId,
+  participantId: row.participantId,
+  participantName: row.participant?.fullName ?? null,
+  weekId: row.weekId,
+  supportId: row.supportId,
+  supportName: row.support?.name ?? null,
+  dueAt: row.dueAt,
+  status: row.status,
+  completedAt: row.completedAt ?? null,
+  completionNote: row.completionNote ?? null,
+});
+
+export const attendanceFollowUpTasksApi = {
+  async getForWeek(weekId: number): Promise<{ tasks: import('../types').AttendanceFollowUpTask[] }> {
     const { data, error } = await supabase
-      .from('AttendanceRecord')
-      .upsert(rows, { onConflict: 'participantId,weekId' })
-      .select(ATTENDANCE_SELECT);
-
+      .from('AttendanceFollowUpTask')
+      .select(ATTENDANCE_FOLLOW_UP_TASK_SELECT)
+      .eq('weekId', weekId)
+      .neq('status', 'CANCELLED')
+      .order('dueAt');
     if (error) throw new Error(error.message);
-    return { records: ((data as any[]) || []).map(mapAttendance) };
+    return { tasks: ((data as any[]) || []).map(mapAttendanceFollowUpTask) };
+  },
+
+  async getMine(weekId: number, supportId: string): Promise<{ tasks: import('../types').AttendanceFollowUpTask[] }> {
+    const { data, error } = await supabase
+      .from('AttendanceFollowUpTask')
+      .select(ATTENDANCE_FOLLOW_UP_TASK_SELECT)
+      .eq('weekId', weekId)
+      .eq('supportId', supportId)
+      .neq('status', 'CANCELLED')
+      .order('dueAt');
+    if (error) throw new Error(error.message);
+    return { tasks: ((data as any[]) || []).map(mapAttendanceFollowUpTask) };
+  },
+
+  async setDone(taskId: string, done: boolean, completionNote?: string): Promise<{ task: import('../types').AttendanceFollowUpTask }> {
+    const { data, error } = await supabase.rpc('complete_attendance_follow_up_task', {
+      p_task_id: taskId,
+      p_done: done,
+      p_note: completionNote ?? null,
+    });
+    if (error || !data) throw new Error(error?.message || 'Could not update the attendance follow-up');
+    return { task: mapAttendanceFollowUpTask(data) };
   },
 };
 
@@ -5480,19 +5553,14 @@ const mapChecklistItem = (row: any): import('../types').SupportChecklistItem => 
 });
 
 export const supportChecklistApi = {
-  // Returns the support's items for the week, creating the default duties the first time.
-  async getForWeek(userId: string, weekId: number, defaultLabels: string[] = []): Promise<{ items: import('../types').SupportChecklistItem[] }> {
+  // Returns only the support's own checklist entries for this week.
+  async getForWeek(userId: string, weekId: number): Promise<{ items: import('../types').SupportChecklistItem[] }> {
     const load = async () => {
       const { data, error } = await supabase.from('SupportChecklistItem').select('*')
         .eq('userId', userId).eq('weekId', weekId).order('position').order('createdAt');
       if (error) throw new Error(error.message);
       return ((data as any[]) || []).map(mapChecklistItem);
     };
-    const existing = await load();
-    if (existing.length > 0 || defaultLabels.length === 0) return { items: existing };
-    const rows = defaultLabels.map((label, index) => ({ userId, weekId, label, position: index }));
-    const { error } = await supabase.from('SupportChecklistItem').upsert(rows, { onConflict: 'userId,weekId,label', ignoreDuplicates: true });
-    if (error) throw new Error(error.message);
     return { items: await load() };
   },
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { usersApi, authApi, labelsApi } from '../services/api';
 import type { User, Label } from '../types';
 import AppSelect from './AppSelect';
@@ -46,6 +47,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [resetPasswordValue, setResetPasswordValue] = useState('');
   const [resetPasswordSaving, setResetPasswordSaving] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | User['role']>('ALL');
 
@@ -314,6 +316,32 @@ const UserManagement: React.FC<UserManagementProps> = ({
     </span>
   );
 
+  const toggleUserMenu = (userId: string, anchor: HTMLElement) => {
+    if (openMenuId === userId) {
+      setOpenMenuId(null);
+      return;
+    }
+    const rect = anchor.getBoundingClientRect();
+    setMenuPosition({
+      top: Math.min(rect.bottom + 8, window.innerHeight - 220),
+      left: Math.max(12, Math.min(rect.right - 176, window.innerWidth - 188)),
+    });
+    setOpenMenuId(userId);
+  };
+
+  const renderUserMenu = (user: User) => openMenuId === user.id && createPortal(
+    <>
+      <button type="button" aria-label="Close user actions" className="fixed inset-0 z-[90] cursor-default" onClick={() => setOpenMenuId(null)} />
+      <div className="fixed z-[100] w-44 rounded-2xl border border-gray-200 bg-white py-1 shadow-xl" style={menuPosition} role="menu">
+        <button onClick={() => { openUserDetails(user); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-gray-50" role="menuitem">Manage</button>
+        <button onClick={() => { setResetPasswordUserId(user.id); setResetPasswordValue(''); setError(''); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-orange-500 hover:bg-gray-50" role="menuitem">Reset password</button>
+        <button onClick={() => { void handleActivationChange(user); setOpenMenuId(null); }} disabled={loading || (user.isActive !== false && user.id === currentUser?.id)} className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">{user.isActive === false ? 'Reactivate' : 'Deactivate'}</button>
+        <button onClick={() => { void handlePermanentDeleteUser(user); setOpenMenuId(null); }} disabled={loading || user.id === currentUser?.id} className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">Permanent delete</button>
+      </div>
+    </>,
+    document.body,
+  );
+
   const renderCreateForm = () => (
     <div className={showUserList ? 'mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4' : ''}>
       {showUserList && <h4 className="mb-3 text-md font-medium">Add New User</h4>}
@@ -520,45 +548,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
                               compact
                             />
                           </div>
-                          <div className="relative">
+                          <div>
                             <button
-                              onClick={() => setOpenMenuId(openMenuId === user.id ? null : user.id)}
+                              onClick={(event) => toggleUserMenu(user.id, event.currentTarget)}
                               className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
                             >
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7h16M4 12h16M4 17h16" />
                               </svg>
                             </button>
-                            {openMenuId === user.id && (
-                              <div className="absolute right-0 top-8 z-20 w-40 bg-white border border-gray-200 rounded-xl shadow-lg py-1">
-                                <button
-                                  onClick={() => { openUserDetails(user); setOpenMenuId(null); }}
-                                  className="w-full text-left px-4 py-2.5 text-sm text-blue-600 hover:bg-gray-50"
-                                >
-                                  Manage
-                                </button>
-                                <button
-                                  onClick={() => { setResetPasswordUserId(user.id); setResetPasswordValue(''); setError(''); setOpenMenuId(null); }}
-                                  className="w-full text-left px-4 py-2.5 text-sm text-orange-500 hover:bg-gray-50"
-                                >
-                                  Reset password
-                                </button>
-                                <button
-                                  onClick={() => { void handleActivationChange(user); setOpenMenuId(null); }}
-                                  disabled={loading || (user.isActive !== false && user.id === currentUser?.id)}
-                                  className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  {user.isActive === false ? 'Reactivate' : 'Deactivate'}
-                                </button>
-                                <button
-                                  onClick={() => { void handlePermanentDeleteUser(user); setOpenMenuId(null); }}
-                                  disabled={loading || user.id === currentUser?.id}
-                                  className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  Permanent delete
-                                </button>
-                              </div>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -631,45 +629,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             {user.createdAt ? formatDate(user.createdAt) : 'N/A'}
                           </td>
                           <td className="px-6 py-4 text-right text-sm">
-                            <div className="relative inline-flex">
+                            <div className="inline-flex">
                               <button
-                                onClick={() => setOpenMenuId(openMenuId === user.id ? null : user.id)}
+                                onClick={(event) => toggleUserMenu(user.id, event.currentTarget)}
                                 className="rounded-xl border border-orange-100 p-2 text-gray-500 hover:bg-orange-50 hover:text-gray-700"
                               >
                                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7h16M4 12h16M4 17h16" />
                                 </svg>
                               </button>
-                              {openMenuId === user.id && (
-                                <div className="absolute right-0 top-12 z-20 w-44 rounded-2xl border border-gray-200 bg-white py-1 shadow-lg">
-                                  <button
-                                    onClick={() => { openUserDetails(user); setOpenMenuId(null); }}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-gray-50"
-                                  >
-                                    Manage
-                                  </button>
-                                  <button
-                                    onClick={() => { setResetPasswordUserId(user.id); setResetPasswordValue(''); setError(''); setOpenMenuId(null); }}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-orange-500 hover:bg-gray-50"
-                                  >
-                                    Reset password
-                                  </button>
-                                  <button
-                                    onClick={() => { void handleActivationChange(user); setOpenMenuId(null); }}
-                                    disabled={loading || (user.isActive !== false && user.id === currentUser?.id)}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                  >
-                                    {user.isActive === false ? 'Reactivate' : 'Deactivate'}
-                                  </button>
-                                  <button
-                                    onClick={() => { void handlePermanentDeleteUser(user); setOpenMenuId(null); }}
-                                    disabled={loading || user.id === currentUser?.id}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                  >
-                                    Permanent delete
-                                  </button>
-                                </div>
-                              )}
                             </div>
                             {resetPasswordUserId === user.id && (
                               <div className="mt-2 flex items-center gap-2">
@@ -701,6 +669,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     </tbody>
                   </table>
                 </div>
+                {openMenuId && (() => {
+                  const menuUser = users.find((user) => user.id === openMenuId);
+                  return menuUser ? renderUserMenu(menuUser) : null;
+                })()}
               </div>
             )}
           </>

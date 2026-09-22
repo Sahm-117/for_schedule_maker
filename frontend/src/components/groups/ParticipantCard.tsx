@@ -441,7 +441,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
             className="inline-flex items-center gap-1.5 rounded-full border border-[#fde68a] bg-[#fffbeb] py-1 pl-2.5 pr-2 text-[11px] font-bold text-[#92400e]"
           >
             Needs attention
-            <span className={`text-[9px] transition-transform ${concernOpen ? 'rotate-180' : ''}`}>▾</span>
+            <svg className={`h-3.5 w-3.5 transition-transform ${concernOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
           </button>
         )}
         <button

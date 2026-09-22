@@ -33,6 +33,9 @@ export interface CohortHealthPayload {
 export type HealthStatus = 'good' | 'warning' | 'critical' | 'neutral';
 export type CohortMode = 'upcoming' | 'running' | 'completed';
 
+export const statusForRegister = (rate: number | null): HealthStatus =>
+  rate === null ? 'neutral' : rate >= 1 ? 'good' : rate > 0 ? 'warning' : 'critical';
+
 // Agreed thresholds: 80%+ on track, 50-80% needs attention, under 50% at risk.
 export const statusForRate = (rate: number | null): HealthStatus => {
   if (rate === null || Number.isNaN(rate)) return 'neutral';
@@ -72,6 +75,7 @@ export interface WeekStat {
   recordedGroups: number;
   recordingRate: number | null;
   marked: number;
+  expected: number;
   attended: number;
   attendanceRate: number | null;
   meetingsSubmitted: number;
@@ -79,7 +83,7 @@ export interface WeekStat {
   recapUploaded: boolean;
 }
 
-export const buildWeekStats = (data: CohortHealthPayload): WeekStat[] => {
+export const buildWeekStats = (data: CohortHealthPayload, people: CohortPeoplePayload | null = null): WeekStat[] => {
   const activeGroups = data.groups.filter((g) => g.members > 0);
   const activeGroupIds = new Set(activeGroups.map((g) => g.id));
   const groupCount = activeGroups.length;
@@ -89,8 +93,11 @@ export const buildWeekStats = (data: CohortHealthPayload): WeekStat[] => {
     .map((week) => {
       const rows = data.attendance.filter((row) => row.weekId === week.id && activeGroupIds.has(row.groupId));
       const recordedGroups = new Set(rows.map((row) => row.groupId)).size;
-      const marked = rows.reduce((sum, row) => sum + Number(row.marked), 0);
-      const attended = rows.reduce((sum, row) => sum + Number(row.present) + Number(row.late), 0);
+      const activeIds = new Set(people?.participants.filter((p) => p.status === 'ACTIVE').map((p) => p.id));
+      const marks = people ? [...new Map(people.sunday.filter((r) => r.weekId === week.id && activeIds.has(r.participantId)).map((r) => [r.participantId, r])).values()] : null;
+      const marked = marks?.length ?? 0;
+      const expected = people ? activeIds.size : Number(data.participants.active);
+      const attended = marks?.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length ?? 0;
       const meetingsSubmitted = new Set(
         data.meetings.filter((m) => m.weekId === week.id && activeGroupIds.has(m.groupId)).map((m) => m.groupId),
       ).size;
@@ -99,8 +106,9 @@ export const buildWeekStats = (data: CohortHealthPayload): WeekStat[] => {
         weekNumber: week.weekNumber,
         groupsWithMembers: groupCount,
         recordedGroups,
-        recordingRate: groupCount ? recordedGroups / groupCount : null,
+        recordingRate: people && expected ? marked / expected : null,
         marked,
+        expected,
         attended,
         attendanceRate: marked ? attended / marked : null,
         meetingsSubmitted,
@@ -142,8 +150,8 @@ export const buildGroupEngagement = (data: CohortHealthPayload, weekNumbers: num
       const reports = new Set(data.meetings.filter((m) => m.groupId === g.id && weekIds.has(m.weekId)).map((m) => m.weekId));
       const weeksCounted = weekIds.size;
       // How many of the last three weeks had no attendance recorded at all.
-      const recentGap = recentWeeks.filter((n) => !recorded.has(weekIdByNumber.get(n) as number)).length;
-      const score = weeksCounted ? (recorded.size + reports.size) / (weeksCounted * 2) : 0;
+      const recentGap = recentWeeks.filter((n) => !reports.has(weekIdByNumber.get(n) as number)).length;
+      const score = weeksCounted ? reports.size / weeksCounted : 0;
       return {
         id: g.id,
         name: g.name,
@@ -215,8 +223,8 @@ export const buildAttention = (
     }
     const supportRed = people.supports.filter((s) => s.missedWeeks.length >= people.rules.supportRedMissedWeeks).length;
     const supportAmber = people.supports.filter((s) => s.missedWeeks.length >= people.rules.supportAmberMissedWeeks && s.missedWeeks.length < people.rules.supportRedMissedWeeks).length;
-    if (supportRed > 0) items.push({ key: 'supports-red', status: 'critical', text: `${plural(supportRed, 'support hasn’t', 'supports haven’t')} recorded attendance and meetings for ${people.rules.supportRedMissedWeeks}+ weeks`, actionLabel: 'View', to: '/supports?health=critical' });
-    if (supportAmber > 0) items.push({ key: 'supports-amber', status: 'warning', text: `${plural(supportAmber, 'support', 'supports')} missed a week of records`, actionLabel: 'View', to: '/supports?health=warning' });
+    if (supportRed > 0) items.push({ key: 'supports-red', status: 'critical', text: `${plural(supportRed, 'support hasn’t', 'supports haven’t')} completed group meeting records for ${people.rules.supportRedMissedWeeks}+ weeks`, actionLabel: 'View', to: '/supports?health=critical' });
+    if (supportAmber > 0) items.push({ key: 'supports-amber', status: 'warning', text: `${plural(supportAmber, 'support has', 'supports have')} incomplete group meeting records`, actionLabel: 'View', to: '/supports?health=warning' });
   }
 
   if (mode !== 'completed' && people) {
@@ -228,6 +236,10 @@ export const buildAttention = (
   const unplaced = Math.max(0, Number(data.participants.active) - Number(data.participants.inGroups));
 
   if (mode === 'running' && stats.length) {
+    const latest = stats.filter((s) => s.weekNumber < currentWeek).at(-1);
+    if (latest && latest.recordingRate !== null && latest.marked < latest.expected) {
+      items.push({ key: 'attendance-incomplete', status: 'warning', text: `Week ${latest.weekNumber}: ${latest.expected - latest.marked} participants not marked`, actionLabel: 'Mark', to: '/attendance' });
+    }
     const recapsMissing = stats.filter((s) => s.weekNumber < currentWeek && !s.recapUploaded).length;
     if (recapsMissing > 0) {
       items.push({
@@ -258,9 +270,6 @@ export const buildAttention = (
   }
   if (data.openFlags > 0) {
     items.push({ key: 'flags', status: 'warning', text: `${data.openFlags} open concern${data.openFlags === 1 ? '' : 's'} about participants`, actionLabel: 'Review', to: '/participants' });
-  }
-  if (data.pendingCover > 0) {
-    items.push({ key: 'cover', status: 'warning', text: `${data.pendingCover} cover request${data.pendingCover === 1 ? '' : 's'} waiting for a support`, actionLabel: 'Assign', to: '/supports#cover' });
   }
   if (extras.pendingApprovals > 0) {
     items.push({ key: 'approvals', status: 'warning', text: `${extras.pendingApprovals} schedule change${extras.pendingApprovals === 1 ? '' : 's'} to approve`, actionLabel: 'Review', to: '/approvals' });
@@ -295,7 +304,7 @@ export const buildDashboardModel = (
   now = new Date(),
 ): DashboardModel => {
   const mode = cohortMode(cohort, now);
-  const stats = buildWeekStats(data);
+  const stats = buildWeekStats(data, peopleData);
   const currentWeek = mode === 'completed'
     ? (stats[stats.length - 1]?.weekNumber ?? 0)
     : mode === 'upcoming' ? 0 : currentWeekNumber(cohort, stats, now);

@@ -248,7 +248,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
                 ? <span className="ml-1 text-xs font-normal text-primary">· added</span>
                 : <span className="ml-1 text-xs font-normal text-gray-400">(optional)</span>}
             </span>
-            <span className={`text-xs text-gray-400 transition-transform ${detailsOpen ? 'rotate-180' : ''}`}>▾</span>
+            <svg className={`h-4 w-4 flex-none text-gray-400 transition-transform ${detailsOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
           </button>
           {detailsOpen && (
             <div className="mb-4 space-y-3">

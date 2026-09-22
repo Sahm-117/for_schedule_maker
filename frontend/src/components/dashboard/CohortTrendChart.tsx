@@ -6,11 +6,10 @@ import type { WeekStat } from './healthModel';
 // Both are "% of groups", so they share one axis honestly.
 
 const SERIES = [
-  { key: 'recordingRate', label: 'Recorded Sunday attendance', color: '#2a78d6' },
-  { key: 'meetingRate', label: 'Submitted a meeting report', color: '#eb6834' },
+  { key: 'recordingRate', label: 'Participants marked', color: '#2a78d6' },
+  { key: 'meetingRate', label: 'Group reports submitted', color: '#eb6834' },
 ] as const;
 
-const TARGET = 0.8;
 const HEIGHT = 230;
 const PAD = { top: 16, right: 16, bottom: 30, left: 38 };
 
@@ -81,8 +80,8 @@ const CohortTrendChart: React.FC<{ stats: WeekStat[]; lastWeek: number }> = ({ s
             <thead className="text-gray-500">
               <tr>
                 <th className="py-1.5 pr-3 font-semibold">Week</th>
-                <th className="py-1.5 pr-3 font-semibold">Groups recording attendance</th>
-                <th className="py-1.5 pr-3 font-semibold">Present of those marked</th>
+                <th className="py-1.5 pr-3 font-semibold">Participants marked</th>
+                <th className="py-1.5 pr-3 font-semibold">Present or late</th>
                 <th className="py-1.5 font-semibold">Meeting reports</th>
               </tr>
             </thead>
@@ -90,7 +89,7 @@ const CohortTrendChart: React.FC<{ stats: WeekStat[]; lastWeek: number }> = ({ s
               {shown.map((s) => (
                 <tr key={s.weekId} className="border-t border-gray-100">
                   <td className="py-1.5 pr-3 font-semibold">{s.weekNumber}</td>
-                  <td className="py-1.5 pr-3 tabular-nums">{s.recordedGroups} of {s.groupsWithMembers} ({pct(s.recordingRate)})</td>
+                  <td className="py-1.5 pr-3 tabular-nums">{s.recordingRate === null ? 'Unavailable' : `${s.marked} of ${s.expected} (${pct(s.recordingRate)})`}</td>
                   <td className="py-1.5 pr-3 tabular-nums">{s.marked ? `${pct(s.attendanceRate)} of ${s.marked}` : '–'}</td>
                   <td className="py-1.5 tabular-nums">{s.meetingsSubmitted} of {s.groupsWithMembers} ({pct(s.meetingRate)})</td>
                 </tr>
@@ -100,15 +99,13 @@ const CohortTrendChart: React.FC<{ stats: WeekStat[]; lastWeek: number }> = ({ s
         </div>
       ) : (
         <div ref={wrapRef} className="relative">
-          <svg width={width} height={HEIGHT} role="img" aria-label="Weekly share of groups recording attendance and submitting meeting reports" className="block overflow-visible">
+          <svg width={width} height={HEIGHT} role="img" aria-label="Weekly participant marking coverage and group report completion" className="block overflow-visible">
             {[0, 0.25, 0.5, 0.75, 1].map((t) => (
               <g key={t}>
                 <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} stroke="#eceef2" strokeWidth={1} />
                 <text x={PAD.left - 8} y={y(t)} dy="0.32em" textAnchor="end" className="fill-gray-400 text-[10px]">{Math.round(t * 100)}%</text>
               </g>
             ))}
-            <line x1={PAD.left} x2={width - PAD.right} y1={y(TARGET)} y2={y(TARGET)} stroke="#9ca3af" strokeWidth={1} strokeDasharray="4 4" />
-            <text x={width - PAD.right} y={y(TARGET) - 5} textAnchor="end" className="fill-gray-500 text-[10px] font-medium">Target 80%</text>
 
             {stats.map((s, i) => (
               <text key={s.weekId} x={x(i)} y={HEIGHT - 10} textAnchor="middle" className={`text-[10px] ${s.weekNumber <= lastWeek ? 'fill-gray-500' : 'fill-gray-300'}`}>
@@ -178,7 +175,7 @@ const CohortTrendChart: React.FC<{ stats: WeekStat[]; lastWeek: number }> = ({ s
             >
               <p className="font-semibold">Week {hovered.weekNumber}</p>
               <div className="mt-1.5 space-y-1">
-                <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: SERIES[0].color }} />Attendance recorded: {hovered.recordedGroups} of {hovered.groupsWithMembers} groups</p>
+                <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: SERIES[0].color }} />Attendance marked: {hovered.marked} of {hovered.expected} participants</p>
                 <p className="pl-3.5 text-white/70">{hovered.marked ? `${pct(hovered.attendanceRate)} present of ${hovered.marked} marked` : 'No one marked'}</p>
                 <p className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: SERIES[1].color }} />Reports: {hovered.meetingsSubmitted} of {hovered.groupsWithMembers} groups</p>
               </div>

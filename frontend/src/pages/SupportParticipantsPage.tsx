@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
 import SegmentedTabs from '../components/SegmentedTabs';
-import SundayClassPanel from '../components/attendance/SundayClassPanel';
 import GroupCallCard, { formatMeetingSlot } from '../components/groups/GroupCallCard';
 import MeetingModePanel from '../components/groups/MeetingModePanel';
 import ParticipantCard from '../components/groups/ParticipantCard';
@@ -11,12 +10,12 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { faithProjectsApi, faithProjectCategoriesApi, groupOnboardingStatusApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, coverRequestsApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
-import type { FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, CoverRequest, User } from '../types';
+import { faithProjectsApi, faithProjectCategoriesApi, groupOnboardingStatusApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
+import type { FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, User } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 
-type GroupTab = 'faith' | 'prayers' | 'sunday';
+type GroupTab = 'faith' | 'prayers';
 
 const virtualGroupStatus = (groupId: string, groupName: string | null | undefined, participantCount: number): GroupOnboardingStatus => ({
   id: `virtual-${groupId}`,
@@ -55,14 +54,12 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const [flags, setFlags] = useState<ParticipantFlag[]>([]);
   const [reflectionActivity, setReflectionActivity] = useState<import('../types').ReflectionActivity[]>([]);
   const [checkIns, setCheckIns] = useState<import('../types').ParticipantCheckIn[]>([]);
-  const [covers, setCovers] = useState<CoverRequest[]>([]);
   const [noteParticipant, setNoteParticipant] = useState<Participant | null>(null);
   const [noteBody, setNoteBody] = useState('');
   const [savingNote, setSavingNote] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [selectedWeekId, setSelectedWeekId] = useState<number | null>(null);
-  const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<GroupTab>(() => (searchParams.get('tab') === 'sunday' ? 'sunday' : 'faith'));
+  const [activeTab, setActiveTab] = useState<GroupTab>('faith');
   const [savingPrayerFocus, setSavingPrayerFocus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -137,32 +134,20 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
         }
       }
 
-      // Groups this support is covering right now (only inside the cover period).
-      const activeCovers = await coverRequestsApi.getActiveForCover(user.id).then((res) => res.requests).catch(() => [] as CoverRequest[]);
-      const coveredGroups = groupsRes.groups.filter((group) => group.supportId !== user.id && activeCovers.some((cover) => cover.supportId === group.supportId));
-      const coveredParticipantLists = await Promise.all(coveredGroups.map((group) =>
-        groupsApi.getParticipants(group.id)
-          .then((res) => res.participants.map((participant) => ({ ...participant, groupId: group.id, groupName: participant.groupName ?? group.name })))
-          .catch(() => [] as Participant[])
-      ));
-      const coveredParticipants = coveredParticipantLists.flat();
-
       const participantIds = participantsRes.participants.map((participant) => participant.id);
-      const allParticipantIds = [...participantIds, ...coveredParticipants.map((participant) => participant.id)];
       const [notesRes, handoversRes, flagsRes, readsRes, activityRes, checkInsRes] = await Promise.all([
         participantNotesApi.getForParticipants(participantIds).catch(() => ({ notes: [] as ParticipantNote[] })),
         participantHandoversApi.getForParticipants(participantIds).catch(() => ({ handovers: [] as ParticipantHandover[] })),
         participantFlagsApi.getOpenForParticipants(participantIds).catch(() => ({ flags: [] as ParticipantFlag[] })),
         faithThreadReadsApi.getForUser(user.id).catch(() => ({ reads: new Map<string, string>() })),
         reflectionActivityApi.getForCohort(activeCohort.id).catch(() => ({ activity: [] as import('../types').ReflectionActivity[] })),
-        participantCheckInsApi.getForParticipants(allParticipantIds).catch(() => ({ checkIns: [] as import('../types').ParticipantCheckIn[] })),
+        participantCheckInsApi.getForParticipants(participantIds).catch(() => ({ checkIns: [] as import('../types').ParticipantCheckIn[] })),
       ]);
       setThreadReads(readsRes.reads);
       setReflectionActivity(activityRes.activity);
       setCheckIns(checkInsRes.checkIns);
 
-      setParticipants(sortByText([...participantsRes.participants, ...coveredParticipants], (participant) => participant.fullName));
-      setCovers(activeCovers);
+      setParticipants(sortByText(participantsRes.participants, (participant) => participant.fullName));
       setParticipantNotes(notesRes.notes);
       setParticipantHandovers(handoversRes.handovers);
       setFlags(flagsRes.flags);
@@ -174,9 +159,8 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       });
       groupStatusRes.statuses.forEach((status) => fallbackGroups.set(status.groupId, status));
       const ownStatuses = sortByText(Array.from(fallbackGroups.values()), (status) => status.groupName);
-      const coveredStatuses = coveredGroups.map((group, index) => virtualGroupStatus(group.id, `${group.name} (covering)`, coveredParticipantLists[index].length));
-      setGroupStatuses([...ownStatuses, ...coveredStatuses]);
-      setGroups(groupsRes.groups.filter((g) => g.supportId === user.id || coveredGroups.some((covered) => covered.id === g.id)));
+      setGroupStatuses(ownStatuses);
+      setGroups(groupsRes.groups.filter((g) => g.supportId === user.id));
       setFaithProjects(sortByText(faithRes.projects, (project) => project.title || project.participantName));
       setFaithProjectCategories(categoriesRes.categories);
       setGroupPrayerFocuses(prayerFocusRes.focuses);
@@ -185,7 +169,6 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       const availableGroupIds = Array.from(new Set([
         ...groupStatusRes.statuses.map((status) => status.groupId),
         ...participantsRes.participants.map((participant) => participant.groupId).filter(Boolean) as string[],
-        ...coveredGroups.map((group) => group.id),
       ]));
       setSelectedGroupId((current) => (current && availableGroupIds.includes(current) ? current : (availableGroupIds[0] ?? '')));
     } catch (err: any) {
@@ -262,15 +245,6 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
     () => groups.find((g) => g.id === selectedGroupId) ?? null,
     [groups, selectedGroupId]
   );
-
-  // A covered group belongs to another support: the covering support can only mark attendance there.
-  const coveringFor = selectedGroupData && selectedGroupData.supportId !== user.id
-    ? covers.find((cover) => cover.supportId === selectedGroupData.supportId) ?? null
-    : null;
-
-  useEffect(() => {
-    if (coveringFor && activeTab === 'faith') setActiveTab('prayers');
-  }, [coveringFor, activeTab]);
 
   const selectedWeek = cohortWeeks.find((week) => week.id === selectedWeekId) ?? null;
   const currentPrayerFocus = groupPrayerFocuses.find((focus) => focus.groupId === selectedGroupId && focus.weekId === selectedWeekId) ?? null;
@@ -399,18 +373,11 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
               )}
             </div>
 
-            {coveringFor && (
-              <p className="rounded-xl bg-sky-100/80 px-3.5 py-2.5 text-[13px] font-semibold text-sky-700">
-                Covering for {coveringFor.supportName || 'another support'} until {new Date(coveringFor.endsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}. You can mark attendance for this group.
-              </p>
-            )}
-
             <div data-wt="group-tabs">
               <SegmentedTabs
                 tabs={[
-                  ...(coveringFor ? [] : [{ key: 'faith', label: 'Participants', shortLabel: 'People' }]),
+                  { key: 'faith', label: 'Participants', shortLabel: 'People' },
                   { key: 'prayers', label: 'Group meetings', shortLabel: 'Meetings' },
-                  { key: 'sunday', label: 'Sunday class', shortLabel: 'Sunday' },
                 ]}
                 active={activeTab}
                 onChange={(key) => setActiveTab(key as GroupTab)}
@@ -418,28 +385,8 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
             </div>
           </div>
 
-          {activeTab === 'sunday' ? (
-            <SundayClassPanel
-              supportId={coveringFor ? (selectedGroupData?.supportId ?? user.id) : user.id}
-              markedById={user.id}
-              participants={selectedParticipants}
-              weeks={cohortWeeks}
-              weekId={selectedWeekId}
-              onWeekChange={setSelectedWeekId}
-              venue={activeCohort?.venue}
-              onParticipantUpdated={(updated) => {
-                setParticipants((prev) => sortByText(prev.map((x) => x.id === updated.id ? { ...x, ...updated } : x), (p) => p.fullName));
-              }}
-            />
-          ) : activeTab === 'faith' ? (
+          {activeTab === 'faith' ? (
             <div className="space-y-3">
-            <div data-wt="group-call">
-            <GroupCallCard
-              group={selectedGroupData}
-              fallbackLink={user.whatsappGroupUrl ?? null}
-              onGroupUpdated={(updated) => setGroups((prev) => prev.map((g) => g.id === updated.id ? updated : g))}
-            />
-            </div>
             {selectedParticipants.length === 0 ? (
               <div className="rounded-[18px] border border-dashed border-orange-200 bg-white py-12 text-center text-sm text-gray-500">
                 No participants are in this group yet.
@@ -483,6 +430,8 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
             ))}
             </div>
           ) : (
+            <div className="space-y-3">
+            <div data-wt="group-call"><GroupCallCard group={selectedGroupData} fallbackLink={user.whatsappGroupUrl ?? null} onGroupUpdated={(updated) => setGroups((prev) => prev.map((g) => g.id === updated.id ? updated : g))} /></div>
             <MeetingModePanel
               weeks={cohortWeeks}
               weekId={selectedWeekId}
@@ -503,6 +452,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
               recapDocumentUrl={selectedWeek?.recapDocumentUrl}
               recapDocumentName={selectedWeek?.recapDocumentName}
             />
+            </div>
           )}
         </div>
       )}

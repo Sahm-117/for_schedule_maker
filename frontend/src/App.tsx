@@ -48,6 +48,7 @@ const AdminAttendancePage = lazy(() => import('./pages/AdminAttendancePage'));
 const AdminFaithProjectsPage = lazy(() => import('./pages/AdminFaithProjectsPage'));
 const AdminGroupPrayersPage = lazy(() => import('./pages/AdminGroupPrayersPage'));
 const SupportMobilisationPage = lazy(() => import('./pages/SupportMobilisationPage'));
+const SupportAttendancePage = lazy(() => import('./pages/SupportAttendancePage'));
 const SupportParticipantsPage = lazy(() => import('./pages/SupportParticipantsPage'));
 const SupportHomePage = lazy(() => import('./pages/SupportHomePage'));
 const SupportSchedulePage = lazy(() => import('./pages/SupportSchedulePage'));
@@ -129,7 +130,7 @@ function App() {
             <Route path="/support/onboarding" element={<Suspense fallback={<RouteFallback />}><SupportOnboardingPage /></Suspense>} />
             <Route path="/support/follow-ups" element={<Navigate to="/support/mobilisation?tab=follow" replace />} />
             <Route path="/support/mobilisation" element={<Suspense fallback={<RouteFallback />}><SupportMobilisationPage /></Suspense>} />
-            <Route path="/support/attendance" element={<Navigate to="/support/participants?tab=sunday" replace />} />
+            <Route path="/support/attendance" element={<Suspense fallback={<RouteFallback />}><SupportAttendancePage /></Suspense>} />
             <Route path="/support/participants" element={<Suspense fallback={<RouteFallback />}><SupportParticipantsPage /></Suspense>} />
             <Route path="/support" element={<Suspense fallback={<RouteFallback />}><SupportHomePage /></Suspense>} />
             <Route path="/support/schedule" element={<Suspense fallback={<RouteFallback />}><SupportSchedulePage /></Suspense>} />

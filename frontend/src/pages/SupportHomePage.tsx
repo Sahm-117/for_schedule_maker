@@ -27,15 +27,6 @@ const PERIOD_LABEL: Record<string, string> = {
   EVENING: 'Evening',
 };
 
-// Duties every support starts the week with; each support can edit their own list on My Schedule.
-const DEFAULT_CHECKLIST = [
-  'Contact assigned participants',
-  'Confirm attendance',
-  'Follow up with absent participants',
-  'Complete group activity',
-  'Submit weekly report',
-];
-
 const formatWhen = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -136,7 +127,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     if (!user || activeWeekId === null) { setChecklist([]); return; }
     let cancelled = false;
-    supportChecklistApi.getForWeek(user.id, activeWeekId, DEFAULT_CHECKLIST)
+    supportChecklistApi.getForWeek(user.id, activeWeekId)
       .then(({ items }) => { if (!cancelled) setChecklist(items); })
       .catch(() => { if (!cancelled) setChecklist([]); });
     return () => { cancelled = true; };
@@ -295,7 +286,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
           )}
 
           <NavLink
-            to="/support/participants?tab=sunday"
+            to="/support/attendance"
             data-wt="home-attendance"
             className="flex min-h-[44px] items-center justify-center gap-2 rounded-2xl bg-[#3f4757] px-2.5 py-3.5 text-[13px] font-bold text-white sm:min-h-[56px] sm:justify-start sm:gap-2.5 sm:px-[22px] sm:py-4 sm:text-[15px]"
           >
@@ -369,7 +360,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                 <h2 className="text-[17px] font-bold text-gray-900">Weekly checklist</h2>
                 <p className="mt-0.5 text-[13px] text-gray-500">{checkedCount} of {checklist.length} done this week</p>
               </div>
-              <span className={`ml-auto flex-none text-[13px] text-gray-400 transition-transform ${checklistOpen ? 'rotate-180' : ''}`}>▾</span>
+              <svg className={`ml-auto h-4 w-4 flex-none text-gray-400 transition-transform ${checklistOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
             </button>            </div>
             <div className="px-5 pb-4">
               <div className="h-[7px] overflow-hidden rounded-full bg-[#f4f5f7]">

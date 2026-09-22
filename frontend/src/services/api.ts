@@ -28,6 +28,7 @@ import {
   participantsApi as supabaseParticipantsApi,
   groupsApi as supabaseGroupsApi,
   attendanceApi as supabaseAttendanceApi,
+  attendanceFollowUpTasksApi as supabaseAttendanceFollowUpTasksApi,
   faithProjectsApi as supabaseFaithProjectsApi,
   faithProjectSettingsApi as supabaseFaithProjectSettingsApi,
   faithProjectCategoriesApi as supabaseFaithProjectCategoriesApi,
@@ -557,10 +558,20 @@ export const onboardingEventsApi = USE_SUPABASE ? supabaseOnboardingEventsApi : 
 };
 
 export const attendanceApi = USE_SUPABASE ? supabaseAttendanceApi : {
+  async getSession(_weekId: number): Promise<{ session: import('../types').AttendanceSession | null }> { return { session: null }; },
   async getForWeeks(_options: { weekIds: number[]; participantIds: string[] }): Promise<{ records: import('../types').AttendanceRecord[] }> { return { records: [] }; },
   async getForWeek(_options: any): Promise<{ records: import('../types').AttendanceRecord[] }> { return { records: [] }; },
-  async mark(_participantId: string, _weekId: number, _status: any, _markedById?: string): Promise<never> { return peopleUnavailable(); },
-  async bulkMark(_entries: any[], _markedById?: string): Promise<never> { return peopleUnavailable(); },
+  async mark(_participantId: string, _weekId: number, _status: any): Promise<never> { return peopleUnavailable(); },
+  async bulkMark(_entries: any[]): Promise<never> { return peopleUnavailable(); },
+  async finalize(_weekId: number): Promise<never> { return peopleUnavailable(); },
+  async setAutoFinalize(_weekId: number, _enabled: boolean): Promise<never> { return peopleUnavailable(); },
+  async reopen(_weekId: number): Promise<never> { return peopleUnavailable(); },
+};
+
+export const attendanceFollowUpTasksApi = USE_SUPABASE ? supabaseAttendanceFollowUpTasksApi : {
+  async getForWeek(_weekId: number): Promise<{ tasks: import('../types').AttendanceFollowUpTask[] }> { return { tasks: [] }; },
+  async getMine(_weekId: number, _supportId: string): Promise<{ tasks: import('../types').AttendanceFollowUpTask[] }> { return { tasks: [] }; },
+  async setDone(_taskId: string, _done: boolean, _completionNote?: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {
@@ -623,7 +634,7 @@ export const participantFlagsApi = USE_SUPABASE ? supabaseParticipantFlagsApi : 
 };
 
 export const supportChecklistApi = USE_SUPABASE ? supabaseSupportChecklistApi : {
-  async getForWeek(_userId: string, _weekId: number, _defaultLabels?: string[]): Promise<{ items: import('../types').SupportChecklistItem[] }> { return { items: [] }; },
+  async getForWeek(_userId: string, _weekId: number): Promise<{ items: import('../types').SupportChecklistItem[] }> { return { items: [] }; },
   async add(_userId: string, _weekId: number, _label: string, _position: number): Promise<never> { return peopleUnavailable(); },
   async setDone(_itemId: string, _done: boolean): Promise<never> { return peopleUnavailable(); },
   async remove(_itemId: string): Promise<never> { return peopleUnavailable(); },

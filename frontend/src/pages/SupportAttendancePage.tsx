@@ -1,83 +1,34 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
-import ModalShell from '../components/followups/ModalShell';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
-import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../components/Toast';
 import { useAppData } from '../context/AppDataContext';
+import { useAuth } from '../hooks/useAuth';
 import { attendanceApi, participantsApi } from '../services/api';
-import type { AttendanceRecord, AttendanceStatus, Participant, User, Week } from '../types';
+import type { AttendanceRecord, AttendanceSession, AttendanceStatus, Participant, User, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 
-const STATUS_OPTIONS: AttendanceStatus[] = ['PRESENT', 'LATE', 'ABSENT'];
+const STATUS_BUTTONS: Array<{ status: AttendanceStatus; label: string; activeCls: string }> = [
+  { status: 'PRESENT', label: 'Present', activeCls: 'bg-emerald-100 text-emerald-700' },
+  { status: 'ABSENT', label: 'Absent', activeCls: 'bg-red-100 text-red-700' },
+  { status: 'LATE', label: 'Late', activeCls: 'bg-amber-100 text-amber-700' },
+  { status: 'EXCUSED', label: 'Excused', activeCls: 'bg-sky-100 text-sky-700' },
+];
 
-const STATUS_LABEL: Record<AttendanceStatus, string> = {
-  PRESENT: 'Present',
-  LATE: 'Late',
-  ABSENT: 'Absent',
-};
-
-const STATUS_SELECT_OPTIONS = STATUS_OPTIONS.map((status) => ({
-  value: status,
-  label: STATUS_LABEL[status],
-}));
-
-interface ParticipantNotesModalProps {
-  participant: Participant | null;
-  saving: boolean;
-  onClose: () => void;
-  onSave: (notes: string) => Promise<void>;
-}
-
-const ParticipantNotesModal: React.FC<ParticipantNotesModalProps> = ({ participant, saving, onClose, onSave }) => {
-  const [notes, setNotes] = useState('');
-
-  useEffect(() => {
-    setNotes(participant?.notes ?? '');
-  }, [participant]);
-
-  return (
-    <ModalShell
-      isOpen={!!participant}
-      onClose={onClose}
-      title={participant ? participant.fullName : 'Participant notes'}
-      subtitle="Add anything worth remembering for this participant."
-      footer={(
-        <>
-          <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => { void onSave(notes); }}
-            disabled={saving}
-            className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-          >
-            {saving ? 'Saving…' : 'Save note'}
-          </button>
-        </>
-      )}
-    >
-      <div className="space-y-4">
-        <div className="rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Participant note</p>
-          <p className="mt-1 text-sm text-gray-600">This note stays with the participant and can be updated anytime.</p>
-        </div>
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</label>
-          <textarea
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            rows={5}
-            className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            placeholder="Add a context note for this participant..."
-          />
-        </div>
-      </div>
-    </ModalShell>
-  );
+const DEFAULT_SESSION: AttendanceSession = { weekId: 0, autoFinalizeAtNoon: true, finalizedAt: null };
+const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
+type AttendanceWeekResult = {
+  week: Week;
+  total: number;
+  marked: number;
+  present: number;
+  absent: number;
+  late: number;
+  excused: number;
+  session: AttendanceSession | null;
 };
 
 const SupportAttendancePage: React.FC = () => {
@@ -88,230 +39,148 @@ const SupportAttendancePage: React.FC = () => {
 
 const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
   const { activeCohort, weeks } = useAppData();
-
+  const toast = useToast();
   const cohortWeeks: Week[] = useMemo(
-    () => (weeks ?? []).filter((w) => w.cohortId === activeCohort?.id).sort((a, b) => a.weekNumber - b.weekNumber),
-    [weeks, activeCohort]
+    () => (weeks ?? []).filter((week) => week.cohortId === activeCohort?.id).sort((a, b) => a.weekNumber - b.weekNumber),
+    [activeCohort, weeks]
   );
-
-  const [selectedWeekId, setSelectedWeekId] = useState<number | null>(null);
+  const [selectedWeekId, setSelectedWeekId] = useState<number | 'ALL' | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [records, setRecords] = useState<Map<string, AttendanceRecord>>(new Map());
+  const [session, setSession] = useState<AttendanceSession | null>(null);
+  const [weekResults, setWeekResults] = useState<AttendanceWeekResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<Set<string>>(new Set());
-  const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
-  const [savingNote, setSavingNote] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<'' | AttendanceStatus | 'UNMARKED'>('');
+  const [saving, setSaving] = useState<Map<string, AttendanceStatus>>(new Map());
 
   useEffect(() => {
     if (cohortWeeks.length === 0) return;
-    const selectedStillExists = selectedWeekId !== null && cohortWeeks.some((week) => week.id === selectedWeekId);
-    if (!selectedStillExists) {
+    if (selectedWeekId !== 'ALL' && (!selectedWeekId || !cohortWeeks.some((week) => week.id === selectedWeekId))) {
       setSelectedWeekId(getIdealWeekForCohort(activeCohort, cohortWeeks)?.id ?? cohortWeeks[0].id);
     }
   }, [activeCohort, cohortWeeks, selectedWeekId]);
 
-  const load = useCallback(async () => {
-    if (!activeCohort || selectedWeekId === null || !user?.id) { setLoading(false); return; }
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!activeCohort || !selectedWeekId) { if (!silent) setLoading(false); return; }
+    if (!silent) setLoading(true);
     try {
-      const [{ participants: ps }, { records: rs }] = await Promise.all([
-        participantsApi.getAll({ cohortId: activeCohort.id, supportId: user.id }),
-        attendanceApi.getForWeek({ weekId: selectedWeekId, supportId: user.id }),
+      if (selectedWeekId === 'ALL') {
+        const { participants: people } = await participantsApi.getAll({ cohortId: activeCohort.id });
+        const activePeople = sortByText(people.filter((person) => person.status === 'ACTIVE'), (person) => person.fullName);
+        const results = await Promise.all(cohortWeeks.map(async (week) => {
+          const [{ records: saved }, { session: attendanceSession }] = await Promise.all([
+            attendanceApi.getForWeek({ weekId: week.id }),
+            attendanceApi.getSession(week.id),
+          ]);
+          const count = (status: AttendanceStatus) => saved.filter((record) => record.status === status).length;
+          return { week, total: activePeople.length, marked: saved.length, present: count('PRESENT'), absent: count('ABSENT'), late: count('LATE'), excused: count('EXCUSED'), session: attendanceSession };
+        }));
+        setParticipants(activePeople);
+        setWeekResults(results);
+        setRecords(new Map());
+        setSession(null);
+        return;
+      }
+      const [{ participants: people }, { records: saved }, { session: attendanceSession }] = await Promise.all([
+        participantsApi.getAll({ cohortId: activeCohort.id }),
+        attendanceApi.getForWeek({ weekId: selectedWeekId }),
+        attendanceApi.getSession(selectedWeekId),
       ]);
-      setParticipants(sortByText(ps, (participant) => participant.fullName));
-      const map = new Map<string, AttendanceRecord>();
-      rs.forEach((r) => map.set(r.participantId, r));
-      setRecords(map);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
-  }, [activeCohort, selectedWeekId, user?.id]);
+      setParticipants(sortByText(people.filter((person) => person.status === 'ACTIVE'), (person) => person.fullName));
+      setRecords(new Map(saved.map((record) => [record.participantId, record])));
+      setSession(attendanceSession);
+      setWeekResults([]);
+    } catch {
+      if (!silent) toast({ tone: 'error', message: 'Couldn’t load attendance. Try again.' });
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [activeCohort, selectedWeekId, toast]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setInterval(() => { void load(true); }, 15000);
+    return () => window.clearInterval(timer);
+  }, [load]);
 
-  const handleMark = async (participantId: string, status: AttendanceStatus) => {
-    if (selectedWeekId === null) return;
-    setSaving((prev) => new Set(prev).add(participantId));
-    try {
-      const { record } = await attendanceApi.mark(participantId, selectedWeekId, status, user?.id);
-      setRecords((prev) => new Map(prev).set(participantId, record));
-    } catch { /* ignore */ }
-    finally {
-      setSaving((prev) => { const next = new Set(prev); next.delete(participantId); return next; });
-    }
-  };
-
+  const allWeeks = selectedWeekId === 'ALL';
+  const selectedWeek = typeof selectedWeekId === 'number' ? cohortWeeks.find((week) => week.id === selectedWeekId) ?? null : null;
+  const activeSession = session ?? { ...DEFAULT_SESSION, weekId: typeof selectedWeekId === 'number' ? selectedWeekId : 0 };
+  const finalised = !!activeSession.finalizedAt;
+  const markedCount = participants.filter((participant) => records.has(participant.id)).length;
+  const allMarked = participants.length > 0 && markedCount === participants.length;
   const summary = useMemo(() => {
-    const total = participants.length;
-    const present = [...records.values()].filter((r) => r.status === 'PRESENT').length;
-    const late = [...records.values()].filter((r) => r.status === 'LATE').length;
-    const absent = [...records.values()].filter((r) => r.status === 'ABSENT').length;
-    const pct = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
-    return { total, present, late, absent, pct };
-  }, [participants, records]);
+    const values = Array.from(records.values());
+    const count = (status: AttendanceStatus) => values.filter((record) => record.status === status).length;
+    return { present: count('PRESENT'), absent: count('ABSENT'), late: count('LATE'), excused: count('EXCUSED') };
+  }, [records]);
 
-  // Status filter for the participant list ('UNMARKED' = no record yet).
-  const displayedParticipants = useMemo(() => {
-    if (!statusFilter) return participants;
-    return participants.filter((p) => {
-      const status = records.get(p.id)?.status;
-      return statusFilter === 'UNMARKED' ? !status : status === statusFilter;
-    });
-  }, [participants, statusFilter, records]);
-
-  const statusFilterOptions = useMemo(
-    () => [
-      { value: '', label: 'All statuses' },
-      { value: 'PRESENT', label: 'Present' },
-      { value: 'LATE', label: 'Late' },
-      { value: 'ABSENT', label: 'Absent' },
-      { value: 'UNMARKED', label: 'Unmarked' },
-    ],
-    []
-  );
-
-  const selectedWeek = cohortWeeks.find((w) => w.id === selectedWeekId);
-
-  const handleSaveNote = async (notes: string) => {
-    if (!selectedParticipant) return;
-    setSavingNote(true);
+  const mark = async (participant: Participant, status: AttendanceStatus) => {
+    if (typeof selectedWeekId !== 'number' || finalised || saving.has(participant.id)) return;
+    const previous = records.get(participant.id);
+    setSaving((current) => new Map(current).set(participant.id, status));
+    setRecords((current) => new Map(current).set(participant.id, {
+      id: previous?.id ?? `pending-${participant.id}`,
+      participantId: participant.id,
+      weekId: selectedWeekId,
+      status,
+      markedById: user.id,
+      markedAt: new Date().toISOString(),
+    }));
     try {
-      const { participant } = await participantsApi.update(selectedParticipant.id, {
-        notes: notes.trim() || null,
+      const { record } = await attendanceApi.mark(participant.id, selectedWeekId, status);
+      setRecords((current) => new Map(current).set(participant.id, record));
+    } catch (error) {
+      setRecords((current) => {
+        const next = new Map(current);
+        if (previous) next.set(participant.id, previous);
+        else next.delete(participant.id);
+        return next;
       });
-      setParticipants((prev) => sortByText(
-        prev.map((entry) => (entry.id === participant.id ? { ...entry, ...participant } : entry)),
-        (entry) => entry.fullName
-      ));
-      setSelectedParticipant((prev) => (prev && prev.id === participant.id ? { ...prev, ...participant } : prev));
-      setSelectedParticipant(null);
-    } catch {
-      // keep the modal open if save fails
+      toast({ tone: 'error', message: error instanceof Error ? error.message : `Couldn’t save ${participant.fullName}.` });
     } finally {
-      setSavingNote(false);
+      setSaving((current) => { const next = new Map(current); next.delete(participant.id); return next; });
     }
   };
 
   return (
-    <div className="page-content">
-      <PageHeader
-        title="Attendance"
-        subtitle={selectedWeek ? `Week ${selectedWeek.weekNumber} · Your group` : 'Your group'}
-      />
-
-      {cohortWeeks.length === 0 ? (
-        <p className="text-sm text-gray-500">No weeks available yet.</p>
-      ) : (
+    <div className="page-content max-w-4xl">
+      <PageHeader title="Attendance" subtitle={allWeeks ? 'Attendance results for this cohort' : selectedWeek ? `Week ${selectedWeek.weekNumber} · everyone in ${activeCohort?.name ?? 'this cohort'}` : 'Everyone in this cohort'} />
+      {!activeCohort ? <p className="text-sm text-gray-500">Choose a cohort first.</p> : cohortWeeks.length === 0 ? <p className="text-sm text-gray-500">No weeks are set up yet.</p> : (
         <>
-          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:max-w-2xl">
-            <div className="w-full sm:max-w-sm">
-              <AppSelect
-                value={selectedWeekId ? String(selectedWeekId) : ''}
-                onChange={(value) => setSelectedWeekId(Number(value))}
-                options={cohortWeeks.map((week) => ({
-                  value: String(week.id),
-                  label: `Week ${week.weekNumber}`,
-                }))}
-                placeholder="Choose week"
-                label="Week"
-              />
+          <section className="mb-4 rounded-[20px] border border-[#ffdeca] bg-white p-4 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="min-w-[10rem] flex-1 sm:max-w-xs"><AppSelect value={selectedWeekId === 'ALL' ? 'ALL' : selectedWeekId ? String(selectedWeekId) : ''} onChange={(value) => setSelectedWeekId(value === 'ALL' ? 'ALL' : Number(value))} options={[{ value: 'ALL', label: 'All weeks' }, ...cohortWeeks.map((week) => ({ value: String(week.id), label: `Week ${week.weekNumber}` }))]} placeholder="Choose week" compact /></div>
+              {!allWeeks && <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${finalised ? 'bg-emerald-100 text-emerald-700' : allMarked ? 'bg-sky-100 text-sky-700' : 'bg-neutral-100 text-neutral-600'}`}>{finalised ? 'Report sent' : `${markedCount} of ${participants.length} marked`}</span>}
             </div>
-            <div className="w-full sm:max-w-[12rem]">
-              <AppSelect
-                label="Filter by status"
-                value={statusFilter}
-                onChange={(v) => setStatusFilter(v as '' | AttendanceStatus | 'UNMARKED')}
-                options={statusFilterOptions}
-                placeholder="All statuses"
-              />
-            </div>
-          </div>
-
-          {!loading && participants.length > 0 && (
-            <div className="mb-5 grid grid-cols-4 gap-2">
-              {[
-                { label: 'Present', value: summary.present, cls: 'bg-emerald-100/80 text-emerald-700' },
-                { label: 'Late', value: summary.late, cls: 'bg-amber-100/80 text-amber-700' },
-                { label: 'Absent', value: summary.absent, cls: 'bg-red-100/80 text-red-700' },
-                { label: '%', value: `${summary.pct}%`, cls: 'bg-sky-100/80 text-sky-700' },
-              ].map(({ label, value, cls }) => (
-                <div key={label} className={`rounded-2xl px-3 py-2.5 text-center ${cls}`}>
-                  <p className="text-xs font-semibold opacity-70">{label}</p>
-                  <p className="mt-0.5 text-xl font-bold">{value}</p>
-                </div>
-              ))}
-            </div>
+            {!allWeeks && finalised && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance report sent.</p>}
+            {!allWeeks && !finalised && allMarked && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance taken.{activeSession.autoFinalizeAtNoon ? ' It will be sent automatically at noon on Sunday.' : ' Waiting for the admin to send the report.'}</p>}
+          </section>
+          {allWeeks ? (loading ? <PageLoader /> : <section className="overflow-hidden rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">{weekResults.map((result) => {
+            const reportSent = !!result.session?.finalizedAt;
+            return <div key={result.week.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[#f1f2f5] px-4 py-3 last:border-b-0"><div className="min-w-20"><p className="text-sm font-bold text-gray-900">Week {result.week.weekNumber}</p><p className="text-xs text-gray-500">{result.marked} of {result.total} marked</p></div><div className="flex flex-wrap gap-1.5 text-xs font-semibold"><span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">{result.present + result.late} attended</span><span className="rounded-full bg-red-100 px-2 py-1 text-red-700">{result.absent} absent</span></div><span className={`ml-auto text-xs font-semibold ${reportSent ? 'text-emerald-700' : result.marked === result.total && result.total > 0 ? 'text-sky-700' : 'text-gray-500'}`}>{reportSent ? 'Report sent' : result.marked === result.total && result.total > 0 ? 'Taken' : 'In progress'}</span></div>;
+          })}</section>) : <>
+          {!loading && <div className="mb-4 grid grid-cols-4 gap-2">{[
+            ['Present', summary.present, 'bg-emerald-100 text-emerald-700'], ['Absent', summary.absent, 'bg-red-100 text-red-700'], ['Late', summary.late, 'bg-amber-100 text-amber-700'], ['Excused', summary.excused, 'bg-sky-100 text-sky-700'],
+          ].map(([label, value, cls]) => <div key={String(label)} className={`rounded-xl px-2 py-2 text-center ${cls}`}><p className="text-[11px] font-semibold">{label}</p><p className="text-lg font-bold">{value}</p></div>)}</div>}
+          {loading ? <PageLoader /> : participants.length === 0 ? <p className="rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">No active participants in this cohort.</p> : (
+            <section className="rounded-[20px] border border-[#eef0f4] bg-white p-3 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]"><div className="flex flex-col gap-2">{participants.map((participant) => {
+              const current = records.get(participant.id)?.status;
+              const busy = saving.has(participant.id);
+              return <div key={participant.id} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2.5 gap-y-2 rounded-[14px] border border-[#f1f2f5] px-3 py-2.5">
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-[#fff1e7] text-xs font-bold text-[#c2410c]">{initialsOf(participant.fullName)}</span>
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-gray-900">{participant.fullName}</p>{participant.groupName && <p className="truncate text-[11px] text-gray-400">{participant.groupName}</p>}</div>
+                <div className="col-span-2 flex w-full flex-wrap gap-1.5 sm:col-span-1 sm:w-auto">{STATUS_BUTTONS.map(({ status, label, activeCls }) => {
+                  const pending = saving.get(participant.id) === status;
+                  return <button key={status} type="button" disabled={finalised || busy} aria-busy={pending} onClick={() => void mark(participant, status)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold transition disabled:cursor-wait ${pending || current === status ? activeCls : 'bg-[#f4f5f7] text-gray-500 hover:bg-gray-200/70'} ${busy && !pending ? 'opacity-50' : ''}`}>
+                    {pending && <span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-current border-t-transparent" aria-hidden="true" />}{label}
+                  </button>;
+                })}</div>
+              </div>;
+            })}</div></section>
           )}
-
-          {loading ? (
-            <PageLoader />
-          ) : participants.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
-              <p className="text-sm text-gray-500">You have no participants assigned yet.</p>
-              <p className="mt-1 text-xs text-gray-400">Ask an admin to assign you to a group.</p>
-            </div>
-          ) : displayedParticipants.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
-              <p className="text-sm text-gray-500">No participants match this status.</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {displayedParticipants.map((p) => {
-                const rec = records.get(p.id);
-                const isSaving = saving.has(p.id);
-                return (
-                  <div
-                    key={p.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setSelectedParticipant(p)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        setSelectedParticipant(p);
-                      }
-                    }}
-                    className="flex w-full cursor-pointer items-center gap-4 rounded-2xl border border-orange-100 bg-white p-4 text-left shadow-sm transition hover:bg-orange-50/30"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold text-gray-900">{p.fullName}</p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        {p.notes?.trim() ? 'View or edit note' : 'Tap to add a note'}
-                      </p>
-                      <div
-                        className="mt-3 max-w-[220px]"
-                        onClick={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => event.stopPropagation()}
-                      >
-                        <AppSelect
-                          label="Attendance"
-                          value={rec?.status ?? ''}
-                          onChange={(value) => { void handleMark(p.id, value as AttendanceStatus); }}
-                          options={STATUS_SELECT_OPTIONS}
-                          placeholder="Choose status"
-                          loading={isSaving}
-                        />
-                      </div>
-                    </div>
-                    <span className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-orange-50 text-gray-400">
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" />
-                      </svg>
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          </>}
         </>
       )}
-
-      <ParticipantNotesModal
-        participant={selectedParticipant}
-        saving={savingNote}
-        onClose={() => setSelectedParticipant(null)}
-        onSave={handleSaveNote}
-      />
     </div>
   );
 };

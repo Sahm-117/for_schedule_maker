@@ -59,7 +59,6 @@ export const WELCOME: Record<TourAudience, WelcomeContent> = {
     tiles: [
       { icon: ICON.group, title: 'My Group and Meeting Mode', body: 'Run your weekly meeting step by step, take attendance and flag concerns.' },
       { icon: ICON.megaphone, title: 'Mobilisation', body: 'Register people you meet and follow up the ones assigned to you.' },
-      { icon: ICON.swap, title: 'Cover Requests', body: 'Away for a week? Ask another support to cover your group.' },
       { icon: ICON.chat, title: 'Hub', body: 'Share questions, ideas and updates with the whole team.' },
     ],
     homePath: '/support',
@@ -70,7 +69,7 @@ export const WELCOME: Record<TourAudience, WelcomeContent> = {
     subtitle: 'See how the cohort is really doing, and what needs you today.',
     tiles: [
       { icon: ICON.pulse, title: 'Cohort Health', body: 'Vital signs, trends and a list of what needs your attention.' },
-      { icon: ICON.shield, title: 'Supports', body: 'Every support’s weekly records, onboarding and cover in one view.' },
+      { icon: ICON.shield, title: 'Supports', body: 'Every support’s weekly records and onboarding in one view.' },
       { icon: ICON.sliders, title: 'Programme Rules', body: 'Set the agreed rules once in Settings. The app judges by them.' },
       { icon: ICON.phone, title: 'Participant App', body: 'Participants now sign in to follow their journey and reflect.' },
     ],
@@ -101,7 +100,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
   // ── Support ───────────────────────────────────────────────────────────────
   'support:home': [
     { target: wt('home-metrics'), title: 'Your week at a glance', body: 'Which week the cohort is on, today’s activities, your next group meeting, faith projects and the next class. Tap any tile to jump in.' },
-    { target: wt('home-attendance'), title: 'Mark Sunday attendance', body: 'One tap opens the Sunday class register for your group.' },
+    { target: wt('home-attendance'), title: 'Mark attendance', body: 'One tap opens the shared Sunday attendance register.' },
     { target: wt('home-quick-links'), title: 'Shortcuts', body: 'Jump straight to your group call, resources, your tasks and Mobilisation.' },
     { target: wt('home-schedule'), title: 'Today’s activities', body: 'Your activities for today. Tap "Mark done" as you finish each one, or open the full week.' },
     { target: wt('home-checklist'), title: 'Weekly checklist', body: 'Tick off this week’s tasks as you go.', optional: true },
@@ -115,13 +114,13 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: wt('mob-more'), title: 'More options', body: 'Report an issue with a contact, or export your contacts.' },
   ],
   'support:schedule': [
-    { target: wt('schedule-tabs'), title: 'Schedule, checklist and cover', body: 'Schedule shows your activities, Checklist has this week’s tasks, and Cover request lets you ask another support to step in when you’re away.' },
+    { target: wt('schedule-tabs'), title: 'Schedule and checklist', body: 'Schedule shows your activities and Checklist holds the tasks you want to remember this week.' },
     { target: wt('schedule-week'), title: 'Pick a week', body: 'Look back at a past week or ahead to the next one.', optional: true },
     { target: wt('schedule-view-modes'), title: 'Today, tomorrow or the full week', body: 'Choose how much of the schedule to see at once.', optional: true },
     { target: wt('activity-mark-done'), title: 'Mark activities done', body: 'Tap "Mark done" when you finish an activity. It saves straight away. Tap again to undo.', optional: true },
   ],
   'support:group': [
-    { target: wt('group-tabs'), title: 'Your group workspace', body: 'Participants shows each person. Group meetings walks you through your weekly meeting in Meeting Mode. Sunday class is the attendance register.' },
+    { target: wt('group-tabs'), title: 'Your group workspace', body: 'Participants shows each person. Group meetings walks you through your weekly meeting in Meeting Mode. Attendance has its own place in the menu.' },
     { target: wt('group-call'), title: 'Your group call', body: 'Your group’s meeting link and time. Set or update them here.', optional: true },
     { target: '[data-wt="group-call"] + *', title: 'Each participant', body: 'See how each person is doing and read their faith project. If something is wrong, flag a concern and Operations is told straight away.', optional: true },
   ],
@@ -152,7 +151,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: wt('dash-vitals'), title: 'Vital signs', body: 'The key numbers for the cohort. Before it starts, this shows registrations instead.' },
     { target: wt('dash-attention'), title: 'What needs you', body: 'People, groups and supports that need action, most urgent first. Act on them from here.' },
     { target: wt('dash-trend'), title: 'Trends', body: 'How groups are doing week by week, so you can spot who is slipping.', optional: true },
-    { target: wt('dash-ops'), title: 'Today’s operations', body: 'Today’s activities, pending approvals, cover requests and the latest announcement.' },
+    { target: wt('dash-ops'), title: 'Today’s operations', body: 'Today’s activities, pending approvals and the latest announcement.' },
     { target: wt('app-nav'), title: 'The back office', body: 'Everything else is grouped in the menu.' },
     HELP_STEP,
   ],
@@ -170,7 +169,6 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
   'admin:supports': [
     { target: wt('supports-rules'), title: 'How supports are judged', body: 'The rules in one line, with a link to change them. Filter by Needs attention, Keep an eye on or On track.' },
     { target: wt('supports-list'), title: 'Each support', body: 'Their weekly records and onboarding progress at a glance.', optional: true },
-    { target: wt('supports-cover'), title: 'Cover requests', body: 'When a support asks someone to cover their group, it shows up here.' },
   ],
   'admin:groups': [
     { target: wt('page-action'), title: 'Create and allocate', body: 'Create a new group, or use Allocate participants to place people into groups.', optional: true },

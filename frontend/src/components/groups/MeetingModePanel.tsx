@@ -185,7 +185,6 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
           <h2 className="min-w-0 text-base font-bold leading-snug text-gray-900">{weekLabel} group meeting</h2>
           <span className={`mt-0.5 flex-none whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${status.cls}`}>{status.label}</span>
         </div>
-        <p className="mt-1 text-[13px] text-gray-500">{slotLabel ?? 'Meeting time not set'} · attendance for this meeting only</p>
 
         {weeks.length > 0 && (
           <div className="mt-3">
@@ -204,7 +203,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
           </div>
         )}
 
-        <div className="mt-3.5 flex flex-wrap gap-1.5">
+        {!submitted && <div className="mt-3 flex gap-1">
           {STEPS.map((label, index) => {
             const current = index === Math.min(step, STEPS.length - 1);
             const cls = current
@@ -215,16 +214,15 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
                 key={label}
                 type="button"
                 onClick={() => setStep(index)}
-                className={`min-w-0 flex-[1_1_92px] rounded-[10px] px-1.5 py-2 text-center transition ${cls}`}
+                className={`min-w-0 flex-1 rounded-lg px-1 py-2 text-center transition ${cls}`}
               >
-                <span className="block text-[10px] font-bold tracking-[0.06em]">STEP {index + 1}</span>
                 <span className="mt-0.5 block text-[11.5px] font-semibold">{label}</span>
               </button>
             );
           })}
-        </div>
+        </div>}
 
-        <div className="mt-3 overflow-hidden rounded-[10px] border border-[#eef0f4]">
+        {!submitted && <div className="mt-2 overflow-hidden rounded-[10px]">
           <button
             type="button"
             onClick={() => setTipOpen((open) => !open)}
@@ -232,20 +230,19 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
             className="flex w-full items-center gap-2 bg-[#f6f7f9] px-3 py-2.5 text-left"
           >
             <span className="text-xs font-bold text-gray-600">Tips</span>
-            <span className={`ml-auto text-[11px] text-gray-400 transition-transform ${tipOpen ? 'rotate-180' : ''}`}>▾</span>
+            <svg className={`ml-auto h-4 w-4 flex-none text-gray-400 transition-transform ${tipOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
           </button>
           {tipOpen && (
             <div className="px-3 py-[11px] text-xs leading-relaxed text-gray-500">
               <p>Sunday class attendance is recorded separately. This records who joined the group meeting.</p>
             </div>
           )}
-        </div>
+        </div>}
       </section>
 
       {step === 0 && (
         <section className={CARD}>
           <h3 className="text-[15px] font-bold text-gray-900">Who joined the meeting?</h3>
-          <p className="mt-0.5 text-[13px] text-gray-500">Mark everyone, including anyone who missed it. The report can't be submitted until each person has a mark.</p>
           {participants.length === 0 ? (
             <div className="mt-3.5 rounded-2xl border border-dashed border-orange-200 py-10 text-center text-sm text-gray-500">No participants are in this group yet.</div>
           ) : (

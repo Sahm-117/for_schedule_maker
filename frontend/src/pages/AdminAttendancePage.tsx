@@ -6,8 +6,8 @@ import AppSelect from '../components/AppSelect';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { attendanceApi, groupsApi, participantsApi } from '../services/api';
-import type { AttendanceRecord, AttendanceStatus, Group, Participant, Week } from '../types';
+import { attendanceApi, attendanceFollowUpTasksApi, groupsApi, participantsApi } from '../services/api';
+import type { AttendanceFollowUpTask, AttendanceRecord, AttendanceSession, AttendanceStatus, Group, Participant, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 
@@ -15,6 +15,7 @@ const STATUS_DOT: Record<AttendanceStatus, string> = {
   PRESENT: 'bg-emerald-500',
   LATE: 'bg-amber-500',
   ABSENT: 'bg-red-500',
+  EXCUSED: 'bg-sky-500',
 };
 
 // Read-only status pill shown on each card (admin view is look-only).
@@ -22,12 +23,14 @@ const STATUS_PILL: Record<AttendanceStatus, string> = {
   PRESENT: 'bg-emerald-100/80 text-emerald-700',
   LATE: 'bg-amber-100/80 text-amber-700',
   ABSENT: 'bg-red-100/80 text-red-700',
+  EXCUSED: 'bg-sky-100/80 text-sky-700',
 };
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = {
   PRESENT: 'Present',
   LATE: 'Late',
   ABSENT: 'Absent',
+  EXCUSED: 'Excused',
 };
 
 const AdminAttendancePage: React.FC = () => {
@@ -37,7 +40,6 @@ const AdminAttendancePage: React.FC = () => {
 };
 
 const AdminAttendanceContent: React.FC = () => {
-  const { user } = useAuth();
   const { activeCohort, weeks } = useAppData();
 
   const cohortWeeks: Week[] = useMemo(
@@ -46,15 +48,29 @@ const AdminAttendanceContent: React.FC = () => {
   );
 
   const [selectedWeekId, setSelectedWeekId] = useState<number | null>(null);
+  const [allWeeks, setAllWeeks] = useState(false);
+  const [weekSummaries, setWeekSummaries] = useState<Array<{ id: number; number: number; present: number; absent: number; late: number; excused: number; sent: boolean }>>([]);
+  useEffect(() => {
+    if (!allWeeks) return;
+    let cancelled = false;
+    void Promise.all(cohortWeeks.map(async (week) => {
+      const [{ records }, { session }] = await Promise.all([attendanceApi.getForWeek({ weekId: week.id }), attendanceApi.getSession(week.id)]);
+      const count = (status: AttendanceStatus) => records.filter((record) => record.status === status).length;
+      return { id: week.id, number: week.weekNumber, present: count('PRESENT'), absent: count('ABSENT'), late: count('LATE'), excused: count('EXCUSED'), sent: !!session?.finalizedAt };
+    })).then((rows) => { if (!cancelled) setWeekSummaries(rows); });
+    return () => { cancelled = true; };
+  }, [allWeeks, cohortWeeks]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [records, setRecords] = useState<Map<string, AttendanceRecord>>(new Map());
+  const [followUpTasks, setFollowUpTasks] = useState<AttendanceFollowUpTask[]>([]);
+  const [session, setSession] = useState<AttendanceSession | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | AttendanceStatus | 'UNMARKED'>('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());
-  const [bulkSaving, setBulkSaving] = useState(false);
+  const [sessionSaving, setSessionSaving] = useState(false);
 
   // Groups change per cohort, not per week — load once per cohort.
   useEffect(() => {
@@ -78,14 +94,18 @@ const AdminAttendanceContent: React.FC = () => {
     if (!activeCohort || selectedWeekId === null) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [{ participants: ps }, { records: rs }] = await Promise.all([
+      const [{ participants: ps }, { records: rs }, { session: attendanceSession }, { tasks }] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id }),
         attendanceApi.getForWeek({ weekId: selectedWeekId }),
+        attendanceApi.getSession(selectedWeekId),
+        attendanceFollowUpTasksApi.getForWeek(selectedWeekId),
       ]);
       setParticipants(sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName));
       const map = new Map<string, AttendanceRecord>();
       rs.forEach((r) => map.set(r.participantId, r));
       setRecords(map);
+      setSession(attendanceSession);
+      setFollowUpTasks(tasks);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [activeCohort, selectedWeekId]);
@@ -93,10 +113,10 @@ const AdminAttendanceContent: React.FC = () => {
   useEffect(() => { void load(); }, [load]);
 
   const handleMark = async (participantId: string, status: AttendanceStatus) => {
-    if (selectedWeekId === null) return;
+    if (selectedWeekId === null || session?.finalizedAt) return;
     setSaving((prev) => new Set(prev).add(participantId));
     try {
-      const { record } = await attendanceApi.mark(participantId, selectedWeekId, status, user?.id);
+      const { record } = await attendanceApi.mark(participantId, selectedWeekId, status);
       setRecords((prev) => new Map(prev).set(participantId, record));
     } catch { /* ignore */ }
     finally {
@@ -129,30 +149,11 @@ const AdminAttendanceContent: React.FC = () => {
       { value: 'PRESENT', label: 'Present' },
       { value: 'LATE', label: 'Late' },
       { value: 'ABSENT', label: 'Absent' },
+      { value: 'EXCUSED', label: 'Excused' },
       { value: 'UNMARKED', label: 'Unmarked' },
     ],
     []
   );
-
-  // Mark every still-unmarked visible participant as PRESENT in one batch.
-  const handleMarkAllPresent = async () => {
-    if (selectedWeekId === null) return;
-    const unmarked = visibleParticipants.filter((p) => !records.has(p.id));
-    if (unmarked.length === 0) return;
-    setBulkSaving(true);
-    try {
-      const { records: saved } = await attendanceApi.bulkMark(
-        unmarked.map((p) => ({ participantId: p.id, weekId: selectedWeekId, status: 'PRESENT' as AttendanceStatus })),
-        user?.id,
-      );
-      setRecords((prev) => {
-        const next = new Map(prev);
-        saved.forEach((r) => next.set(r.participantId, r));
-        return next;
-      });
-    } catch { /* ignore */ }
-    finally { setBulkSaving(false); }
-  };
 
   const summary = useMemo(() => {
     const total = visibleParticipants.length;
@@ -161,10 +162,50 @@ const AdminAttendanceContent: React.FC = () => {
     const present = visibleRecords.filter((r) => r.status === 'PRESENT').length;
     const late = visibleRecords.filter((r) => r.status === 'LATE').length;
     const absent = visibleRecords.filter((r) => r.status === 'ABSENT').length;
-    const unmarked = total - (present + late + absent);
+    const excused = visibleRecords.filter((r) => r.status === 'EXCUSED').length;
+    const unmarked = total - (present + late + absent + excused);
     const pct = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
-    return { total, present, late, absent, unmarked, pct };
+    return { total, present, late, absent, excused, unmarked, pct };
   }, [visibleParticipants, records]);
+
+  const allMarked = participants.length > 0 && participants.every((participant) => records.has(participant.id));
+  const finalised = !!session?.finalizedAt;
+  const autoFinalizeAtNoon = session?.autoFinalizeAtNoon ?? true;
+  const openFollowUps = followUpTasks.filter((task) => task.status === 'OPEN').length;
+  const doneFollowUps = followUpTasks.filter((task) => task.status === 'DONE').length;
+  const absenceCount = [...records.values()].filter((record) => record.status === 'ABSENT').length;
+  const unassignedAbsences = Math.max(0, absenceCount - followUpTasks.length);
+
+  const setAutoFinalize = async (enabled: boolean) => {
+    if (selectedWeekId === null) return;
+    setSessionSaving(true);
+    try {
+      const { session: saved } = await attendanceApi.setAutoFinalize(selectedWeekId, enabled);
+      setSession(saved);
+    } catch { /* keep the prior state */ }
+    finally { setSessionSaving(false); }
+  };
+
+  const finalise = async () => {
+    if (selectedWeekId === null || !allMarked || finalised) return;
+    setSessionSaving(true);
+    try {
+      const { session: saved } = await attendanceApi.finalize(selectedWeekId);
+      setSession(saved);
+      await load();
+    } catch { /* the register may have changed in another browser */ }
+    finally { setSessionSaving(false); }
+  };
+
+  const reopen = async () => {
+    if (selectedWeekId === null || !finalised) return;
+    setSessionSaving(true);
+    try {
+      const { session: saved } = await attendanceApi.reopen(selectedWeekId);
+      setSession(saved);
+    } catch { /* keep the finalised state if reopening was rejected */ }
+    finally { setSessionSaving(false); }
+  };
 
   const groupOptions = useMemo(
     () => [
@@ -207,13 +248,14 @@ const AdminAttendanceContent: React.FC = () => {
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Week</label>
               <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => setAllWeeks(true)} className={`rounded-full px-4 py-1.5 text-sm font-semibold ${allWeeks ? 'bg-primary text-white' : 'border border-orange-200 bg-white text-gray-600'}`}>All weeks</button>
                 {cohortWeeks.map((w) => (
                   <button
                     key={w.id}
                     type="button"
-                    onClick={() => setSelectedWeekId(w.id)}
+                    onClick={() => { setAllWeeks(false); setSelectedWeekId(w.id); }}
                     className={`rounded-full px-4 py-1.5 text-sm font-semibold transition active:scale-95 ${
-                      selectedWeekId === w.id
+                      !allWeeks && selectedWeekId === w.id
                         ? 'bg-primary text-white shadow-sm'
                         : 'border border-orange-200 bg-white text-gray-600 hover:bg-orange-50'
                     }`}
@@ -255,7 +297,8 @@ const AdminAttendanceContent: React.FC = () => {
             </div>
           </div>
 
-          {/* Search + bulk action */}
+          {allWeeks ? <section className="mb-4 overflow-hidden rounded-2xl border border-orange-100 bg-white">{weekSummaries.map((week) => <button key={week.id} type="button" onClick={() => { setSelectedWeekId(week.id); setAllWeeks(false); }} className="flex w-full flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 text-left last:border-0 hover:bg-orange-50"><span className="text-sm font-bold">Week {week.number}</span><span className="text-xs text-gray-600">{week.present} present · {week.late} late · {week.absent} absent · {week.excused} excused</span><span className="text-xs font-semibold text-gray-500">{week.sent ? 'Report sent' : 'In progress'} →</span></button>)}</section> : <>
+          {/* Search */}
           {!loading && visibleParticipants.length > 0 && (
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <input
@@ -265,26 +308,40 @@ const AdminAttendanceContent: React.FC = () => {
                 placeholder="Search name or phone…"
                 className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-xs"
               />
-              {summary.unmarked > 0 && (
-                <button
-                  type="button"
-                  onClick={() => void handleMarkAllPresent()}
-                  disabled={bulkSaving}
-                  className="rounded-2xl bg-emerald-100/80 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition active:scale-95 hover:bg-emerald-200/80 disabled:opacity-60"
-                >
-                  {bulkSaving ? 'Marking…' : `Mark all present (${summary.unmarked})`}
-                </button>
-              )}
             </div>
           )}
 
+          <section className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-orange-100 bg-white px-4 py-3 shadow-sm">
+            <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${finalised ? 'bg-emerald-100 text-emerald-700' : allMarked ? 'bg-sky-100 text-sky-700' : 'bg-neutral-100 text-neutral-600'}`}>{finalised ? 'Report sent' : allMarked ? 'Attendance taken' : `${participants.length - records.size} still unmarked`}</span>
+            <button type="button" onClick={() => void setAutoFinalize(!autoFinalizeAtNoon)} disabled={sessionSaving || finalised} className="rounded-xl border border-orange-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50">Auto-finalise at noon: {autoFinalizeAtNoon ? 'On' : 'Off'}</button>
+            {finalised ? <button type="button" onClick={() => void reopen()} disabled={sessionSaving} className="ml-auto rounded-xl border border-orange-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50">Reopen</button> : !autoFinalizeAtNoon ? <button type="button" onClick={() => void finalise()} disabled={!allMarked || sessionSaving} className="ml-auto rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Send report</button> : <p className="ml-auto text-xs font-medium text-gray-500">Sends automatically at noon Sunday</p>}
+          </section>
+          {finalised && <section className="mb-4 rounded-2xl border border-[#d9f2e2] bg-white px-4 py-3 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold text-gray-900">Attendance results</p><p className="text-sm font-semibold text-emerald-700">{summary.present + summary.late} attended · {absenceCount} absent</p></div>
+            {absenceCount > 0 && <p className="mt-1.5 text-[13px] text-gray-500">{openFollowUps} follow-up {openFollowUps === 1 ? 'task' : 'tasks'} assigned{doneFollowUps ? ` · ${doneFollowUps} complete` : ''}{unassignedAbsences ? ` · ${unassignedAbsences} need a support assignment` : ''}.</p>}
+            {followUpTasks.length > 0 && <div className="mt-3 border-t border-[#e7f5eb] pt-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Follow-up status</p>
+              <div className="mt-2 space-y-2">
+                {followUpTasks.map((task) => {
+                  const complete = task.status === 'DONE';
+                  return <div key={task.id} className="rounded-xl bg-[#f8faf9] px-3 py-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1"><p className="text-sm font-semibold text-gray-900">{task.participantName ?? 'Participant'}</p><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${complete ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{complete ? 'Done' : 'Waiting'}</span></div>
+                    <p className="mt-0.5 text-xs text-gray-500">Assigned to {task.supportName ?? 'support'}</p>
+                    {complete && <p className="mt-2 text-xs leading-relaxed text-gray-600">{task.completionNote || 'No absence note recorded.'}</p>}
+                  </div>;
+                })}
+              </div>
+            </div>}
+          </section>}
+
           {/* Summary cards */}
           {!loading && (
-            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {[
                 { label: 'Present', value: summary.present, cls: 'bg-emerald-100/80 text-emerald-700' },
                 { label: 'Late', value: summary.late, cls: 'bg-amber-100/80 text-amber-700' },
                 { label: 'Absent', value: summary.absent, cls: 'bg-red-100/80 text-red-700' },
+                { label: 'Excused', value: summary.excused, cls: 'bg-sky-100/80 text-sky-700' },
                 { label: 'Unmarked', value: summary.unmarked, cls: 'bg-neutral-100 text-neutral-600' },
                 { label: 'Attendance', value: `${summary.pct}%`, cls: 'bg-sky-100/80 text-sky-700' },
               ].map(({ label, value, cls }) => (
@@ -332,6 +389,7 @@ const AdminAttendanceContent: React.FC = () => {
                         { label: 'Mark present', onClick: () => void handleMark(p.id, 'PRESENT') },
                         { label: 'Mark late', onClick: () => void handleMark(p.id, 'LATE') },
                         { label: 'Mark absent', onClick: () => void handleMark(p.id, 'ABSENT') },
+                        { label: 'Mark excused', onClick: () => void handleMark(p.id, 'EXCUSED') },
                       ]}
                     />
                   </div>
@@ -339,6 +397,7 @@ const AdminAttendanceContent: React.FC = () => {
               })}
             </div>
           )}
+          </>}
         </>
       )}
     </div>
