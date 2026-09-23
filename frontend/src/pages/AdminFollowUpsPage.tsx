@@ -105,6 +105,8 @@ const AdminFollowUpsPage: React.FC = () => {
   const [showLinkTip, setShowLinkTip] = useState(false);
   const [cohortFilter, setCohortFilter] = useState('');
   const [ownerFilter, setOwnerFilter] = useState('');
+  // Contacts list order: newest additions first by default, or A–Z.
+  const [contactSort, setContactSort] = useState<'newest' | 'alpha'>('newest');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const initialLoadRef = useRef(true);
@@ -175,12 +177,15 @@ const AdminFollowUpsPage: React.FC = () => {
       return true;
     });
     list.sort((a, b) => {
+      if (contactSort === 'newest') {
+        return (b.createdAt || '').localeCompare(a.createdAt || '') || compareText(a.fullName, b.fullName);
+      }
       const aClosed = isClosedContact(a) ? 1 : 0;
       const bClosed = isClosedContact(b) ? 1 : 0;
       return (aClosed - bClosed) || compareText(a.fullName, b.fullName);
     });
     return list;
-  }, [contacts, cohortFilter, ownerFilter, filters, statusParam]);
+  }, [contacts, cohortFilter, ownerFilter, filters, statusParam, contactSort]);
 
   const ownerOptionCounts = useMemo(() => {
     const scoped = cohortFilter ? contacts.filter((c) => c.cohortId === cohortFilter && !c.archivedAt) : contacts.filter((c) => !c.archivedAt);
@@ -409,6 +414,20 @@ const AdminFollowUpsPage: React.FC = () => {
                     ...owners.map((o) => ({ value: o.id, label: `${o.name} (${ownerOptionCounts.perOwner[o.id] || 0})` })),
                   ]}
                   placeholder="All reps"
+                  compact
+                />
+              </div>
+            )}
+            {tab === 'contacts' && (
+              <div className="w-40">
+                <AppSelect
+                  value={contactSort}
+                  onChange={(v) => setContactSort(v === 'alpha' ? 'alpha' : 'newest')}
+                  options={[
+                    { value: 'newest', label: 'Newest first' },
+                    { value: 'alpha', label: 'A–Z' },
+                  ]}
+                  placeholder="Newest first"
                   compact
                 />
               </div>

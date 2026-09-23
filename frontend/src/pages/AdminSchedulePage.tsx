@@ -1,6 +1,5 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import AdminCompletionOverviewDrawer from '../components/AdminCompletionOverviewDrawer';
 import AppSelect from '../components/AppSelect';
 import LabelManagement from '../components/LabelManagement';
 import PageHeader from '../components/PageHeader';
@@ -8,10 +7,10 @@ import ScheduleView from '../components/ScheduleView';
 import WeekSelector from '../components/WeekSelector';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { labelsApi, supportActivityCompletionsApi, usersApi, cohortsApi } from '../services/api';
+import { labelsApi, usersApi, cohortsApi } from '../services/api';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
-import type { Activity, Day, Label, SupportActivityCompletion, User } from '../types';
+import type { Day, Label, User } from '../types';
 import { exportAllWeeksToPDF, exportDayToPDF, exportWeekToPDF } from '../utils/pdfExport';
 import { sortByText } from '../utils/sort';
 
@@ -51,8 +50,6 @@ const AdminSchedulePage: React.FC = () => {
   const [selectedSupportGroupId, setSelectedSupportGroupId] = React.useState('');
   const [supportUsers, setSupportUsers] = React.useState<User[]>([]);
   const [selectedSupportUserId, setSelectedSupportUserId] = React.useState('');
-  const [showOverviewDrawer, setShowOverviewDrawer] = React.useState(false);
-  const [completions, setCompletions] = React.useState<SupportActivityCompletion[]>([]);
 
   React.useEffect(() => {
     if (!isAdmin) return;
@@ -80,20 +77,6 @@ const AdminSchedulePage: React.FC = () => {
       })
       .catch((error) => console.warn('Failed to load support users:', error));
   }, [isAdmin]);
-
-  React.useEffect(() => {
-    if (!selectedWeek || !isAdmin) {
-      setCompletions([]);
-      return;
-    }
-
-    supportActivityCompletionsApi.getByWeek(selectedWeek.id)
-      .then((response) => setCompletions(response.completions))
-      .catch((error) => {
-        console.warn('Failed to load support completions for overview:', error);
-        setCompletions([]);
-      });
-  }, [isAdmin, selectedWeek]);
 
   const canManageSchedule = isAdmin || isSopPreparer;
 
@@ -162,20 +145,6 @@ const AdminSchedulePage: React.FC = () => {
     return undefined;
   }, [selectedSupportGroupId, selectedSupportUser, selectedSupportUserId]);
 
-  const overviewActivities = React.useMemo(() => {
-    if (!selectedWeek) return [] as Activity[];
-    const rawActivities = selectedWeek.days.flatMap((day) => day.activities.map((activity) => ({
-      ...activity,
-      day,
-    })));
-
-    if (!effectiveFilterLabelIds) return rawActivities;
-
-    return rawActivities.filter((activity) =>
-      activity.labels?.some((label) => effectiveFilterLabelIds.includes(label.id))
-    );
-  }, [effectiveFilterLabelIds, selectedWeek]);
-
   const headerAction = canManageSchedule ? (
     <div className="flex flex-wrap items-center justify-end gap-2">
       {isAdmin && (
@@ -208,7 +177,6 @@ const AdminSchedulePage: React.FC = () => {
           { label: 'Export week', onClick: () => { void exportSelectedWeek(); } },
           { label: 'Export all', onClick: () => { void exportAllWeeks(); } },
           ...(isAdmin ? [{ label: 'Manage tags', onClick: () => setShowTagManagement(true) }] : []),
-          ...(isAdmin ? [{ label: 'Overview', onClick: () => setShowOverviewDrawer(true) }] : []),
           { label: 'Cross-Week', onClick: () => setCrossWeekRequest((prev) => prev + 1) },
         ]}
       />
@@ -318,25 +286,6 @@ const AdminSchedulePage: React.FC = () => {
           )}
         </div>
       </div>
-
-      {isAdmin && selectedWeek && (
-        <AdminCompletionOverviewDrawer
-          open={showOverviewDrawer}
-          onClose={() => setShowOverviewDrawer(false)}
-          activities={overviewActivities}
-          users={supportUsers}
-          completions={completions}
-          selectedUserId={selectedSupportUserId || undefined}
-          heading={`Week ${selectedWeek.weekNumber} completion overview`}
-          subheading={
-            selectedSupportUser
-              ? `Tracking done versus pending tasks for ${selectedSupportUser.name}.`
-              : selectedSupportGroupId
-                ? 'Tracking done versus pending tasks for the selected activity tag.'
-                : 'Tracking done versus pending tasks for the full selected week.'
-          }
-        />
-      )}
 
       <ConfirmationModal
         isOpen={confirmPublishOpen}

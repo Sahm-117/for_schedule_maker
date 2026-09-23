@@ -49,7 +49,6 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   canAssign,
   onFieldChange,
   onMessage,
-  onLogContact,
   onEdit,
   onDelete,
   onBulkAssign,
@@ -58,20 +57,18 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const [bulkOwnerId, setBulkOwnerId] = useState('');
   const [bulkDueDate, setBulkDueDate] = useState('');
   const [assigning, setAssigning] = useState(false);
-  const [adjustingCount, setAdjustingCount] = useState<FollowUpContact | null>(null);
   const [editingDueDate, setEditingDueDate] = useState<FollowUpContact | null>(null);
   const [dueDateValue, setDueDateValue] = useState('');
   const [editingNotes, setEditingNotes] = useState<FollowUpContact | null>(null);
   const [notesValue, setNotesValue] = useState('');
-  const [editingLastContact, setEditingLastContact] = useState<FollowUpContact | null>(null);
-  const [lastContactValue, setLastContactValue] = useState('');
   const [viewingInfo, setViewingInfo] = useState<string | null>(null);
   const [savingFields, setSavingFields] = useState<Set<string>>(new Set());
   const [notInterestedContact, setNotInterestedContact] = useState<FollowUpContact | null>(null);
   const [pendingClose, setPendingClose] = useState<{ contact: FollowUpContact; status: 'REGISTERED' | 'WRONG_NUMBER' } | null>(null);
   const [closeNotes, setCloseNotes] = useState('');
   const [copiedPhoneId, setCopiedPhoneId] = useState<string | null>(null);
-  const stepperRef = useRef<HTMLDivElement | null>(null);
+  const [assigningOwner, setAssigningOwner] = useState<FollowUpContact | null>(null);
+  const [ownerSearch, setOwnerSearch] = useState('');
   const dueDateInputRef = useRef<HTMLInputElement | null>(null);
 
   const copyNumber = async (contact: FollowUpContact) => {
@@ -156,25 +153,14 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
       items={[
         { label: 'Copy number', onClick: () => { void copyNumber(contact); }, icon: PhoneIcon },
         { label: 'Send message', onClick: () => onMessage(contact), icon: WhatsAppIcon },
-        { label: 'Log an issue', onClick: () => onLogContact(contact) },
+        ...(canAssign ? [{ label: 'Assign a support', onClick: () => { setOwnerSearch(''); setAssigningOwner(contact); } }] : []),
         { label: 'Edit contact', onClick: () => onEdit(contact) },
-        { label: `Number of follow ups (${contact.followUpCount})`, onClick: () => setAdjustingCount(contact) },
         { label: `Due date: ${contact.dueDate ? dateLabel(contact.dueDate) : 'none'}`, onClick: () => { setDueDateValue(contact.dueDate || ''); setEditingDueDate(contact); } },
-        { label: `Last contact: ${contact.lastContactDate ? dateLabel(contact.lastContactDate) : 'none'}`, onClick: () => { setLastContactValue(contact.lastContactDate || ''); setEditingLastContact(contact); } },
         { label: contact.notes ? `View note` : `Add note`, onClick: () => { setNotesValue(contact.notes || ''); setEditingNotes(contact); } },
         ...(canAssign && onDelete ? [{ label: 'Delete contact', onClick: () => onDelete(contact), tone: 'danger' as const }] : []),
       ]}
     />
   );
-
-  const handleStepperChange = (delta: number) => {
-    setAdjustingCount((prev) => {
-      if (!prev) return prev;
-      const newCount = Math.max(0, prev.followUpCount + delta);
-      onFieldChange(prev, { followUpCount: newCount });
-      return { ...prev, followUpCount: newCount };
-    });
-  };
 
   const handleDueDateSave = () => {
     if (!editingDueDate) return;
@@ -186,12 +172,6 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     if (!editingNotes) return;
     onFieldChange(editingNotes, { notes: notesValue.trim() || null });
     setEditingNotes(null);
-  };
-
-  const handleLastContactSave = () => {
-    if (!editingLastContact) return;
-    onFieldChange(editingLastContact, { lastContactDate: lastContactValue || null });
-    setEditingLastContact(null);
   };
 
   if (contacts.length === 0) {
@@ -421,44 +401,6 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         ))}
       </div>
 
-      {adjustingCount && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center" onClick={() => setAdjustingCount(null)}>
-          <div className="absolute inset-0 bg-slate-900/35" />
-          <div ref={stepperRef} className="relative mb-20 w-[90vw] max-w-[300px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0" onClick={(e) => e.stopPropagation()}>
-            <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">How many times have you followed up?</p>
-            <p className="mb-4 truncate text-center text-sm font-semibold text-gray-900">{adjustingCount.fullName}</p>
-            <div className="flex items-center justify-center gap-5">
-              <button
-                type="button"
-                disabled={adjustingCount.followUpCount <= 0}
-                onPointerDown={() => handleStepperChange(-1)}
-                className="grid h-12 w-12 place-items-center rounded-2xl bg-orange-100 text-2xl font-bold text-primary shadow-sm transition active:scale-95 hover:bg-orange-200 disabled:opacity-30 disabled:active:scale-100"
-              >
-                −
-              </button>
-              <span className="min-w-[4ch] text-center text-4xl font-bold tabular-nums tracking-tight text-gray-900">
-                {adjustingCount.followUpCount}
-              </span>
-              <button
-                type="button"
-                onPointerDown={() => handleStepperChange(1)}
-                className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-2xl font-bold text-white shadow-sm transition active:scale-95 hover:bg-primary-dark"
-              >
-                +
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => setAdjustingCount(null)}
-              className="mx-auto mt-5 block rounded-2xl bg-gray-100 px-6 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 active:scale-95"
-            >
-              Done
-            </button>
-          </div>
-        </div>,
-        document.body
-      )}
-
       {editingDueDate && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center" onClick={() => setEditingDueDate(null)}>
           <div className="absolute inset-0 bg-slate-900/35" />
@@ -482,22 +424,49 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         document.body
       )}
 
-      {editingLastContact && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center" onClick={() => setEditingLastContact(null)}>
+      {assigningOwner && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center" onClick={() => setAssigningOwner(null)}>
           <div className="absolute inset-0 bg-slate-900/35" />
-          <div className="relative mb-20 w-[90vw] max-w-[320px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0" onClick={(e) => e.stopPropagation()}>
-            <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Last contact date</p>
-            <p className="mb-4 truncate text-center text-sm font-semibold text-gray-900">{editingLastContact.fullName}</p>
+          <div className="relative mb-20 w-[90vw] max-w-[360px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0" onClick={(e) => e.stopPropagation()}>
+            <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Assign a support</p>
+            <p className="mb-4 truncate text-center text-sm font-semibold text-gray-900">{assigningOwner.fullName}</p>
             <input
-              type="date"
-              value={lastContactValue}
-              onChange={(e) => setLastContactValue(e.target.value)}
+              autoFocus
+              value={ownerSearch}
+              onChange={(e) => setOwnerSearch(e.target.value)}
+              placeholder="Search supports"
               className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-orange-300"
             />
-            {!lastContactValue && <p className="mt-2 text-center text-xs text-gray-400">Select date</p>}
-            <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={() => setEditingLastContact(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
-              <button type="button" onClick={handleLastContactSave} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark">Save</button>
+            <div className="mt-3 flex max-h-72 flex-col gap-1 overflow-y-auto overscroll-contain">
+              {(() => {
+                const query = ownerSearch.trim().toLowerCase();
+                const matches = ownerOptions.filter((option) => !query || option.label.toLowerCase().includes(query));
+                if (matches.length === 0) return <p className="px-3 py-2 text-center text-sm text-gray-400">No support matches “{ownerSearch.trim()}”.</p>;
+                return matches.map((option) => {
+                  const isCurrent = (assigningOwner.ownerId || '') === option.value;
+                  return (
+                    <button
+                      key={option.value || 'unassigned'}
+                      type="button"
+                      onClick={() => {
+                        if (!isCurrent) onFieldChange(assigningOwner, { ownerId: option.value || null, previousOwnerId: assigningOwner.ownerId || null });
+                        setAssigningOwner(null);
+                      }}
+                      className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition hover:bg-orange-50 ${isCurrent ? 'font-semibold text-gray-900' : 'text-gray-700'}`}
+                    >
+                      <span className="truncate">{option.label}</span>
+                      {isCurrent && (
+                        <svg className="h-4 w-4 shrink-0 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                });
+              })()}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button type="button" onClick={() => setAssigningOwner(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
             </div>
           </div>
         </div>,

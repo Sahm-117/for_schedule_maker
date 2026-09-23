@@ -88,8 +88,7 @@ const AppOverflowMenu: React.FC<AppOverflowMenuProps> = ({ items, align = 'right
             <button
               key={item.label}
               type="button"
-              onPointerDown={() => item.onClick()}
-              onClick={() => setOpen(false)}
+              onClick={() => { setOpen(false); item.onClick(); }}
               className={`flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition ${
                 item.tone === 'danger'
                   ? 'text-red-600 hover:bg-red-50'

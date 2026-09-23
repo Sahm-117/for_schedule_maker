@@ -18,9 +18,10 @@ const resolvePath = (n: Notification, isSupport: boolean): string | null => {
     case 'HUB':
       return isSupport ? '/support/community' : '/community';
     case 'FOLLOWUP_ASSIGNMENT':
-    case 'FOLLOWUP_ISSUE':
     case 'FOLLOWUP_TERMINAL':
-      return isSupport ? '/support/follow-ups' : '/follow-ups';
+      return isSupport ? '/support/mobilisation?tab=follow' : '/follow-ups?tab=contacts';
+    case 'FOLLOWUP_ISSUE':
+      return isSupport ? '/support/mobilisation?tab=follow' : '/follow-ups?tab=issues';
     case 'FAITH_PROJECT_REVIEW':
     case 'FAITH_PROJECT_SUBMITTED':
       return n.path ?? '/faith-projects';

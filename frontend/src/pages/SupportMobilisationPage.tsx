@@ -133,6 +133,19 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     }
   }, [user?.id, user?.name]);
 
+  const [signUpsRefreshing, setSignUpsRefreshing] = useState(false);
+  const refreshSignUps = async () => {
+    setSignUpsRefreshing(true);
+    try {
+      const res = await formRegistrationsApi.getAll();
+      setSignUps(res.registrations);
+    } catch (err) {
+      console.warn('Failed to refresh form sign-ups:', err);
+    } finally {
+      setSignUpsRefreshing(false);
+    }
+  };
+
   useEffect(() => { void loadAll(); }, [liveRevision, loadAll]);
   useEffect(() => {
     const interval = setInterval(() => void loadAll(), 30000);
@@ -383,6 +396,19 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-sm font-bold text-gray-900">Signed up on the form</h3>
                 <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-bold text-neutral-600">{signUps.length}</span>
+                <button
+                  type="button"
+                  onClick={() => { void refreshSignUps(); }}
+                  disabled={signUpsRefreshing}
+                  aria-label="Refresh sign-ups"
+                  title="Refresh"
+                  className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 disabled:opacity-60"
+                >
+                  <svg className={`h-4 w-4 ${signUpsRefreshing ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                    <path d="M21 3v6h-6" />
+                  </svg>
+                </button>
               </div>
               <p className="mt-1 text-[13px] leading-normal text-gray-500">Everyone who filled in the registration form. Check here before asking the back office.</p>
 
