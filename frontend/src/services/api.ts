@@ -608,6 +608,7 @@ export const supportSessionsApi = USE_SUPABASE ? supabaseSupportSessionsApi : {
 export const myHubApi = USE_SUPABASE ? supabaseMyHubApi : {
   async get(_cohortId: string): Promise<import('../types').MyHubPayload> { return { hub: null, isLead: false, members: [], messages: [], myAttendance: [] }; },
   async postMessage(_hubId: string, _subject: string, _body: string): Promise<never> { return peopleUnavailable(); },
+  async acknowledgeMessage(_messageId: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {

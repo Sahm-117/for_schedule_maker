@@ -150,6 +150,17 @@ const AdminSupportsPage: React.FC = () => {
   const userById = new Map(users.map((u) => [u.id, u]));
   const groupById = new Map((health?.groups ?? []).map((g) => [g.id, g]));
 
+  // Supports who lead no group still show up as a simple card when they're in
+  // a hub — otherwise the only trace of them is a name in the collapsed line
+  // below, and the hub filter used to hide them from the page entirely. They
+  // have no health, so a health filter other than "all" hides their card too.
+  const notLeadingWithHub = (model?.notLeading ?? []).filter((u) => !!hubByUserId.get(u.id));
+  const notLeadingCards = filter === 'all'
+    ? notLeadingWithHub.filter((u) => !hubFilter || hubByUserId.get(u.id)?.id === hubFilter)
+    : [];
+  const notLeadingCardIds = new Set(notLeadingCards.map((u) => u.id));
+  const notLeadingCollapsed = (model?.notLeading ?? []).filter((u) => !notLeadingCardIds.has(u.id));
+
   return (
     <div>
       <PageHeader title="Supports" subtitle="Group meeting records and onboarding for every support." tourId="admin:supports" />
@@ -212,7 +223,7 @@ const AdminSupportsPage: React.FC = () => {
             </div>
           )}
 
-          {visible.length === 0 ? (
+          {visible.length === 0 && notLeadingCards.length === 0 ? (
             <div className="surface-card p-8 text-center text-sm text-gray-500">No supports here.</div>
           ) : (
             <ul data-wt="supports-list" className="space-y-3">
@@ -232,10 +243,13 @@ const AdminSupportsPage: React.FC = () => {
                   }}
                 />
               ))}
+              {notLeadingCards.map((u) => (
+                <NoLeadSupportCard key={u.id} user={u} hub={hubByUserId.get(u.id)!} />
+              ))}
             </ul>
           )}
 
-          {(model.unsupported.length > 0 || model.notLeading.length > 0) && (
+          {(model.unsupported.length > 0 || notLeadingCollapsed.length > 0) && (
             <section className="surface-card p-5 sm:p-6">
               {model.unsupported.length > 0 && (
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -246,10 +260,10 @@ const AdminSupportsPage: React.FC = () => {
                   <NavLink to="/groups" className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">Assign</NavLink>
                 </div>
               )}
-              {model.notLeading.length > 0 && (
+              {notLeadingCollapsed.length > 0 && (
                 <details className={model.unsupported.length > 0 ? 'mt-3' : ''}>
-                  <summary className="cursor-pointer text-sm font-semibold text-gray-700">{model.notLeading.length} support{model.notLeading.length === 1 ? ' isn’t' : 's aren’t'} leading a group this cohort</summary>
-                  <p className="mt-2 text-sm text-gray-600">{model.notLeading.map((u) => u.name).join(', ')}</p>
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-700">{notLeadingCollapsed.length} support{notLeadingCollapsed.length === 1 ? ' isn’t' : 's aren’t'} leading a group this cohort</summary>
+                  <p className="mt-2 text-sm text-gray-600">{notLeadingCollapsed.map((u) => u.name).join(', ')}</p>
                 </details>
               )}
             </section>
@@ -458,6 +472,102 @@ const SupportCard: React.FC<{
               })}
             </tbody>
           </table>
+        </div>
+      )}
+    </li>
+  );
+};
+
+// A support in a hub who doesn't lead a group: no weekly records to judge, so
+// just their hub badge, a WhatsApp link and the same notes section the
+// group-leading card has.
+const NoLeadSupportCard: React.FC<{
+  user: User;
+  hub: { id: string; name: string; isLead: boolean };
+}> = ({ user, hub }) => {
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [notes, setNotes] = useState<SupportNote[] | null>(null);
+  const [noteBody, setNoteBody] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
+  const whatsapp = buildWhatsAppLink(user.phone, `Hi ${user.name.split(' ')[0]}`);
+
+  const toggleNotes = () => {
+    const next = !notesOpen;
+    setNotesOpen(next);
+    if (next && notes === null) {
+      supportNotesApi.getForSupport(user.id).then((res) => setNotes(res.notes)).catch(() => setNotes([]));
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!noteBody.trim()) return;
+    setNoteSaving(true);
+    try {
+      const { note } = await supportNotesApi.create({ supportId: user.id, hubId: hub.id, noteType: 'NOTE', body: noteBody.trim() });
+      setNotes((prev) => [note, ...(prev ?? [])]);
+      setNoteBody('');
+    } catch { /* ignore */ }
+    finally { setNoteSaving(false); }
+  };
+
+  return (
+    <li className="surface-card p-4 sm:p-5">
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-semibold text-gray-900">
+            {user.name}
+            {hub.isLead && <span className="ml-2 rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>}
+          </p>
+          <p className="text-sm text-gray-500">
+            <span className="rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-3 text-sm text-gray-600">Not leading a group yet</p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {whatsapp && (
+          <a href={whatsapp} target="_blank" rel="noreferrer" className="rounded-xl bg-emerald-100/80 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">WhatsApp</a>
+        )}
+        <button type="button" onClick={toggleNotes} aria-expanded={notesOpen} className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">
+          {notesOpen ? 'Hide notes' : 'Notes'}
+        </button>
+      </div>
+
+      {notesOpen && (
+        <div className="mt-3 rounded-xl border border-orange-100 p-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              type="text"
+              value={noteBody}
+              onChange={(e) => setNoteBody(e.target.value)}
+              placeholder="Private note — only admin and this support's hub lead can see it."
+              className="flex-1 rounded-xl border border-orange-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            <button
+              type="button"
+              onClick={() => void handleAddNote()}
+              disabled={noteSaving || !noteBody.trim()}
+              className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white active:scale-95 disabled:opacity-60"
+            >
+              {noteSaving ? 'Saving…' : 'Add'}
+            </button>
+          </div>
+          {notes === null ? (
+            <p className="mt-2 text-xs text-gray-400">Loading…</p>
+          ) : notes.length === 0 ? (
+            <p className="mt-2 text-xs text-gray-400">No notes yet.</p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {notes.map((n) => (
+                <li key={n.id} className="rounded-lg bg-gray-50 px-3 py-2">
+                  <p className="whitespace-pre-line text-xs text-gray-800">{n.body}</p>
+                  <p className="mt-1 text-[10px] text-gray-400">{n.authorName || 'Admin'} · {new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </li>

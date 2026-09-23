@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { myHubApi, supportNotesApi, supportSessionsApi } from '../services/api';
 import { buildWhatsAppLink } from '../utils/phone';
-import type { SupportAttendanceStatus, SupportNote } from '../types';
+import type { HubMessage, MyHubMember, SupportAttendanceStatus, SupportNote } from '../types';
 
 const STATUS_OPTIONS: Array<{ value: SupportAttendanceStatus; label: string }> = [
   { value: 'PRESENT', label: 'Present' },
@@ -101,6 +101,22 @@ const SupportMyHubPage: React.FC = () => {
     finally { setNoteSaving(false); }
   };
 
+  // ── Message acknowledgement (member "Got it") ─────────────────────────────
+  const [ackedLocal, setAckedLocal] = useState<Set<string>>(new Set());
+
+  const handleAcknowledge = async (messageId: string) => {
+    setAckedLocal((prev) => new Set(prev).add(messageId));
+    try {
+      await myHubApi.acknowledgeMessage(messageId);
+    } catch {
+      setAckedLocal((prev) => {
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
+      });
+    }
+  };
+
   // ── Message hub (lead only) ───────────────────────────────────────────────
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -192,14 +208,31 @@ const SupportMyHubPage: React.FC = () => {
                 {myHub.messages.length === 0 ? (
                   <p className="text-sm text-gray-400">No messages yet.</p>
                 ) : (
-                  <ul className="space-y-3">
-                    {myHub.messages.map((msg) => (
-                      <li key={msg.id} className="rounded-xl border border-orange-100 p-3">
-                        <p className="text-sm font-semibold text-gray-900">{msg.subject}</p>
-                        <p className="mt-1 whitespace-pre-line text-sm text-gray-700">{msg.body}</p>
-                        <p className="mt-1.5 text-[11px] text-gray-400">{msg.authorName || 'Hub lead'} · {new Date(msg.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                      </li>
-                    ))}
+                  <ul className="max-h-[26rem] space-y-3 overflow-y-auto">
+                    {myHub.messages.map((msg) => {
+                      const acked = !!msg.ackedByMe || ackedLocal.has(msg.id);
+                      return (
+                        <li key={msg.id} className="rounded-xl border border-orange-100 p-3">
+                          <p className="text-sm font-semibold text-gray-900">{msg.subject}</p>
+                          <p className="mt-1 whitespace-pre-line text-sm text-gray-700">{msg.body}</p>
+                          <p className="mt-1.5 text-[11px] text-gray-400">{msg.authorName || 'Hub lead'} · {new Date(msg.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                          {!isLead && (
+                            acked ? (
+                              <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2.5 py-1 text-xs font-semibold text-emerald-700">✓ Acknowledged</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => void handleAcknowledge(msg.id)}
+                                className="mt-2 rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200"
+                              >
+                                Got it
+                              </button>
+                            )
+                          )}
+                          {isLead && <HubMessageAckSummary message={msg} members={myHub.members} />}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </section>
@@ -334,6 +367,36 @@ const SupportMyHubPage: React.FC = () => {
             </section>
           )}
         </div>
+      )}
+    </div>
+  );
+};
+
+// Shown to the lead in place of the "Got it" button: how many of the other
+// members have acknowledged, and (tap to open) who hasn't yet.
+const HubMessageAckSummary: React.FC<{ message: HubMessage; members: MyHubMember[] }> = ({ message, members }) => {
+  const [open, setOpen] = useState(false);
+  const ackCount = message.ackCount ?? 0;
+  const memberCount = message.memberCount ?? 0;
+  const ackedIds = new Set(message.ackedUserIds ?? []);
+  const notAcked = members.filter((m) => m.userId !== message.authorId && !ackedIds.has(m.userId));
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="text-xs font-semibold text-gray-500 hover:text-gray-700"
+      >
+        {ackCount} of {memberCount} acknowledged
+      </button>
+      {open && (
+        notAcked.length === 0 ? (
+          <p className="mt-1 text-[11px] text-gray-400">Everyone has acknowledged.</p>
+        ) : (
+          <p className="mt-1 text-[11px] text-gray-500">Not yet: {notAcked.map((m) => m.name).join(', ')}</p>
+        )
       )}
     </div>
   );

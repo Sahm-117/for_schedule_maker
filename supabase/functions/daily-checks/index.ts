@@ -191,6 +191,22 @@ Deno.serve(async (req) => {
       const dayInCohort = Math.floor((now.getTime() - start.getTime()) / MS_PER_DAY)
       const currentWeek = dayInCohort < 0 ? 0 : Math.floor(dayInCohort / 7) + 1
 
+      // Day 5 of the cohort: My Hub takes Mobilisation's spot on the bottom
+      // bar for every support in a hub. Sent once per person (EscalationNotice
+      // key), so someone added to a hub later still gets it.
+      if (dayInCohort >= 5) {
+        const { data: hubMembers } = await supabase.from('HubMembership').select('userId').eq('cohortId', cohort.id)
+        for (const member of (hubMembers ?? []) as any[]) {
+          if (!firstTime(`hub-nav-swap:${cohort.id}:${member.userId}`, cohort.id)) continue
+          escalation(
+            member.userId,
+            'Mobilisation has moved to More',
+            'My Hub is now on your menu bar so you can reach your hub faster.',
+            '/support/my-hub',
+          )
+        }
+      }
+
       const [{ data: weeks }, { data: groups }, { data: people }] = await Promise.all([
         supabase.from('Week').select('id, weekNumber').eq('cohortId', cohort.id),
         supabase.from('Group').select('id, name, supportId, support:User!Group_supportId_fkey(name), members:GroupParticipant(participantId)').eq('cohortId', cohort.id),

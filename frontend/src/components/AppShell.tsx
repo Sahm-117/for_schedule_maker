@@ -273,6 +273,18 @@ const AppShell: React.FC = () => {
   const isSupport = user?.role === 'SUPPORT';
   // First-login order: password change, Welcome + Home tour, then the notification prompt.
   const { busy: tourBusy } = useTourState();
+  // Day 5+ of the cohort, a hub support reaches My Hub more than Mobilisation,
+  // so the two swap places on the mobile bottom bar (desktop keeps both).
+  const hubPhase = useMemo(() => {
+    if (!isSupport || !myHub?.hub || !activeCohort?.startDate) return false;
+    const start = new Date(`${activeCohort.startDate}T00:00:00Z`);
+    return Date.now() >= start.getTime() + 5 * 24 * 60 * 60 * 1000;
+  }, [isSupport, myHub?.hub, activeCohort?.startDate]);
+  const isMobileMoreItem = (item: NavItem) => {
+    if (item.to === '/support/mobilisation') return hubPhase;
+    if (item.to === '/support/my-hub') return !hubPhase;
+    return !!item.mobileMore;
+  };
   const navItems = useMemo(() => {
     if (isSupport) return supportNav.filter((item) => !item.hubOnly || !!myHub?.hub);
     return adminNav.filter((item) => canShowNavItem(item, isAdmin, isSopPreparer));
@@ -294,13 +306,15 @@ const AppShell: React.FC = () => {
     }));
   };
   const mobileNavItems = useMemo(() => {
-    if (isSupport) return supportNav.filter((item) => !item.mobileHidden && !item.mobileMore && (!item.hubOnly || !!myHub?.hub));
+    if (isSupport) return supportNav.filter((item) => !item.mobileHidden && !isMobileMoreItem(item) && (!item.hubOnly || !!myHub?.hub));
     const mobileAdminRoutes = new Set(['/dashboard', '/schedule', '/participants', '/supports', '/community']);
     return navItems.filter((item) => mobileAdminRoutes.has(item.to));
-  }, [isSupport, navItems, myHub?.hub]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSupport, navItems, myHub?.hub, hubPhase]);
   const mobileMoreItems = useMemo(
-    () => (isSupport ? supportNav.filter((item) => item.mobileMore && (!item.hubOnly || !!myHub?.hub)) : []),
-    [isSupport, myHub?.hub]
+    () => (isSupport ? supportNav.filter((item) => isMobileMoreItem(item) && (!item.hubOnly || !!myHub?.hub)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isSupport, myHub?.hub, hubPhase]
   );
   const moreActive = mobileMoreItems.some((item) => isNavActive(location.pathname, item.to));
 

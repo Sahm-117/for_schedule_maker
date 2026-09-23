@@ -4925,28 +4925,45 @@ export const supportHubsApi = {
     return { members: ((data as any[]) || []).map((r) => r.user).filter(Boolean) };
   },
 
-  // Replaces the hub's full member list (delete-then-insert, mirrors
-  // groupsApi.setParticipants). A support can only be in one hub per cohort,
-  // so any newly-added member is first cleared from whatever hub they were in.
+  // Diffs against the hub's current member list rather than delete-then-insert
+  // everyone: only removed members are deleted and only new members are
+  // inserted, so unchanged members' rows are untouched and the "added to a
+  // hub" trigger (AFTER INSERT on HubMembership) doesn't fire for them. A
+  // support can only be in one hub per cohort, so any newly-added member is
+  // first cleared from whatever hub they were in.
   async setMembers(hubId: string, cohortId: string, userIds: string[]): Promise<{ message: string }> {
-    const { error: clearOldHubError } = await supabase
+    const { data: existingRows, error: existingError } = await supabase
       .from('HubMembership')
-      .delete()
+      .select('userId')
       .eq('cohortId', cohortId)
       .eq('hubId', hubId);
-    if (clearOldHubError) throw new Error(clearOldHubError.message);
+    if (existingError) throw new Error(existingError.message);
+    const existingIds = new Set(((existingRows as any[]) || []).map((r) => r.userId as string));
+    const nextIds = new Set(userIds);
+    const toRemove = [...existingIds].filter((id) => !nextIds.has(id));
+    const toAdd = userIds.filter((id) => !existingIds.has(id));
 
-    if (userIds.length > 0) {
+    if (toRemove.length > 0) {
+      const { error: removeError } = await supabase
+        .from('HubMembership')
+        .delete()
+        .eq('cohortId', cohortId)
+        .eq('hubId', hubId)
+        .in('userId', toRemove);
+      if (removeError) throw new Error(removeError.message);
+    }
+
+    if (toAdd.length > 0) {
       const { error: clearPriorMembershipError } = await supabase
         .from('HubMembership')
         .delete()
         .eq('cohortId', cohortId)
-        .in('userId', userIds);
+        .in('userId', toAdd);
       if (clearPriorMembershipError) throw new Error(clearPriorMembershipError.message);
 
       const { error: insError } = await supabase
         .from('HubMembership')
-        .insert(userIds.map((userId) => ({ hubId, userId, cohortId })));
+        .insert(toAdd.map((userId) => ({ hubId, userId, cohortId })));
       if (insError) throw new Error(insError.message);
     }
     return { message: 'Members updated' };
@@ -5031,6 +5048,11 @@ export const myHubApi = {
     const { data, error } = await supabase.rpc('post_hub_message', { p_hub_id: hubId, p_subject: subject, p_body: body });
     if (error || !data) throw new Error(error?.message || 'Failed to send message');
     return { message: data as import('../types').HubMessage };
+  },
+
+  async acknowledgeMessage(messageId: string): Promise<void> {
+    const { error } = await supabase.rpc('acknowledge_hub_message', { p_message_id: messageId });
+    if (error) throw new Error(error.message);
   },
 };
 

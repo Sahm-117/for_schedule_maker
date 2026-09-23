@@ -972,6 +972,13 @@ export interface HubMessage {
   subject: string;
   body: string;
   createdAt: string;
+  /** Whether the signed-in member has tapped "Got it" on this message. */
+  ackedByMe?: boolean;
+  ackCount?: number;
+  /** Other hub members besides the caller — the "Y" in "X of Y acknowledged". */
+  memberCount?: number;
+  /** Only set for the hub's lead or an admin. */
+  ackedUserIds?: string[] | null;
 }
 
 /** My Hub, as returned by get_my_hub: the caller's own hub for one cohort. */
