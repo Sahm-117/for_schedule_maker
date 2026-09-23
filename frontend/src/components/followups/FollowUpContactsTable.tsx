@@ -280,7 +280,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                       </div>
                     )}
                     {contact.registeredByName && (
-                      <p className="mt-0.5 text-[11px] text-gray-400">Registered by {contact.registeredByName}</p>
+                      <p className="mt-0.5 text-[11px] text-gray-400">Added for follow up by {contact.registeredByName}</p>
                     )}
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
                       {contact.ownerName && (
@@ -357,7 +357,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                   </div>
                 )}
                 {contact.registeredByName && (
-                  <p className="mt-0.5 text-[11px] text-gray-400">Registered by {contact.registeredByName}</p>
+                  <p className="mt-0.5 text-[11px] text-gray-400">Added for follow up by {contact.registeredByName}</p>
                 )}
                 {canAssign && contact.ownerName && (
                   <p className="mt-0.5 text-xs text-gray-500">{contact.ownerName}</p>

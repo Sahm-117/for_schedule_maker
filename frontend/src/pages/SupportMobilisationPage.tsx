@@ -101,7 +101,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [showExport, setShowExport] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
-  const prospectSource = user ? `Registered by ${user.name}` : '';
+  const prospectSource = user ? `Added for follow up by ${user.name}` : '';
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
@@ -120,7 +120,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
       const issuesRes = await followUpIssuesApi.getAll();
       setContacts(sortByText(contactsRes.contacts, (contact) => contact.fullName));
       setAllContacts(allRes.contacts);
-      setMyProspects(allRes.contacts.filter((contact) => contact.registeredById === user.id || contact.source === `Registered by ${user.name}`));
+      setMyProspects(allRes.contacts.filter((contact) => contact.registeredById === user.id || contact.source === `Registered by ${user.name}` || contact.source === `Added for follow up by ${user.name}`));
       setIssues(issuesRes.issues);
       setTemplates(sortByText(templatesRes.templates, (template) => template.useCase));
       setRegistrationLink(linkRes.url);

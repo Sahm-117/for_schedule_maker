@@ -112,6 +112,18 @@ Deno.serve(async (req) => {
     return json({ error: 'fullName and phone are required' }, 400)
   }
 
+  // Defence in depth: the sheet-side sync already skips rows added in the app
+  // rather than filled in on the form, but if one slips through anyway (an
+  // older Apps Script deploy, a stale marker), catch it here too so it never
+  // becomes a SheetRegistration row or a "signed up on the form" contact.
+  const answers = (payload.answers ?? {}) as Record<string, unknown>
+  const isAppAddedRow = Object.values(answers).some(
+    (value) => String(value ?? '').trim().toLowerCase() === 'registered in the fof app',
+  )
+  if (isAppAddedRow) {
+    return json({ ok: true, skipped: true, reason: 'app-added' })
+  }
+
   const dryRun = payload.dryRun === true
   const backfill = payload.backfill === true
   const normalised = normalisePhone(phone)

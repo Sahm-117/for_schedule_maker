@@ -86,6 +86,11 @@ function onFormSubmit(e) {
       return;
     }
 
+    if (isAppAddedRow(answers)) {
+      Logger.log('FOF sign-up skipped: added in the app, not a form sign-up');
+      return;
+    }
+
     var payload = {
       secret: SECRET,
       responseId: e.range ? (e.range.getSheet().getName() + ':' + e.range.getRow()) : null,
@@ -118,6 +123,15 @@ var SETTINGS_CACHE = null;
 function cachedSettings() {
   if (!SETTINGS_CACHE) SETTINGS_CACHE = readSettings();
   return SETTINGS_CACHE;
+}
+
+// True when a row's "How they heard" answer is the marker text the old
+// app->sheet push used to write in, meaning this row was never actually
+// filled in on the form -- it was a contact added in the app.
+function isAppAddedRow(answers) {
+  var heard = clean(pickAnswer(answers, 'How they heard'));
+  var marker = clean(cachedSettings().sourceText || DEFAULT_SOURCE);
+  return !!heard && heard === marker;
 }
 
 function pickAnswer(answers, label) {
@@ -186,7 +200,7 @@ function runPastSignUps(dryRun) {
   var heads = sheet.getRange(1, 1, 1, width).getValues()[0];
   var rows = sheet.getRange(2, 1, lastRow - 1, width).getValues();
 
-  var counts = { matched: 0, created: 0, duplicate: 0, skipped: 0, failed: 0 };
+  var counts = { matched: 0, created: 0, duplicate: 0, skipped: 0, appAdded: 0, failed: 0 };
   var examples = [];
 
   for (var i = 0; i < rows.length; i++) {
@@ -201,6 +215,12 @@ function runPastSignUps(dryRun) {
     var fullName = (first + ' ' + surname).replace(/\s+/g, ' ').trim();
     var phone = pickAnswer(answers, 'WhatsApp number');
     if (!fullName || !phone) { counts.skipped++; continue; }
+
+    if (isAppAddedRow(answers)) {
+      Logger.log('FOF sign-up skipped: added in the app, not a form sign-up');
+      counts.appAdded++;
+      continue;
+    }
 
     var stamp = pickAnswer(answers, 'Timestamp');
     var payload = {
@@ -243,6 +263,7 @@ function runPastSignUps(dryRun) {
     (dryRun ? 'Would be added as a new prospect: ' : 'Added as a new prospect: ') + counts.created,
     'Already imported, skipped: ' + counts.duplicate,
     'No name or number, skipped: ' + counts.skipped,
+    'Added in the app, not a form sign-up, skipped: ' + counts.appAdded,
     'Failed: ' + counts.failed
   ];
   if (examples.length) lines.push('', 'For example:', examples.join('\n'));

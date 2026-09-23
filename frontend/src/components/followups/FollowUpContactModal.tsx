@@ -277,7 +277,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
                 <input type="text" className={inputClass} value={occupation} onChange={(e) => setOccupation(e.target.value)} placeholder="What they do for a living" />
               </div>
               {contact?.registeredByName && (
-                <p className="text-xs text-gray-500">Registered by {contact.registeredByName}</p>
+                <p className="text-xs text-gray-500">Added for follow up by {contact.registeredByName}</p>
               )}
             </div>
           )}
