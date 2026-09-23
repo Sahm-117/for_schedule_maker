@@ -87,6 +87,7 @@ const CohortsPage: React.FC = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [weekAddTarget, setWeekAddTarget] = useState<{ cohortId: string; weekNumber: number } | null>(null);
   const [weekDeleteTarget, setWeekDeleteTarget] = useState<{ cohortId: string; weekId: number; weekNumber: number } | null>(null);
@@ -219,6 +220,31 @@ const CohortsPage: React.FC = () => {
     [supportUsers],
   );
 
+  const visibleSupportUsers = useMemo(() => {
+    const q = memberSearch.trim().toLowerCase();
+    if (!q) return sortedSupportUsers;
+    return sortedSupportUsers.filter((user) => (
+      user.name.toLowerCase().includes(q)
+      || (user.phone || '').toLowerCase().includes(q)
+      || (user.email || '').toLowerCase().includes(q)
+    ));
+  }, [sortedSupportUsers, memberSearch]);
+
+  const allVisibleMembersOn = visibleSupportUsers.length > 0
+    && visibleSupportUsers.every((user) => memberIds.includes(user.id));
+
+  const toggleAllVisibleMembers = () => {
+    setMemberIds((prev) => {
+      if (allVisibleMembersOn) {
+        const visibleIds = new Set(visibleSupportUsers.map((user) => user.id));
+        return prev.filter((id) => !visibleIds.has(id));
+      }
+      const next = new Set(prev);
+      visibleSupportUsers.forEach((user) => next.add(user.id));
+      return Array.from(next);
+    });
+  };
+
   const olderCohorts = useMemo(() => {
     return cohorts
       .filter((cohort) => cohort.id !== activeCohort?.id)
@@ -260,6 +286,7 @@ const CohortsPage: React.FC = () => {
   const openMembersModal = (cohort: Cohort) => {
     setSelectedCohortId(cohort.id);
     setStatus('');
+    setMemberSearch('');
     setMembersOpen(true);
   };
 
@@ -957,8 +984,38 @@ const CohortsPage: React.FC = () => {
         onClose={() => setMembersOpen(false)}
       >
         <div className="space-y-4">
+          <div className="space-y-2">
+            <input
+              type="search"
+              value={memberSearch}
+              onChange={(e) => setMemberSearch(e.target.value)}
+              placeholder="Search by name, phone or email"
+              className="min-h-[48px] w-full rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            {sortedSupportUsers.length > 0 && (
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-gray-500">
+                  {visibleSupportUsers.filter((user) => memberIds.includes(user.id)).length} of {visibleSupportUsers.length} on
+                </p>
+                <button
+                  type="button"
+                  onClick={toggleAllVisibleMembers}
+                  disabled={visibleSupportUsers.length === 0}
+                  className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {allVisibleMembersOn ? 'Turn all off' : 'Turn all on'}
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="max-h-[52vh] space-y-3 overflow-y-auto pr-1">
-            {sortedSupportUsers.map((member) => {
+            {visibleSupportUsers.length === 0 && (
+              <p className="rounded-2xl border border-dashed border-orange-200 py-8 text-center text-sm text-gray-500">
+                {memberSearch.trim() ? `No supports match '${memberSearch.trim()}'.` : 'No support users found.'}
+              </p>
+            )}
+            {visibleSupportUsers.map((member) => {
               const enabled = memberIds.includes(member.id);
               return (
                 <div key={member.id} className="flex items-center justify-between rounded-2xl border border-orange-100 px-4 py-3">
