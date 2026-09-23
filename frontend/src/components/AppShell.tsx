@@ -9,6 +9,7 @@ import RejectedChangesNotification from './RejectedChangesNotification';
 import NotificationPromptModal from './NotificationPromptModal';
 import PWAInstallBanner from './PWAInstallBanner';
 import PWAUpdateBanner from './PWAUpdateBanner';
+import NewNotificationBanner from './NewNotificationBanner';
 import NeedSupportButton from './NeedSupportButton';
 import NotificationBell from './NotificationBell';
 import ForcePasswordChangeModal from './ForcePasswordChangeModal';
@@ -321,6 +322,7 @@ const AppShell: React.FC = () => {
   return (
     <div className="app-shell-bg min-h-screen text-gray-900">
       <PWAUpdateBanner />
+      <NewNotificationBanner />
       {!tourBusy && showPrompt && <NotificationPromptModal onEnable={enable} onDismiss={dismiss} />}
       {isSopPreparer && unreadCount > 0 && (
         <RejectedChangesNotification

@@ -25,6 +25,9 @@ interface AppDataContextType {
   notifications: Notification[];
   notificationUnreadCount: number;
   refreshNotifications: () => Promise<void>;
+  /** Title of a notification that just arrived live; drives the "Refresh" prompt. */
+  liveNotificationTitle: string | null;
+  dismissLiveNotification: () => void;
   markNotificationsRead: () => Promise<void>;
   globalPendingChanges: PendingChange[];
   pendingChangesForSelectedWeek: PendingChange[];
@@ -63,6 +66,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
+  const [liveNotificationTitle, setLiveNotificationTitle] = useState<string | null>(null);
+  const dismissLiveNotification = useCallback(() => setLiveNotificationTitle(null), []);
   const [globalPendingChanges, setGlobalPendingChanges] = useState<PendingChange[]>([]);
   const [weekPendingChanges, setWeekPendingChanges] = useState<PendingChange[]>([]);
   const [newResourceCount, setNewResourceCount] = useState(0);
@@ -341,17 +346,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .on('postgres_changes', { event: '*', schema: 'public', table: 'OnboardingEvent' }, scheduleWorkspaceRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupPrayerFocus' }, scheduleWorkspaceRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'GroupPrayerStatus' }, scheduleWorkspaceRefresh)
-      // Notification rows are per-user and cheap — refresh just the feed (not
-      // the whole workspace) so the badge updates live.
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Notification', filter: `userId=eq.${user.id}` }, (payload: { new?: { path?: string } }) => {
-        void refreshNotifications();
-        // Group-assignment notifications are the one signal that a support's
-        // cohort access may have changed. Refresh that narrow membership list;
-        // the dependent workspace load then brings their group into view.
-        if (payload.new?.path === '/support/participants') {
-          void refreshUserCohorts();
-        }
-      })
       // Hub activity — refresh just the unread-dot check, not the whole workspace.
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'HubTopic' }, () => { void refreshHubActivity(); })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'HubComment' }, () => { void refreshHubActivity(); })
@@ -366,12 +360,36 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       });
 
+    // Notifications get their own channel. Realtime rejects a whole channel
+    // if any table in it isn't published, and Notification is the only one
+    // that is — so sharing the channel above meant the bell never updated.
+    const notificationChannel = (supabase as any)
+      .channel(`notifications-${user.id}`)
+      // Notification rows are per-user and cheap — refresh just the feed (not
+      // the whole workspace) so the badge updates live.
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'Notification', filter: `userId=eq.${user.id}` }, (payload: { eventType?: string; new?: { path?: string; title?: string } }) => {
+        void refreshNotifications();
+        // A brand-new notification means something changed elsewhere; offer a
+        // refresh so the page the user is on catches up.
+        if (payload.eventType === 'INSERT' && payload.new?.title) {
+          setLiveNotificationTitle(payload.new.title);
+        }
+        // Group-assignment notifications are the one signal that a support's
+        // cohort access may have changed. Refresh that narrow membership list;
+        // the dependent workspace load then brings their group into view.
+        if (payload.new?.path === '/support/participants') {
+          void refreshUserCohorts();
+        }
+      })
+      .subscribe();
+
     return () => {
       if (refreshTimeoutRef.current) {
         window.clearTimeout(refreshTimeoutRef.current);
       }
       setRealtimeHealthy(false);
       (supabase as any).removeChannel(channel);
+      (supabase as any).removeChannel(notificationChannel);
     };
     // Depend on user.id (not the whole user object) so avatar/theme updates that
     // replace the user object don't tear down and rebuild the realtime channel.
@@ -501,6 +519,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     notifications,
     notificationUnreadCount,
     refreshNotifications,
+    liveNotificationTitle,
+    dismissLiveNotification,
     markNotificationsRead,
     globalPendingChanges,
     pendingChangesForSelectedWeek,
@@ -532,6 +552,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     notifications,
     notificationUnreadCount,
     refreshNotifications,
+    liveNotificationTitle,
+    dismissLiveNotification,
     pendingChangesForSelectedWeek,
     realtimeHealthy,
     refreshPendingChanges,
