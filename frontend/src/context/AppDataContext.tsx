@@ -440,14 +440,17 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setNewResourceCount(0);
   }, []);
 
+  // Keyed on the id only: refreshUser replaces the user object, so depending on
+  // `user` would re-create this callback and re-run the page effect forever.
+  const userId = user?.id;
   const markHubSeen = useCallback(() => {
-    if (!user) return;
+    if (!userId) return;
     const seenAt = new Date().toISOString();
     refreshUser({ hubLastSeenAt: seenAt });
-    usersApi.markHubSeen(user.id).catch((error) => {
-      console.error('Failed to mark Hub as seen:', error);
+    usersApi.markHubSeen(userId).catch((error) => {
+      console.error('Failed to mark Community as seen:', error);
     });
-  }, [refreshUser, user]);
+  }, [refreshUser, userId]);
 
   const reloadWeeks = useCallback(async () => {
       await loadWeeksForCohort(activeCohort?.id, activeCohort);
