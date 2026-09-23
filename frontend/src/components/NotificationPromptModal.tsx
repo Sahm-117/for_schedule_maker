@@ -26,7 +26,7 @@ const NotificationPromptModal: React.FC<Props> = ({ onEnable, onDismiss }) => (
             { icon: '📅', text: 'Know instantly when the programme schedule changes' },
             { icon: '✅', text: 'Get notified when your change requests are approved' },
             { icon: '📢', text: 'Receive announcements from the programme team' },
-            { icon: '📎', text: 'Be the first to see new resources in the hub' },
+            { icon: '📎', text: 'Be the first to see new resources in Resources' },
           ].map(({ icon, text }) => (
             <li key={text} className="flex items-start gap-3 text-sm text-gray-700">
               <span className="text-base leading-tight">{icon}</span>

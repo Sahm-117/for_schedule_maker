@@ -16,7 +16,7 @@ const resolvePath = (n: Notification, isSupport: boolean): string | null => {
     case 'ANNOUNCEMENT':
       return isSupport ? '/support/announcements' : '/team-announcements';
     case 'HUB':
-      return isSupport ? '/support/hub' : '/hub';
+      return isSupport ? '/support/community' : '/community';
     case 'FOLLOWUP_ASSIGNMENT':
     case 'FOLLOWUP_ISSUE':
     case 'FOLLOWUP_TERMINAL':

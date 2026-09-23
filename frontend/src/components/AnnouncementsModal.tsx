@@ -13,7 +13,7 @@ const HOME_LINK_OPTIONS = [
   { value: '/support/schedule', label: 'My Schedule' },
   { value: '/support/mobilisation', label: 'Mobilisation' },
   { value: '/support/resources', label: 'Resources' },
-  { value: '/support/hub', label: 'Hub' },
+  { value: '/support/community', label: 'Community' },
   { value: '/support/announcements', label: 'Announcements' },
   { value: EXTERNAL_LINK, label: 'Web address…' },
 ];

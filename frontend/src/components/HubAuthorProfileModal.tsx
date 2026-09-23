@@ -93,7 +93,7 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
           </div>
 
           <div className="surface-muted flex items-center justify-between px-4 py-3">
-            <span className="text-sm text-gray-500">Last active in Hub</span>
+            <span className="text-sm text-gray-500">Last active in Community</span>
             <span className="text-sm font-semibold text-gray-900">{formatLastActive(profileUser.hubLastSeenAt)}</span>
           </div>
 

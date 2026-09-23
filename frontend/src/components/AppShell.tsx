@@ -82,7 +82,7 @@ const adminNav: NavItem[] = [
   { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
   { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
   { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
-  { to: '/hub', label: 'Hub', icon: ICONS.hub },
+  { to: '/community', label: 'Community', icon: ICONS.hub },
   { to: '/resources', label: 'Resources', icon: ICONS.resources },
   { to: '/settings', label: 'Settings', icon: ICONS.settings },
 ];
@@ -113,7 +113,7 @@ const adminNavGroups: NavGroup[] = [
     label: 'Engagement',
     items: [
       { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
-      { to: '/hub', label: 'Hub', icon: ICONS.hub },
+      { to: '/community', label: 'Community', icon: ICONS.hub },
     ],
   },
   {
@@ -134,7 +134,7 @@ const supportNav: NavItem[] = [
   { to: '/support/participants', label: 'My Group', mobileLabel: 'Group', icon: ICONS.participants },
   { to: '/support/attendance', label: 'Attendance', icon: ICONS.attendance, mobileMore: true },
   { to: '/support/onboarding', label: 'Onboard', icon: ICONS.onboarding, mobileMore: true },
-  { to: '/support/hub', label: 'Hub', icon: ICONS.hub, mobileMore: true },
+  { to: '/support/community', label: 'Community', icon: ICONS.hub, mobileMore: true },
   { to: '/support/resources', label: 'Resources', icon: ICONS.resources, mobileMore: true },
   { to: '/support/profile', label: 'Profile', icon: ICONS.profile, mobileMore: true },
 ];
@@ -184,7 +184,7 @@ const NavItemLink: React.FC<{
     {item.icon}
     <span>{item.label}</span>
     {item.to === '/schedule' && <MobileBadge count={globalPendingCount} />}
-    {item.to.includes('hub') && hasNewHubActivity && <NavDot />}
+    {item.to.includes('community') && hasNewHubActivity && <NavDot />}
   </NavLink>
 );
 
@@ -288,7 +288,7 @@ const AppShell: React.FC = () => {
   };
   const mobileNavItems = useMemo(() => {
     if (isSupport) return supportNav.filter((item) => !item.mobileHidden && !item.mobileMore);
-    const mobileAdminRoutes = new Set(['/dashboard', '/schedule', '/participants', '/supports', '/hub']);
+    const mobileAdminRoutes = new Set(['/dashboard', '/schedule', '/participants', '/supports', '/community']);
     return navItems.filter((item) => mobileAdminRoutes.has(item.to));
   }, [isSupport, navItems]);
   const mobileMoreItems = useMemo(
@@ -562,7 +562,7 @@ const AppShell: React.FC = () => {
                 {item.to === '/schedule' && globalPendingChanges.length > 0 && (
                   <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />
                 )}
-                {item.to.includes('hub') && hasNewHubActivity && (
+                {item.to.includes('community') && hasNewHubActivity && (
                   <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />
                 )}
               </NavLink>
@@ -603,7 +603,7 @@ const AppShell: React.FC = () => {
                 >
                   {item.icon}
                   <span>{item.label}</span>
-                  {item.to.includes('hub') && hasNewHubActivity && <NavDot />}
+                  {item.to.includes('community') && hasNewHubActivity && <NavDot />}
                 </NavLink>
               );
             })}

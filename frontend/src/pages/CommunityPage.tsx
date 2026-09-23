@@ -34,7 +34,7 @@ const extractMentionedUsers = (text: string, users: MentionUser[], excludeId: st
 };
 
 // The recipient's hub route depends on THEIR role, not the sender's current URL.
-const hubPathForRole = (role?: string) => (role === 'SUPPORT' ? '/support/hub' : '/hub');
+const hubPathForRole = (role?: string) => (role === 'SUPPORT' ? '/support/community' : '/community');
 
 
 // ── @mention textarea ─────────────────────────────────────────────────────────
@@ -309,7 +309,7 @@ const TopicCard: React.FC<{ topic: HubTopic; onClick: () => void; onToggleLike: 
 
 type Tab = 'OPEN' | 'CLOSED';
 
-const HubPage: React.FC = () => {
+const CommunityPage: React.FC = () => {
   const { user } = useAuth();
   const { markHubSeen } = useAppData();
   const [tab, setTab] = useState<Tab>('OPEN');
@@ -424,8 +424,8 @@ const HubPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="Hub"
-        tourId="hub"
+        title="Community"
+        tourId="community"
         subtitle="Share questions, ideas, and updates with everyone."
         action={
           <button
@@ -781,7 +781,7 @@ const HubTopicView: React.FC<{
     <div>
       <button type="button" onClick={onBack} className="mb-4 flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
-        Back to Hub
+        Back to Community
       </button>
 
       {/* Topic */}
@@ -1075,4 +1075,4 @@ const HubTopicView: React.FC<{
   );
 };
 
-export default HubPage;
+export default CommunityPage;

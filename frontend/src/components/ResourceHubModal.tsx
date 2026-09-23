@@ -140,7 +140,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
         try {
           await announcementsApi.send(
             'New resource added',
-            `"${title.trim()}" has been added to the Resource Hub. Open the app to view it.`,
+            `"${title.trim()}" has been added to Resources. Open the app to view it.`,
             user.id,
             {
               scope: notifyScope,
@@ -333,7 +333,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
     <>
       <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Resource Hub</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Resources</h2>
           <p className="text-xs text-gray-500 mt-0.5">Guides, links, and files for the team</p>
         </div>
         <div className="flex items-center gap-2">

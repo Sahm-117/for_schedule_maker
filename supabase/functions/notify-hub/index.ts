@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     // Dedupe by userId, keeping the first path supplied for each.
     const byUser = new Map<string, string>()
     for (const r of recipients) {
-      if (r?.userId && !byUser.has(r.userId)) byUser.set(r.userId, r.path || '/hub')
+      if (r?.userId && !byUser.has(r.userId)) byUser.set(r.userId, r.path || '/community')
     }
     const userIds = [...byUser.keys()]
     if (userIds.length === 0) {
@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       userId,
       title,
       body,
-      path: byUser.get(userId) ?? '/hub',
+      path: byUser.get(userId) ?? '/community',
       type: 'HUB',
     })))
 
@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
     let totalSent = 0
     let totalFailed = 0
     for (const [userId, userSubs] of subsByUser) {
-      const path = byUser.get(userId) ?? '/hub'
+      const path = byUser.get(userId) ?? '/community'
       const payload = JSON.stringify({
         title,
         body,

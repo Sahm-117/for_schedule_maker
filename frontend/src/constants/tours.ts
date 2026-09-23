@@ -59,7 +59,7 @@ export const WELCOME: Record<TourAudience, WelcomeContent> = {
     tiles: [
       { icon: ICON.group, title: 'My Group and Meeting Mode', body: 'Run your weekly meeting step by step, take attendance and flag concerns.' },
       { icon: ICON.megaphone, title: 'Mobilisation', body: 'Register people you meet and follow up the ones assigned to you.' },
-      { icon: ICON.chat, title: 'Hub', body: 'Share questions, ideas and updates with the whole team.' },
+      { icon: ICON.chat, title: 'Community', body: 'Share questions, ideas and updates with the whole team.' },
     ],
     homePath: '/support',
     homeTour: 'support:home',
@@ -139,7 +139,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
   ],
 
   // ── Shared ────────────────────────────────────────────────────────────────
-  hub: [
+  community: [
     { target: wt('page-action'), title: 'Start a topic', body: 'Ask a question, share an idea or post an update for everyone.' },
     { target: wt('hub-tabs'), title: 'Open and closed', body: 'Open topics are still going. Closed ones are settled, but you can still read them.' },
     { target: wt('hub-topics'), title: 'Join in', body: 'Tap a topic to read the replies and add your own.', optional: true },
