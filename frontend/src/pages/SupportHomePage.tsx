@@ -41,7 +41,7 @@ const SupportHomePage: React.FC = () => {
 
 const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const { userLabelIds, userCohortIds } = useAuth();
-  const { activeCohort, selectedWeek, weeks, newResourceCount, liveRevision } = useAppData();
+  const { activeCohort, selectedWeek, weeks, newResourceCount, liveRevision, myHub } = useAppData();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [resourceCount, setResourceCount] = useState(0);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -55,6 +55,14 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const [checklist, setChecklist] = useState<SupportChecklistItem[]>([]);
   const [homeAnnouncement, setHomeAnnouncement] = useState<Announcement | null>(null);
   const autoHide = useChecklistAutoHide();
+
+  // Sunday-evening nudge for a hub lead who hasn't marked this week's recap yet.
+  const isHubLead = !!myHub?.isLead;
+  const recapMarkedThisWeek = useMemo(() => {
+    if (!selectedWeek) return true;
+    return (myHub?.myAttendance ?? []).some((a) => a.type === 'SUNDAY_RECAP' && a.weekId === selectedWeek.id);
+  }, [myHub?.myAttendance, selectedWeek]);
+  const showRecapNudge = isHubLead && !recapMarkedThisWeek && tickNow.getDay() === 0 && tickNow.getHours() >= 17;
 
 
   useEffect(() => {
@@ -285,6 +293,16 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
             </section>
           )}
 
+          {showRecapNudge && (
+            <section className="rounded-[18px] bg-amber-100/80 px-4 py-3.5">
+              <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-amber-700">Hub recap</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-gray-700">This week's Sunday recap attendance isn't marked yet.</p>
+              <NavLink to="/support/my-hub" className="mt-3 inline-flex min-h-[38px] items-center rounded-[10px] bg-amber-700 px-3.5 text-[13px] font-semibold text-white">
+                Mark recap
+              </NavLink>
+            </section>
+          )}
+
           <NavLink
             to="/support/attendance"
             data-wt="home-attendance"
@@ -296,6 +314,9 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
 
           <div data-wt="home-quick-links" className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))' }}>
             <QuickLink to="/support/participants" label="Group call" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" />} />
+            {myHub?.hub && (
+              <QuickLink to="/support/my-hub" label="My Hub" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-3A3.5 3.5 0 0 0 7 18.5V20m5-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 9v-1a3 3 0 0 0-2.2-2.9M16.5 5.2a3 3 0 0 1 0 5.6" />} />
+            )}
             <QuickLink to="/support/resources" label="Resources" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Zm0 17A2.5 2.5 0 0 1 6.5 19H20" />} />
             <QuickLink to="/support/schedule?tab=checklist" label="My Tasks" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 11l3 3L22 4M2 12a10 10 0 1 0 5-8.66" />} />
             <QuickLink to="/support/mobilisation" label="Mobilisation" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM19 8v6m3-3h-6" />} />

@@ -41,6 +41,8 @@ const AdminFollowUpsPage = lazy(() => import('./pages/AdminFollowUpsPage'));
 const AdminParticipantsPage = lazy(() => import('./pages/AdminParticipantsPage'));
 const AdminParticipantProfilePage = lazy(() => import('./pages/AdminParticipantProfilePage'));
 const AdminSupportsPage = lazy(() => import('./pages/AdminSupportsPage'));
+const AdminHubsPage = lazy(() => import('./pages/AdminHubsPage'));
+const SupportMyHubPage = lazy(() => import('./pages/SupportMyHubPage'));
 const AdminGroupsPage = lazy(() => import('./pages/AdminGroupsPage'));
 const AdminRotaPage = lazy(() => import('./pages/AdminRotaPage'));
 const AdminAllocationPage = lazy(() => import('./pages/AdminAllocationPage'));
@@ -120,6 +122,7 @@ function App() {
             <Route path="/participants/:participantId" element={<Suspense fallback={<RouteFallback />}><AdminParticipantProfilePage /></Suspense>} />
             <Route path="/groups" element={<Suspense fallback={<RouteFallback />}><AdminGroupsPage /></Suspense>} />
             <Route path="/supports" element={<Suspense fallback={<RouteFallback />}><AdminSupportsPage /></Suspense>} />
+            <Route path="/hubs" element={<Suspense fallback={<RouteFallback />}><AdminHubsPage /></Suspense>} />
             <Route path="/rota" element={<Suspense fallback={<RouteFallback />}><AdminRotaPage /></Suspense>} />
             <Route path="/allocation" element={<Suspense fallback={<RouteFallback />}><AdminAllocationPage /></Suspense>} />
             <Route path="/attendance" element={<Suspense fallback={<RouteFallback />}><AdminAttendancePage /></Suspense>} />
@@ -132,6 +135,7 @@ function App() {
             <Route path="/support/mobilisation" element={<Suspense fallback={<RouteFallback />}><SupportMobilisationPage /></Suspense>} />
             <Route path="/support/attendance" element={<Suspense fallback={<RouteFallback />}><SupportAttendancePage /></Suspense>} />
             <Route path="/support/participants" element={<Suspense fallback={<RouteFallback />}><SupportParticipantsPage /></Suspense>} />
+            <Route path="/support/my-hub" element={<Suspense fallback={<RouteFallback />}><SupportMyHubPage /></Suspense>} />
             <Route path="/support" element={<Suspense fallback={<RouteFallback />}><SupportHomePage /></Suspense>} />
             <Route path="/support/schedule" element={<Suspense fallback={<RouteFallback />}><SupportSchedulePage /></Suspense>} />
             <Route path="/support/resources" element={<Suspense fallback={<RouteFallback />}><SupportResourcesPage /></Suspense>} />

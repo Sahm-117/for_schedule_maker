@@ -1,8 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { cohortsApi, hubApi, notificationsApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, usersApi, weeksApi } from '../services/api';
-import type { Cohort, Notification, PendingChange, RejectedChange, Week } from '../types';
+import { cohortsApi, hubApi, myHubApi, notificationsApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, usersApi, weeksApi } from '../services/api';
+import type { Cohort, MyHubPayload, Notification, PendingChange, RejectedChange, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 
 const LAST_SEEN_KEY = 'fof_resources_last_seen';
@@ -38,6 +38,8 @@ interface AppDataContextType {
   hasNewHubActivity: boolean;
   refreshHubActivity: () => Promise<void>;
   markHubSeen: () => void;
+  myHub: MyHubPayload | null;
+  refreshMyHub: () => Promise<void>;
 }
 
 const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
@@ -65,6 +67,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [weekPendingChanges, setWeekPendingChanges] = useState<PendingChange[]>([]);
   const [newResourceCount, setNewResourceCount] = useState(0);
   const [latestHubActivityAt, setLatestHubActivityAt] = useState<string | null>(null);
+  const [myHub, setMyHub] = useState<MyHubPayload | null>(null);
   const [realtimeHealthy, setRealtimeHealthy] = useState(false);
   const [liveRevision, setLiveRevision] = useState(0);
 
@@ -186,6 +189,18 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setLatestHubActivityAt(latest);
   }, []);
 
+  // Support hub membership — fetched once per cohort so nav (My Hub link),
+  // Support Home and the lead nudge can all read it without their own calls.
+  const loadMyHub = useCallback(async (cohortId?: string | null) => {
+    if (user?.role !== 'SUPPORT' || !cohortId) { setMyHub(null); return; }
+    try {
+      const hub = await myHubApi.get(cohortId);
+      setMyHub(hub);
+    } catch (error) {
+      console.error('Failed to load my hub:', error);
+    }
+  }, [user?.role]);
+
   const bumpLiveRevision = useCallback(() => {
     setLiveRevision((prev) => prev + 1);
   }, []);
@@ -218,7 +233,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }
         }
 
-        await Promise.all([refreshResourceCount(), refreshHubActivity()]);
+        await Promise.all([refreshResourceCount(), refreshHubActivity(), loadMyHub(resolvedCohort?.id ?? currentCohort?.id ?? null)]);
         bumpLiveRevision();
       } catch (error) {
         console.error('Failed to refresh workspace data:', error);
@@ -237,6 +252,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     loadWeeksForCohort,
     refreshResourceCount,
     refreshHubActivity,
+    loadMyHub,
   ]);
 
   const scheduleWorkspaceRefresh = useCallback(() => {
@@ -271,7 +287,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
           await loadRejectedChanges();
         }
 
-        await Promise.all([refreshResourceCount(), refreshNotifications(), refreshHubActivity()]);
+        await Promise.all([refreshResourceCount(), refreshNotifications(), refreshHubActivity(), loadMyHub(resolvedCohort?.id ?? null)]);
       } catch (error) {
         console.error('Failed to initialize app data:', error);
       } finally {
@@ -290,7 +306,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, isSopPreparer, loadCohorts, loadGlobalPendingChanges, loadRejectedChanges, loadWeeksForCohort, refreshNotifications, refreshResourceCount, refreshHubActivity, user]);
+  }, [isAdmin, isSopPreparer, loadCohorts, loadGlobalPendingChanges, loadRejectedChanges, loadWeeksForCohort, refreshNotifications, refreshResourceCount, refreshHubActivity, loadMyHub, user]);
 
   useEffect(() => {
     if (!isSopPreparer || !selectedWeek) return;
@@ -394,13 +410,15 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (isAdmin) {
         await loadGlobalPendingChanges(loadedWeeks.map((week) => week.id));
       }
+      await loadMyHub(next.id);
     } else {
       localStorage.removeItem(ACTIVE_COHORT_KEY);
       setWeeks([]);
       setSelectedWeek(null);
       setGlobalPendingChanges([]);
+      setMyHub(null);
     }
-  }, [cohorts, isAdmin, loadGlobalPendingChanges, loadWeeksForCohort]);
+  }, [cohorts, isAdmin, loadGlobalPendingChanges, loadWeeksForCohort, loadMyHub]);
 
   const pendingChangesForSelectedWeek = useMemo(() => {
     if (!selectedWeek) return [];
@@ -456,6 +474,10 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await loadWeeksForCohort(activeCohort?.id, activeCohort);
   }, [activeCohort, loadWeeksForCohort]);
 
+  const refreshMyHub = useCallback(async () => {
+    await loadMyHub(activeCohortRef.current?.id ?? null);
+  }, [loadMyHub]);
+
   const hasNewHubActivity = useMemo(() => {
     if (!latestHubActivityAt) return false;
     if (!user?.hubLastSeenAt) return true;
@@ -492,6 +514,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     hasNewHubActivity,
     refreshHubActivity,
     markHubSeen,
+    myHub,
+    refreshMyHub,
   }), [
     activeCohort,
     cohorts,
@@ -522,6 +546,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     hasNewHubActivity,
     refreshHubActivity,
     markHubSeen,
+    myHub,
+    refreshMyHub,
   ]);
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;

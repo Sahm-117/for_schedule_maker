@@ -10,8 +10,9 @@ import {
 } from '../components/dashboard/healthModel';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { cohortsApi, participantNotesApi, settingsApi, usersApi } from '../services/api';
-import type { ParticipantNote, User } from '../types';
+import { cohortsApi, participantNotesApi, settingsApi, supportHubsApi, supportNotesApi, usersApi } from '../services/api';
+import type { HubMembership, ParticipantNote, SupportHub, SupportNote, User } from '../types';
+import AppSelect from '../components/AppSelect';
 import { buildWhatsAppLink } from '../utils/phone';
 import {
   PERSON_HEALTH_LABEL,
@@ -37,6 +38,7 @@ type Filter = 'all' | PersonHealth;
 const weekParts = (w: SupportWeekRecord) => [
   w.reportSubmitted ? null : 'meeting report',
   w.meetingMarked ? null : 'meeting attendance',
+  w.recapMissed ? 'recap' : null,
 ].filter(Boolean) as string[];
 
 const AdminSupportsPage: React.FC = () => {
@@ -51,26 +53,33 @@ const AdminSupportsPage: React.FC = () => {
   // The weekly meeting reports supports write in Meeting Mode. They are stored as
   // MEETING notes keyed by group and week, so they are fetched separately.
   const [reports, setReports] = useState<ParticipantNote[]>([]);
+  const [hubs, setHubs] = useState<SupportHub[]>([]);
+  const [memberships, setMemberships] = useState<HubMembership[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const filterParam = searchParams.get('health');
   const filter: Filter = filterParam === 'critical' || filterParam === 'warning' || filterParam === 'good' ? filterParam : 'all';
+  const hubFilter = searchParams.get('hub') ?? '';
 
   const load = useCallback(async () => {
     if (!activeCohort?.id) { setLoading(false); return; }
     try {
       setError('');
-      const [h, p, r, u] = await Promise.all([
+      const [h, p, r, u, hb, ms] = await Promise.all([
         cohortsApi.getHealth(activeCohort.id),
         cohortsApi.getPeople(activeCohort.id),
         settingsApi.getProgrammeRules(),
         usersApi.getAll().then((res) => res.users).catch(() => [] as User[]),
+        supportHubsApi.getAll(activeCohort.id).then((res) => res.hubs).catch(() => [] as SupportHub[]),
+        supportHubsApi.getMembershipsForCohort(activeCohort.id).then((res) => res.memberships).catch(() => [] as HubMembership[]),
       ]);
       setHealth(h);
       setPeople(p);
       setRules(r);
       setUsers(u);
+      setHubs(hb);
+      setMemberships(ms);
       const groupIds = h.groups.map((g) => g.id);
       setReports(await participantNotesApi.getMeetingReports(groupIds).then((res) => res.notes).catch(() => [] as ParticipantNote[]));
     } catch (err) {
@@ -116,6 +125,13 @@ const AdminSupportsPage: React.FC = () => {
     return map;
   }, [reports]);
 
+  // A support's hub for the active cohort, and whether they lead it.
+  const hubById = new Map(hubs.map((h) => [h.id, h]));
+  const hubByUserId = new Map(memberships.map((m) => {
+    const hub = hubById.get(m.hubId);
+    return [m.userId, hub ? { id: hub.id, name: hub.name, isLead: hub.leadUserId === m.userId } : null] as const;
+  }));
+
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   const setFilter = (next: string) => {
@@ -123,8 +139,14 @@ const AdminSupportsPage: React.FC = () => {
     if (next === 'all') params.delete('health'); else params.set('health', next);
     setSearchParams(params, { replace: true });
   };
+  const setHubFilter = (next: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (!next) params.delete('hub'); else params.set('hub', next);
+    setSearchParams(params, { replace: true });
+  };
 
-  const visible = model?.evaluations.filter((e) => filter === 'all' || e.health === filter) ?? [];
+  const visible = (model?.evaluations.filter((e) => filter === 'all' || e.health === filter) ?? [])
+    .filter((e) => !hubFilter || hubByUserId.get(e.supportId)?.id === hubFilter);
   const userById = new Map(users.map((u) => [u.id, u]));
   const groupById = new Map((health?.groups ?? []).map((g) => [g.id, g]));
 
@@ -178,6 +200,18 @@ const AdminSupportsPage: React.FC = () => {
             </div>
           </section>
 
+          {hubs.length > 0 && (
+            <div className="w-full sm:w-64">
+              <AppSelect
+                value={hubFilter}
+                onChange={setHubFilter}
+                options={[{ value: '', label: 'All hubs' }, ...hubs.map((h) => ({ value: h.id, label: h.name }))]}
+                placeholder="All hubs"
+                compact
+              />
+            </div>
+          )}
+
           {visible.length === 0 ? (
             <div className="surface-card p-8 text-center text-sm text-gray-500">No supports here.</div>
           ) : (
@@ -191,6 +225,7 @@ const AdminSupportsPage: React.FC = () => {
                   supportName={groupById.get(evaluation.groupId)?.supportName ?? 'Support'}
                   rules={rules}
                   judgedCount={model.judged.length}
+                  hub={hubByUserId.get(evaluation.supportId) ?? null}
                   reportFor={(weekNumber) => {
                     const weekId = model.weekIdByNumber.get(weekNumber);
                     return weekId == null ? null : reportByKey.get(`${evaluation.groupId}:${weekId}`) ?? null;
@@ -233,12 +268,36 @@ const SupportCard: React.FC<{
   supportName: string;
   rules: ProgrammeRules;
   judgedCount: number;
+  hub: { id: string; name: string; isLead: boolean } | null;
   reportFor: (weekNumber: number) => ParticipantNote | null;
-}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, reportFor }) => {
+}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, reportFor }) => {
   const [open, setOpen] = useState(false);
   const [openReport, setOpenReport] = useState<number | null>(null);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [notes, setNotes] = useState<SupportNote[] | null>(null);
+  const [noteBody, setNoteBody] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
   const whatsapp = buildWhatsAppLink(user?.phone, `Hi ${supportName.split(' ')[0]}, checking in on ${groupName}'s weekly records.`);
   const { onboarding } = evaluation;
+
+  const toggleNotes = () => {
+    const next = !notesOpen;
+    setNotesOpen(next);
+    if (next && notes === null) {
+      supportNotesApi.getForSupport(evaluation.supportId).then((res) => setNotes(res.notes)).catch(() => setNotes([]));
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!noteBody.trim()) return;
+    setNoteSaving(true);
+    try {
+      const { note } = await supportNotesApi.create({ supportId: evaluation.supportId, hubId: hub?.id ?? null, noteType: 'NOTE', body: noteBody.trim() });
+      setNotes((prev) => [note, ...(prev ?? [])]);
+      setNoteBody('');
+    } catch { /* ignore */ }
+    finally { setNoteSaving(false); }
+  };
 
   const onboardingText = onboarding.completedAt && onboarding.allOnboarded
     ? `Onboarded in ${onboarding.days} day${onboarding.days === 1 ? '' : 's'}${onboarding.late ? ` (over ${rules.onboardingMaxDays})` : ''}`
@@ -256,8 +315,14 @@ const SupportCard: React.FC<{
     <li className="surface-card p-4 sm:p-5">
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold text-gray-900">{supportName}</p>
-          <p className="text-sm text-gray-500">{groupName} · {evaluation.members} participant{evaluation.members === 1 ? '' : 's'}</p>
+          <p className="text-base font-semibold text-gray-900">
+            {supportName}
+            {hub?.isLead && <span className="ml-2 rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>}
+          </p>
+          <p className="text-sm text-gray-500">
+            {groupName} · {evaluation.members} participant{evaluation.members === 1 ? '' : 's'}
+            {hub && <span className="ml-1.5 rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>}
+          </p>
         </div>
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${HEALTH_PILL[evaluation.health]}`}>{PERSON_HEALTH_LABEL[evaluation.health]}</span>
       </div>
@@ -266,7 +331,7 @@ const SupportCard: React.FC<{
         <div className="mt-3 flex flex-wrap gap-1">
           {evaluation.weeks.map((w) => {
             const missing = weekParts(w);
-            const none = missing.length === 2;
+            const none = missing.length >= 2;
             const label = w.recorded ? `Week ${w.weekNumber}: recorded` : `Week ${w.weekNumber}: missing ${missing.join(', ')}`;
             return (
               <span
@@ -300,7 +365,46 @@ const SupportCard: React.FC<{
           <a href={whatsapp} target="_blank" rel="noreferrer" className="rounded-xl bg-emerald-100/80 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">WhatsApp</a>
         )}
         <NavLink to={`/groups?group=${evaluation.groupId}`} className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">Open group</NavLink>
+        <button type="button" onClick={toggleNotes} aria-expanded={notesOpen} className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">
+          {notesOpen ? 'Hide notes' : 'Notes'}
+        </button>
       </div>
+
+      {notesOpen && (
+        <div className="mt-3 rounded-xl border border-orange-100 p-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              type="text"
+              value={noteBody}
+              onChange={(e) => setNoteBody(e.target.value)}
+              placeholder="Private note — only admin and this support's hub lead can see it."
+              className="flex-1 rounded-xl border border-orange-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            <button
+              type="button"
+              onClick={() => void handleAddNote()}
+              disabled={noteSaving || !noteBody.trim()}
+              className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white active:scale-95 disabled:opacity-60"
+            >
+              {noteSaving ? 'Saving…' : 'Add'}
+            </button>
+          </div>
+          {notes === null ? (
+            <p className="mt-2 text-xs text-gray-400">Loading…</p>
+          ) : notes.length === 0 ? (
+            <p className="mt-2 text-xs text-gray-400">No notes yet.</p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {notes.map((n) => (
+                <li key={n.id} className="rounded-lg bg-gray-50 px-3 py-2">
+                  <p className="whitespace-pre-line text-xs text-gray-800">{n.body}</p>
+                  <p className="mt-1 text-[10px] text-gray-400">{n.authorName || 'Admin'} · {new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {open && (
         <div className="mt-3 overflow-x-auto">
@@ -309,7 +413,8 @@ const SupportCard: React.FC<{
               <tr>
                 <th className="py-1.5 pr-3 font-semibold">Week</th>
                 <th className="py-1.5 pr-3 font-semibold">Meeting report</th>
-                <th className="py-1.5 font-semibold">Meeting attendance</th>
+                <th className="py-1.5 pr-3 font-semibold">Meeting attendance</th>
+                <th className="py-1.5 font-semibold">Recap</th>
               </tr>
             </thead>
             <tbody className="text-gray-800">
@@ -335,11 +440,12 @@ const SupportCard: React.FC<{
                           <span className="ml-2 text-[11px] text-gray-400">no notes</span>
                         ) : null}
                       </td>
-                      <td className={`py-1.5 ${w.meetingMarked ? 'text-emerald-700' : 'font-semibold text-red-700'}`}>{w.meetingMarked ? '✓ Done' : '× Missing'}</td>
+                      <td className={`py-1.5 pr-3 ${w.meetingMarked ? 'text-emerald-700' : 'font-semibold text-red-700'}`}>{w.meetingMarked ? '✓ Done' : '× Missing'}</td>
+                      <td className={`py-1.5 ${w.recapMissed ? 'font-semibold text-red-700' : 'text-emerald-700'}`}>{w.recapMissed ? '× Absent' : '✓ OK'}</td>
                     </tr>
                     {showing && report && (
                       <tr className="border-t border-gray-100 bg-gray-50/70">
-                        <td colSpan={3} className="px-1 py-2.5">
+                        <td colSpan={4} className="px-1 py-2.5">
                           <p className="whitespace-pre-line text-[13px] leading-normal text-gray-800">{report.body}</p>
                           <p className="mt-1.5 text-[11px] text-gray-500">
                             {report.authorName || 'A support'} · {new Date(report.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}

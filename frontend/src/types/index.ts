@@ -157,6 +157,8 @@ export interface Announcement {
   targetLabelId?: string | null;
   /** Group id: narrows a PARTICIPANTS-audience send to one group's roster. */
   targetGroupId?: string | null;
+  /** Hub id: narrows a SUPPORTS/EVERYONE-audience send to one hub's members. */
+  targetHubId?: string | null;
   showOnHome?: boolean;
   homeUntil?: string | null;
   linkUrl?: string | null;
@@ -900,4 +902,100 @@ export interface ProfileFieldEntry {
 export interface ProfileCompletion {
   percent: number;
   missing: number;
+}
+
+// ── Hubs ──────────────────────────────────────────────────────────────────────
+// A hub is a cluster of supports (and their groups) in a cohort, with one
+// support picked as lead. The lead marks Sunday-recap attendance, messages
+// the hub and keeps private notes on each support.
+
+export interface SupportHub {
+  id: string;
+  cohortId: string;
+  name: string;
+  leadUserId?: string | null;
+  leadName?: string | null;
+  memberCount?: number;
+  createdAt?: string;
+}
+
+export interface HubMembership {
+  id: string;
+  hubId: string;
+  userId: string;
+  cohortId: string;
+  createdAt?: string;
+}
+
+export type SupportSessionType = 'SUNDAY_RECAP' | 'PRE_COHORT_TRAINING' | 'GET_TOGETHER';
+export type SupportAttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT' | 'EXCUSED';
+
+export interface SupportSession {
+  id: string;
+  cohortId: string;
+  type: SupportSessionType;
+  title: string;
+  sessionDate: string;
+  weekId?: number | null;
+  hubId?: string | null;
+  createdById?: string | null;
+  createdAt?: string;
+}
+
+export interface SupportSessionAttendance {
+  id: string;
+  sessionId: string;
+  userId: string;
+  status: SupportAttendanceStatus;
+  markedById?: string | null;
+  markedAt?: string;
+}
+
+export type SupportNoteType = 'NOTE' | 'ELIGIBILITY_OVERRIDE';
+
+export interface SupportNote {
+  id: string;
+  supportId: string;
+  authorId?: string | null;
+  authorName?: string | null;
+  hubId?: string | null;
+  noteType: SupportNoteType;
+  body: string;
+  createdAt: string;
+}
+
+export interface HubMessage {
+  id: string;
+  hubId: string;
+  authorId?: string | null;
+  authorName?: string | null;
+  subject: string;
+  body: string;
+  createdAt: string;
+}
+
+/** My Hub, as returned by get_my_hub: the caller's own hub for one cohort. */
+export interface MyHubMember {
+  userId: string;
+  name: string;
+  phone?: string | null;
+  isLead: boolean;
+  groupName?: string | null;
+}
+
+export interface MyHubAttendanceRow {
+  sessionId: string;
+  type: SupportSessionType;
+  title: string;
+  sessionDate: string;
+  weekId?: number | null;
+  status: SupportAttendanceStatus;
+}
+
+export interface MyHubPayload {
+  hub: { id: string; name: string; leadUserId: string | null; leadName: string | null; cohortId: string } | null;
+  isLead: boolean;
+  members: MyHubMember[];
+  messages: HubMessage[];
+  myAttendance: MyHubAttendanceRow[];
 }

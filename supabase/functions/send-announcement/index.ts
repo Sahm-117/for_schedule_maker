@@ -13,6 +13,7 @@
  *   cohortId?: string | null,
  *   targetLabelId?: string | null,
  *   targetGroupId?: string | null (PARTICIPANTS audience only: narrows to one group's roster)
+ *   targetHubId?: string | null (SUPPORTS/EVERYONE audience: narrows to one hub's members)
  * }
  *
  * Required Supabase secrets:
@@ -56,7 +57,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, targetGroupId = null, audience = 'SUPPORTS' } = await req.json() as {
+    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, targetGroupId = null, targetHubId = null, audience = 'SUPPORTS' } = await req.json() as {
       subject: string
       body: string
       sentBy?: string
@@ -64,6 +65,7 @@ Deno.serve(async (req) => {
       cohortId?: string | null
       targetLabelId?: string | null
       targetGroupId?: string | null
+      targetHubId?: string | null
       // SUPPORTS (default), PARTICIPANTS (participant app only) or EVERYONE.
       audience?: 'SUPPORTS' | 'PARTICIPANTS' | 'EVERYONE'
     }
@@ -85,7 +87,7 @@ Deno.serve(async (req) => {
     // 1. Record the announcement
     const { data: announcement, error: insertError } = await supabase
       .from('Announcement')
-      .insert([{ subject, body, sentBy: sentBy || null, scope, cohortId, targetLabelId: audience === 'PARTICIPANTS' ? null : targetLabelId, targetGroupId: audience === 'PARTICIPANTS' ? targetGroupId : null, audience }])
+      .insert([{ subject, body, sentBy: sentBy || null, scope, cohortId, targetLabelId: audience === 'PARTICIPANTS' ? null : targetLabelId, targetGroupId: audience === 'PARTICIPANTS' ? targetGroupId : null, targetHubId: audience === 'PARTICIPANTS' ? null : targetHubId, audience }])
       .select('id')
       .single()
 
@@ -178,6 +180,20 @@ Deno.serve(async (req) => {
 
       const labelUserIds = new Set((labelUsers || []).map((row: any) => row.userId).filter(Boolean))
       scopedUserIds = scopedUserIds.filter((userId) => labelUserIds.has(userId))
+    }
+
+    if (targetHubId) {
+      const { data: hubMembers, error: hubError } = await supabase
+        .from('HubMembership')
+        .select('userId')
+        .eq('hubId', targetHubId)
+
+      if (hubError) {
+        throw new Error(hubError.message)
+      }
+
+      const hubUserIds = new Set((hubMembers || []).map((row: any) => row.userId).filter(Boolean))
+      scopedUserIds = scopedUserIds.filter((userId) => hubUserIds.has(userId))
     }
 
     if (scopedUserIds.length === 0) {

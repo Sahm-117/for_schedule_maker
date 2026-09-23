@@ -73,6 +73,8 @@ export interface CohortPeoplePayload {
   sunday: Array<{ participantId: string; weekId: number; status: 'PRESENT' | 'LATE' | 'LEFT_EARLY' | 'ABSENT' | string; lateExcused?: boolean }>;
   meeting: Array<{ participantId: string; weekId: number; status: 'JOINED' | 'EXCUSED' | 'MISSED' | string }>;
   onboarding: Array<{ groupId: string; supportId: string | null; groupCreated: boolean | null; completedAt: string | null; assignedAt: string | null }>;
+  /** A support's own Sunday-evening recap attendance mark, by hub lead. */
+  supportRecap?: Array<{ userId: string; weekId: number; status: 'PRESENT' | 'LATE' | 'ABSENT' | 'EXCUSED' | string }>;
 }
 
 export type CompletionOutcome = 'COMPLETED' | 'RETAKE' | 'RECORDS_MISSING';
@@ -178,6 +180,8 @@ export interface SupportWeekRecord {
   weekNumber: number;
   reportSubmitted: boolean;
   meetingMarked: boolean;
+  /** Absent (not Excused) at that week's Sunday-evening recap. */
+  recapMissed: boolean;
   recorded: boolean;
 }
 
@@ -216,17 +220,22 @@ export const evaluateSupports = (
   const reportKeys = new Set(meetingReports.map((r) => `${r.groupId}:${r.weekId}`));
   const onboardingBy = new Map(people.onboarding.map((o) => [o.groupId, o]));
   const onboardedIds = new Set(people.participants.filter((p) => p.onboarded).map((p) => p.id));
+  // Absent (not Excused) at recap, keyed by support + week.
+  const recapAbsentKeys = new Set(
+    (people.supportRecap ?? []).filter((r) => r.status === 'ABSENT').map((r) => `${r.userId}:${r.weekId}`)
+  );
 
   return groups
     .filter((g) => g.supportId && (activeMembers.get(g.id)?.length ?? 0) > 0)
     .map((g) => {
       const members = activeMembers.get(g.id) ?? [];
-      // A week counts as recorded when the meeting report is in and every
-      // member has a meeting attendance mark.
+      // A week counts as recorded when the meeting report is in, every member
+      // has a meeting attendance mark, and the support wasn't Absent at recap.
       const weeks = [...judgedWeeks].sort((a, b) => a.weekNumber - b.weekNumber).map((w) => {
         const reportSubmitted = reportKeys.has(`${g.id}:${w.id}`);
         const meetingMarked = members.every((m) => meetingKeys.has(`${m}:${w.id}`));
-        return { weekNumber: w.weekNumber, reportSubmitted, meetingMarked, recorded: reportSubmitted && meetingMarked };
+        const recapMissed = recapAbsentKeys.has(`${g.supportId}:${w.id}`);
+        return { weekNumber: w.weekNumber, reportSubmitted, meetingMarked, recapMissed, recorded: reportSubmitted && meetingMarked && !recapMissed };
       });
       const missedWeeks = weeks.filter((w) => !w.recorded).map((w) => w.weekNumber);
 

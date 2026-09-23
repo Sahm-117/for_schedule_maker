@@ -26,6 +26,8 @@ type NavItem = {
   sopHidden?: boolean;
   mobileHidden?: boolean;
   mobileMore?: boolean;
+  /** Only shown to a support who is in a hub for the active cohort. */
+  hubOnly?: boolean;
 };
 
 type NavGroup = {
@@ -78,6 +80,7 @@ const adminNav: NavItem[] = [
   { to: '/participants', label: 'Participants', icon: ICONS.participants, adminOnly: true },
   { to: '/groups', label: 'Groups', icon: ICONS.groups, adminOnly: true },
   { to: '/supports', label: 'Supports', icon: ICONS.attendance, adminOnly: true },
+  { to: '/hubs', label: 'Hubs', icon: ICONS.groups, adminOnly: true },
   { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
   { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
   { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
@@ -106,6 +109,7 @@ const adminNavGroups: NavGroup[] = [
       { to: '/participants', label: 'Participants', icon: ICONS.participants, adminOnly: true },
       { to: '/groups', label: 'Groups', icon: ICONS.groups, adminOnly: true },
       { to: '/supports', label: 'Supports', icon: ICONS.attendance, adminOnly: true },
+      { to: '/hubs', label: 'Hubs', icon: ICONS.groups, adminOnly: true },
       { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
     ],
   },
@@ -132,6 +136,7 @@ const supportNav: NavItem[] = [
   { to: '/support/mobilisation', label: 'Mobilisation', icon: ICONS.mobilisation },
   { to: '/support/schedule', label: 'My Schedule', mobileLabel: 'Schedule', icon: ICONS.schedule },
   { to: '/support/participants', label: 'My Group', mobileLabel: 'Group', icon: ICONS.participants },
+  { to: '/support/my-hub', label: 'My Hub', icon: ICONS.groups, mobileMore: true, hubOnly: true },
   { to: '/support/attendance', label: 'Attendance', icon: ICONS.attendance, mobileMore: true },
   { to: '/support/onboarding', label: 'Onboard', icon: ICONS.onboarding, mobileMore: true },
   { to: '/support/community', label: 'Community', icon: ICONS.hub, mobileMore: true },
@@ -255,6 +260,7 @@ const AppShell: React.FC = () => {
     globalPendingChanges,
     newResourceCount,
     hasNewHubActivity,
+    myHub,
   } = useAppData();
   const { showPrompt, enable, dismiss } = usePushNotifications(user?.id);
   const [open, setOpen] = useState(false);
@@ -267,9 +273,9 @@ const AppShell: React.FC = () => {
   // First-login order: password change, Welcome + Home tour, then the notification prompt.
   const { busy: tourBusy } = useTourState();
   const navItems = useMemo(() => {
-    if (isSupport) return supportNav;
+    if (isSupport) return supportNav.filter((item) => !item.hubOnly || !!myHub?.hub);
     return adminNav.filter((item) => canShowNavItem(item, isAdmin, isSopPreparer));
-  }, [isAdmin, isSopPreparer, isSupport]);
+  }, [isAdmin, isSopPreparer, isSupport, myHub?.hub]);
   const navGroups = useMemo(() => {
     if (isSupport) return [];
     return adminNavGroups
@@ -287,13 +293,13 @@ const AppShell: React.FC = () => {
     }));
   };
   const mobileNavItems = useMemo(() => {
-    if (isSupport) return supportNav.filter((item) => !item.mobileHidden && !item.mobileMore);
+    if (isSupport) return supportNav.filter((item) => !item.mobileHidden && !item.mobileMore && (!item.hubOnly || !!myHub?.hub));
     const mobileAdminRoutes = new Set(['/dashboard', '/schedule', '/participants', '/supports', '/community']);
     return navItems.filter((item) => mobileAdminRoutes.has(item.to));
-  }, [isSupport, navItems]);
+  }, [isSupport, navItems, myHub?.hub]);
   const mobileMoreItems = useMemo(
-    () => (isSupport ? supportNav.filter((item) => item.mobileMore) : []),
-    [isSupport]
+    () => (isSupport ? supportNav.filter((item) => item.mobileMore && (!item.hubOnly || !!myHub?.hub)) : []),
+    [isSupport, myHub?.hub]
   );
   const moreActive = mobileMoreItems.some((item) => isNavActive(location.pathname, item.to));
 

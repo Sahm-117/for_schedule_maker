@@ -30,6 +30,10 @@ import {
   attendanceApi as supabaseAttendanceApi,
   attendanceFollowUpTasksApi as supabaseAttendanceFollowUpTasksApi,
   attendanceExcusalsApi as supabaseAttendanceExcusalsApi,
+  supportHubsApi as supabaseSupportHubsApi,
+  supportNotesApi as supabaseSupportNotesApi,
+  supportSessionsApi as supabaseSupportSessionsApi,
+  myHubApi as supabaseMyHubApi,
   faithProjectsApi as supabaseFaithProjectsApi,
   faithProjectSettingsApi as supabaseFaithProjectSettingsApi,
   faithProjectCategoriesApi as supabaseFaithProjectCategoriesApi,
@@ -488,7 +492,7 @@ export const notificationSettingsApi = USE_SUPABASE ? supabaseNotificationSettin
 };
 
 export const announcementsApi = USE_SUPABASE ? supabaseAnnouncementsApi : {
-  async send(_subject: string, _body: string, _sentBy: string, _options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null; targetLabelId?: string | null; targetGroupId?: string | null; home?: { homeUntil: string; linkUrl?: string | null; linkLabel?: string | null } | null }): Promise<{ sent: number }> { return { sent: 0 }; },
+  async send(_subject: string, _body: string, _sentBy: string, _options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null; targetLabelId?: string | null; targetGroupId?: string | null; targetHubId?: string | null; home?: { homeUntil: string; linkUrl?: string | null; linkLabel?: string | null } | null }): Promise<{ sent: number }> { return { sent: 0 }; },
   async delete(_announcementId: string): Promise<{ message: string }> { return { message: 'Not supported' }; },
   async removeFromHome(_announcementId: string): Promise<void> {},
   async getHistory(_options?: {
@@ -579,6 +583,31 @@ export const attendanceFollowUpTasksApi = USE_SUPABASE ? supabaseAttendanceFollo
 
 export const attendanceExcusalsApi = USE_SUPABASE ? supabaseAttendanceExcusalsApi : {
   async getForRecords(_recordIds: string[]): Promise<{ excusals: import('../types').AttendanceExcusal[] }> { return { excusals: [] }; },
+};
+
+export const supportHubsApi = USE_SUPABASE ? supabaseSupportHubsApi : {
+  async getAll(_cohortId: string): Promise<{ hubs: import('../types').SupportHub[] }> { return { hubs: [] }; },
+  async create(_input: any): Promise<never> { return peopleUnavailable(); },
+  async update(_hubId: string, _input: any): Promise<never> { return peopleUnavailable(); },
+  async remove(_hubId: string): Promise<never> { return peopleUnavailable(); },
+  async getMembershipsForCohort(_cohortId: string): Promise<{ memberships: import('../types').HubMembership[] }> { return { memberships: [] }; },
+  async getMembers(_hubId: string): Promise<{ members: import('../types').User[] }> { return { members: [] }; },
+  async setMembers(_hubId: string, _cohortId: string, _userIds: string[]): Promise<never> { return peopleUnavailable(); },
+};
+
+export const supportNotesApi = USE_SUPABASE ? supabaseSupportNotesApi : {
+  async getForSupport(_supportId: string): Promise<{ notes: import('../types').SupportNote[] }> { return { notes: [] }; },
+  async create(_input: any): Promise<never> { return peopleUnavailable(); },
+};
+
+export const supportSessionsApi = USE_SUPABASE ? supabaseSupportSessionsApi : {
+  async mark(_input: any): Promise<never> { return peopleUnavailable(); },
+  async getForHubWeek(_hubId: string, _weekId: number): Promise<{ attendance: Array<{ userId: string; status: import('../types').SupportAttendanceStatus }> }> { return { attendance: [] }; },
+};
+
+export const myHubApi = USE_SUPABASE ? supabaseMyHubApi : {
+  async get(_cohortId: string): Promise<import('../types').MyHubPayload> { return { hub: null, isLead: false, members: [], messages: [], myAttendance: [] }; },
+  async postMessage(_hubId: string, _subject: string, _body: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {

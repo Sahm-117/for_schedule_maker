@@ -2367,6 +2367,7 @@ export const announcementsApi = {
       cohortId?: string | null;
       targetLabelId?: string | null;
       targetGroupId?: string | null;
+      targetHubId?: string | null;
       home?: { homeUntil: string; linkUrl?: string | null; linkLabel?: string | null } | null;
       audience?: import('../types').AnnouncementAudience;
     }
@@ -2380,6 +2381,7 @@ export const announcementsApi = {
         cohortId: options?.cohortId || null,
         targetLabelId: options?.targetLabelId || null,
         targetGroupId: options?.targetGroupId || null,
+        targetHubId: options?.targetHubId || null,
         audience: options?.audience || 'SUPPORTS',
       },
     });
@@ -2444,6 +2446,7 @@ export const announcementsApi = {
       cohortName: row.Cohort?.name || null,
       targetLabelId: row.targetLabelId ?? null,
       targetGroupId: row.targetGroupId ?? null,
+      targetHubId: row.targetHubId ?? null,
       showOnHome: !!row.showOnHome,
       homeUntil: row.homeUntil ?? null,
       linkUrl: row.linkUrl ?? null,
@@ -4850,6 +4853,184 @@ export const attendanceFollowUpTasksApi = {
     });
     if (error || !data) throw new Error(error?.message || 'Could not update the attendance follow-up');
     return { task: mapAttendanceFollowUpTask(data) };
+  },
+};
+
+// ── Support Hubs (Phase 3) ────────────────────────────────────────────────────
+// Named supportHubsApi (not hubApi) — hubApi below is the Community forum.
+
+const mapSupportHub = (row: any): import('../types').SupportHub => ({
+  id: row.id,
+  cohortId: row.cohortId,
+  name: row.name,
+  leadUserId: row.leadUserId ?? null,
+  leadName: row.lead?.name ?? null,
+  createdAt: row.createdAt,
+});
+
+export const supportHubsApi = {
+  async getAll(cohortId: string): Promise<{ hubs: import('../types').SupportHub[] }> {
+    const { data, error } = await supabase
+      .from('SupportHub')
+      .select('*, lead:User!SupportHub_leadUserId_fkey(id, name)')
+      .eq('cohortId', cohortId)
+      .order('name');
+    if (error) throw new Error(error.message);
+    return { hubs: ((data as any[]) || []).map(mapSupportHub) };
+  },
+
+  async create(input: { cohortId: string; name: string; leadUserId?: string | null }): Promise<{ hub: import('../types').SupportHub }> {
+    const { data, error } = await supabase
+      .from('SupportHub')
+      .insert([{ cohortId: input.cohortId, name: input.name, leadUserId: input.leadUserId || null }])
+      .select('*, lead:User!SupportHub_leadUserId_fkey(id, name)')
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to create hub');
+    return { hub: mapSupportHub(data) };
+  },
+
+  async update(hubId: string, input: { name?: string; leadUserId?: string | null }): Promise<{ hub: import('../types').SupportHub }> {
+    const { data, error } = await supabase
+      .from('SupportHub')
+      .update(input)
+      .eq('id', hubId)
+      .select('*, lead:User!SupportHub_leadUserId_fkey(id, name)')
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to update hub');
+    return { hub: mapSupportHub(data) };
+  },
+
+  async remove(hubId: string): Promise<void> {
+    const { error } = await supabase.from('SupportHub').delete().eq('id', hubId);
+    if (error) throw new Error(error.message);
+  },
+
+  // Every membership row for a cohort in one call, so callers (Supports page,
+  // Hubs page) can build a userId -> hub map without a request per hub.
+  async getMembershipsForCohort(cohortId: string): Promise<{ memberships: import('../types').HubMembership[] }> {
+    const { data, error } = await supabase
+      .from('HubMembership')
+      .select('*')
+      .eq('cohortId', cohortId);
+    if (error) throw new Error(error.message);
+    return { memberships: (data as any[]) || [] };
+  },
+
+  async getMembers(hubId: string): Promise<{ members: import('../types').User[] }> {
+    const { data, error } = await supabase
+      .from('HubMembership')
+      .select('user:User(id, name, phone, role)')
+      .eq('hubId', hubId);
+    if (error) throw new Error(error.message);
+    return { members: ((data as any[]) || []).map((r) => r.user).filter(Boolean) };
+  },
+
+  // Replaces the hub's full member list (delete-then-insert, mirrors
+  // groupsApi.setParticipants). A support can only be in one hub per cohort,
+  // so any newly-added member is first cleared from whatever hub they were in.
+  async setMembers(hubId: string, cohortId: string, userIds: string[]): Promise<{ message: string }> {
+    const { error: clearOldHubError } = await supabase
+      .from('HubMembership')
+      .delete()
+      .eq('cohortId', cohortId)
+      .eq('hubId', hubId);
+    if (clearOldHubError) throw new Error(clearOldHubError.message);
+
+    if (userIds.length > 0) {
+      const { error: clearPriorMembershipError } = await supabase
+        .from('HubMembership')
+        .delete()
+        .eq('cohortId', cohortId)
+        .in('userId', userIds);
+      if (clearPriorMembershipError) throw new Error(clearPriorMembershipError.message);
+
+      const { error: insError } = await supabase
+        .from('HubMembership')
+        .insert(userIds.map((userId) => ({ hubId, userId, cohortId })));
+      if (insError) throw new Error(insError.message);
+    }
+    return { message: 'Members updated' };
+  },
+};
+
+const mapSupportNote = (row: any): import('../types').SupportNote => ({
+  id: row.id,
+  supportId: row.supportId,
+  authorId: row.authorId ?? null,
+  authorName: row.author?.name ?? null,
+  hubId: row.hubId ?? null,
+  noteType: row.noteType,
+  body: row.body,
+  createdAt: row.createdAt,
+});
+
+export const supportNotesApi = {
+  async getForSupport(supportId: string): Promise<{ notes: import('../types').SupportNote[] }> {
+    const { data, error } = await supabase
+      .from('SupportNote')
+      .select('*, author:User!SupportNote_authorId_fkey(id, name)')
+      .eq('supportId', supportId)
+      .order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { notes: ((data as any[]) || []).map(mapSupportNote) };
+  },
+
+  async create(input: { supportId: string; hubId?: string | null; noteType?: import('../types').SupportNoteType; body: string }): Promise<{ note: import('../types').SupportNote }> {
+    const { data, error } = await supabase
+      .from('SupportNote')
+      .insert([{ supportId: input.supportId, hubId: input.hubId ?? null, noteType: input.noteType ?? 'NOTE', body: input.body }])
+      .select('*, author:User!SupportNote_authorId_fkey(id, name)')
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to save note');
+    return { note: mapSupportNote(data) };
+  },
+};
+
+export const supportSessionsApi = {
+  async mark(input: { status: import('../types').SupportAttendanceStatus; userId: string; hubId?: string; weekId?: number; sessionId?: string }): Promise<{ attendance: import('../types').SupportSessionAttendance }> {
+    const { data, error } = await supabase.rpc('mark_support_attendance', {
+      p_status: input.status,
+      p_user_id: input.userId,
+      p_hub_id: input.hubId ?? null,
+      p_week_id: input.weekId ?? null,
+      p_session_id: input.sessionId ?? null,
+    });
+    if (error || !data) throw new Error(error?.message || 'Failed to mark attendance');
+    return { attendance: data as import('../types').SupportSessionAttendance };
+  },
+
+  // Every member's mark for one hub's recap in one week, so the lead's marking
+  // screen can show current status without a call per member.
+  async getForHubWeek(hubId: string, weekId: number): Promise<{ attendance: Array<{ userId: string; status: import('../types').SupportAttendanceStatus }> }> {
+    const { data: session, error: sessionError } = await supabase
+      .from('SupportSession')
+      .select('id')
+      .eq('hubId', hubId)
+      .eq('weekId', weekId)
+      .eq('type', 'SUNDAY_RECAP')
+      .maybeSingle();
+    if (sessionError) throw new Error(sessionError.message);
+    if (!session) return { attendance: [] };
+    const { data, error } = await supabase
+      .from('SupportSessionAttendance')
+      .select('userId, status')
+      .eq('sessionId', (session as any).id);
+    if (error) throw new Error(error.message);
+    return { attendance: (data as any[]) || [] };
+  },
+};
+
+export const myHubApi = {
+  async get(cohortId: string): Promise<import('../types').MyHubPayload> {
+    const { data, error } = await supabase.rpc('get_my_hub', { p_cohort_id: cohortId });
+    if (error) throw new Error(error.message);
+    return (data as import('../types').MyHubPayload) ?? { hub: null, isLead: false, members: [], messages: [], myAttendance: [] };
+  },
+
+  async postMessage(hubId: string, subject: string, body: string): Promise<{ message: import('../types').HubMessage }> {
+    const { data, error } = await supabase.rpc('post_hub_message', { p_hub_id: hubId, p_subject: subject, p_body: body });
+    if (error || !data) throw new Error(error?.message || 'Failed to send message');
+    return { message: data as import('../types').HubMessage };
   },
 };
 

@@ -226,6 +226,12 @@ export const buildAttention = (
     const supportAmber = people.supports.filter((s) => s.missedWeeks.length >= people.rules.supportAmberMissedWeeks && s.missedWeeks.length < people.rules.supportRedMissedWeeks).length;
     if (supportRed > 0) items.push({ key: 'supports-red', status: 'critical', text: `${plural(supportRed, 'support hasn’t', 'supports haven’t')} completed group meeting records for ${people.rules.supportRedMissedWeeks}+ weeks`, actionLabel: 'View', to: '/supports?health=critical' });
     if (supportAmber > 0) items.push({ key: 'supports-amber', status: 'warning', text: `${plural(supportAmber, 'support has', 'supports have')} incomplete group meeting records`, actionLabel: 'View', to: '/supports?health=warning' });
+    const supportsMissedRecap = new Set(
+      people.supports.filter((s) => s.weeks.some((w) => w.recapMissed)).map((s) => s.supportId)
+    ).size;
+    if (supportsMissedRecap > 0) {
+      items.push({ key: 'supports-recap', status: 'warning', text: `${plural(supportsMissedRecap, 'support', 'supports')} missed recap`, actionLabel: 'View', to: '/supports' });
+    }
   }
 
   if (mode !== 'completed' && people) {

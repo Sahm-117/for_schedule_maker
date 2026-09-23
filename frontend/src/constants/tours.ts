@@ -137,6 +137,13 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: wt('profile-theme'), title: 'Make it yours', body: 'Pick an accent colour for the app.' },
     { target: wt('profile-notifications'), title: 'Reminder alerts', body: 'Choose the reminders you get, so you never miss an activity or group meeting.' },
   ],
+  'support:my-hub': [
+    { target: wt('hub-members'), title: 'Your hub', body: 'Your hub lead, fellow supports and the groups they lead, plus any messages from your lead.', optional: true },
+  ],
+  'support:my-hub-lead': [
+    { target: wt('hub-members'), title: 'Your hub', body: 'Your hub’s supports and the groups they lead.', optional: true },
+    { target: wt('hub-tabs'), title: 'Lead tools', body: 'Mark the week’s recap attendance, keep private notes on each support, and message the whole hub.' },
+  ],
 
   // ── Shared ────────────────────────────────────────────────────────────────
   community: [
