@@ -4671,15 +4671,29 @@ const mapAttendance = (row: any): import('../types').AttendanceRecord => ({
   status: row.status,
   markedById: row.markedById ?? null,
   markedAt: row.markedAt,
+  lateExcused: row.lateExcused ?? false,
+  lateExcusedAt: row.lateExcusedAt ?? null,
+  lateExcusedById: row.lateExcusedById ?? null,
 });
 
 const mapAttendanceSession = (row: any): import('../types').AttendanceSession => ({
   weekId: row.weekId,
   autoFinalizeAtNoon: row.autoFinalizeAtNoon ?? true,
+  startedAt: row.startedAt ?? null,
+  startedById: row.startedById ?? null,
+  closesAt: row.closesAt ?? null,
   finalizedAt: row.finalizedAt ?? null,
   finalizedById: row.finalizedById ?? null,
   finalizationMethod: row.finalizationMethod ?? null,
   reopenedAt: row.reopenedAt ?? null,
+});
+
+const mapAttendanceExcusal = (row: any): import('../types').AttendanceExcusal => ({
+  attendanceRecordId: row.attendanceRecordId,
+  note: row.note,
+  excusedById: row.excusedById ?? null,
+  excusedByName: row.excusedBy?.name ?? null,
+  createdAt: row.createdAt,
 });
 
 export const attendanceApi = {
@@ -4761,6 +4775,30 @@ export const attendanceApi = {
     const { data, error } = await supabase.rpc('reopen_shared_attendance', { p_week_id: weekId });
     if (error || !data) throw new Error(error?.message || 'Failed to reopen attendance');
     return { session: mapAttendanceSession(data) };
+  },
+
+  async startWindow(weekId: number): Promise<{ session: import('../types').AttendanceSession }> {
+    const { data, error } = await supabase.rpc('start_attendance_window', { p_week_id: weekId });
+    if (error || !data) throw new Error(error?.message || 'Failed to start attendance');
+    return { session: mapAttendanceSession(data) };
+  },
+
+  async excuseLateness(recordId: string, note: string): Promise<{ record: import('../types').AttendanceRecord }> {
+    const { data, error } = await supabase.rpc('excuse_lateness', { p_record_id: recordId, p_note: note });
+    if (error || !data) throw new Error(error?.message || 'Failed to excuse this record');
+    return { record: mapAttendance(data) };
+  },
+};
+
+export const attendanceExcusalsApi = {
+  async getForRecords(recordIds: string[]): Promise<{ excusals: import('../types').AttendanceExcusal[] }> {
+    if (recordIds.length === 0) return { excusals: [] };
+    const { data, error } = await supabase
+      .from('AttendanceExcusal')
+      .select('*, excusedBy:User!AttendanceExcusal_excusedById_fkey(id, name)')
+      .in('attendanceRecordId', recordIds);
+    if (error) throw new Error(error.message);
+    return { excusals: ((data as any[]) || []).map(mapAttendanceExcusal) };
   },
 };
 

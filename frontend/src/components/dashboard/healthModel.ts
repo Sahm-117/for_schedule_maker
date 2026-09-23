@@ -4,6 +4,7 @@ import {
   MIN_RECORD_COVERAGE,
   evaluateParticipants,
   evaluateSupports,
+  sundayMarkAttended,
   sundayRecordCoverage,
   type CohortPeoplePayload,
   type ParticipantEvaluation,
@@ -20,7 +21,7 @@ export interface CohortHealthPayload {
   weeks: Array<{ id: number; weekNumber: number; recapUploaded: boolean }>;
   participants: { active: number; archived: number; inGroups: number };
   groups: Array<{ id: string; name: string; supportId: string | null; supportName: string | null; members: number }>;
-  attendance: Array<{ weekId: number; groupId: string; marked: number; present: number; late: number; absent: number }>;
+  attendance: Array<{ weekId: number; groupId: string; marked: number; present: number; late: number; leftEarly?: number; absent: number; attended?: number }>;
   meetings: Array<{ weekId: number; groupId: string }>;
   faithProjects: Record<string, number>;
   followUps: { total: number; contacted: number; replied: number; registered: number; open: number };
@@ -97,7 +98,7 @@ export const buildWeekStats = (data: CohortHealthPayload, people: CohortPeoplePa
       const marks = people ? [...new Map(people.sunday.filter((r) => r.weekId === week.id && activeIds.has(r.participantId)).map((r) => [r.participantId, r])).values()] : null;
       const marked = marks?.length ?? 0;
       const expected = people ? activeIds.size : Number(data.participants.active);
-      const attended = marks?.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').length ?? 0;
+      const attended = marks?.filter(sundayMarkAttended).length ?? 0;
       const meetingsSubmitted = new Set(
         data.meetings.filter((m) => m.weekId === week.id && activeGroupIds.has(m.groupId)).map((m) => m.groupId),
       ).size;

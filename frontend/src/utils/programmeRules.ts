@@ -20,6 +20,8 @@ export interface ProgrammeRules {
   supportAmberMissedWeeks: number;
   supportRedMissedWeeks: number;
   onboardingMaxDays: number;
+  /** How long a Sunday register stays open after Start is tapped. */
+  attendanceWindowMinutes: number;
 }
 
 export const DEFAULT_PROGRAMME_RULES: ProgrammeRules = {
@@ -30,6 +32,7 @@ export const DEFAULT_PROGRAMME_RULES: ProgrammeRules = {
   supportAmberMissedWeeks: 1,
   supportRedMissedWeeks: 2,
   onboardingMaxDays: 7,
+  attendanceWindowMinutes: 15,
 };
 
 export const COMPLETION_SCORE_ALL_MEETINGS = 100;
@@ -67,7 +70,7 @@ export interface CohortPeoplePayload {
     groupId: string | null;
     onboarded: boolean;
   }>;
-  sunday: Array<{ participantId: string; weekId: number; status: 'PRESENT' | 'LATE' | 'ABSENT' | string }>;
+  sunday: Array<{ participantId: string; weekId: number; status: 'PRESENT' | 'LATE' | 'LEFT_EARLY' | 'ABSENT' | string; lateExcused?: boolean }>;
   meeting: Array<{ participantId: string; weekId: number; status: 'JOINED' | 'EXCUSED' | 'MISSED' | string }>;
   onboarding: Array<{ groupId: string; supportId: string | null; groupCreated: boolean | null; completedAt: string | null; assignedAt: string | null }>;
 }
@@ -88,7 +91,10 @@ export interface ParticipantEvaluation {
   completion: { outcome: CompletionOutcome; score: number | null; attendancePct: number } | null;
 }
 
-const ATTENDED_SUNDAY = new Set(['PRESENT', 'LATE']);
+// Present always counts. Late/Left early only count as attended once an
+// admin has excused them on appeal -- otherwise they count as missed.
+export const sundayMarkAttended = (r: { status: string; lateExcused?: boolean }) =>
+  r.status === 'PRESENT' || ((r.status === 'LATE' || r.status === 'LEFT_EARLY') && !!r.lateExcused);
 
 export const evaluateParticipants = (
   people: CohortPeoplePayload,
@@ -97,11 +103,11 @@ export const evaluateParticipants = (
   rules: ProgrammeRules,
 ): ParticipantEvaluation[] => {
   const judged = new Set(judgedWeekIds);
-  const sundayBy = new Map<string, Map<number, string>>();
+  const sundayBy = new Map<string, Map<number, { status: string; lateExcused?: boolean }>>();
   people.sunday.forEach((r) => {
     if (!judged.has(r.weekId)) return;
     if (!sundayBy.has(r.participantId)) sundayBy.set(r.participantId, new Map());
-    sundayBy.get(r.participantId)!.set(r.weekId, r.status);
+    sundayBy.get(r.participantId)!.set(r.weekId, { status: r.status, lateExcused: r.lateExcused });
   });
   const meetingBy = new Map<string, Map<number, string>>();
   people.meeting.forEach((r) => {
@@ -115,8 +121,8 @@ export const evaluateParticipants = (
     .map((p) => {
       const sunday = [...(sundayBy.get(p.id)?.values() ?? [])];
       const meeting = [...(meetingBy.get(p.id)?.values() ?? [])];
-      const sundayAttended = sunday.filter((s) => ATTENDED_SUNDAY.has(s)).length;
-      const sundayMisses = sunday.filter((s) => s === 'ABSENT').length;
+      const sundayAttended = sunday.filter(sundayMarkAttended).length;
+      const sundayMisses = sunday.length - sundayAttended;
       const sundayUnrecorded = judged.size - sunday.length;
       const meetingAttended = meeting.filter((s) => s === 'JOINED').length;
       // Excused isn't counted as a miss.

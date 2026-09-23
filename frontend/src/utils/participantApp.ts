@@ -3,7 +3,7 @@
 // answered in Lagos time regardless of the device's zone.
 
 import type { FaithProjectStatus, ParticipantHome, ParticipantHomeWeek, ParticipantReflection } from '../types';
-import { normaliseRules, type PersonHealth } from './programmeRules';
+import { normaliseRules, sundayMarkAttended, type PersonHealth } from './programmeRules';
 
 const LAGOS_OFFSET_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -72,7 +72,7 @@ export const participantMisses = (home: ParticipantHome, now: Date) => {
   const week = currentWeekNumber(home.cohort?.startDate, now);
   const judged = new Set(home.weeks.filter((w) => w.weekNumber < week).map((w) => w.id));
   const rules = normaliseRules(home.rules);
-  const sunday = home.sunday.filter((r) => judged.has(r.weekId) && r.status === 'ABSENT').length;
+  const sunday = home.sunday.filter((r) => judged.has(r.weekId) && !sundayMarkAttended(r)).length;
   const meeting = home.meeting.filter((r) => judged.has(r.weekId) && r.status === 'MISSED').length;
   const health: PersonHealth =
     sunday >= rules.participantRedSundayMisses && meeting >= rules.participantRedMeetingMisses

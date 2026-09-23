@@ -14,6 +14,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import {
   attendanceApi,
+  attendanceExcusalsApi,
   cohortsApi,
   departmentReferralsApi,
   faithProjectsApi,
@@ -27,6 +28,7 @@ import {
   settingsApi,
 } from '../services/api';
 import type {
+  AttendanceExcusal,
   AttendanceRecord,
   DepartmentReferral,
   FaithProject,
@@ -49,6 +51,7 @@ import {
   COMPLETION_SCORE_ALL_MEETINGS,
   PERSON_HEALTH_LABEL,
   evaluateParticipants,
+  sundayMarkAttended,
   type ParticipantEvaluation,
   type ProgrammeRules,
 } from '../utils/programmeRules';
@@ -91,6 +94,7 @@ const HEALTH_PILL: Record<string, string> = {
 const SUNDAY_MARK: Record<string, { letter: string; label: string; cls: string }> = {
   PRESENT: { letter: 'P', label: 'Present', cls: 'bg-emerald-100/80 text-emerald-700' },
   LATE: { letter: 'L', label: 'Late', cls: 'bg-amber-100/80 text-amber-700' },
+  LEFT_EARLY: { letter: 'E', label: 'Left early', cls: 'bg-orange-100/80 text-orange-700' },
   ABSENT: { letter: 'A', label: 'Absent', cls: 'bg-red-100/80 text-red-700' },
 };
 
@@ -106,6 +110,7 @@ interface ProfileData {
   health: CohortHealthPayload | null;
   rules: ProgrammeRules;
   sunday: AttendanceRecord[];
+  excusals: AttendanceExcusal[];
   meeting: MeetingAttendance[];
   onboarding: ParticipantOnboardingStatus | null;
   faithProject: FaithProject | null;
@@ -156,7 +161,11 @@ const AdminParticipantProfilePage: React.FC = () => {
           meetingAttendanceApi.getForWeeks(weekIds).then((r) => r.records.filter((m) => m.participantId === participant.id)).catch(() => []),
         ])
         : [[], []];
-      setData({ participant, health, rules, sunday, meeting, onboarding, faithProject: faith, notes, handovers, flags, referrals, changes });
+      const excusableIds = sunday.filter((r) => (r.status === 'LATE' || r.status === 'LEFT_EARLY') && r.lateExcused).map((r) => r.id);
+      const excusals = excusableIds.length
+        ? await attendanceExcusalsApi.getForRecords(excusableIds).then((r) => r.excusals).catch(() => [])
+        : [];
+      setData({ participant, health, rules, sunday, excusals, meeting, onboarding, faithProject: faith, notes, handovers, flags, referrals, changes });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load this participant.');
     } finally {
@@ -183,7 +192,7 @@ const AdminParticipantProfilePage: React.FC = () => {
       [evaluation] = evaluateParticipants(
         {
           participants: [{ id: participant.id, fullName: participant.fullName, status: 'ACTIVE', departments: participant.departments ?? [], createdAt: participant.createdAt ?? '', groupId: participant.groupId ?? null, onboarded: false }],
-          sunday: data.sunday.map((r) => ({ participantId: r.participantId, weekId: r.weekId, status: r.status })),
+          sunday: data.sunday.map((r) => ({ participantId: r.participantId, weekId: r.weekId, status: r.status, lateExcused: r.lateExcused })),
           meeting: data.meeting.map((r) => ({ participantId: r.participantId, weekId: r.weekId, status: r.status })),
           onboarding: [],
         },
@@ -195,7 +204,7 @@ const AdminParticipantProfilePage: React.FC = () => {
     const group = health?.groups.find((g) => g.id === participant.groupId) ?? null;
     const onboarded = data.onboarding && data.onboarding.contacted && data.onboarding.addedToGroup && data.onboarding.introductionDone && data.onboarding.venueAcknowledged;
     const attendedTimes = [
-      ...data.sunday.filter((r) => r.status === 'PRESENT' || r.status === 'LATE').map((r) => r.markedAt),
+      ...data.sunday.filter(sundayMarkAttended).map((r) => r.markedAt),
       ...data.meeting.filter((r) => r.status === 'JOINED').map((r) => r.markedAt),
     ].filter(Boolean).sort() as string[];
     const journey = buildJourney({
@@ -258,8 +267,6 @@ const AdminParticipantProfilePage: React.FC = () => {
       by: null,
     },
   ].filter((item) => item.at).sort((a, b) => (a.at < b.at ? 1 : -1));
-
-  const markFor = (records: Array<{ weekId: number; status: string }>, weekId: number) => records.find((r) => r.weekId === weekId)?.status;
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
@@ -368,23 +375,25 @@ const AdminParticipantProfilePage: React.FC = () => {
         ) : (
           <div className="mt-4 space-y-4">
             {[
-              { title: 'Sunday class', records: data.sunday, marks: SUNDAY_MARK },
-              { title: 'Group meeting', records: data.meeting, marks: MEETING_MARK },
+              { title: 'Sunday class', records: data.sunday, marks: SUNDAY_MARK, excusable: true },
+              { title: 'Group meeting', records: data.meeting, marks: MEETING_MARK, excusable: false },
             ].map((row) => (
               <div key={row.title}>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{row.title}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {weeks.map((week) => {
-                    const status = markFor(row.records, week.id);
+                    const record: any = row.records.find((r) => r.weekId === week.id);
+                    const status = record?.status;
+                    const excused = row.excusable && !!record?.lateExcused && (status === 'LATE' || status === 'LEFT_EARLY');
                     const mark = status ? row.marks[status] : null;
                     const future = !judged.includes(week.weekNumber) && !status;
-                    const label = `Week ${week.weekNumber}: ${mark ? mark.label : future ? 'not yet' : 'not recorded'}`;
+                    const label = `Week ${week.weekNumber}: ${mark ? (excused ? `${mark.label} · excused` : mark.label) : future ? 'not yet' : 'not recorded'}`;
                     return (
                       <span
                         key={week.id}
                         title={label}
                         aria-label={label}
-                        className={`flex w-11 flex-col items-center rounded-xl py-1.5 ${mark ? mark.cls : future ? 'bg-white text-gray-300 ring-1 ring-inset ring-gray-100' : 'bg-neutral-100 text-neutral-500'}`}
+                        className={`flex w-11 flex-col items-center rounded-xl py-1.5 ${mark ? (excused ? 'bg-emerald-100/80 text-emerald-700' : mark.cls) : future ? 'bg-white text-gray-300 ring-1 ring-inset ring-gray-100' : 'bg-neutral-100 text-neutral-500'}`}
                       >
                         <span className="text-[10px] font-medium opacity-80">W{week.weekNumber}</span>
                         <span className="text-sm font-bold">{mark ? mark.letter : '–'}</span>
@@ -394,7 +403,22 @@ const AdminParticipantProfilePage: React.FC = () => {
                 </div>
               </div>
             ))}
-            <p className="text-[11px] text-gray-500">P present · L late (counts as attended) · A absent · J joined · E excused · M missed · – not recorded</p>
+            <p className="text-[11px] text-gray-500">P present · L late (counts as missed unless excused) · E left early (Sunday) / excused (meeting) · A absent · J joined · M missed · – not recorded</p>
+            {data.excusals.length > 0 && (
+              <div className="space-y-1.5 border-t border-gray-100 pt-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Excused lateness</p>
+                {data.excusals.map((excusal) => {
+                  const record = data.sunday.find((r) => r.id === excusal.attendanceRecordId);
+                  const week = weeks.find((w) => w.id === record?.weekId);
+                  return (
+                    <p key={excusal.attendanceRecordId} className="text-xs leading-relaxed text-gray-600">
+                      <span className="font-semibold text-gray-800">{week ? `Week ${week.weekNumber}` : 'A week'}:</span> {excusal.note}
+                      {excusal.excusedByName ? <span className="text-gray-400"> — {excusal.excusedByName}</span> : null}
+                    </p>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </section>

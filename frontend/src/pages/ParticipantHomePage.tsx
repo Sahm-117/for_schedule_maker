@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import AttendanceCountdownCard from '../components/participantApp/AttendanceCountdownCard';
 import { useAuth } from '../hooks/useAuth';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { participantAppApi } from '../services/api';
@@ -140,6 +141,7 @@ const ParticipantHomePage: React.FC = () => {
       />
 
       <div className="flex flex-col gap-4">
+        <AttendanceCountdownCard openWindow={home.openWindow} />
         <section data-wt="ph-progress" className="rounded-[22px] border border-[#ffdeca] bg-white p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
           <div className="flex flex-wrap items-baseline gap-3">
             <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">Programme progress</p>

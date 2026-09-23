@@ -51,6 +51,14 @@ export const ParticipantAppProvider: React.FC<{ children: React.ReactNode }> = (
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [reload]);
 
+  // While a Sunday register is open, poll so the countdown/status stays live
+  // and catches the close (or being marked) without needing a manual refresh.
+  useEffect(() => {
+    if (!home?.openWindow) return undefined;
+    const timer = window.setInterval(() => { void reload(); }, 20000);
+    return () => window.clearInterval(timer);
+  }, [home?.openWindow, reload]);
+
   const applyReflection = (reflection: ParticipantReflection) => {
     setHome((prev) => prev && ({
       ...prev,

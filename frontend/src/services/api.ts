@@ -29,6 +29,7 @@ import {
   groupsApi as supabaseGroupsApi,
   attendanceApi as supabaseAttendanceApi,
   attendanceFollowUpTasksApi as supabaseAttendanceFollowUpTasksApi,
+  attendanceExcusalsApi as supabaseAttendanceExcusalsApi,
   faithProjectsApi as supabaseFaithProjectsApi,
   faithProjectSettingsApi as supabaseFaithProjectSettingsApi,
   faithProjectCategoriesApi as supabaseFaithProjectCategoriesApi,
@@ -566,12 +567,18 @@ export const attendanceApi = USE_SUPABASE ? supabaseAttendanceApi : {
   async finalize(_weekId: number): Promise<never> { return peopleUnavailable(); },
   async setAutoFinalize(_weekId: number, _enabled: boolean): Promise<never> { return peopleUnavailable(); },
   async reopen(_weekId: number): Promise<never> { return peopleUnavailable(); },
+  async startWindow(_weekId: number): Promise<never> { return peopleUnavailable(); },
+  async excuseLateness(_recordId: string, _note: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const attendanceFollowUpTasksApi = USE_SUPABASE ? supabaseAttendanceFollowUpTasksApi : {
   async getForWeek(_weekId: number): Promise<{ tasks: import('../types').AttendanceFollowUpTask[] }> { return { tasks: [] }; },
   async getMine(_weekId: number, _supportId: string): Promise<{ tasks: import('../types').AttendanceFollowUpTask[] }> { return { tasks: [] }; },
   async setDone(_taskId: string, _done: boolean, _completionNote?: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const attendanceExcusalsApi = USE_SUPABASE ? supabaseAttendanceExcusalsApi : {
+  async getForRecords(_recordIds: string[]): Promise<{ excusals: import('../types').AttendanceExcusal[] }> { return { excusals: [] }; },
 };
 
 export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {

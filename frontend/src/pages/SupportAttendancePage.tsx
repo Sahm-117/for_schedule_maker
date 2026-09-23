@@ -15,8 +15,23 @@ const STATUS_BUTTONS: Array<{ status: AttendanceStatus; label: string; activeCls
   { status: 'PRESENT', label: 'Present', activeCls: 'bg-emerald-100 text-emerald-700' },
   { status: 'ABSENT', label: 'Absent', activeCls: 'bg-red-100 text-red-700' },
   { status: 'LATE', label: 'Late', activeCls: 'bg-amber-100 text-amber-700' },
+  { status: 'LEFT_EARLY', label: 'Left early', activeCls: 'bg-orange-100 text-orange-700' },
   { status: 'EXCUSED', label: 'Excused', activeCls: 'bg-sky-100 text-sky-700' },
 ];
+
+// Once the register is locked (closed or finalised), a support can only move
+// an Absent mark to Late or Left early -- everything else needs an admin.
+const allowedWhenLocked = (current: AttendanceStatus | undefined, next: AttendanceStatus) =>
+  current === 'ABSENT' && (next === 'LATE' || next === 'LEFT_EARLY');
+
+const countdownLabel = (closesAt: string, now: number) => {
+  const ms = new Date(closesAt).getTime() - now;
+  if (ms <= 0) return 'Closing…';
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+};
 
 const DEFAULT_SESSION: AttendanceSession = { weekId: 0, autoFinalizeAtNoon: true, finalizedAt: null };
 const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
@@ -27,6 +42,7 @@ type AttendanceWeekResult = {
   present: number;
   absent: number;
   late: number;
+  leftEarly: number;
   excused: number;
   session: AttendanceSession | null;
 };
@@ -53,6 +69,13 @@ const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
   const [saving, setSaving] = useState<Map<string, AttendanceStatus>>(new Map());
   const [search, setSearch] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [starting, setStarting] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (cohortWeeks.length === 0) return;
@@ -74,7 +97,7 @@ const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
             attendanceApi.getSession(week.id),
           ]);
           const count = (status: AttendanceStatus) => saved.filter((record) => record.status === status).length;
-          return { week, total: activePeople.length, marked: saved.length, present: count('PRESENT'), absent: count('ABSENT'), late: count('LATE'), excused: count('EXCUSED'), session: attendanceSession };
+          return { week, total: activePeople.length, marked: saved.length, present: count('PRESENT'), absent: count('ABSENT'), late: count('LATE'), leftEarly: count('LEFT_EARLY'), excused: count('EXCUSED'), session: attendanceSession };
         }));
         setParticipants(activePeople);
         setWeekResults(results);
@@ -108,13 +131,30 @@ const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
   const selectedWeek = typeof selectedWeekId === 'number' ? cohortWeeks.find((week) => week.id === selectedWeekId) ?? null : null;
   const activeSession = session ?? { ...DEFAULT_SESSION, weekId: typeof selectedWeekId === 'number' ? selectedWeekId : 0 };
   const finalised = !!activeSession.finalizedAt;
+  const windowClosesAt = activeSession.closesAt ?? null;
+  const windowClosed = !!windowClosesAt && new Date(windowClosesAt).getTime() <= now;
+  const windowOpen = !!activeSession.startedAt && !finalised && !windowClosed;
+  const locked = finalised || windowClosed;
   const markedCount = participants.filter((participant) => records.has(participant.id)).length;
   const allMarked = participants.length > 0 && markedCount === participants.length;
   const summary = useMemo(() => {
     const values = Array.from(records.values());
     const count = (status: AttendanceStatus) => values.filter((record) => record.status === status).length;
-    return { present: count('PRESENT'), absent: count('ABSENT'), late: count('LATE'), excused: count('EXCUSED') };
+    return { present: count('PRESENT'), absent: count('ABSENT'), late: count('LATE'), leftEarly: count('LEFT_EARLY'), excused: count('EXCUSED') };
   }, [records]);
+
+  const startAttendance = async () => {
+    if (typeof selectedWeekId !== 'number' || starting) return;
+    setStarting(true);
+    try {
+      const { session: saved } = await attendanceApi.startWindow(selectedWeekId);
+      setSession(saved);
+    } catch (error) {
+      toast({ tone: 'error', message: error instanceof Error ? error.message : 'Could not start attendance.' });
+    } finally {
+      setStarting(false);
+    }
+  };
 
   const groupOptions = useMemo(() => {
     const names = new Map<string, string>();
@@ -136,7 +176,8 @@ const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
   }, [participants, selectedGroupId, search]);
 
   const mark = async (participant: Participant, status: AttendanceStatus) => {
-    if (typeof selectedWeekId !== 'number' || finalised || saving.has(participant.id)) return;
+    if (typeof selectedWeekId !== 'number' || saving.has(participant.id)) return;
+    if (locked && !allowedWhenLocked(records.get(participant.id)?.status, status)) return;
     const previous = records.get(participant.id);
     setSaving((current) => new Map(current).set(participant.id, status));
     setRecords((current) => new Map(current).set(participant.id, {
@@ -172,6 +213,15 @@ const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
             <div className="flex flex-wrap items-center gap-3">
               <div className="min-w-[10rem] flex-1 sm:max-w-xs"><AppSelect value={selectedWeekId === 'ALL' ? 'ALL' : selectedWeekId ? String(selectedWeekId) : ''} onChange={(value) => setSelectedWeekId(value === 'ALL' ? 'ALL' : Number(value))} options={[{ value: 'ALL', label: 'All weeks' }, ...cohortWeeks.map((week) => ({ value: String(week.id), label: `Week ${week.weekNumber}` }))]} placeholder="Choose week" compact /></div>
               {!allWeeks && <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${finalised ? 'bg-emerald-100 text-emerald-700' : allMarked ? 'bg-sky-100 text-sky-700' : 'bg-neutral-100 text-neutral-600'}`}>{finalised ? 'Report sent' : `${markedCount} of ${participants.length} marked`}</span>}
+              {!allWeeks && !activeSession.startedAt && !finalised && (
+                <button type="button" onClick={() => void startAttendance()} disabled={starting} className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50">{starting ? 'Starting…' : 'Start attendance'}</button>
+              )}
+              {!allWeeks && windowOpen && windowClosesAt && (
+                <span className="rounded-full bg-sky-100 px-3 py-1.5 text-xs font-bold text-sky-700">Closes in {countdownLabel(windowClosesAt, now)}</span>
+              )}
+              {!allWeeks && windowClosed && !finalised && (
+                <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-bold text-neutral-600">Register closed</span>
+              )}
             </div>
             {!allWeeks && participants.length > 0 && <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
               <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or phone…" className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:flex-1" />
@@ -179,13 +229,14 @@ const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
             </div>}
             {!allWeeks && finalised && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance report sent.</p>}
             {!allWeeks && !finalised && allMarked && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance taken.{activeSession.autoFinalizeAtNoon ? ' It will be sent automatically at noon on Sunday.' : ' Waiting for the admin to send the report.'}</p>}
+            {!allWeeks && locked && <p className="mt-2 text-[13px] font-medium text-gray-500">The register is locked. You can still move an Absent mark to Late or Left early.</p>}
           </section>
           {allWeeks ? (loading ? <PageLoader /> : <section className="overflow-hidden rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">{weekResults.map((result) => {
             const reportSent = !!result.session?.finalizedAt;
-            return <div key={result.week.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[#f1f2f5] px-4 py-3 last:border-b-0"><div className="min-w-20"><p className="text-sm font-bold text-gray-900">Week {result.week.weekNumber}</p><p className="text-xs text-gray-500">{result.marked} of {result.total} marked</p></div><div className="flex flex-wrap gap-1.5 text-xs font-semibold"><span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">{result.present + result.late} attended</span><span className="rounded-full bg-red-100 px-2 py-1 text-red-700">{result.absent} absent</span></div><span className={`ml-auto text-xs font-semibold ${reportSent ? 'text-emerald-700' : result.marked === result.total && result.total > 0 ? 'text-sky-700' : 'text-gray-500'}`}>{reportSent ? 'Report sent' : result.marked === result.total && result.total > 0 ? 'Taken' : 'In progress'}</span></div>;
+            return <div key={result.week.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[#f1f2f5] px-4 py-3 last:border-b-0"><div className="min-w-20"><p className="text-sm font-bold text-gray-900">Week {result.week.weekNumber}</p><p className="text-xs text-gray-500">{result.marked} of {result.total} marked</p></div><div className="flex flex-wrap gap-1.5 text-xs font-semibold"><span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">{result.present} present</span><span className="rounded-full bg-amber-100 px-2 py-1 text-amber-700">{result.late} late</span><span className="rounded-full bg-red-100 px-2 py-1 text-red-700">{result.absent} absent</span></div><span className={`ml-auto text-xs font-semibold ${reportSent ? 'text-emerald-700' : result.marked === result.total && result.total > 0 ? 'text-sky-700' : 'text-gray-500'}`}>{reportSent ? 'Report sent' : result.marked === result.total && result.total > 0 ? 'Taken' : 'In progress'}</span></div>;
           })}</section>) : <>
-          {!loading && <div className="mb-4 grid grid-cols-4 gap-2">{[
-            ['Present', summary.present, 'bg-emerald-100 text-emerald-700'], ['Absent', summary.absent, 'bg-red-100 text-red-700'], ['Late', summary.late, 'bg-amber-100 text-amber-700'], ['Excused', summary.excused, 'bg-sky-100 text-sky-700'],
+          {!loading && <div className="mb-4 grid grid-cols-5 gap-2">{[
+            ['Present', summary.present, 'bg-emerald-100 text-emerald-700'], ['Absent', summary.absent, 'bg-red-100 text-red-700'], ['Late', summary.late, 'bg-amber-100 text-amber-700'], ['Left early', summary.leftEarly, 'bg-orange-100 text-orange-700'], ['Excused', summary.excused, 'bg-sky-100 text-sky-700'],
           ].map(([label, value, cls]) => <div key={String(label)} className={`rounded-xl px-2 py-2 text-center ${cls}`}><p className="text-[11px] font-semibold">{label}</p><p className="text-lg font-bold">{value}</p></div>)}</div>}
           {loading ? <PageLoader /> : participants.length === 0 ? <p className="rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">No active participants in this cohort.</p> : visibleParticipants.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center"><p className="text-sm text-gray-500">No one matches.</p><button type="button" onClick={() => { setSearch(''); setSelectedGroupId(''); }} className="mt-2 rounded-full px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100">Clear</button></div>
@@ -198,7 +249,8 @@ const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
                 <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-gray-900">{participant.fullName}</p>{participant.groupName && <p className="truncate text-[11px] text-gray-400">{participant.groupName}</p>}</div>
                 <div className="col-span-2 flex w-full flex-wrap gap-1.5 sm:col-span-1 sm:w-auto">{STATUS_BUTTONS.map(({ status, label, activeCls }) => {
                   const pending = saving.get(participant.id) === status;
-                  return <button key={status} type="button" disabled={finalised || busy} aria-busy={pending} onClick={() => void mark(participant, status)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold transition disabled:cursor-wait ${pending || current === status ? activeCls : 'bg-[#f4f5f7] text-gray-500 hover:bg-gray-200/70'} ${busy && !pending ? 'opacity-50' : ''}`}>
+                  const disallowed = locked && !allowedWhenLocked(current, status);
+                  return <button key={status} type="button" disabled={disallowed || busy} aria-busy={pending} onClick={() => void mark(participant, status)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold transition disabled:cursor-wait disabled:opacity-40 ${pending || current === status ? activeCls : 'bg-[#f4f5f7] text-gray-500 hover:bg-gray-200/70'} ${busy && !pending ? 'opacity-50' : ''}`}>
                     {pending && <span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-current border-t-transparent" aria-hidden="true" />}{label}
                   </button>;
                 })}</div>

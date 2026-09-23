@@ -191,6 +191,12 @@ const RULE_FIELDS: Array<{ section: string; fields: Array<{ key: keyof Programme
       { key: 'onboardingMaxDays', label: 'Days a support has to onboard their group', unit: 'days', max: 60 },
     ],
   },
+  {
+    section: 'Attendance',
+    fields: [
+      { key: 'attendanceWindowMinutes', label: 'How long the Sunday register stays open after Start', unit: 'minutes', max: 120 },
+    ],
+  },
 ];
 
 // The editor puts the unit beside a number box as a fixed label; the read-only
@@ -236,7 +242,7 @@ const ProgrammeRulesCard: React.FC = () => {
   return (
     <SettingsCard
       title="Programme rules"
-      description={'How participants and supports are judged. Misses add up across the cohort, Late counts as attended, and any single miss marks a participant \u201CKeep an eye on\u201D.'}
+      description={'How participants and supports are judged. Misses add up across the cohort, Late counts as missed unless an admin excuses it, and any single miss marks a participant \u201CKeep an eye on\u201D.'}
       loading={loading}
       editing={editing}
       onEdit={() => { setStatus(''); setEditing(true); }}

@@ -440,7 +440,7 @@ export interface OnboardingEvent {
 
 // ── Attendance ────────────────────────────────────────────────────────────────
 
-export type AttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT' | 'EXCUSED';
+export type AttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT' | 'LEFT_EARLY' | 'EXCUSED';
 
 export interface AttendanceRecord {
   id: string;
@@ -450,11 +450,27 @@ export interface AttendanceRecord {
   status: AttendanceStatus;
   markedById?: string | null;
   markedAt?: string;
+  /** Late/Left early only. An admin-excused record counts as attended again. */
+  lateExcused?: boolean;
+  lateExcusedAt?: string | null;
+  lateExcusedById?: string | null;
+}
+
+/** The appeal note behind an excusal. Admin-only, at the database level too. */
+export interface AttendanceExcusal {
+  attendanceRecordId: string;
+  note: string;
+  excusedById?: string | null;
+  excusedByName?: string | null;
+  createdAt: string;
 }
 
 export interface AttendanceSession {
   weekId: number;
   autoFinalizeAtNoon: boolean;
+  startedAt?: string | null;
+  startedById?: string | null;
+  closesAt?: string | null;
   finalizedAt?: string | null;
   finalizedById?: string | null;
   finalizationMethod?: 'MANUAL' | 'AUTO' | null;
@@ -752,8 +768,9 @@ export interface ParticipantHome {
   } | null;
   weeks: ParticipantHomeWeek[];
   reflections: ParticipantReflection[];
-  sunday: Array<{ weekId: number; status: string }>;
+  sunday: Array<{ weekId: number; status: string; lateExcused?: boolean }>;
   meeting: Array<{ weekId: number; status: string }>;
+  openWindow: { weekId: number; closesAt: string; myStatus: string | null } | null;
   faithProjectStatus: FaithProjectStatus | null;
   rules: unknown;
   scriptures: Array<{ dayNumber: number; imageUrl: string }>;
