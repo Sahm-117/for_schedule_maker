@@ -150,7 +150,7 @@ const SupportFollowUpsPage: React.FC = () => {
 
   const visibleContacts = useMemo(
     () => {
-      let list = cohortScopedContacts.filter((c) => {
+      const list = cohortScopedContacts.filter((c) => {
         if (filters.archived && c.archivedAt) return false;
         if (filters.reply && c.replyStatus !== filters.reply) return false;
         if (filters.call && c.callStatus !== filters.call) return false;

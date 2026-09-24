@@ -53,7 +53,6 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
     setError('');
     setSuccess('');
     loadLabels();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldRender]);
 
   const normalizeOrError = (name: string, color: string): { name: string; color: string } => {

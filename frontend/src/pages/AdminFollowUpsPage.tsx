@@ -171,7 +171,7 @@ const AdminFollowUpsPage: React.FC = () => {
   };
 
   const filteredContacts = useMemo(() => {
-    let list = contacts.filter((c) => {
+    const list = contacts.filter((c) => {
       if (cohortFilter && !contactInCohortScope(c, cohortFilter, activeCohort?.id)) return false;
       if (ownerFilter === '__unassigned__' && c.ownerId) return false;
       if (ownerFilter && ownerFilter !== '__unassigned__' && c.ownerId !== ownerFilter) return false;
