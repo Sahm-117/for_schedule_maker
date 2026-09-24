@@ -10,13 +10,15 @@ import {
 } from '../components/dashboard/healthModel';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { cohortsApi, participantNotesApi, settingsApi, supportHubsApi, supportNotesApi, usersApi } from '../services/api';
-import type { HubMembership, ParticipantNote, SupportHub, SupportNote, User } from '../types';
+import { cohortsApi, participantNotesApi, settingsApi, supportHubsApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
+import type { HubMembership, ParticipantNote, SupportHub, SupportNote, SupportSession, User } from '../types';
 import AppSelect from '../components/AppSelect';
 import { buildWhatsAppLink } from '../utils/phone';
 import {
   PERSON_HEALTH_LABEL,
+  buildTrainingCounts,
   evaluateSupports,
+  trainingCountFor,
   type CohortPeoplePayload,
   type PersonHealth,
   type ProgrammeRules,
@@ -55,6 +57,8 @@ const AdminSupportsPage: React.FC = () => {
   const [reports, setReports] = useState<ParticipantNote[]>([]);
   const [hubs, setHubs] = useState<SupportHub[]>([]);
   const [memberships, setMemberships] = useState<HubMembership[]>([]);
+  const [trainingSessions, setTrainingSessions] = useState<SupportSession[]>([]);
+  const [trainingAttendance, setTrainingAttendance] = useState<Array<{ sessionId: string; userId: string; status: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -66,13 +70,14 @@ const AdminSupportsPage: React.FC = () => {
     if (!activeCohort?.id) { setLoading(false); return; }
     try {
       setError('');
-      const [h, p, r, u, hb, ms] = await Promise.all([
+      const [h, p, r, u, hb, ms, ts] = await Promise.all([
         cohortsApi.getHealth(activeCohort.id),
         cohortsApi.getPeople(activeCohort.id),
         settingsApi.getProgrammeRules(),
         usersApi.getAll().then((res) => res.users).catch(() => [] as User[]),
         supportHubsApi.getAll(activeCohort.id).then((res) => res.hubs).catch(() => [] as SupportHub[]),
         supportHubsApi.getMembershipsForCohort(activeCohort.id).then((res) => res.memberships).catch(() => [] as HubMembership[]),
+        supportSessionsApi.getForCohort(activeCohort.id, ['PRE_COHORT_TRAINING']).catch(() => ({ sessions: [] as SupportSession[], attendance: [] as Array<{ sessionId: string; userId: string; status: string }> })),
       ]);
       setHealth(h);
       setPeople(p);
@@ -80,6 +85,8 @@ const AdminSupportsPage: React.FC = () => {
       setUsers(u);
       setHubs(hb);
       setMemberships(ms);
+      setTrainingSessions(ts.sessions);
+      setTrainingAttendance(ts.attendance);
       const groupIds = h.groups.map((g) => g.id);
       setReports(await participantNotesApi.getMeetingReports(groupIds).then((res) => res.notes).catch(() => [] as ParticipantNote[]));
     } catch (err) {
@@ -124,6 +131,12 @@ const AdminSupportsPage: React.FC = () => {
     }
     return map;
   }, [reports]);
+
+  const trainingsTotal = trainingSessions.length;
+  const trainingCounts = useMemo(
+    () => buildTrainingCounts(trainingSessions.map((s) => s.id), trainingAttendance),
+    [trainingSessions, trainingAttendance]
+  );
 
   // A support's hub for the active cohort, and whether they lead it.
   const hubById = new Map(hubs.map((h) => [h.id, h]));
@@ -237,6 +250,7 @@ const AdminSupportsPage: React.FC = () => {
                   rules={rules}
                   judgedCount={model.judged.length}
                   hub={hubByUserId.get(evaluation.supportId) ?? null}
+                  training={trainingCountFor(trainingCounts, evaluation.supportId, trainingsTotal)}
                   reportFor={(weekNumber) => {
                     const weekId = model.weekIdByNumber.get(weekNumber);
                     return weekId == null ? null : reportByKey.get(`${evaluation.groupId}:${weekId}`) ?? null;
@@ -244,7 +258,7 @@ const AdminSupportsPage: React.FC = () => {
                 />
               ))}
               {notLeadingCards.map((u) => (
-                <NoLeadSupportCard key={u.id} user={u} hub={hubByUserId.get(u.id)!} />
+                <NoLeadSupportCard key={u.id} user={u} hub={hubByUserId.get(u.id)!} training={trainingCountFor(trainingCounts, u.id, trainingsTotal)} />
               ))}
             </ul>
           )}
@@ -283,8 +297,9 @@ const SupportCard: React.FC<{
   rules: ProgrammeRules;
   judgedCount: number;
   hub: { id: string; name: string; isLead: boolean } | null;
+  training: { attended: number; total: number };
   reportFor: (weekNumber: number) => ParticipantNote | null;
-}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, reportFor }) => {
+}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor }) => {
   const [open, setOpen] = useState(false);
   const [openReport, setOpenReport] = useState<number | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -336,6 +351,11 @@ const SupportCard: React.FC<{
           <p className="text-sm text-gray-500">
             {groupName} · {evaluation.members} participant{evaluation.members === 1 ? '' : 's'}
             {hub && <span className="ml-1.5 rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>}
+            {training.total > 0 && (
+              <span className={`ml-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ${training.attended >= rules.minTrainingsAttended ? 'bg-emerald-100/80 text-emerald-700' : 'bg-amber-100/80 text-amber-700'}`}>
+                Trainings {training.attended}/{training.total}
+              </span>
+            )}
           </p>
         </div>
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${HEALTH_PILL[evaluation.health]}`}>{PERSON_HEALTH_LABEL[evaluation.health]}</span>
@@ -484,7 +504,8 @@ const SupportCard: React.FC<{
 const NoLeadSupportCard: React.FC<{
   user: User;
   hub: { id: string; name: string; isLead: boolean };
-}> = ({ user, hub }) => {
+  training: { attended: number; total: number };
+}> = ({ user, hub, training }) => {
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState<SupportNote[] | null>(null);
   const [noteBody, setNoteBody] = useState('');
@@ -520,6 +541,11 @@ const NoLeadSupportCard: React.FC<{
           </p>
           <p className="text-sm text-gray-500">
             <span className="rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>
+            {training.total > 0 && (
+              <span className="ml-1.5 rounded-full bg-sky-100/80 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+                Trainings {training.attended}/{training.total}
+              </span>
+            )}
           </p>
         </div>
       </div>

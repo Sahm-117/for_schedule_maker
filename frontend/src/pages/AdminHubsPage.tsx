@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import SegmentedTabs from '../components/SegmentedTabs';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { groupsApi, supportHubsApi, supportSessionsApi, usersApi } from '../services/api';
-import type { Group, HubMembership, SupportAttendanceStatus, SupportHub, User, Week } from '../types';
+import type { Cohort, Group, HubMembership, SupportAttendanceStatus, SupportHub, SupportSession, SupportSessionType, User, Week } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -338,16 +339,195 @@ const HubMembersModal: React.FC<{
   );
 };
 
+// ── Trainings & get-togethers ────────────────────────────────────────────────
+
+const SESSION_TYPE_OPTIONS: Array<{ value: SupportSessionType; label: string }> = [
+  { value: 'PRE_COHORT_TRAINING', label: 'Pre-cohort training' },
+  { value: 'GET_TOGETHER', label: 'Get-together' },
+];
+
+const SESSION_TYPE_PILL: Record<SupportSessionType, string> = {
+  SUNDAY_RECAP: 'bg-neutral-100 text-neutral-600',
+  PRE_COHORT_TRAINING: 'bg-sky-100/80 text-sky-700',
+  GET_TOGETHER: 'bg-violet-100/80 text-violet-700',
+};
+
+const SESSION_TYPE_LABEL: Record<SupportSessionType, string> = {
+  SUNDAY_RECAP: 'Sunday recap',
+  PRE_COHORT_TRAINING: 'Pre-cohort training',
+  GET_TOGETHER: 'Get-together',
+};
+
+const toDateInputValue = (iso?: string) => (iso ? iso.slice(0, 10) : new Date().toISOString().slice(0, 10));
+
+const SessionFormModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSaved: (s: SupportSession) => void;
+  cohorts: Cohort[];
+  defaultCohortId: string;
+  existing?: SupportSession | null;
+}> = ({ isOpen, onClose, onSaved, cohorts, defaultCohortId, existing }) => {
+  const [type, setType] = useState<'PRE_COHORT_TRAINING' | 'GET_TOGETHER'>('PRE_COHORT_TRAINING');
+  const [title, setTitle] = useState('');
+  const [sessionDate, setSessionDate] = useState('');
+  const [cohortId, setCohortId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setType((existing?.type as 'PRE_COHORT_TRAINING' | 'GET_TOGETHER') ?? 'PRE_COHORT_TRAINING');
+      setTitle(existing?.title ?? '');
+      setSessionDate(toDateInputValue(existing?.sessionDate));
+      setCohortId(existing?.cohortId ?? defaultCohortId);
+      setErr('');
+    }
+  }, [isOpen, existing, defaultCohortId]);
+
+  const handleSave = async () => {
+    if (!title.trim()) { setErr('Title is required'); return; }
+    if (!sessionDate) { setErr('Date is required'); return; }
+    if (!cohortId) { setErr('Cohort is required'); return; }
+    setSaving(true);
+    setErr('');
+    try {
+      const { session } = existing
+        ? await supportSessionsApi.update(existing.id, { title: title.trim(), sessionDate })
+        : await supportSessionsApi.create({ cohortId, type, title: title.trim(), sessionDate });
+      onSaved(session);
+      onClose();
+    } catch (e: any) {
+      setErr(e.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title={existing ? 'Edit session' : 'New session'}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
+          <button type="button" onClick={() => void handleSave()} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        {err && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{err}</p>}
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Type *</label>
+          {existing ? (
+            <p className="text-sm text-gray-700">{SESSION_TYPE_LABEL[type]}</p>
+          ) : (
+            <AppSelect value={type} onChange={(v) => setType(v as 'PRE_COHORT_TRAINING' | 'GET_TOGETHER')} options={SESSION_TYPE_OPTIONS} placeholder="Pick a type" compact />
+          )}
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Title *</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            placeholder="e.g. Onboarding & facilitation training"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Date *</label>
+          <input
+            type="date"
+            value={sessionDate}
+            onChange={(e) => setSessionDate(e.target.value)}
+            className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Cohort *</label>
+          {existing ? (
+            <p className="rounded-xl bg-gray-50 px-3.5 py-2.5 text-sm text-gray-600">{cohorts.find((c) => c.id === cohortId)?.name ?? '—'}</p>
+          ) : (
+            <AppSelect
+              value={cohortId}
+              onChange={setCohortId}
+              options={cohorts.map((c) => ({ value: c.id, label: c.name }))}
+              placeholder="Pick a cohort"
+              compact
+            />
+          )}
+        </div>
+      </div>
+    </ModalShell>
+  );
+};
+
+// Marking screen for a training/get-together session — every active support
+// (not just hub members: "new supports may not be in the cohort yet").
+const SessionAttendanceModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  session: SupportSession;
+  supportUsers: User[];
+  marks: Record<string, SupportAttendanceStatus>;
+  onMarked: (sessionId: string, userId: string, status: SupportAttendanceStatus) => void;
+}> = ({ isOpen, onClose, session, supportUsers, marks, onMarked }) => {
+  const [saving, setSaving] = useState<string | null>(null);
+
+  const handleMark = async (userId: string, status: SupportAttendanceStatus) => {
+    setSaving(userId);
+    try {
+      await supportSessionsApi.mark({ status, userId, sessionId: session.id });
+      onMarked(session.id, userId, status);
+    } catch { /* ignore */ }
+    finally { setSaving(null); }
+  };
+
+  return (
+    <ModalShell isOpen={isOpen} onClose={onClose} title={`Mark attendance — ${session.title}`} wide>
+      <div className="flex flex-col gap-2">
+        {supportUsers.length === 0 ? (
+          <p className="text-sm text-gray-400">No active supports.</p>
+        ) : (
+          <ul className="space-y-2">
+            {supportUsers.map((u) => (
+              <li key={u.id} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
+                <span className="text-sm font-semibold text-gray-900">{u.name}</span>
+                <div className="w-40">
+                  <AppSelect
+                    value={marks[u.id] ?? ''}
+                    onChange={(v) => v && void handleMark(u.id, v as SupportAttendanceStatus)}
+                    options={STATUS_OPTIONS}
+                    placeholder={saving === u.id ? 'Saving…' : 'Not marked'}
+                    compact
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </ModalShell>
+  );
+};
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const AdminHubsPage: React.FC = () => {
   const { isAdmin } = useAuth();
-  const { activeCohort, liveRevision, weeks } = useAppData();
+  const { activeCohort, cohorts, liveRevision, weeks } = useAppData();
 
+  const [tab, setTab] = useState<'hubs' | 'trainings'>('hubs');
   const [hubs, setHubs] = useState<SupportHub[]>([]);
   const [memberships, setMemberships] = useState<HubMembership[]>([]);
   const [supportUsers, setSupportUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [sessions, setSessions] = useState<SupportSession[]>([]);
+  const [sessionAttendance, setSessionAttendance] = useState<Array<{ sessionId: string; userId: string; status: SupportAttendanceStatus }>>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SupportHub | null>(null);
@@ -358,24 +538,55 @@ const AdminHubsPage: React.FC = () => {
   const [recapByHub, setRecapByHub] = useState<Record<string, { weekId: number; weekNumber: number; marked: number; total: number; absent: number }>>({});
   const [search, setSearch] = useState('');
   const [recapFilter, setRecapFilter] = useState<'all' | 'behind' | 'complete'>('all');
+  const [sessionFormOpen, setSessionFormOpen] = useState(false);
+  const [editingSession, setEditingSession] = useState<SupportSession | null>(null);
+  const [deleteSessionTarget, setDeleteSessionTarget] = useState<SupportSession | null>(null);
+  const [markSessionTarget, setMarkSessionTarget] = useState<SupportSession | null>(null);
+
+  // Pre-cohort trainings are held BEFORE the cohort they're for starts, so the
+  // create/edit picker offers every cohort that hasn't ended yet (running or
+  // upcoming), defaulting to the soonest upcoming one — that's almost always
+  // what's being trained for next, falling back to the active cohort when
+  // nothing is upcoming. The list on this tab shows the active cohort plus any
+  // upcoming ones, so admins see trainings they're currently running.
+  const notEndedCohorts = useMemo(
+    () => sortByText(cohorts.filter((c) => c.status !== 'ARCHIVED' && cohortMode(c) !== 'completed'), (c) => c.name),
+    [cohorts]
+  );
+  const upcomingCohorts = useMemo(
+    () => notEndedCohorts
+      .filter((c) => cohortMode(c) === 'upcoming')
+      .sort((a, b) => (a.startDate ?? '').localeCompare(b.startDate ?? '')),
+    [notEndedCohorts]
+  );
+  const defaultTrainingCohortId = upcomingCohorts[0]?.id ?? activeCohort?.id ?? '';
+  const trainingListCohortIds = useMemo(() => {
+    const ids = new Set(upcomingCohorts.map((c) => c.id));
+    if (activeCohort) ids.add(activeCohort.id);
+    return [...ids];
+  }, [upcomingCohorts, activeCohort]);
+  const cohortById = useMemo(() => new Map(cohorts.map((c) => [c.id, c])), [cohorts]);
 
   const load = useCallback(async () => {
     if (!activeCohort) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [{ hubs: hs }, { memberships: ms }, { users }, { groups: gs }] = await Promise.all([
+      const [{ hubs: hs }, { memberships: ms }, { users }, { groups: gs }, { sessions: ss, attendance: sa }] = await Promise.all([
         supportHubsApi.getAll(activeCohort.id),
         supportHubsApi.getMembershipsForCohort(activeCohort.id),
         usersApi.getAll(),
         groupsApi.getAll({ cohortId: activeCohort.id }),
+        supportSessionsApi.getForCohort(trainingListCohortIds, ['PRE_COHORT_TRAINING', 'GET_TOGETHER']),
       ]);
       setHubs(hs);
       setMemberships(ms);
       setSupportUsers(sortByText(users.filter((u) => u.role === 'SUPPORT'), (u) => u.name));
       setGroups(gs);
+      setSessions(ss);
+      setSessionAttendance(sa);
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [activeCohort]);
+  }, [activeCohort, trainingListCohortIds]);
 
   useEffect(() => { void load(); }, [load, liveRevision]);
 
@@ -448,6 +659,23 @@ const AdminHubsPage: React.FC = () => {
     finally { setDeleteTarget(null); }
   };
 
+  const handleDeleteSession = async () => {
+    if (!deleteSessionTarget) return;
+    const s = deleteSessionTarget;
+    try {
+      await supportSessionsApi.remove(s.id);
+      setSessions((prev) => prev.filter((x) => x.id !== s.id));
+      setSessionAttendance((prev) => prev.filter((a) => a.sessionId !== s.id));
+    } catch { /* ignore */ }
+    finally { setDeleteSessionTarget(null); }
+  };
+
+  const marksBySession = (sessionId: string) => {
+    const map: Record<string, SupportAttendanceStatus> = {};
+    sessionAttendance.forEach((a) => { if (a.sessionId === sessionId) map[a.userId] = a.status; });
+    return map;
+  };
+
   // Keeps the card's summary line in step right after a mark in the panel,
   // without waiting for the next full reload.
   const handleRecapMarked = (hubId: string, weekId: number, marks: Record<string, SupportAttendanceStatus>) => {
@@ -485,17 +713,72 @@ const AdminHubsPage: React.FC = () => {
         subtitle={activeCohort ? `${hubs.length} hubs · ${activeCohort.name}` : 'No active cohort'}
         action={
           activeCohort && (
-            <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
-              + New Hub
-            </button>
+            tab === 'hubs' ? (
+              <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
+                + New Hub
+              </button>
+            ) : (
+              <button type="button" onClick={() => { setEditingSession(null); setSessionFormOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
+                + New session
+              </button>
+            )
           )
         }
       />
+
+      {activeCohort && (
+        <div className="mb-4">
+          <SegmentedTabs
+            tabs={[
+              { key: 'hubs', label: 'Hubs' },
+              { key: 'trainings', label: 'Trainings & get-togethers', shortLabel: 'Trainings' },
+            ]}
+            active={tab}
+            onChange={(k) => setTab(k as 'hubs' | 'trainings')}
+          />
+        </div>
+      )}
 
       {!activeCohort ? (
         <p className="text-sm text-gray-500">Select or create a cohort first.</p>
       ) : loading ? (
         <PageLoader />
+      ) : tab === 'trainings' ? (
+        sessions.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
+            <p className="text-sm text-gray-500">No trainings or get-togethers yet. Create one to start marking attendance.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {sessions.map((s) => {
+              const marks = marksBySession(s.id);
+              const marked = supportUsers.filter((u) => marks[u.id]).length;
+              return (
+                <div key={s.id} className="flex flex-col gap-3 rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${SESSION_TYPE_PILL[s.type]}`}>{SESSION_TYPE_LABEL[s.type]}</span>
+                      <span className="ml-1.5 inline-flex rounded-full bg-neutral-100 px-2.5 py-0.5 text-[10px] font-semibold text-neutral-600">{cohortById.get(s.cohortId)?.name ?? 'Cohort'}</span>
+                      <h3 className="mt-1 truncate font-bold text-gray-900">{s.title}</h3>
+                      <p className="text-xs text-gray-500">{new Date(s.sessionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    </div>
+                    <AppOverflowMenu
+                      align="right"
+                      items={[
+                        { label: 'Mark attendance', onClick: () => setMarkSessionTarget(s) },
+                        { label: 'Edit', onClick: () => { setEditingSession(s); setSessionFormOpen(true); } },
+                        { label: 'Delete', onClick: () => setDeleteSessionTarget(s), tone: 'danger' },
+                      ]}
+                    />
+                  </div>
+                  <p className="inline-flex w-fit items-center rounded-full bg-sky-100/80 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                    {marked} of {supportUsers.length} marked
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )
       ) : hubs.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
           <p className="text-sm text-gray-500">No hubs yet. Create one and add supports.</p>
@@ -654,6 +937,38 @@ const AdminHubsPage: React.FC = () => {
         onConfirm={() => { void handleDelete(); }}
         title="Delete hub"
         message={`Delete "${deleteTarget?.name}"? Its members, recap records, notes and messages are removed too. This can't be undone.`}
+        confirmText="Delete"
+      />
+
+      <SessionFormModal
+        isOpen={sessionFormOpen}
+        onClose={() => { setSessionFormOpen(false); setEditingSession(null); }}
+        onSaved={(s) => setSessions((prev) => {
+          const idx = prev.findIndex((x) => x.id === s.id);
+          return idx >= 0 ? prev.map((x) => (x.id === s.id ? s : x)) : [s, ...prev];
+        })}
+        cohorts={notEndedCohorts}
+        defaultCohortId={defaultTrainingCohortId}
+        existing={editingSession}
+      />
+
+      {markSessionTarget && (
+        <SessionAttendanceModal
+          isOpen={!!markSessionTarget}
+          onClose={() => setMarkSessionTarget(null)}
+          session={markSessionTarget}
+          supportUsers={supportUsers}
+          marks={marksBySession(markSessionTarget.id)}
+          onMarked={(sessionId, userId, status) => setSessionAttendance((prev) => [...prev.filter((a) => !(a.sessionId === sessionId && a.userId === userId)), { sessionId, userId, status }])}
+        />
+      )}
+
+      <ConfirmationModal
+        isOpen={!!deleteSessionTarget}
+        onClose={() => setDeleteSessionTarget(null)}
+        onConfirm={() => { void handleDeleteSession(); }}
+        title="Delete session"
+        message={`Delete "${deleteSessionTarget?.title}"? Its attendance marks are removed too. This can't be undone.`}
         confirmText="Delete"
       />
     </div>

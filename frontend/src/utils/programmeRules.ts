@@ -22,6 +22,8 @@ export interface ProgrammeRules {
   onboardingMaxDays: number;
   /** How long a Sunday register stays open after Start is tapped. */
   attendanceWindowMinutes: number;
+  /** Pre-cohort trainings a support must attend to be given a group next cohort. */
+  minTrainingsAttended: number;
 }
 
 export const DEFAULT_PROGRAMME_RULES: ProgrammeRules = {
@@ -33,6 +35,7 @@ export const DEFAULT_PROGRAMME_RULES: ProgrammeRules = {
   supportRedMissedWeeks: 2,
   onboardingMaxDays: 7,
   attendanceWindowMinutes: 15,
+  minTrainingsAttended: 1,
 };
 
 export const COMPLETION_SCORE_ALL_MEETINGS = 100;
@@ -92,6 +95,39 @@ export interface ParticipantEvaluation {
   /** Only set once every class has run (the cohort is over). */
   completion: { outcome: CompletionOutcome; score: number | null; attendancePct: number } | null;
 }
+
+// Training/get-together attendance: same rule as recap (see recapAbsentKeys
+// in evaluateSupports below) -- Present, Late and Excused all count as
+// attended; only a marked Absent, or no mark at all, doesn't.
+export const trainingMarkAttended = (status: string) => status !== 'ABSENT';
+
+/**
+ * How many of a cohort's pre-cohort-training sessions a support attended, out
+ * of how many were held. Used by the Groups eligibility block, the support
+ * picker's "x/y trainings" labels, and the Supports page badge.
+ */
+export const buildTrainingCounts = (
+  sessionIds: string[],
+  attendance: Array<{ sessionId: string; userId: string; status: string }>,
+): Map<string, { attended: number; total: number }> => {
+  const total = sessionIds.length;
+  const attendedSessionsByUser = new Map<string, Set<string>>();
+  attendance.forEach((a) => {
+    if (!sessionIds.includes(a.sessionId) || !trainingMarkAttended(a.status)) return;
+    if (!attendedSessionsByUser.has(a.userId)) attendedSessionsByUser.set(a.userId, new Set());
+    attendedSessionsByUser.get(a.userId)!.add(a.sessionId);
+  });
+  const counts = new Map<string, { attended: number; total: number }>();
+  attendedSessionsByUser.forEach((sessions, userId) => counts.set(userId, { attended: sessions.size, total }));
+  return counts;
+};
+
+/** counts.get(userId) with a safe zero default -- every support has a row, attended or not. */
+export const trainingCountFor = (
+  counts: Map<string, { attended: number; total: number }>,
+  userId: string,
+  total: number,
+) => counts.get(userId) ?? { attended: 0, total };
 
 // Present always counts. Late/Left early only count as attended once an
 // admin has excused them on appeal -- otherwise they count as missed.

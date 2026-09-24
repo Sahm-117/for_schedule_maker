@@ -3,6 +3,7 @@ import GroupMeetingSlotEditor, { type MeetingSlot } from '../GroupMeetingSlotEdi
 import InfoTip from '../InfoTip';
 import { groupsApi } from '../../services/api';
 import type { Group, GroupCallPlatform } from '../../types';
+import { normalizeLink } from '../../utils/links';
 
 const platformFromLink = (link: string | null | undefined): GroupCallPlatform | null => {
   if (!link?.trim()) return null;
@@ -110,7 +111,7 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
       await onSave({
         ...slotDraft,
         callPlatform: platform,
-        callLink: linkDraft.trim() || null,
+        callLink: normalizeLink(linkDraft) || null,
       });
       setEditing(false);
     } catch (err) {
@@ -178,7 +179,7 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
           </div>
           <div className="flex flex-none items-center gap-2">
             <a
-              href={callLink ?? '#'}
+              href={normalizeLink(callLink) || '#'}
               target="_blank"
               rel="noreferrer"
               className="inline-flex h-11 min-h-11 shrink-0 items-center justify-center rounded-[10px] bg-primary px-3.5 py-0 text-sm font-semibold leading-none text-white"

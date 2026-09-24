@@ -189,6 +189,7 @@ const RULE_FIELDS: Array<{ section: string; fields: Array<{ key: keyof Programme
       { key: 'supportAmberMissedWeeks', label: 'Unrecorded weeks before “Keep an eye on”', unit: 'weeks', max: 20 },
       { key: 'supportRedMissedWeeks', label: 'Unrecorded weeks before “Needs attention”', unit: 'weeks', max: 20 },
       { key: 'onboardingMaxDays', label: 'Days a support has to onboard their group', unit: 'days', max: 60 },
+      { key: 'minTrainingsAttended', label: 'Pre-cohort trainings a support must attend to get a group', unit: 'trainings', max: 20 },
     ],
   },
   {

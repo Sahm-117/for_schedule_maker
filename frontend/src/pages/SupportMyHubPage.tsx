@@ -8,9 +8,23 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { MeetingCallCard, type MeetingSaveInput } from '../components/groups/GroupCallCard';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { myHubApi, supportNotesApi, supportSessionsApi } from '../services/api';
+import { myHubApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
 import { buildWhatsAppLink } from '../utils/phone';
-import type { HubMessage, MyHubMember, SupportAttendanceStatus, SupportNote } from '../types';
+import { sortByText } from '../utils/sort';
+import { cohortMode } from '../components/dashboard/healthModel';
+import type { HubMessage, MyHubMember, SupportAttendanceStatus, SupportSession, SupportSessionType, User, SupportNote } from '../types';
+
+const SESSION_TYPE_PILL: Record<SupportSessionType, string> = {
+  SUNDAY_RECAP: 'bg-neutral-100 text-neutral-600',
+  PRE_COHORT_TRAINING: 'bg-sky-100/80 text-sky-700',
+  GET_TOGETHER: 'bg-violet-100/80 text-violet-700',
+};
+
+const SESSION_TYPE_LABEL: Record<SupportSessionType, string> = {
+  SUNDAY_RECAP: 'Sunday recap',
+  PRE_COHORT_TRAINING: 'Pre-cohort training',
+  GET_TOGETHER: 'Get-together',
+};
 
 const STATUS_OPTIONS: Array<{ value: SupportAttendanceStatus; label: string }> = [
   { value: 'PRESENT', label: 'Present' },
@@ -26,11 +40,11 @@ const STATUS_PILL: Record<SupportAttendanceStatus, string> = {
   EXCUSED: 'bg-violet-100/80 text-violet-700',
 };
 
-type HubTab = 'overview' | 'recap' | 'notes' | 'message';
+type HubTab = 'overview' | 'recap' | 'trainings' | 'notes' | 'message';
 
 const SupportMyHubPage: React.FC = () => {
   const { user } = useAuth();
-  const { myHub, refreshMyHub, weeks, activeCohort } = useAppData();
+  const { myHub, refreshMyHub, weeks, activeCohort, cohorts } = useAppData();
   const [tab, setTab] = useState<HubTab>('overview');
   const [loaded, setLoaded] = useState(!!myHub);
 
@@ -71,6 +85,58 @@ const SupportMyHubPage: React.FC = () => {
       setRecapMarks((prev) => ({ ...prev, [userId]: status }));
     } catch { /* ignore */ }
     finally { setRecapSaving(null); }
+  };
+
+  // ── Trainings & get-togethers (lead only) ─────────────────────────────────
+  const [trainingSessions, setTrainingSessions] = useState<SupportSession[]>([]);
+  const [trainingAllSupports, setTrainingAllSupports] = useState<User[]>([]);
+  const [trainingAttendance, setTrainingAttendance] = useState<Record<string, Record<string, SupportAttendanceStatus>>>({});
+  const [trainingSessionId, setTrainingSessionId] = useState<string | null>(null);
+  const [trainingLoading, setTrainingLoading] = useState(false);
+  const [trainingSaving, setTrainingSaving] = useState<string | null>(null);
+
+  // Pre-cohort trainings happen before the cohort they're for starts, so the
+  // lead's list mirrors the admin Hubs tab: the active cohort plus any
+  // upcoming ones, not just this hub's own cohort.
+  const trainingListCohortIds = useMemo(() => {
+    const ids = new Set(
+      cohorts.filter((c) => c.status !== 'ARCHIVED' && cohortMode(c) === 'upcoming').map((c) => c.id)
+    );
+    if (activeCohort) ids.add(activeCohort.id);
+    return [...ids];
+  }, [cohorts, activeCohort]);
+  const cohortById = useMemo(() => new Map(cohorts.map((c) => [c.id, c])), [cohorts]);
+
+  useEffect(() => {
+    if (tab !== 'trainings' || !myHub?.hub) return;
+    setTrainingLoading(true);
+    Promise.all([
+      supportSessionsApi.getForCohort(trainingListCohortIds, ['PRE_COHORT_TRAINING', 'GET_TOGETHER']),
+      usersApi.getAll(),
+    ])
+      .then(([{ sessions, attendance }, { users }]) => {
+        setTrainingSessions(sessions);
+        setTrainingAllSupports(sortByText(users.filter((u) => u.role === 'SUPPORT'), (u) => u.name));
+        const byMap: Record<string, Record<string, SupportAttendanceStatus>> = {};
+        attendance.forEach((a) => {
+          if (!byMap[a.sessionId]) byMap[a.sessionId] = {};
+          byMap[a.sessionId][a.userId] = a.status;
+        });
+        setTrainingAttendance(byMap);
+        setTrainingSessionId((prev) => prev ?? sessions[0]?.id ?? null);
+      })
+      .catch(() => { setTrainingSessions([]); setTrainingAttendance({}); })
+      .finally(() => setTrainingLoading(false));
+  }, [tab, myHub?.hub, trainingListCohortIds]);
+
+  const handleMarkTraining = async (userId: string, status: SupportAttendanceStatus) => {
+    if (!trainingSessionId) return;
+    setTrainingSaving(userId);
+    try {
+      await supportSessionsApi.mark({ status, userId, sessionId: trainingSessionId });
+      setTrainingAttendance((prev) => ({ ...prev, [trainingSessionId]: { ...prev[trainingSessionId], [userId]: status } }));
+    } catch { /* ignore */ }
+    finally { setTrainingSaving(null); }
   };
 
   // ── Notes (lead only) ──────────────────────────────────────────────────────
@@ -204,6 +270,7 @@ const SupportMyHubPage: React.FC = () => {
     { key: 'overview', label: 'My Hub' },
     ...(isLead ? [
       { key: 'recap', label: 'Recap attendance', shortLabel: 'Recap' },
+      { key: 'trainings', label: 'Trainings & get-togethers', shortLabel: 'Trainings' },
       { key: 'notes', label: 'Notes' },
       { key: 'message', label: 'Message hub', shortLabel: 'Message' },
     ] : []),
@@ -373,6 +440,61 @@ const SupportMyHubPage: React.FC = () => {
                     </li>
                   ))}
                 </ul>
+              )}
+            </section>
+          )}
+
+          {tab === 'trainings' && isLead && (
+            <section className="surface-card p-5">
+              {trainingLoading && trainingSessions.length === 0 ? (
+                <p className="text-sm text-gray-400">Loading…</p>
+              ) : trainingSessions.length === 0 ? (
+                <p className="text-sm text-gray-400">No trainings or get-togethers yet — an admin creates these on the Hubs page.</p>
+              ) : (
+                <>
+                  <div className="mb-4 w-full sm:w-72">
+                    <AppSelect
+                      value={trainingSessionId ?? ''}
+                      onChange={(v) => setTrainingSessionId(v || null)}
+                      options={trainingSessions.map((s) => ({
+                        value: s.id,
+                        label: `${s.title} · ${new Date(s.sessionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · ${cohortById.get(s.cohortId)?.name ?? 'Cohort'}`,
+                      }))}
+                      placeholder="Pick a session"
+                      compact
+                    />
+                  </div>
+                  {trainingSessionId && (
+                    <>
+                      <span className={`mb-3 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${SESSION_TYPE_PILL[trainingSessions.find((s) => s.id === trainingSessionId)?.type ?? 'PRE_COHORT_TRAINING']}`}>
+                        {SESSION_TYPE_LABEL[trainingSessions.find((s) => s.id === trainingSessionId)?.type ?? 'PRE_COHORT_TRAINING']}
+                      </span>
+                      <span className="mb-3 ml-1.5 inline-flex rounded-full bg-neutral-100 px-2.5 py-0.5 text-[10px] font-semibold text-neutral-600">
+                        {cohortById.get(trainingSessions.find((s) => s.id === trainingSessionId)?.cohortId ?? '')?.name ?? 'Cohort'}
+                      </span>
+                      {trainingAllSupports.length === 0 ? (
+                        <p className="text-sm text-gray-400">No active supports.</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {trainingAllSupports.map((u) => (
+                            <li key={u.id} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
+                              <span className="text-sm font-semibold text-gray-900">{u.name}</span>
+                              <div className="w-40">
+                                <AppSelect
+                                  value={trainingAttendance[trainingSessionId]?.[u.id] ?? ''}
+                                  onChange={(v) => v && void handleMarkTraining(u.id, v as SupportAttendanceStatus)}
+                                  options={STATUS_OPTIONS}
+                                  placeholder={trainingSaving === u.id ? 'Saving…' : 'Not marked'}
+                                  compact
+                                />
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  )}
+                </>
               )}
             </section>
           )}

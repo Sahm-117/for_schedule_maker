@@ -5013,6 +5013,18 @@ export const supportNotesApi = {
   },
 };
 
+const mapSupportSession = (row: any): import('../types').SupportSession => ({
+  id: row.id,
+  cohortId: row.cohortId,
+  type: row.type,
+  title: row.title,
+  sessionDate: row.sessionDate,
+  weekId: row.weekId ?? null,
+  hubId: row.hubId ?? null,
+  createdById: row.createdById ?? null,
+  createdAt: row.createdAt,
+});
+
 export const supportSessionsApi = {
   async mark(input: { status: import('../types').SupportAttendanceStatus; userId: string; hubId?: string; weekId?: number; sessionId?: string }): Promise<{ attendance: import('../types').SupportSessionAttendance }> {
     const { data, error } = await supabase.rpc('mark_support_attendance', {
@@ -5044,6 +5056,58 @@ export const supportSessionsApi = {
       .eq('sessionId', (session as any).id);
     if (error) throw new Error(error.message);
     return { attendance: (data as any[]) || [] };
+  },
+
+  // Phase 4 — pre-cohort trainings / get-togethers: every session of the given
+  // type(s) in a cohort, plus every mark on them in one call, so the admin
+  // Trainings tab, the hub lead's My Hub tab, and the "x/y trainings" badges
+  // on the Groups/Supports pages can all be built from one fetch.
+  async getForCohort(cohortId: string | string[], types: import('../types').SupportSessionType[]): Promise<{ sessions: import('../types').SupportSession[]; attendance: Array<{ sessionId: string; userId: string; status: import('../types').SupportAttendanceStatus }> }> {
+    let query = supabase
+      .from('SupportSession')
+      .select('*')
+      .in('type', types)
+      .order('sessionDate', { ascending: false });
+    query = Array.isArray(cohortId) ? query.in('cohortId', cohortId) : query.eq('cohortId', cohortId);
+    const { data: sessions, error: sessionsError } = await query;
+    if (sessionsError) throw new Error(sessionsError.message);
+    const mapped = ((sessions as any[]) || []).map(mapSupportSession);
+    const ids = mapped.map((s) => s.id);
+    if (ids.length === 0) return { sessions: mapped, attendance: [] };
+    const { data: attendance, error: attendanceError } = await supabase
+      .from('SupportSessionAttendance')
+      .select('sessionId, userId, status')
+      .in('sessionId', ids);
+    if (attendanceError) throw new Error(attendanceError.message);
+    return { sessions: mapped, attendance: (attendance as any[]) || [] };
+  },
+
+  // Admin-only create/edit/delete for trainings and get-togethers (RLS: see
+  // 20260925040000_pre_cohort_trainings.sql). Recap sessions stay RPC-only.
+  async create(input: { cohortId: string; type: 'PRE_COHORT_TRAINING' | 'GET_TOGETHER'; title: string; sessionDate: string }): Promise<{ session: import('../types').SupportSession }> {
+    const { data, error } = await supabase
+      .from('SupportSession')
+      .insert([{ cohortId: input.cohortId, type: input.type, title: input.title, sessionDate: input.sessionDate }])
+      .select('*')
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to create session');
+    return { session: mapSupportSession(data) };
+  },
+
+  async update(sessionId: string, input: { title?: string; sessionDate?: string }): Promise<{ session: import('../types').SupportSession }> {
+    const { data, error } = await supabase
+      .from('SupportSession')
+      .update(input)
+      .eq('id', sessionId)
+      .select('*')
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to update session');
+    return { session: mapSupportSession(data) };
+  },
+
+  async remove(sessionId: string): Promise<void> {
+    const { error } = await supabase.from('SupportSession').delete().eq('id', sessionId);
+    if (error) throw new Error(error.message);
   },
 };
 

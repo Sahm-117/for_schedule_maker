@@ -3,8 +3,8 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { groupsApi, participantsApi, usersApi } from '../services/api';
-import type { Group, Participant, User, GroupCallPlatform } from '../types';
+import { groupsApi, participantsApi, settingsApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
+import type { Group, Participant, User, GroupCallPlatform, SupportSession } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -15,6 +15,76 @@ import PageLoader from '../components/PageLoader';
 import { sortByText } from '../utils/sort';
 import { selectedFirst } from '../utils/selectedFirst';
 import { reconcileById } from '../utils/reconcile';
+import { buildTrainingCounts, trainingCountFor, DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
+import { normalizeLink } from '../utils/links';
+
+// ── Training eligibility (Phase 4) ────────────────────────────────────────────
+// Shared by GroupFormModal and AssignSupportModal: a support who attended
+// fewer than the cohort's minimum pre-cohort trainings can't be saved as a
+// group's support unless an admin overrides it with a reason, saved as an
+// ELIGIBILITY_OVERRIDE support note.
+
+const trainingLabel = (counts: Map<string, { attended: number; total: number }>, userId: string, total: number) => {
+  if (total === 0) return '';
+  const c = trainingCountFor(counts, userId, total);
+  return ` · ${c.attended}/${c.total} trainings`;
+};
+
+const TrainingBlockNotice: React.FC<{
+  supportId: string;
+  supportName: string;
+  attended: number;
+  total: number;
+  onOverridden: () => void;
+}> = ({ supportId, supportName, attended, total, onOverridden }) => {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const handleOverride = async () => {
+    if (!reason.trim()) { setErr('A reason is required'); return; }
+    setSaving(true);
+    setErr('');
+    try {
+      await supportNotesApi.create({ supportId, noteType: 'ELIGIBILITY_OVERRIDE', body: reason.trim() });
+      onOverridden();
+    } catch (e: any) {
+      setErr(e.message || 'Failed to save override');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-red-200 bg-red-50 p-3.5">
+      <p className="text-sm font-semibold text-red-700">Missed all pre-cohort trainings</p>
+      <p className="mt-0.5 text-xs text-red-600">{supportName} attended {attended} of {total} pre-cohort training{total === 1 ? '' : 's'} this cohort.</p>
+      {!open ? (
+        <button type="button" onClick={() => setOpen(true)} className="mt-2 rounded-xl border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100">
+          Override
+        </button>
+      ) : (
+        <div className="mt-2 flex flex-col gap-2">
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={2}
+            placeholder="Reason for overriding this rule"
+            className="w-full rounded-xl border border-red-200 px-3 py-2 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+          {err && <p className="text-xs text-red-700">{err}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => { setOpen(false); setErr(''); }} className="rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-white">Cancel</button>
+            <button type="button" onClick={() => void handleOverride()} disabled={saving} className="rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
+              {saving ? 'Saving…' : 'Save override'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const groupNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 const NO_SUPPORT_OPTION = '__no_support__';
@@ -31,9 +101,12 @@ interface GroupFormModalProps {
   cohortId: string;
   existing?: Group | null;
   supportUsers: User[];
+  trainingCounts: Map<string, { attended: number; total: number }>;
+  trainingsTotal: number;
+  minTrainingsAttended: number;
 }
 
-const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSaved, cohortId, existing, supportUsers }) => {
+const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSaved, cohortId, existing, supportUsers, trainingCounts, trainingsTotal, minTrainingsAttended }) => {
   const [name, setName] = useState('');
   const [supportId, setSupportId] = useState('');
   const [slot, setSlot] = useState<MeetingSlot>({ meetingDay: null, meetingTime: null, meetingDurationMins: null });
@@ -41,6 +114,7 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
   const [callLink, setCallLink] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [overridden, setOverridden] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -54,11 +128,19 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
       setCallPlatform(existing?.callPlatform ?? 'WHATSAPP');
       setCallLink(existing?.callLink ?? '');
       setErr('');
+      setOverridden(false);
     }
   }, [isOpen, existing]);
 
+  useEffect(() => { setOverridden(false); }, [supportId]);
+
+  const selectedSupport = supportUsers.find((u) => u.id === supportId);
+  const counts = supportId ? trainingCountFor(trainingCounts, supportId, trainingsTotal) : null;
+  const blocked = !!counts && counts.total > 0 && counts.attended < minTrainingsAttended && !overridden;
+
   const handleSave = async () => {
     if (!name.trim()) { setErr('Group name is required'); return; }
+    if (blocked) { setErr('Missed all pre-cohort trainings'); return; }
     setSaving(true);
     setErr('');
     try {
@@ -69,7 +151,7 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
           supportId: supportId || null,
           ...slot,
           callPlatform,
-          callLink: callLink.trim() || null,
+          callLink: callLink.trim() ? normalizeLink(callLink) : null,
         }));
       } else {
         ({ group: result } = await groupsApi.create({
@@ -96,7 +178,7 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
       footer={
         <>
           <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
-          <button type="button" onClick={() => void handleSave()} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
+          <button type="button" onClick={() => void handleSave()} disabled={saving || blocked} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
             {saving ? 'Saving…' : 'Save'}
           </button>
         </>
@@ -121,12 +203,21 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
             onChange={setSupportId}
             options={[
               { value: '', label: '— None —' },
-              ...supportUsers.map((u) => ({ value: u.id, label: u.name })),
+              ...supportUsers.map((u) => ({ value: u.id, label: `${u.name}${trainingLabel(trainingCounts, u.id, trainingsTotal)}` })),
             ]}
             placeholder="— None —"
             compact
           />
         </div>
+        {blocked && counts && selectedSupport && (
+          <TrainingBlockNotice
+            supportId={supportId}
+            supportName={selectedSupport.name}
+            attended={counts.attended}
+            total={counts.total}
+            onOverridden={() => setOverridden(true)}
+          />
+        )}
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Weekly meeting slot</label>
           <GroupMeetingSlotEditor value={slot} onChange={setSlot} />
@@ -159,21 +250,33 @@ interface AssignSupportModalProps {
   onSaved: (g: Group) => void;
   group: Group;
   supportUsers: User[];
+  trainingCounts: Map<string, { attended: number; total: number }>;
+  trainingsTotal: number;
+  minTrainingsAttended: number;
 }
 
-const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose, onSaved, group, supportUsers }) => {
+const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose, onSaved, group, supportUsers, trainingCounts, trainingsTotal, minTrainingsAttended }) => {
   const [supportId, setSupportId] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [overridden, setOverridden] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setSupportId(group.supportId ?? '');
       setErr('');
+      setOverridden(false);
     }
   }, [isOpen, group]);
 
+  useEffect(() => { setOverridden(false); }, [supportId]);
+
+  const selectedSupport = supportUsers.find((u) => u.id === supportId);
+  const counts = supportId ? trainingCountFor(trainingCounts, supportId, trainingsTotal) : null;
+  const blocked = !!counts && counts.total > 0 && counts.attended < minTrainingsAttended && !overridden;
+
   const handleSave = async () => {
+    if (blocked) { setErr('Missed all pre-cohort trainings'); return; }
     setSaving(true);
     setErr('');
     try {
@@ -195,7 +298,7 @@ const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose
       footer={
         <>
           <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
-          <button type="button" onClick={() => void handleSave()} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
+          <button type="button" onClick={() => void handleSave()} disabled={saving || blocked} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
             {saving ? 'Saving…' : 'Save'}
           </button>
         </>
@@ -210,12 +313,21 @@ const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose
             onChange={setSupportId}
             options={[
               { value: '', label: '— None —' },
-              ...supportUsers.map((u) => ({ value: u.id, label: u.name })),
+              ...supportUsers.map((u) => ({ value: u.id, label: `${u.name}${trainingLabel(trainingCounts, u.id, trainingsTotal)}` })),
             ]}
             placeholder="— None —"
             compact
           />
         </div>
+        {blocked && counts && selectedSupport && (
+          <TrainingBlockNotice
+            supportId={supportId}
+            supportName={selectedSupport.name}
+            attended={counts.attended}
+            total={counts.total}
+            onOverridden={() => setOverridden(true)}
+          />
+        )}
       </div>
     </ModalShell>
   );
@@ -370,6 +482,9 @@ const AdminGroupsContent: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [supportUsers, setSupportUsers] = useState<User[]>([]);
+  const [trainingSessions, setTrainingSessions] = useState<SupportSession[]>([]);
+  const [trainingAttendance, setTrainingAttendance] = useState<Array<{ sessionId: string; userId: string; status: string }>>([]);
+  const [minTrainingsAttended, setMinTrainingsAttended] = useState(DEFAULT_PROGRAMME_RULES.minTrainingsAttended);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Group | null>(null);
@@ -398,10 +513,12 @@ const AdminGroupsContent: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     if (!silent) setLoading(true);
     try {
-      const [{ groups: gs }, { participants: ps }, { users }] = await Promise.all([
+      const [{ groups: gs }, { participants: ps }, { users }, { sessions: ts, attendance: ta }, rules] = await Promise.all([
         groupsApi.getAll({ cohortId: activeCohort.id, includeArchived: showArchived }),
         participantsApi.getAll({ cohortId: activeCohort.id }),
         usersApi.getAll(),
+        supportSessionsApi.getForCohort(activeCohort.id, ['PRE_COHORT_TRAINING']),
+        settingsApi.getProgrammeRules(),
       ]);
       const sortedGs = sortGroupsByName(gs);
       const sortedPs = sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName);
@@ -417,9 +534,18 @@ const AdminGroupsContent: React.FC = () => {
         setParticipants(sortedPs);
         setSupportUsers(sortedUsers);
       }
+      setTrainingSessions(ts);
+      setTrainingAttendance(ta);
+      setMinTrainingsAttended(rules.minTrainingsAttended);
     } catch { /* ignore */ }
     finally { if (!silent) setLoading(false); }
   }, [activeCohort, showArchived]);
+
+  const trainingsTotal = trainingSessions.length;
+  const trainingCounts = useMemo(
+    () => buildTrainingCounts(trainingSessions.map((s) => s.id), trainingAttendance),
+    [trainingSessions, trainingAttendance]
+  );
 
   // Initial / cohort-change load shows the loader.
   useEffect(() => { void load(false); }, [load]);
@@ -612,6 +738,9 @@ const AdminGroupsContent: React.FC = () => {
         cohortId={activeCohort?.id ?? ''}
         existing={editing}
         supportUsers={supportUsers}
+        trainingCounts={trainingCounts}
+        trainingsTotal={trainingsTotal}
+        minTrainingsAttended={minTrainingsAttended}
       />
 
       {supportTarget && (
@@ -620,6 +749,9 @@ const AdminGroupsContent: React.FC = () => {
           onClose={() => setSupportTarget(null)}
           group={supportTarget}
           supportUsers={supportUsers}
+          trainingCounts={trainingCounts}
+          trainingsTotal={trainingsTotal}
+          minTrainingsAttended={minTrainingsAttended}
           onSaved={(g) => {
             setGroups((prev) => sortGroupsByName(prev.map((x) => x.id === g.id ? g : x)));
             setSupportTarget(null);
