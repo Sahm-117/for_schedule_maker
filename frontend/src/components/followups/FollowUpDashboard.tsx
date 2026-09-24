@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { FollowUpContact, FollowUpStatus } from '../../types';
-import { computeFollowUpFunnel, computeIntroducerBreakdown, computeOwnerBreakdown } from '../../utils/followUps';
+import { computeFollowUpFunnel, computeIntroducerBreakdown, computeOwnerBreakdown, type OwnerBreakdownRow } from '../../utils/followUps';
 import { VitalTile } from '../dashboard/DashboardParts';
 
 // One colour per status, matching the tone each status already carries on its
@@ -31,7 +31,32 @@ const Chevron: React.FC<{ open: boolean }> = ({ open }) => (
 const contactsLink = (status?: FollowUpStatus | 'open') =>
   `/follow-ups?tab=contacts${status ? `&status=${status}` : ''}`;
 
-const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts }) => {
+// Thin stacked bar showing how a support's assigned contacts split out, so the
+// shape of their work is visible at a glance without reading five numbers.
+const SupportBar: React.FC<{ row: OwnerBreakdownRow }> = ({ row }) => {
+  const total = row.assigned || 1;
+  const segments: Array<{ value: number; className: string }> = [
+    { value: row.loginShared, className: 'bg-emerald-500' },
+    { value: row.loginToShare, className: 'bg-sky-500' },
+    { value: row.stillOpen, className: 'bg-amber-500' },
+    { value: row.nextCohort, className: 'bg-violet-500' },
+    { value: row.stopped, className: 'bg-neutral-300' },
+  ];
+  // Stacked, not inline with the bar — at desktop table widths the two never
+  // had enough shared space and the label got clipped down to a stray digit.
+  return (
+    <div className="mt-1.5 min-w-0">
+      <span className="flex h-1.5 w-full max-w-[9rem] overflow-hidden rounded-full bg-gray-100">
+        {segments.map((seg, i) => seg.value > 0 && (
+          <span key={i} className={`h-full ${seg.className}`} style={{ width: `${(seg.value / total) * 100}%` }} />
+        ))}
+      </span>
+      <span className="mt-1 block truncate text-[11px] text-gray-500">{row.loginShared} of {row.assigned} joined</span>
+    </div>
+  );
+};
+
+const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; onShowUnassigned?: () => void }> = ({ contacts, onShowUnassigned }) => {
   const funnel = computeFollowUpFunnel(contacts);
   const owners = computeOwnerBreakdown(contacts);
   const introducers = computeIntroducerBreakdown(contacts);
@@ -44,10 +69,16 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
       stillOpen: sum.stillOpen + row.stillOpen,
       loginToShare: sum.loginToShare + row.loginToShare,
       loginShared: sum.loginShared + row.loginShared,
+      nextCohort: sum.nextCohort + row.nextCohort,
       stopped: sum.stopped + row.stopped,
     }),
-    { assigned: 0, stillOpen: 0, loginToShare: 0, loginShared: 0, stopped: 0 },
+    { assigned: 0, stillOpen: 0, loginToShare: 0, loginShared: 0, nextCohort: 0, stopped: 0 },
   );
+
+  // Unassigned prospects are nobody's work yet, so they don't belong in a table
+  // of who's doing what — they get their own callout above it instead.
+  const unassignedRow = owners.find((row) => !row.ownerId);
+  const namedOwners = owners.filter((row) => row.ownerId);
 
   // Only name a top reason when one actually leads; otherwise say how many
   // reasons the drop-outs are spread across, rather than picking a tied winner.
@@ -77,7 +108,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
           to={contactsLink('REGISTERED')}
         />
         <VitalTile
-          title="Login to share"
+          title="Needs login"
           status={funnel.registered > 0 ? 'warning' : 'good'}
           statusLabel={funnel.registered > 0 ? 'Waiting on us' : 'All handed over'}
           value={funnel.registered}
@@ -86,7 +117,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
           to={contactsLink('REGISTERED')}
         />
         <VitalTile
-          title="Still to chase"
+          title="Not done yet"
           status={funnel.open > 0 ? 'warning' : 'good'}
           statusLabel={funnel.open > 0 ? 'Needs work' : 'All handled'}
           value={funnel.open}
@@ -95,7 +126,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
           to={contactsLink('open')}
         />
         <VitalTile
-          title="Not joining"
+          title="Dropped"
           status="neutral"
           statusLabel="Follow-up is over"
           value={funnel.stopped}
@@ -128,26 +159,41 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
         )}
       </section>
 
+      {unassignedRow && unassignedRow.assigned > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {unassignedRow.assigned} {unassignedRow.assigned === 1 ? 'contact has' : 'contacts have'} nobody following up.{' '}
+          {onShowUnassigned ? (
+            <button type="button" onClick={onShowUnassigned} className="font-semibold text-amber-800 underline">
+              Assign them
+            </button>
+          ) : (
+            'Assign them from the Contacts list.'
+          )}
+        </div>
+      )}
+
       <section className="surface-card overflow-hidden">
         <div className="border-b border-orange-100 px-5 py-4">
-          <p className="text-sm font-bold text-gray-900">By follow-up rep</p>
+          <p className="text-sm font-bold text-gray-900">By support</p>
           <p className="text-xs text-gray-500">Most work left first. A follow-up is only done once the prospect has their app login. Open a row to see who is not joining, and why.</p>
         </div>
         <table className="w-full text-left text-sm">
           <thead className="bg-orange-50/60 text-xs uppercase tracking-wide text-gray-500">
             <tr>
-              <th scope="col" className="px-5 py-3">Follow-up rep</th>
-              <th scope="col" className="px-3 py-3 text-right">Given</th>
-              <th scope="col" className="px-3 py-3 text-right">Still to chase</th>
-              <th scope="col" className="px-3 py-3 text-right">Login to share</th>
-              <th scope="col" className="px-5 py-3 text-right">Done</th>
+              <th scope="col" className="px-5 py-3">Support</th>
+              <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Contacts</th>
+              <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Not done yet</th>
+              <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Needs login</th>
+              <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Joined the app</th>
+              <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Next cohort</th>
+              <th scope="col" className="hidden px-5 py-3 text-right sm:table-cell">Dropped</th>
             </tr>
           </thead>
           <tbody>
-            {owners.length === 0 ? (
-              <tr><td colSpan={5} className="px-5 py-8 text-center text-gray-400">No prospects yet.</td></tr>
+            {namedOwners.length === 0 ? (
+              <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400">{owners.length === 0 ? 'No prospects yet.' : 'Nobody has been assigned a contact yet.'}</td></tr>
             ) : (
-              owners.map((row) => {
+              namedOwners.map((row) => {
                 const key = row.ownerId || 'unassigned';
                 const open = expanded === key;
                 return (
@@ -158,25 +204,38 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
                           type="button"
                           onClick={() => setExpanded(open ? null : key)}
                           aria-expanded={open}
-                          className="flex w-full items-center gap-1.5 text-left"
+                          className="flex w-full items-start gap-1.5 text-left"
                         >
                           <Chevron open={open} />
-                          <span className={`truncate font-semibold ${row.ownerId ? 'text-gray-900' : 'text-amber-700'}`}>{row.ownerName}</span>
+                          <div className="min-w-0 flex-1">
+                            <span className="block truncate font-semibold text-gray-900">{row.ownerName}</span>
+                            <SupportBar row={row} />
+                          </div>
                         </button>
                       </td>
-                      <td className="px-3 py-3 text-right font-semibold tabular-nums">{row.assigned}</td>
-                      <td className="px-3 py-3 text-right font-bold tabular-nums text-amber-700">{row.stillOpen}</td>
-                      <td className={`px-3 py-3 text-right font-bold tabular-nums ${row.loginToShare > 0 ? 'text-amber-700' : 'text-gray-400'}`}>{row.loginToShare}</td>
-                      <td className="px-5 py-3 text-right font-semibold tabular-nums text-emerald-700">{row.loginShared}</td>
+                      <td className="hidden px-3 py-3 text-right font-semibold tabular-nums sm:table-cell">{row.assigned}</td>
+                      <td className="hidden px-3 py-3 text-right font-bold tabular-nums text-amber-700 sm:table-cell">{row.stillOpen}</td>
+                      <td className={`hidden px-3 py-3 text-right font-bold tabular-nums sm:table-cell ${row.loginToShare > 0 ? 'text-sky-700' : 'text-gray-400'}`}>{row.loginToShare}</td>
+                      <td className="hidden px-3 py-3 text-right font-semibold tabular-nums text-emerald-700 sm:table-cell">{row.loginShared}</td>
+                      <td className={`hidden px-3 py-3 text-right font-semibold tabular-nums sm:table-cell ${row.nextCohort > 0 ? 'text-violet-700' : 'text-gray-400'}`}>{row.nextCohort}</td>
+                      <td className="hidden px-5 py-3 text-right font-semibold tabular-nums text-neutral-600 sm:table-cell">{row.stopped}</td>
                     </tr>
                     {open && (
                       <tr className="border-t border-orange-50 bg-orange-50/30">
-                        <td colSpan={5} className="px-5 py-3">
+                        <td colSpan={7} className="px-5 py-3">
+                          <div className="mb-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs sm:hidden">
+                            <span className="text-gray-500">Contacts <span className="font-semibold tabular-nums text-gray-900">{row.assigned}</span></span>
+                            <span className="text-gray-500">Not done yet <span className="font-semibold tabular-nums text-amber-700">{row.stillOpen}</span></span>
+                            <span className="text-gray-500">Needs login <span className="font-semibold tabular-nums text-sky-700">{row.loginToShare}</span></span>
+                            <span className="text-gray-500">Joined the app <span className="font-semibold tabular-nums text-emerald-700">{row.loginShared}</span></span>
+                            <span className="text-gray-500">Next cohort <span className="font-semibold tabular-nums text-violet-700">{row.nextCohort}</span></span>
+                            <span className="text-gray-500">Dropped <span className="font-semibold tabular-nums text-neutral-600">{row.stopped}</span></span>
+                          </div>
                           {row.stopped === 0 && row.nextCohort === 0 ? (
                             <p className="text-xs text-gray-500">Everyone given to {row.ownerName} is still in play.</p>
                           ) : (
                             <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                              <span className="text-xs font-semibold text-gray-700">Not joining <span className="tabular-nums text-gray-900">{row.stopped}</span></span>
+                              <span className="text-xs font-semibold text-gray-700">Dropped <span className="tabular-nums text-gray-900">{row.stopped}</span></span>
                               {row.nextCohort > 0 && (
                                 <span className="text-xs text-gray-600">Will join next cohort <span className="font-semibold tabular-nums text-gray-900">{row.nextCohort}</span></span>
                               )}
@@ -199,10 +258,12 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
             <tfoot className="border-t-2 border-orange-100 bg-orange-50/40 text-sm">
               <tr>
                 <td className="px-5 py-3 font-bold text-gray-900">Everyone</td>
-                <td className="px-3 py-3 text-right font-bold tabular-nums">{totals.assigned}</td>
-                <td className="px-3 py-3 text-right font-bold tabular-nums text-amber-700">{totals.stillOpen}</td>
-                <td className="px-3 py-3 text-right font-bold tabular-nums text-amber-700">{totals.loginToShare}</td>
-                <td className="px-5 py-3 text-right font-bold tabular-nums text-emerald-700">{totals.loginShared}</td>
+                <td className="hidden px-3 py-3 text-right font-bold tabular-nums sm:table-cell">{totals.assigned}</td>
+                <td className="hidden px-3 py-3 text-right font-bold tabular-nums text-amber-700 sm:table-cell">{totals.stillOpen}</td>
+                <td className="hidden px-3 py-3 text-right font-bold tabular-nums text-sky-700 sm:table-cell">{totals.loginToShare}</td>
+                <td className="hidden px-3 py-3 text-right font-bold tabular-nums text-emerald-700 sm:table-cell">{totals.loginShared}</td>
+                <td className="hidden px-3 py-3 text-right font-bold tabular-nums text-violet-700 sm:table-cell">{totals.nextCohort}</td>
+                <td className="hidden px-5 py-3 text-right font-bold tabular-nums text-neutral-600 sm:table-cell">{totals.stopped}</td>
               </tr>
             </tfoot>
           )}
@@ -213,11 +274,11 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
           different supports on the same prospect, and the back office needs both. */}
       <section className="surface-card overflow-hidden">
         <div className="border-b border-orange-100 px-5 py-4">
-          <p className="text-sm font-bold text-gray-900">Met by</p>
+          <p className="text-sm font-bold text-gray-900">Brought in by</p>
           <p className="text-xs text-gray-500">
             {totalMet === 0
-              ? 'Nobody has recorded meeting someone yet.'
-              : `${totalMet} ${totalMet === 1 ? 'prospect was' : 'prospects were'} brought in by a support. People who found the form on their own are not counted here.`}
+              ? 'Nobody has brought anyone in yet.'
+              : `${totalMet} ${totalMet === 1 ? 'person was' : 'people were'} brought in by a support. People who found the sign-up form on their own are not counted here.`}
           </p>
         </div>
         {introducers.length === 0 ? (
@@ -225,35 +286,38 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[] }> = ({ contacts
             When a support taps “Met someone” in Mobilisation, they show up here.
           </p>
         ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="bg-orange-50/60 text-xs uppercase tracking-wide text-gray-500">
+          <table className="w-full table-fixed text-left text-sm sm:table-auto">
+            <thead className="bg-orange-50/60 text-[10px] uppercase tracking-wide text-gray-500 sm:text-xs">
               <tr>
-                <th scope="col" className="px-5 py-3">Support</th>
-                <th scope="col" className="px-3 py-3 text-right">People met</th>
-                <th scope="col" className="px-3 py-3 text-right">Still open</th>
-                <th scope="col" className="px-3 py-3 text-right">Signed up</th>
-                <th scope="col" className="px-5 py-3 text-right">Done</th>
+                <th scope="col" className="w-[34%] px-2 py-3 sm:w-auto sm:px-5">Support</th>
+                <th scope="col" className="w-[22%] px-1.5 py-3 text-right sm:w-auto sm:px-3">
+                  <span className="sm:hidden">Brought</span>
+                  <span className="hidden sm:inline">People brought</span>
+                </th>
+                <th scope="col" className="w-[22%] px-1.5 py-3 text-right sm:w-auto sm:px-3">Signed up</th>
+                <th scope="col" className="w-[22%] px-2 py-3 text-right sm:w-auto sm:px-5">
+                  <span className="sm:hidden">Joined</span>
+                  <span className="hidden sm:inline">Joined the app</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {introducers.map((row) => (
                 <tr key={row.supportId} className="border-t border-orange-50">
-                  <td className="px-5 py-3 font-semibold text-gray-900">{row.supportName}</td>
-                  <td className="px-3 py-3 text-right font-bold tabular-nums text-gray-900">{row.met}</td>
-                  <td className="px-3 py-3 text-right tabular-nums text-amber-700">{row.stillOpen}</td>
-                  <td className="px-3 py-3 text-right font-semibold tabular-nums text-emerald-700">{row.signedUp}</td>
-                  <td className="px-5 py-3 text-right font-semibold tabular-nums text-emerald-700">{row.loginShared}</td>
+                  <td className="truncate px-2 py-3 font-semibold text-gray-900 sm:px-5">{row.supportName}</td>
+                  <td className="px-1.5 py-3 text-right font-bold tabular-nums text-gray-900 sm:px-3">{row.met}</td>
+                  <td className="px-1.5 py-3 text-right font-semibold tabular-nums text-emerald-700 sm:px-3">{row.signedUp}</td>
+                  <td className="px-2 py-3 text-right font-semibold tabular-nums text-emerald-700 sm:px-5">{row.loginShared}</td>
                 </tr>
               ))}
             </tbody>
             {introducers.length > 1 && (
               <tfoot className="border-t-2 border-orange-100 bg-orange-50/40 text-sm">
                 <tr>
-                  <td className="px-5 py-3 font-bold text-gray-900">Everyone</td>
-                  <td className="px-3 py-3 text-right font-bold tabular-nums text-gray-900">{totalMet}</td>
-                  <td className="px-3 py-3 text-right font-bold tabular-nums text-amber-700">{introducers.reduce((n, r) => n + r.stillOpen, 0)}</td>
-                  <td className="px-3 py-3 text-right font-bold tabular-nums text-emerald-700">{introducers.reduce((n, r) => n + r.signedUp, 0)}</td>
-                  <td className="px-5 py-3 text-right font-bold tabular-nums text-emerald-700">{introducers.reduce((n, r) => n + r.loginShared, 0)}</td>
+                  <td className="px-2 py-3 font-bold text-gray-900 sm:px-5">Everyone</td>
+                  <td className="px-1.5 py-3 text-right font-bold tabular-nums text-gray-900 sm:px-3">{totalMet}</td>
+                  <td className="px-1.5 py-3 text-right font-bold tabular-nums text-emerald-700 sm:px-3">{introducers.reduce((n, r) => n + r.signedUp, 0)}</td>
+                  <td className="px-2 py-3 text-right font-bold tabular-nums text-emerald-700 sm:px-5">{introducers.reduce((n, r) => n + r.loginShared, 0)}</td>
                 </tr>
               </tfoot>
             )}

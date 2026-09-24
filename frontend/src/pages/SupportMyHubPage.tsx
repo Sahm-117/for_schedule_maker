@@ -3,16 +3,17 @@ import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import SegmentedTabs from '../components/SegmentedTabs';
 import AppSelect from '../components/AppSelect';
+import SaveStatus, { type SaveState } from '../components/SaveStatus';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { MeetingCallCard, type MeetingSaveInput } from '../components/groups/GroupCallCard';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { myHubApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
+import { myHubApi, supportNotesApi, supportSessionsApi } from '../services/api';
 import { buildWhatsAppLink } from '../utils/phone';
 import { sortByText } from '../utils/sort';
 import { cohortMode } from '../components/dashboard/healthModel';
-import type { HubMessage, MyHubMember, SupportAttendanceStatus, SupportSession, SupportSessionType, User, SupportNote } from '../types';
+import type { HubMessage, MyHubMember, SupportAttendanceStatus, SupportSession, SupportSessionType, SupportNote } from '../types';
 
 const SESSION_TYPE_PILL: Record<SupportSessionType, string> = {
   SUNDAY_RECAP: 'bg-neutral-100 text-neutral-600',
@@ -58,7 +59,8 @@ const SupportMyHubPage: React.FC = () => {
   const [recapWeekId, setRecapWeekId] = useState<number | null>(null);
   const [recapMarks, setRecapMarks] = useState<Record<string, SupportAttendanceStatus>>({});
   const [recapLoading, setRecapLoading] = useState(false);
-  const [recapSaving, setRecapSaving] = useState<string | null>(null);
+  // Per-person save feedback on the recap marks, keyed by userId.
+  const [recapSaveState, setRecapSaveState] = useState<Record<string, SaveState>>({});
 
   useEffect(() => {
     if (sortedWeeks.length > 0 && recapWeekId == null) setRecapWeekId(sortedWeeks[0].id);
@@ -79,21 +81,35 @@ const SupportMyHubPage: React.FC = () => {
 
   const handleMark = async (userId: string, status: SupportAttendanceStatus) => {
     if (!myHub?.hub || recapWeekId == null) return;
-    setRecapSaving(userId);
+    const setState = (state?: SaveState) => setRecapSaveState((prev) => {
+      const next = { ...prev };
+      if (state) next[userId] = state; else delete next[userId];
+      return next;
+    });
+    setState('saving');
     try {
       await supportSessionsApi.mark({ status, userId, hubId: myHub.hub.id, weekId: recapWeekId });
       setRecapMarks((prev) => ({ ...prev, [userId]: status }));
-    } catch { /* ignore */ }
-    finally { setRecapSaving(null); }
+      setState('saved');
+      setTimeout(() => setRecapSaveState((prev) => {
+        if (prev[userId] !== 'saved') return prev;
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      }), 2000);
+    } catch {
+      setState('error');
+    }
   };
 
   // ── Trainings & get-togethers (lead only) ─────────────────────────────────
   const [trainingSessions, setTrainingSessions] = useState<SupportSession[]>([]);
-  const [trainingAllSupports, setTrainingAllSupports] = useState<User[]>([]);
+  const [trainingAllSupports, setTrainingAllSupports] = useState<MyHubMember[]>([]);
   const [trainingAttendance, setTrainingAttendance] = useState<Record<string, Record<string, SupportAttendanceStatus>>>({});
   const [trainingSessionId, setTrainingSessionId] = useState<string | null>(null);
   const [trainingLoading, setTrainingLoading] = useState(false);
-  const [trainingSaving, setTrainingSaving] = useState<string | null>(null);
+  // Per-person save feedback on the training marks, keyed by userId.
+  const [trainingSaveState, setTrainingSaveState] = useState<Record<string, SaveState>>({});
 
   // Pre-cohort trainings happen before the cohort they're for starts, so the
   // lead's list mirrors the admin Hubs tab: the active cohort plus any
@@ -110,13 +126,11 @@ const SupportMyHubPage: React.FC = () => {
   useEffect(() => {
     if (tab !== 'trainings' || !myHub?.hub) return;
     setTrainingLoading(true);
-    Promise.all([
-      supportSessionsApi.getForCohort(trainingListCohortIds, ['PRE_COHORT_TRAINING', 'GET_TOGETHER']),
-      usersApi.getAll(),
-    ])
-      .then(([{ sessions, attendance }, { users }]) => {
+    // A lead only marks their own hub's members, not every support in the app.
+    setTrainingAllSupports(sortByText(myHub.members, (m) => m.name));
+    supportSessionsApi.getForCohort(trainingListCohortIds, ['PRE_COHORT_TRAINING', 'GET_TOGETHER'])
+      .then(({ sessions, attendance }) => {
         setTrainingSessions(sessions);
-        setTrainingAllSupports(sortByText(users.filter((u) => u.role === 'SUPPORT'), (u) => u.name));
         const byMap: Record<string, Record<string, SupportAttendanceStatus>> = {};
         attendance.forEach((a) => {
           if (!byMap[a.sessionId]) byMap[a.sessionId] = {};
@@ -127,16 +141,29 @@ const SupportMyHubPage: React.FC = () => {
       })
       .catch(() => { setTrainingSessions([]); setTrainingAttendance({}); })
       .finally(() => setTrainingLoading(false));
-  }, [tab, myHub?.hub, trainingListCohortIds]);
+  }, [tab, myHub?.hub, myHub?.members, trainingListCohortIds]);
 
   const handleMarkTraining = async (userId: string, status: SupportAttendanceStatus) => {
     if (!trainingSessionId) return;
-    setTrainingSaving(userId);
+    const setState = (state?: SaveState) => setTrainingSaveState((prev) => {
+      const next = { ...prev };
+      if (state) next[userId] = state; else delete next[userId];
+      return next;
+    });
+    setState('saving');
     try {
       await supportSessionsApi.mark({ status, userId, sessionId: trainingSessionId });
       setTrainingAttendance((prev) => ({ ...prev, [trainingSessionId]: { ...prev[trainingSessionId], [userId]: status } }));
-    } catch { /* ignore */ }
-    finally { setTrainingSaving(null); }
+      setState('saved');
+      setTimeout(() => setTrainingSaveState((prev) => {
+        if (prev[userId] !== 'saved') return prev;
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      }), 2000);
+    } catch {
+      setState('error');
+    }
   };
 
   // ── Notes (lead only) ──────────────────────────────────────────────────────
@@ -146,9 +173,15 @@ const SupportMyHubPage: React.FC = () => {
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteLoading, setNoteLoading] = useState(false);
 
+  // A lead can't write notes about themselves, so they're left out of the pick.
+  const noteableMembers = useMemo(
+    () => (myHub?.members ?? []).filter((m) => m.userId !== user?.id),
+    [myHub?.members, user?.id],
+  );
+
   useEffect(() => {
-    if (myHub?.members.length && !noteSupportId) setNoteSupportId(myHub.members[0].userId);
-  }, [myHub?.members, noteSupportId]);
+    if (noteableMembers.length && !noteSupportId) setNoteSupportId(noteableMembers[0].userId);
+  }, [noteableMembers, noteSupportId]);
 
   useEffect(() => {
     if (tab !== 'notes' || !noteSupportId) return;
@@ -427,13 +460,17 @@ const SupportMyHubPage: React.FC = () => {
                 <ul className="space-y-2">
                   {myHub.members.map((m) => (
                     <li key={m.userId} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
-                      <span className="text-sm font-semibold text-gray-900">{m.name}</span>
-                      <div className="w-40">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">{m.name}</p>
+                        <SaveStatus state={recapSaveState[m.userId]} />
+                      </div>
+                      <div className="w-40 flex-none">
                         <AppSelect
                           value={recapMarks[m.userId] ?? ''}
                           onChange={(v) => v && void handleMark(m.userId, v as SupportAttendanceStatus)}
                           options={STATUS_OPTIONS}
-                          placeholder={recapSaving === m.userId ? 'Saving…' : 'Not marked'}
+                          placeholder="Not marked"
+                          disabled={recapSaveState[m.userId] === 'saving'}
                           compact
                         />
                       </div>
@@ -477,14 +514,18 @@ const SupportMyHubPage: React.FC = () => {
                       ) : (
                         <ul className="space-y-2">
                           {trainingAllSupports.map((u) => (
-                            <li key={u.id} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
-                              <span className="text-sm font-semibold text-gray-900">{u.name}</span>
-                              <div className="w-40">
+                            <li key={u.userId} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-gray-900">{u.name}</p>
+                                <SaveStatus state={trainingSaveState[u.userId]} />
+                              </div>
+                              <div className="w-40 flex-none">
                                 <AppSelect
-                                  value={trainingAttendance[trainingSessionId]?.[u.id] ?? ''}
-                                  onChange={(v) => v && void handleMarkTraining(u.id, v as SupportAttendanceStatus)}
+                                  value={trainingAttendance[trainingSessionId]?.[u.userId] ?? ''}
+                                  onChange={(v) => v && void handleMarkTraining(u.userId, v as SupportAttendanceStatus)}
                                   options={STATUS_OPTIONS}
-                                  placeholder={trainingSaving === u.id ? 'Saving…' : 'Not marked'}
+                                  placeholder="Not marked"
+                                  disabled={trainingSaveState[u.userId] === 'saving'}
                                   compact
                                 />
                               </div>
@@ -505,7 +546,7 @@ const SupportMyHubPage: React.FC = () => {
                 <AppSelect
                   value={noteSupportId}
                   onChange={setNoteSupportId}
-                  options={myHub.members.map((m) => ({ value: m.userId, label: m.name }))}
+                  options={noteableMembers.map((m) => ({ value: m.userId, label: m.name }))}
                   placeholder="Pick a support"
                   compact
                 />

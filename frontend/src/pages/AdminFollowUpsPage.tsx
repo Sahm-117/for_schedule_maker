@@ -97,6 +97,12 @@ const AdminFollowUpsPage: React.FC = () => {
     params.delete('status');
     setSearchParams(params, { replace: true });
   };
+  // Overview's "nobody following up" callout jumps here: Contacts tab, owner
+  // filter set to Unassigned. Cohort filter is left as-is.
+  const showUnassigned = () => {
+    setTab('contacts');
+    setOwnerFilter('__unassigned__');
+  };
   const [contacts, setContacts] = useState<FollowUpContact[]>([]);
   const [owners, setOwners] = useState<User[]>([]);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -326,7 +332,7 @@ const AdminFollowUpsPage: React.FC = () => {
       <PageHeader
         title="Follow-ups"
         tourId="admin:follow-ups"
-        subtitle="Track interested people, assign follow-up reps, and move them to registration."
+        subtitle="Track interested people, assign them to a support, and get them into the app."
         action={(
           <div className="flex items-center gap-2">
             <button
@@ -468,7 +474,7 @@ const AdminFollowUpsPage: React.FC = () => {
         <p className="rounded-3xl bg-orange-50/60 px-4 py-12 text-center text-sm text-gray-500">Loading follow-ups…</p>
       ) : (
         <>
-          {tab === 'overview' && <FollowUpDashboard contacts={dashboardContacts} />}
+          {tab === 'overview' && <FollowUpDashboard contacts={dashboardContacts} onShowUnassigned={showUnassigned} />}
           {tab === 'contacts' && statusParam && (
             <div className="mb-3 flex items-center gap-2">
               <span className="text-xs text-gray-500">Showing</span>

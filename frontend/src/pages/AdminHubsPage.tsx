@@ -4,17 +4,19 @@ import PageHeader from '../components/PageHeader';
 import SegmentedTabs from '../components/SegmentedTabs';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { groupsApi, supportHubsApi, supportSessionsApi, usersApi } from '../services/api';
+import { cohortsApi, groupsApi, supportHubsApi, supportSessionsApi, usersApi } from '../services/api';
 import type { Cohort, Group, HubMembership, SupportAttendanceStatus, SupportHub, SupportSession, SupportSessionType, User, Week } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
+import SaveStatus, { type SaveState } from '../components/SaveStatus';
 import PageLoader from '../components/PageLoader';
 import { sortByText } from '../utils/sort';
 import { selectedFirst } from '../utils/selectedFirst';
 import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
 import { cohortMode } from '../components/dashboard/healthModel';
+import AttendanceSummaryStrip from '../components/hubs/AttendanceSummaryStrip';
 
 // ── Recap Attendance Modal ────────────────────────────────────────────────────
 // Same controls and API calls as the hub lead's Recap tab in SupportMyHubPage.
@@ -39,7 +41,8 @@ const RecapAttendanceModal: React.FC<{
   const [weekId, setWeekId] = useState<number | null>(defaultWeekId);
   const [marks, setMarks] = useState<Record<string, SupportAttendanceStatus>>({});
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState<string | null>(null);
+  // Per-person save feedback on the recap marks, keyed by userId.
+  const [saveState, setSaveState] = useState<Record<string, SaveState>>({});
 
   useEffect(() => {
     if (isOpen) setWeekId(defaultWeekId ?? (sortedWeeks[0]?.id ?? null));
@@ -61,14 +64,27 @@ const RecapAttendanceModal: React.FC<{
 
   const handleMark = async (userId: string, status: SupportAttendanceStatus) => {
     if (weekId == null) return;
-    setSaving(userId);
+    const setState = (state?: SaveState) => setSaveState((prev) => {
+      const next = { ...prev };
+      if (state) next[userId] = state; else delete next[userId];
+      return next;
+    });
+    setState('saving');
     try {
       await supportSessionsApi.mark({ status, userId, hubId: hub.id, weekId });
       const next = { ...marks, [userId]: status };
       setMarks(next);
       onMarked(hub.id, weekId, next);
-    } catch { /* ignore */ }
-    finally { setSaving(null); }
+      setState('saved');
+      setTimeout(() => setSaveState((prev) => {
+        if (prev[userId] !== 'saved') return prev;
+        const next2 = { ...prev };
+        delete next2[userId];
+        return next2;
+      }), 2000);
+    } catch {
+      setState('error');
+    }
   };
 
   return (
@@ -91,13 +107,17 @@ const RecapAttendanceModal: React.FC<{
           <ul className="space-y-2">
             {members.map((m) => (
               <li key={m.id} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
-                <span className="text-sm font-semibold text-gray-900">{m.name}</span>
-                <div className="w-40">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{m.name}</p>
+                  <SaveStatus state={saveState[m.id]} />
+                </div>
+                <div className="w-40 flex-none">
                   <AppSelect
                     value={marks[m.id] ?? ''}
                     onChange={(v) => v && void handleMark(m.id, v as SupportAttendanceStatus)}
                     options={STATUS_OPTIONS}
-                    placeholder={saving === m.id ? 'Saving…' : 'Not marked'}
+                    placeholder="Not marked"
+                    disabled={saveState[m.id] === 'saving'}
                     compact
                   />
                 </div>
@@ -476,15 +496,29 @@ const SessionAttendanceModal: React.FC<{
   marks: Record<string, SupportAttendanceStatus>;
   onMarked: (sessionId: string, userId: string, status: SupportAttendanceStatus) => void;
 }> = ({ isOpen, onClose, session, supportUsers, marks, onMarked }) => {
-  const [saving, setSaving] = useState<string | null>(null);
+  // Per-person save feedback on the marks, keyed by userId.
+  const [saveState, setSaveState] = useState<Record<string, SaveState>>({});
 
   const handleMark = async (userId: string, status: SupportAttendanceStatus) => {
-    setSaving(userId);
+    const setState = (state?: SaveState) => setSaveState((prev) => {
+      const next = { ...prev };
+      if (state) next[userId] = state; else delete next[userId];
+      return next;
+    });
+    setState('saving');
     try {
       await supportSessionsApi.mark({ status, userId, sessionId: session.id });
       onMarked(session.id, userId, status);
-    } catch { /* ignore */ }
-    finally { setSaving(null); }
+      setState('saved');
+      setTimeout(() => setSaveState((prev) => {
+        if (prev[userId] !== 'saved') return prev;
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      }), 2000);
+    } catch {
+      setState('error');
+    }
   };
 
   return (
@@ -496,13 +530,17 @@ const SessionAttendanceModal: React.FC<{
           <ul className="space-y-2">
             {supportUsers.map((u) => (
               <li key={u.id} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
-                <span className="text-sm font-semibold text-gray-900">{u.name}</span>
-                <div className="w-40">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{u.name}</p>
+                  <SaveStatus state={saveState[u.id]} />
+                </div>
+                <div className="w-40 flex-none">
                   <AppSelect
                     value={marks[u.id] ?? ''}
                     onChange={(v) => v && void handleMark(u.id, v as SupportAttendanceStatus)}
                     options={STATUS_OPTIONS}
-                    placeholder={saving === u.id ? 'Saving…' : 'Not marked'}
+                    placeholder="Not marked"
+                    disabled={saveState[u.id] === 'saving'}
                     compact
                   />
                 </div>
@@ -528,6 +566,9 @@ const AdminHubsPage: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [sessions, setSessions] = useState<SupportSession[]>([]);
   const [sessionAttendance, setSessionAttendance] = useState<Array<{ sessionId: string; userId: string; status: SupportAttendanceStatus }>>([]);
+  // Supports enrolled in each listed cohort, so a training is counted against
+  // its own cohort's supports rather than every support in the app.
+  const [supportIdsByCohort, setSupportIdsByCohort] = useState<Map<string, Set<string>>>(new Map());
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SupportHub | null>(null);
@@ -536,6 +577,10 @@ const AdminHubsPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<SupportHub | null>(null);
   const [recapTarget, setRecapTarget] = useState<SupportHub | null>(null);
   const [recapByHub, setRecapByHub] = useState<Record<string, { weekId: number; weekNumber: number; marked: number; total: number; absent: number }>>({});
+  // Recap marks for the summary strip, keyed "hubId:weekId" -> { userId: status },
+  // covering every week of the cohort (not just summaryWeek) for the "week by
+  // week" disclosure. Kept in step by handleRecapMarked.
+  const [recapMarksByHubWeek, setRecapMarksByHubWeek] = useState<Record<string, Record<string, SupportAttendanceStatus>>>({});
   const [search, setSearch] = useState('');
   const [recapFilter, setRecapFilter] = useState<'all' | 'behind' | 'complete'>('all');
   const [sessionFormOpen, setSessionFormOpen] = useState(false);
@@ -571,19 +616,35 @@ const AdminHubsPage: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [{ hubs: hs }, { memberships: ms }, { users }, { groups: gs }, { sessions: ss, attendance: sa }] = await Promise.all([
+      const [{ hubs: hs }, { memberships: ms }, { users }, { groups: gs }, { sessions: ss, attendance: sa }, { sessions: rs, attendance: ra }] = await Promise.all([
         supportHubsApi.getAll(activeCohort.id),
         supportHubsApi.getMembershipsForCohort(activeCohort.id),
         usersApi.getAll(),
         groupsApi.getAll({ cohortId: activeCohort.id }),
         supportSessionsApi.getForCohort(trainingListCohortIds, ['PRE_COHORT_TRAINING', 'GET_TOGETHER']),
+        supportSessionsApi.getForCohort(activeCohort.id, ['SUNDAY_RECAP']),
       ]);
+      const cohortMembers = await Promise.all(trainingListCohortIds.map((id) => cohortsApi.getMembers(id)));
+      setSupportIdsByCohort(new Map(trainingListCohortIds.map((id, i) => [
+        id,
+        new Set(cohortMembers[i].users.filter((u) => u.role === 'SUPPORT').map((u) => u.id)),
+      ])));
       setHubs(hs);
       setMemberships(ms);
       setSupportUsers(sortByText(users.filter((u) => u.role === 'SUPPORT'), (u) => u.name));
       setGroups(gs);
       setSessions(ss);
       setSessionAttendance(sa);
+      // Fold recap sessions + marks into "hubId:weekId" -> marks for the
+      // summary strip's week-by-week table.
+      const sessionHubWeek = new Map(rs.map((s) => [s.id, `${s.hubId}:${s.weekId}`]));
+      const marksByHubWeek: Record<string, Record<string, SupportAttendanceStatus>> = {};
+      ra.forEach((a) => {
+        const key = sessionHubWeek.get(a.sessionId);
+        if (!key) return;
+        (marksByHubWeek[key] ??= {})[a.userId] = a.status;
+      });
+      setRecapMarksByHubWeek(marksByHubWeek);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [activeCohort, trainingListCohortIds]);
@@ -679,6 +740,7 @@ const AdminHubsPage: React.FC = () => {
   // Keeps the card's summary line in step right after a mark in the panel,
   // without waiting for the next full reload.
   const handleRecapMarked = (hubId: string, weekId: number, marks: Record<string, SupportAttendanceStatus>) => {
+    setRecapMarksByHubWeek((prev) => ({ ...prev, [`${hubId}:${weekId}`]: marks }));
     if (!summaryWeek || weekId !== summaryWeek.id) return;
     const memberIds = membersByHub.get(hubId) ?? [];
     let marked = 0;
@@ -727,16 +789,31 @@ const AdminHubsPage: React.FC = () => {
       />
 
       {activeCohort && (
-        <div className="mb-4">
-          <SegmentedTabs
-            tabs={[
-              { key: 'hubs', label: 'Hubs' },
-              { key: 'trainings', label: 'Trainings & get-togethers', shortLabel: 'Trainings' },
-            ]}
-            active={tab}
-            onChange={(k) => setTab(k as 'hubs' | 'trainings')}
+        <>
+          <AttendanceSummaryStrip
+            hubs={hubs}
+            membersByHub={membersByHub}
+            weeks={weeks}
+            summaryWeek={summaryWeek}
+            recapMarksByHubWeek={recapMarksByHubWeek}
+            trainingSessions={sessions}
+            trainingAttendance={sessionAttendance}
+            supportIdsByCohort={supportIdsByCohort}
+            cohortById={cohortById}
+            sessionTypePill={SESSION_TYPE_PILL}
+            sessionTypeLabel={SESSION_TYPE_LABEL}
           />
-        </div>
+          <div className="mb-4">
+            <SegmentedTabs
+              tabs={[
+                { key: 'hubs', label: 'Hubs' },
+                { key: 'trainings', label: 'Trainings & get-togethers', shortLabel: 'Trainings' },
+              ]}
+              active={tab}
+              onChange={(k) => setTab(k as 'hubs' | 'trainings')}
+            />
+          </div>
+        </>
       )}
 
       {!activeCohort ? (
@@ -752,7 +829,8 @@ const AdminHubsPage: React.FC = () => {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {sessions.map((s) => {
               const marks = marksBySession(s.id);
-              const marked = supportUsers.filter((u) => marks[u.id]).length;
+              const cohortSupportIds = supportIdsByCohort.get(s.cohortId) ?? new Set<string>();
+              const marked = [...cohortSupportIds].filter((id) => marks[id]).length;
               return (
                 <div key={s.id} className="flex flex-col gap-3 rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
                   <div className="flex items-start justify-between gap-2">
@@ -772,7 +850,7 @@ const AdminHubsPage: React.FC = () => {
                     />
                   </div>
                   <p className="inline-flex w-fit items-center rounded-full bg-sky-100/80 px-2.5 py-1 text-xs font-semibold text-sky-700">
-                    {marked} of {supportUsers.length} marked
+                    {marked} of {cohortSupportIds.size} marked
                   </p>
                 </div>
               );

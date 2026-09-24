@@ -167,7 +167,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
           setOpen((prev) => !prev);
         }}
         className={`flex w-full items-center justify-between rounded-2xl border bg-white text-left shadow-sm transition ${
-          compact ? 'border-gray-200/70 px-2 py-1.5 min-h-[36px] hover:border-gray-300' : 'border-orange-100 px-4 py-3 hover:border-orange-200 hover:bg-orange-50/40'
+          compact ? 'border-gray-300/80 px-2 py-1.5 min-h-[36px] hover:border-gray-400/70' : 'border-orange-200 px-4 py-3 hover:border-orange-300 hover:bg-orange-50/40'
         } ${disabled ? 'opacity-50 cursor-not-allowed hover:border-gray-200/70 hover:bg-white' : ''}`}
       >
           <div className="min-w-0">
