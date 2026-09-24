@@ -21,6 +21,7 @@ import {
   FOLLOW_UP_STATUS_META,
   buildStatusPatch,
   computeFollowUpStatus,
+  contactInCohortScope,
   followUpStatusOptions,
   isClosedContact,
   isClosedRegistrationStatus,
@@ -93,6 +94,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [prospectSaved, setProspectSaved] = useState('');
 
   const [showClosed, setShowClosed] = useState(false);
+  const [showPastCohorts, setShowPastCohorts] = useState(false);
   const toast = useToast();
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
   const [messagingContact, setMessagingContact] = useState<FollowUpContact | null>(null);
@@ -152,13 +154,20 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     return () => clearInterval(interval);
   }, [loadAll]);
 
-  const openContacts = useMemo(() => contacts.filter((contact) => !contact.archivedAt), [contacts]);
+  // Default view stays on the active cohort (plus contacts with no cohort at
+  // all, which count as belonging to it); "Show past cohorts" reveals the rest.
+  const cohortScopedContacts = useMemo(() => {
+    if (showPastCohorts || !activeCohort) return contacts;
+    return contacts.filter((contact) => contactInCohortScope(contact, activeCohort.id, activeCohort.id));
+  }, [contacts, showPastCohorts, activeCohort]);
+
+  const openContacts = useMemo(() => cohortScopedContacts.filter((contact) => !contact.archivedAt), [cohortScopedContacts]);
   const visibleContacts = useMemo(() => {
-    const list = showClosed ? contacts.filter((contact) => !!contact.archivedAt) : [...openContacts];
+    const list = showClosed ? cohortScopedContacts.filter((contact) => !!contact.archivedAt) : [...openContacts];
     list.sort((a, b) => ((isClosedContact(a) ? 1 : 0) - (isClosedContact(b) ? 1 : 0)) || compareText(a.fullName, b.fullName));
     return list;
-  }, [contacts, openContacts, showClosed]);
-  const closedCount = contacts.length - openContacts.length;
+  }, [cohortScopedContacts, openContacts, showClosed]);
+  const closedCount = cohortScopedContacts.length - openContacts.length;
 
   useEffect(() => {
     if (showClosed && closedCount === 0) setShowClosed(false);
@@ -488,7 +497,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
 
         {tab === 'follow' && (
           <>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-[13px] font-semibold text-gray-700">{showClosed ? 'Closed contacts' : 'Assigned to you'}</span>
               <InfoTip label="Open and Closed">
                 <span className="block font-bold text-white">Open</span>
@@ -497,7 +506,18 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                 <span className="block">Registered, Wrong number, Not interested (including not a good time or not a TCN member), and No response.</span>
                 <span className="mt-2 block text-white/60">To reopen someone, change their status back. Registering someone yourself does not add them here.</span>
               </InfoTip>
-              <div className="ml-auto grid grid-cols-2 gap-0.5 rounded-full border border-[#eef0f4] bg-white p-0.5 text-xs font-semibold">
+              <label className="ml-auto flex items-center gap-2 text-xs font-semibold text-gray-600">
+                <span>Show past cohorts</span>
+                <button
+                  type="button"
+                  onClick={() => setShowPastCohorts((v) => !v)}
+                  aria-pressed={showPastCohorts}
+                  className={`relative h-6 w-11 rounded-full transition ${showPastCohorts ? 'bg-primary' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${showPastCohorts ? 'translate-x-5' : ''}`} />
+                </button>
+              </label>
+              <div className="grid grid-cols-2 gap-0.5 rounded-full border border-[#eef0f4] bg-white p-0.5 text-xs font-semibold">
                 <button type="button" onClick={() => setShowClosed(false)} aria-pressed={!showClosed} className={`rounded-full px-3 py-1.5 transition ${!showClosed ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}>
                   Open ({openContacts.length})
                 </button>

@@ -119,6 +119,22 @@ export const isClosedContact = (c: FollowUpContact): boolean => {
 export const isClosedRegistrationStatus = (status: FollowUpRegistrationStatus): boolean =>
   status === 'LOGIN_SHARED' || status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME' || status === 'NO_RESPONSE';
 
+/**
+ * Whether a contact belongs to `cohortId` for filtering purposes. Contacts
+ * with no cohort at all (cohortId null) are treated as belonging to whichever
+ * cohort is currently active, so they always surface alongside it instead of
+ * being orphaned behind a past-cohort filter.
+ */
+export const contactInCohortScope = (
+  contact: FollowUpContact,
+  cohortId: string,
+  activeCohortId?: string | null,
+): boolean => {
+  if (contact.cohortId === cohortId) return true;
+  if (!contact.cohortId && !!cohortId && cohortId === activeCohortId) return true;
+  return false;
+};
+
 export interface FollowUpMetrics {
   toContact: number;
   waiting: number;

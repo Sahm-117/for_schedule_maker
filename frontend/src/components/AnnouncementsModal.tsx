@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { announcementsApi, labelsApi, groupsApi, supportHubsApi } from '../services/api';
+import { announcementsApi, labelsApi, groupsApi, supportHubsApi, usersApi, participantsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import type { Announcement, Label, Group, SupportHub } from '../types';
+import type { Announcement, Label, Group, SupportHub, User, Participant } from '../types';
 import AppSelect from './AppSelect';
 import type { AnnouncementAudience } from '../types';
 
@@ -67,8 +67,13 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   const [targetLabelId, setTargetLabelId] = useState(''); // '' = everyone in scope
   const [targetGroupId, setTargetGroupId] = useState(''); // '' = everyone; participants-only group filter
   const [targetHubId, setTargetHubId] = useState(''); // '' = everyone; SUPPORTS/EVERYONE hub filter
+  // '' = no one person picked; 'user:<id>' (support) or 'participant:<id>'.
+  // Picking a person overrides audience/tag/group/hub for who actually gets it.
+  const [targetPersonKey, setTargetPersonKey] = useState('');
   const [groups, setGroups] = useState<Group[]>([]);
   const [hubs, setHubs] = useState<SupportHub[]>([]);
+  const [supports, setSupports] = useState<User[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [audience, setAudience] = useState<AnnouncementAudience>('SUPPORTS');
   const [showOnHome, setShowOnHome] = useState(false);
   const [homeUntil, setHomeUntil] = useState('');
@@ -144,8 +149,39 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     supportHubsApi.getAll(activeCohort.id).then((res) => setHubs(res.hubs)).catch(() => setHubs([]));
   }, [shouldRender, activeCohort?.id]);
 
+  // Supports, for the "one person" picker (SUPPORTS/EVERYONE audience).
+  useEffect(() => {
+    if (!shouldRender) { setSupports([]); return; }
+    usersApi.getAll().then((res) => setSupports(res.users.filter((u) => u.role === 'SUPPORT'))).catch(() => setSupports([]));
+  }, [shouldRender]);
+
+  // Participants, for the "one person" picker (PARTICIPANTS/EVERYONE audience).
+  useEffect(() => {
+    if (!shouldRender || !activeCohort?.id) { setParticipants([]); return; }
+    participantsApi.getAll({ cohortId: activeCohort.id }).then((res) => setParticipants(res.participants)).catch(() => setParticipants([]));
+  }, [shouldRender, activeCohort?.id]);
+
   const groupNameById = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
   const hubNameById = useMemo(() => new Map(hubs.map((h) => [h.id, h.name])), [hubs]);
+  const supportNameById = useMemo(() => new Map(supports.map((u) => [u.id, u.name])), [supports]);
+  const participantNameById = useMemo(() => new Map(participants.map((p) => [p.id, p.fullName])), [participants]);
+
+  // The picked person's key, split into the id that actually gets sent.
+  const targetUserId = targetPersonKey.startsWith('user:') ? targetPersonKey.slice(5) : null;
+  const targetParticipantId = targetPersonKey.startsWith('participant:') ? targetPersonKey.slice(12) : null;
+  const targetPersonName = targetUserId
+    ? supportNameById.get(targetUserId)
+    : targetParticipantId
+      ? participantNameById.get(targetParticipantId)
+      : null;
+
+  const personOptions = useMemo(() => {
+    const supportOpts = supports.map((u) => ({ value: `user:${u.id}`, label: u.name, meta: 'Support' }));
+    const participantOpts = participants.map((p) => ({ value: `participant:${p.id}`, label: p.fullName, meta: 'Participant' }));
+    const list = audience === 'SUPPORTS' ? supportOpts : audience === 'PARTICIPANTS' ? participantOpts : [...supportOpts, ...participantOpts];
+    const sorted = [...list].sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.label, b.label));
+    return [{ value: '', label: 'Everyone in audience' }, ...sorted];
+  }, [audience, supports, participants]);
 
   const groupOptions = useMemo(() => {
     const sorted = [...groups].sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name));
@@ -175,26 +211,32 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     setSending(true);
     setStatus(null);
     try {
+      const personPicked = !!targetPersonKey;
       const { sent } = await announcementsApi.send(subject.trim(), body.trim(), user.id, {
         scope,
         cohortId: scope === 'ACTIVE_COHORT' ? activeCohort?.id || null : null,
-        targetLabelId: audience === 'PARTICIPANTS' ? null : targetLabelId || null,
-        targetGroupId: audience === 'PARTICIPANTS' ? targetGroupId || null : null,
-        targetHubId: audience === 'PARTICIPANTS' ? null : targetHubId || null,
+        targetLabelId: personPicked || audience === 'PARTICIPANTS' ? null : targetLabelId || null,
+        targetGroupId: personPicked || audience !== 'PARTICIPANTS' ? null : targetGroupId || null,
+        targetHubId: personPicked || audience === 'PARTICIPANTS' ? null : targetHubId || null,
+        targetUserId,
+        targetParticipantId,
         audience,
         home: showOnHome
           ? { homeUntil: new Date(`${homeUntil}T23:59:59`).toISOString(), linkUrl: homeLinkUrl || null, linkLabel: linkLabel.trim() || null }
           : null,
       });
-      const targetName = audience === 'PARTICIPANTS'
-        ? (targetGroupId ? groupNameById.get(targetGroupId) : null)
-        : (targetHubId ? hubNameById.get(targetHubId) : (targetLabelId ? labels.find((l) => l.id === targetLabelId)?.name : null));
+      const targetName = personPicked
+        ? targetPersonName
+        : audience === 'PARTICIPANTS'
+          ? (targetGroupId ? groupNameById.get(targetGroupId) : null)
+          : (targetHubId ? hubNameById.get(targetHubId) : (targetLabelId ? labels.find((l) => l.id === targetLabelId)?.name : null));
       setStatus({ type: 'success', message: targetName ? `Sent to ${targetName}.` : `Sent to ${sent} device${sent !== 1 ? 's' : ''}.` });
       setSubject('');
       setBody('');
       setTargetLabelId('');
       setTargetGroupId('');
       setTargetHubId('');
+      setTargetPersonKey('');
       setAudience('SUPPORTS');
       setShowOnHome(false);
       setHomeUntil('');
@@ -321,9 +363,10 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                     <button
                       key={option.value}
                       type="button"
+                      disabled={!!targetPersonKey}
                       onClick={() => { setAudience(option.value); setLinkTarget(''); setTargetLabelId(''); setTargetGroupId(''); setTargetHubId(''); }}
                       aria-pressed={audience === option.value}
-                      className={`rounded-xl border px-3 py-2 text-sm font-semibold ${audience === option.value ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                      className={`rounded-xl border px-3 py-2 text-sm font-semibold ${audience === option.value ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'} ${targetPersonKey ? 'opacity-40 cursor-not-allowed hover:bg-white' : ''}`}
                     >
                       {option.label}
                       <span className="mt-1 block text-[11px] font-medium text-gray-500">{option.hint}</span>
@@ -333,8 +376,28 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
               </div>
             )}
 
-            {audience === 'PARTICIPANTS' ? (
             <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Or send to one person (optional)</label>
+              <AppSelect
+                value={targetPersonKey}
+                onChange={setTargetPersonKey}
+                options={personOptions}
+                placeholder="Everyone in audience"
+                compact
+              />
+              {targetPersonKey ? (
+                <p className="mt-1 text-[11px] font-semibold text-primary">
+                  Only {targetPersonName || 'this person'} will get this.
+                </p>
+              ) : (
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Pick one person to send only to them. This overrides the audience, tag, group and hub below.
+                </p>
+              )}
+            </div>
+
+            {audience === 'PARTICIPANTS' ? (
+            <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
               <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific group (optional)</label>
               <AppSelect
                 value={targetGroupId}
@@ -342,20 +405,22 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                 options={groupOptions}
                 placeholder="Everyone in audience"
                 compact
+                disabled={!!targetPersonKey}
               />
               <p className="mt-1 text-[11px] text-gray-500">
                 Pick a group to send only to the participants in that group. Leave as “Everyone” to notify all participants.
               </p>
             </div>
             ) : (
-            <div>
+            <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
               <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific tag (optional)</label>
               <AppSelect
                 value={targetLabelId}
-                onChange={setTargetLabelId}
+                onChange={(v) => { setTargetLabelId(v); if (v) setTargetHubId(''); }}
                 options={labelOptions}
                 placeholder="Everyone in audience"
                 compact
+                disabled={!!targetPersonKey || !!targetHubId}
               />
               <p className="mt-1 text-[11px] text-gray-500">
                 Pick a group’s support tag to send to only that support. Leave as “Everyone” to notify the whole audience.
@@ -364,14 +429,15 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
             )}
 
             {audience !== 'PARTICIPANTS' && hubs.length > 0 && (
-            <div>
+            <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
               <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific hub (optional)</label>
               <AppSelect
                 value={targetHubId}
-                onChange={setTargetHubId}
+                onChange={(v) => { setTargetHubId(v); if (v) setTargetLabelId(''); }}
                 options={hubOptions}
                 placeholder="Everyone in audience"
                 compact
+                disabled={!!targetPersonKey || !!targetLabelId}
               />
               <p className="mt-1 text-[11px] text-gray-500">
                 Pick a hub to send only to its members. Leave as “Everyone” to notify the whole audience.
@@ -507,6 +573,16 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                           {a.targetHubId && (
                             <span className="ml-1.5 rounded-full bg-violet-100/80 px-1.5 py-0.5 font-semibold text-violet-700">
                               To: {hubNameById.get(a.targetHubId) || 'hub'}
+                            </span>
+                          )}
+                          {a.targetUserId && (
+                            <span className="ml-1.5 rounded-full bg-violet-100/80 px-1.5 py-0.5 font-semibold text-violet-700">
+                              To: {supportNameById.get(a.targetUserId) || 'a person'}
+                            </span>
+                          )}
+                          {a.targetParticipantId && (
+                            <span className="ml-1.5 rounded-full bg-violet-100/80 px-1.5 py-0.5 font-semibold text-violet-700">
+                              To: {participantNameById.get(a.targetParticipantId) || 'a person'}
                             </span>
                           )}
                         </p>

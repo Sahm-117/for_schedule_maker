@@ -169,8 +169,19 @@ body {
 .fof-scripture-in-next { animation-name: fof-scripture-in-next; }
 .fof-scripture-in-previous { animation-name: fof-scripture-in-previous; }
 
+/* Hub message "Got it" button: a slow glow that travels round the border,
+   so an unacknowledged lead message is obviously still tappable. Stops the
+   moment it's acknowledged (the class is simply removed). */
+@keyframes fof-glow-ring {
+  0% { box-shadow: 0 0 0 1.5px rgba(var(--color-primary-rgb), 0.35), 0 0 0 0 rgba(var(--color-primary-rgb), 0); }
+  50% { box-shadow: 0 0 0 1.5px rgba(var(--color-primary-rgb), 0.7), 0 0 10px 2px rgba(var(--color-primary-rgb), 0.45); }
+  100% { box-shadow: 0 0 0 1.5px rgba(var(--color-primary-rgb), 0.35), 0 0 0 0 rgba(var(--color-primary-rgb), 0); }
+}
+.fof-glow-ring { animation: fof-glow-ring 2.4s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   .fof-toast, .fof-orb, .fof-orb-slow, .fof-rise,
   .fof-fade-in, .fof-fade-out, .fof-sheet-up, .fof-step-in, .fof-tour-ring,
-  .fof-help-ping, .fof-scripture-in-next, .fof-scripture-in-previous { animation: none; }
+  .fof-help-ping, .fof-scripture-in-next, .fof-scripture-in-previous,
+  .fof-glow-ring { animation: none; }
 }

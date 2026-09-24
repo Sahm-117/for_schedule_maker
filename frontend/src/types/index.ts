@@ -159,6 +159,10 @@ export interface Announcement {
   targetGroupId?: string | null;
   /** Hub id: narrows a SUPPORTS/EVERYONE-audience send to one hub's members. */
   targetHubId?: string | null;
+  /** User id: send to a single support/admin only. Mutually exclusive with the group/hub/tag filters. */
+  targetUserId?: string | null;
+  /** Participant id: send to a single participant only. Mutually exclusive with the group/hub/tag filters. */
+  targetParticipantId?: string | null;
   showOnHome?: boolean;
   homeUntil?: string | null;
   linkUrl?: string | null;
@@ -972,6 +976,8 @@ export interface HubMessage {
   subject: string;
   body: string;
   createdAt: string;
+  /** Set when the message has been edited since it was first sent. */
+  editedAt?: string | null;
   /** Whether the signed-in member has tapped "Got it" on this message. */
   ackedByMe?: boolean;
   ackCount?: number;
@@ -1000,7 +1006,11 @@ export interface MyHubAttendanceRow {
 }
 
 export interface MyHubPayload {
-  hub: { id: string; name: string; leadUserId: string | null; leadName: string | null; cohortId: string } | null;
+  hub: {
+    id: string; name: string; leadUserId: string | null; leadName: string | null; cohortId: string;
+    meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null;
+    callPlatform?: GroupCallPlatform | null; callLink?: string | null;
+  } | null;
   isLead: boolean;
   members: MyHubMember[];
   messages: HubMessage[];

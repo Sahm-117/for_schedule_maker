@@ -8,6 +8,7 @@ import { ISSUE_STATUS_META } from '../../utils/followUps';
 import { followUpIssuesApi } from '../../services/api';
 import { supabase } from '../../lib/supabase';
 import { sortByText } from '../../utils/sort';
+import { selectedFirst } from '../../utils/selectedFirst';
 
 interface FollowUpIssuesPanelProps {
   issues: FollowUpIssue[];
@@ -55,10 +56,12 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   const [replyText, setReplyText] = useState('');
 
   const filteredContacts = useMemo(() => {
-    if (!contactSearch.trim()) return sortByText(contacts, (contact) => contact.fullName);
-    const q = contactSearch.toLowerCase();
-    return sortByText(contacts.filter((c) => c.fullName.toLowerCase().includes(q)), (contact) => contact.fullName);
-  }, [contacts, contactSearch]);
+    const q = contactSearch.trim().toLowerCase();
+    const list = q
+      ? sortByText(contacts.filter((c) => c.fullName.toLowerCase().includes(q)), (contact) => contact.fullName)
+      : sortByText(contacts, (contact) => contact.fullName);
+    return selectedFirst(list, (c) => selectedIds.includes(c.id));
+  }, [contacts, contactSearch, selectedIds]);
 
   const toggleContact = (id: string) => {
     setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);

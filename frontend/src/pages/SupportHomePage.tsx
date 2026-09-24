@@ -9,6 +9,7 @@ import type { Announcement, FaithProject, Group, Participant, ParticipantCheckIn
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
 import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
+import { getHubPhase } from '../utils/hubPhase';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 
 type HomeActivity = {
@@ -55,6 +56,10 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const [checklist, setChecklist] = useState<SupportChecklistItem[]>([]);
   const [homeAnnouncement, setHomeAnnouncement] = useState<Announcement | null>(null);
   const autoHide = useChecklistAutoHide();
+
+  // Day 5+ of the cohort, hub members reach My Hub from quick actions instead
+  // of Mobilisation (same rule as the mobile bottom bar in AppShell).
+  const hubPhase = getHubPhase(!!myHub?.hub, activeCohort?.startDate);
 
   // Sunday-evening nudge for a hub lead who hasn't marked this week's recap yet.
   const isHubLead = !!myHub?.isLead;
@@ -314,12 +319,13 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
 
           <div data-wt="home-quick-links" className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))' }}>
             <QuickLink to="/support/participants" label="Group call" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" />} />
-            {myHub?.hub && (
+            {hubPhase ? (
               <QuickLink to="/support/my-hub" label="My Hub" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-3A3.5 3.5 0 0 0 7 18.5V20m5-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 9v-1a3 3 0 0 0-2.2-2.9M16.5 5.2a3 3 0 0 1 0 5.6" />} />
+            ) : (
+              <QuickLink to="/support/mobilisation" label="Mobilisation" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM19 8v6m3-3h-6" />} />
             )}
             <QuickLink to="/support/resources" label="Resources" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Zm0 17A2.5 2.5 0 0 1 6.5 19H20" />} />
             <QuickLink to="/support/schedule?tab=checklist" label="My Tasks" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 11l3 3L22 4M2 12a10 10 0 1 0 5-8.66" />} />
-            <QuickLink to="/support/mobilisation" label="Mobilisation" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM19 8v6m3-3h-6" />} />
           </div>
 
           <section data-wt="home-schedule" className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">

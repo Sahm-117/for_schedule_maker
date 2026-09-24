@@ -2368,6 +2368,8 @@ export const announcementsApi = {
       targetLabelId?: string | null;
       targetGroupId?: string | null;
       targetHubId?: string | null;
+      targetUserId?: string | null;
+      targetParticipantId?: string | null;
       home?: { homeUntil: string; linkUrl?: string | null; linkLabel?: string | null } | null;
       audience?: import('../types').AnnouncementAudience;
     }
@@ -2382,6 +2384,8 @@ export const announcementsApi = {
         targetLabelId: options?.targetLabelId || null,
         targetGroupId: options?.targetGroupId || null,
         targetHubId: options?.targetHubId || null,
+        targetUserId: options?.targetUserId || null,
+        targetParticipantId: options?.targetParticipantId || null,
         audience: options?.audience || 'SUPPORTS',
       },
     });
@@ -2447,6 +2451,8 @@ export const announcementsApi = {
       targetLabelId: row.targetLabelId ?? null,
       targetGroupId: row.targetGroupId ?? null,
       targetHubId: row.targetHubId ?? null,
+      targetUserId: row.targetUserId ?? null,
+      targetParticipantId: row.targetParticipantId ?? null,
       showOnHome: !!row.showOnHome,
       homeUntil: row.homeUntil ?? null,
       linkUrl: row.linkUrl ?? null,
@@ -2458,11 +2464,15 @@ export const announcementsApi = {
       row.scope === 'ALL_USERS' || row.scope == null || row.cohortId == null;
 
     // A tag-targeted announcement is visible to admins (always) and to non-admins
-    // only if they hold that tag. Untargeted announcements pass this gate.
+    // only if they hold that tag. A person-targeted announcement (targetUserId)
+    // is visible to admins and only to that user. A participant-targeted one
+    // (targetParticipantId) never reaches this staff feed. Untargeted rows pass.
     const userLabelIds = new Set(options?.userLabelIds || []);
-    const passesTarget = (row: { targetLabelId?: string | null }) => {
-      if (!row.targetLabelId) return true;
+    const passesTarget = (row: { targetLabelId?: string | null; targetUserId?: string | null; targetParticipantId?: string | null }) => {
       if (options?.isAdmin) return true;
+      if (row.targetParticipantId) return false;
+      if (row.targetUserId) return row.targetUserId === options?.userId;
+      if (!row.targetLabelId) return true;
       return userLabelIds.has(row.targetLabelId);
     };
 
@@ -5053,6 +5063,30 @@ export const myHubApi = {
   async acknowledgeMessage(messageId: string): Promise<void> {
     const { error } = await supabase.rpc('acknowledge_hub_message', { p_message_id: messageId });
     if (error) throw new Error(error.message);
+  },
+
+  async updateMessage(messageId: string, subject: string, body: string): Promise<{ message: import('../types').HubMessage }> {
+    const { data, error } = await supabase.rpc('update_hub_message', { p_message_id: messageId, p_subject: subject, p_body: body });
+    if (error || !data) throw new Error(error?.message || 'Failed to update message');
+    return { message: data as import('../types').HubMessage };
+  },
+
+  async deleteMessage(messageId: string): Promise<void> {
+    const { error } = await supabase.rpc('delete_hub_message', { p_message_id: messageId });
+    if (error) throw new Error(error.message);
+  },
+
+  async updateMeeting(hubId: string, input: { meetingDay: string | null; meetingTime: string | null; meetingDurationMins: number | null; callPlatform: import('../types').GroupCallPlatform | null; callLink: string | null }): Promise<{ hub: NonNullable<import('../types').MyHubPayload['hub']> }> {
+    const { data, error } = await supabase.rpc('update_hub_meeting', {
+      p_hub_id: hubId,
+      p_meeting_day: input.meetingDay,
+      p_meeting_time: input.meetingTime,
+      p_meeting_duration_mins: input.meetingDurationMins,
+      p_call_platform: input.callPlatform,
+      p_call_link: input.callLink,
+    });
+    if (error || !data) throw new Error(error?.message || 'Failed to save the hub meeting');
+    return { hub: data as NonNullable<import('../types').MyHubPayload['hub']> };
   },
 };
 

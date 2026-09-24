@@ -13,6 +13,7 @@ import GroupsExportPopup from '../components/groups/GroupsExportPopup';
 import GroupMeetingSlotEditor, { type MeetingSlot } from '../components/GroupMeetingSlotEditor';
 import PageLoader from '../components/PageLoader';
 import { sortByText } from '../utils/sort';
+import { selectedFirst } from '../utils/selectedFirst';
 import { reconcileById } from '../utils/reconcile';
 
 const groupNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
@@ -281,17 +282,12 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
     [allParticipants, group.id, selected]
   );
   const filtered = useMemo(() => {
-    if (!search.trim()) return assignable;
-    const q = search.toLowerCase();
-    return assignable.filter((p) =>
-      p.fullName.toLowerCase().includes(q) || (p.phone ?? '').toLowerCase().includes(q)
-    );
-  }, [assignable, search]);
-
-  const selectedParticipants = useMemo(
-    () => allParticipants.filter((participant) => selected.has(participant.id)),
-    [allParticipants, selected]
-  );
+    const q = search.trim().toLowerCase();
+    const list = q
+      ? assignable.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').toLowerCase().includes(q))
+      : assignable;
+    return selectedFirst(list, (p) => selected.has(p.id));
+  }, [assignable, search, selected]);
 
   return (
     <ModalShell
@@ -311,21 +307,6 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
     >
       <div className="flex flex-col gap-3">
         {err && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{err}</p>}
-        {selectedParticipants.length > 0 && (
-          <div className="flex flex-wrap gap-2 rounded-2xl border border-orange-100 bg-orange-50/50 p-3">
-            {selectedParticipants.map((participant) => (
-              <button
-                key={participant.id}
-                type="button"
-                onClick={() => toggle(participant.id)}
-                className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-gray-800 shadow-sm"
-              >
-                <span>{participant.fullName}</span>
-                <span className="text-xs text-red-500">Remove</span>
-              </button>
-            ))}
-          </div>
-        )}
         <input
           ref={searchRef}
           type="search"

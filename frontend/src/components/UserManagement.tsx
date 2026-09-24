@@ -6,6 +6,7 @@ import AppSelect from './AppSelect';
 import LabelChip from './LabelChip';
 import { formatDate, formatDateTime } from '../utils/time';
 import { sortByText } from '../utils/sort';
+import { selectedFirst } from '../utils/selectedFirst';
 import { useAuth } from '../hooks/useAuth';
 
 interface UserManagementProps {
@@ -419,7 +420,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Activity tags</label>
             <div className="max-h-36 space-y-2 overflow-y-auto rounded-md border border-gray-200 bg-white p-3">
-              {allLabels.map((label) => (
+              {selectedFirst(allLabels, (label) => newUserLabelIds.includes(label.id)).map((label) => (
                 <label key={label.id} className="flex cursor-pointer items-center gap-2">
                   <input
                     type="checkbox"
@@ -807,7 +808,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     ) : allLabels.length > 0 ? (
                       <>
                         <div className="border border-gray-200 rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
-                          {allLabels.map((label) => (
+                          {selectedFirst(allLabels, (label) => labelEditIds.includes(label.id)).map((label) => (
                             <label key={label.id} className="flex items-center gap-2 cursor-pointer">
                               <input
                                 type="checkbox"

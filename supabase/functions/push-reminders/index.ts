@@ -204,7 +204,7 @@ const resolveLiveWeeks = async (todayIso: string, hour: number): Promise<LiveWee
  * than a duplicate.
  */
 const claimReminder = async (
-  kind: 'ACTIVITY' | 'GROUP_MEETING',
+  kind: 'ACTIVITY' | 'GROUP_MEETING' | 'HUB_MEETING',
   targetId: string,
   userId: string,
   reminderDate: string,
@@ -470,6 +470,83 @@ Deno.serve(async (req) => {
 
           const r = await sendToSubscriptions(webPush, supabase, subs as any[], payload, notified)
           if (r.failed > 0) console.error(`push-reminders (group-meeting): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
+        }
+      }
+    }
+
+    // 6c. Hub meeting reminders — the recap/catch-up call the hub's lead sets
+    //     for the whole hub (SupportHub.meetingDay/meetingTime), same shape as
+    //     the group meeting block above but fanned out to every hub member
+    //     (not just the lead), each at their own remind_before_minutes timings.
+    {
+      for (const interval of remindIntervals) {
+        const target = resolveTarget(lagosNowMinutes, interval, todayISO)
+
+        const { data: hubs } = await supabase
+          .from('SupportHub')
+          .select('id, name, meetingTime, callLink')
+          .eq('meetingDay', DAY_NAMES_UPPER[target.dayIndex])
+          .not('meetingTime', 'is', null)
+          .not('callLink', 'is', null)
+
+        if (!hubs || hubs.length === 0) continue
+
+        const matchingHubs = (hubs as any[]).filter((h: any) => {
+          const t = parseTime(h.meetingTime)
+          if (t === null) return false
+          return Math.abs(t - target.targetMinutes) <= WINDOW
+        })
+
+        if (matchingHubs.length === 0) continue
+
+        const minuteLabel = interval < 60
+          ? `${interval} mins`
+          : interval === 60
+          ? '1 hour'
+          : interval === 1440
+          ? 'tomorrow'
+          : `${Math.round(interval / 60)} hours`
+
+        for (const hub of matchingHubs) {
+          const { data: members } = await supabase
+            .from('HubMembership')
+            .select('userId')
+            .eq('hubId', hub.id)
+
+          let memberIds = [...new Set(((members || []) as any[]).map((m: any) => m.userId))]
+          memberIds = memberIds.filter((id) => wantsInterval(id, interval))
+          if (onlyUserIds) memberIds = memberIds.filter((id) => onlyUserIds!.includes(id))
+          if (memberIds.length === 0) continue
+
+          const { data: subs } = await supabase
+            .from('PushSubscription')
+            .select('userId, endpoint, p256dh, auth')
+            .in('userId', memberIds)
+
+          if (!subs || subs.length === 0) continue
+
+          const payload = JSON.stringify({
+            title: `🙏 Hub meeting reminder — ${minuteLabel} away`,
+            body: `${hub.name} meets at ${hub.meetingTime}. Join: ${hub.callLink}`,
+            icon: '/icon-192.png',
+            tag: `fof-hubmeeting-${hub.id}-${interval}`,
+            data: { path: '/support/my-hub' },
+          })
+
+          for (const userId of memberIds) {
+            const userSubs = (subs as any[]).filter((s: any) => s.userId === userId)
+            if (userSubs.length === 0) continue
+
+            if (dryRun) {
+              debug.push({ wouldSend: 'HUB_MEETING', hubId: hub.id, interval, userId, subs: userSubs.length })
+              continue
+            }
+
+            if (!(await claimReminder('HUB_MEETING', String(hub.id), userId, target.isoDate, interval))) continue
+
+            const r = await sendToSubscriptions(webPush, supabase, userSubs, payload, notified)
+            if (r.failed > 0) console.error(`push-reminders (hub-meeting): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
+          }
         }
       }
     }

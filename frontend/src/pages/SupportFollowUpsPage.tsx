@@ -22,6 +22,7 @@ import {
   NEXT_ACTION_META,
   isClosedContact,
   isClosedRegistrationStatus,
+  contactInCohortScope,
 } from '../utils/followUps';
 import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { compareText, sortByText } from '../utils/sort';
@@ -85,7 +86,7 @@ const statusGroups: Array<{ key: keyof FilterState; label: string; options: Arra
 
 const SupportFollowUpsPage: React.FC = () => {
   const { user } = useAuth();
-  const { cohorts, liveRevision } = useAppData();
+  const { cohorts, activeCohort, liveRevision } = useAppData();
 
   const [tab, setTab] = useState<Tab>('contacts');
   const [contacts, setContacts] = useState<FollowUpContact[]>([]);
@@ -97,6 +98,7 @@ const SupportFollowUpsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [showPastCohorts, setShowPastCohorts] = useState(false);
   const initialLoadRef = useRef(true);
 
   const [filters, setFilters] = useState<FilterState>({ reply: '', call: '', reg: '', next: '', archived: false });
@@ -139,9 +141,16 @@ const SupportFollowUpsPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadAll]);
 
+  // Default view stays on the active cohort (plus contacts with no cohort at
+  // all, which count as belonging to it); "Show past cohorts" reveals the rest.
+  const cohortScopedContacts = useMemo(() => {
+    if (showPastCohorts || !activeCohort) return contacts;
+    return contacts.filter((c) => contactInCohortScope(c, activeCohort.id, activeCohort.id));
+  }, [contacts, showPastCohorts, activeCohort]);
+
   const visibleContacts = useMemo(
     () => {
-      let list = contacts.filter((c) => {
+      let list = cohortScopedContacts.filter((c) => {
         if (filters.archived && c.archivedAt) return false;
         if (filters.reply && c.replyStatus !== filters.reply) return false;
         if (filters.call && c.callStatus !== filters.call) return false;
@@ -156,7 +165,7 @@ const SupportFollowUpsPage: React.FC = () => {
       });
       return list;
     },
-    [contacts, filters]
+    [cohortScopedContacts, filters]
   );
 
   const visibleIssues = useMemo(() => {
@@ -319,7 +328,7 @@ const SupportFollowUpsPage: React.FC = () => {
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         {[
-          { key: 'contacts', label: `Contacts (${contacts.filter((c) => !c.archivedAt).length})` },
+          { key: 'contacts', label: `Contacts (${cohortScopedContacts.filter((c) => !c.archivedAt).length})` },
           { key: 'issues', label: 'Issues' },
         ].map((item) => (
           <button
@@ -336,19 +345,31 @@ const SupportFollowUpsPage: React.FC = () => {
             )}
           </button>
         ))}
-        <button
-          type="button"
-          data-wt="fu-filter"
-          onPointerDown={openFilterPanel}
-          className="ml-auto relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-orange-200 bg-white text-gray-600 hover:bg-orange-50"
-        >
-          <span className="h-5 w-5">{FilterIcon}</span>
-          {filterCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold leading-none text-white shadow-sm">
-              {filterCount}
-            </span>
-          )}
-        </button>
+        <div className="ml-auto flex items-center gap-3">
+          <label className="flex items-center gap-2 text-xs font-semibold text-gray-600">
+            <span>Show past cohorts</span>
+            <button
+              type="button"
+              onClick={() => setShowPastCohorts((v) => !v)}
+              className={`relative h-6 w-11 rounded-full transition ${showPastCohorts ? 'bg-primary' : 'bg-gray-300'}`}
+            >
+              <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${showPastCohorts ? 'translate-x-5' : ''}`} />
+            </button>
+          </label>
+          <button
+            type="button"
+            data-wt="fu-filter"
+            onPointerDown={openFilterPanel}
+            className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-orange-200 bg-white text-gray-600 hover:bg-orange-50"
+          >
+            <span className="h-5 w-5">{FilterIcon}</span>
+            {filterCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold leading-none text-white shadow-sm">
+                {filterCount}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {loadError && <p className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>}

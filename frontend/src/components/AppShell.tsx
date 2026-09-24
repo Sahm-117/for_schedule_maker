@@ -17,6 +17,7 @@ import ErrorBoundary from './ErrorBoundary';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useTourState } from '../context/TourContext';
 import { sortByText } from '../utils/sort';
+import { getHubPhase } from '../utils/hubPhase';
 
 type NavItem = {
   to: string;
@@ -275,11 +276,10 @@ const AppShell: React.FC = () => {
   const { busy: tourBusy } = useTourState();
   // Day 5+ of the cohort, a hub support reaches My Hub more than Mobilisation,
   // so the two swap places on the mobile bottom bar (desktop keeps both).
-  const hubPhase = useMemo(() => {
-    if (!isSupport || !myHub?.hub || !activeCohort?.startDate) return false;
-    const start = new Date(`${activeCohort.startDate}T00:00:00Z`);
-    return Date.now() >= start.getTime() + 5 * 24 * 60 * 60 * 1000;
-  }, [isSupport, myHub?.hub, activeCohort?.startDate]);
+  const hubPhase = useMemo(
+    () => isSupport && getHubPhase(!!myHub?.hub, activeCohort?.startDate),
+    [isSupport, myHub?.hub, activeCohort?.startDate]
+  );
   const isMobileMoreItem = (item: NavItem) => {
     if (item.to === '/support/mobilisation') return hubPhase;
     if (item.to === '/support/my-hub') return !hubPhase;

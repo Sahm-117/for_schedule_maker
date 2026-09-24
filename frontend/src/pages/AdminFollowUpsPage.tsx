@@ -31,6 +31,7 @@ import {
   isClosedContact,
   isClosedRegistrationStatus,
   computeFollowUpStatus,
+  contactInCohortScope,
   FOLLOW_UP_STAGE,
   FOLLOW_UP_STATUS_META,
 } from '../utils/followUps';
@@ -104,6 +105,8 @@ const AdminFollowUpsPage: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [showLinkTip, setShowLinkTip] = useState(false);
   const [cohortFilter, setCohortFilter] = useState('');
+  const cohortFilterInitRef = useRef(false);
+  const cohortFilterTouchedRef = useRef(false);
   const [ownerFilter, setOwnerFilter] = useState('');
   // Contacts list order: newest additions first by default, or A–Z.
   const [contactSort, setContactSort] = useState<'newest' | 'alpha'>('newest');
@@ -154,13 +157,22 @@ const AdminFollowUpsPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [loadAll]);
 
+  // Default the cohort filter to the active cohort once it's known, unless
+  // the admin has already picked something from the dropdown themselves.
+  useEffect(() => {
+    if (!cohortFilterInitRef.current && !cohortFilterTouchedRef.current && activeCohort) {
+      setCohortFilter(activeCohort.id);
+      cohortFilterInitRef.current = true;
+    }
+  }, [activeCohort]);
+
   const replaceContact = (updated: FollowUpContact) => {
     setContacts((prev) => sortByText(prev.map((c) => (c.id === updated.id ? updated : c)), (contact) => contact.fullName));
   };
 
   const filteredContacts = useMemo(() => {
     let list = contacts.filter((c) => {
-      if (cohortFilter && c.cohortId !== cohortFilter) return false;
+      if (cohortFilter && !contactInCohortScope(c, cohortFilter, activeCohort?.id)) return false;
       if (ownerFilter === '__unassigned__' && c.ownerId) return false;
       if (ownerFilter && ownerFilter !== '__unassigned__' && c.ownerId !== ownerFilter) return false;
       if (filters.archived && c.archivedAt) return false;
@@ -185,10 +197,12 @@ const AdminFollowUpsPage: React.FC = () => {
       return (aClosed - bClosed) || compareText(a.fullName, b.fullName);
     });
     return list;
-  }, [contacts, cohortFilter, ownerFilter, filters, statusParam, contactSort]);
+  }, [contacts, cohortFilter, ownerFilter, filters, statusParam, contactSort, activeCohort?.id]);
 
   const ownerOptionCounts = useMemo(() => {
-    const scoped = cohortFilter ? contacts.filter((c) => c.cohortId === cohortFilter && !c.archivedAt) : contacts.filter((c) => !c.archivedAt);
+    const scoped = cohortFilter
+      ? contacts.filter((c) => contactInCohortScope(c, cohortFilter, activeCohort?.id) && !c.archivedAt)
+      : contacts.filter((c) => !c.archivedAt);
     const total = scoped.length;
     const unassigned = scoped.filter((c) => !c.ownerId).length;
     const perOwner: Record<string, number> = {};
@@ -196,11 +210,11 @@ const AdminFollowUpsPage: React.FC = () => {
       perOwner[o.id] = scoped.filter((c) => c.ownerId === o.id).length;
     });
     return { total, unassigned, perOwner };
-  }, [contacts, owners, cohortFilter]);
+  }, [contacts, owners, cohortFilter, activeCohort?.id]);
 
   const dashboardContacts = useMemo(
-    () => (cohortFilter ? contacts.filter((c) => c.cohortId === cohortFilter) : contacts),
-    [contacts, cohortFilter]
+    () => (cohortFilter ? contacts.filter((c) => contactInCohortScope(c, cohortFilter, activeCohort?.id)) : contacts),
+    [contacts, cohortFilter, activeCohort?.id]
   );
 
   if (!isAdmin) {
@@ -397,7 +411,7 @@ const AdminFollowUpsPage: React.FC = () => {
             <div className="w-52">
               <AppSelect
                 value={cohortFilter}
-                onChange={setCohortFilter}
+                onChange={(v) => { cohortFilterTouchedRef.current = true; setCohortFilter(v); }}
                 options={[{ value: '', label: 'All cohorts' }, ...sortByText(cohorts, (c) => c.name).map((c) => ({ value: c.id, label: c.name }))]}
                 placeholder="All cohorts"
                 compact

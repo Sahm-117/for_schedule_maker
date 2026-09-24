@@ -56,7 +56,7 @@ const NotificationBell: React.FC = () => {
   const isSupport = user?.role === 'SUPPORT';
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<'announcements' | 'activity'>('announcements');
+  const [tab, setTab] = useState<'announcements' | 'activity'>('activity');
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);

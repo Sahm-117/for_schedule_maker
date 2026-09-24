@@ -492,7 +492,7 @@ export const notificationSettingsApi = USE_SUPABASE ? supabaseNotificationSettin
 };
 
 export const announcementsApi = USE_SUPABASE ? supabaseAnnouncementsApi : {
-  async send(_subject: string, _body: string, _sentBy: string, _options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null; targetLabelId?: string | null; targetGroupId?: string | null; targetHubId?: string | null; home?: { homeUntil: string; linkUrl?: string | null; linkLabel?: string | null } | null }): Promise<{ sent: number }> { return { sent: 0 }; },
+  async send(_subject: string, _body: string, _sentBy: string, _options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null; targetLabelId?: string | null; targetGroupId?: string | null; targetHubId?: string | null; targetUserId?: string | null; targetParticipantId?: string | null; home?: { homeUntil: string; linkUrl?: string | null; linkLabel?: string | null } | null }): Promise<{ sent: number }> { return { sent: 0 }; },
   async delete(_announcementId: string): Promise<{ message: string }> { return { message: 'Not supported' }; },
   async removeFromHome(_announcementId: string): Promise<void> {},
   async getHistory(_options?: {
@@ -609,6 +609,9 @@ export const myHubApi = USE_SUPABASE ? supabaseMyHubApi : {
   async get(_cohortId: string): Promise<import('../types').MyHubPayload> { return { hub: null, isLead: false, members: [], messages: [], myAttendance: [] }; },
   async postMessage(_hubId: string, _subject: string, _body: string): Promise<never> { return peopleUnavailable(); },
   async acknowledgeMessage(_messageId: string): Promise<never> { return peopleUnavailable(); },
+  async updateMessage(_messageId: string, _subject: string, _body: string): Promise<never> { return peopleUnavailable(); },
+  async deleteMessage(_messageId: string): Promise<never> { return peopleUnavailable(); },
+  async updateMeeting(_hubId: string, _input: any): Promise<never> { return peopleUnavailable(); },
 };
 
 export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {

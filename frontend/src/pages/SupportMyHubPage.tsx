@@ -3,6 +3,9 @@ import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import SegmentedTabs from '../components/SegmentedTabs';
 import AppSelect from '../components/AppSelect';
+import AppOverflowMenu from '../components/AppOverflowMenu';
+import ConfirmationModal from '../components/ConfirmationModal';
+import { MeetingCallCard, type MeetingSaveInput } from '../components/groups/GroupCallCard';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { myHubApi, supportNotesApi, supportSessionsApi } from '../services/api';
@@ -140,6 +143,58 @@ const SupportMyHubPage: React.FC = () => {
     }
   };
 
+  // ── Edit / delete a message (author, lead or admin) ───────────────────────
+  const [editingMessage, setEditingMessage] = useState<HubMessage | null>(null);
+  const [editSubject, setEditSubject] = useState('');
+  const [editBody, setEditBody] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [deletingMessage, setDeletingMessage] = useState<HubMessage | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const startEditMessage = (msg: HubMessage) => {
+    setEditingMessage(msg);
+    setEditSubject(msg.subject);
+    setEditBody(msg.body);
+    setEditError('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingMessage || !editSubject.trim() || !editBody.trim()) return;
+    setEditSaving(true);
+    setEditError('');
+    try {
+      await myHubApi.updateMessage(editingMessage.id, editSubject.trim(), editBody.trim());
+      setEditingMessage(null);
+      void refreshMyHub();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Could not save this message.');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDeleteMessage = async () => {
+    if (!deletingMessage) return;
+    setDeleting(true);
+    try {
+      await myHubApi.deleteMessage(deletingMessage.id);
+      setDeletingMessage(null);
+      void refreshMyHub();
+    } catch {
+      /* leave the dialog open so the lead can retry */
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // ── Hub meeting (lead only edits; every member sees it) ───────────────────
+  const handleSaveMeeting = async (input: MeetingSaveInput) => {
+    if (!myHub?.hub) return;
+    await myHubApi.updateMeeting(myHub.hub.id, input);
+    void refreshMyHub();
+  };
+
   if (user?.role !== 'SUPPORT') return <Navigate to="/dashboard" replace />;
 
   const isLead = !!myHub?.isLead;
@@ -184,6 +239,23 @@ const SupportMyHubPage: React.FC = () => {
                 </div>
               </section>
 
+              <section className="surface-card p-5">
+                <p className="mb-2 text-sm font-semibold text-gray-700">Hub meeting</p>
+                <MeetingCallCard
+                  slot={{
+                    meetingDay: myHub.hub.meetingDay ?? null,
+                    meetingTime: myHub.hub.meetingTime ?? null,
+                    meetingDurationMins: myHub.hub.meetingDurationMins ?? null,
+                  }}
+                  callPlatform={myHub.hub.callPlatform ?? null}
+                  callLink={myHub.hub.callLink ?? null}
+                  resetKey={myHub.hub.id}
+                  linkLabel="Meeting Call Link"
+                  saveLabel="Save hub meeting"
+                  onSave={isLead ? handleSaveMeeting : undefined}
+                />
+              </section>
+
               <section data-wt="hub-members" className="surface-card p-5">
                 <p className="mb-2 text-sm font-semibold text-gray-700">Fellow supports</p>
                 {myHub.members.length === 0 ? (
@@ -211,11 +283,25 @@ const SupportMyHubPage: React.FC = () => {
                   <ul className="max-h-[26rem] space-y-3 overflow-y-auto">
                     {myHub.messages.map((msg) => {
                       const acked = !!msg.ackedByMe || ackedLocal.has(msg.id);
+                      const canManage = isLead || msg.authorId === user?.id;
                       return (
                         <li key={msg.id} className="rounded-xl border border-orange-100 p-3">
-                          <p className="text-sm font-semibold text-gray-900">{msg.subject}</p>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-semibold text-gray-900">{msg.subject}</p>
+                            {canManage && (
+                              <AppOverflowMenu
+                                items={[
+                                  { label: 'Edit', onClick: () => startEditMessage(msg) },
+                                  { label: 'Delete', tone: 'danger', onClick: () => setDeletingMessage(msg) },
+                                ]}
+                              />
+                            )}
+                          </div>
                           <p className="mt-1 whitespace-pre-line text-sm text-gray-700">{msg.body}</p>
-                          <p className="mt-1.5 text-[11px] text-gray-400">{msg.authorName || 'Hub lead'} · {new Date(msg.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                          <p className="mt-1.5 text-[11px] text-gray-400">
+                            {msg.authorName || 'Hub lead'} · {new Date(msg.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            {msg.editedAt && ' · edited'}
+                          </p>
                           {!isLead && (
                             acked ? (
                               <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2.5 py-1 text-xs font-semibold text-emerald-700">✓ Acknowledged</span>
@@ -223,7 +309,7 @@ const SupportMyHubPage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => void handleAcknowledge(msg.id)}
-                                className="mt-2 rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200"
+                                className="fof-glow-ring mt-2 rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200"
                               >
                                 Got it
                               </button>
@@ -368,6 +454,59 @@ const SupportMyHubPage: React.FC = () => {
           )}
         </div>
       )}
+
+      {editingMessage && (
+        <div className="fixed inset-0 z-[70] flex items-end bg-black/50 p-0 sm:items-center sm:justify-center sm:p-4">
+          <div className="w-full overflow-y-auto rounded-t-3xl bg-white p-6 shadow-xl sm:max-w-lg sm:rounded-2xl">
+            <h3 className="mb-4 text-lg font-semibold text-gray-900">Edit message</h3>
+            <div className="flex flex-col gap-3">
+              <input
+                type="text"
+                value={editSubject}
+                onChange={(e) => setEditSubject(e.target.value)}
+                placeholder="Subject"
+                className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <textarea
+                value={editBody}
+                onChange={(e) => setEditBody(e.target.value)}
+                rows={4}
+                placeholder="Message"
+                className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              {editError && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{editError}</p>}
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setEditingMessage(null)}
+                  className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSaveEdit()}
+                  disabled={editSaving || !editSubject.trim() || !editBody.trim()}
+                  className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {editSaving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmationModal
+        isOpen={!!deletingMessage}
+        onClose={() => setDeletingMessage(null)}
+        onConfirm={() => void handleDeleteMessage()}
+        title="Delete this message?"
+        message="This removes the message and everyone's 'Got it' marks on it. Members won't be notified."
+        confirmText={deleting ? 'Deleting…' : 'Delete'}
+        confirmDisabled={deleting}
+        type="danger"
+      />
     </div>
   );
 };
@@ -387,9 +526,18 @@ const HubMessageAckSummary: React.FC<{ message: HubMessage; members: MyHubMember
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="text-xs font-semibold text-gray-500 hover:text-gray-700"
+        className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-700"
       >
         {ackCount} of {memberCount} acknowledged
+        <svg
+          className={`h-3 w-3 shrink-0 transition-transform ${open ? 'rotate-90' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+        </svg>
       </button>
       {open && (
         notAcked.length === 0 ? (

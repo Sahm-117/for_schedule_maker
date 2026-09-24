@@ -14,6 +14,8 @@
  *   targetLabelId?: string | null,
  *   targetGroupId?: string | null (PARTICIPANTS audience only: narrows to one group's roster)
  *   targetHubId?: string | null (SUPPORTS/EVERYONE audience: narrows to one hub's members)
+ *   targetUserId?: string | null (send to a single support/admin only)
+ *   targetParticipantId?: string | null (send to a single participant only)
  * }
  *
  * Required Supabase secrets:
@@ -29,7 +31,11 @@ import { insertNotifications } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  // x-session-token: the app's own session header (see lib/supabase.ts), sent
+  // on every request since 076aa0d. Missed here, so every browser send has
+  // failed CORS preflight and silently thrown since that commit — unrelated
+  // to this feature, but it blocks sending anything, so fixed alongside it.
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-session-token',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
@@ -57,7 +63,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, targetGroupId = null, targetHubId = null, audience = 'SUPPORTS' } = await req.json() as {
+    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, targetGroupId = null, targetHubId = null, targetUserId = null, targetParticipantId = null, audience = 'SUPPORTS' } = await req.json() as {
       subject: string
       body: string
       sentBy?: string
@@ -66,6 +72,10 @@ Deno.serve(async (req) => {
       targetLabelId?: string | null
       targetGroupId?: string | null
       targetHubId?: string | null
+      // Send to a single support/admin only. Mutually exclusive with the group/hub/tag filters.
+      targetUserId?: string | null
+      // Send to a single participant only. Mutually exclusive with the group/hub/tag filters.
+      targetParticipantId?: string | null
       // SUPPORTS (default), PARTICIPANTS (participant app only) or EVERYONE.
       audience?: 'SUPPORTS' | 'PARTICIPANTS' | 'EVERYONE'
     }
@@ -87,7 +97,19 @@ Deno.serve(async (req) => {
     // 1. Record the announcement
     const { data: announcement, error: insertError } = await supabase
       .from('Announcement')
-      .insert([{ subject, body, sentBy: sentBy || null, scope, cohortId, targetLabelId: audience === 'PARTICIPANTS' ? null : targetLabelId, targetGroupId: audience === 'PARTICIPANTS' ? targetGroupId : null, targetHubId: audience === 'PARTICIPANTS' ? null : targetHubId, audience }])
+      .insert([{
+        subject,
+        body,
+        sentBy: sentBy || null,
+        scope,
+        cohortId,
+        targetLabelId: audience === 'PARTICIPANTS' ? null : targetLabelId,
+        targetGroupId: audience === 'PARTICIPANTS' ? targetGroupId : null,
+        targetHubId: audience === 'PARTICIPANTS' ? null : targetHubId,
+        targetUserId: audience === 'PARTICIPANTS' ? null : targetUserId,
+        targetParticipantId: audience === 'SUPPORTS' ? null : targetParticipantId,
+        audience,
+      }])
       .select('id')
       .single()
 
@@ -98,23 +120,29 @@ Deno.serve(async (req) => {
     // 1b. Participants: push to their devices (they have no in-app feed; the
     //     announcement shows on their Home when pinned there).
     let participantSent = 0
-    if (audience === 'PARTICIPANTS' || audience === 'EVERYONE') {
-      let participantQuery = supabase
-        .from('ParticipantAccount')
-        .select('participantId, participant:Participant!inner(cohortId, status)')
-        .eq('isActive', true)
-        .eq('participant.status', 'ACTIVE')
-      if (scope === 'ACTIVE_COHORT' && cohortId) participantQuery = participantQuery.eq('participant.cohortId', cohortId)
-      const { data: accounts } = await participantQuery
-      let participantIds = ((accounts ?? []) as any[]).map((row) => row.participantId)
-      if (targetGroupId) {
-        const { data: groupMembers, error: groupMembersError } = await supabase
-          .from('GroupParticipant')
-          .select('participantId')
-          .eq('groupId', targetGroupId)
-        if (groupMembersError) throw new Error(groupMembersError.message)
-        const groupParticipantIds = new Set((groupMembers || []).map((row: any) => row.participantId))
-        participantIds = participantIds.filter((id) => groupParticipantIds.has(id))
+    // Skip participants entirely when the send is targeted at a single support/admin.
+    if ((audience === 'PARTICIPANTS' || audience === 'EVERYONE') && !targetUserId) {
+      let participantIds: string[]
+      if (targetParticipantId) {
+        participantIds = [targetParticipantId]
+      } else {
+        let participantQuery = supabase
+          .from('ParticipantAccount')
+          .select('participantId, participant:Participant!inner(cohortId, status)')
+          .eq('isActive', true)
+          .eq('participant.status', 'ACTIVE')
+        if (scope === 'ACTIVE_COHORT' && cohortId) participantQuery = participantQuery.eq('participant.cohortId', cohortId)
+        const { data: accounts } = await participantQuery
+        participantIds = ((accounts ?? []) as any[]).map((row) => row.participantId)
+        if (targetGroupId) {
+          const { data: groupMembers, error: groupMembersError } = await supabase
+            .from('GroupParticipant')
+            .select('participantId')
+            .eq('groupId', targetGroupId)
+          if (groupMembersError) throw new Error(groupMembersError.message)
+          const groupParticipantIds = new Set((groupMembers || []).map((row: any) => row.participantId))
+          participantIds = participantIds.filter((id) => groupParticipantIds.has(id))
+        }
       }
       if (participantIds.length > 0) {
         const { data: participantSubs } = await supabase
@@ -142,58 +170,66 @@ Deno.serve(async (req) => {
     }
 
     // 2. Resolve final recipients from scope, optional tag, and active users.
+    //    A single-participant target excludes every support/admin; a single-user
+    //    target is the whole recipient set, skipping scope/tag/hub filtering.
     let scopedUserIds: string[] = []
 
-    if (scope === 'ACTIVE_COHORT' && cohortId) {
-      const { data: memberships, error: membershipError } = await supabase
-        .from('UserCohort')
-        .select('userId')
-        .eq('cohortId', cohortId)
-
-      if (membershipError) {
-        throw new Error(membershipError.message)
-      }
-
-      scopedUserIds = Array.from(new Set((memberships || []).map((row: any) => row.userId).filter(Boolean)))
+    if (targetParticipantId) {
+      scopedUserIds = []
+    } else if (targetUserId) {
+      scopedUserIds = [targetUserId]
     } else {
-      const { data: users, error: usersError } = await supabase
-        .from('User')
-        .select('id')
-        .eq('isActive', true)
+      if (scope === 'ACTIVE_COHORT' && cohortId) {
+        const { data: memberships, error: membershipError } = await supabase
+          .from('UserCohort')
+          .select('userId')
+          .eq('cohortId', cohortId)
 
-      if (usersError) {
-        throw new Error(usersError.message)
+        if (membershipError) {
+          throw new Error(membershipError.message)
+        }
+
+        scopedUserIds = Array.from(new Set((memberships || []).map((row: any) => row.userId).filter(Boolean)))
+      } else {
+        const { data: users, error: usersError } = await supabase
+          .from('User')
+          .select('id')
+          .eq('isActive', true)
+
+        if (usersError) {
+          throw new Error(usersError.message)
+        }
+
+        scopedUserIds = Array.from(new Set((users || []).map((row: any) => row.id).filter(Boolean)))
       }
 
-      scopedUserIds = Array.from(new Set((users || []).map((row: any) => row.id).filter(Boolean)))
-    }
+      if (targetLabelId) {
+        const { data: labelUsers, error: labelError } = await supabase
+          .from('UserLabel')
+          .select('userId')
+          .eq('labelId', targetLabelId)
 
-    if (targetLabelId) {
-      const { data: labelUsers, error: labelError } = await supabase
-        .from('UserLabel')
-        .select('userId')
-        .eq('labelId', targetLabelId)
+        if (labelError) {
+          throw new Error(labelError.message)
+        }
 
-      if (labelError) {
-        throw new Error(labelError.message)
+        const labelUserIds = new Set((labelUsers || []).map((row: any) => row.userId).filter(Boolean))
+        scopedUserIds = scopedUserIds.filter((userId) => labelUserIds.has(userId))
       }
 
-      const labelUserIds = new Set((labelUsers || []).map((row: any) => row.userId).filter(Boolean))
-      scopedUserIds = scopedUserIds.filter((userId) => labelUserIds.has(userId))
-    }
+      if (targetHubId) {
+        const { data: hubMembers, error: hubError } = await supabase
+          .from('HubMembership')
+          .select('userId')
+          .eq('hubId', targetHubId)
 
-    if (targetHubId) {
-      const { data: hubMembers, error: hubError } = await supabase
-        .from('HubMembership')
-        .select('userId')
-        .eq('hubId', targetHubId)
+        if (hubError) {
+          throw new Error(hubError.message)
+        }
 
-      if (hubError) {
-        throw new Error(hubError.message)
+        const hubUserIds = new Set((hubMembers || []).map((row: any) => row.userId).filter(Boolean))
+        scopedUserIds = scopedUserIds.filter((userId) => hubUserIds.has(userId))
       }
-
-      const hubUserIds = new Set((hubMembers || []).map((row: any) => row.userId).filter(Boolean))
-      scopedUserIds = scopedUserIds.filter((userId) => hubUserIds.has(userId))
     }
 
     if (scopedUserIds.length === 0) {

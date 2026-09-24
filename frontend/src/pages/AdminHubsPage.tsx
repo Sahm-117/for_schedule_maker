@@ -3,14 +3,111 @@ import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { groupsApi, supportHubsApi, usersApi } from '../services/api';
-import type { Group, HubMembership, SupportHub, User } from '../types';
+import { groupsApi, supportHubsApi, supportSessionsApi, usersApi } from '../services/api';
+import type { Group, HubMembership, SupportAttendanceStatus, SupportHub, User, Week } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
 import PageLoader from '../components/PageLoader';
 import { sortByText } from '../utils/sort';
+import { selectedFirst } from '../utils/selectedFirst';
+import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
+import { cohortMode } from '../components/dashboard/healthModel';
+
+// ── Recap Attendance Modal ────────────────────────────────────────────────────
+// Same controls and API calls as the hub lead's Recap tab in SupportMyHubPage.
+
+const STATUS_OPTIONS: Array<{ value: SupportAttendanceStatus; label: string }> = [
+  { value: 'PRESENT', label: 'Present' },
+  { value: 'LATE', label: 'Late' },
+  { value: 'ABSENT', label: 'Absent' },
+  { value: 'EXCUSED', label: 'Excused' },
+];
+
+const RecapAttendanceModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  hub: SupportHub;
+  members: User[];
+  weeks: Week[];
+  defaultWeekId: number | null;
+  onMarked: (hubId: string, weekId: number, marks: Record<string, SupportAttendanceStatus>) => void;
+}> = ({ isOpen, onClose, hub, members, weeks, defaultWeekId, onMarked }) => {
+  const sortedWeeks = useMemo(() => [...weeks].sort((a, b) => b.weekNumber - a.weekNumber), [weeks]);
+  const [weekId, setWeekId] = useState<number | null>(defaultWeekId);
+  const [marks, setMarks] = useState<Record<string, SupportAttendanceStatus>>({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) setWeekId(defaultWeekId ?? (sortedWeeks[0]?.id ?? null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, defaultWeekId]);
+
+  useEffect(() => {
+    if (!isOpen || weekId == null) return;
+    setLoading(true);
+    supportSessionsApi.getForHubWeek(hub.id, weekId)
+      .then(({ attendance }) => {
+        const map: Record<string, SupportAttendanceStatus> = {};
+        attendance.forEach((a) => { map[a.userId] = a.status; });
+        setMarks(map);
+      })
+      .catch(() => setMarks({}))
+      .finally(() => setLoading(false));
+  }, [isOpen, hub.id, weekId]);
+
+  const handleMark = async (userId: string, status: SupportAttendanceStatus) => {
+    if (weekId == null) return;
+    setSaving(userId);
+    try {
+      await supportSessionsApi.mark({ status, userId, hubId: hub.id, weekId });
+      const next = { ...marks, [userId]: status };
+      setMarks(next);
+      onMarked(hub.id, weekId, next);
+    } catch { /* ignore */ }
+    finally { setSaving(null); }
+  };
+
+  return (
+    <ModalShell isOpen={isOpen} onClose={onClose} title={`Recap attendance — ${hub.name}`} wide>
+      <div className="flex flex-col gap-4">
+        <div className="w-full sm:w-64">
+          <AppSelect
+            value={weekId != null ? String(weekId) : ''}
+            onChange={(v) => setWeekId(v ? Number(v) : null)}
+            options={sortedWeeks.map((w) => ({ value: String(w.id), label: `Week ${w.weekNumber}` }))}
+            placeholder="Pick a week"
+            compact
+          />
+        </div>
+        {loading ? (
+          <p className="text-sm text-gray-400">Loading…</p>
+        ) : members.length === 0 ? (
+          <p className="text-sm text-gray-400">No members yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {members.map((m) => (
+              <li key={m.id} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
+                <span className="text-sm font-semibold text-gray-900">{m.name}</span>
+                <div className="w-40">
+                  <AppSelect
+                    value={marks[m.id] ?? ''}
+                    onChange={(v) => v && void handleMark(m.id, v as SupportAttendanceStatus)}
+                    options={STATUS_OPTIONS}
+                    placeholder={saving === m.id ? 'Saving…' : 'Not marked'}
+                    compact
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </ModalShell>
+  );
+};
 
 // ── Hub Form Modal (create / rename) ──────────────────────────────────────────
 
@@ -174,9 +271,9 @@ const HubMembersModal: React.FC<{
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return allSupports;
-    return allSupports.filter((u) => u.name.toLowerCase().includes(q));
-  }, [allSupports, search]);
+    const list = q ? allSupports.filter((u) => u.name.toLowerCase().includes(q)) : allSupports;
+    return selectedFirst(list, (u) => selected.has(u.id));
+  }, [allSupports, search, selected]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -245,7 +342,7 @@ const HubMembersModal: React.FC<{
 
 const AdminHubsPage: React.FC = () => {
   const { isAdmin } = useAuth();
-  const { activeCohort, liveRevision } = useAppData();
+  const { activeCohort, liveRevision, weeks } = useAppData();
 
   const [hubs, setHubs] = useState<SupportHub[]>([]);
   const [memberships, setMemberships] = useState<HubMembership[]>([]);
@@ -257,6 +354,10 @@ const AdminHubsPage: React.FC = () => {
   const [leadTarget, setLeadTarget] = useState<SupportHub | null>(null);
   const [membersTarget, setMembersTarget] = useState<SupportHub | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SupportHub | null>(null);
+  const [recapTarget, setRecapTarget] = useState<SupportHub | null>(null);
+  const [recapByHub, setRecapByHub] = useState<Record<string, { weekId: number; weekNumber: number; marked: number; total: number; absent: number }>>({});
+  const [search, setSearch] = useState('');
+  const [recapFilter, setRecapFilter] = useState<'all' | 'behind' | 'complete'>('all');
 
   const load = useCallback(async () => {
     if (!activeCohort) { setLoading(false); return; }
@@ -278,6 +379,54 @@ const AdminHubsPage: React.FC = () => {
 
   useEffect(() => { void load(); }, [load, liveRevision]);
 
+  // Recap summary for the card: the latest week that's actually over and fair
+  // to judge — same "judged weeks" rule as the Supports page and dashboard
+  // (the in-progress current week isn't judged yet, so absences in it don't
+  // show up as "missed recap" elsewhere until the week is over).
+  const summaryWeek = useMemo(() => {
+    if (!activeCohort || weeks.length === 0) return null;
+    const sorted = [...weeks].sort((a, b) => a.weekNumber - b.weekNumber);
+    const mode = cohortMode(activeCohort);
+    if (mode === 'upcoming') return null;
+    if (mode === 'completed') return sorted[sorted.length - 1];
+    const idealNumber = getIdealWeekNumberForCohort(activeCohort, new Date());
+    const judged = sorted.filter((w) => w.weekNumber < idealNumber);
+    return judged.length > 0 ? judged[judged.length - 1] : null;
+  }, [activeCohort, weeks]);
+
+  useEffect(() => {
+    if (!summaryWeek || hubs.length === 0) { setRecapByHub({}); return; }
+    let cancelled = false;
+    const membersByHubLocal = new Map<string, string[]>();
+    memberships.forEach((m) => {
+      membersByHubLocal.set(m.hubId, [...(membersByHubLocal.get(m.hubId) ?? []), m.userId]);
+    });
+    (async () => {
+      try {
+        const entries = await Promise.all(hubs.map(async (h) => {
+          const memberIds = membersByHubLocal.get(h.id) ?? [];
+          if (memberIds.length === 0) {
+            return [h.id, { weekId: summaryWeek.id, weekNumber: summaryWeek.weekNumber, marked: 0, total: 0, absent: 0 }] as const;
+          }
+          const { attendance } = await supportSessionsApi.getForHubWeek(h.id, summaryWeek.id);
+          const byUser = new Map(attendance.map((a) => [a.userId, a.status]));
+          let marked = 0;
+          let absent = 0;
+          memberIds.forEach((id) => {
+            const status = byUser.get(id);
+            if (status) marked += 1;
+            if (status === 'ABSENT') absent += 1;
+          });
+          return [h.id, { weekId: summaryWeek.id, weekNumber: summaryWeek.weekNumber, marked, total: memberIds.length, absent }] as const;
+        }));
+        if (!cancelled) setRecapByHub(Object.fromEntries(entries));
+      } catch {
+        if (!cancelled) setRecapByHub({});
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [hubs, memberships, summaryWeek]);
+
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   const userById = new Map(supportUsers.map((u) => [u.id, u]));
@@ -298,6 +447,36 @@ const AdminHubsPage: React.FC = () => {
     } catch { /* ignore */ }
     finally { setDeleteTarget(null); }
   };
+
+  // Keeps the card's summary line in step right after a mark in the panel,
+  // without waiting for the next full reload.
+  const handleRecapMarked = (hubId: string, weekId: number, marks: Record<string, SupportAttendanceStatus>) => {
+    if (!summaryWeek || weekId !== summaryWeek.id) return;
+    const memberIds = membersByHub.get(hubId) ?? [];
+    let marked = 0;
+    let absent = 0;
+    memberIds.forEach((id) => {
+      const status = marks[id];
+      if (status) marked += 1;
+      if (status === 'ABSENT') absent += 1;
+    });
+    setRecapByHub((prev) => ({ ...prev, [hubId]: { weekId, weekNumber: summaryWeek.weekNumber, marked, total: memberIds.length, absent } }));
+  };
+
+  const searchQuery = search.trim().toLowerCase();
+  const filteredHubs = hubs.filter((h) => {
+    if (recapFilter !== 'all') {
+      const summary = recapByHub[h.id];
+      const behind = !!summary && summary.total > 0 && summary.marked < summary.total;
+      if (recapFilter === 'behind' && !behind) return false;
+      if (recapFilter === 'complete' && (behind || !summary || summary.total === 0)) return false;
+    }
+    if (!searchQuery) return true;
+    if (h.name.toLowerCase().includes(searchQuery)) return true;
+    if (h.leadName && h.leadName.toLowerCase().includes(searchQuery)) return true;
+    const memberIds = membersByHub.get(h.id) ?? [];
+    return memberIds.some((id) => userById.get(id)?.name.toLowerCase().includes(searchQuery));
+  });
 
   return (
     <div className="page-content">
@@ -322,8 +501,37 @@ const AdminHubsPage: React.FC = () => {
           <p className="text-sm text-gray-500">No hubs yet. Create one and add supports.</p>
         </div>
       ) : (
+        <>
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search hub, lead or member…"
+              className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-xs"
+            />
+            <div className="w-full sm:w-56">
+              <AppSelect
+                value={recapFilter}
+                onChange={(v) => setRecapFilter(v as 'all' | 'behind' | 'complete')}
+                options={[
+                  { value: 'all', label: 'All hubs' },
+                  { value: 'behind', label: 'Recap behind' },
+                  { value: 'complete', label: 'Recap all marked' },
+                ]}
+                placeholder="All hubs"
+                compact
+              />
+            </div>
+          </div>
+
+          {filteredHubs.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
+              <p className="text-sm text-gray-500">No hubs match.</p>
+            </div>
+          ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {hubs.map((h) => {
+          {filteredHubs.map((h) => {
             const memberIds = membersByHub.get(h.id) ?? [];
             const memberUsers = memberIds.map((id) => userById.get(id)).filter(Boolean) as User[];
             return (
@@ -342,12 +550,23 @@ const AdminHubsPage: React.FC = () => {
                       items={[
                         { label: 'Manage members', onClick: () => setMembersTarget(h) },
                         { label: 'Pick lead', onClick: () => setLeadTarget(h) },
+                        { label: 'Recap attendance', onClick: () => setRecapTarget(h) },
                         { label: 'Edit name', onClick: () => { setEditing(h); setFormOpen(true); } },
                         { label: 'Delete hub', onClick: () => setDeleteTarget(h), tone: 'danger' },
                       ]}
                     />
                   </div>
                 </div>
+
+                {memberUsers.length > 0 && recapByHub[h.id] && (() => {
+                  const summary = recapByHub[h.id];
+                  const behind = summary.marked < summary.total;
+                  return (
+                    <p className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-semibold ${behind ? 'bg-amber-100/80 text-amber-700' : 'bg-emerald-100/80 text-emerald-700'}`}>
+                      Week {summary.weekNumber} recap: {summary.marked} of {summary.total} marked{summary.absent > 0 ? ` · ${summary.absent} absent` : ''}
+                    </p>
+                  );
+                })()}
 
                 {memberUsers.length === 0 ? (
                   <p className="rounded-xl border border-dashed border-orange-200 px-3 py-4 text-center text-xs text-gray-400">No supports yet</p>
@@ -373,6 +592,8 @@ const AdminHubsPage: React.FC = () => {
             );
           })}
         </div>
+          )}
+        </>
       )}
 
       <HubFormModal
@@ -412,6 +633,18 @@ const AdminHubsPage: React.FC = () => {
             ]);
             setMembersTarget(null);
           }}
+        />
+      )}
+
+      {recapTarget && (
+        <RecapAttendanceModal
+          isOpen={!!recapTarget}
+          onClose={() => setRecapTarget(null)}
+          hub={recapTarget}
+          members={(membersByHub.get(recapTarget.id) ?? []).map((id) => userById.get(id)).filter(Boolean) as User[]}
+          weeks={weeks}
+          defaultWeekId={summaryWeek?.id ?? null}
+          onMarked={handleRecapMarked}
         />
       )}
 
