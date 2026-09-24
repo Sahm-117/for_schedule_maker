@@ -50,7 +50,6 @@ import {
   participantStageChangesApi as supabaseParticipantStageChangesApi,
   faithThreadReadsApi as supabaseFaithThreadReadsApi,
   supportChecklistApi as supabaseSupportChecklistApi,
-  coverRequestsApi as supabaseCoverRequestsApi,
   recapDocumentsApi as supabaseRecapDocumentsApi,
   onboardingEventsApi as supabaseOnboardingEventsApi,
   hubApi as supabaseHubApi,
@@ -682,14 +681,6 @@ export const supportChecklistApi = USE_SUPABASE ? supabaseSupportChecklistApi : 
   async add(_userId: string, _weekId: number, _label: string, _position: number): Promise<never> { return peopleUnavailable(); },
   async setDone(_itemId: string, _done: boolean): Promise<never> { return peopleUnavailable(); },
   async remove(_itemId: string): Promise<never> { return peopleUnavailable(); },
-};
-
-export const coverRequestsApi = USE_SUPABASE ? supabaseCoverRequestsApi : {
-  async getMine(_supportId: string): Promise<{ requests: import('../types').CoverRequest[] }> { return { requests: [] }; },
-  async getAll(_options?: { status?: import('../types').CoverRequestStatus }): Promise<{ requests: import('../types').CoverRequest[] }> { return { requests: [] }; },
-  async create(_input: any): Promise<never> { return peopleUnavailable(); },
-  async getActiveForCover(_coverSupportId: string): Promise<{ requests: import('../types').CoverRequest[] }> { return { requests: [] }; },
-  async assign(_requestId: string, _coverSupportId: string, _assignedById: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const recapDocumentsApi = USE_SUPABASE ? supabaseRecapDocumentsApi : {

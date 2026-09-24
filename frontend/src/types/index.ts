@@ -183,7 +183,6 @@ export type NotificationType =
   | 'GROUP_MEETING_COMPLETED'
   | 'ATTENDANCE_REPORT'
   | 'PARTICIPANT_FLAG'
-  | 'COVER_REQUEST'
   | 'HUB'
   | 'REMINDER'
   | 'ESCALATION'
@@ -566,25 +565,6 @@ export interface SupportChecklistItem {
   label: string;
   done: boolean;
   position: number;
-}
-
-export type CoverRequestStatus = 'PENDING' | 'ASSIGNED';
-
-export interface CoverRequest {
-  id: string;
-  supportId: string;
-  supportName?: string | null;
-  cohortId?: string | null;
-  reason: string;
-  startsAt: string;
-  endsAt: string;
-  note?: string | null;
-  status: CoverRequestStatus;
-  coverSupportId?: string | null;
-  coverSupportName?: string | null;
-  assignedById?: string | null;
-  assignedAt?: string | null;
-  createdAt: string;
 }
 
 // ── Faith Projects ────────────────────────────────────────────────────────────

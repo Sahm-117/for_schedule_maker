@@ -23,14 +23,13 @@ FOF runs in cohorts. Each cohort has its own weeks, participants, and small grou
 
 - **Home** — weekly progress, today's activities with "mark done", a weekly checklist that saves, recent announcements, and a pinned urgent announcement card
 - **Mobilisation** — register a lead, then work the follow-up list (statuses, message templates, WhatsApp/call, registration link)
-- **My Schedule** — the week's activities, a per-support checklist (ticked items tuck away after a short countdown), PDF download, and cover requests
+- **My Schedule** — the week's activities, a per-support checklist (ticked items tuck away after a short countdown), and PDF download
 - **My Group** — participants, faith projects, notes, concerns; a five-step group meeting flow (attendance → prayer → recap → notes → submit); and Sunday class attendance
 - **Onboard** — onboarding steps and message templates (adding a support is coordinator-only)
 - **Hub, Resources, Profile** — team discussion, shared files, and personal settings
 
 ### Notable flows
 
-- **Cover requests** — a support asks for cover; operations assigns a covering support in **Approvals**. During the cover period only, that support sees the away support's group and can mark its attendance.
 - **Recap documents** — the back office uploads a weekly recap PDF in **Cohorts**; supports read it inside the app (pdf.js viewer that minimises to a pill) rather than leaving for a browser tab.
 - **Concerns** — a support flags a participant; operations sees it on **Participants** with a "needs attention" filter and can clear it.
 - **Announcements** — sent as push + in-app, and optionally pinned to the support Home screen until a chosen date, with an optional link.
@@ -159,7 +158,7 @@ The app uses **custom authentication**, not Supabase Auth.
 
 Generate VAPID keys with `npx web-push generate-vapid-keys`. The public key goes in the frontend env; the private key stays in Supabase/Vercel secrets.
 
-Some in-app notifications (participant flags, cover requests) are written straight to the `Notification` table and appear in the bell without a push.
+Some in-app notifications (participant flags) are written straight to the `Notification` table and appear in the bell without a push.
 
 ---
 

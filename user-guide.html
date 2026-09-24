@@ -129,7 +129,7 @@
   <div class="badge">TCN Ikorodu · FOF Programme</div>
   <h1>FOF Ops</h1>
   <p>The complete guide to running and supporting the Foundation of Faith programme — cohorts, groups, participants, schedules, attendance, follow-ups and more.</p>
-  <div class="version">Version 2.0 · June 2026</div>
+  <div class="version">Version 2.1 · September 2026</div>
 </div>
 
 <div class="toc">
@@ -143,17 +143,21 @@
       <a href="#admin-cohorts" class="toc-item"><span class="toc-num admin">A1</span> Cohorts &amp; Weeks</a>
       <a href="#admin-people" class="toc-item"><span class="toc-num admin">A2</span> Participants &amp; Groups</a>
       <a href="#admin-schedule" class="toc-item"><span class="toc-num admin">A3</span> Schedule &amp; Publishing</a>
-      <a href="#admin-engagement" class="toc-item"><span class="toc-num admin">A4</span> Attendance, Prayers &amp; Faith</a>
-      <a href="#admin-followup" class="toc-item"><span class="toc-num admin">A5</span> Follow-ups &amp; Onboarding</a>
-      <a href="#admin-administration" class="toc-item"><span class="toc-num admin">A6</span> Users, Resources &amp; Settings</a>
+      <a href="#admin-engagement" class="toc-item"><span class="toc-num admin">A4</span> Attendance &amp; Group Meetings</a>
+      <a href="#admin-hubs" class="toc-item"><span class="toc-num admin">A5</span> Hubs &amp; Trainings</a>
+      <a href="#admin-followup" class="toc-item"><span class="toc-num admin">A6</span> Follow-ups &amp; Onboarding</a>
+      <a href="#admin-administration" class="toc-item"><span class="toc-num admin">A7</span> Users, Resources &amp; Settings</a>
       <a href="#support-side" class="toc-item"><span class="toc-num support">S</span> Support Side</a>
       <a href="#support-home" class="toc-item"><span class="toc-num support">S1</span> Home &amp; My Schedule</a>
       <a href="#support-group" class="toc-item"><span class="toc-num support">S2</span> My Group</a>
-      <a href="#support-attendance" class="toc-item"><span class="toc-num support">S3</span> Attendance &amp; Onboarding</a>
-      <a href="#support-followup" class="toc-item"><span class="toc-num support">S4</span> My Follow-ups &amp; Profile</a>
-      <a href="#notifications" class="toc-item"><span class="toc-num">4</span> Notifications</a>
-      <a href="#install" class="toc-item"><span class="toc-num">5</span> Installing the App</a>
-      <a href="#faq" class="toc-item"><span class="toc-num">6</span> FAQ</a>
+      <a href="#support-hub" class="toc-item"><span class="toc-num support">S3</span> My Hub</a>
+      <a href="#support-attendance" class="toc-item"><span class="toc-num support">S4</span> Attendance &amp; Onboarding</a>
+      <a href="#support-followup" class="toc-item"><span class="toc-num support">S5</span> My Follow-ups &amp; Profile</a>
+      <a href="#community" class="toc-item"><span class="toc-num">4</span> Community</a>
+      <a href="#participant-app" class="toc-item"><span class="toc-num">5</span> Participant App</a>
+      <a href="#notifications" class="toc-item"><span class="toc-num">6</span> Notifications</a>
+      <a href="#install" class="toc-item"><span class="toc-num">7</span> Installing the App</a>
+      <a href="#faq" class="toc-item"><span class="toc-num">8</span> FAQ</a>
     </div>
   </div>
 </div>
@@ -219,7 +223,7 @@
     <div class="section-num">3</div>
     <h2 class="section-title">Roles &amp; Access</h2>
   </div>
-  <p style="font-size:14px;color:var(--muted);margin-bottom:20px;">There are two main sides to the app. Your role decides which one you see when you log in.</p>
+  <p style="font-size:14px;color:var(--muted);margin-bottom:20px;">There are three sides to the app. Your role decides which one you see when you log in.</p>
   <div class="role-grid">
     <div class="role-card">
       <div class="role-icon">👑</div>
@@ -230,8 +234,8 @@
         <li>Add participants &amp; build groups</li>
         <li>Assign Support leads &amp; activity tags</li>
         <li>Publish the schedule to Support</li>
-        <li>Oversee attendance, prayers &amp; faith projects</li>
-        <li>Manage follow-ups &amp; onboarding</li>
+        <li>Oversee attendance, group meetings &amp; faith projects</li>
+        <li>Run Hubs, pre-cohort trainings &amp; follow-ups</li>
         <li>Review change approvals, post announcements</li>
         <li>Manage users, resources &amp; settings</li>
       </ul>
@@ -244,11 +248,24 @@
         <li>See their week-at-a-glance home page</li>
         <li>View their schedule (once published)</li>
         <li>Mark their own activities done</li>
-        <li>Run their small group: faith projects &amp; prayers</li>
-        <li>Take attendance for their group</li>
+        <li>Run their small group in Meeting Mode</li>
+        <li>Take Sunday attendance for their group</li>
         <li>Onboard their participants step-by-step</li>
-        <li>Work their assigned follow-up contacts</li>
-        <li>Manage their profile &amp; reminders</li>
+        <li>Register and follow up mobilisation contacts</li>
+        <li>See their Hub, if they're in one</li>
+      </ul>
+    </div>
+    <div class="role-card">
+      <div class="role-icon">🙋</div>
+      <h3>Participant</h3>
+      <div class="role-tag tag-support">Cohort Member</div>
+      <ul>
+        <li>Sign in once a support gives them a login</li>
+        <li>Follow their journey week by week</li>
+        <li>Write private reflections</li>
+        <li>See their group, meeting time &amp; support's contact</li>
+        <li>Mark Sunday attendance when it's open</li>
+        <li>Track their faith project</li>
       </ul>
     </div>
   </div>
@@ -276,11 +293,16 @@
     <p>Admin navigation is grouped into collapsible sections so it stays tidy:</p>
     <ul>
       <li><strong>Overview</strong> — Dashboard</li>
-      <li><strong>Programme</strong> — Schedule, Approvals, Activity overview</li>
-      <li><strong>People &amp; groups</strong> — Cohorts, Participants, Groups, Faith projects, Group prayers, Attendance</li>
-      <li><strong>Engagement</strong> — Follow-ups, Onboarding</li>
-      <li><strong>Administration</strong> — Users, Announcements, Resources, Settings</li>
+      <li><strong>Programme</strong> — Schedule (with Approvals, Rota and Activity overview as tabs on that page)</li>
+      <li><strong>People &amp; groups</strong> — Participants (with Attendance, Faith projects, Onboarding and Feedback as tabs), Groups (with Allocation and Group meetings as tabs), Supports, Hubs, Cohorts</li>
+      <li><strong>Engagement</strong> — Follow-ups, Community</li>
+      <li><strong>Administration</strong> — Users, Announcements, Resources (with Scriptures as a tab), Settings</li>
     </ul>
+    <div class="callout tip"><span class="callout-icon">💡</span><span>Related pages share a tab strip at the top, so once you're on Participants, Groups or Schedule, the pages next to it are one tap away.</span></div>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>🛡️ Supports <span class="pill pill-admin">Admin</span></h3>
+    <p>One page judging every Support against the agreed rules (set in Settings): weekly attendance and meeting reports submitted, and onboarding progress. Filter by <strong>Needs attention</strong>, <strong>Keep an eye on</strong> or <strong>On track</strong> to see who to check in with.</p>
   </div>
 </section>
 
@@ -311,7 +333,8 @@
   </div>
   <div class="feature-block admin-edge">
     <h3>👥 Groups <span class="pill pill-admin">Admin</span></h3>
-    <p>Create the small groups inside a cohort and assign one Support member to lead each group. Manage who's in each group, and filter to spot groups that don't yet have a Support lead assigned.</p>
+    <p>Create the small groups inside a cohort and assign one Support member to lead each group. Manage who's in each group, and filter to spot groups that don't yet have a Support lead assigned. You can also move a Support from one group to another at any time — open the group and choose <strong>Assign support</strong>, then pick a different person.</p>
+    <div class="callout warn"><span class="callout-icon">⚠️</span><span><strong>Pre-cohort trainings rule.</strong> The number of pre-cohort trainings a Support must attend before leading a group is set in Settings. If someone hasn't attended enough, the app blocks them from being assigned to a group and shows how many trainings they attended. You can still assign them — tap <strong>Override</strong>, give a reason, and save; the assignment then goes through.</span></div>
   </div>
   <div class="feature-block admin-edge">
     <h3>🔀 Allocation <span class="pill pill-admin">Admin</span></h3>
@@ -347,15 +370,16 @@
 <section id="admin-engagement">
   <div class="section-header">
     <div class="section-num admin">A4</div>
-    <h2 class="section-title">Attendance, Prayers &amp; Faith Projects</h2>
+    <h2 class="section-title">Attendance &amp; Group Meetings</h2>
   </div>
   <div class="feature-block admin-edge">
-    <h3>✅ Attendance <span class="pill pill-admin">Admin</span></h3>
+    <h3>✅ Sunday attendance <span class="pill pill-admin">Admin</span></h3>
     <p>Mark each participant <strong>Present</strong>, <strong>Late</strong>, or <strong>Absent</strong> for any week. Filter by group to review summaries and per-person status across the cohort.</p>
+    <div class="callout warn"><span class="callout-icon">⚠️</span><span><strong>The late rule.</strong> Present always counts as attended. Late or Left early only counts as attended once you mark it <strong>Excused</strong> with a note — otherwise it counts the same as a miss when the app judges a participant's standing.</span></div>
   </div>
   <div class="feature-block admin-edge">
-    <h3>🙏 Group prayers <span class="pill pill-admin">Admin</span></h3>
-    <p>A matrix of groups by week showing which group completed their prayer and who the prayer focus was, with a trend strip summarising weekly completion across all groups.</p>
+    <h3>🙏 Group meetings <span class="pill pill-admin">Admin</span></h3>
+    <p>A grid of groups by week showing the prayer focus, whether the Support submitted their weekly meeting report, and how many participants joined — with a trend strip summarising completion across all groups. Open any cell to mark or fix a participant's <strong>Joined</strong>, <strong>Excused</strong> or <strong>Missed</strong> status yourself.</p>
   </div>
   <div class="feature-block admin-edge">
     <h3>🌱 Faith projects <span class="pill pill-admin">Admin</span></h3>
@@ -363,14 +387,37 @@
   </div>
 </section>
 
-<section id="admin-followup">
+<section id="admin-hubs">
   <div class="section-header">
     <div class="section-num admin">A5</div>
+    <h2 class="section-title">Hubs &amp; Trainings</h2>
+  </div>
+  <p style="font-size:14px;color:var(--muted);margin-bottom:20px;">A Hub groups several Support members under one Hub lead, so the lead can check in on their people and admins get a middle layer of oversight above individual groups.</p>
+  <div class="feature-block admin-edge">
+    <h3>🗂️ Hubs <span class="pill pill-admin">Admin</span></h3>
+    <p>Create a Hub, add Support members to it, and pick one of them as the Hub lead. Each hub card shows its members, who leads which group, and this week's <strong>recap attendance</strong> — how many members the lead has marked present for the week, with a filter to spot hubs whose recap is behind.</p>
+    <ol class="steps">
+      <li><div class="step-num"></div><div class="step-content"><strong>+ New Hub</strong><span>Give it a name.</span></div></li>
+      <li><div class="step-num"></div><div class="step-content"><strong>Manage members</strong><span>Add the Support members who belong to this hub. A support already in another hub shows "Moves from another hub" if you add them here.</span></div></li>
+      <li><div class="step-num"></div><div class="step-content"><strong>Pick lead</strong><span>Choose the member who leads the hub.</span></div></li>
+      <li><div class="step-num"></div><div class="step-content"><strong>Recap attendance</strong><span>Mark or check each member's weekly recap attendance yourself, if needed.</span></div></li>
+    </ol>
+  </div>
+  <div class="feature-block admin-edge">
+    <h3>🎓 Trainings &amp; get-togethers <span class="pill pill-admin">Admin</span></h3>
+    <p>Create pre-cohort training sessions or get-togethers, picking the upcoming cohort they belong to. For each session, mark every Support member's attendance — <strong>Present</strong>, <strong>Late</strong>, <strong>Excused</strong> or <strong>Absent</strong>. How many trainings each Support attended feeds the pre-cohort trainings rule used when assigning them to lead a group (see Participants &amp; Groups).</p>
+  </div>
+</section>
+
+<section id="admin-followup">
+  <div class="section-header">
+    <div class="section-num admin">A6</div>
     <h2 class="section-title">Follow-ups &amp; Onboarding</h2>
   </div>
   <div class="feature-block admin-edge">
     <h3>📞 Follow-ups <span class="pill pill-admin">Admin</span></h3>
-    <p>Manage follow-up contacts (prospective participants). Track reply, call, and registration statuses; assign contacts to an owner to work; send templated messages; multi-select contacts; and raise/resolve issues. A breakdown dashboard summarises progress and what's still open.</p>
+    <p>Manage follow-up contacts (prospective participants), across four tabs: <strong>Overview</strong> (progress breakdown), <strong>Contacts</strong> (the full list), <strong>Message Bank</strong> (WhatsApp templates) and <strong>Issues</strong> (problems Support members have flagged, e.g. a wrong number). Track reply, call, and registration statuses; assign contacts to an owner to work; send templated messages; and multi-select contacts.</p>
+    <p>The list shows the <strong>active cohort's</strong> contacts by default — use the cohort filter to look at a different one.</p>
   </div>
   <div class="feature-block admin-edge">
     <h3>🚀 Onboarding <span class="pill pill-admin">Admin</span></h3>
@@ -380,7 +427,7 @@
 
 <section id="admin-administration">
   <div class="section-header">
-    <div class="section-num admin">A6</div>
+    <div class="section-num admin">A7</div>
     <h2 class="section-title">Users, Announcements, Resources &amp; Settings</h2>
   </div>
   <div class="feature-block admin-edge">
@@ -394,20 +441,21 @@
   </div>
   <div class="feature-block admin-edge">
     <h3>📢 Announcements <span class="pill pill-admin">Admin</span></h3>
-    <p>Send a message to the team. Everyone with notifications enabled receives it on their device, and it appears in their in-app announcements feed.</p>
+    <p>Send a message to Support, Participants, or everyone. Everyone with notifications enabled receives it on their device, and it appears in their in-app announcements feed.</p>
+    <p>Choose <strong>"Or send to one person"</strong> to message just one Support member or one participant instead — this overrides any audience, tag, group or hub you picked above it. You can also narrow a Supports/Everyone announcement to one Hub, or a Participants announcement to one Group.</p>
   </div>
   <div class="feature-block admin-edge">
     <h3>📚 Resources <span class="pill pill-admin">Admin</span></h3>
-    <p>Manage the shared Resource Hub — add links or upload files (PDF, Word, Excel, PowerPoint, images, ZIP), with an option to notify everyone when you add something. All users can view; only admins add or remove.</p>
+    <p>Manage the shared Resource Hub — add links or upload files (PDF, Word, Excel, PowerPoint, images, ZIP), with an option to notify everyone when you add something. All users can view; only admins add or remove. Scriptures is a tab on this page for uploading the participants' daily scripture images.</p>
   </div>
   <div class="feature-block admin-edge">
     <h3>⚙️ Settings <span class="pill pill-admin">Admin</span></h3>
-    <p>Manage workspace settings, including the daily <strong>Telegram digest</strong> — toggle it on and send tomorrow's activities to the team Telegram channel manually when needed.</p>
+    <p>Manage reminder timings, the phone number the floating "Need Support" button messages, church departments, and AI help (opt-in end-of-programme summaries for participants, recap drafts and feedback themes). This is also where the <strong>programme rules</strong> live — the thresholds the app uses to judge participants and Supports, including the Sunday register's open window and the minimum pre-cohort trainings for a Support to lead a group.</p>
   </div>
 </section>
 
 <!-- ============ SUPPORT SIDE ============ -->
-<div class="side-banner support">
+<div id="support-side" class="side-banner support">
   <div class="eyebrow">For Small-Group Leaders</div>
   <h2>🤝 Support Side</h2>
   <p>Everything below is for Support members. Your screens are focused on your group and your own activities — clean and uncluttered. You won't see any of the admin setup tools.</p>
@@ -420,7 +468,7 @@
   </div>
   <div class="feature-block support-edge">
     <h3>🏠 Your Home page <span class="pill pill-support">Support</span></h3>
-    <p>A week-at-a-glance: where you are in the cohort (e.g. "Week 1 of 10"), how many activities you have today, your next group prayer, faith-project progress for your group, and the latest announcements. Quick links jump you straight to your group, resources, follow-ups and profile.</p>
+    <p>A week-at-a-glance: where you are in the cohort (e.g. "Week 1 of 10"), how many activities you have today, your next group meeting, faith-project progress for your group, and the latest announcements. A shortcut opens the shared Sunday attendance register. Quick links jump you straight to your group call, resources, Mobilisation and profile.</p>
   </div>
   <div class="feature-block support-edge">
     <h3>📅 My Schedule <span class="pill pill-support">Support</span></h3>
@@ -439,12 +487,16 @@
     <h2 class="section-title">My Group</h2>
   </div>
   <div class="feature-block support-edge">
-    <h3>🌱 Faith projects <span class="pill pill-support">Support</span></h3>
-    <p>For each participant in your group you can view and update their faith project status (Not drafted → Under refinement → Approved) and keep their goal moving forward.</p>
+    <h3>📞 Your group call <span class="pill pill-support">Support</span></h3>
+    <p>Set or update your group's meeting day, time and call link — participants see this on their side too.</p>
   </div>
   <div class="feature-block support-edge">
-    <h3>🙏 Weekly group prayer <span class="pill pill-support">Support</span></h3>
-    <p>Pick a <strong>prayer focus</strong> for the week from your participants and mark the group prayer as done. This feeds the admin's group prayers matrix.</p>
+    <h3>🌱 Faith projects <span class="pill pill-support">Support</span></h3>
+    <p>For each participant in your group you can view and update their faith project status (Not drafted → Under refinement → Approved), reply to encourage them, and keep their goal moving forward. If something's wrong with a participant, flag a concern and Operations is told straight away.</p>
+  </div>
+  <div class="feature-block support-edge">
+    <h3>🙏 Meeting Mode <span class="pill pill-support">Support</span></h3>
+    <p>Walks you through your weekly group meeting step by step: <strong>Attendance</strong> (mark each participant Joined, Excused or Missed), <strong>Prayer</strong> (pick this week's prayer focus), <strong>Recap</strong>, <strong>Notes</strong>, then <strong>Submit</strong>. Submitting is what shows your group as done for the week on the admin side.</p>
   </div>
   <div class="feature-block support-edge">
     <h3>📋 Quick actions <span class="pill pill-support">Support</span></h3>
@@ -452,14 +504,46 @@
   </div>
 </section>
 
-<section id="support-attendance">
+<section id="support-hub">
   <div class="section-header">
     <div class="section-num support">S3</div>
+    <h2 class="section-title">My Hub</h2>
+  </div>
+  <p style="font-size:14px;color:var(--muted);margin-bottom:20px;">If your admin has put you in a Hub, this page appears in your menu. Everyone in a hub sees the same overview; the hub lead sees extra tools too.</p>
+  <div class="feature-block support-edge">
+    <h3>🗂️ Your hub <span class="pill pill-support">Support</span></h3>
+    <p>See your hub lead (with a one-tap WhatsApp link), your fellow Support members and the groups they lead, and your hub's meeting day, time and call link.</p>
+  </div>
+  <div class="feature-block support-edge">
+    <h3>💬 Messages from the lead <span class="pill pill-support">Support</span></h3>
+    <p>Read messages your hub lead posts and tap <strong>Got it</strong> to acknowledge one. The lead can see who has and hasn't acknowledged each message.</p>
+  </div>
+  <div class="feature-block support-edge">
+    <h3>✅ My attendance <span class="pill pill-support">Support</span></h3>
+    <p>See how your hub lead has marked you present for each week's recap, and for any pre-cohort training or get-together session.</p>
+  </div>
+  <div class="feature-block support-edge">
+    <h3>👑 Lead-only tools <span class="pill pill-support">Support</span></h3>
+    <p>If you lead the hub, four extra tabs appear:</p>
+    <ul>
+      <li><strong>Recap attendance</strong> — mark each member present, late or absent for the week's recap.</li>
+      <li><strong>Trainings &amp; get-togethers</strong> — mark each member's attendance at a pre-cohort training or get-together session.</li>
+      <li><strong>Notes</strong> — keep a private note on any member; only you and admins can see it.</li>
+      <li><strong>Message hub</strong> — post a message to everyone in the hub. You can also edit or delete any message in the hub, including one a member posted.</li>
+    </ul>
+    <p>You also set the hub's meeting day, time and call link from the overview tab.</p>
+  </div>
+</section>
+
+<section id="support-attendance">
+  <div class="section-header">
+    <div class="section-num support">S4</div>
     <h2 class="section-title">Attendance &amp; Onboarding</h2>
   </div>
   <div class="feature-block support-edge">
-    <h3>✅ Take attendance <span class="pill pill-support">Support</span></h3>
-    <p>Choose a week and mark each of your group members <strong>Present</strong>, <strong>Late</strong>, or <strong>Absent</strong>. You can add a private note on any participant — anything worth remembering.</p>
+    <h3>✅ Take Sunday attendance <span class="pill pill-support">Support</span></h3>
+    <p>Tap <strong>Start attendance</strong> to open the register for the week — this also starts a countdown (set by your admin, e.g. 15 minutes) shown to you and to participants in their own app. Mark each of your group members <strong>Present</strong>, <strong>Late</strong>, <strong>Absent</strong> or <strong>Excused</strong> while it's open. You can add a private note on any participant — anything worth remembering.</p>
+    <div class="callout warn"><span class="callout-icon">⚠️</span><span>Once the countdown ends, the register locks — you can still move an Absent mark to Late or Left early, but nothing else changes. It's then sent automatically at noon on Sunday, or once your admin sends the report.</span></div>
   </div>
   <div class="feature-block support-edge">
     <h3>🚀 Onboard your participants <span class="pill pill-support">Support</span></h3>
@@ -470,12 +554,13 @@
 
 <section id="support-followup">
   <div class="section-header">
-    <div class="section-num support">S4</div>
+    <div class="section-num support">S5</div>
     <h2 class="section-title">My Follow-ups &amp; Profile</h2>
   </div>
   <div class="feature-block support-edge">
-    <h3>📞 My Follow-ups <span class="pill pill-support">Support</span></h3>
-    <p>The contacts assigned to you. Right after each message or call, update their <strong>reply</strong>, <strong>call</strong>, and <strong>registration</strong> status — the app applies sensible cascades automatically (e.g. marking someone Registered also marks them Replied). Send templated WhatsApp messages and flag issues when a number is wrong or a contact needs attention.</p>
+    <h3>📱 Mobilisation <span class="pill pill-support">Support</span></h3>
+    <p>Two jobs in one page. <strong>Registration</strong> is for signing up people you meet — fill in their details, or share the registration link so they can sign up themselves. <strong>Follow-ups</strong> lists the contacts assigned to you to contact. Right after each message or call, update their <strong>reply</strong>, <strong>call</strong>, and <strong>registration</strong> status — the app applies sensible cascades automatically (e.g. marking someone Registered also marks them Replied). Send templated WhatsApp messages, and use the ⋮ menu to report an issue with a contact or export your contacts.</p>
+    <p>Follow-ups shows your <strong>current cohort's</strong> contacts by default. Turn on <strong>Show past cohorts</strong> to see everyone else too.</p>
   </div>
   <div class="feature-block support-edge">
     <h3>👤 Profile &amp; reminders <span class="pill pill-support">Support</span></h3>
@@ -483,10 +568,56 @@
   </div>
 </section>
 
-<!-- 4. NOTIFICATIONS -->
-<section id="notifications">
+<!-- 4. COMMUNITY -->
+<section id="community">
   <div class="section-header">
     <div class="section-num">4</div>
+    <h2 class="section-title">Community</h2>
+  </div>
+  <p style="font-size:14px;color:var(--muted);margin-bottom:20px;">Community is shared by Admin and Support — it's where the whole team talks. (It used to be called the Hub forum; same place, new name.)</p>
+  <div class="feature-block">
+    <h3>💬 Topics <span class="pill pill-all">Everyone</span></h3>
+    <p>Start a topic to ask a question, share an idea or post an update for the team. <strong>Open</strong> topics are still going; <strong>Closed</strong> ones are settled but you can still read them. Tap a topic to read the replies, add your own, and see who liked it.</p>
+  </div>
+</section>
+
+<!-- 5. PARTICIPANT APP -->
+<section id="participant-app">
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <h2 class="section-title">Participant App</h2>
+  </div>
+  <p style="font-size:14px;color:var(--muted);margin-bottom:20px;">Participants get their own, simpler side of the app to follow their journey through the programme.</p>
+  <div class="feature-block">
+    <h3>🔐 Logging in <span class="pill pill-all">Participant</span></h3>
+    <p>A participant doesn't sign themselves up for the app — a Support or admin registers them first, then sends them their login details from their profile page. They sign in the same way as everyone else: email or phone number, plus a password.</p>
+  </div>
+  <div class="feature-block">
+    <h3>🏠 Home <span class="pill pill-all">Participant</span></h3>
+    <p>Shows their progress through the programme with a shortcut to their group, a join-call button when their group has a call link, a new Inspirational Scripture every day from 2:00 PM, and what this week is about with a link to the recap and their reflection.</p>
+  </div>
+  <div class="feature-block">
+    <h3>📖 My Journey &amp; reflections <span class="pill pill-all">Participant</span></h3>
+    <p>Each week they can read the class recap and write a private reflection. <strong>Reflections are private</strong> — only the participant can read what they wrote; their Support only ever sees <em>when</em> they wrote it, never the content.</p>
+  </div>
+  <div class="feature-block">
+    <h3>✅ Attendance <span class="pill pill-all">Participant</span></h3>
+    <p>A tab on My Journey shows their attendance record week by week. While the Sunday register is open, a countdown card appears on Home and here too — a live nudge to let their Support know they're present.</p>
+  </div>
+  <div class="feature-block">
+    <h3>👥 My Group &amp; Faith Project <span class="pill pill-all">Participant</span></h3>
+    <p>My Group shows their next meeting, the call link, their Support and group members, with a way to message their Support if they need help. Faith Project shows the one thing they're trusting God for, with space for their Support to reply and encourage them.</p>
+  </div>
+  <div class="feature-block">
+    <h3>👤 Resources, Feedback &amp; Profile <span class="pill pill-all">Participant</span></h3>
+    <p>Resources holds guides and class materials shared with participants. Feedback is completely anonymous — nobody can see who submitted it. Profile is where they update their details and photo, and choose when they're reminded about their group meeting.</p>
+  </div>
+</section>
+
+<!-- 6. NOTIFICATIONS -->
+<section id="notifications">
+  <div class="section-header">
+    <div class="section-num">6</div>
     <h2 class="section-title">Push Notifications</h2>
   </div>
   <div class="feature-block">
@@ -502,6 +633,10 @@
     </table>
   </div>
   <div class="feature-block">
+    <h3>🔔 The notification bell</h3>
+    <p>The bell icon at the top of every page is always there, even before you enable push notifications — useful since Support members are often on their phone and push doesn't always get through. It has two tabs: <strong>Announcements</strong> and <strong>Activity</strong> (hub messages, follow-up issues and other live events). New items appear straight away without needing to refresh, and a live banner offers to refresh the page when something important changes in the background.</p>
+  </div>
+  <div class="feature-block">
     <h3>📲 Enabling notifications</h3>
     <ol class="steps">
       <li><div class="step-num"></div><div class="step-content"><strong>Open the app after logging in</strong><span>A prompt appears on your first visit explaining what you'll receive.</span></div></li>
@@ -512,10 +647,10 @@
   </div>
 </section>
 
-<!-- 5. INSTALL -->
+<!-- 7. INSTALL -->
 <section id="install">
   <div class="section-header">
-    <div class="section-num">5</div>
+    <div class="section-num">7</div>
     <h2 class="section-title">Installing the App</h2>
   </div>
   <div class="feature-block">
@@ -541,10 +676,10 @@
   </div>
 </section>
 
-<!-- 6. FAQ -->
+<!-- 8. FAQ -->
 <section id="faq">
   <div class="section-header">
-    <div class="section-num">6</div>
+    <div class="section-num">8</div>
     <h2 class="section-title">Frequently Asked Questions</h2>
   </div>
 
@@ -565,6 +700,12 @@
   <details><summary>The Install banner keeps showing</summary><div class="faq-body">That's by design — in a browser the banner reminds you on each visit. It disappears for good once you install the app to your home screen and open it from there.</div></details>
 
   <details><summary>The app shows old data</summary><div class="faq-body">Pull down to refresh. If a "New version available" banner appears, tap Refresh to update. If data is still stale, check your internet connection.</div></details>
+
+  <details><summary>I marked someone Late — does it still count as attended?</summary><div class="faq-body">Present always counts. Late or Left early only counts as attended once an admin marks it <strong>Excused</strong> with a note — otherwise it counts as a miss when the app judges a participant. Ask your admin to excuse a late mark if there's a good reason.</div></details>
+
+  <details><summary>What's a Hub, and why can't I see My Hub? <span class="pill pill-support">Support</span></summary><div class="faq-body">A Hub groups several Support members under one Hub lead for oversight and support. My Hub only appears in your menu if your admin has put you in one for the active cohort — not every Support is.</div></details>
+
+  <details><summary>I can't be assigned to lead a group <span class="pill pill-admin">Admin</span></summary><div class="faq-body">Your programme requires a minimum number of pre-cohort trainings before a Support can lead a group (set in Settings). If someone hasn't attended enough, assigning them is blocked — an admin can still go ahead using Override, with a reason.</div></details>
 </section>
 
 </main>

@@ -1,11 +1,10 @@
 /**
  * Daily nudges that nobody has to remember to send.
  *
- *   1. A cover period starting today  → the covering support
- *   2. A group meeting report still open at the end of its week → the support,
+ *   1. A group meeting report still open at the end of its week → the support,
  *      plus one digest to operations
- *   3. Sunday class attendance still unmarked from Monday → the support
- *   4. Escalations by the programme rules (thresholds in AppSetting 'programme_rules'):
+ *   2. Sunday class attendance still unmarked from Monday → the support
+ *   3. Escalations by the programme rules (thresholds in AppSetting 'programme_rules'):
  *      - a participant missed a Sunday class or group meeting → their support
  *      - a participant reaches the "needs attention" misses → support + one admin digest
  *      - a support didn't fully record last week → the support
@@ -77,22 +76,6 @@ Deno.serve(async (req) => {
     const today = dayKey(now)
     const planned: Planned[] = []
     const add = (n: Planned) => { if (!planned.some((p) => p.userId === n.userId && p.title === n.title)) planned.push(n) }
-
-    // ── 1. Cover periods starting today ──────────────────────────────────────
-    const { data: covers } = await supabase
-      .from('CoverRequest')
-      .select('coverSupportId, supportId, startsAt, endsAt, status, support:User!CoverRequest_supportId_fkey(name)')
-      .eq('status', 'ASSIGNED')
-    for (const cover of (covers ?? []) as any[]) {
-      if (!cover.coverSupportId || dayKey(new Date(cover.startsAt)) !== today) continue
-      add({
-        userId: cover.coverSupportId,
-        title: 'Your cover starts today',
-        body: `You are covering for ${cover.support?.name || 'another support'} today. Their group is in My Group while the cover lasts.`,
-        path: '/support/participants',
-        type: 'REMINDER',
-      })
-    }
 
     // ── Cohort week maths: week N starts (N-1) weeks after the cohort start ──
     const cohortQuery = supabase.from('Cohort').select('id, name, startDate')
