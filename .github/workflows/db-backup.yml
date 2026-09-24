@@ -1,0 +1,74 @@
+name: Nightly Database Backup
+
+# The Supabase project is on the Free plan, which keeps no backups. This takes a
+# full copy every night: database roles, schema and data (including logins in
+# the auth schema), plus every file in Storage.
+#
+# This repo is public, so the copy is encrypted with BACKUP_PASSPHRASE before it
+# is uploaded. Without that passphrase the backup cannot be opened.
+# Restore steps: BACKUP_RESTORE.md.
+#
+# Required repo secrets: SUPABASE_DB_PASSWORD, SUPABASE_SERVICE_ROLE_KEY,
+# BACKUP_PASSPHRASE.
+
+on:
+  schedule:
+    - cron: '30 2 * * *' # 02:30 UTC nightly
+  workflow_dispatch: {} # allow manual "Run workflow" from the Actions tab
+
+permissions:
+  contents: read
+
+env:
+  PROJECT_REF: vnmeeqvwqaeczjlvzoul
+  SUPABASE_URL: https://vnmeeqvwqaeczjlvzoul.supabase.co
+  DB_HOST: aws-1-eu-west-2.pooler.supabase.com
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Dump database
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ENCODED=$(node -e 'process.stdout.write(encodeURIComponent(process.env.SUPABASE_DB_PASSWORD))')
+          DB_URL="postgresql://postgres.${PROJECT_REF}:${ENCODED}@${DB_HOST}:5432/postgres"
+          mkdir -p backup
+          supabase db dump --db-url "$DB_URL" -f backup/roles.sql --role-only
+          supabase db dump --db-url "$DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$DB_URL" -f backup/data.sql --use-copy --data-only
+          ls -lh backup
+
+      - name: Download storage files
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node .github/scripts/backup-storage.mjs
+
+      - name: Encrypt
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          NAME="fof-backup-$(date -u +%Y-%m-%d)"
+          echo "NAME=$NAME" >> "$GITHUB_ENV"
+          tar -czf "$NAME.tar.gz" backup
+          gpg --batch --yes --symmetric --cipher-algo AES256 \
+            --passphrase-fd 0 -o "$NAME.tar.gz.gpg" "$NAME.tar.gz" <<< "$BACKUP_PASSPHRASE"
+          rm -rf backup "$NAME.tar.gz"
+          ls -lh "$NAME.tar.gz.gpg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.NAME }}
+          path: ${{ env.NAME }}.tar.gz.gpg
+          retention-days: 90
+          compression-level: 0 # already compressed + encrypted
