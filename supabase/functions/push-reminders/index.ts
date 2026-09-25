@@ -737,11 +737,13 @@ Deno.serve(async (req) => {
         //    time has passed (independent of shareWithParticipants -- that switch
         //    only ever held recaps back from participants). One push per support
         //    per week, deduped via PushReminderLog same as HUB_MEETING above.
+        //    Only the newest released week is announced, so older weeks (or a
+        //    batch of recaps uploaded late) never arrive as a pile of alerts.
         const supportWeeks = weeks.filter((w) => {
           if (!(String(w.recapSummary || '').trim() || w.recapDocumentUrl)) return false
           const target = recapReleaseTarget(startIso, w.weekNumber, recapTimes.supportDay, recapTimes.supportTime)
           return recapReleaseHasPassed(target, pToday, pNowMinutes)
-        })
+        }).sort((a, b) => b.weekNumber - a.weekNumber).slice(0, 1)
         if (supportWeeks.length > 0) {
           const { data: cohortGroups } = await supabase
             .from('Group').select('supportId').eq('cohortId', cohort.id).is('archivedAt', null)
