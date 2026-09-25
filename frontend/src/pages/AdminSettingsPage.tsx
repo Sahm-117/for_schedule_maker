@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import NotificationSettings from '../components/NotificationSettings';
+import AppSelect from '../components/AppSelect';
 import { aiApi, settingsApi } from '../services/api';
 import type { AiSettings } from '../types';
 import { DEFAULT_PROGRAMME_RULES, type ProgrammeRules } from '../utils/programmeRules';
+import { DEFAULT_RECAP_RELEASE_TIMES, RECAP_DAY_OPTIONS, type RecapReleaseTimes } from '../utils/recapReleaseTimes';
 import type { ChurchDepartment } from '../constants/departments';
 import { setChurchDepartmentsCache } from '../hooks/useChurchDepartments';
 
@@ -524,6 +526,122 @@ const AiSettingsCard: React.FC = () => {
   );
 };
 
+// Format "HH:MM" (24h) as "4:00 PM" for the read-only summary.
+const formatTimeOfDay = (time: string): string => {
+  const [h, m] = time.split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return time;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+};
+
+const dayLabel = (value: string) => RECAP_DAY_OPTIONS.find((d) => d.value === value)?.label ?? value;
+
+// When supports and participants get a week's recap. Days are counted from
+// the week's class Sunday: Sunday = that Sunday itself, Monday = the day
+// after, and so on. Mirrors ProgrammeRulesCard's view/edit shape.
+const RecapTimingsCard: React.FC = () => {
+  const [times, setTimes] = useState<RecapReleaseTimes>(DEFAULT_RECAP_RELEASE_TIMES);
+  const [saved, setSaved] = useState<RecapReleaseTimes>(DEFAULT_RECAP_RELEASE_TIMES);
+  const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    settingsApi.getRecapReleaseTimes()
+      .then((value) => { if (!cancelled) { setTimes(value); setSaved(value); } })
+      .catch(() => { /* defaults stay */ })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const dirty = (Object.keys(times) as Array<keyof RecapReleaseTimes>).some((key) => times[key] !== saved[key]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setStatus('');
+    try {
+      const value = await settingsApi.setRecapReleaseTimes(times);
+      setTimes(value);
+      setSaved(value);
+      setEditing(false);
+      setStatus('Saved. New release times apply from now on.');
+    } catch {
+      setStatus('Could not save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SettingsCard
+      title="Timings"
+      description="When each week's recap reaches supports and participants."
+      loading={loading}
+      editing={editing}
+      onEdit={() => { setStatus(''); setEditing(true); }}
+      onCancel={() => { setTimes(saved); setStatus(''); setEditing(false); }}
+      onSave={() => void handleSave()}
+      saving={saving}
+      canSave={dirty}
+      saveLabel="Save timings"
+      status={status}
+      summary={(
+        <div className="space-y-1.5">
+          <SummaryRow label="Supports" value={`${dayLabel(saved.supportDay)}, ${formatTimeOfDay(saved.supportTime)}`} />
+          <SummaryRow label="Participants" value={`${dayLabel(saved.participantDay)}, ${formatTimeOfDay(saved.participantTime)}`} />
+        </div>
+      )}
+    >
+      <div className="space-y-4">
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Supports</p>
+          <div className="grid grid-cols-2 gap-3">
+            <AppSelect
+              value={times.supportDay}
+              onChange={(v) => setTimes((prev) => ({ ...prev, supportDay: v }))}
+              options={RECAP_DAY_OPTIONS}
+              placeholder="Day"
+              compact
+              disabled={saving}
+            />
+            <input
+              type="time"
+              value={times.supportTime}
+              disabled={saving}
+              onChange={(e) => setTimes((prev) => ({ ...prev, supportTime: e.target.value }))}
+              className="w-full rounded-2xl border border-gray-300 px-3 py-1.5 text-sm focus:border-primary focus:outline-none disabled:opacity-50"
+            />
+          </div>
+        </div>
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Participants</p>
+          <div className="grid grid-cols-2 gap-3">
+            <AppSelect
+              value={times.participantDay}
+              onChange={(v) => setTimes((prev) => ({ ...prev, participantDay: v }))}
+              options={RECAP_DAY_OPTIONS}
+              placeholder="Day"
+              compact
+              disabled={saving}
+            />
+            <input
+              type="time"
+              value={times.participantTime}
+              disabled={saving}
+              onChange={(e) => setTimes((prev) => ({ ...prev, participantTime: e.target.value }))}
+              className="w-full rounded-2xl border border-gray-300 px-3 py-1.5 text-sm focus:border-primary focus:outline-none disabled:opacity-50"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-gray-500">Days count from that week's class Sunday — "Sunday" is class day itself, "Monday" the day after, and so on.</p>
+      </div>
+    </SettingsCard>
+  );
+};
+
 const AdminSettingsPage: React.FC = () => {
   return (
     <div>
@@ -540,7 +658,11 @@ const AdminSettingsPage: React.FC = () => {
       </div>
 
       <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <div data-wt="settings-timings"><RecapTimingsCard /></div>
         <div data-wt="settings-contact"><SupportContactCard /></div>
+      </div>
+
+      <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
         <div data-wt="settings-ai"><AiSettingsCard /></div>
       </div>
 

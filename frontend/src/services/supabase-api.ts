@@ -1,5 +1,6 @@
 import { supabase, SESSION_TOKEN_KEY } from '../lib/supabase';
 import { normaliseRules } from '../utils/programmeRules';
+import { normaliseRecapReleaseTimes } from '../utils/recapReleaseTimes';
 import { DEFAULT_CHURCH_DEPARTMENTS } from '../constants/departments';
 import type {
   User,
@@ -69,6 +70,7 @@ const mapWeekRow = (week: any): Week => {
     recapDocumentUrl: week.recapDocumentUrl ?? null,
     recapDocumentName: week.recapDocumentName ?? null,
     shareWithParticipants: week.shareWithParticipants ?? true,
+    participantReleasedEarlyAt: week.participantReleasedEarlyAt ?? null,
     expectations: week.expectations ?? null,
     days: sortedDays.map((day: any) => ({
       id: day.id,
@@ -351,7 +353,7 @@ export const weeksApi = {
     return { week, pendingChanges };
   },
 
-  async update(weekId: number, input: { title?: string | null; recapSummary?: string | null; discussionPrompt?: string | null; recapDocumentUrl?: string | null; recapDocumentName?: string | null; shareWithParticipants?: boolean; expectations?: string | null }): Promise<{ week: Week }> {
+  async update(weekId: number, input: { title?: string | null; recapSummary?: string | null; discussionPrompt?: string | null; recapDocumentUrl?: string | null; recapDocumentName?: string | null; shareWithParticipants?: boolean; participantReleasedEarlyAt?: string | null; expectations?: string | null }): Promise<{ week: Week }> {
     const { data, error } = await supabase
       .from('Week')
       .update(input)
@@ -1834,6 +1836,25 @@ export const settingsApi = {
     const { error } = await supabase
       .from('AppSetting')
       .upsert([{ settingKey: 'programme_rules', value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+    if (error) throw new Error(error.message);
+    return value;
+  },
+
+  // When supports and participants get a week's recap (Settings > Programme > Timings).
+  async getRecapReleaseTimes(): Promise<import('../utils/recapReleaseTimes').RecapReleaseTimes> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'recap_release_times')
+      .maybeSingle();
+    return normaliseRecapReleaseTimes(error ? null : (data as any)?.value);
+  },
+
+  async setRecapReleaseTimes(times: import('../utils/recapReleaseTimes').RecapReleaseTimes): Promise<import('../utils/recapReleaseTimes').RecapReleaseTimes> {
+    const value = normaliseRecapReleaseTimes(times);
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert([{ settingKey: 'recap_release_times', value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
     if (error) throw new Error(error.message);
     return value;
   },
@@ -5178,6 +5199,16 @@ export const myHubApi = {
     });
     if (error || !data) throw new Error(error?.message || 'Failed to save the hub meeting');
     return { hub: data as NonNullable<import('../types').MyHubPayload['hub']> };
+  },
+};
+
+// ── Support recaps ─────────────────────────────────────────────────────────
+
+export const supportRecapsApi = {
+  async getForCohort(cohortId: string): Promise<{ recaps: import('../types').SupportRecap[] }> {
+    const { data, error } = await supabase.rpc('support_recaps', { p_cohort_id: cohortId });
+    if (error) throw new Error(error.message);
+    return { recaps: (data as import('../types').SupportRecap[]) ?? [] };
   },
 };
 

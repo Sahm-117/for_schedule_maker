@@ -2,6 +2,7 @@ import axios from 'axios';
 import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label, SupportActivityCompletion, Cohort } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
 import { DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
+import { DEFAULT_RECAP_RELEASE_TIMES } from '../utils/recapReleaseTimes';
 import { DEFAULT_CHURCH_DEPARTMENTS } from '../constants/departments';
 
 // Import Supabase API
@@ -34,6 +35,7 @@ import {
   supportNotesApi as supabaseSupportNotesApi,
   supportSessionsApi as supabaseSupportSessionsApi,
   myHubApi as supabaseMyHubApi,
+  supportRecapsApi as supabaseSupportRecapsApi,
   faithProjectsApi as supabaseFaithProjectsApi,
   faithProjectSettingsApi as supabaseFaithProjectSettingsApi,
   faithProjectCategoriesApi as supabaseFaithProjectCategoriesApi,
@@ -166,7 +168,7 @@ export const weeksApi = USE_SUPABASE ? supabaseWeeksApi : {
     };
   },
 
-  async update(_weekId: number, _input: { title?: string | null; shareWithParticipants?: boolean; expectations?: string | null }): Promise<{ week: Week }> {
+  async update(_weekId: number, _input: { title?: string | null; shareWithParticipants?: boolean; participantReleasedEarlyAt?: string | null; expectations?: string | null }): Promise<{ week: Week }> {
     throw new Error('Weeks are only editable in Supabase mode.');
   },
 };
@@ -466,6 +468,8 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async setChurchDepartments(departments: import('../constants/departments').ChurchDepartment[]): Promise<import('../constants/departments').ChurchDepartment[]> { return departments; },
   async getProgrammeRules(): Promise<import('../utils/programmeRules').ProgrammeRules> { return { ...DEFAULT_PROGRAMME_RULES }; },
   async setProgrammeRules(rules: import('../utils/programmeRules').ProgrammeRules): Promise<import('../utils/programmeRules').ProgrammeRules> { return rules; },
+  async getRecapReleaseTimes(): Promise<import('../utils/recapReleaseTimes').RecapReleaseTimes> { return { ...DEFAULT_RECAP_RELEASE_TIMES }; },
+  async setRecapReleaseTimes(times: import('../utils/recapReleaseTimes').RecapReleaseTimes): Promise<import('../utils/recapReleaseTimes').RecapReleaseTimes> { return times; },
   async getScriptureStartDay(): Promise<number> {
     return 1;
   },
@@ -621,6 +625,10 @@ export const myHubApi = USE_SUPABASE ? supabaseMyHubApi : {
   async updateMessage(_messageId: string, _subject: string, _body: string): Promise<never> { return peopleUnavailable(); },
   async deleteMessage(_messageId: string): Promise<never> { return peopleUnavailable(); },
   async updateMeeting(_hubId: string, _input: any): Promise<never> { return peopleUnavailable(); },
+};
+
+export const supportRecapsApi = USE_SUPABASE ? supabaseSupportRecapsApi : {
+  async getForCohort(_cohortId: string): Promise<{ recaps: import('../types').SupportRecap[] }> { return { recaps: [] }; },
 };
 
 export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {

@@ -325,7 +325,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
             />
             <QuickLink to="/support/schedule?tab=checklist" label="My Tasks" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 11l3 3L22 4M2 12a10 10 0 1 0 5-8.66" />} />
             <QuickLink to="/support/resources" label="Resources" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Zm0 17A2.5 2.5 0 0 1 6.5 19H20" />} />
-            <QuickLink to="/support/community" label="Community" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-3A3.5 3.5 0 0 0 7 18.5V20m5-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 9v-1a3 3 0 0 0-2.2-2.9M16.5 5.2a3 3 0 0 1 0 5.6" />} />
+            <QuickLink to="/support/recap" label="Recap" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M7 3h7l5 5v13H7zM14 3v5h5M9 13h6M9 17h6" />} />
           </div>
 
           <section data-wt="home-schedule" className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">

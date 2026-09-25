@@ -97,9 +97,24 @@ export interface Week {
   recapDocumentName?: string | null;
   /** Whether this week's recap goes to participants (released by their support). */
   shareWithParticipants?: boolean;
+  /** Set by "Send to participants now"; overrides the configured participant release time. */
+  participantReleasedEarlyAt?: string | null;
   /** What participants should do this week, one item per line. */
   expectations?: string | null;
   days: Day[];
+}
+
+/** One week as support_recaps() returns it: content only once support-released. */
+export interface SupportRecap {
+  weekId: number;
+  weekNumber: number;
+  title: string | null;
+  released: boolean;
+  releasedAt: string | null;
+  recapSummary: string | null;
+  discussionPrompt: string | null;
+  recapDocumentUrl: string | null;
+  recapDocumentName: string | null;
 }
 
 export interface SupportActivityCompletion {

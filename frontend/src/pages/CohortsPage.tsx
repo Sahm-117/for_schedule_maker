@@ -3,12 +3,14 @@ import { Navigate } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import PageHeader from '../components/PageHeader';
+import ConfirmationModal from '../components/ConfirmationModal';
 import NextCohortAssignModal from '../components/followups/NextCohortAssignModal';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, aiApi } from '../services/api';
+import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, aiApi, settingsApi } from '../services/api';
 import type { Cohort, FollowUpContact, User, Week } from '../types';
 import { sortByText } from '../utils/sort';
+import { DEFAULT_RECAP_RELEASE_TIMES, formatRecapReleaseAt, recapReleaseAt, type RecapReleaseTimes } from '../utils/recapReleaseTimes';
 
 type CohortFormState = {
   name: string;
@@ -105,6 +107,13 @@ const CohortsPage: React.FC = () => {
   const [discussionPromptDraft, setDiscussionPromptDraft] = useState('');
   const [recapDocUploading, setRecapDocUploading] = useState(false);
   const [recapDocError, setRecapDocError] = useState('');
+  const [recapReleaseTimes, setRecapReleaseTimes] = useState<RecapReleaseTimes>(DEFAULT_RECAP_RELEASE_TIMES);
+  const [sendNowConfirmOpen, setSendNowConfirmOpen] = useState(false);
+  const [sendingNow, setSendingNow] = useState(false);
+
+  useEffect(() => {
+    settingsApi.getRecapReleaseTimes().then(setRecapReleaseTimes).catch(() => {});
+  }, []);
 
   const [nextCohortPrompt, setNextCohortPrompt] = useState<{ contacts: FollowUpContact[]; newCohortId: string; newCohortName?: string } | null>(null);
 
@@ -509,6 +518,26 @@ const CohortsPage: React.FC = () => {
       setStatus(error instanceof Error ? error.message : 'Failed to update the week.');
     } finally {
       setWeekActionPending(false);
+    }
+  };
+
+  // Releases this week's recap to participants right away, ahead of the
+  // configured participant time. Only affects participants -- supports still
+  // get it at their own configured time regardless.
+  const handleSendNow = async () => {
+    if (!weekEditTarget) return;
+    setSendingNow(true);
+    setStatus('');
+    try {
+      const { week } = await weeksApi.update(weekEditTarget.week.id, { participantReleasedEarlyAt: new Date().toISOString() });
+      setWeekEditTarget((prev) => (prev ? { ...prev, week } : prev));
+      await syncCohortWeeks(weekEditTarget.cohortId);
+      if (activeCohort?.id === weekEditTarget.cohortId) await reloadWeeks();
+      setStatus(`Week ${weekEditTarget.week.weekNumber}'s recap was sent to participants now.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Failed to send the recap now.');
+    } finally {
+      setSendingNow(false);
     }
   };
 
@@ -1278,6 +1307,31 @@ const CohortsPage: React.FC = () => {
             </button>
           </div>
 
+          {weekEditTarget && (
+            <div className="rounded-2xl bg-gray-50 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">When this recap goes out</p>
+              <p className="mt-1.5 text-sm text-gray-700">
+                Supports: {formatRecapReleaseAt(recapReleaseAt(cohorts.find((c) => c.id === weekEditTarget.cohortId)?.startDate, weekEditTarget.week.weekNumber, recapReleaseTimes.supportDay, recapReleaseTimes.supportTime))}
+                {' · '}
+                Participants: {weekEditTarget.week.participantReleasedEarlyAt
+                  ? 'sent early'
+                  : formatRecapReleaseAt(recapReleaseAt(cohorts.find((c) => c.id === weekEditTarget.cohortId)?.startDate, weekEditTarget.week.weekNumber, recapReleaseTimes.participantDay, recapReleaseTimes.participantTime))}
+              </p>
+              {weekEditTarget.week.participantReleasedEarlyAt ? (
+                <p className="mt-2 text-xs text-emerald-700">Sent to participants early on {new Date(weekEditTarget.week.participantReleasedEarlyAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Africa/Lagos' })}.</p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setSendNowConfirmOpen(true)}
+                  disabled={weekActionPending}
+                  className="mt-2.5 text-xs font-semibold text-primary hover:text-primary-dark disabled:opacity-50"
+                >
+                  Send to participants now
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="flex justify-end gap-2">
             <button
               type="button"
@@ -1303,6 +1357,17 @@ const CohortsPage: React.FC = () => {
           </div>
         </div>
       </ModalShell>
+
+      <ConfirmationModal
+        isOpen={sendNowConfirmOpen}
+        onClose={() => setSendNowConfirmOpen(false)}
+        onConfirm={() => void handleSendNow()}
+        title="Send to participants now?"
+        message={weekEditTarget ? `Week ${weekEditTarget.week.weekNumber}'s recap will go to participants immediately, ahead of the usual time. Supports are not affected -- they still get it at their own configured time.` : ''}
+        confirmText={sendingNow ? 'Sending...' : 'Send now'}
+        type="info"
+        confirmDisabled={sendingNow}
+      />
 
       <ModalShell
         isOpen={deleteOpen}

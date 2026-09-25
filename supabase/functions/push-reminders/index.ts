@@ -30,6 +30,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore — web-push ESM build
 import webPush from 'https://esm.sh/web-push@3'
 import { PARTICIPANT_PUSH_STORE, sendToSubscriptions } from '../_shared/webpush.ts'
+import { insertNotifications } from '../_shared/notifications.ts'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -135,6 +136,43 @@ const parseTime = (timeStr: string): number | null => {
   return hours * 60 + minutes
 }
 
+interface RecapReleaseTimes {
+  supportDay: string
+  supportTime: string
+  participantDay: string
+  participantTime: string
+}
+
+const DEFAULT_RECAP_RELEASE_TIMES: RecapReleaseTimes = {
+  supportDay: 'SUNDAY',
+  supportTime: '16:00',
+  participantDay: 'MONDAY',
+  participantTime: '18:00',
+}
+
+/**
+ * Mirrors recap_release_at() in
+ * supabase/migrations/20260925060000_recap_release_times.sql: the class
+ * Sunday (cohort startIso + (weekNumber-1)*7 days) plus the configured day
+ * offset, as a Lagos isoDate + minute-of-day pair -- computed here in TS
+ * (rather than an RPC round trip) using the same addLagosDays/parseTime
+ * helpers the rest of this file already uses for Lagos time, so it stays
+ * consistent with how every other reminder in this function is computed.
+ */
+const recapReleaseTarget = (startIso: string, weekNumber: number, day: string, time: string) => {
+  const offset = Math.max(0, DAY_NAMES_UPPER.indexOf(String(day || '').toUpperCase()))
+  const isoDate = addLagosDays(startIso, (weekNumber - 1) * 7 + offset)
+  const minutes = parseTime(time) ?? 0
+  return { isoDate, minutes }
+}
+
+const recapReleaseHasPassed = (target: { isoDate: string; minutes: number }, todayIso: string, nowMinutes: number): boolean => {
+  const diff = daysBetweenIso(target.isoDate, todayIso)
+  if (diff > 0) return true
+  if (diff < 0) return false
+  return nowMinutes >= target.minutes
+}
+
 interface LiveWeek {
   weekId: number
   weekNumber: number
@@ -204,7 +242,7 @@ const resolveLiveWeeks = async (todayIso: string, hour: number): Promise<LiveWee
  * than a duplicate.
  */
 const claimReminder = async (
-  kind: 'ACTIVITY' | 'GROUP_MEETING' | 'HUB_MEETING',
+  kind: 'ACTIVITY' | 'GROUP_MEETING' | 'HUB_MEETING' | 'RECAP_SUPPORT',
   targetId: string,
   userId: string,
   reminderDate: string,
@@ -562,6 +600,15 @@ Deno.serve(async (req) => {
       const pToday = pLagos.isoDate
       const pDayIndex = lagosDayIndex(pToday)
 
+      const { data: recapSettingRow } = await supabase
+        .from('AppSetting').select('value').eq('settingKey', 'recap_release_times').maybeSingle()
+      const recapTimes: RecapReleaseTimes = {
+        supportDay: (recapSettingRow as any)?.value?.supportDay || DEFAULT_RECAP_RELEASE_TIMES.supportDay,
+        supportTime: (recapSettingRow as any)?.value?.supportTime || DEFAULT_RECAP_RELEASE_TIMES.supportTime,
+        participantDay: (recapSettingRow as any)?.value?.participantDay || DEFAULT_RECAP_RELEASE_TIMES.participantDay,
+        participantTime: (recapSettingRow as any)?.value?.participantTime || DEFAULT_RECAP_RELEASE_TIMES.participantTime,
+      }
+
       const claimParticipant = async (kind: string, targetKey: string, participantId: string, occurrence: string) => {
         if (dryRun) return true
         const { error } = await supabase.from('ParticipantReminderLog').insert([{ kind, targetKey, participantId, occurrence }])
@@ -597,7 +644,7 @@ Deno.serve(async (req) => {
 
         const [{ data: accounts }, { data: pWeeks }, { data: pGroups }, { data: settings }] = await Promise.all([
           supabase.from('ParticipantAccount').select('participantId, participant:Participant!inner(id, cohortId, status)').eq('isActive', true).eq('participant.cohortId', cohort.id).eq('participant.status', 'ACTIVE'),
-          supabase.from('Week').select('id, weekNumber, title, shareWithParticipants, recapSummary, recapDocumentUrl').eq('cohortId', cohort.id),
+          supabase.from('Week').select('id, weekNumber, title, shareWithParticipants, recapSummary, recapDocumentUrl, participantReleasedEarlyAt').eq('cohortId', cohort.id),
           supabase.from('Group').select('id, name, meetingDay, meetingTime, members:GroupParticipant(participantId)').eq('cohortId', cohort.id),
           supabase.from('ParticipantReminderSetting').select('participantId, meetingRemindMinutes, recapReleased'),
         ])
@@ -660,11 +707,19 @@ Deno.serve(async (req) => {
           }
         }
 
-        // c) "Recap is out". There is no release step any more: a recap is out as
-        //    soon as the admin has shared the week and there is something to read.
-        //    pushParticipants claims one RECAP:<weekId> row per participant, so the
-        //    10-minute cron tells each person exactly once however long it stays up.
-        const sharedWeeks = weeks.filter((w) => w.shareWithParticipants !== false && (String(w.recapSummary || '').trim() || w.recapDocumentUrl))
+        // c) "Recap is out", once the configured participant release time has
+        //    passed (or a support used "Send to participants now"). Computed the
+        //    same way recap_release_at(...,'participant') is in SQL -- see
+        //    recapReleaseTarget above. pushParticipants claims one RECAP:<weekId>
+        //    row per participant, so the 10-minute cron tells each person exactly
+        //    once however long it stays up.
+        const sharedWeeks = weeks.filter((w) => {
+          if (w.shareWithParticipants === false) return false
+          if (!(String(w.recapSummary || '').trim() || w.recapDocumentUrl)) return false
+          if (w.participantReleasedEarlyAt) return true
+          const target = recapReleaseTarget(startIso, w.weekNumber, recapTimes.participantDay, recapTimes.participantTime)
+          return recapReleaseHasPassed(target, pToday, pNowMinutes)
+        })
         for (const week of sharedWeeks) {
           for (const group of groups) {
             const members = ((group.members ?? []) as any[]).map((m) => m.participantId)
@@ -675,6 +730,43 @@ Deno.serve(async (req) => {
               path: `/me/week/${week.weekNumber}`,
               tag: `RECAP:${week.id}`,
             })
+          }
+        }
+
+        // d) Supports get their own recap push+bell once their configured release
+        //    time has passed (independent of shareWithParticipants -- that switch
+        //    only ever held recaps back from participants). One push per support
+        //    per week, deduped via PushReminderLog same as HUB_MEETING above.
+        const supportWeeks = weeks.filter((w) => {
+          if (!(String(w.recapSummary || '').trim() || w.recapDocumentUrl)) return false
+          const target = recapReleaseTarget(startIso, w.weekNumber, recapTimes.supportDay, recapTimes.supportTime)
+          return recapReleaseHasPassed(target, pToday, pNowMinutes)
+        })
+        if (supportWeeks.length > 0) {
+          const { data: cohortGroups } = await supabase
+            .from('Group').select('supportId').eq('cohortId', cohort.id).is('archivedAt', null)
+          const supportIds = [...new Set(((cohortGroups ?? []) as any[]).map((g) => g.supportId).filter(Boolean))] as string[]
+
+          for (const week of supportWeeks) {
+            if (dryRun) { debug.push({ wouldSend: 'RECAP_SUPPORT', weekId: week.id, supports: supportIds.length }); continue }
+            const releaseDateIso = recapReleaseTarget(startIso, week.weekNumber, recapTimes.supportDay, recapTimes.supportTime).isoDate
+            const claimed: string[] = []
+            for (const userId of supportIds) {
+              if (await claimReminder('RECAP_SUPPORT', String(week.id), userId, releaseDateIso, 0)) claimed.push(userId)
+            }
+            if (claimed.length === 0) continue
+
+            const title = `Week ${week.weekNumber} recap is ready`
+            const body = `${week.title ? `${String(week.title).trim()}. ` : ''}Bring it to your group.`
+            await insertNotifications(supabase, claimed.map((userId) => ({ userId, title, body, path: '/support/recap', type: 'REMINDER' })))
+
+            const { data: subs } = await supabase
+              .from('PushSubscription').select('userId, endpoint, p256dh, auth').in('userId', claimed)
+            const rows = ((subs ?? []) as any[]).map((row) => ({ userId: row.userId, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth }))
+            if (rows.length === 0) continue
+            const payload = JSON.stringify({ title, body, icon: '/icon-192.png', tag: `RECAP_SUPPORT:${week.id}`, data: { path: '/support/recap' } })
+            const r = await sendToSubscriptions(webPush, supabase, rows, payload)
+            if (r.failed > 0) console.error(`push-reminders (RECAP_SUPPORT:${week.id}): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
           }
         }
       }
