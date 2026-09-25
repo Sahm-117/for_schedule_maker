@@ -216,7 +216,7 @@ const AdminDashboardPage: React.FC = () => {
                 )}
               </section>
               <div className="min-w-0">
-                <GroupHeatGrid groups={model.engagement} data={health} weekNumbers={model.judged} />
+                <GroupHeatGrid groups={model.engagement} weekNumbers={model.judged} />
               </div>
             </div>
           )}

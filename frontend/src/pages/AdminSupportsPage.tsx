@@ -23,7 +23,6 @@ import {
   type PersonHealth,
   type ProgrammeRules,
   type SupportEvaluation,
-  type SupportWeekRecord,
 } from '../utils/programmeRules';
 
 // Supports are judged by their group meeting records and onboarding progress.
@@ -36,12 +35,6 @@ const HEALTH_PILL: Record<PersonHealth, string> = {
 const SEVERITY: Record<PersonHealth, number> = { critical: 0, warning: 1, good: 2 };
 
 type Filter = 'all' | PersonHealth;
-
-const weekParts = (w: SupportWeekRecord) => [
-  w.reportSubmitted ? null : 'meeting report',
-  w.meetingMarked ? null : 'meeting attendance',
-  w.recapMissed ? 'recap' : null,
-].filter(Boolean) as string[];
 
 const AdminSupportsPage: React.FC = () => {
   const { isAdmin } = useAuth();
@@ -361,29 +354,13 @@ const SupportCard: React.FC<{
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${HEALTH_PILL[evaluation.health]}`}>{PERSON_HEALTH_LABEL[evaluation.health]}</span>
       </div>
 
-      {evaluation.weeks.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1">
-          {evaluation.weeks.map((w) => {
-            const missing = weekParts(w);
-            const none = missing.length >= 2;
-            const label = w.recorded ? `Week ${w.weekNumber}: recorded` : `Week ${w.weekNumber}: missing ${missing.join(', ')}`;
-            return (
-              <span
-                key={w.weekNumber}
-                title={label}
-                aria-label={label}
-                className={`flex h-9 w-9 flex-col items-center justify-center rounded-lg text-[10px] font-semibold leading-tight ${w.recorded ? 'bg-emerald-100/80 text-emerald-700' : none ? 'bg-red-100/80 text-red-700' : 'bg-amber-100/80 text-amber-700'}`}
-              >
-                <span className="opacity-80">W{w.weekNumber}</span>
-                <span className="text-xs">{w.recorded ? '✓' : none ? '×' : '!'}</span>
-              </span>
-            );
-          })}
-        </div>
-      )}
-
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-        <span className={evaluation.missedWeeks.length ? 'font-medium text-gray-900' : 'text-gray-600'}>{recordsText}</span>
+        <span className={evaluation.missedWeeks.length ? 'font-medium text-gray-900' : 'text-gray-600'}>
+          {recordsText}
+          {evaluation.weeks.length > 0 && (
+            <NavLink to="/group-prayers" className="ml-2 text-xs font-semibold text-primary hover:text-primary-dark">See records</NavLink>
+          )}
+        </span>
         <span className={onboarding.late || !onboarding.allOnboarded ? 'font-medium text-gray-900' : 'text-gray-600'}>
           {onboardingText}
         </span>

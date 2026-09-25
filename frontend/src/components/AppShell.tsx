@@ -523,6 +523,7 @@ const AppShell: React.FC = () => {
             {/* Bell is visible at every width — Support users are mobile-heavy
                 and rely on this in-app feed when push doesn't reach them. */}
             <NotificationBell />
+            <NeedSupportButton inline className="hidden lg:grid" />
 
             <div className="hidden items-center gap-3 sm:flex">
               {cohortOptions.length > 0 && (
@@ -541,7 +542,7 @@ const AppShell: React.FC = () => {
               <button
                 type="button"
                 onClick={logout}
-                className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-orange-50"
+                className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-orange-50 lg:hidden"
               >
                 Logout
               </button>
@@ -635,7 +636,7 @@ const AppShell: React.FC = () => {
       )}
 
       <PWAInstallBanner />
-      <NeedSupportButton />
+      <NeedSupportButton className="lg:hidden" />
     </div>
   );
 };

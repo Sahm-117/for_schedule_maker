@@ -202,7 +202,7 @@ const AdminSchedulePage: React.FC = () => {
         action={headerAction}
       />
 
-      <div className="mb-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr_0.8fr]">
+      <div className="mb-6 grid gap-4 xl:grid-cols-2">
         <div data-wt="sched-week" className="relative z-30">
         <WeekSelector
           weeks={weeks}
@@ -218,7 +218,7 @@ const AdminSchedulePage: React.FC = () => {
           <div data-wt="sched-filters" className="surface-card relative z-20 rounded-3xl border border-orange-100 p-4">
             <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Activity tags</p>
             <p className="mt-1 text-sm font-semibold text-gray-900">Filter assignments fast</p>
-            <p className="mt-1 text-xs text-gray-500">See one tag’s exact workload without opening the native browser picker.</p>
+            <p className="mt-1 text-xs text-gray-500">Show only activities with this tag.</p>
             <div className="mt-4">
               <AppSelect
                 value={selectedSupportGroupId}
@@ -240,26 +240,6 @@ const AdminSchedulePage: React.FC = () => {
             </div>
           </div>
         )}
-        <div className="surface-card relative z-0 rounded-3xl border border-orange-100 bg-gradient-to-br from-white via-orange-50/60 to-white p-4">
-          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Focus</p>
-          <p className="mt-1 text-sm font-semibold text-gray-900">
-            {selectedWeek ? `Week ${selectedWeek.weekNumber} command view` : 'Select a week'}
-          </p>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <QuickMetric
-              label="Visible days"
-              value={selectedWeek?.days.length ?? 0}
-            />
-            <QuickMetric
-              label="Support filter"
-              value={selectedSupportGroupId ? '1 active' : 'All'}
-            />
-            <QuickMetric
-              label="Support user"
-              value={selectedSupportUser ? selectedSupportUser.name.split(' ')[0] : 'All'}
-            />
-          </div>
-        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)]">
@@ -378,12 +358,5 @@ const AdminSchedulePage: React.FC = () => {
     </div>
   );
 };
-
-const QuickMetric: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <div className="rounded-2xl border border-white bg-white/85 px-3 py-3 shadow-sm">
-    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">{label}</p>
-    <p className="mt-1 text-lg font-bold text-gray-900">{value}</p>
-  </div>
-);
 
 export default AdminSchedulePage;

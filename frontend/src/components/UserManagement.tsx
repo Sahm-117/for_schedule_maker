@@ -3,11 +3,25 @@ import { createPortal } from 'react-dom';
 import { usersApi, authApi, labelsApi } from '../services/api';
 import type { User, Label } from '../types';
 import AppSelect from './AppSelect';
+import ConfirmationModal from './ConfirmationModal';
 import LabelChip from './LabelChip';
 import { formatDate, formatDateTime } from '../utils/time';
 import { sortByText } from '../utils/sort';
 import { selectedFirst } from '../utils/selectedFirst';
 import { useAuth } from '../hooks/useAuth';
+
+const ROLE_BADGE: Record<User['role'], string> = {
+  ADMIN: 'bg-orange-100/80 text-orange-700',
+  SOP_PREPARER: 'bg-indigo-100/80 text-indigo-700',
+  SUPPORT: 'bg-sky-100/80 text-sky-700',
+  PARTICIPANT: 'bg-neutral-100 text-neutral-600',
+};
+const ROLE_LABEL: Record<User['role'], string> = {
+  ADMIN: 'Admin',
+  SOP_PREPARER: 'SOP Preparer',
+  SUPPORT: 'Support',
+  PARTICIPANT: 'Participant',
+};
 
 interface UserManagementProps {
   isOpen: boolean;
@@ -51,6 +65,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | User['role']>('ALL');
+  const [roleChangeTarget, setRoleChangeTarget] = useState<User | null>(null);
+  const [roleChangeValue, setRoleChangeValue] = useState<'ADMIN' | 'SOP_PREPARER' | 'SUPPORT'>('SUPPORT');
 
   const [newUser, setNewUser] = useState({
     name: '',
@@ -335,6 +351,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       <button type="button" aria-label="Close user actions" className="fixed inset-0 z-[90] cursor-default" onClick={() => setOpenMenuId(null)} />
       <div className="fixed z-[100] w-44 rounded-2xl border border-gray-200 bg-white py-1 shadow-xl" style={menuPosition} role="menu">
         <button onClick={() => { openUserDetails(user); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-gray-50" role="menuitem">Manage</button>
+        <button onClick={() => { setRoleChangeTarget(user); setRoleChangeValue(user.role as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT'); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">Change role</button>
         <button onClick={() => { setResetPasswordUserId(user.id); setResetPasswordValue(''); setError(''); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-orange-500 hover:bg-gray-50" role="menuitem">Reset password</button>
         <button onClick={() => { void handleActivationChange(user); setOpenMenuId(null); }} disabled={loading || (user.isActive !== false && user.id === currentUser?.id)} className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">{user.isActive === false ? 'Reactivate' : 'Deactivate'}</button>
         <button onClick={() => { void handlePermanentDeleteUser(user); setOpenMenuId(null); }} disabled={loading || user.id === currentUser?.id} className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">Permanent delete</button>
@@ -462,16 +479,16 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const content = (
     <>
       <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">{showUserList ? 'User Management' : 'Create User'}</h2>
-          {!embedded && (
+        {!embedded && (
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold">{showUserList ? 'User Management' : 'Create User'}</h2>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         {error && <div className="mb-4 text-red-600 text-sm bg-red-50 p-3 rounded">{error}</div>}
         {success && <div className="mb-4 text-green-600 text-sm bg-green-50 p-3 rounded">{success}</div>}
@@ -534,21 +551,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             {user.createdAt ? formatDate(user.createdAt) : ''}
                           </p>
                         </div>
-                        {/* Role selector + hamburger */}
+                        {/* Role badge + hamburger */}
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <div className="w-28">
-                            <AppSelect
-                              value={user.role}
-                              onChange={(value) => handleRoleChange(user.id, value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT')}
-                              options={[
-                                { value: 'SUPPORT', label: 'Support' },
-                                { value: 'SOP_PREPARER', label: 'SOP Preparer' },
-                                { value: 'ADMIN', label: 'Admin' },
-                              ]}
-                              placeholder="Role"
-                              compact
-                            />
-                          </div>
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${ROLE_BADGE[user.role]}`}>{ROLE_LABEL[user.role]}</span>
                           <div>
                             <button
                               onClick={(event) => toggleUserMenu(user.id, event.currentTarget)}
@@ -612,19 +617,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             <div className="text-sm text-gray-500">{user.email || user.phone}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="w-44">
-                              <AppSelect
-                                value={user.role}
-                                onChange={(value) => handleRoleChange(user.id, value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT')}
-                                options={[
-                                  { value: 'SUPPORT', label: 'Support' },
-                                  { value: 'SOP_PREPARER', label: 'SOP Preparer' },
-                                  { value: 'ADMIN', label: 'Admin' },
-                                ]}
-                                placeholder="Role"
-                                compact
-                              />
-                            </div>
+                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${ROLE_BADGE[user.role]}`}>{ROLE_LABEL[user.role]}</span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {user.createdAt ? formatDate(user.createdAt) : 'N/A'}
@@ -874,6 +867,29 @@ const UserManagement: React.FC<UserManagementProps> = ({
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={!!roleChangeTarget}
+        onClose={() => setRoleChangeTarget(null)}
+        onConfirm={() => { if (roleChangeTarget) void handleRoleChange(roleChangeTarget.id, roleChangeValue); }}
+        title={`Change role for ${roleChangeTarget?.name ?? 'this user'}?`}
+        message="They will get the permissions of the new role the next time they load the app."
+        type="warning"
+        confirmText="Change role"
+        confirmDisabled={!roleChangeTarget || roleChangeValue === roleChangeTarget.role}
+      >
+        <AppSelect
+          value={roleChangeValue}
+          onChange={(value) => setRoleChangeValue(value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT')}
+          options={[
+            { value: 'SUPPORT', label: 'Support' },
+            { value: 'SOP_PREPARER', label: 'SOP Preparer' },
+            { value: 'ADMIN', label: 'Admin' },
+          ]}
+          placeholder="Choose role"
+          compact
+        />
+      </ConfirmationModal>
     </>
   );
 };

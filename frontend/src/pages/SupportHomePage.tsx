@@ -9,7 +9,7 @@ import type { Announcement, FaithProject, Group, Participant, ParticipantCheckIn
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
 import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
-import { getHubPhase } from '../utils/hubPhase';
+import { normalizeLink } from '../utils/links';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 
 type HomeActivity = {
@@ -57,10 +57,6 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const [homeAnnouncement, setHomeAnnouncement] = useState<Announcement | null>(null);
   const autoHide = useChecklistAutoHide();
 
-  // Day 5+ of the cohort, hub members reach My Hub from quick actions instead
-  // of Mobilisation (same rule as the mobile bottom bar in AppShell).
-  const hubPhase = getHubPhase(!!myHub?.hub, activeCohort?.startDate);
-
   // Sunday-evening nudge for a hub lead who hasn't marked this week's recap yet.
   const isHubLead = !!myHub?.isLead;
   const recapMarkedThisWeek = useMemo(() => {
@@ -79,7 +75,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
       accessibleCohortIds: userCohortIds,
       userLabelIds,
     }).then((res) => {
-      setAnnouncements(res.announcements.slice(0, 3));
+      setAnnouncements(res.announcements.slice(0, 1));
       setHomeAnnouncement(res.announcements.find((item) => item.showOnHome && item.homeUntil && new Date(item.homeUntil).getTime() > Date.now()) ?? null);
     }).catch(() => {});
   }, [activeCohort?.id, liveRevision, user, userCohortIds, userLabelIds]);
@@ -202,6 +198,9 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
 
   // Next Group Prayer: computed from the group's locked meeting slot
   const myGroup = myGroups[0] ?? null;
+  // Same resolution as GroupCallCard: the group's own link, falling back to the
+  // support's WhatsApp group link for older groups that never set one.
+  const groupCallLink = normalizeLink(myGroup?.callLink?.trim() || user.whatsappGroupUrl?.trim() || '') || null;
   const nextGroupPrayerDisplay = (() => {
     if (!myGroup?.meetingDay || !myGroup?.meetingTime) return null;
     const [h, m] = myGroup.meetingTime.split(':').map(Number);
@@ -317,15 +316,16 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
             Mark attendance
           </NavLink>
 
-          <div data-wt="home-quick-links" className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))' }}>
-            <QuickLink to="/support/participants" label="Group call" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" />} />
-            {hubPhase ? (
-              <QuickLink to="/support/my-hub" label="My Hub" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-3A3.5 3.5 0 0 0 7 18.5V20m5-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 9v-1a3 3 0 0 0-2.2-2.9M16.5 5.2a3 3 0 0 1 0 5.6" />} />
-            ) : (
-              <QuickLink to="/support/mobilisation" label="Mobilisation" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM19 8v6m3-3h-6" />} />
-            )}
-            <QuickLink to="/support/resources" label="Resources" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Zm0 17A2.5 2.5 0 0 1 6.5 19H20" />} />
+          <div data-wt="home-quick-links" className="grid gap-3" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
+            <QuickLink
+              to={groupCallLink ? undefined : '/support/participants'}
+              href={groupCallLink ?? undefined}
+              label="Join call"
+              icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" />}
+            />
             <QuickLink to="/support/schedule?tab=checklist" label="My Tasks" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 11l3 3L22 4M2 12a10 10 0 1 0 5-8.66" />} />
+            <QuickLink to="/support/resources" label="Resources" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Zm0 17A2.5 2.5 0 0 1 6.5 19H20" />} />
+            <QuickLink to="/support/community" label="Community" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-3A3.5 3.5 0 0 0 7 18.5V20m5-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 9v-1a3 3 0 0 0-2.2-2.9M16.5 5.2a3 3 0 0 1 0 5.6" />} />
           </div>
 
           <section data-wt="home-schedule" className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
@@ -474,16 +474,29 @@ const QuickStat: React.FC<{
   );
 };
 
-const QuickLink: React.FC<{ to: string; label: string; icon: React.ReactNode }> = ({ to, label, icon }) => (
-  <NavLink
-    to={to}
-    className="flex min-h-[44px] min-w-0 flex-col items-center gap-2.5 rounded-2xl border border-[#eef0f4] bg-white px-1 py-4 transition hover:border-[#ffdeca]"
-  >
-    <span className="grid h-11 w-11 place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]">
-      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">{icon}</svg>
-    </span>
-    <span className="whitespace-nowrap text-center text-[13px] font-semibold text-gray-800">{label}</span>
-  </NavLink>
-);
+const QUICK_LINK_CLASS = 'flex min-h-[44px] min-w-0 flex-col items-center gap-2.5 rounded-2xl border border-[#eef0f4] bg-white px-1 py-4 transition hover:border-[#ffdeca]';
+
+const QuickLink: React.FC<{ to?: string; href?: string; label: string; icon: React.ReactNode }> = ({ to, href, label, icon }) => {
+  const content = (
+    <>
+      <span className="grid h-11 w-11 place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">{icon}</svg>
+      </span>
+      <span className="whitespace-nowrap text-center text-[13px] font-semibold text-gray-800">{label}</span>
+    </>
+  );
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer" className={QUICK_LINK_CLASS}>
+        {content}
+      </a>
+    );
+  }
+  return (
+    <NavLink to={to ?? '/support'} className={QUICK_LINK_CLASS}>
+      {content}
+    </NavLink>
+  );
+};
 
 export default SupportHomePage;

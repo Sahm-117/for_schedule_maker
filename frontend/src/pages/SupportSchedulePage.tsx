@@ -250,25 +250,26 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
     <div className="flex flex-col gap-4">
       <div>
         <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold text-gray-900">Your activities for the week...</h2>
+          <h2 className="text-xl font-bold text-gray-900">This week</h2>
           <TourHelpButton tourId="support:schedule" />
         </div>
         <p className="mt-0.5 text-sm text-gray-500">Foundation of Faith Programme{selectedWeek ? ` · Week ${selectedWeek.weekNumber}` : ''}</p>
       </div>
 
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-        <div data-wt="schedule-tabs" className="min-w-0 sm:flex-1">
-          <SegmentedTabs
-            tabs={[
-              { key: 'schedule', label: 'Schedule' },
-              { key: 'checklist', label: 'Checklist' },
-            ]}
-            active={tab}
-            onChange={(key) => setTab(key as WeeklyTab)}
-          />
-        </div>
+      <div data-wt="schedule-tabs">
+        <SegmentedTabs
+          tabs={[
+            { key: 'schedule', label: 'Schedule' },
+            { key: 'checklist', label: 'Checklist' },
+          ]}
+          active={tab}
+          onChange={(key) => setTab(key as WeeklyTab)}
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
         {weekOptions.length > 0 && (
-          <div data-wt="schedule-week" className="w-full flex-none sm:w-44">
+          <div data-wt="schedule-week" className="min-w-0 flex-1">
             <AppSelect
               value={selectedWeek ? String(selectedWeek.id) : ''}
               onChange={(value) => { void handleWeekSelect(Number(value)); }}
@@ -277,6 +278,33 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
             />
           </div>
         )}
+        {tab === 'schedule' && (
+          <div data-wt="schedule-view-modes" className="min-w-0 flex-1">
+            <AppSelect
+              value={viewMode}
+              onChange={(value) => setViewMode(value as ViewMode)}
+              options={[
+                { value: 'today', label: 'Today' },
+                { value: 'tomorrow', label: 'Tomorrow' },
+                { value: 'week', label: 'Full week' },
+              ]}
+              placeholder="Choose view"
+            />
+          </div>
+        )}
+        {tab === 'schedule' && (
+          <button
+            type="button"
+            onClick={() => { void handleDownload(); }}
+            disabled={!selectedWeek || downloading}
+            title="Download this week's schedule"
+            aria-label="Download this week's schedule"
+            className="flex h-11 flex-none items-center gap-1.5 whitespace-nowrap rounded-xl border border-[#d9f2e2] bg-[#f2fbf5] px-3 text-xs font-semibold text-[#15803d] disabled:opacity-60"
+          >
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v12m0 0-4-4m4 4 4-4M4 20h16" /></svg>
+            {downloading ? '…' : 'PDF'}
+          </button>
+        )}
       </div>
 
       {tab === 'schedule' && (
@@ -284,29 +312,6 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
           {completionError && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{completionError}</div>
           )}
-          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-            <div data-wt="schedule-view-modes" className="min-w-0 sm:flex-1">
-              <AppSelect
-                value={viewMode}
-                onChange={(value) => setViewMode(value as ViewMode)}
-                options={[
-                  { value: 'today', label: "Today's schedule" },
-                  { value: 'tomorrow', label: 'Tomorrow' },
-                  { value: 'week', label: 'Full week' },
-                ]}
-                placeholder="Choose view"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => { void handleDownload(); }}
-              disabled={!selectedWeek || downloading}
-              className="flex min-h-[44px] items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-[#d9f2e2] bg-[#f2fbf5] px-4 py-2.5 text-sm font-semibold text-[#15803d] disabled:opacity-60 sm:flex-1"
-            >
-              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v12m0 0-4-4m4 4 4-4M4 20h16" /></svg>
-              {downloading ? 'Preparing…' : 'Download'}
-            </button>
-          </div>
 
           {attendanceFollowUpPanel}
 

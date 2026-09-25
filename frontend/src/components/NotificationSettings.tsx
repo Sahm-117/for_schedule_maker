@@ -7,6 +7,12 @@ interface NotificationSettingsProps {
   isOpen: boolean;
   onClose: () => void;
   embedded?: boolean;
+  // When the host page already renders its own heading + card around this
+  // component (e.g. SupportProfilePage's "Reminders" section), skip this
+  // component's own heading and outer card so we don't nest a titled box
+  // inside another titled box. Admin Settings page doesn't pass this, so its
+  // standalone card + heading are unaffected.
+  bare?: boolean;
 }
 
 const TIMING_OPTIONS: { label: string; value: number }[] = [
@@ -16,7 +22,7 @@ const TIMING_OPTIONS: { label: string; value: number }[] = [
   { label: '1 day before', value: 1440 },
 ];
 
-const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onClose, embedded = false }) => {
+const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onClose, embedded = false, bare = false }) => {
   const { user } = useAuth();
   const { enable, status: deviceStatus } = usePushNotifications(user?.id);
   const [selected, setSelected] = useState<number[]>([60]);
@@ -138,17 +144,19 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
   );
 
   const content = (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">Reminder Preferences</h3>
-        {!embedded && (
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
-      </div>
+    <div className={bare ? '' : 'p-6'}>
+      {!bare && (
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">Reminder Preferences</h3>
+          {!embedded && (
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
 
       <p className="text-sm text-gray-500 mb-4">
         Pick when you would like reminder nudges before your assigned activities. You can choose more than one.
@@ -206,7 +214,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
 
   return embedded ? (
     <>
-      <div className="surface-card overflow-hidden">{content}</div>
+      {bare ? content : <div className="surface-card overflow-hidden">{content}</div>}
       {editing && (
         <div className="fixed inset-0 z-[70] flex items-end bg-black/50 p-0 sm:items-center sm:justify-center sm:p-4">
           <div className="w-full overflow-y-auto rounded-t-3xl bg-white shadow-xl sm:max-w-lg sm:rounded-2xl">

@@ -238,9 +238,9 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
 
           </div>
 
-          <h2 className="mb-1.5 mt-6 text-lg font-bold text-gray-900">Alerts</h2>
+          <h2 className="mb-1.5 mt-6 text-lg font-bold text-gray-900">Reminders</h2>
           <div data-wt="profile-notifications">
-            <NotificationSettings isOpen onClose={() => {}} embedded />
+            <NotificationSettings isOpen onClose={() => {}} embedded bare />
           </div>
         </section>
       </div>

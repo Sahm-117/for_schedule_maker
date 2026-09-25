@@ -305,11 +305,7 @@ const ActivityOverviewPage: React.FC = () => {
                     </div>
                   )}
 
-                  {assignedSupports.length === 0 ? (
-                    <div className="mt-4 rounded-2xl border border-dashed border-gray-200 bg-slate-50 px-4 py-4 text-sm text-gray-500">
-                      No support users are mapped to this activity for the current filters.
-                    </div>
-                  ) : (
+                  {assignedSupports.length > 0 && (
                     <div className="mt-4 grid gap-3 lg:grid-cols-2">
                       <SupportBucket title="Done" tone="done" users={doneSupports} />
                       <SupportBucket title="Pending" tone="pending" users={pendingSupports} />

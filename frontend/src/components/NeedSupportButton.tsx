@@ -7,7 +7,9 @@ import { buildWhatsAppLink } from '../utils/phone';
 // a confirmation modal; on Continue it deep-links to the support contact's
 // WhatsApp with a prefilled message. The contact (name + number) is admin-editable
 // via the support_contact AppSetting.
-const NeedSupportButton: React.FC = () => {
+// `inline` renders a header-sized button (desktop top bar) instead of the floating one,
+// so it never covers table content.
+const NeedSupportButton: React.FC<{ inline?: boolean; className?: string }> = ({ inline = false, className = '' }) => {
   const [contact, setContact] = useState<{ name: string; phone: string } | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -31,22 +33,39 @@ const NeedSupportButton: React.FC = () => {
 
   return (
     <>
-      <div className="pointer-events-none fixed inset-x-0 bottom-24 z-40 flex justify-end px-4 lg:bottom-6 lg:px-6">
+      {inline ? (
         <button
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Need support"
           title="Need support"
-          className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full bg-primary text-white shadow-[0_12px_30px_rgba(255,145,77,0.45)] transition hover:bg-primary-dark active:scale-95"
+          className={`grid h-10 w-10 place-items-center rounded-2xl bg-primary text-white transition hover:bg-primary-dark ${className}`}
         >
           {/* question-mark-in-circle icon */}
-          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg className={inline ? 'h-5 w-5' : 'h-6 w-6'} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="10" />
             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
             <path d="M12 17h.01" />
           </svg>
         </button>
-      </div>
+      ) : (
+        <div className={`pointer-events-none fixed inset-x-0 bottom-24 z-40 flex justify-end px-4 lg:bottom-6 lg:px-6 ${className}`}>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Need support"
+            title="Need support"
+            className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full bg-primary text-white shadow-[0_12px_30px_rgba(255,145,77,0.45)] transition hover:bg-primary-dark active:scale-95"
+          >
+          {/* question-mark-in-circle icon */}
+          <svg className={inline ? 'h-5 w-5' : 'h-6 w-6'} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+            <path d="M12 17h.01" />
+          </svg>
+          </button>
+        </div>
+      )}
 
       <ConfirmationModal
         isOpen={open}

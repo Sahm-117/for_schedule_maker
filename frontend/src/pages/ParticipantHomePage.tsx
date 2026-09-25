@@ -6,6 +6,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { participantAppApi } from '../services/api';
 import { useToast } from '../components/Toast';
+import { buildWhatsAppLink } from '../utils/phone';
+import { normalizeLink } from '../utils/links';
 import {
   FAITH_PROJECT_PARTICIPANT_LABEL,
   currentWeekNumber,
@@ -30,12 +32,12 @@ const FLICK_MIN_PX = 24;
 const FLICK_VELOCITY = 0.5; // px/ms
 const prefersReducedMotion = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-const QUICK_LINKS = [
-  { to: '/me/group', label: 'My Group', icon: 'M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-3A3.5 3.5 0 0 0 7 18.5V20m5-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 9v-1a3 3 0 0 0-2.2-2.9M16.5 5.2a3 3 0 0 1 0 5.6' },
-  { to: '/me/resources', label: 'Resources', icon: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z' },
-  { to: '/me/faith', label: 'Faith Project', icon: 'M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 5.65-7 10-7 10Z' },
-  { to: '/me/feedback', label: 'Feedback', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' },
-];
+// Icons for the Home quick-action tiles (always exactly four, none repeating
+// the mobile bottom bar's Home/My Group/Journey/Faith Project).
+const ICON_CALL = 'M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z';
+const ICON_MESSAGE = 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8-1.284 0-2.503-.24-3.605-.671L3 20l1.395-4.865A7.933 7.933 0 0 1 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z';
+const ICON_RESOURCES = 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z';
+const ICON_FEEDBACK = 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z';
 
 const formatDateLabel = (date: Date) => date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
@@ -98,6 +100,19 @@ const ParticipantHomePage: React.FC = () => {
 
   const group = home.group;
   const callSet = !!(group?.meetingDay && group.meetingTime);
+  const groupCallLink = normalizeLink(group?.callLink?.trim() || '') || null;
+  const supportWaLink = buildWhatsAppLink(group?.supportPhone, `Hi ${(group?.supportName || 'there').split(' ')[0]}, it's ${home.participant.name.split(' ')[0]} from FOF.`);
+
+  const quickTiles: Array<{ key: string; label: string; icon: string; to?: string; href?: string }> = [
+    groupCallLink
+      ? { key: 'call', label: 'Join call', icon: ICON_CALL, href: groupCallLink }
+      : { key: 'call', label: 'Join call', icon: ICON_CALL, to: '/me/group' },
+    supportWaLink
+      ? { key: 'message-support', label: 'Message support', icon: ICON_MESSAGE, href: supportWaLink }
+      : { key: 'message-support', label: 'Message support', icon: ICON_MESSAGE, to: '/me/group' },
+    { key: 'resources', label: 'Resources', icon: ICON_RESOURCES, to: '/me/resources' },
+    { key: 'feedback', label: 'Feedback', icon: ICON_FEEDBACK, to: '/me/feedback' },
+  ];
 
   const toggleGoalDone = async () => {
     if (!week || !reflection) return;
@@ -197,7 +212,6 @@ const ParticipantHomePage: React.FC = () => {
           <div className="flex flex-wrap items-baseline gap-3">
             <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">Programme progress</p>
             <span className="rounded-full bg-[#fff1e6] px-2.5 py-[3px] text-[11px] font-bold text-[#c2410c]">{stageLabel}</span>
-            <NavLink to="/me/group" className="ml-auto text-[13px] font-bold text-[#c2410c]">My group →</NavLink>
           </div>
           {started ? (
             <>
@@ -265,16 +279,26 @@ const ParticipantHomePage: React.FC = () => {
           </div>
         )}
 
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(88px, 1fr))' }}>
-          {QUICK_LINKS.map((link) => (
-            <NavLink key={link.to} to={link.to} className="relative flex min-h-[44px] flex-col items-center gap-2.5 rounded-2xl border border-[#eef0f4] bg-white px-2 py-4 hover:border-[#ffdeca]">
-              <span className="grid h-11 w-11 place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]" aria-hidden="true">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d={link.icon} /></svg>
-              </span>
-              <span className="text-center text-[13px] font-semibold leading-snug text-gray-800">{link.label}</span>
-              {link.to === '/me/faith' && home.faithUnread && <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-red-500" aria-label="New reply" />}
-            </NavLink>
-          ))}
+        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
+          {quickTiles.map((tile) => {
+            const content = (
+              <>
+                <span className="grid h-11 w-11 place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]" aria-hidden="true">
+                  <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d={tile.icon} /></svg>
+                </span>
+                <span className="text-center text-[13px] font-semibold leading-snug text-gray-800">{tile.label}</span>
+              </>
+            );
+            return tile.href ? (
+              <a key={tile.key} href={tile.href} target="_blank" rel="noreferrer" className="relative flex min-h-[44px] flex-col items-center gap-2.5 rounded-2xl border border-[#eef0f4] bg-white px-2 py-4 hover:border-[#ffdeca]">
+                {content}
+              </a>
+            ) : (
+              <NavLink key={tile.key} to={tile.to ?? '/me'} className="relative flex min-h-[44px] flex-col items-center gap-2.5 rounded-2xl border border-[#eef0f4] bg-white px-2 py-4 hover:border-[#ffdeca]">
+                {content}
+              </NavLink>
+            );
+          })}
         </div>
 
         {week && reflection?.goal ? (

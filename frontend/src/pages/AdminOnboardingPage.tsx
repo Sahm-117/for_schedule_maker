@@ -89,7 +89,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
   const [coordinatorCandidateId, setCoordinatorCandidateId] = useState('');
   const [groupFilter, setGroupFilter] = useState(''); // '' = all groups
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'in_progress'>('all');
-  const [eventLimit, setEventLimit] = useState(10); // infinite scroll page size
+  const [eventLimit, setEventLimit] = useState(5); // "Show more" page size
   const [coordinatorOpen, setCoordinatorOpen] = useState(false); // settings modal
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -205,15 +205,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
     };
   }, [groupSummaries]);
 
-  // Infinite scroll for the activity feed: reveal 10 more as the user nears the bottom.
-  const handleFeedScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 48) {
-      setEventLimit((prev) => (prev < events.length ? prev + 10 : prev));
-    }
-  };
-
-  useEffect(() => { setEventLimit(10); }, [groupFilter]);
+  useEffect(() => { setEventLimit(5); }, [groupFilter]);
 
   const openForm = (template?: MessageTemplate) => {
     setEditing(template ?? null);
@@ -435,7 +427,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
               No onboarding updates yet.
             </div>
           ) : (
-            <div className="mt-4 grid min-h-0 flex-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3" onScroll={handleFeedScroll}>
+            <div className="mt-4 grid min-h-0 flex-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
               {events.slice(0, eventLimit).map((event) => (
                 <div key={event.id} className="rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-3">
                   <p className="text-sm font-semibold text-gray-900">{describeEvent(event)}</p>
@@ -443,7 +435,13 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
                 </div>
               ))}
               {eventLimit < events.length && (
-                <p className="col-span-full py-2 text-center text-xs text-gray-400">Scroll for more…</p>
+                <button
+                  type="button"
+                  onClick={() => setEventLimit(events.length)}
+                  className="col-span-full py-2 text-center text-xs font-semibold text-primary hover:text-primary-dark"
+                >
+                  Show more ({events.length - eventLimit})
+                </button>
               )}
             </div>
           )}

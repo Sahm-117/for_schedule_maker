@@ -456,8 +456,6 @@ const AdminFaithProjectsContent: React.FC = () => {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Participant</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Category</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Title</th>
                     <th className="sticky right-0 bg-orange-50/60 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
                   </tr>
                 </thead>
@@ -476,8 +474,6 @@ const AdminFaithProjectsContent: React.FC = () => {
                             {newMessages && <span className="h-2 w-2 rounded-full bg-red-500" aria-label="New message from the support" title="New message from the support" />}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-gray-500">{fp?.categoryName ?? '—'}</td>
-                        <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{fp?.title ?? '—'}</td>
                         <td className="sticky right-0 bg-white px-4 py-3 text-right">
                           <button
                             type="button"

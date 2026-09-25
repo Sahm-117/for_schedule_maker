@@ -91,6 +91,7 @@ const AdminAttendanceContent: React.FC = () => {
   const [excuseNote, setExcuseNote] = useState('');
   const [excuseSaving, setExcuseSaving] = useState(false);
   const [excuseError, setExcuseError] = useState('');
+  const [followUpOpen, setFollowUpOpen] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -393,24 +394,6 @@ const AdminAttendanceContent: React.FC = () => {
             <button type="button" onClick={() => void setAutoFinalize(!autoFinalizeAtNoon)} disabled={sessionSaving || finalised} className="rounded-xl border border-orange-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50">Auto-finalise at noon: {autoFinalizeAtNoon ? 'On' : 'Off'}</button>
             {finalised ? <button type="button" onClick={() => void reopen()} disabled={sessionSaving} className="ml-auto rounded-xl border border-orange-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50">Reopen</button> : !autoFinalizeAtNoon ? <button type="button" onClick={() => void finalise()} disabled={!allMarked || sessionSaving} className="ml-auto rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Send report</button> : <p className="ml-auto text-xs font-medium text-gray-500">Sends automatically at noon Sunday</p>}
           </section>
-          {finalised && <section className="mb-4 rounded-2xl border border-[#d9f2e2] bg-white px-4 py-3 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold text-gray-900">Attendance results</p><p className="text-sm font-semibold text-emerald-700">{summary.attended} attended · {absenceCount} absent</p></div>
-            {absenceCount > 0 && <p className="mt-1.5 text-[13px] text-gray-500">{openFollowUps} follow-up {openFollowUps === 1 ? 'task' : 'tasks'} assigned{doneFollowUps ? ` · ${doneFollowUps} complete` : ''}{unassignedAbsences ? ` · ${unassignedAbsences} need a support assignment` : ''}.</p>}
-            {followUpTasks.length > 0 && <div className="mt-3 border-t border-[#e7f5eb] pt-3">
-              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Follow-up status</p>
-              <div className="mt-2 space-y-2">
-                {followUpTasks.map((task) => {
-                  const complete = task.status === 'DONE';
-                  return <div key={task.id} className="rounded-xl bg-[#f8faf9] px-3 py-2.5">
-                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1"><p className="text-sm font-semibold text-gray-900">{task.participantName ?? 'Participant'}</p><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${complete ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{complete ? 'Done' : 'Waiting'}</span></div>
-                    <p className="mt-0.5 text-xs text-gray-500">Assigned to {task.supportName ?? 'support'}</p>
-                    {complete && <p className="mt-2 text-xs leading-relaxed text-gray-600">{task.completionNote || 'No absence note recorded.'}</p>}
-                  </div>;
-                })}
-              </div>
-            </div>}
-          </section>}
-
           {/* Summary cards */}
           {!loading && (
             <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -430,6 +413,31 @@ const AdminAttendanceContent: React.FC = () => {
               ))}
             </div>
           )}
+
+          {finalised && <section className="mb-4 rounded-2xl border border-[#d9f2e2] bg-white px-4 py-3 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold text-gray-900">Attendance results</p><p className="text-sm font-semibold text-emerald-700">{summary.attended} attended · {absenceCount} absent</p></div>
+            {absenceCount > 0 && <p className="mt-1.5 text-[13px] text-gray-500">{openFollowUps} follow-up {openFollowUps === 1 ? 'task' : 'tasks'} assigned{doneFollowUps ? ` · ${doneFollowUps} complete` : ''}{unassignedAbsences ? ` · ${unassignedAbsences} need a support assignment` : ''}.</p>}
+            {followUpTasks.length > 0 && <div className="mt-3 border-t border-[#e7f5eb] pt-3">
+              <button
+                type="button"
+                onClick={() => setFollowUpOpen((v) => !v)}
+                aria-expanded={followUpOpen}
+                className="text-xs font-bold uppercase tracking-wide text-gray-500 hover:text-gray-700"
+              >
+                Follow-up status ({followUpTasks.length}) {followUpOpen ? '▾' : '▸'}
+              </button>
+              {followUpOpen && <div className="mt-2 space-y-2">
+                {followUpTasks.map((task) => {
+                  const complete = task.status === 'DONE';
+                  return <div key={task.id} className="rounded-xl bg-[#f8faf9] px-3 py-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1"><p className="text-sm font-semibold text-gray-900">{task.participantName ?? 'Participant'}</p><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${complete ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{complete ? 'Done' : 'Waiting'}</span></div>
+                    <p className="mt-0.5 text-xs text-gray-500">Assigned to {task.supportName ?? 'support'}</p>
+                    {complete && <p className="mt-2 text-xs leading-relaxed text-gray-600">{task.completionNote || 'No absence note recorded.'}</p>}
+                  </div>;
+                })}
+              </div>}
+            </div>}
+          </section>}
 
           {loading ? (
             <PageLoader />

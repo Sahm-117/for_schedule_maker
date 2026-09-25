@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink } from 'react-router-dom';
-import type { AttentionItem, CohortHealthPayload, GroupEngagement, HealthStatus } from './healthModel';
+import type { AttentionItem, GroupEngagement, HealthStatus } from './healthModel';
 import { STATUS_LABEL } from './healthModel';
 
 // Building blocks for the admin home page. Status always carries an icon and a
@@ -165,86 +165,34 @@ export const AttentionList: React.FC<{ items: AttentionItem[]; onAction: (item: 
   </>;
 };
 
-// Heat grid cell shades: one hue, light to dark, for 0 / 1 / 2 of the week's two tasks done.
-const CELL = ['#eceef2', '#a9c9ef', '#2a78d6'];
-const CELL_TEXT = ['Report pending', 'Report pending', 'Report submitted'];
-
 export const GroupHeatGrid: React.FC<{
   groups: GroupEngagement[];
-  data: CohortHealthPayload;
   weekNumbers: number[];
-}> = ({ groups, data, weekNumbers }) => {
-  const [showAll, setShowAll] = useState(false);
-  const struggling = groups.filter((g) => g.score < 1);
-  const rows = showAll ? groups : struggling.slice(0, 8);
-  const weeks = data.weeks.filter((w) => weekNumbers.includes(w.weekNumber)).sort((a, b) => a.weekNumber - b.weekNumber);
-
-  const cellValue = (groupId: string, weekId: number) => {
-    const recorded = data.attendance.some((a) => a.groupId === groupId && a.weekId === weekId);
-    const report = data.meetings.some((m) => m.groupId === groupId && m.weekId === weekId);
-    return { level: report ? 2 : 0, recorded, report };
-  };
+}> = ({ groups, weekNumbers }) => {
+  const submitted = groups.reduce((sum, g) => sum + g.reportsSubmitted, 0);
+  const expected = groups.reduce((sum, g) => sum + g.weeksCounted, 0);
+  const behind = groups.filter((g) => g.score < 1).length;
 
   return (
     <section className="surface-card p-5 sm:p-6">
       <div className="mb-1 flex items-center justify-between gap-3">
         <h3 className="text-base font-semibold text-gray-900">Group meeting reports</h3>
-        {groups.length > 0 && (
-          <button type="button" onClick={() => setShowAll((v) => !v)} className="text-xs font-semibold text-primary hover:text-primary-dark">
-            {showAll ? 'Outstanding' : `All groups (${groups.length})`}
-          </button>
-        )}
+        <NavLink to="/group-prayers" className="text-xs font-semibold text-primary hover:text-primary-dark">See all</NavLink>
       </div>
       <p className="mb-4 text-xs text-gray-500">Completed weeks · outstanding first.</p>
 
-      {weeks.length === 0 ? (
+      {weekNumbers.length === 0 || groups.length === 0 ? (
         <p className="rounded-2xl bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">No finished weeks to judge yet.</p>
-      ) : rows.length === 0 ? (
-        <p className="rounded-2xl bg-emerald-50/70 px-4 py-6 text-center text-sm text-emerald-800">Every group is keeping up.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full border-separate" style={{ borderSpacing: '0 2px' }}>
-            <thead>
-              <tr>
-                <th className="pb-1 text-left text-[10px] font-semibold uppercase tracking-wide text-gray-400">Group</th>
-                {weeks.map((w) => (
-                  <th key={w.id} className="w-[18px] px-px pb-1 text-center text-[10px] font-medium text-gray-400">{w.weekNumber}</th>
-                ))}
-                <th className="pb-1 pl-2 text-right text-[10px] font-semibold uppercase tracking-wide text-gray-400">Done</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((g) => (
-                <tr key={g.id}>
-                  <td className="max-w-[7.5rem] pr-2">
-                    <p className="truncate text-xs font-semibold text-gray-800">{g.name}</p>
-                    <p className={`truncate text-[11px] ${g.supportName ? 'text-gray-500' : 'font-semibold text-amber-700'}`}>{g.supportName ?? 'No support'}</p>
-                  </td>
-                  {weeks.map((w) => {
-                    const cell = cellValue(g.id, w.id);
-                    const title = `${g.name}, Week ${w.weekNumber}: meeting report ${cell.report ? 'submitted' : 'pending'}`;
-                    return (
-                      <td key={w.id} className="px-px">
-                        <span className="mx-auto block h-4 w-4 rounded-[4px]" style={{ backgroundColor: CELL[cell.level] }} title={title} aria-label={title} />
-                      </td>
-                    );
-                  })}
-                  <td className="pl-2 text-right text-xs font-semibold tabular-nums text-gray-700">{Math.round(g.score * 100)}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {weeks.length > 0 && rows.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
-          {[0, 2].map((i) => { const color = CELL[i]; return (
-            <span key={color} className="inline-flex items-center gap-1 text-[11px] text-gray-600">
-              <span className="h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: color }} />
-              {CELL_TEXT[i]}
-            </span>
-          ); })}
+        <div className="flex flex-wrap items-center gap-6">
+          <div>
+            <p className="text-2xl font-bold tabular-nums text-gray-900">{submitted}/{expected}</p>
+            <p className="text-xs text-gray-500">Reports submitted</p>
+          </div>
+          <div>
+            <p className={`text-2xl font-bold tabular-nums ${behind > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>{behind}</p>
+            <p className="text-xs text-gray-500">{behind === 1 ? 'group behind' : 'groups behind'}</p>
+          </div>
         </div>
       )}
     </section>

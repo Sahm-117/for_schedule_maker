@@ -498,9 +498,6 @@ const AiSettingsCard: React.FC = () => {
         <div>
           <SummaryRow label="AI help" value={settings.enabled ? 'On' : 'Off'} />
           <SummaryRow label="Models, tried in order" value={`${settings.models.length} model${settings.models.length === 1 ? '' : 's'}`} />
-          {settings.models.length > 0 && (
-            <p className="mt-2 font-mono text-xs leading-relaxed text-gray-500">{settings.models.join(', ')}</p>
-          )}
         </div>
       )}
     >
@@ -536,19 +533,20 @@ const AdminSettingsPage: React.FC = () => {
         subtitle="Notification timings, the support contact, programme rules, church departments and AI help."
       />
 
-      <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <div data-wt="settings-notifications"><NotificationSettings isOpen onClose={() => {}} embedded /></div>
-
-        <div data-wt="settings-contact"><SupportContactCard /></div>
-      </div>
-
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Programme</h2>
       <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
         <div data-wt="settings-rules"><ProgrammeRulesCard /></div>
         <div data-wt="settings-departments"><ChurchDepartmentsCard /></div>
       </div>
 
       <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <div data-wt="settings-contact"><SupportContactCard /></div>
         <div data-wt="settings-ai"><AiSettingsCard /></div>
+      </div>
+
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Just for you</h2>
+      <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <div data-wt="settings-notifications"><NotificationSettings isOpen onClose={() => {}} embedded /></div>
       </div>
     </div>
   );

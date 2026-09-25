@@ -247,11 +247,11 @@ const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
               return <div key={participant.id} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2.5 gap-y-2 rounded-[14px] border border-[#f1f2f5] px-3 py-2.5">
                 <span className="grid h-8 w-8 place-items-center rounded-full bg-[#fff1e7] text-xs font-bold text-[#c2410c]">{initialsOf(participant.fullName)}</span>
                 <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-gray-900">{participant.fullName}</p>{participant.groupName && <p className="truncate text-[11px] text-gray-400">{participant.groupName}</p>}</div>
-                <div className="col-span-2 flex w-full flex-wrap gap-1.5 sm:col-span-1 sm:w-auto">{STATUS_BUTTONS.map(({ status, label, activeCls }) => {
+                <div className="col-span-2 grid w-full grid-cols-5 gap-1 sm:col-span-1 sm:w-auto sm:flex sm:flex-wrap sm:gap-1.5">{STATUS_BUTTONS.map(({ status, label, activeCls }) => {
                   const pending = saving.get(participant.id) === status;
                   const disallowed = locked && !allowedWhenLocked(current, status);
-                  return <button key={status} type="button" disabled={disallowed || busy} aria-busy={pending} onClick={() => void mark(participant, status)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold transition disabled:cursor-wait disabled:opacity-40 ${pending || current === status ? activeCls : 'bg-[#f4f5f7] text-gray-500 hover:bg-gray-200/70'} ${busy && !pending ? 'opacity-50' : ''}`}>
-                    {pending && <span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-current border-t-transparent" aria-hidden="true" />}{label}
+                  return <button key={status} type="button" disabled={disallowed || busy} aria-busy={pending} onClick={() => void mark(participant, status)} className={`flex min-h-9 items-center justify-center gap-1 rounded-lg px-0.5 text-center text-[10.5px] font-semibold leading-tight transition disabled:cursor-wait disabled:opacity-40 sm:inline-flex sm:rounded-full sm:px-2.5 sm:text-xs ${pending || current === status ? activeCls : 'bg-[#f4f5f7] text-gray-500 hover:bg-gray-200/70'} ${busy && !pending ? 'opacity-50' : ''}`}>
+                    {pending && <span className="h-3 w-3 flex-none animate-spin rounded-full border-[1.5px] border-current border-t-transparent" aria-hidden="true" />}<span className="truncate">{label}</span>
                   </button>;
                 })}</div>
               </div>;
