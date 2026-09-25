@@ -99,7 +99,7 @@ export const shouldAskCheckIn = (home: ParticipantHome, now: Date) => {
   return { ask: true, misses };
 };
 
-/** The scripture for today: day N of the cohort opens at 2:00 PM, and the set loops. */
+/** Which FOF day is open: day N of the cohort opens at 2:00 PM. */
 export const scriptureDayIndex = (startDate: string | null | undefined, now: Date): number | null => {
   const days = daysIntoCohort(startDate, now);
   if (days === null) return null;
@@ -107,9 +107,21 @@ export const scriptureDayIndex = (startDate: string | null | undefined, now: Dat
   return opened >= 1 ? opened : null;
 };
 
-export const scriptureForDay = (scriptures: ParticipantHome['scriptures'], day: number) => {
-  if (scriptures.length === 0 || day < 1) return null;
-  return scriptures[(day - 1) % scriptures.length];
+/**
+ * Which scripture post (1-based position) is open today: post 1 shows on
+ * FOF day `startDay`, post 2 the day after, and so on. Nothing shows before
+ * `startDay`; once every post has had its day, the last post stays put
+ * rather than looping back to the first.
+ */
+export const scripturePosition = (fofDay: number | null, startDay: number, totalPosts: number): number | null => {
+  if (fofDay === null || totalPosts < 1) return null;
+  const position = fofDay - startDay + 1;
+  return position >= 1 ? Math.min(position, totalPosts) : null;
+};
+
+export const scriptureForDay = (scriptures: ParticipantHome['scriptures'], position: number) => {
+  if (scriptures.length === 0 || position < 1) return null;
+  return scriptures.find((s) => s.dayNumber === position) ?? null;
 };
 
 export const reflectionFor = (reflections: ParticipantReflection[], weekId: number) =>

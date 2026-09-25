@@ -466,6 +466,12 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async setChurchDepartments(departments: import('../constants/departments').ChurchDepartment[]): Promise<import('../constants/departments').ChurchDepartment[]> { return departments; },
   async getProgrammeRules(): Promise<import('../utils/programmeRules').ProgrammeRules> { return { ...DEFAULT_PROGRAMME_RULES }; },
   async setProgrammeRules(rules: import('../utils/programmeRules').ProgrammeRules): Promise<import('../utils/programmeRules').ProgrammeRules> { return rules; },
+  async getScriptureStartDay(): Promise<number> {
+    return 1;
+  },
+  async setScriptureStartDay(day: number): Promise<number> {
+    return day;
+  },
   async getRegistrationLink(): Promise<{ url: string }> {
     return { url: '' };
   },
@@ -772,6 +778,7 @@ export const scripturesApi = USE_SUPABASE ? supabaseScripturesApi : {
   async getAll(): Promise<{ scriptures: import('../types').Scripture[] }> { return { scriptures: [] }; },
   async upload(_dayNumber: number, _image: Blob, _userId: string): Promise<never> { return peopleUnavailable(); },
   async remove(_scripture: import('../types').Scripture): Promise<void> { return; },
+  async reorder(_ids: string[]): Promise<void> { return; },
 };
 
 export const tourProgressApi = USE_SUPABASE ? supabaseTourProgressApi : {

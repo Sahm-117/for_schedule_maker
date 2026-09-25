@@ -1691,6 +1691,33 @@ export const notificationsApi = {
 
 // App Settings API
 export const settingsApi = {
+  // Which FOF day the first Inspirational Scripture post (position 1) shows on.
+  async getScriptureStartDay(): Promise<number> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'scripture_start_day')
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const value = (data as any)?.value;
+    return typeof value === 'number' && value > 0 ? value : 1;
+  },
+
+  async setScriptureStartDay(day: number): Promise<number> {
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert(
+        [{
+          settingKey: 'scripture_start_day',
+          value: day,
+          updatedAt: new Date().toISOString(),
+        }],
+        { onConflict: 'settingKey' }
+      );
+    if (error) throw new Error(error.message);
+    return day;
+  },
+
   async getRegistrationLink(): Promise<{ url: string }> {
     const { data, error } = await supabase
       .from('AppSetting')
@@ -6140,6 +6167,12 @@ export const scripturesApi = {
     const { error } = await supabase.from('Scripture').delete().eq('id', scripture.id);
     if (error) throw new Error(error.message);
     if (scripture.storagePath) void supabase.storage.from('resources').remove([scripture.storagePath]);
+  },
+
+  // Persists a drag-reorder: dayNumber becomes each id's 1-based position.
+  async reorder(ids: string[]): Promise<void> {
+    const { error } = await supabase.rpc('reorder_scriptures', { ids });
+    if (error) throw new Error(error.message);
   },
 };
 

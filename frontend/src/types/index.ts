@@ -760,6 +760,8 @@ export interface ParticipantHome {
   faithProjectStatus: FaithProjectStatus | null;
   rules: unknown;
   scriptures: Array<{ dayNumber: number; imageUrl: string }>;
+  /** Which FOF day the first scripture (position 1) shows on. */
+  scriptureStartDay: number;
   lastCheckIn: { response: CheckInResponse; sundayMisses: number; meetingMisses: number; createdAt: string } | null;
   members: Array<{ name: string }>;
   profile: {
