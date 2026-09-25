@@ -72,3 +72,6 @@ scripts/activitylabel-backup-*.json
 
 # Session context summaries (ContextSaver)
 .sessions/
+
+# Local working files (designs, handoffs, test logs), not app code
+files/
