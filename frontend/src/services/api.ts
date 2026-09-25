@@ -493,6 +493,7 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
 export const pushSubscriptionsApi = USE_SUPABASE ? supabasePushSubscriptionsApi : {
   async save(_userId: string, _subscription: PushSubscriptionJSON): Promise<void> {},
   async remove(_userId: string, _endpoint: string): Promise<void> {},
+  async listSubscribedUserIds(): Promise<string[]> { return []; },
 };
 
 export const notificationSettingsApi = USE_SUPABASE ? supabaseNotificationSettingsApi : {
@@ -766,6 +767,7 @@ export const feedbackApi = USE_SUPABASE ? supabaseFeedbackApi : {
 
 export const participantPushApi = USE_SUPABASE ? supabaseParticipantPushApi : {
   async notify(_participantIds: string[], _title: string, _body: string, _path: string): Promise<void> { return; },
+  async getUnreachableIds(): Promise<string[]> { return []; },
 };
 
 export const reflectionActivityApi = USE_SUPABASE ? supabaseReflectionActivityApi : {

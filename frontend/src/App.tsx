@@ -4,6 +4,7 @@ import { AuthProvider } from './hooks/useAuth';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
+import PWAUpdateBanner from './components/PWAUpdateBanner';
 import AppShell from './components/AppShell';
 import { AppDataProvider } from './context/AppDataContext';
 import { TourProvider } from './context/TourContext';
@@ -75,6 +76,15 @@ function App() {
     <AuthProvider>
       <Router>
         <ScrollToTop />
+        {/* Mounted once for the app's whole lifetime, not per-page (Login,
+            AppShell and ParticipantShell used to each render their own copy).
+            useRegisterSW's service worker registration is kicked off from a
+            useState lazy initializer, a side effect that isn't safe to repeat
+            on every navigation — remounting it on the Login → AppShell/
+            ParticipantShell transition raced the workbox-window import
+            against React's commit and threw "Can't perform a React state
+            update on a component that hasn't mounted yet" on every login. */}
+        <PWAUpdateBanner />
         <TourProvider>
         <Routes>
           <Route path="/login" element={<Login />} />

@@ -10,7 +10,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { faithProjectsApi, faithProjectCategoriesApi, groupOnboardingStatusApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
+import { faithProjectsApi, faithProjectCategoriesApi, groupOnboardingStatusApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, participantPushApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
 import type { FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, User } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
@@ -54,6 +54,10 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const [flags, setFlags] = useState<ParticipantFlag[]>([]);
   const [reflectionActivity, setReflectionActivity] = useState<import('../types').ReflectionActivity[]>([]);
   const [checkIns, setCheckIns] = useState<import('../types').ParticipantCheckIn[]>([]);
+  // participantIds with an active app login but no saved push subscription —
+  // "No alerts" tag. Empty (not an error) until the participants_without_push
+  // migration is applied.
+  const [noAlertsIds, setNoAlertsIds] = useState<Set<string>>(new Set());
   const [noteParticipant, setNoteParticipant] = useState<Participant | null>(null);
   const [noteBody, setNoteBody] = useState('');
   const [savingNote, setSavingNote] = useState(false);
@@ -135,17 +139,19 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       }
 
       const participantIds = participantsRes.participants.map((participant) => participant.id);
-      const [notesRes, handoversRes, flagsRes, readsRes, activityRes, checkInsRes] = await Promise.all([
+      const [notesRes, handoversRes, flagsRes, readsRes, activityRes, checkInsRes, unreachableIds] = await Promise.all([
         participantNotesApi.getForParticipants(participantIds).catch(() => ({ notes: [] as ParticipantNote[] })),
         participantHandoversApi.getForParticipants(participantIds).catch(() => ({ handovers: [] as ParticipantHandover[] })),
         participantFlagsApi.getOpenForParticipants(participantIds).catch(() => ({ flags: [] as ParticipantFlag[] })),
         faithThreadReadsApi.getForUser(user.id).catch(() => ({ reads: new Map<string, string>() })),
         reflectionActivityApi.getForCohort(activeCohort.id).catch(() => ({ activity: [] as import('../types').ReflectionActivity[] })),
         participantCheckInsApi.getForParticipants(participantIds).catch(() => ({ checkIns: [] as import('../types').ParticipantCheckIn[] })),
+        participantPushApi.getUnreachableIds().catch(() => [] as string[]),
       ]);
       setThreadReads(readsRes.reads);
       setReflectionActivity(activityRes.activity);
       setCheckIns(checkInsRes.checkIns);
+      setNoAlertsIds(new Set(unreachableIds));
 
       setParticipants(sortByText(participantsRes.participants, (participant) => participant.fullName));
       setParticipantNotes(notesRes.notes);
@@ -423,6 +429,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
                 openFlag={flags.find((flag) => flag.participantId === participant.id) ?? null}
                 reflectedAt={reflectionActivity.find((entry) => entry.participantId === participant.id && entry.weekId === selectedWeek?.id)?.createdAt ?? null}
                 helpRequest={checkIns.find((entry) => entry.participantId === participant.id && entry.response === 'NEED_HELP' && !entry.handledAt) ?? null}
+                noAlerts={noAlertsIds.has(participant.id)}
                 onHelpHandled={(checkIn) => setCheckIns((prev) => prev.map((entry) => (entry.id === checkIn.id ? checkIn : entry)))}
                 onFlagRaised={(flag) => setFlags((prev) => [flag, ...prev.filter((entry) => entry.participantId !== flag.participantId)])}
                 onFlagCleared={(flagId) => setFlags((prev) => prev.filter((entry) => entry.id !== flagId))}

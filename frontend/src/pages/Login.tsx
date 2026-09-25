@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import PWAUpdateBanner from '../components/PWAUpdateBanner';
 
 const isValidNigerianPhone = (value: string) => /^0[7-9][0-1]\d{8}$/.test(value);
 const looksLikePhone = (value: string) => /^[0-9+]/.test(value) && !value.includes('@');
@@ -87,9 +86,8 @@ const Login: React.FC = () => {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#fbf7f3]">
-      {/* A user stuck on an old cached bundle lands here, so the update prompt
-          has to be reachable before sign-in. */}
-      <PWAUpdateBanner />
+      {/* The update prompt is mounted once, app-wide, in App.tsx — it's
+          reachable here too since it renders outside the router's Routes. */}
 
       {/* Soft light behind everything */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">

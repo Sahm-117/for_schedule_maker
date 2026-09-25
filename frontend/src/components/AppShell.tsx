@@ -7,8 +7,8 @@ import { useAppData } from '../context/AppDataContext';
 import AppSelect from './AppSelect';
 import RejectedChangesNotification from './RejectedChangesNotification';
 import NotificationPromptModal from './NotificationPromptModal';
+import NotificationBlockedModal from './NotificationBlockedModal';
 import PWAInstallBanner from './PWAInstallBanner';
-import PWAUpdateBanner from './PWAUpdateBanner';
 import NewNotificationBanner from './NewNotificationBanner';
 import NeedSupportButton from './NeedSupportButton';
 import NotificationBell from './NotificationBell';
@@ -264,7 +264,7 @@ const AppShell: React.FC = () => {
     hasNewHubActivity,
     myHub,
   } = useAppData();
-  const { showPrompt, enable, dismiss } = usePushNotifications(user?.id);
+  const { showPrompt, showBlocked, enable, dismiss, dismissBlocked } = usePushNotifications(user?.id);
   const [open, setOpen] = useState(false);
   const [openNavGroups, setOpenNavGroups] = useState<OpenNavGroups>({});
   const [moreOpen, setMoreOpen] = useState(false);
@@ -335,9 +335,10 @@ const AppShell: React.FC = () => {
 
   return (
     <div className="app-shell-bg min-h-screen text-gray-900">
-      <PWAUpdateBanner />
+      {/* The update prompt is mounted once, app-wide, in App.tsx. */}
       <NewNotificationBanner />
       {!tourBusy && showPrompt && <NotificationPromptModal onEnable={enable} onDismiss={dismiss} />}
+      {!tourBusy && showBlocked && <NotificationBlockedModal onDismiss={dismissBlocked} />}
       {isSopPreparer && unreadCount > 0 && (
         <RejectedChangesNotification
           rejectedChanges={rejectedChanges}

@@ -5,10 +5,12 @@ import { useAuth } from '../../hooks/useAuth';
 import { ParticipantAppProvider, useParticipantApp } from '../../context/ParticipantAppContext';
 import { ToastProvider } from '../Toast';
 import ErrorBoundary from '../ErrorBoundary';
-import PWAUpdateBanner from '../PWAUpdateBanner';
 import CheckInModal from './CheckInModal';
 import { shouldAskCheckIn } from '../../utils/participantApp';
 import { useTourState } from '../../context/TourContext';
+import { useParticipantPush } from '../../hooks/useParticipantPush';
+import NotificationPromptModal from '../NotificationPromptModal';
+import NotificationBlockedModal from '../NotificationBlockedModal';
 
 // Layout for the participant app: sidebar on desktop, floating bar on mobile, the
 // same look as the support app. Also asks "are you okay?" when their attendance
@@ -46,14 +48,27 @@ const isActive = (pathname: string, to: string, exact?: boolean) =>
 const LATER_KEY = 'fof_checkin_later';
 const lagosDateKey = () => new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 10);
 
-const CheckInPrompt: React.FC = () => {
-  const { home, applyCheckIn } = useParticipantApp();
-  // Waits for the Welcome + Home tour on first sign-in.
-  const { busy: tourBusy } = useTourState();
+// Owned by ShellLayout so the notification prompt can wait until the check-in is done.
+const useCheckInState = () => {
+  const { home } = useParticipantApp();
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem(LATER_KEY) === lagosDateKey(); } catch { return false; }
   });
   const decision = useMemo(() => (home ? shouldAskCheckIn(home, new Date()) : null), [home]);
+  const later = () => {
+    try { localStorage.setItem(LATER_KEY, lagosDateKey()); } catch { /* ignore */ }
+    setDismissed(true);
+  };
+  // Still loading, or a check-in is due and not yet answered or put off.
+  const pending = !home || (!!decision?.ask && !dismissed);
+  return { decision, dismissed, later, pending };
+};
+
+const CheckInPrompt: React.FC<{ checkIn: ReturnType<typeof useCheckInState> }> = ({ checkIn }) => {
+  const { home, applyCheckIn } = useParticipantApp();
+  // Waits for the Welcome + Home tour on first sign-in.
+  const { busy: tourBusy } = useTourState();
+  const { decision, dismissed, later } = checkIn;
   if (tourBusy || !home || !decision?.ask || dismissed) return null;
 
   return (
@@ -63,10 +78,7 @@ const CheckInPrompt: React.FC = () => {
       onAnswered={(response) => {
         applyCheckIn({ response, sundayMisses: decision.misses.sunday, meetingMisses: decision.misses.meeting, createdAt: new Date().toISOString() });
       }}
-      onLater={() => {
-        try { localStorage.setItem(LATER_KEY, lagosDateKey()); } catch { /* ignore */ }
-        setDismissed(true);
-      }}
+      onLater={later}
     />
   );
 };
@@ -77,13 +89,19 @@ const ShellLayout: React.FC = () => {
   const faithUnread = !!home?.faithUnread;
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
+  const { showPrompt, showBlocked, enable, dismiss, dismissBlocked } = useParticipantPush();
+  // Waits for the Welcome + Home tour on first sign-in, same as CheckInPrompt.
+  const { busy: tourBusy } = useTourState();
+  const checkIn = useCheckInState();
+  // The weekly check-in matters more, so the notification prompt waits until it's done.
+  const notifReady = !tourBusy && !checkIn.pending;
 
   if (!user) return null;
   if (user.mustChangePassword) return <Navigate to="/me/welcome" replace />;
 
   return (
     <div className="app-shell-bg min-h-screen text-gray-900">
-      <PWAUpdateBanner />
+      {/* The update prompt is mounted once, app-wide, in App.tsx. */}
 
       <aside className="surface-card fixed inset-y-4 left-4 z-30 hidden w-72 flex-col overflow-hidden lg:flex">
         <div className="border-b border-orange-100 px-6 py-6">
@@ -198,7 +216,9 @@ const ShellLayout: React.FC = () => {
         document.body,
       )}
 
-      <CheckInPrompt />
+      <CheckInPrompt checkIn={checkIn} />
+      {notifReady && showPrompt && <NotificationPromptModal onEnable={enable} onDismiss={dismiss} />}
+      {notifReady && showBlocked && <NotificationBlockedModal onDismiss={dismissBlocked} />}
     </div>
   );
 };

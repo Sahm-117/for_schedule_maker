@@ -4,7 +4,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { participantsApi, groupsApi, participantFlagsApi, cohortsApi, settingsApi, profileFieldsApi } from '../services/api';
+import { participantsApi, groupsApi, participantFlagsApi, participantPushApi, cohortsApi, settingsApi, profileFieldsApi } from '../services/api';
 import { buildDashboardModel, type PeopleSummary } from '../components/dashboard/healthModel';
 import { PERSON_HEALTH_LABEL, type PersonHealth } from '../utils/programmeRules';
 import type { Participant, Group, ParticipantFlag } from '../types';
@@ -770,6 +770,11 @@ const AdminParticipantsContent: React.FC = () => {
   // Profile completion (%) per participant, and the "Incomplete profiles" filter.
   const [completionById, setCompletionById] = useState<Map<string, import('../types').ProfileCompletion>>(new Map());
   const [incompleteOnly, setIncompleteOnly] = useState(false);
+  // participantIds with an active app login but no saved push subscription —
+  // "No alerts" tag + filter. Empty (not an error) until the
+  // participants_without_push migration is applied.
+  const [noAlertsIds, setNoAlertsIds] = useState<Set<string>>(new Set());
+  const [noAlertsOnly, setNoAlertsOnly] = useState(false);
 
   // `silent` background refreshes (realtime liveRevision bumps) update data in
   // place without the full-page "Loading…" flash.
@@ -778,15 +783,17 @@ const AdminParticipantsContent: React.FC = () => {
     if (!silent) setLoading(true);
     try {
       profileFieldsApi.getCohortCompletion(activeCohort.id).then(setCompletionById).catch(() => { /* column stays empty */ });
-      const [{ participants: ps }, { groups: gs }, { flags: fs }, health, peopleData, rules] = await Promise.all([
+      const [{ participants: ps }, { groups: gs }, { flags: fs }, health, peopleData, rules, unreachableIds] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true }),
         groupsApi.getAll({ cohortId: activeCohort.id }),
         participantFlagsApi.getAll({ openOnly: true }).catch(() => ({ flags: [] as ParticipantFlag[] })),
         cohortsApi.getHealth(activeCohort.id).catch(() => null),
         cohortsApi.getPeople(activeCohort.id).catch(() => null),
         settingsApi.getProgrammeRules(),
+        participantPushApi.getUnreachableIds().catch(() => [] as string[]),
       ]);
       setFlags(fs);
+      setNoAlertsIds(new Set(unreachableIds));
       setPeople(health && peopleData
         ? buildDashboardModel(health, activeCohort, 0, peopleData, rules).people
         : null);
@@ -890,12 +897,13 @@ const AdminParticipantsContent: React.FC = () => {
     if (flaggedOnly) ps = ps.filter((p) => flagsByParticipant.has(p.id));
     if (incompleteOnly) ps = ps.filter((p) => (completionById.get(p.id)?.percent ?? 0) < 100);
     if (healthFilter && healthById.size > 0) ps = ps.filter((p) => healthById.get(p.id)?.health === healthFilter);
+    if (noAlertsOnly) ps = ps.filter((p) => noAlertsIds.has(p.id));
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant, healthFilter, healthById, incompleteOnly, completionById]);
+  }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant, healthFilter, healthById, incompleteOnly, completionById, noAlertsOnly, noAlertsIds]);
 
   const unassignedCount = useMemo(
     () => participants.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
@@ -1005,6 +1013,20 @@ const AdminParticipantsContent: React.FC = () => {
                   />
                 </div>
               )}
+              {noAlertsIds.size > 0 && (
+                <div className="w-full sm:w-40 sm:shrink-0">
+                  <AppSelect
+                    value={noAlertsOnly ? 'no-alerts' : ''}
+                    onChange={(v) => setNoAlertsOnly(v === 'no-alerts')}
+                    options={[
+                      { value: '', label: 'All alerts' },
+                      { value: 'no-alerts', label: `No alerts (${noAlertsIds.size})` },
+                    ]}
+                    placeholder="All alerts"
+                    compact
+                  />
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-3">
               {flaggedCount > 0 && (
@@ -1081,6 +1103,14 @@ const AdminParticipantsContent: React.FC = () => {
                             </span>
                           );
                         })()}
+                        {noAlertsIds.has(p.id) && (
+                          <span
+                            title="They have an app login but can't receive push notifications on any device."
+                            className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600"
+                          >
+                            No alerts
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-500">{p.phone ?? '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{p.groupName ?? '—'}</td>

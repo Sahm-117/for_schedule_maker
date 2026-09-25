@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { participantAppApi } from '../services/api'
 
 // Push notifications for the participant app. Same browser flow as the staff
@@ -6,8 +6,19 @@ import { participantAppApi } from '../services/api'
 // participant's session instead of a staff user.
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
+// Dismissing the prompt or the blocked notice only hides it for the rest of
+// this app session — it comes back on the next launch. Same pattern as the
+// staff usePushNotifications hook, kept under its own key.
+const SESSION_DISMISS_KEY = 'fof_participant_notif_dismissed_session'
 
 export type ParticipantPushStatus = 'unsupported' | 'blocked' | 'ready' | 'saving' | 'enabled' | 'failed'
+
+const wasDismissedThisSession = (): boolean => {
+  try { return sessionStorage.getItem(SESSION_DISMISS_KEY) === '1' } catch { return false }
+}
+const markDismissedThisSession = (): void => {
+  try { sessionStorage.setItem(SESSION_DISMISS_KEY, '1') } catch { /* private browsing etc. */ }
+}
 
 const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -35,6 +46,9 @@ export const useParticipantPush = () => {
     if (Notification.permission === 'denied') return 'blocked'
     return Notification.permission === 'granted' ? 'saving' : 'ready'
   })
+  const [showPrompt, setShowPrompt] = useState(false)
+  const [showBlocked, setShowBlocked] = useState(false)
+  const asked = useRef(false)
 
   // Already allowed: quietly refresh the saved subscription.
   useEffect(() => {
@@ -42,7 +56,19 @@ export const useParticipantPush = () => {
     register().then(() => setStatus('enabled')).catch(() => setStatus('failed'))
   }, [])
 
+  // Ask every launch (unless dismissed already this session) — mirrors the
+  // staff usePushNotifications hook.
+  useEffect(() => {
+    if (asked.current) return
+    asked.current = true
+    if (!canUsePush() || wasDismissedThisSession()) return
+    if (Notification.permission === 'denied') setShowBlocked(true)
+    else if (Notification.permission === 'default') setShowPrompt(true)
+  }, [])
+
   const enable = async () => {
+    setShowPrompt(false)
+    markDismissedThisSession()
     if (!canUsePush()) { setStatus('unsupported'); return }
     try {
       setStatus('saving')
@@ -55,5 +81,15 @@ export const useParticipantPush = () => {
     }
   }
 
-  return { status, enable }
+  const dismiss = () => {
+    setShowPrompt(false)
+    markDismissedThisSession()
+  }
+
+  const dismissBlocked = () => {
+    setShowBlocked(false)
+    markDismissedThisSession()
+  }
+
+  return { status, enable, showPrompt, showBlocked, dismiss, dismissBlocked }
 }

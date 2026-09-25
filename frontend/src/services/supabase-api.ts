@@ -2346,6 +2346,16 @@ export const pushSubscriptionsApi = {
 
     if (error) throw new Error(error.message);
   },
+
+  // Staff (userIds) who have at least one saved subscription — used for the
+  // admin Users page's "No alerts" tag/filter (anyone active and not in this
+  // set can't receive a push). Direct table read: PushSubscription's RLS is
+  // already app_is_staff(), no new function needed.
+  async listSubscribedUserIds(): Promise<string[]> {
+    const { data, error } = await supabase.from('PushSubscription').select('userId');
+    if (error) throw new Error(error.message);
+    return Array.from(new Set((data ?? []).map((row: { userId: string }) => row.userId)));
+  },
 };
 
 // Reminder timings are PER USER, in "UserNotificationSetting".
@@ -6215,6 +6225,22 @@ export const participantPushApi = {
     try {
       await supabase.functions.invoke('notify-users', { body: { participantIds, title, body, path } });
     } catch { /* non-critical */ }
+  },
+
+  // participantIds with an active ParticipantAccount but no saved push
+  // subscription — used for the "No alerts" tag/filter on the support and
+  // admin participant lists. Backed by participants_without_push()
+  // (20260925070000_participants_without_push.sql), which is not applied yet
+  // — until it is, the RPC 404s and this resolves to [] so the UI just shows
+  // no tags, no console error.
+  async getUnreachableIds(): Promise<string[]> {
+    try {
+      const { data, error } = await supabase.rpc('participants_without_push');
+      if (error) return [];
+      return (data as string[]) ?? [];
+    } catch {
+      return [];
+    }
   },
 };
 

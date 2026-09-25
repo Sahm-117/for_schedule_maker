@@ -280,6 +280,8 @@ interface ParticipantCardProps {
   /** An unanswered "I need help" from the participant app. */
   helpRequest?: ParticipantCheckIn | null;
   onHelpHandled?: (checkIn: ParticipantCheckIn) => void;
+  /** Has an active app login but no saved push subscription — can't get alerts. */
+  noAlerts?: boolean;
 }
 
 const ParticipantCard: React.FC<ParticipantCardProps> = ({
@@ -304,6 +306,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   reflectedAt,
   helpRequest,
   onHelpHandled,
+  noAlerts,
 }) => {
   const [handlingHelp, setHandlingHelp] = useState(false);
   const markHelpHandled = async () => {
@@ -459,6 +462,11 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${participant.status === 'ARCHIVED' ? 'bg-neutral-100 text-neutral-600' : 'bg-[#f2fbf5] text-[#15803d]'}`}>
           {participant.status === 'ARCHIVED' ? 'Archived' : 'Active'}
         </span>
+        {noAlerts && (
+          <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600" title="They have an app login but can't receive push notifications on any device.">
+            No alerts
+          </span>
+        )}
         <button
           type="button"
           onClick={() => setFpOpen(true)}

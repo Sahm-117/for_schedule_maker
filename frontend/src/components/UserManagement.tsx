@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { usersApi, authApi, labelsApi } from '../services/api';
+import { usersApi, authApi, labelsApi, pushSubscriptionsApi } from '../services/api';
 import type { User, Label } from '../types';
 import AppSelect from './AppSelect';
 import ConfirmationModal from './ConfirmationModal';
@@ -65,6 +65,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | User['role']>('ALL');
+  // Staff userIds with no saved push subscription — "No alerts" tag + filter.
+  const [subscribedUserIds, setSubscribedUserIds] = useState<Set<string>>(new Set());
+  const [noAlertsOnly, setNoAlertsOnly] = useState(false);
   const [roleChangeTarget, setRoleChangeTarget] = useState<User | null>(null);
   const [roleChangeValue, setRoleChangeValue] = useState<'ADMIN' | 'SOP_PREPARER' | 'SUPPORT'>('SUPPORT');
 
@@ -97,6 +100,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
     } finally {
       setLoading(false);
     }
+    pushSubscriptionsApi.listSubscribedUserIds()
+      .then((ids) => setSubscribedUserIds(new Set(ids)))
+      .catch(() => setSubscribedUserIds(new Set()));
   };
 
   const loadLabels = async () => {
@@ -320,11 +326,17 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
   if (!shouldRender) return null;
 
+  // Active and not in subscribedUserIds — an inactive user was never expected
+  // to receive alerts, so they don't count as "no alerts".
+  const hasNoAlerts = (user: User) => user.isActive !== false && !subscribedUserIds.has(user.id);
+  const noAlertsCount = users.filter(hasNoAlerts).length;
+
   const filteredUsers = sortByText(users.filter((user) => {
     const matchesRole = roleFilter === 'ALL' || user.role === roleFilter;
     const haystack = [user.name, user.email, user.phone].filter(Boolean).join(' ').toLowerCase();
     const matchesSearch = searchQuery.trim().length === 0 || haystack.includes(searchQuery.trim().toLowerCase());
-    return matchesRole && matchesSearch;
+    const matchesAlerts = !noAlertsOnly || hasNoAlerts(user);
+    return matchesRole && matchesSearch && matchesAlerts;
   }), (user) => user.name);
 
   const renderStatusBadge = (user: User) => (
@@ -522,6 +534,20 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     compact
                   />
                 </div>
+                {noAlertsCount > 0 && (
+                  <div className="sm:w-44">
+                    <AppSelect
+                      value={noAlertsOnly ? 'no-alerts' : ''}
+                      onChange={(value) => setNoAlertsOnly(value === 'no-alerts')}
+                      options={[
+                        { value: '', label: 'All alerts' },
+                        { value: 'no-alerts', label: `No alerts (${noAlertsCount})` },
+                      ]}
+                      placeholder="All alerts"
+                      compact
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -545,6 +571,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-semibold text-gray-900 text-sm truncate">{user.name}</p>
                             {renderStatusBadge(user)}
+                            {hasNoAlerts(user) && (
+                              <span title="No saved push subscription on any device." className="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">No alerts</span>
+                            )}
                           </div>
                           <p className="text-xs text-gray-500 truncate">{user.email || user.phone}</p>
                           <p className="text-xs text-gray-400 mt-0.5">
@@ -613,6 +642,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             <div className="flex items-center gap-2">
                               <div className="text-sm font-medium text-gray-900">{user.name}</div>
                               {renderStatusBadge(user)}
+                              {hasNoAlerts(user) && (
+                                <span title="No saved push subscription on any device." className="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">No alerts</span>
+                              )}
                             </div>
                             <div className="text-sm text-gray-500">{user.email || user.phone}</div>
                           </td>
