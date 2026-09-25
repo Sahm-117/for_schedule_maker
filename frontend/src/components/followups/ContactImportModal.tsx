@@ -10,6 +10,7 @@ import {
   type ImportParseResult,
   type ParsedContactRow,
 } from '../../utils/contactImport';
+import Spinner from '../Spinner';
 import { sortByText } from '../../utils/sort';
 
 interface ContactImportModalProps {
@@ -117,7 +118,7 @@ const ContactImportModal: React.FC<ContactImportModalProps> = ({
             disabled={rows.length === 0 || importing}
             className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
           >
-            {importing ? 'Importing…' : `Import ${rows.length || ''} contact${rows.length === 1 ? '' : 's'}`}
+            {importing ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Importing…</span>) : `Import ${rows.length || ''} contact${rows.length === 1 ? '' : 's'}`}
           </button>
         </>
       )}

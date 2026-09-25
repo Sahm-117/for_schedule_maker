@@ -6,6 +6,7 @@ import type { Resource } from '../types';
 import { downloadFile } from '../utils/download';
 import DocumentViewerSheet from './DocumentViewerSheet';
 import { sortByText } from '../utils/sort';
+import Spinner from './Spinner';
 
 const LAST_SEEN_KEY = 'fof_resources_last_seen';
 
@@ -321,7 +322,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
               disabled={saving}
               className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
             >
-              {saving ? 'Adding...' : 'Add Resource'}
+              {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Adding...</span>) : 'Add Resource'}
             </button>
           </div>
         </form>

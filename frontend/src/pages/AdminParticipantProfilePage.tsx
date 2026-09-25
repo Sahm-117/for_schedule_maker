@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, NavLink, useParams } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
+import Avatar from '../components/Avatar';
 import { useToast } from '../components/Toast';
 import ModalShell from '../components/followups/ModalShell';
 import {
@@ -10,6 +11,7 @@ import {
   judgedWeekNumbers,
   type CohortHealthPayload,
 } from '../components/dashboard/healthModel';
+import Spinner from '../components/Spinner';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import {
@@ -26,6 +28,7 @@ import {
   participantsApi,
   participantStageChangesApi,
   settingsApi,
+  wrapUpApi,
 } from '../services/api';
 import type {
   AttendanceExcusal,
@@ -63,8 +66,6 @@ const CARD = 'surface-card p-5 sm:p-6';
 
 const formatDate = (value?: string | null) =>
   value ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value)) : '—';
-
-const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
 
 const SOURCE_LABEL: Record<string, string> = { FOLLOW_UP: 'Follow-up', MANUAL: 'Added manually', IMPORT: 'Import' };
 
@@ -119,6 +120,7 @@ interface ProfileData {
   flags: ParticipantFlag[];
   referrals: DepartmentReferral[];
   changes: ParticipantStageChange[];
+  wantsToJoin: string | null;
 }
 
 const AdminParticipantProfilePage: React.FC = () => {
@@ -141,7 +143,7 @@ const AdminParticipantProfilePage: React.FC = () => {
         return;
       }
       const cohortId = participant.cohortId;
-      const [health, rules, notes, handovers, flags, referrals, changes, faith, onboarding] = await Promise.all([
+      const [health, rules, notes, handovers, flags, referrals, changes, faith, onboarding, wantsToJoin] = await Promise.all([
         cohortId ? cohortsApi.getHealth(cohortId).catch(() => null) : Promise.resolve(null),
         settingsApi.getProgrammeRules(),
         participantNotesApi.getForParticipants([participant.id]).then((r) => r.notes).catch(() => []),
@@ -153,6 +155,7 @@ const AdminParticipantProfilePage: React.FC = () => {
         participant.groupId
           ? participantOnboardingStatusApi.getForGroup(participant.groupId).then((r) => r.statuses.find((s) => s.participantId === participant.id) ?? null).catch(() => null)
           : Promise.resolve(null),
+        cohortId ? wrapUpApi.getDepartmentsForCohort(cohortId).then((m) => m.get(participant.id) ?? null).catch(() => null) : Promise.resolve(null),
       ]);
       const weekIds = health?.weeks.map((w) => w.id) ?? [];
       const [sunday, meeting] = weekIds.length
@@ -165,7 +168,7 @@ const AdminParticipantProfilePage: React.FC = () => {
       const excusals = excusableIds.length
         ? await attendanceExcusalsApi.getForRecords(excusableIds).then((r) => r.excusals).catch(() => [])
         : [];
-      setData({ participant, health, rules, sunday, excusals, meeting, onboarding, faithProject: faith, notes, handovers, flags, referrals, changes });
+      setData({ participant, health, rules, sunday, excusals, meeting, onboarding, faithProject: faith, notes, handovers, flags, referrals, changes, wantsToJoin });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load this participant.');
     } finally {
@@ -277,9 +280,7 @@ const AdminParticipantProfilePage: React.FC = () => {
       {/* Header */}
       <section data-wt="pp-header" className={CARD}>
         <div className="flex flex-wrap items-start gap-4">
-          <span className="grid h-16 w-16 flex-none place-items-center rounded-full bg-[#fff1e7] text-xl font-bold text-[#c2410c]">
-            {initialsOf(participant.fullName)}
-          </span>
+          <Avatar name={participant.fullName} avatarUrl={participant.avatarUrl} size="lg" enlargeable />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">{participant.fullName}</h1>
@@ -313,6 +314,7 @@ const AdminParticipantProfilePage: React.FC = () => {
             ['Date of birth', participant.dateOfBirth ? formatDate(participant.dateOfBirth) : null],
             ['Registered', participant.registrationDate || participant.createdAt ? formatDate(participant.registrationDate ?? participant.createdAt) : null],
             ['Source', SOURCE_LABEL[participant.source] ?? participant.source],
+            ['Wants to join', data.wantsToJoin],
           ].map(([label, value]) => (
             <div key={label as string} className="min-w-0">
               <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{label}</dt>
@@ -593,7 +595,7 @@ const ConcernRow: React.FC<{ flag: ParticipantFlag; canClear: boolean; onClear: 
             onClick={async () => { setClearing(true); try { await onClear(); } finally { setClearing(false); } }}
             className="flex-none rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50"
           >
-            {clearing ? 'Clearing…' : 'Clear'}
+            {clearing ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Clearing…</span>) : 'Clear'}
           </button>
         )}
       </div>
@@ -617,7 +619,7 @@ const useSaving = () => {
 const ModalFooter: React.FC<{ onClose: () => void; saving: boolean; disabled: boolean; label: string; onSave: () => void }> = ({ onClose, saving, disabled, label, onSave }) => (
   <>
     <button type="button" onClick={onClose} disabled={saving} className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
-    <button type="button" onClick={onSave} disabled={saving || disabled} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60">{saving ? 'Saving…' : label}</button>
+    <button type="button" onClick={onSave} disabled={saving || disabled} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60">{saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : label}</button>
   </>
 );
 

@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
     }
 
     // Who it is about leads; the one-word outcome is what an admin scans for.
-    const title = `${contact.fullName} — ${TERMINAL_LABELS[terminalState] || 'Updated'}`
+    const title = `${contact.fullName}: ${TERMINAL_LABELS[terminalState] || 'Updated'}`
     const body = `Follow up update from ${actor.name}`
 
     // In-app feed for every admin, regardless of push subscription.

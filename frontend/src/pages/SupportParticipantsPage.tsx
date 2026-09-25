@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
 import SegmentedTabs from '../components/SegmentedTabs';
 import GroupCallCard, { formatMeetingSlot } from '../components/groups/GroupCallCard';
@@ -14,6 +14,7 @@ import { faithProjectsApi, faithProjectCategoriesApi, groupOnboardingStatusApi, 
 import type { FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, User } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
+import Spinner from '../components/Spinner';
 
 type GroupTab = 'faith' | 'prayers';
 
@@ -63,7 +64,8 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const [savingNote, setSavingNote] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [selectedWeekId, setSelectedWeekId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<GroupTab>('faith');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<GroupTab>(searchParams.get('tab') === 'prayers' ? 'prayers' : 'faith');
   const [savingPrayerFocus, setSavingPrayerFocus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -471,7 +473,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
         subtitle="This note stays with the participant and is visible to admins and a future assigned support."
         footer={<>
           <button type="button" onClick={() => setNoteParticipant(null)} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600">Cancel</button>
-          <button type="button" onClick={() => { void saveParticipantNote(); }} disabled={savingNote || !noteBody.trim()} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{savingNote ? 'Saving…' : 'Submit note'}</button>
+          <button type="button" onClick={() => { void saveParticipantNote(); }} disabled={savingNote || !noteBody.trim()} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{savingNote ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Submit note'}</button>
         </>}
       >
         <textarea value={noteBody} onChange={(event) => setNoteBody(event.target.value)} rows={5} placeholder="Add helpful context for the next support…" className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />

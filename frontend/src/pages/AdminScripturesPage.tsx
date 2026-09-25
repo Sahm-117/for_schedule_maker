@@ -13,6 +13,7 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core';
+import Spinner from '../components/Spinner';
 import PageHeader from '../components/PageHeader';
 import ConfirmationModal from '../components/ConfirmationModal';
 import SaveStatus, { type SaveState } from '../components/SaveStatus';
@@ -131,6 +132,9 @@ const AdminScripturesPage: React.FC = () => {
   const [startDaySaveState, setStartDaySaveState] = useState<SaveState | undefined>();
   const savedStartDay = useRef('1');
 
+  const [enabled, setEnabled] = useState(true);
+  const [enabledSaveState, setEnabledSaveState] = useState<SaveState | undefined>();
+
   const [orderSaveState, setOrderSaveState] = useState<SaveState | undefined>();
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -142,8 +146,9 @@ const AdminScripturesPage: React.FC = () => {
 
   const load = async () => {
     try {
-      const [{ scriptures: list }, day] = await Promise.all([scripturesApi.getAll(), settingsApi.getScriptureStartDay()]);
+      const [{ scriptures: list }, day, on] = await Promise.all([scripturesApi.getAll(), settingsApi.getScriptureStartDay(), settingsApi.getScripturesEnabled()]);
       setScriptures(list);
+      setEnabled(on);
       setStartDay(String(day));
       savedStartDay.current = String(day);
     } catch (err) {
@@ -154,6 +159,21 @@ const AdminScripturesPage: React.FC = () => {
   };
 
   useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleEnabled = async () => {
+    const next = !enabled;
+    setEnabled(next);
+    setEnabledSaveState('saving');
+    try {
+      await settingsApi.setScripturesEnabled(next);
+      setEnabledSaveState('saved');
+      setTimeout(() => setEnabledSaveState((s) => (s === 'saved' ? undefined : s)), 2000);
+    } catch (err) {
+      toast({ message: err instanceof Error ? err.message : 'Could not save.', tone: 'error' });
+      setEnabled(!next);
+      setEnabledSaveState('error');
+    }
+  };
 
   const saveStartDay = async () => {
     const parsed = Number(startDay);
@@ -287,6 +307,26 @@ const AdminScripturesPage: React.FC = () => {
       <input ref={replaceInput} type="file" accept="image/*" className="hidden" onChange={(e) => { void replace(e.target.files?.[0]); e.target.value = ''; }} />
 
       <section className="surface-card mb-6 flex flex-wrap items-center gap-3 p-5">
+        <div className="flex w-full items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-900">Show Scriptures to participants</p>
+            <p className="text-xs text-gray-500">{enabled ? 'On: participants see the daily post on Home.' : 'Off: the Scriptures card is hidden for every participant.'}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <SaveStatus state={enabledSaveState} />
+            <button
+              type="button"
+              role="switch"
+              aria-checked={enabled}
+              aria-label="Show Scriptures to participants"
+              onClick={() => { void toggleEnabled(); }}
+              disabled={enabledSaveState === 'saving'}
+              className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition disabled:opacity-60 ${enabled ? 'bg-primary' : 'bg-slate-200'}`}
+            >
+              <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${enabled ? 'translate-x-7' : 'translate-x-1'}`} />
+            </button>
+          </div>
+        </div>
         <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
           First post shows on day
           <input
@@ -314,7 +354,7 @@ const AdminScripturesPage: React.FC = () => {
               Cancel
             </button>
             <button type="button" onClick={() => { void uploadAll(); }} disabled={uploading} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-              {uploading ? 'Uploading…' : `Upload ${pending.filter((p) => p.status !== 'done').length}`}
+              {uploading ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Uploading…</span>) : `Upload ${pending.filter((p) => p.status !== 'done').length}`}
             </button>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
@@ -322,7 +362,7 @@ const AdminScripturesPage: React.FC = () => {
               <div key={item.key} className="rounded-2xl border border-gray-100 p-2">
                 <img src={item.preview} alt="" className="aspect-[4/5] w-full rounded-xl object-cover" />
                 <p className={`mt-2 truncate text-[11px] ${item.status === 'error' ? 'text-red-700' : 'text-gray-400'}`} title={item.error || item.file.name}>
-                  {item.status === 'uploading' ? 'Uploading…' : item.status === 'error' ? item.error : item.file.name}
+                  {item.status === 'uploading' ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Uploading…</span>) : item.status === 'error' ? item.error : item.file.name}
                 </p>
               </div>
             ))}
@@ -331,7 +371,7 @@ const AdminScripturesPage: React.FC = () => {
       )}
 
       {loading ? (
-        <p className="py-12 text-center text-sm text-gray-500">Loading scriptures…</p>
+        <p className="flex items-center justify-center gap-1.5 py-12 text-center text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading scriptures…</p>
       ) : scriptures.length === 0 ? (
         <section className="surface-card px-5 py-12 text-center">
           <p className="text-sm font-semibold text-gray-900">No scriptures yet</p>

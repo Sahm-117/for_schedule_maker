@@ -1,6 +1,8 @@
 import { supabase, SESSION_TOKEN_KEY } from '../lib/supabase';
 import { normaliseRules } from '../utils/programmeRules';
 import { normaliseRecapReleaseTimes } from '../utils/recapReleaseTimes';
+import { normaliseClassFeedbackTimes } from '../utils/classFeedbackTimes';
+import { normaliseClassStartTime } from '../utils/classStartTime';
 import { DEFAULT_CHURCH_DEPARTMENTS } from '../constants/departments';
 import type {
   User,
@@ -15,6 +17,7 @@ import type {
 } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
 import { normalizeToIntlPhone } from '../utils/phone';
+import { resizeImageToJpeg } from '../utils/resizeImage';
 
 // Types for API responses are now imported from ../types
 
@@ -170,7 +173,7 @@ export const authApi = {
     phone?: string;
     name: string;
     password: string;
-    role?: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT'
+    role?: 'ADMIN' | 'SUPPORT'
   }): Promise<{ user: User }> {
     // The account and its hashed password are created together in the database,
     // so no password material is ever written from the browser. The session
@@ -745,6 +748,7 @@ export const cohortsApi = {
           phone: member.phone,
           name: member.name,
           role: member.role,
+          avatarUrl: member.avatarUrl ?? null,
           createdAt: member.createdAt,
           updatedAt: member.updatedAt,
         }) as User),
@@ -1537,6 +1541,10 @@ export const pendingChangesApi = {
       throw new Error(deleteError.message);
     }
 
+    if (change.userId) {
+      void notifyScheduleChangeDecision(change, true);
+    }
+
     return {
       message: 'Change approved and applied',
       results,
@@ -1580,6 +1588,10 @@ export const pendingChangesApi = {
       .from('PendingChange')
       .delete()
       .eq('id', changeId);
+
+    if (change.userId) {
+      void notifyScheduleChangeDecision(change, false, rejectionReason);
+    }
 
     return {
       message: 'Change rejected',
@@ -1720,6 +1732,33 @@ export const settingsApi = {
     return day;
   },
 
+  // Whether participants see Inspirational Scriptures at all. A missing row
+  // means on; participant_home returns no scriptures when this is false.
+  async getScripturesEnabled(): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'scriptures_enabled')
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as any)?.value !== false;
+  },
+
+  async setScripturesEnabled(enabled: boolean): Promise<boolean> {
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert(
+        [{
+          settingKey: 'scriptures_enabled',
+          value: enabled,
+          updatedAt: new Date().toISOString(),
+        }],
+        { onConflict: 'settingKey' }
+      );
+    if (error) throw new Error(error.message);
+    return enabled;
+  },
+
   async getRegistrationLink(): Promise<{ url: string }> {
     const { data, error } = await supabase
       .from('AppSetting')
@@ -1855,6 +1894,46 @@ export const settingsApi = {
     const { error } = await supabase
       .from('AppSetting')
       .upsert([{ settingKey: 'recap_release_times', value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+    if (error) throw new Error(error.message);
+    return value;
+  },
+
+  // When supports and participants get asked about a week's class, and which
+  // week the department prompt opens from (Settings > Programme > Timings).
+  async getClassFeedbackTimes(): Promise<import('../utils/classFeedbackTimes').ClassFeedbackTimes> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'class_feedback_times')
+      .maybeSingle();
+    return normaliseClassFeedbackTimes(error ? null : (data as any)?.value);
+  },
+
+  async setClassFeedbackTimes(times: import('../utils/classFeedbackTimes').ClassFeedbackTimes): Promise<import('../utils/classFeedbackTimes').ClassFeedbackTimes> {
+    const value = normaliseClassFeedbackTimes(times);
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert([{ settingKey: 'class_feedback_times', value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+    if (error) throw new Error(error.message);
+    return value;
+  },
+
+  // Sunday class start time shown in the Sat/Sun participant nudges
+  // (Settings > Programme > Timings).
+  async getClassStartTime(): Promise<string> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'class_start_time')
+      .maybeSingle();
+    return normaliseClassStartTime(error ? null : (data as any)?.value);
+  },
+
+  async setClassStartTime(time: string): Promise<string> {
+    const value = normaliseClassStartTime(time);
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert([{ settingKey: 'class_start_time', value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
     if (error) throw new Error(error.message);
     return value;
   },
@@ -2137,7 +2216,7 @@ export const usersApi = {
     name?: string;
     email?: string;
     password?: string;
-    role?: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT';
+    role?: 'ADMIN' | 'SUPPORT';
     isActive?: boolean;
     deactivatedAt?: string | null;
     isCoordinator?: boolean;
@@ -2285,26 +2364,12 @@ export const usersApi = {
   },
 
   async uploadAvatar(userId: string, file: File): Promise<{ avatarUrl: string }> {
-    // Resize to max 128×128 JPEG at 0.7 quality client-side
-    const compressed = await new Promise<Blob>((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        const size = 128;
-        const canvas = document.createElement('canvas');
-        const scale = Math.min(size / img.width, size / img.height, 1);
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
-        URL.revokeObjectURL(url);
-        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Canvas toBlob failed')), 'image/jpeg', 0.7);
-      };
-      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
-      img.src = url;
-    });
+    // Resized to 640px JPEG at 0.85 quality client-side (utils/resizeImage). A new
+    // filename per upload so phones don't keep showing the previous cached photo.
+    const compressed = await resizeImageToJpeg(file);
 
-    const path = `avatars/${userId}.jpg`;
-    const { error: uploadError } = await supabase.storage.from('resources').upload(path, compressed, { upsert: true, contentType: 'image/jpeg' });
+    const path = `avatars/${userId}-${Date.now()}.jpg`;
+    const { error: uploadError } = await supabase.storage.from('resources').upload(path, compressed, { upsert: false, contentType: 'image/jpeg' });
     if (uploadError) throw new Error(uploadError.message);
 
     const { data: urlData } = supabase.storage.from('resources').getPublicUrl(path);
@@ -2723,6 +2788,13 @@ export const participantAppApi = {
     return data as import('../types').ParticipantHome;
   },
 
+  // The People page: every active support/admin in their cohort, and their own group members.
+  async getPeople(): Promise<import('../types').ParticipantPeople> {
+    const { data, error } = await supabase.rpc('participant_people', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not load people. Please try again.');
+    return data as import('../types').ParticipantPeople;
+  },
+
   async saveReflection(weekId: number, input: { stoodOut: string; goal: string; goalCheck: string }): Promise<import('../types').ParticipantReflection> {
     const { data, error } = await supabase.rpc('save_reflection', {
       p_token: getSessionToken(),
@@ -2789,24 +2861,9 @@ export const participantAppApi = {
     if (error) throw participantAppError(error.message, 'Could not turn on notifications.');
   },
 
-  // Resized to 256px JPEG in the browser before upload.
+  // Resized to 640px JPEG at 0.85 quality in the browser before upload (utils/resizeImage).
   async uploadAvatar(participantId: string, file: File): Promise<{ avatarUrl: string }> {
-    const compressed = await new Promise<Blob>((resolve, reject) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        const size = 256;
-        const canvas = document.createElement('canvas');
-        const scale = Math.min(size / img.width, size / img.height, 1);
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
-        URL.revokeObjectURL(url);
-        canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not read this photo.'))), 'image/jpeg', 0.8);
-      };
-      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read this photo.')); };
-      img.src = url;
-    });
+    const compressed = await resizeImageToJpeg(file);
     const path = `avatars/participants/${participantId}-${Date.now()}.jpg`;
     const { error: uploadError } = await supabase.storage.from('resources').upload(path, compressed, { upsert: false, contentType: 'image/jpeg' });
     if (uploadError) throw new Error(uploadError.message);
@@ -2870,6 +2927,19 @@ export const participantAppApi = {
     }
   },
 
+  // Anonymous unless showName is ticked. One answer per week -- the database
+  // rejects a second submit for a week already answered.
+  async submitClassFeedback(input: { weekId: number; rating: number; comment: string; showName: boolean }): Promise<void> {
+    const { error } = await supabase.rpc('submit_class_feedback', {
+      p_token: getSessionToken(),
+      p_week_id: input.weekId,
+      p_rating: input.rating,
+      p_comment: input.comment,
+      p_show_name: input.showName,
+    });
+    if (error) throw participantAppError(error.message, 'Could not send that. Please try again.');
+  },
+
   // Saves the popup answer; "I need help" also alerts their support straight away.
   async recordCheckIn(response: import('../types').CheckInResponse, misses: { sunday: number; meeting: number }, participantName: string): Promise<void> {
     const { data, error } = await supabase.rpc('record_check_in', {
@@ -2889,6 +2959,17 @@ export const participantAppApi = {
         'PARTICIPANT_FLAG',
       );
     }
+  },
+
+  async getNotifications(): Promise<{ unread: number; items: import('../types').ParticipantNotification[] }> {
+    const { data, error } = await supabase.rpc('participant_notifications', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not load your notifications.');
+    return data as { unread: number; items: import('../types').ParticipantNotification[] };
+  },
+
+  async markNotificationsRead(ids: string[] | null): Promise<void> {
+    const { error } = await supabase.rpc('mark_participant_notifications_read', { p_token: getSessionToken(), p_ids: ids });
+    if (error) throw participantAppError(error.message, 'Could not update your notifications.');
   },
 };
 
@@ -3487,6 +3568,7 @@ const mapParticipant = (row: any): import('../types').Participant => {
     smartRequest: row.smartRequest ?? null,
     dateOfBirth: row.dateOfBirth ?? null,
     occupation: row.occupation ?? null,
+    avatarUrl: row.avatarUrl ?? null,
     groupId: gp?.group?.id ?? null,
     groupName: gp?.group?.name ?? null,
     createdAt: row.createdAt,
@@ -3763,6 +3845,19 @@ export const participantNotesApi = {
       .select(PARTICIPANT_NOTE_SELECT).single();
     if (error || !data) throw new Error(error?.message || 'Failed to save participant note');
     return { note: mapParticipantNote(data) };
+  },
+};
+
+// Which department each participant said they want to join (ParticipantWrapUp,
+// staff-readable via RLS app_is_staff()) -- used for the Participants page
+// "Wants to join" filter and export.
+export const wrapUpApi = {
+  async getDepartmentsForCohort(cohortId: string): Promise<Map<string, string>> {
+    const { data, error } = await supabase.from('ParticipantWrapUp').select('participantId, department').eq('cohortId', cohortId);
+    if (error) return new Map();
+    const map = new Map<string, string>();
+    ((data as any[]) || []).forEach((row) => { if (row.department) map.set(row.participantId, row.department); });
+    return map;
   },
 };
 
@@ -5798,7 +5893,7 @@ export const hubApi = {
 // block the action that triggered it, so failures are swallowed.
 type NotifyTarget = {
   userIds?: string[];
-  role?: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT';
+  role?: 'ADMIN' | 'SUPPORT';
   cohortId?: string | null;
   excludeUserId?: string | null;
 };
@@ -5831,6 +5926,25 @@ const notifyAdmins = (title: string, body: string, path: string, type: import('.
 
 const notifyUser = (userId: string, title: string, body: string, path: string, type: import('../types').NotificationType) =>
   notify({ userIds: [userId] }, title, body, path, type);
+
+// Tells the requesting support what happened to a schedule change they
+// submitted (ActivityModal / DaySchedule via pendingChangesApi.create), once
+// an admin approves or rejects it in PendingChangesPanel.
+const notifyScheduleChangeDecision = async (change: any, approved: boolean, rejectionReason?: string) => {
+  const description = change?.changeData?.description ? `"${change.changeData.description}"` : 'Your schedule change';
+  const dayName = change?.changeData?.dayName as string | undefined;
+  let weekLabel = '';
+  if (change?.weekId) {
+    const { data: week } = await supabase.from('Week').select('weekNumber').eq('id', change.weekId).maybeSingle();
+    if ((week as any)?.weekNumber) weekLabel = `Week ${(week as any).weekNumber}`;
+  }
+  const where = [weekLabel, dayName].filter(Boolean).join(', ');
+  const title = approved ? 'Schedule change approved' : 'Schedule change not approved';
+  const body = approved
+    ? `${description}${where ? ` (${where})` : ''} is now on the live schedule.`
+    : `${description}${where ? ` (${where})` : ''} was not approved.${rejectionReason ? ` Reason: ${rejectionReason}` : ''}`;
+  await notifyUser(change.userId, title, body, '/support/schedule', 'SCHEDULE_CHANGE');
+};
 
 const mapMeetingAttendance = (row: any): import('../types').MeetingAttendance => ({
   id: row.id,
@@ -6039,7 +6153,6 @@ export const coverRequestsApi = {
       .select(COVER_REQUEST_SELECT)
       .single();
     if (error || !data) throw new Error(error?.message || 'Failed to send cover request');
-    void notifyAdmins('Cover request', `${input.supportName} asked for cover: ${input.reason.trim()}`, '/supports#cover', 'COVER_REQUEST');
     return { request: mapCoverRequest(data) };
   },
 
@@ -6061,9 +6174,6 @@ export const coverRequestsApi = {
       .single();
     if (error || !data) throw new Error(error?.message || 'Failed to assign cover');
     const request = mapCoverRequest(data);
-    const period = `${new Date(request.startsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${new Date(request.endsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
-    void notifyUser(request.supportId, 'Cover arranged', `${request.coverSupportName || 'A support'} will cover your group (${period}).`, '/support/schedule?tab=cover', 'COVER_REQUEST');
-    void notifyUser(coverSupportId, 'You are covering a group', `You are covering for ${request.supportName || 'a support'} (${period}). Their group shows in My Group during that time.`, '/support/participants', 'COVER_REQUEST');
     return { request };
   },
 };
@@ -6191,9 +6301,14 @@ export const scripturesApi = {
     if (uploadError) throw new Error(uploadError.message);
     const { data: publicUrl } = supabase.storage.from('resources').getPublicUrl(path);
 
-    const { data: previous } = await supabase.from('Scripture').select('storagePath').eq('dayNumber', dayNumber).maybeSingle();
-    const { data, error } = await supabase.from('Scripture')
-      .upsert({ dayNumber, imageUrl: publicUrl.publicUrl, storagePath: path, createdById: userId, updatedAt: new Date().toISOString() }, { onConflict: 'dayNumber' })
+    const { data: previous } = await supabase.from('Scripture').select('id, storagePath').eq('dayNumber', dayNumber).maybeSingle();
+    // Update-or-insert by hand: the dayNumber unique constraint is DEFERRABLE
+    // (for drag reordering), and Postgres refuses a deferrable constraint as
+    // an ON CONFLICT target, so .upsert(..., { onConflict: 'dayNumber' }) fails.
+    const row = { dayNumber, imageUrl: publicUrl.publicUrl, storagePath: path, createdById: userId, updatedAt: new Date().toISOString() };
+    const { data, error } = await (previous?.id
+      ? supabase.from('Scripture').update(row).eq('id', previous.id)
+      : supabase.from('Scripture').insert(row))
       .select('id, dayNumber, imageUrl, storagePath, createdAt')
       .single();
     if (error) throw new Error(error.message);
@@ -6249,6 +6364,50 @@ export const feedbackApi = {
     const { data, error } = await supabase.rpc('feedback_results', { p_token: getSessionToken(), p_cohort_id: cohortId });
     if (error) throw new Error(error.message.includes('SESSION_EXPIRED') ? 'Please sign out and sign in again.' : error.message);
     return data as import('../types').FeedbackResults;
+  },
+
+  // Post-class feedback: each week's support notes and participant ratings.
+  async getClassFeedbackResults(cohortId: string): Promise<import('../types').ClassFeedbackWeekResult[]> {
+    const { data, error } = await supabase.rpc('class_feedback_results', { p_cohort_id: cohortId });
+    if (error) throw new Error(error.message);
+    return (data as import('../types').ClassFeedbackWeekResult[]) ?? [];
+  },
+};
+
+// Post-class feedback, the support side: their own "Anything to flag?" note
+// per week. SupportClassFeedback is a staff-readable/writable table (RLS
+// app_is_staff()), same as SupportHub -- no RPC needed for a support writing
+// their own row.
+export const classFeedbackApi = {
+  // weekIds this support has already answered, for the cohort.
+  async getMineForCohort(cohortId: string, supportId: string): Promise<Set<number>> {
+    try {
+      const { data, error } = await supabase
+        .from('SupportClassFeedback')
+        .select('weekId')
+        .eq('cohortId', cohortId)
+        .eq('supportId', supportId);
+      if (error) return new Set();
+      return new Set(((data as any[]) || []).map((r) => r.weekId));
+    } catch {
+      return new Set();
+    }
+  },
+
+  async submitSupportFeedback(input: { cohortId: string; weekId: number; supportId: string; note: string; isNone: boolean }): Promise<void> {
+    const { error } = await supabase
+      .from('SupportClassFeedback')
+      .upsert(
+        [{
+          cohortId: input.cohortId,
+          weekId: input.weekId,
+          supportId: input.supportId,
+          note: input.isNone ? null : (input.note.trim() || null),
+          isNone: input.isNone,
+        }],
+        { onConflict: 'supportId,weekId' },
+      );
+    if (error) throw new Error(error.message);
   },
 };
 

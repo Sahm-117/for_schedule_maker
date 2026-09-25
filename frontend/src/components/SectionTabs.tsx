@@ -20,7 +20,6 @@ export const ADMIN_SECTIONS: Array<{ root: string; tabs: SectionTab[] }> = [
       { to: '/attendance', label: 'Attendance' },
       { to: '/faith-projects', label: 'Faith projects' },
       { to: '/onboarding', label: 'Onboarding' },
-      { to: '/feedback', label: 'Feedback', adminOnly: true },
     ],
   },
   {

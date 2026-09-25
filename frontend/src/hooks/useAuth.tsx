@@ -11,7 +11,6 @@ interface AuthContextType {
   logout: () => void;
   refreshUser: (patch?: Partial<User>) => void;
   isAdmin: boolean;
-  isSopPreparer: boolean;
   userLabelIds: string[];
   userLabels: Label[];
   userCohortIds: string[];
@@ -257,7 +256,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     refreshUser,
     isAdmin: user?.role === 'ADMIN',
-    isSopPreparer: user?.role === 'SOP_PREPARER',
     userLabelIds,
     userLabels,
     userCohortIds,

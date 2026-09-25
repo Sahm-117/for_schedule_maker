@@ -16,7 +16,7 @@ const AdminUsersPage: React.FC = () => {
     <div>
       <PageHeader
         title="Users"
-        subtitle="Manage admins, SOP preparers, supports, and their label assignments."
+        subtitle="Manage admins, supports, and their label assignments."
         action={(
           <button
             type="button"

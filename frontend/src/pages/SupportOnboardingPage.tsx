@@ -15,6 +15,7 @@ import {
   participantsApi,
   usersApi,
 } from '../services/api';
+import Spinner from '../components/Spinner';
 import { fillTemplate } from '../utils/followUps';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
 import { downloadFile } from '../utils/download';
@@ -838,7 +839,7 @@ const StepRow: React.FC<{
         <span className="block text-[15px] font-semibold text-gray-900">{label}</span>
         <span className="block text-[13px] text-gray-500">{detail}</span>
       </span>
-      <span className={`ml-auto flex-none text-xs font-semibold ${style.text}`}>{busy ? 'Saving…' : style.label}</span>
+      <span className={`ml-auto flex-none text-xs font-semibold ${style.text}`}>{busy ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : style.label}</span>
     </>
   );
   const cls = 'flex w-full items-center gap-3.5 rounded-2xl border border-[#f1f2f5] bg-white p-4 text-left';

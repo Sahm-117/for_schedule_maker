@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
 import Avatar from '../components/Avatar';
 import AppSelect from '../components/AppSelect';
 import { useToast } from '../components/Toast';
@@ -11,6 +12,7 @@ import { currentWeekNumber, formatTime, titleCaseDay } from '../utils/participan
 import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
 import { useSearchParams } from 'react-router-dom';
 import type { ProfileFieldEntry } from '../types';
+import Spinner from '../components/Spinner';
 
 // Participant profile: how complete it is, their photo and details (including any
 // fields the FOF team requested), their programme, reminders and password.
@@ -53,7 +55,9 @@ const Fold: React.FC<{ title: string; summary: string; children: React.ReactNode
           <h3 className="text-base font-bold text-gray-900">{title}</h3>
           {!open && <p className="mt-0.5 truncate text-[13px] text-gray-500">{summary}</p>}
         </div>
-        <span className={`flex-none text-xs text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true">&#9662;</span>
+        <svg className={`h-5 w-5 flex-none text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+        </svg>
       </button>
       {open && <div className="mt-3">{children}</div>}
     </section>
@@ -88,7 +92,7 @@ const ParticipantProfilePage: React.FC = () => {
     setRecapReleased(home.reminders.recapReleased);
   }, [home?.reminders.meetingRemindMinutes.join(','), home?.reminders.recapReleased]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading || !home || !user) return <p className="py-16 text-center text-sm text-gray-500">Loading…</p>;
+  if (loading || !home || !user) return <PageLoader />;
 
   const startEditing = () => {
     setDetails({
@@ -174,6 +178,7 @@ const ParticipantProfilePage: React.FC = () => {
     ['Week', weekNumber >= 1 ? `${Math.min(weekNumber, home.weeks.length)} of ${home.weeks.length}` : 'Not started'],
     ['Username', home.participant.phone || ''],
   ];
+  if (home.wrapUp.department) programmeRows.push(['Wants to join', home.wrapUp.department]);
   // Blank values stay blank: that is what is left to complete.
   const detailRows: Array<[string, string]> = [
     ['Email', home.profile.email || ''],
@@ -239,11 +244,11 @@ const ParticipantProfilePage: React.FC = () => {
 
         <section data-wt="pp-card" className={CARD}>
           <div className="flex items-start gap-3.5">
-            <Avatar name={home.participant.name} avatarUrl={home.profile.avatarUrl} size="lg" />
+            <Avatar name={home.participant.name} avatarUrl={home.profile.avatarUrl} size="lg" enlargeable />
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-lg font-bold text-gray-900">{home.participant.name}</h2>
               <button type="button" onClick={() => photoInput.current?.click()} disabled={uploading} className="text-[13px] font-semibold text-[#c2410c] disabled:opacity-60">
-                {uploading ? 'Uploading…' : home.profile.avatarUrl ? 'Change photo' : 'Add a photo'}
+                {uploading ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Uploading…</span>) : home.profile.avatarUrl ? 'Change photo' : 'Add a photo'}
               </button>
             </div>
             {!editing && (
@@ -306,7 +311,7 @@ const ParticipantProfilePage: React.FC = () => {
               <div className="grid grid-cols-2 gap-2.5">
                 <button type="button" onClick={() => setEditing(false)} disabled={savingDetails} className="min-h-[44px] rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700">Cancel</button>
                 <button type="button" onClick={() => { void saveDetails(); }} disabled={savingDetails} className="min-h-[44px] rounded-xl bg-primary text-sm font-semibold text-white disabled:opacity-60">
-                  {savingDetails ? 'Saving…' : 'Save'}
+                  {savingDetails ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
                 </button>
               </div>
               <p className="text-xs text-gray-500">Your phone number is your username. Ask your support if it needs to change.</p>
@@ -413,7 +418,7 @@ const ParticipantProfilePage: React.FC = () => {
             <input type="password" autoComplete="new-password" value={next} onChange={(e) => { setNext(e.target.value); setPasswordError(''); }} placeholder="New password (at least 8 characters)" className={FIELD} />
             {passwordError && <p className="text-xs font-medium text-red-700">{passwordError}</p>}
             <button type="button" onClick={() => { void changePassword(); }} disabled={changing || !current || !next} className="min-h-[44px] rounded-xl bg-[#3f4757] px-4 text-sm font-semibold text-white disabled:opacity-50">
-              {changing ? 'Saving…' : 'Change password'}
+              {changing ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Change password'}
             </button>
           </div>
         </Fold>

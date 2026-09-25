@@ -14,6 +14,7 @@ import { buildWhatsAppLink } from '../utils/phone';
 import { sortByText } from '../utils/sort';
 import { cohortMode } from '../components/dashboard/healthModel';
 import type { HubMessage, MyHubMember, SupportAttendanceStatus, SupportSession, SupportSessionType, SupportNote } from '../types';
+import Spinner from '../components/Spinner';
 
 const SESSION_TYPE_PILL: Record<SupportSessionType, string> = {
   SUNDAY_RECAP: 'bg-neutral-100 text-neutral-600',
@@ -453,7 +454,7 @@ const SupportMyHubPage: React.FC = () => {
                 />
               </div>
               {recapLoading ? (
-                <p className="text-sm text-gray-400">Loading…</p>
+                <p className="flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
               ) : myHub.members.length === 0 ? (
                 <p className="text-sm text-gray-400">No members yet.</p>
               ) : (
@@ -484,7 +485,7 @@ const SupportMyHubPage: React.FC = () => {
           {tab === 'trainings' && isLead && (
             <section className="surface-card p-5">
               {trainingLoading && trainingSessions.length === 0 ? (
-                <p className="text-sm text-gray-400">Loading…</p>
+                <p className="flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
               ) : trainingSessions.length === 0 ? (
                 <p className="text-sm text-gray-400">No trainings or get-togethers yet — an admin creates these on the Hubs page.</p>
               ) : (
@@ -565,11 +566,11 @@ const SupportMyHubPage: React.FC = () => {
                   disabled={noteSaving || !noteBody.trim()}
                   className="self-end rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-60"
                 >
-                  {noteSaving ? 'Saving…' : 'Add note'}
+                  {noteSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Add note'}
                 </button>
               </div>
               {noteLoading ? (
-                <p className="text-sm text-gray-400">Loading…</p>
+                <p className="flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
               ) : notes.length === 0 ? (
                 <p className="text-sm text-gray-400">No notes yet.</p>
               ) : (
@@ -610,7 +611,7 @@ const SupportMyHubPage: React.FC = () => {
                   disabled={sending || !subject.trim() || !body.trim()}
                   className="self-end rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60"
                 >
-                  {sending ? 'Sending…' : 'Send to hub'}
+                  {sending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending…</span>) : 'Send to hub'}
                 </button>
               </div>
             </section>
@@ -652,7 +653,7 @@ const SupportMyHubPage: React.FC = () => {
                   disabled={editSaving || !editSubject.trim() || !editBody.trim()}
                   className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                 >
-                  {editSaving ? 'Saving…' : 'Save'}
+                  {editSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
                 </button>
               </div>
             </div>
@@ -667,6 +668,7 @@ const SupportMyHubPage: React.FC = () => {
         title="Delete this message?"
         message="This removes the message and everyone's 'Got it' marks on it. Members won't be notified."
         confirmText={deleting ? 'Deleting…' : 'Delete'}
+        confirmLoading={deleting}
         confirmDisabled={deleting}
         type="danger"
       />

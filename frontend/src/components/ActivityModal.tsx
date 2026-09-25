@@ -5,6 +5,7 @@ import type { Day, Activity, Week, Label } from '../types';
 import AppSelect from './AppSelect';
 import ActivityDescriptionToolbar from './ActivityDescriptionToolbar';
 import ActivityLabelPicker from './ActivityLabelPicker';
+import Spinner from './Spinner';
 
 interface ActivityModalProps {
   isOpen: boolean;
@@ -382,9 +383,9 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                   disabled={loading || !time || !description}
                   className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50 text-sm"
                 >
-                  {loading ?
-                    (isAdmin ? 'Saving...' : 'Submitting...') :
-                    activity ? 'Update' :
+                  {loading ? (
+                    <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />{isAdmin ? 'Saving...' : 'Submitting...'}</span>
+                  ) : activity ? 'Update' :
                     (isAdmin ? 'Add Activity' : 'Submit for Approval')
                   }
                 </button>

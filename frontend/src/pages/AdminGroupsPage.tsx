@@ -17,6 +17,7 @@ import { selectedFirst } from '../utils/selectedFirst';
 import { reconcileById } from '../utils/reconcile';
 import { buildTrainingCounts, trainingCountFor, DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
 import { normalizeLink } from '../utils/links';
+import Spinner from '../components/Spinner';
 
 // ── Training eligibility (Phase 4) ────────────────────────────────────────────
 // Shared by GroupFormModal and AssignSupportModal: a support who attended
@@ -77,7 +78,7 @@ const TrainingBlockNotice: React.FC<{
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => { setOpen(false); setErr(''); }} className="rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-white">Cancel</button>
             <button type="button" onClick={() => void handleOverride()} disabled={saving} className="rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
-              {saving ? 'Saving…' : 'Save override'}
+              {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save override'}
             </button>
           </div>
         </div>
@@ -179,7 +180,7 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
         <>
           <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
           <button type="button" onClick={() => void handleSave()} disabled={saving || blocked} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
           </button>
         </>
       }
@@ -299,7 +300,7 @@ const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose
         <>
           <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
           <button type="button" onClick={() => void handleSave()} disabled={saving || blocked} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
           </button>
         </>
       }
@@ -412,7 +413,7 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
         <>
           <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
           <button type="button" onClick={() => void handleSave()} disabled={saving || loading} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
-            {saving ? 'Saving…' : 'Save members'}
+            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save members'}
           </button>
         </>
       }
@@ -428,7 +429,7 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
           className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
         {loading ? (
-          <p className="text-sm text-gray-400">Loading…</p>
+          <p className="flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
         ) : (
           // On mobile the search keyboard otherwise eats the first tap on a row
           // (tap 1 blurs the input, tap 2 selects). Dismiss the keyboard as soon
@@ -625,9 +626,9 @@ const AdminGroupsContent: React.FC = () => {
       />
 
       {activeCohort && !loading && groups.length > 0 && (
-        <div data-wt="groups-filters" className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div data-wt="groups-filters" className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5">
           {supportUsers.length > 0 && (
-            <div className="w-full sm:w-56">
+            <div className="min-w-0">
               <AppSelect
                 value={noSupportOnly ? NO_SUPPORT_OPTION : supportFilter}
                 onChange={(v) => {
@@ -645,7 +646,7 @@ const AdminGroupsContent: React.FC = () => {
               />
             </div>
           )}
-          <div className="w-full sm:w-56">
+          <div className="min-w-0">
             <AppSelect
               value={groupFilter}
               onChange={(v) => { setGroupFilter(v); setSupportFilter(''); setNoSupportOnly(false); }}

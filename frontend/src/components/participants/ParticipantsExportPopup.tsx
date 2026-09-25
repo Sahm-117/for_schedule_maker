@@ -6,14 +6,19 @@ import { buildAllParticipantsList, buildParticipantsHeader } from '../../utils/w
 interface ParticipantsExportPopupProps {
   participants: Participant[];
   cohortName: string;
+  /** Extra heading line, e.g. "Wants to join Choir" when a filter is on. */
+  subtitle?: string;
   onClose: () => void;
 }
 
-const ParticipantsExportPopup: React.FC<ParticipantsExportPopupProps> = ({ participants, cohortName, onClose }) => {
+const ParticipantsExportPopup: React.FC<ParticipantsExportPopupProps> = ({ participants, cohortName, subtitle, onClose }) => {
   const [copied, setCopied] = useState(false);
   const text = useMemo(
-    () => buildAllParticipantsList(participants, buildParticipantsHeader(cohortName, participants)),
-    [participants, cohortName],
+    () => {
+      const header = buildParticipantsHeader(cohortName, participants);
+      return buildAllParticipantsList(participants, subtitle ? header.replace('\n', `\n${subtitle}\n`) : header);
+    },
+    [participants, cohortName, subtitle],
   );
 
   const copyAll = async () => {

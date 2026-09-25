@@ -13,9 +13,10 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import type { Day, Label, User } from '../types';
 import { exportAllWeeksToPDF, exportDayToPDF, exportWeekToPDF } from '../utils/pdfExport';
 import { sortByText } from '../utils/sort';
+import Spinner from '../components/Spinner';
 
 const AdminSchedulePage: React.FC = () => {
-  const { user, isAdmin, isSopPreparer, userLabelIds } = useAuth();
+  const { user, isAdmin, userLabelIds } = useAuth();
   const {
     weeks,
     selectedWeek,
@@ -78,7 +79,7 @@ const AdminSchedulePage: React.FC = () => {
       .catch((error) => console.warn('Failed to load support users:', error));
   }, [isAdmin]);
 
-  const canManageSchedule = isAdmin || isSopPreparer;
+  const canManageSchedule = isAdmin;
 
   const exportSelectedWeek = async () => {
     if (!selectedWeek) return;
@@ -158,7 +159,7 @@ const AdminSchedulePage: React.FC = () => {
           }`}
         >
           <span className={`h-2 w-2 rounded-full ${schedulePublished ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-          {publishing ? 'Saving…' : schedulePublished ? 'Published' : 'Draft'}
+          {publishing ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : schedulePublished ? 'Published' : 'Draft'}
         </button>
       )}
       {selectedWeek && (
@@ -252,8 +253,8 @@ const AdminSchedulePage: React.FC = () => {
               onWeekUpdate={reloadWeeks}
               onPendingChangesRefresh={refreshPendingChanges}
               isAdmin={isAdmin}
-              canEdit={isAdmin || isSopPreparer}
-              filterLabelIds={effectiveFilterLabelIds ?? (isAdmin || isSopPreparer ? undefined : userLabelIds)}
+              canEdit={isAdmin}
+              filterLabelIds={effectiveFilterLabelIds ?? (isAdmin ? undefined : userLabelIds)}
               showInlineAdminActions={false}
               compactHeader
               externalAddDayId={headerAddDayId}

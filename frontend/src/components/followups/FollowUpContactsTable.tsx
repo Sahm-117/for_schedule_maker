@@ -10,6 +10,7 @@ import {
   isOverdue,
   buildStatusPatch,
 } from '../../utils/followUps';
+import Spinner from '../Spinner';
 import { sortByText } from '../../utils/sort';
 
 interface FollowUpContactsTableProps {
@@ -199,7 +200,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
             disabled={!bulkOwnerId || assigning}
             className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
           >
-            {assigning ? 'Assigning…' : 'Assign'}
+            {assigning ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Assigning…</span>) : 'Assign'}
           </button>
           <button type="button" onClick={() => setSelected(new Set())} className="text-xs font-semibold text-gray-500 hover:text-gray-700">
             Clear

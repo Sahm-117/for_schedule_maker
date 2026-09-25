@@ -12,6 +12,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore - web-push ESM build
 import webPush from 'https://esm.sh/web-push@3'
 import { sendToSubscriptions } from '../_shared/webpush.ts'
+import { insertNotifications } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -256,12 +257,16 @@ Deno.serve(async (req) => {
       notifications.push(...await buildCompletionNotifications(event))
     } else if ((event.type === 'GROUP_CREATED_UPDATED' || event.type === 'PARTICIPANT_STATUS_UPDATED') && event.actor?.role !== 'ADMIN') {
       const adminIds = await getAdminIds()
+      const actorName = event.actor?.name?.trim() || 'A support'
+      const groupName = event.group?.name?.trim() || 'a group'
       const title = event.type === 'GROUP_CREATED_UPDATED'
-        ? 'Group created updated'
+        ? (event.payload?.groupCreated
+          ? `${actorName} set up ${groupName}`
+          : `${actorName} marked ${groupName} as not set up`)
         : 'Participant onboarding updated'
       const body = event.type === 'GROUP_CREATED_UPDATED'
-        ? `${event.actor?.name || 'A support'} updated group setup for ${event.group?.name || 'a group'}.`
-        : `${event.actor?.name || 'A support'} updated participant onboarding for ${event.group?.name || 'a group'}.`
+        ? 'Onboarding checklist: Group set up.'
+        : `${actorName} updated participant onboarding for ${groupName}.`
       notifications.push({
         userIds: adminIds,
         title,
@@ -276,6 +281,21 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+
+    // In-app feed row for every targeted user, push or not -- same title/body/path
+    // as the push payload below.
+    await insertNotifications(
+      supabase,
+      notifications.flatMap((notification) =>
+        Array.from(new Set(notification.userIds.filter(Boolean))).map((userId) => ({
+          userId,
+          title: notification.title,
+          body: notification.body,
+          path: notification.path,
+          type: 'ONBOARDING',
+        }))
+      ),
+    )
 
     let sent = 0
     for (const notification of notifications) {

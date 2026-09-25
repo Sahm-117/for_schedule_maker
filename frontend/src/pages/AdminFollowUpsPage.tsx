@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import Spinner from '../components/Spinner';
 import AppSelect from '../components/AppSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
 import FollowUpDashboard from '../components/followups/FollowUpDashboard';
@@ -399,7 +400,7 @@ const AdminFollowUpsPage: React.FC = () => {
         </div>
       )}
 
-      <div className="mb-5 flex flex-wrap items-center gap-2">
+      <div data-wt="fu-filters" className="mb-5 space-y-3">
         <div data-wt="fu-tabs" className="flex flex-wrap items-center gap-2">
         {tabs.map((t) => (
           <button
@@ -413,49 +414,51 @@ const AdminFollowUpsPage: React.FC = () => {
         ))}
         </div>
         {(tab === 'overview' || tab === 'contacts') && (
-          <div className="ml-auto flex items-center gap-2">
-            <div className="w-52">
-              <AppSelect
-                value={cohortFilter}
-                onChange={(v) => { cohortFilterTouchedRef.current = true; setCohortFilter(v); }}
-                options={[{ value: '', label: 'All cohorts' }, ...sortByText(cohorts, (c) => c.name).map((c) => ({ value: c.id, label: c.name }))]}
-                placeholder="All cohorts"
-                compact
-              />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="grid grid-cols-2 gap-2 sm:flex-1 sm:gap-3 lg:grid-cols-3">
+              <div className="min-w-0">
+                <AppSelect
+                  value={cohortFilter}
+                  onChange={(v) => { cohortFilterTouchedRef.current = true; setCohortFilter(v); }}
+                  options={[{ value: '', label: 'All cohorts' }, ...sortByText(cohorts, (c) => c.name).map((c) => ({ value: c.id, label: c.name }))]}
+                  placeholder="All cohorts"
+                  compact
+                />
+              </div>
+              {tab === 'contacts' && (
+                <div className="min-w-0">
+                  <AppSelect
+                    value={ownerFilter}
+                    onChange={setOwnerFilter}
+                    options={[
+                      { value: '', label: `All reps (${ownerOptionCounts.total})` },
+                      { value: '__unassigned__', label: `Unassigned (${ownerOptionCounts.unassigned})` },
+                      ...owners.map((o) => ({ value: o.id, label: `${o.name} (${ownerOptionCounts.perOwner[o.id] || 0})` })),
+                    ]}
+                    placeholder="All reps"
+                    compact
+                  />
+                </div>
+              )}
+              {tab === 'contacts' && (
+                <div className="min-w-0">
+                  <AppSelect
+                    value={contactSort}
+                    onChange={(v) => setContactSort(v === 'alpha' ? 'alpha' : 'newest')}
+                    options={[
+                      { value: 'newest', label: 'Newest first' },
+                      { value: 'alpha', label: 'A–Z' },
+                    ]}
+                    placeholder="Newest first"
+                    compact
+                  />
+                </div>
+              )}
             </div>
-            {tab === 'contacts' && (
-              <div className="w-56">
-                <AppSelect
-                  value={ownerFilter}
-                  onChange={setOwnerFilter}
-                  options={[
-                    { value: '', label: `All reps (${ownerOptionCounts.total})` },
-                    { value: '__unassigned__', label: `Unassigned (${ownerOptionCounts.unassigned})` },
-                    ...owners.map((o) => ({ value: o.id, label: `${o.name} (${ownerOptionCounts.perOwner[o.id] || 0})` })),
-                  ]}
-                  placeholder="All reps"
-                  compact
-                />
-              </div>
-            )}
-            {tab === 'contacts' && (
-              <div className="w-40">
-                <AppSelect
-                  value={contactSort}
-                  onChange={(v) => setContactSort(v === 'alpha' ? 'alpha' : 'newest')}
-                  options={[
-                    { value: 'newest', label: 'Newest first' },
-                    { value: 'alpha', label: 'A–Z' },
-                  ]}
-                  placeholder="Newest first"
-                  compact
-                />
-              </div>
-            )}
             <button
               type="button"
               onPointerDown={openFilterPanel}
-              className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-orange-200 bg-white text-gray-600 hover:bg-orange-50"
+              className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-orange-200 bg-white text-gray-600 hover:bg-orange-50 sm:ml-auto"
             >
               <span className="h-5 w-5">{FilterIcon}</span>
               {activeFilterCount(filters) > 0 && (
@@ -471,7 +474,7 @@ const AdminFollowUpsPage: React.FC = () => {
       {loadError && <p className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>}
 
       {loading ? (
-        <p className="rounded-3xl bg-orange-50/60 px-4 py-12 text-center text-sm text-gray-500">Loading follow-ups…</p>
+        <p className="flex items-center justify-center gap-1.5 rounded-3xl bg-orange-50/60 px-4 py-12 text-center text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading follow-ups…</p>
       ) : (
         <>
           {tab === 'overview' && <FollowUpDashboard contacts={dashboardContacts} onShowUnassigned={showUnassigned} />}

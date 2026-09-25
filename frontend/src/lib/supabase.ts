@@ -76,7 +76,7 @@ export interface User {
   id: string
   email: string
   name: string
-  role: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT'
+  role: 'ADMIN' | 'SUPPORT'
   isActive?: boolean
   deactivatedAt?: string | null
   createdAt: string

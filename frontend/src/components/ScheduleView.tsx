@@ -169,6 +169,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Week title card hidden on the admin Schedule page (compactHeader) for now, per Olamide 2026-09-25. */}
+      {!compactHeader && (
       <div className={`bg-white shadow ${compactHeader ? 'rounded-3xl border border-orange-100 p-4 sm:p-5' : 'rounded-lg p-4 sm:p-6'}`}>
         {/* Title row */}
         <div className={`flex items-start justify-between gap-3 ${compactHeader ? 'mb-1' : 'mb-3'}`}>
@@ -221,6 +223,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* Empty states for support users */}
       {hasNoLabelAssigned && (

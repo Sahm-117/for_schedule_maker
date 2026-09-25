@@ -4,6 +4,7 @@ import DocumentViewerSheet from '../DocumentViewerSheet';
 import InfoTip from '../InfoTip';
 import { meetingAttendanceApi } from '../../services/api';
 import type { FaithProject, Participant, Week } from '../../types';
+import Spinner from '../Spinner';
 
 type MeetingMark = 'JOINED' | 'EXCUSED' | 'MISSED';
 
@@ -425,7 +426,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
             disabled={busy || (step >= STEPS.length - 1 && blockedByMarks)}
             className="min-h-[46px] flex-1 rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60"
           >
-            {busy ? 'Submitting…' : step >= STEPS.length - 1 ? 'Submit report' : 'Next'}
+            {busy ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Submitting…</span>) : step >= STEPS.length - 1 ? 'Submit report' : 'Next'}
           </button>
         </div>
       )}

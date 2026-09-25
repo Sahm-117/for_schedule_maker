@@ -9,16 +9,15 @@ import { formatDate, formatDateTime } from '../utils/time';
 import { sortByText } from '../utils/sort';
 import { selectedFirst } from '../utils/selectedFirst';
 import { useAuth } from '../hooks/useAuth';
+import Spinner from './Spinner';
 
 const ROLE_BADGE: Record<User['role'], string> = {
   ADMIN: 'bg-orange-100/80 text-orange-700',
-  SOP_PREPARER: 'bg-indigo-100/80 text-indigo-700',
   SUPPORT: 'bg-sky-100/80 text-sky-700',
   PARTICIPANT: 'bg-neutral-100 text-neutral-600',
 };
 const ROLE_LABEL: Record<User['role'], string> = {
   ADMIN: 'Admin',
-  SOP_PREPARER: 'SOP Preparer',
   SUPPORT: 'Support',
   PARTICIPANT: 'Participant',
 };
@@ -69,14 +68,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [subscribedUserIds, setSubscribedUserIds] = useState<Set<string>>(new Set());
   const [noAlertsOnly, setNoAlertsOnly] = useState(false);
   const [roleChangeTarget, setRoleChangeTarget] = useState<User | null>(null);
-  const [roleChangeValue, setRoleChangeValue] = useState<'ADMIN' | 'SOP_PREPARER' | 'SUPPORT'>('SUPPORT');
+  const [roleChangeValue, setRoleChangeValue] = useState<'ADMIN' | 'SUPPORT'>('SUPPORT');
 
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
     phone: '',
     password: '',
-    role: 'SUPPORT' as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT',
+    role: 'SUPPORT' as 'ADMIN' | 'SUPPORT',
   });
 
   const shouldRender = embedded || isOpen;
@@ -305,7 +304,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT') => {
+  const handleRoleChange = async (userId: string, newRole: 'ADMIN' | 'SUPPORT') => {
     setLoading(true);
     setError('');
     setSuccess('');
@@ -363,7 +362,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       <button type="button" aria-label="Close user actions" className="fixed inset-0 z-[90] cursor-default" onClick={() => setOpenMenuId(null)} />
       <div className="fixed z-[100] w-44 rounded-2xl border border-gray-200 bg-white py-1 shadow-xl" style={menuPosition} role="menu">
         <button onClick={() => { openUserDetails(user); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-gray-50" role="menuitem">Manage</button>
-        <button onClick={() => { setRoleChangeTarget(user); setRoleChangeValue(user.role as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT'); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">Change role</button>
+        <button onClick={() => { setRoleChangeTarget(user); setRoleChangeValue(user.role as 'ADMIN' | 'SUPPORT'); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">Change role</button>
         <button onClick={() => { setResetPasswordUserId(user.id); setResetPasswordValue(''); setError(''); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-orange-500 hover:bg-gray-50" role="menuitem">Reset password</button>
         <button onClick={() => { void handleActivationChange(user); setOpenMenuId(null); }} disabled={loading || (user.isActive !== false && user.id === currentUser?.id)} className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">{user.isActive === false ? 'Reactivate' : 'Deactivate'}</button>
         <button onClick={() => { void handlePermanentDeleteUser(user); setOpenMenuId(null); }} disabled={loading || user.id === currentUser?.id} className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">Permanent delete</button>
@@ -434,10 +433,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
             <label className="mb-1 block text-sm font-medium text-gray-700">Role *</label>
             <AppSelect
               value={newUser.role}
-              onChange={(value) => setNewUser((prev) => ({ ...prev, role: value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT' }))}
+              onChange={(value) => setNewUser((prev) => ({ ...prev, role: value as 'ADMIN' | 'SUPPORT' }))}
               options={[
                 { value: 'SUPPORT', label: 'Support' },
-                { value: 'SOP_PREPARER', label: 'SOP Preparer' },
                 { value: 'ADMIN', label: 'Admin' },
               ]}
               placeholder="Choose role"
@@ -481,7 +479,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
             disabled={loading || !newUser.name || (!newUser.email && !newUser.phone) || !newUser.password}
             className="rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
           >
-            {loading ? 'Creating...' : 'Create User'}
+            {loading ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Creating...</span>) : 'Create User'}
           </button>
         </div>
       </form>
@@ -510,24 +508,25 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
         {showUserList && (
           <>
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="text-lg font-medium">Users ({filteredUsers.length})</h3>
-              <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="mb-4 space-y-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h3 className="text-lg font-medium">Users ({filteredUsers.length})</h3>
                 <input
                   type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search users"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-primary sm:w-64"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-primary sm:max-w-xs"
                 />
-                <div className="sm:w-56">
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5">
+                <div className="min-w-0">
                   <AppSelect
                     value={roleFilter}
                     onChange={(value) => setRoleFilter(value as 'ALL' | User['role'])}
                     options={[
                       { value: 'ALL', label: 'All roles' },
                       { value: 'ADMIN', label: 'Admin' },
-                      { value: 'SOP_PREPARER', label: 'SOP Preparer' },
                       { value: 'SUPPORT', label: 'Support' },
                     ]}
                     placeholder="All roles"
@@ -535,7 +534,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   />
                 </div>
                 {noAlertsCount > 0 && (
-                  <div className="sm:w-44">
+                  <div className="min-w-0">
                     <AppSelect
                       value={noAlertsOnly ? 'no-alerts' : ''}
                       onChange={(value) => setNoAlertsOnly(value === 'no-alerts')}
@@ -765,10 +764,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       selectedUser.role === 'ADMIN' ? 'bg-orange-100 text-orange-700'
-                      : selectedUser.role === 'SOP_PREPARER' ? 'bg-indigo-100 text-indigo-700'
                       : 'bg-blue-100 text-blue-700'
                     }`}>
-                      {selectedUser.role === 'ADMIN' ? 'Admin' : selectedUser.role === 'SOP_PREPARER' ? 'SOP Preparer' : 'Support'}
+                      {selectedUser.role === 'ADMIN' ? 'Admin' : 'Support'}
                     </span>
                   </div>
                 </div>
@@ -852,7 +850,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             disabled={savingLabels}
                             className="px-4 py-2 bg-primary text-white rounded-md text-sm hover:bg-primary-dark disabled:opacity-50"
                           >
-                            {savingLabels ? 'Saving...' : 'Save tags'}
+                            {savingLabels ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving...</span>) : 'Save tags'}
                           </button>
                           <button
                             type="button"
@@ -886,7 +884,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   disabled={savingProfile}
                   className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50 mr-2"
                 >
-                  {savingProfile ? 'Saving...' : 'Save Changes'}
+                  {savingProfile ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving...</span>) : 'Save Changes'}
                 </button>
                 <button
                   onClick={() => setSelectedUser(null)}
@@ -912,10 +910,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
       >
         <AppSelect
           value={roleChangeValue}
-          onChange={(value) => setRoleChangeValue(value as 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT')}
+          onChange={(value) => setRoleChangeValue(value as 'ADMIN' | 'SUPPORT')}
           options={[
             { value: 'SUPPORT', label: 'Support' },
-            { value: 'SOP_PREPARER', label: 'SOP Preparer' },
             { value: 'ADMIN', label: 'Admin' },
           ]}
           placeholder="Choose role"

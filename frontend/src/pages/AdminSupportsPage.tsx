@@ -8,6 +8,8 @@ import {
   judgedWeekNumbers,
   type CohortHealthPayload,
 } from '../components/dashboard/healthModel';
+import Spinner from '../components/Spinner';
+import Avatar from '../components/Avatar';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { cohortsApi, participantNotesApi, settingsApi, supportHubsApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
@@ -336,6 +338,7 @@ const SupportCard: React.FC<{
   return (
     <li className="surface-card p-4 sm:p-5">
       <div className="flex flex-wrap items-start gap-3">
+        <Avatar name={supportName} avatarUrl={user?.avatarUrl} size="sm" enlargeable className="mt-0.5" />
         <div className="min-w-0 flex-1">
           <p className="text-base font-semibold text-gray-900">
             {supportName}
@@ -397,11 +400,11 @@ const SupportCard: React.FC<{
               disabled={noteSaving || !noteBody.trim()}
               className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white active:scale-95 disabled:opacity-60"
             >
-              {noteSaving ? 'Saving…' : 'Add'}
+              {noteSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Add'}
             </button>
           </div>
           {notes === null ? (
-            <p className="mt-2 text-xs text-gray-400">Loading…</p>
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
           ) : notes.length === 0 ? (
             <p className="mt-2 text-xs text-gray-400">No notes yet.</p>
           ) : (
@@ -554,11 +557,11 @@ const NoLeadSupportCard: React.FC<{
               disabled={noteSaving || !noteBody.trim()}
               className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white active:scale-95 disabled:opacity-60"
             >
-              {noteSaving ? 'Saving…' : 'Add'}
+              {noteSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Add'}
             </button>
           </div>
           {notes === null ? (
-            <p className="mt-2 text-xs text-gray-400">Loading…</p>
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
           ) : notes.length === 0 ? (
             <p className="mt-2 text-xs text-gray-400">No notes yet.</p>
           ) : (

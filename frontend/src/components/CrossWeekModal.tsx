@@ -5,6 +5,7 @@ import type { Week, Label } from '../types';
 import AppSelect from './AppSelect';
 import ActivityDescriptionToolbar from './ActivityDescriptionToolbar';
 import ActivityLabelPicker from './ActivityLabelPicker';
+import Spinner from './Spinner';
 
 interface CrossWeekModalProps {
   isOpen: boolean;
@@ -360,10 +361,11 @@ const CrossWeekModal: React.FC<CrossWeekModalProps> = ({
                 disabled={loading || selectedDays.length === 0 || !time || !description || selectedWeeks.length === 0}
                 className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50 text-sm"
               >
-                {loading ?
-                  (user?.role === 'ADMIN' ? 'Creating...' : 'Submitting...') :
-                  (user?.role === 'ADMIN' ? 'Create Activity' : 'Submit for Approval')
-                }
+                {loading ? (
+                  <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />{user?.role === 'ADMIN' ? 'Creating...' : 'Submitting...'}</span>
+                ) : (
+                  user?.role === 'ADMIN' ? 'Create Activity' : 'Submit for Approval'
+                )}
               </button>
             </div>
           </div>

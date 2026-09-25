@@ -10,7 +10,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore
 import webPush from 'https://esm.sh/web-push@3'
 import { PARTICIPANT_PUSH_STORE, sendToSubscriptions } from '../_shared/webpush.ts'
-import { insertNotifications } from '../_shared/notifications.ts'
+import { insertNotifications, insertParticipantNotifications } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -76,6 +76,10 @@ Deno.serve(async (req) => {
     if (!input.userIds?.length && !input.role && !input.participantIds?.length) return json({ ok: false, error: 'userIds, role or participantIds is required' }, 400)
 
     if (input.participantIds?.length) {
+      // Participant bell row for everyone targeted, push or not.
+      await insertParticipantNotifications(supabase, input.participantIds.map((participantId) => ({
+        participantId, title: input.title, body: input.body, path: input.path ?? '/me', type: input.type ?? 'GENERAL',
+      })))
       const { data: participantSubs } = await supabase
         .from('ParticipantPushSubscription')
         .select('participantId, endpoint, p256dh, auth')

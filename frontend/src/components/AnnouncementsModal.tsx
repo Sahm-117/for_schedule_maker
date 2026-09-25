@@ -5,6 +5,7 @@ import { useAppData } from '../context/AppDataContext';
 import type { Announcement, Label, Group, SupportHub, User, Participant } from '../types';
 import AppSelect from './AppSelect';
 import type { AnnouncementAudience } from '../types';
+import Spinner from './Spinner';
 
 const EXTERNAL_LINK = '__external';
 const HOME_LINK_OPTIONS = [
@@ -534,7 +535,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
               disabled={sending || !subject.trim() || !body.trim() || homeInvalid}
               className="w-full h-11 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {sending ? 'Sending...' : '📢 Send Announcement'}
+              {sending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending...</span>) : '📢 Send Announcement'}
             </button>
         </form>
       )}
@@ -620,7 +621,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                             disabled={removingHomeId === a.id}
                             className="text-[11px] font-semibold text-gray-600 hover:text-gray-900 disabled:opacity-50"
                           >
-                            {removingHomeId === a.id ? 'Removing…' : 'Remove from home'}
+                            {removingHomeId === a.id ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Removing…</span>) : 'Remove from home'}
                           </button>
                         )}
                       </div>

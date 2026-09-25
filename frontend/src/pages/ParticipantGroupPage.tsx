@@ -1,5 +1,7 @@
 import React from 'react';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
+import Avatar from '../components/Avatar';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { buildWhatsAppLink } from '../utils/phone';
 import { currentWeekNumber, formatTime, titleCaseDay } from '../utils/participantApp';
@@ -8,11 +10,10 @@ import { currentWeekNumber, formatTime, titleCaseDay } from '../utils/participan
 // their support. Other members' phone numbers are not shared. Matches the V2 design.
 
 const CARD = 'rounded-[22px] border border-[#eef0f4] bg-white p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
-const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
 
 const ParticipantGroupPage: React.FC = () => {
   const { home, loading } = useParticipantApp();
-  if (loading || !home) return <p className="py-16 text-center text-sm text-gray-500">Loading…</p>;
+  if (loading || !home) return <PageLoader />;
 
   const group = home.group;
   const scheduled = !!(group?.meetingDay && group.meetingTime);
@@ -68,7 +69,7 @@ const ParticipantGroupPage: React.FC = () => {
             <div className="mt-3.5 flex flex-col gap-2.5">
               {group.supportName && (
                 <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-[#ffdeca] bg-[#fffaf5] px-3.5 py-3">
-                  <div className="grid h-10 w-10 flex-none place-items-center rounded-full bg-[#fff1e6] text-sm font-bold text-[#c2410c]">{initialsOf(group.supportName)}</div>
+                  <Avatar name={group.supportName} avatarUrl={group.supportAvatarUrl} size="md" enlargeable />
                   <div className="min-w-0">
                     <p className="text-[15px] font-bold text-gray-900">{group.supportName}</p>
                     <p className="mt-0.5 text-xs text-gray-500">Your support</p>
@@ -80,7 +81,7 @@ const ParticipantGroupPage: React.FC = () => {
               )}
               {home.members.map((member) => (
                 <div key={member.name} className="flex items-center gap-3 rounded-[14px] border border-[#f1f2f5] px-3.5 py-3">
-                  <div className="grid h-10 w-10 flex-none place-items-center rounded-full bg-[#f6f7f9] text-sm font-bold text-gray-600">{initialsOf(member.name)}</div>
+                  <Avatar name={member.name} avatarUrl={member.avatarUrl} size="md" enlargeable />
                   <div className="min-w-0">
                     <p className="text-[15px] font-bold text-gray-900">{member.name}</p>
                     <p className="mt-0.5 text-xs text-gray-500">{group.name}</p>

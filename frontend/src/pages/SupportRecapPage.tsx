@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
 import { useAppData } from '../context/AppDataContext';
 import { supportRecapsApi } from '../services/api';
@@ -35,7 +36,7 @@ const SupportRecapPage: React.FC = () => {
       <PageHeader title="This week's recap" subtitle="What each class covered, for you to bring to your group." />
 
       {loading ? (
-        <p className="py-16 text-center text-sm text-gray-500">Loading…</p>
+        <PageLoader />
       ) : error ? (
         <p className="py-16 text-center text-sm text-red-600">{error}</p>
       ) : recaps.length === 0 ? (

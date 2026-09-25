@@ -56,3 +56,45 @@ export async function insertNotifications(
     return 0
   }
 }
+
+export interface ParticipantNotificationRow {
+  participantId: string
+  title: string
+  body: string
+  /** Participant-app deep link; keep in sync with the push payload's data.path. */
+  path?: string | null
+  type?: string
+}
+
+/**
+ * Participant-bell counterpart of insertNotifications: one row per targeted
+ * participant in ParticipantNotification, whether or not they have push on.
+ * Deduplicates participantIds. Logs and returns 0 on failure, never throws.
+ */
+export async function insertParticipantNotifications(
+  supabase: SupabaseClient,
+  rows: ParticipantNotificationRow[],
+): Promise<number> {
+  const seen = new Set<string>()
+  const payload = (rows ?? [])
+    .filter((r) => r.participantId && !seen.has(r.participantId) && seen.add(r.participantId))
+    .map((r) => ({
+      participantId: r.participantId,
+      title: r.title,
+      body: r.body,
+      path: r.path ?? null,
+      type: r.type ?? 'GENERAL',
+    }))
+  if (payload.length === 0) return 0
+  try {
+    const { error } = await supabase.from('ParticipantNotification').insert(payload)
+    if (error) {
+      console.error('insertParticipantNotifications failed:', error.message)
+      return 0
+    }
+    return payload.length
+  } catch (err) {
+    console.error('insertParticipantNotifications threw:', String(err))
+    return 0
+  }
+}

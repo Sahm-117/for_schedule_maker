@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
 import AppSelect from '../components/AppSelect';
 import { useAuth } from '../hooks/useAuth';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { useChurchDepartments } from '../hooks/useChurchDepartments';
 import { participantAppApi } from '../services/api';
+import Spinner from '../components/Spinner';
 
 // Wrapping up: which church department they want to join, and whether they want
 // a referral. A referral is logged for their support to confirm. Matches the V2 design.
@@ -22,7 +24,7 @@ const ParticipantCompletePage: React.FC = () => {
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
 
-  if (loading || !home) return <p className="py-16 text-center text-sm text-gray-500">Loading…</p>;
+  if (loading || !home) return <PageLoader />;
 
   const submit = async () => {
     if (!department) { setError('Choose a department.'); return; }
@@ -84,7 +86,7 @@ const ParticipantCompletePage: React.FC = () => {
             </label>
             {error && <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{error}</p>}
             <button type="button" onClick={() => { void submit(); }} disabled={sending} className="min-h-[48px] w-full rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60">
-              {sending ? 'Sending…' : 'Submit'}
+              {sending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending…</span>) : 'Submit'}
             </button>
           </div>
         )}

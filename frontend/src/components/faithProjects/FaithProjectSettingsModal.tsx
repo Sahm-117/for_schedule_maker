@@ -3,6 +3,7 @@ import ModalShell from '../followups/ModalShell';
 import { useToast } from '../Toast';
 import { faithProjectCategoriesApi, faithProjectSettingsApi } from '../../services/api';
 import type { FaithProjectCategory, FaithProjectSettings } from '../../types';
+import Spinner from '../Spinner';
 
 interface Props {
   isOpen: boolean;
@@ -80,7 +81,7 @@ const FaithProjectSettingsModal: React.FC<Props> = ({ isOpen, onClose, cohortId,
           <p className="mt-1 text-[13px] leading-normal text-gray-500">This is a soft deadline. Late projects can still be submitted and will be marked as late.</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <input type="datetime-local" value={deadline} onChange={(event) => setDeadline(event.target.value)} className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-gray-200 px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
-            <button type="button" onClick={() => { void saveDeadline(); }} disabled={savingDeadline} className="min-h-[44px] rounded-xl bg-primary px-4 text-sm font-semibold text-white disabled:opacity-60">{savingDeadline ? 'Saving…' : 'Save deadline'}</button>
+            <button type="button" onClick={() => { void saveDeadline(); }} disabled={savingDeadline} className="min-h-[44px] rounded-xl bg-primary px-4 text-sm font-semibold text-white disabled:opacity-60">{savingDeadline ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save deadline'}</button>
           </div>
           {deadline && <button type="button" onClick={() => setDeadline('')} className="mt-2 text-xs font-semibold text-[#c2410c]">Clear deadline</button>}
         </section>
@@ -90,7 +91,7 @@ const FaithProjectSettingsModal: React.FC<Props> = ({ isOpen, onClose, cohortId,
           <p className="mt-1 text-[13px] leading-normal text-gray-500">Shared across every cohort. Support chooses one before sending a project to back office.</p>
           <div className="mt-3 flex gap-2">
             <input aria-label="New Faith Project category" value={categoryName} onChange={(event) => setCategoryName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void addCategory(); } }} placeholder="New category, e.g. Family" className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-gray-200 px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
-            <button type="button" onClick={() => { void addCategory(); }} disabled={!categoryName.trim() || savingCategory} className="min-h-[44px] rounded-xl border border-orange-200 bg-white px-4 text-sm font-semibold text-primary disabled:opacity-60">{savingCategory ? 'Adding…' : 'Add category'}</button>
+            <button type="button" onClick={() => { void addCategory(); }} disabled={!categoryName.trim() || savingCategory} className="min-h-[44px] rounded-xl border border-orange-200 bg-white px-4 text-sm font-semibold text-primary disabled:opacity-60">{savingCategory ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Adding…</span>) : 'Add category'}</button>
           </div>
           <div className="mt-4 flex flex-wrap gap-2" aria-live="polite">
             {categories.length === 0 ? <p className="text-sm text-gray-500">No categories yet.</p> : categories.map((category) => (

@@ -26,6 +26,7 @@ import {
   isClosedContact,
   isClosedRegistrationStatus,
 } from '../utils/followUps';
+import Spinner from '../components/Spinner';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
 import { compareText, sortByText } from '../utils/sort';
 import LoginDetailsCard from '../components/participants/LoginDetailsCard';
@@ -396,7 +397,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                 {prospectError && <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{prospectError}</p>}
                 {prospectSaved && <p className="rounded-xl bg-emerald-100/80 px-3.5 py-2.5 text-sm font-semibold text-emerald-700">{prospectSaved}</p>}
                 <button type="button" onClick={() => { void submitProspect(); }} disabled={prospectSaving} className="min-h-[48px] w-full rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60">
-                  {prospectSaving ? 'Saving…' : 'Save details'}
+                  {prospectSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save details'}
                 </button>
               </div>
             </section>
@@ -534,7 +535,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
             </div>
 
             {loading ? (
-              <p className={`${CARD} px-4 py-12 text-center text-sm text-gray-500`}>Loading your follow-ups…</p>
+              <p className={`${CARD} flex items-center justify-center gap-1.5 px-4 py-12 text-center text-sm text-gray-500`}><Spinner className="h-3.5 w-3.5" />Loading your follow-ups…</p>
             ) : visibleContacts.length === 0 ? (
               <section className={`${CARD} px-5 py-9 text-center`}>
                 {contacts.length === 0 ? (

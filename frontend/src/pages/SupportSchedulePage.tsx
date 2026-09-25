@@ -11,6 +11,7 @@ import { PROGRAM_DAY_ORDER, getCurrentProgramDayName, getProgramDayIndex } from 
 import { exportWeekToPDF } from '../utils/pdfExport';
 import type { AttendanceFollowUpTask, SupportActivityCompletion, SupportChecklistItem, User } from '../types';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
+import Spinner from '../components/Spinner';
 
 type WeeklyTab = 'schedule' | 'checklist';
 type ViewMode = 'today' | 'tomorrow' | 'week';
@@ -204,12 +205,12 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
   const attendanceFollowUpPanel = (absenceTasksLoading || absenceTasks.length > 0 || absenceTaskError) && <section className={`${CARD} border-orange-100 p-4`}>
     <div className="flex items-center justify-between gap-3"><p className="text-base font-bold text-gray-900">Attendance follow-ups</p>{!absenceTasksLoading && absenceTasks.length > 0 && <p className="text-xs font-semibold text-gray-500">{absenceTasksDone} of {absenceTasks.length} done</p>}</div>
     {absenceTaskError && <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{absenceTaskError}</p>}
-    {absenceTasksLoading ? <p className="mt-2 text-sm text-gray-500">Loading follow-ups…</p> : <div className="mt-2.5 flex flex-col gap-2">{absenceTasks.map((task) => {
+    {absenceTasksLoading ? <p className="mt-2 flex items-center gap-1.5 text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading follow-ups…</p> : <div className="mt-2.5 flex flex-col gap-2">{absenceTasks.map((task) => {
       const done = task.status === 'DONE';
       const saving = absenceTaskSavingIds.includes(task.id);
       return <div key={task.id} className="rounded-xl border border-orange-100 bg-orange-50/40 p-3">
         <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className={`truncate text-sm font-semibold ${done ? 'text-gray-500' : 'text-gray-800'}`}>Follow up with {task.participantName ?? 'participant'}</p><p className="text-xs text-gray-500">Absent · due {formatFollowUpDue(task.dueAt)}</p></div>{done && <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-bold text-emerald-700">Done</span>}</div>
-        {done ? <><p className="mt-2 rounded-lg bg-white/75 px-2.5 py-2 text-xs leading-relaxed text-gray-600">{task.completionNote || 'No absence note recorded.'}</p><button type="button" disabled={saving} onClick={() => { void toggleAbsenceTask(task); }} className="mt-2 text-xs font-semibold text-gray-500 underline disabled:opacity-50">Reopen</button></> : <><textarea value={absenceTaskNotes[task.id] ?? ''} onChange={(event) => setAbsenceTaskNotes((notes) => ({ ...notes, [task.id]: event.target.value }))} rows={2} placeholder="Why were they absent?" className="mt-2 w-full resize-none rounded-lg border border-orange-100 bg-white px-2.5 py-2 text-sm text-gray-800 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" /><button type="button" disabled={saving || !(absenceTaskNotes[task.id] ?? '').trim()} onClick={() => { void toggleAbsenceTask(task); }} className="mt-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{saving ? 'Saving…' : 'Mark done'}</button></>}
+        {done ? <><p className="mt-2 rounded-lg bg-white/75 px-2.5 py-2 text-xs leading-relaxed text-gray-600">{task.completionNote || 'No absence note recorded.'}</p><button type="button" disabled={saving} onClick={() => { void toggleAbsenceTask(task); }} className="mt-2 text-xs font-semibold text-gray-500 underline disabled:opacity-50">Reopen</button></> : <><textarea value={absenceTaskNotes[task.id] ?? ''} onChange={(event) => setAbsenceTaskNotes((notes) => ({ ...notes, [task.id]: event.target.value }))} rows={2} placeholder="Why were they absent?" className="mt-2 w-full resize-none rounded-lg border border-orange-100 bg-white px-2.5 py-2 text-sm text-gray-800 outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" /><button type="button" disabled={saving || !(absenceTaskNotes[task.id] ?? '').trim()} onClick={() => { void toggleAbsenceTask(task); }} className="mt-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Mark done'}</button></>}
       </div>;
     })}</div>}
   </section>;
@@ -375,7 +376,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
                                     onClick={() => { void handleToggleCompleted(activity.id, !done); }}
                                     className={`ml-auto flex items-center gap-1.5 rounded-[10px] border px-3 py-[7px] text-xs font-bold transition disabled:opacity-60 ${done ? 'border-[#15803d] bg-[#15803d] text-white' : 'border-gray-200 bg-white text-gray-700'}`}
                                   >
-                                    {saving ? 'Saving…' : done ? '✓ Done' : 'Mark done'}
+                                    {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : done ? '✓ Done' : 'Mark done'}
                                   </button>
                                 )}
                               </div>
@@ -422,7 +423,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
             <div className="mt-3 rounded-xl border border-[#d9f2e2] bg-[#f2fbf5] px-3.5 py-3 text-[13px] font-semibold text-[#15803d]">All duties complete for this week.</div>
           )}
           {checklistLoading && checklist.length === 0 ? (
-            <p className="mt-4 text-sm text-gray-500">Loading your checklist…</p>
+            <p className="mt-4 flex items-center gap-1.5 text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading your checklist…</p>
           ) : (
             <div className="mt-4 flex flex-col gap-2">
               {checklist.filter((item) => autoHide.isVisible(item)).map((item) => (
@@ -456,7 +457,7 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
                 className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
               <button type="button" onClick={() => { void addDuty(); }} disabled={addingDuty} className="rounded-xl bg-[#3f4757] px-4 py-2.5 text-[13px] font-semibold text-white disabled:opacity-60">
-                {addingDuty ? 'Adding…' : 'Add'}
+                {addingDuty ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Adding…</span>) : 'Add'}
               </button>
             </div>
           )}

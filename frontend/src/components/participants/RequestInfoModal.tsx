@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useAppData } from '../../context/AppDataContext';
 import { groupsApi, participantPushApi, participantsApi, profileFieldsApi } from '../../services/api';
 import type { Group, Participant, ProfileField, ProfileFieldType } from '../../types';
+import Spinner from '../Spinner';
 
 // "Request information": admins add a field to participants' profiles and choose
 // who it is for — one or more cohorts (all groups or selected groups), or specific
@@ -165,7 +166,7 @@ const RequestInfoModal: React.FC<RequestInfoModalProps> = ({ isOpen, onClose }) 
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
           <button type="button" onClick={() => { void send(); }} disabled={sending} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-            {sending ? 'Sending…' : 'Send request'}
+            {sending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending…</span>) : 'Send request'}
           </button>
         </div>
       ) : undefined}
@@ -255,7 +256,7 @@ const RequestInfoModal: React.FC<RequestInfoModalProps> = ({ isOpen, onClose }) 
                   {field.archivedAt && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Stopped</span>}
                   {!field.archivedAt && (
                     <button type="button" onClick={() => { void stopAsking(field); }} disabled={stopping === field.id} className="ml-auto text-xs font-semibold text-red-700 disabled:opacity-50">
-                      {stopping === field.id ? 'Stopping…' : 'Stop asking'}
+                      {stopping === field.id ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Stopping…</span>) : 'Stop asking'}
                     </button>
                   )}
                 </div>

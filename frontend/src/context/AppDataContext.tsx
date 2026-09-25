@@ -56,7 +56,7 @@ export const useAppData = () => {
 };
 
 export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAdmin, isSopPreparer, userCohortIds, refreshUser, refreshUserCohorts } = useAuth();
+  const { user, isAdmin, userCohortIds, refreshUser, refreshUserCohorts } = useAuth();
   const [cohorts, setCohorts] = useState<Cohort[]>([]);
   const [activeCohort, setActiveCohortState] = useState<Cohort | null>(null);
   const [weeks, setWeeks] = useState<Week[]>([]);
@@ -84,17 +84,28 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // per session instead of tearing down + re-subscribing 20 listeners on every
   // cohort/week change.
   const activeCohortRef = useRef<Cohort | null>(null);
-  const selectedWeekRef = useRef<Week | null>(null);
+  const firstCohortResolveRef = useRef(true);
 
   const getAccessibleCohorts = useCallback((allCohorts: Cohort[]) => {
-    if (isAdmin || isSopPreparer) return allCohorts;
+    if (isAdmin) return allCohorts;
     return allCohorts.filter((cohort) => userCohortIds.includes(cohort.id));
-  }, [isAdmin, isSopPreparer, userCohortIds]);
+  }, [isAdmin, userCohortIds]);
 
   const applyActiveCohort = useCallback((allCohorts: Cohort[]) => {
     const accessible = getAccessibleCohorts(allCohorts);
-    const persisted = localStorage.getItem(ACTIVE_COHORT_KEY);
-    const resolved = (persisted ? accessible.find((cohort) => cohort.id === persisted) : null) || accessible[0] || null;
+    const persistedId = localStorage.getItem(ACTIVE_COHORT_KEY);
+    const persisted = persistedId ? accessible.find((cohort) => cohort.id === persistedId) ?? null : null;
+    // The running cohort: ACTIVE, most recent start first.
+    const running = accessible
+      .filter((cohort) => cohort.status === 'ACTIVE')
+      .sort((a, b) => String(b.startDate ?? '').localeCompare(String(a.startDate ?? '')))[0] ?? null;
+    // On first load, a remembered cohort that has finished gives way to the
+    // running one; after that the remembered pick sticks, so an admin who
+    // switches to an old cohort isn't moved off it by background refreshes.
+    const isFirstResolve = firstCohortResolveRef.current;
+    firstCohortResolveRef.current = false;
+    const keepPersisted = persisted && (!isFirstResolve || persisted.status === 'ACTIVE' || !running);
+    const resolved = (keepPersisted ? persisted : null) || running || accessible[0] || null;
 
     // Keep references STABLE when nothing actually changed. Background refreshes
     // (the 15s poll, workspace refresh) re-fetch cohorts and would otherwise hand
@@ -213,7 +224,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Keep refs current every render so realtime-triggered refreshes always read
   // the freshest cohort/week without re-creating the callback.
   activeCohortRef.current = activeCohort;
-  selectedWeekRef.current = selectedWeek;
 
   const refreshWorkspaceData = useCallback(() => {
     if (refreshInProgressRef.current) return;
@@ -221,21 +231,11 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     void (async () => {
       try {
         const currentCohort = activeCohortRef.current;
-        const currentSelectedWeek = selectedWeekRef.current;
         const resolvedCohort = await loadCohorts();
         const loadedWeeks = await loadWeeksForCohort(resolvedCohort?.id ?? currentCohort?.id ?? null, resolvedCohort ?? currentCohort);
 
         if (isAdmin) {
           await loadGlobalPendingChanges(loadedWeeks.map((week) => week.id));
-        } else if (isSopPreparer) {
-          await loadRejectedChanges();
-        }
-
-        if (isSopPreparer && currentSelectedWeek) {
-          const matchingWeek = loadedWeeks.find((week) => week.id === currentSelectedWeek.id);
-          if (matchingWeek) {
-            await loadWeekPendingChanges(matchingWeek.id);
-          }
         }
 
         await Promise.all([refreshResourceCount(), refreshHubActivity(), loadMyHub(resolvedCohort?.id ?? currentCohort?.id ?? null)]);
@@ -249,11 +249,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [
     bumpLiveRevision,
     isAdmin,
-    isSopPreparer,
     loadCohorts,
     loadGlobalPendingChanges,
-    loadRejectedChanges,
-    loadWeekPendingChanges,
     loadWeeksForCohort,
     refreshResourceCount,
     refreshHubActivity,
@@ -288,8 +285,6 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         if (isAdmin) {
           await loadGlobalPendingChanges(loadedWeeks.map((week) => week.id));
-        } else if (isSopPreparer) {
-          await loadRejectedChanges();
         }
 
         await Promise.all([refreshResourceCount(), refreshNotifications(), refreshHubActivity(), loadMyHub(resolvedCohort?.id ?? null)]);
@@ -311,15 +306,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, isSopPreparer, loadCohorts, loadGlobalPendingChanges, loadRejectedChanges, loadWeeksForCohort, refreshNotifications, refreshResourceCount, refreshHubActivity, loadMyHub, user]);
-
-  useEffect(() => {
-    if (!isSopPreparer || !selectedWeek) return;
-
-    loadWeekPendingChanges(selectedWeek.id).catch((error) => {
-      console.error('Failed to load week pending changes:', error);
-    });
-  }, [isSopPreparer, loadWeekPendingChanges, selectedWeek]);
+  }, [isAdmin, loadCohorts, loadGlobalPendingChanges, loadWeeksForCohort, refreshNotifications, refreshResourceCount, refreshHubActivity, loadMyHub, user]);
 
   useEffect(() => {
     if (!user || !(supabase as any)) return;
@@ -410,14 +397,10 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const response = await weeksApi.getById(weekId, activeCohort?.id);
       setSelectedWeek(response.week);
-
-      if (isSopPreparer) {
-        await loadWeekPendingChanges(response.week.id);
-      }
     } catch (error) {
       console.error('Failed to load week:', error);
     }
-  }, [activeCohort?.id, isSopPreparer, loadWeekPendingChanges]);
+  }, [activeCohort?.id]);
 
   const setActiveCohort = useCallback(async (cohortId: string) => {
     const next = cohorts.find((cohort) => cohort.id === cohortId) || null;

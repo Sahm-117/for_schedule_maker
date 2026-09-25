@@ -4,6 +4,7 @@ import type { Label } from '../types';
 import { deltaE76, normalizeHexColor } from '../utils/color';
 import LabelChip from './LabelChip';
 import AppOverflowMenu from './AppOverflowMenu';
+import Spinner from './Spinner';
 
 interface LabelManagementProps {
   isOpen: boolean;
@@ -251,7 +252,7 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
                 disabled={loading || !newLabel.name.trim()}
                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
               >
-                {loading ? 'Creating...' : 'Create tag'}
+                {loading ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Creating...</span>) : 'Create tag'}
               </button>
             </div>
           </form>
@@ -312,7 +313,7 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
                   disabled={loading || !editing.name.trim()}
                   className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
                 >
-                  {loading ? 'Saving...' : 'Save'}
+                  {loading ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving...</span>) : 'Save'}
                 </button>
               </div>
             </div>
@@ -327,7 +328,7 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
           <div className="w-12 text-right">Actions</div>
         </div>
         {loading && sorted.length === 0 ? (
-          <div className="p-4 text-sm text-gray-600">Loading...</div>
+          <div className="flex items-center gap-1.5 p-4 text-sm text-gray-600"><Spinner className="h-3.5 w-3.5" />Loading...</div>
         ) : sorted.length === 0 ? (
           <div className="p-4 text-sm text-gray-600">No tags yet.</div>
         ) : (

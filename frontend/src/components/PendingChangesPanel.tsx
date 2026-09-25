@@ -5,6 +5,7 @@ import ConfirmationModal from './ConfirmationModal';
 import { buildPendingChangePreview, type ChangeSnapshot } from '../utils/pendingChangePreview';
 import { formatDateTime } from '../utils/time';
 import ActivityText from './ActivityText';
+import Spinner from './Spinner';
 
 interface PendingChangesPanelProps {
   pendingChanges: PendingChange[];
@@ -285,7 +286,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
                     disabled={loading === change.id}
                     className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
                   >
-                    {loading === change.id ? 'Approving...' : 'Approve'}
+                    {loading === change.id ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Approving...</span>) : 'Approve'}
                   </button>
                   <button
                     onClick={() => setShowRejectModal(change.id)}
@@ -347,7 +348,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
                   disabled={!rejectionReason.trim() || loading === showRejectModal}
                   className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
                 >
-                  {loading === showRejectModal ? 'Rejecting...' : 'Reject Change'}
+                  {loading === showRejectModal ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Rejecting...</span>) : 'Reject Change'}
                 </button>
               </div>
             </div>
@@ -362,6 +363,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
         title="Approve All Changes"
         message={`This will approve and apply ${visibleChanges.length} pending change(s). Continue?`}
         confirmText={bulkLoading ? 'Approving...' : 'Approve All'}
+        confirmLoading={bulkLoading}
         type="warning"
       />
 
@@ -408,7 +410,7 @@ const PendingChangesPanel: React.FC<PendingChangesPanelProps> = ({
                   disabled={!bulkRejectionReason.trim() || bulkLoading}
                   className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
                 >
-                  {bulkLoading ? 'Rejecting...' : 'Reject All'}
+                  {bulkLoading ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Rejecting...</span>) : 'Reject All'}
                 </button>
               </div>
             </div>

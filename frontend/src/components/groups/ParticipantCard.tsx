@@ -11,6 +11,7 @@ import { buildWhatsAppLink } from '../../utils/phone';
 import { shortMoment } from '../../utils/participantApp';
 import { unreadTrails, type FaithTrail, type ThreadReads } from '../../utils/faithThread';
 import type { DepartmentReferral, FaithProject, FaithProjectCategory, FaithProjectStatus, Participant, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote } from '../../types';
+import Spinner from '../Spinner';
 
 // Faith project states mapped onto the V2 design's labels.
 const FP_CHIP: Record<FaithProjectStatus, { label: string; cls: string }> = {
@@ -234,7 +235,7 @@ const EditNameModal: React.FC<{
         <>
           <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
           <button type="button" onClick={() => { void handleSave(); }} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
           </button>
         </>
       )}
@@ -499,7 +500,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
               <a href={buildWhatsAppLink(participant.phone, '') ?? undefined} target="_blank" rel="noreferrer" className="inline-flex min-h-[38px] items-center rounded-[10px] bg-white px-3 text-[12.5px] font-semibold text-gray-700">WhatsApp</a>
             )}
             <button type="button" onClick={() => { void markHelpHandled(); }} disabled={handlingHelp} className="min-h-[38px] rounded-[10px] bg-red-700 px-3 text-[12.5px] font-semibold text-white disabled:opacity-60">
-              {handlingHelp ? 'Saving…' : 'I have reached out'}
+              {handlingHelp ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'I have reached out'}
             </button>
           </div>
         </div>
@@ -549,7 +550,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
           <>
             <button type="button" onClick={() => setConcernReason(null)} className="min-h-[46px] rounded-xl border border-gray-200 bg-white px-[18px] py-3 text-sm font-semibold text-gray-700">Cancel</button>
             <button type="button" onClick={() => { void saveConcern(); }} disabled={concernSaving} className="min-h-[46px] flex-1 rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60">
-              {concernSaving ? 'Flagging…' : 'Flag concern'}
+              {concernSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Flagging…</span>) : 'Flag concern'}
             </button>
           </>
         )}
@@ -781,7 +782,7 @@ const FaithProjectSheet: React.FC<{
             Send back for work
           </button>
           <button type="button" onClick={() => { void save('UNDER_REFINEMENT'); }} disabled={saving} className="min-h-[46px] flex-1 rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60">
-            {saving ? 'Saving…' : 'Send to back office'}
+            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Send to back office'}
           </button>
         </>
       ) : undefined}
@@ -870,7 +871,7 @@ const FaithProjectSheet: React.FC<{
           disabled={noteSaving}
           className="rounded-xl bg-primary px-4 py-[11px] text-[13.5px] font-semibold text-white transition disabled:opacity-60"
         >
-          {noteSaving ? 'Saving…' : 'Add note'}
+          {noteSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Add note'}
         </button>
       </div>}
       </>}

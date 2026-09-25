@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
+import Avatar from '../components/Avatar';
 import AttendanceCountdownCard from '../components/participantApp/AttendanceCountdownCard';
 import { useAuth } from '../hooks/useAuth';
 import { useParticipantApp } from '../context/ParticipantAppContext';
@@ -63,7 +65,7 @@ const ParticipantHomePage: React.FC = () => {
   }, [todayScriptureDay]);
 
   if (loading) {
-    return <p className="py-16 text-center text-sm text-gray-500">Loading your FOF space…</p>;
+    return <PageLoader label="Loading your FOF space…" />;
   }
   if (error || !home) {
     return (
@@ -103,13 +105,13 @@ const ParticipantHomePage: React.FC = () => {
   const groupCallLink = normalizeLink(group?.callLink?.trim() || '') || null;
   const supportWaLink = buildWhatsAppLink(group?.supportPhone, `Hi ${(group?.supportName || 'there').split(' ')[0]}, it's ${home.participant.name.split(' ')[0]} from FOF.`);
 
-  const quickTiles: Array<{ key: string; label: string; icon: string; to?: string; href?: string }> = [
+  const quickTiles: Array<{ key: string; label: string; icon: string; to?: string; href?: string; avatarName?: string; avatarUrl?: string | null }> = [
     groupCallLink
       ? { key: 'call', label: 'Join call', icon: ICON_CALL, href: groupCallLink }
       : { key: 'call', label: 'Join call', icon: ICON_CALL, to: '/me/group' },
     supportWaLink
-      ? { key: 'message-support', label: 'Message support', icon: ICON_MESSAGE, href: supportWaLink }
-      : { key: 'message-support', label: 'Message support', icon: ICON_MESSAGE, to: '/me/group' },
+      ? { key: 'message-support', label: 'Message support', icon: ICON_MESSAGE, href: supportWaLink, avatarName: group?.supportName ?? 'Support', avatarUrl: group?.supportAvatarUrl }
+      : { key: 'message-support', label: 'Message support', icon: ICON_MESSAGE, to: '/me/group', avatarName: group?.supportName ?? 'Support', avatarUrl: group?.supportAvatarUrl },
     { key: 'resources', label: 'Resources', icon: ICON_RESOURCES, to: '/me/resources' },
     { key: 'feedback', label: 'Feedback', icon: ICON_FEEDBACK, to: '/me/feedback' },
   ];
@@ -283,9 +285,13 @@ const ParticipantHomePage: React.FC = () => {
           {quickTiles.map((tile) => {
             const content = (
               <>
-                <span className="grid h-11 w-11 place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]" aria-hidden="true">
-                  <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d={tile.icon} /></svg>
-                </span>
+                {tile.avatarUrl ? (
+                  <Avatar name={tile.avatarName ?? tile.label} avatarUrl={tile.avatarUrl} size="md" enlargeable />
+                ) : (
+                  <span className="grid h-11 w-11 place-items-center rounded-full bg-[#ffe8d5] text-[#c2410c]" aria-hidden="true">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d={tile.icon} /></svg>
+                  </span>
+                )}
                 <span className="text-center text-[13px] font-semibold leading-snug text-gray-800">{tile.label}</span>
               </>
             );

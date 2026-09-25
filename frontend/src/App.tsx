@@ -24,6 +24,7 @@ const ParticipantJourneyPage = lazy(() => import('./pages/ParticipantJourneyPage
 const ParticipantShell = lazy(() => import('./components/participantApp/ParticipantShell'));
 const ParticipantGroupPage = lazy(() => import('./pages/ParticipantGroupPage'));
 const ParticipantFaithPage = lazy(() => import('./pages/ParticipantFaithPage'));
+const ParticipantPeoplePage = lazy(() => import('./pages/ParticipantPeoplePage'));
 const ParticipantResourcesPage = lazy(() => import('./pages/ParticipantResourcesPage'));
 const ParticipantProfilePage = lazy(() => import('./pages/ParticipantProfilePage'));
 const ParticipantFeedbackPage = lazy(() => import('./pages/ParticipantFeedbackPage'));
@@ -98,6 +99,7 @@ function App() {
             <Route path="/me/group" element={<Suspense fallback={<RouteFallback />}><ParticipantGroupPage /></Suspense>} />
             <Route path="/me/faith" element={<Suspense fallback={<RouteFallback />}><ParticipantFaithPage /></Suspense>} />
             <Route path="/me/resources" element={<Suspense fallback={<RouteFallback />}><ParticipantResourcesPage /></Suspense>} />
+            <Route path="/me/people" element={<Suspense fallback={<RouteFallback />}><ParticipantPeoplePage /></Suspense>} />
             <Route path="/me/profile" element={<Suspense fallback={<RouteFallback />}><ParticipantProfilePage /></Suspense>} />
             <Route path="/me/feedback" element={<Suspense fallback={<RouteFallback />}><ParticipantFeedbackPage /></Suspense>} />
             <Route path="/me/complete" element={<Suspense fallback={<RouteFallback />}><ParticipantCompletePage /></Suspense>} />

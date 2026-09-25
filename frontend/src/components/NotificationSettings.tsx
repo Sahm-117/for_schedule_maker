@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { notificationSettingsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import Spinner from './Spinner';
 
 interface NotificationSettingsProps {
   isOpen: boolean;
@@ -137,7 +138,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
           disabled={saving || selected.length === 0}
           className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving...</span>) : 'Save'}
         </button>
       </div>
     </div>
@@ -182,7 +183,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
             disabled={!canEnableDevice}
             className="shrink-0 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {deviceStatus === 'saving' ? 'Saving...' : 'Enable on this device'}
+            {deviceStatus === 'saving' ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving...</span>) : 'Enable on this device'}
           </button>
         </div>
       </div>

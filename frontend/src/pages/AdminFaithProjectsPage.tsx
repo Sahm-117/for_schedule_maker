@@ -12,6 +12,7 @@ import AppSelect from '../components/AppSelect';
 import FaithProjectsExportPopup from '../components/faithProjects/FaithProjectsExportPopup';
 import FaithProjectSettingsModal from '../components/faithProjects/FaithProjectSettingsModal';
 import { sortByText } from '../utils/sort';
+import Spinner from '../components/Spinner';
 
 const STATUS_OPTIONS: Array<{ value: FaithProjectStatus; label: string; cls: string }> = [
   { value: 'NOT_DRAFTED', label: 'Not Drafted', cls: 'bg-neutral-100 text-neutral-600' },
@@ -92,7 +93,7 @@ const SupportConversation: React.FC<{
             className="min-w-0 flex-1 rounded-xl border border-orange-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
           <button type="button" onClick={() => void send()} disabled={!reply.trim() || sending} className="rounded-xl bg-primary px-3.5 py-2 text-sm font-semibold text-white disabled:opacity-50">
-            {sending ? 'Sending…' : 'Send'}
+            {sending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending…</span>) : 'Send'}
           </button>
           {error && <p className="w-full text-xs text-red-600">{error}</p>}
         </div>
@@ -184,7 +185,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant,
             disabled={!canSubmit || saving || !existing}
             className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
           >
-            {saving ? 'Saving…' : 'Submit review'}
+            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Submit review'}
           </button>
         </>
       }
@@ -419,25 +420,29 @@ const AdminFaithProjectsContent: React.FC = () => {
             </div>
           )}
 
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search participant…"
-              className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-xs"
-            />
-            <div className="w-full sm:w-52">
-              <AppSelect
-                value={groupFilter}
-                onChange={setGroupFilter}
-                options={groupOptions}
-                placeholder="All groups"
-                compact
+          <div className="mb-4 space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search participant…"
+                className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-md sm:flex-1"
               />
             </div>
-            <div className="w-full sm:w-52">
-              <AppSelect value={categoryFilter} onChange={setCategoryFilter} options={[{ value: '', label: 'All categories' }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} placeholder="All categories" compact />
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5">
+              <div className="min-w-0">
+                <AppSelect
+                  value={groupFilter}
+                  onChange={setGroupFilter}
+                  options={groupOptions}
+                  placeholder="All groups"
+                  compact
+                />
+              </div>
+              <div className="min-w-0">
+                <AppSelect value={categoryFilter} onChange={setCategoryFilter} options={[{ value: '', label: 'All categories' }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} placeholder="All categories" compact />
+              </div>
             </div>
           </div>
           {settings?.deadlineAt && <p className="mb-4 text-sm font-semibold text-[#9a6a4b]">Submission deadline: {formatReviewDate(settings.deadlineAt)}</p>}

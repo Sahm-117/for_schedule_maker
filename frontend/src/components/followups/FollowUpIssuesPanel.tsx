@@ -9,6 +9,7 @@ import { followUpIssuesApi } from '../../services/api';
 import { supabase } from '../../lib/supabase';
 import { sortByText } from '../../utils/sort';
 import { selectedFirst } from '../../utils/selectedFirst';
+import Spinner from '../Spinner';
 
 interface FollowUpIssuesPanelProps {
   issues: FollowUpIssue[];
@@ -296,7 +297,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
           <>
             <button type="button" onClick={() => setShowForm(false)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
             <button type="button" onClick={() => { void handleCreate(); }} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60">
-              {saving ? 'Saving…' : 'Log issue'}
+              {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Log issue'}
             </button>
           </>
         )}
@@ -367,7 +368,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
             <>
               <button type="button" onClick={() => setResolving(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
               <button type="button" onClick={() => { void handleResolve(); }} disabled={saving} className="rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
-                {saving ? 'Saving…' : 'Mark resolved'}
+                {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Mark resolved'}
               </button>
             </>
           )}
@@ -388,7 +389,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
           <>
             <button type="button" onClick={() => setDeleting(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
             <button type="button" onClick={() => { void handleDelete(); }} disabled={saving} className="rounded-2xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60">
-              {saving ? 'Deleting…' : 'Delete'}
+              {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Deleting…</span>) : 'Delete'}
             </button>
           </>
         )}

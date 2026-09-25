@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { participantAccountsApi } from '../services/api';
+import Spinner from '../components/Spinner';
 
 // First sign-in for a participant: they arrive with the code their support sent
 // and choose their own password before anything else. Matches the V2 design's
@@ -116,7 +117,7 @@ const ParticipantWelcomePage: React.FC = () => {
               disabled={saving}
               className="min-h-[48px] w-full rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60"
             >
-              {saving ? 'Saving…' : 'Save and continue'}
+              {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save and continue'}
             </button>
           </div>
 

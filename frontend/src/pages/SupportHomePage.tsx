@@ -11,6 +11,7 @@ import { sortByText } from '../utils/sort';
 import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
 import { normalizeLink } from '../utils/links';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
+import Spinner from '../components/Spinner';
 
 type HomeActivity = {
   id: number;
@@ -361,7 +362,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                           disabled={saving}
                           className={`ml-auto min-h-[40px] flex-none rounded-[10px] border px-3.5 py-2 text-[12.5px] font-semibold transition disabled:opacity-60 ${done ? 'border-[#15803d] bg-[#15803d] text-white' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}
                         >
-                          {saving ? 'Saving…' : done ? '✓ Done' : 'Mark done'}
+                          {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : done ? '✓ Done' : 'Mark done'}
                         </button>
                       </div>
                     </div>

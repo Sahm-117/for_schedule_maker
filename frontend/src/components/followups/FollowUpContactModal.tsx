@@ -5,6 +5,7 @@ import ModalShell from './ModalShell';
 import { followUpContactsApi } from '../../services/api';
 import { normalizeToIntlPhone } from '../../utils/phone';
 import { sortByText } from '../../utils/sort';
+import Spinner from '../Spinner';
 
 interface FollowUpContactModalProps {
   isOpen: boolean;
@@ -151,7 +152,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
             disabled={saving}
             className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60"
           >
-            {saving ? 'Saving…' : contact ? 'Save changes' : 'Add contact'}
+            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : contact ? 'Save changes' : 'Add contact'}
           </button>
         </>
       )}

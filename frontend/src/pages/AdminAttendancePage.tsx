@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
+import Spinner from '../components/Spinner';
 import AppSelect from '../components/AppSelect';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ModalShell from '../components/followups/ModalShell';
@@ -385,7 +386,7 @@ const AdminAttendanceContent: React.FC = () => {
           <section className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-orange-100 bg-white px-4 py-3 shadow-sm">
             <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${finalised ? 'bg-emerald-100 text-emerald-700' : allMarked ? 'bg-sky-100 text-sky-700' : 'bg-neutral-100 text-neutral-600'}`}>{finalised ? 'Report sent' : allMarked ? 'Attendance taken' : `${participants.length - records.size} still unmarked`}</span>
             {!session?.startedAt && !finalised ? (
-              <button type="button" onClick={() => void startAttendance()} disabled={startingWindow} className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{startingWindow ? 'Starting…' : 'Start attendance'}</button>
+              <button type="button" onClick={() => void startAttendance()} disabled={startingWindow} className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{startingWindow ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Starting…</span>) : 'Start attendance'}</button>
             ) : windowOpen && windowClosesAt ? (
               <span className="rounded-full bg-sky-100/80 px-2.5 py-1 text-xs font-bold text-sky-700">Closes in {countdownLabel(windowClosesAt, now)}</span>
             ) : session?.startedAt && !finalised ? (
@@ -422,9 +423,12 @@ const AdminAttendanceContent: React.FC = () => {
                 type="button"
                 onClick={() => setFollowUpOpen((v) => !v)}
                 aria-expanded={followUpOpen}
-                className="text-xs font-bold uppercase tracking-wide text-gray-500 hover:text-gray-700"
+                className="flex w-full items-center gap-3 rounded-xl bg-[#f8faf9] px-3 py-2.5 text-left hover:bg-[#eef6f1]"
               >
-                Follow-up status ({followUpTasks.length}) {followUpOpen ? '▾' : '▸'}
+                <span className="flex-1 text-sm font-bold text-gray-900">Follow-up status</span>
+                {followUpTasks.some((t) => t.status !== 'DONE') && <span className="rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-bold text-amber-700">{followUpTasks.filter((t) => t.status !== 'DONE').length} waiting</span>}
+                {followUpTasks.some((t) => t.status === 'DONE') && <span className="rounded-full bg-emerald-100/80 px-2 py-0.5 text-[11px] font-bold text-emerald-700">{followUpTasks.filter((t) => t.status === 'DONE').length} done</span>}
+                <svg className={`h-4 w-4 flex-none text-gray-400 transition-transform ${followUpOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
               </button>
               {followUpOpen && <div className="mt-2 space-y-2">
                 {followUpTasks.map((task) => {
@@ -468,7 +472,8 @@ const AdminAttendanceContent: React.FC = () => {
                       <p className="mt-0.5 truncate text-xs text-gray-400">
                         Support: <span className="font-medium text-gray-600">{(p.groupId && supportByGroupId.get(p.groupId)) || 'None'}</span>
                       </p>
-                      <span className={`mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${pillCls}`}>
+                      <span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${pillCls}`}>
+                        {isSaving && <Spinner className="h-3 w-3" />}
                         {pillLabel}
                       </span>
                     </div>
@@ -501,7 +506,7 @@ const AdminAttendanceContent: React.FC = () => {
         footer={(
           <>
             <button type="button" onClick={() => setExcuseTarget(null)} disabled={excuseSaving} className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 disabled:opacity-50">Cancel</button>
-            <button type="button" onClick={() => void submitExcuse()} disabled={excuseSaving || !excuseNote.trim()} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">{excuseSaving ? 'Saving…' : 'Excuse lateness'}</button>
+            <button type="button" onClick={() => void submitExcuse()} disabled={excuseSaving || !excuseNote.trim()} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40">{excuseSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Excuse lateness'}</button>
           </>
         )}
       >

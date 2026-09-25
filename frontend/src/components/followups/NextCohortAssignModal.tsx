@@ -3,6 +3,7 @@ import AppMultiSelect from '../AppMultiSelect';
 import ModalShell from './ModalShell';
 import { followUpContactsApi } from '../../services/api';
 import type { FollowUpContact, User } from '../../types';
+import Spinner from '../Spinner';
 
 // People marked "Will join next cohort" get moved into the new cohort's
 // follow-up list (back to "To contact") and, if supports are picked, split
@@ -93,7 +94,7 @@ const NextCohortAssignModal: React.FC<Props> = ({ isOpen, contacts, targetCohort
             disabled={saving || count === 0}
             className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60"
           >
-            {saving ? 'Saving…' : supportIds.length > 0 ? 'Assign now' : 'Move without assigning'}
+            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : supportIds.length > 0 ? 'Assign now' : 'Move without assigning'}
           </button>
         </>
       )}

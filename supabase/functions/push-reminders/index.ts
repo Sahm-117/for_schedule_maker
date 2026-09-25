@@ -30,7 +30,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore — web-push ESM build
 import webPush from 'https://esm.sh/web-push@3'
 import { PARTICIPANT_PUSH_STORE, sendToSubscriptions } from '../_shared/webpush.ts'
-import { insertNotifications } from '../_shared/notifications.ts'
+import { insertNotifications, insertParticipantNotifications } from '../_shared/notifications.ts'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -149,6 +149,11 @@ const DEFAULT_RECAP_RELEASE_TIMES: RecapReleaseTimes = {
   participantDay: 'MONDAY',
   participantTime: '18:00',
 }
+
+// Default Sunday class start time used in the Sat/Sun participant nudges,
+// used when the class_start_time AppSetting row is missing. Matches the
+// time every "Class N" Sunday activity in the schedule has used to date.
+const DEFAULT_CLASS_START_TIME = '09:30'
 
 /**
  * Mirrors recap_release_at() in
@@ -421,10 +426,11 @@ Deno.serve(async (req) => {
           : `${Math.round(interval / 60)} hours`
 
         const payload = JSON.stringify({
-          title: `FOF Reminder — ${minuteLabel} away`,
-          body: `${activity.time} — ${activity.description}`,
+          title: `FOF reminder: ${minuteLabel} away`,
+          body: `${activity.time} · ${activity.description}`,
           icon: '/icon-192.png',
           tag: `fof-${activity.id}-${interval}`,
+          data: { path: '/support/schedule' },
         })
 
         // 6. Send push per user, claiming the dedupe row first so a repeat cron
@@ -493,10 +499,11 @@ Deno.serve(async (req) => {
           if (!subs || subs.length === 0) continue
 
           const payload = JSON.stringify({
-            title: `🙏 Group meeting reminder — ${minuteLabel} away`,
-            body: `${group.name} prayer meeting at ${group.meetingTime}`,
+            title: `🙏 Group meeting reminder: ${minuteLabel} away`,
+            body: `${group.name} weekly meeting at ${group.meetingTime}`,
             icon: '/icon-192.png',
             tag: `fof-groupmeeting-${group.id}-${interval}`,
+            data: { path: '/support/participants?tab=prayers' },
           })
 
           if (dryRun) {
@@ -564,7 +571,7 @@ Deno.serve(async (req) => {
           if (!subs || subs.length === 0) continue
 
           const payload = JSON.stringify({
-            title: `🙏 Hub meeting reminder — ${minuteLabel} away`,
+            title: `🙏 Hub meeting reminder: ${minuteLabel} away`,
             body: `${hub.name} meets at ${hub.meetingTime}. Join: ${hub.callLink}`,
             icon: '/icon-192.png',
             tag: `fof-hubmeeting-${hub.id}-${interval}`,
@@ -609,6 +616,10 @@ Deno.serve(async (req) => {
         participantTime: (recapSettingRow as any)?.value?.participantTime || DEFAULT_RECAP_RELEASE_TIMES.participantTime,
       }
 
+      const { data: classStartSettingRow } = await supabase
+        .from('AppSetting').select('value').eq('settingKey', 'class_start_time').maybeSingle()
+      const classStartTime: string = (classStartSettingRow as any)?.value || DEFAULT_CLASS_START_TIME
+
       const claimParticipant = async (kind: string, targetKey: string, participantId: string, occurrence: string) => {
         if (dryRun) return true
         const { error } = await supabase.from('ParticipantReminderLog').insert([{ kind, targetKey, participantId, occurrence }])
@@ -624,6 +635,10 @@ Deno.serve(async (req) => {
         // Each tag already names the week, group or date it is about, so one send per participant per tag.
         for (const id of targets) if (await claimParticipant(message.tag.split(':')[0], message.tag, id, 'once')) claimed.push(id)
         if (claimed.length === 0) return
+        // Participant bell row for everyone claimed, push or not.
+        await insertParticipantNotifications(supabase, claimed.map((participantId) => ({
+          participantId, title: message.title, body: message.body, path: message.path, type: 'REMINDER',
+        })))
         const { data: subs } = await supabase.from('ParticipantPushSubscription').select('participantId, endpoint, p256dh, auth').in('participantId', claimed)
         const rows = ((subs ?? []) as any[]).map((row) => ({ userId: row.participantId, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth }))
         if (rows.length === 0) return
@@ -674,7 +689,10 @@ Deno.serve(async (req) => {
           const { data: days } = await supabase.from('Day').select('Activity(time, description)').eq('weekId', week.id).eq('dayName', 'Sunday')
           const classActivity = ((days ?? []) as any[]).flatMap((d) => d.Activity ?? []).find((a: any) => /^\s*class\s*\d|introductory class/i.test(String(a.description || '')))
           if (!classActivity) continue
-          const minutes = parseTime(String(classActivity.time))
+          // Display time comes from the admin-configured class_start_time
+          // setting (Settings > Programme > Timings), not the schedule row --
+          // classActivity above is only used to confirm this week has a class.
+          const minutes = parseTime(classStartTime)
           const time = minutes === null ? '' : `${((Math.floor(minutes / 60) + 11) % 12) + 1}:${String(minutes % 60).padStart(2, '0')} ${minutes >= 720 ? 'PM' : 'AM'}`
           const topic = String(week.title || '').trim()
           const message = nudge.key === 'SAT_NOON'
@@ -699,8 +717,8 @@ Deno.serve(async (req) => {
             // Same wording as the support group meeting reminder above.
             const minuteLabel = interval < 60 ? `${interval} mins` : interval === 60 ? '1 hour' : interval === 1440 ? 'tomorrow' : `${Math.round(interval / 60)} hours`
             await pushParticipants(members, {
-              title: `🙏 Group meeting reminder — ${minuteLabel} away`,
-              body: `${group.name} prayer meeting at ${group.meetingTime}`,
+              title: `🙏 Group meeting reminder: ${minuteLabel} away`,
+              body: `${group.name} weekly meeting at ${group.meetingTime}`,
               path: '/me/group',
               tag: `GROUP_MEETING:${group.id}:${interval}:${target.isoDate}`,
             })
@@ -759,7 +777,7 @@ Deno.serve(async (req) => {
             if (claimed.length === 0) continue
 
             const title = `Week ${week.weekNumber} recap is ready`
-            const body = `${week.title ? `${String(week.title).trim()}. ` : ''}Bring it to your group.`
+            const body = `${week.title ? `${String(week.title).trim()}. ` : ''}Discuss it in your hub in preparation for your group meeting.`
             await insertNotifications(supabase, claimed.map((userId) => ({ userId, title, body, path: '/support/recap', type: 'REMINDER' })))
 
             const { data: subs } = await supabase
@@ -803,10 +821,11 @@ Deno.serve(async (req) => {
         .eq('userId', contact.ownerId)
 
       const payload = JSON.stringify({
-        title: '⏰ Follow-up due',
-        body: `${contact.fullName} — ${NEXT_ACTION_LABELS[contact.nextAction] || 'Follow up'}`,
+        title: 'Follow-up due',
+        body: `${contact.fullName}: ${NEXT_ACTION_LABELS[contact.nextAction] || 'Follow up'}`,
         icon: '/icon-192.png',
         tag: `fof-followup-due-${contact.id}-${contact.dueDate}`,
+        data: { path: '/support/mobilisation?tab=follow' },
       })
 
       {
@@ -872,6 +891,7 @@ Deno.serve(async (req) => {
             body: `You still have ${contactCount} follow-up contact${contactCount === 1 ? '' : 's'} to check today. Check in so no one slips through.`,
             icon: '/icon-192.png',
             tag: `fof-followup-owner-reminder-${ownerId}-${todayISO}`,
+            data: { path: '/support/mobilisation?tab=follow' },
           })
 
           {

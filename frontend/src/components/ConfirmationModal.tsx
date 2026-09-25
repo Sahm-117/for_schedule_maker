@@ -1,4 +1,5 @@
 import React from 'react';
+import Spinner from './Spinner';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface ConfirmationModalProps {
   cancelText?: string;
   type?: 'danger' | 'warning' | 'info';
   confirmDisabled?: boolean;
+  confirmLoading?: boolean;
 }
 
 const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -24,6 +26,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   cancelText = 'Cancel',
   type = 'danger',
   confirmDisabled = false,
+  confirmLoading = false,
 }) => {
   if (!isOpen) return null;
 
@@ -100,8 +103,9 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                 onClose();
               }}
               disabled={confirmDisabled}
-              className={`w-full sm:w-auto px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${styles.confirmBtn} disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${styles.confirmBtn} disabled:opacity-50 disabled:cursor-not-allowed`}
             >
+              {confirmLoading && <Spinner className="h-3.5 w-3.5" />}
               {confirmText}
             </button>
           </div>

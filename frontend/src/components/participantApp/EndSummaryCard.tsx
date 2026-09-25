@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { aiApi } from '../../services/api';
 import type { ParticipantSummaryState } from '../../types';
+import Spinner from '../Spinner';
 
 // End-of-FOF summary on My Journey. Written by a free AI service from the
 // participant's own reflections, only if they choose to turn it on. It is a
@@ -81,7 +82,7 @@ const EndSummaryCard: React.FC<{ lastWeek: number; reflectionCount: number }> = 
         </label>
         {error && <p className="mt-2 text-xs font-medium text-red-700">{error}</p>}
         <button type="button" onClick={() => { void setOptIn(true); }} disabled={!consent || busy !== null} className="mt-3.5 min-h-[46px] w-full rounded-xl bg-primary p-3 text-sm font-semibold text-white disabled:opacity-50">
-          {busy === 'opt' ? 'Saving…' : 'Turn on AI summary'}
+          {busy === 'opt' ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Turn on AI summary'}
         </button>
       </section>
     );

@@ -16,6 +16,7 @@ import {
 } from '@dnd-kit/core';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
+import Spinner from '../components/Spinner';
 import AppSelect from '../components/AppSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../hooks/useAuth';
@@ -405,7 +406,7 @@ const AdminAllocationContent: React.FC = () => {
             <p className="text-xs text-gray-500">
               {isTouchLayout
                 ? 'Tap “Move” on anyone to assign them, or select several and use “Move selected”.'
-                : 'Tap people to select them, then drag onto a group — or use “Move selected”.'} {saving && <span className="text-primary">Saving…</span>}
+                : 'Tap people to select them, then drag onto a group — or use “Move selected”.'} {saving && <span className="inline-flex items-center gap-1 text-primary"><Spinner className="h-3 w-3" />Saving…</span>}
             </p>
             <button
               ref={autoDistributeRef}

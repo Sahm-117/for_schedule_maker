@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
 
     const names = sample.filter(Boolean).join(', ')
     const suffix = contactCount > sample.length ? '…' : ''
-    const title = '🤝 New follow-up assignment'
+    const title = 'New follow-up assignment'
     const body = `You've been assigned ${contactCount} follow-up contact${contactCount === 1 ? '' : 's'}${names ? `: ${names}${suffix}` : ''}`
 
     // Record the in-app notification first — so the assigned user sees it even

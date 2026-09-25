@@ -25,6 +25,9 @@
  *               sign-up the moment the import runs
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+// @ts-ignore — web-push ESM build
+import webPush from 'https://esm.sh/web-push@3'
+import { sendToSubscriptions } from '../_shared/webpush.ts'
 import { insertNotifications } from '../_shared/notifications.ts'
 
 const corsHeaders = {
@@ -37,6 +40,12 @@ const json = (body: unknown, status = 200) =>
 
 const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 const SHEET_SECRET = Deno.env.get('GOOGLE_SHEET_SECRET') ?? ''
+
+const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY')!
+const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')!
+const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@fof.com'
+
+webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 
 /**
  * Same rules as the app's normalizeToIntlPhone (frontend/src/utils/phone.ts):
@@ -86,10 +95,22 @@ const upsertParticipant = async (contact: Record<string, unknown>) => {
 const tellAdmins = async (title: string, body: string) => {
   const { data: admins } = await supabase.from('User').select('id').eq('role', 'ADMIN').neq('isActive', false)
   if (!admins?.length) return
+  const adminIds = admins.map((a: { id: string }) => a.id)
   await insertNotifications(
     supabase,
-    admins.map((a: { id: string }) => ({ userId: a.id, title, body, path: '/follow-ups', type: 'FOLLOWUP_ASSIGNMENT' })),
+    adminIds.map((userId) => ({ userId, title, body, path: '/follow-ups', type: 'FOLLOWUP_ASSIGNMENT' })),
   )
+
+  const { data: subs } = await supabase
+    .from('PushSubscription')
+    .select('userId, endpoint, p256dh, auth')
+    .in('userId', adminIds)
+  if (!subs?.length) return
+  const payload = JSON.stringify({
+    title, body, icon: '/icon-192.png', tag: `fof-signup-${Date.now()}`, data: { path: '/follow-ups' },
+  })
+  const { sent, failed, removed, errors } = await sendToSubscriptions(webPush, supabase, subs as any[], payload)
+  if (failed > 0) console.error(`receive-form-registration (tellAdmins): ${sent} sent, ${failed} failed, ${removed} removed`, JSON.stringify(errors))
 }
 
 Deno.serve(async (req) => {

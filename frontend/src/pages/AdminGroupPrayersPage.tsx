@@ -10,6 +10,7 @@ import ModalShell from '../components/followups/ModalShell';
 import { groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, meetingAttendanceApi } from '../services/api';
 import type { Group, GroupPrayerFocus, GroupPrayerStatus, MeetingAttendance, MeetingAttendanceStatus, Participant, Week } from '../types';
 import { sortByText } from '../utils/sort';
+import Spinner from '../components/Spinner';
 
 const AdminGroupPrayersPage: React.FC = () => {
   const { isAdmin } = useAuth();
@@ -295,14 +296,14 @@ const MeetingAttendanceModal: React.FC<{
             disabled={reopening}
             className="rounded-2xl border border-orange-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-orange-50 disabled:opacity-60"
           >
-            {reopening ? 'Saving…' : submitted ? 'Reopen for the support' : 'Mark as submitted'}
+            {reopening ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : submitted ? 'Reopen for the support' : 'Mark as submitted'}
           </button>
           <button type="button" onClick={onClose} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white">Close</button>
         </>
       )}
     >
       {loading ? (
-        <p className="py-6 text-center text-sm text-gray-400">Loading participants…</p>
+        <p className="flex items-center justify-center gap-1.5 py-6 text-center text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading participants…</p>
       ) : participants.length === 0 ? (
         <p className="py-6 text-center text-sm text-gray-500">No participants in this group yet.</p>
       ) : (

@@ -3,6 +3,8 @@ import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label, Su
 import { normalizePendingChanges } from '../utils/pendingChanges';
 import { DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
 import { DEFAULT_RECAP_RELEASE_TIMES } from '../utils/recapReleaseTimes';
+import { DEFAULT_CLASS_FEEDBACK_TIMES } from '../utils/classFeedbackTimes';
+import { DEFAULT_CLASS_START_TIME } from '../utils/classStartTime';
 import { DEFAULT_CHURCH_DEPARTMENTS } from '../constants/departments';
 
 // Import Supabase API
@@ -49,6 +51,8 @@ import {
   meetingAttendanceApi as supabaseMeetingAttendanceApi,
   participantFlagsApi as supabaseParticipantFlagsApi,
   departmentReferralsApi as supabaseDepartmentReferralsApi,
+  wrapUpApi as supabaseWrapUpApi,
+  classFeedbackApi as supabaseClassFeedbackApi,
   participantStageChangesApi as supabaseParticipantStageChangesApi,
   faithThreadReadsApi as supabaseFaithThreadReadsApi,
   supportChecklistApi as supabaseSupportChecklistApi,
@@ -470,11 +474,21 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async setProgrammeRules(rules: import('../utils/programmeRules').ProgrammeRules): Promise<import('../utils/programmeRules').ProgrammeRules> { return rules; },
   async getRecapReleaseTimes(): Promise<import('../utils/recapReleaseTimes').RecapReleaseTimes> { return { ...DEFAULT_RECAP_RELEASE_TIMES }; },
   async setRecapReleaseTimes(times: import('../utils/recapReleaseTimes').RecapReleaseTimes): Promise<import('../utils/recapReleaseTimes').RecapReleaseTimes> { return times; },
+  async getClassFeedbackTimes(): Promise<import('../utils/classFeedbackTimes').ClassFeedbackTimes> { return { ...DEFAULT_CLASS_FEEDBACK_TIMES }; },
+  async setClassFeedbackTimes(times: import('../utils/classFeedbackTimes').ClassFeedbackTimes): Promise<import('../utils/classFeedbackTimes').ClassFeedbackTimes> { return times; },
+  async getClassStartTime(): Promise<string> { return DEFAULT_CLASS_START_TIME; },
+  async setClassStartTime(time: string): Promise<string> { return time; },
   async getScriptureStartDay(): Promise<number> {
     return 1;
   },
   async setScriptureStartDay(day: number): Promise<number> {
     return day;
+  },
+  async getScripturesEnabled(): Promise<boolean> {
+    return true;
+  },
+  async setScripturesEnabled(enabled: boolean): Promise<boolean> {
+    return enabled;
   },
   async getRegistrationLink(): Promise<{ url: string }> {
     return { url: '' };
@@ -663,6 +677,15 @@ export const departmentReferralsApi = USE_SUPABASE ? supabaseDepartmentReferrals
   async setStatus(_id: string, _status: import('../types').DepartmentReferralStatus, _updatedById: string): Promise<never> { return peopleUnavailable(); },
 };
 
+export const wrapUpApi = USE_SUPABASE ? supabaseWrapUpApi : {
+  async getDepartmentsForCohort(_cohortId: string): Promise<Map<string, string>> { return new Map(); },
+};
+
+export const classFeedbackApi = USE_SUPABASE ? supabaseClassFeedbackApi : {
+  async getMineForCohort(_cohortId: string, _supportId: string): Promise<Set<number>> { return new Set(); },
+  async submitSupportFeedback(_input: { cohortId: string; weekId: number; supportId: string; note: string; isNone: boolean }): Promise<never> { return peopleUnavailable(); },
+};
+
 export const participantStageChangesApi = USE_SUPABASE ? supabaseParticipantStageChangesApi : {
   async getForParticipant(_participantId: string): Promise<{ changes: import('../types').ParticipantStageChange[] }> { return { changes: [] }; },
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
@@ -747,6 +770,7 @@ export const participantAccountsApi = USE_SUPABASE ? supabaseParticipantAccounts
 
 export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async getHome(): Promise<never> { return peopleUnavailable(); },
+  async getPeople(): Promise<never> { return peopleUnavailable(); },
   async saveReflection(_weekId: number, _input: { stoodOut: string; goal: string; goalCheck: string }): Promise<never> { return peopleUnavailable(); },
   async setGoalDone(_weekId: number, _done: boolean): Promise<never> { return peopleUnavailable(); },
   async recordCheckIn(_response: import('../types').CheckInResponse, _misses: { sunday: number; meeting: number }, _participantName: string): Promise<never> { return peopleUnavailable(); },
@@ -759,10 +783,14 @@ export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async changePassword(_current: string, _next: string): Promise<never> { return peopleUnavailable(); },
   async submitFeedback(_answers: import('../types').FeedbackAnswers): Promise<never> { return peopleUnavailable(); },
   async submitWrapUp(_input: { department: string; wantsReferral: boolean; note: string }, _participantName: string): Promise<never> { return peopleUnavailable(); },
+  async submitClassFeedback(_input: { weekId: number; rating: number; comment: string; showName: boolean }): Promise<never> { return peopleUnavailable(); },
+  async getNotifications(): Promise<never> { return peopleUnavailable(); },
+  async markNotificationsRead(_ids: string[] | null): Promise<never> { return peopleUnavailable(); },
 };
 
 export const feedbackApi = USE_SUPABASE ? supabaseFeedbackApi : {
   async getResults(_cohortId: string): Promise<never> { return peopleUnavailable(); },
+  async getClassFeedbackResults(_cohortId: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const participantPushApi = USE_SUPABASE ? supabaseParticipantPushApi : {

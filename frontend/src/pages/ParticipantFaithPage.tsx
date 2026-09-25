@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
 import FaithProjectGuide from '../components/FaithProjectGuide';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
@@ -9,6 +10,7 @@ import { participantAppApi } from '../services/api';
 import { shortMoment } from '../utils/participantApp';
 import { buildWhatsAppLink } from '../utils/phone';
 import type { FaithProjectStatus, ParticipantFaith } from '../types';
+import Spinner from '../components/Spinner';
 
 // The participant's faith project: draft it, send it to their support, and read
 // their support's replies. Notes between the support and the back office are
@@ -57,7 +59,7 @@ const ParticipantFaithPage: React.FC = () => {
   }, [trailOpen, home?.faithUnread, reload]);
 
   if (loadError) return <p className="py-16 text-center text-sm text-gray-500">{loadError}</p>;
-  if (!faith) return <p className="py-16 text-center text-sm text-gray-500">Loading…</p>;
+  if (!faith) return <PageLoader />;
 
   const status = STATUS[faith.project?.status ?? 'NOT_DRAFTED'];
   const supportFirst = (home?.group?.supportName || 'your support').split(' ')[0];
@@ -116,10 +118,10 @@ const ParticipantFaithPage: React.FC = () => {
               {error && <p className="mt-1.5 text-xs font-medium text-red-700">{error}</p>}
               <div className="mt-3.5 grid grid-cols-2 gap-2.5">
                 <button type="button" onClick={() => { void save(false); }} disabled={saving !== null} className="min-h-[46px] rounded-xl border border-[#ffdeca] bg-white p-3 text-sm font-semibold text-[#c2410c] disabled:opacity-60">
-                  {saving === 'draft' ? 'Saving…' : 'Save draft'}
+                  {saving === 'draft' ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save draft'}
                 </button>
                 <button type="button" onClick={() => { void save(true); }} disabled={saving !== null} className="min-h-[46px] rounded-xl bg-primary p-3 text-sm font-semibold text-white disabled:opacity-60">
-                  {saving === 'submit' ? 'Sending…' : 'Submit for review'}
+                  {saving === 'submit' ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending…</span>) : 'Submit for review'}
                 </button>
               </div>
             </>

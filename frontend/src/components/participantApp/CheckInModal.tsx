@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { participantAppApi } from '../../services/api';
 import { buildWhatsAppLink } from '../../utils/phone';
 import type { CheckInResponse, ParticipantHome } from '../../types';
+import Spinner from '../Spinner';
 
 // "Are you okay?" — shown to a participant whose attendance puts them at
 // keep an eye on or needs attention. Worded from their own record; never mentions
@@ -88,10 +89,10 @@ const CheckInModal: React.FC<CheckInModalProps> = ({ home, misses, onAnswered, o
             {error && <p className="mt-3 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{error}</p>}
             <div className="mt-5 grid grid-cols-2 gap-2">
               <button type="button" onClick={() => { void answer('OKAY'); }} disabled={busy !== null} className="min-h-[48px] rounded-xl border border-gray-200 bg-white px-3 text-[15px] font-semibold text-gray-700 disabled:opacity-60">
-                {busy === 'OKAY' ? 'Sending…' : 'I’m okay'}
+                {busy === 'OKAY' ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending…</span>) : 'I’m okay'}
               </button>
               <button type="button" onClick={() => { void answer('NEED_HELP'); }} disabled={busy !== null} className="min-h-[48px] rounded-xl bg-primary px-3 text-[15px] font-semibold text-white disabled:opacity-60">
-                {busy === 'NEED_HELP' ? 'Sending…' : 'I need help'}
+                {busy === 'NEED_HELP' ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending…</span>) : 'I need help'}
               </button>
             </div>
             {waLink && (

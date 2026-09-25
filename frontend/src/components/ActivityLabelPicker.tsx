@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Label } from '../types';
 import LabelChip from './LabelChip';
+import Spinner from './Spinner';
 import { sortByText } from '../utils/sort';
 
 interface ActivityLabelPickerProps {
@@ -121,8 +122,8 @@ const ActivityLabelPicker: React.FC<ActivityLabelPickerProps> = ({
         <label className="block text-sm font-medium text-gray-700">
           Activity tags (optional)
         </label>
-        <span className="text-xs text-gray-500">
-          {loading ? 'Loading...' : `Selected: ${selectedLabelIds.length}`}
+        <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">
+          {loading ? (<><Spinner className="h-3 w-3" />Loading...</>) : `Selected: ${selectedLabelIds.length}`}
         </span>
       </div>
 
@@ -187,7 +188,7 @@ const ActivityLabelPicker: React.FC<ActivityLabelPickerProps> = ({
 
           <div className="min-h-0 flex-1 overflow-y-auto">
             {loading ? (
-              <p className="px-3 py-4 text-center text-sm font-semibold text-gray-400">Loading labels...</p>
+              <p className="flex items-center justify-center gap-1.5 px-3 py-4 text-center text-sm font-semibold text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading labels...</p>
             ) : labels.length === 0 ? (
               <p className="px-3 py-4 text-center text-sm font-semibold text-gray-400">No labels yet</p>
             ) : filteredLabels.length === 0 ? (

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 
@@ -23,7 +24,7 @@ const ParticipantResourcesPage: React.FC = () => {
   const { home, loading } = useParticipantApp();
   const [viewing, setViewing] = useState<{ url: string; title: string; fileName?: string | null } | null>(null);
 
-  if (loading || !home) return <p className="py-16 text-center text-sm text-gray-500">Loading…</p>;
+  if (loading || !home) return <PageLoader />;
 
   const classMaterials = home.weeks.filter((week) => week.released && week.recapDocumentUrl);
 

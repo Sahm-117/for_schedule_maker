@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { weeksApi } from '../services/api';
 import { exportWeekToPDF } from '../utils/pdfExport';
+import Spinner from '../components/Spinner';
 import type { Week } from '../types';
 
 const parseWeekNumber = (raw: string | null): number | undefined => {
@@ -88,10 +89,15 @@ const SopDownload: React.FC = () => {
         <h1 className="text-xl font-bold text-gray-900 text-center">
           FOF - SOP Manager
         </h1>
-        <p className="text-sm text-gray-600 text-center mt-2">
-          {week
-            ? `Week ${week.weekNumber} SOP download`
-            : (typeof requestedWeek === 'number' ? `Loading Week ${requestedWeek}...` : 'Loading schedule...')}
+        <p className="flex items-center justify-center gap-1.5 text-sm text-gray-600 text-center mt-2">
+          {week ? (
+            `Week ${week.weekNumber} SOP download`
+          ) : (
+            <>
+              <Spinner className="h-3.5 w-3.5" />
+              {typeof requestedWeek === 'number' ? `Loading Week ${requestedWeek}...` : 'Loading schedule...'}
+            </>
+          )}
         </p>
 
         <div className="mt-6 space-y-3">
@@ -101,7 +107,7 @@ const SopDownload: React.FC = () => {
             disabled={loading || downloading || !week}
             className="w-full inline-flex items-center justify-center px-4 py-3 rounded-lg bg-primary text-white font-medium disabled:opacity-50"
           >
-            {downloading ? 'Preparing PDF...' : 'Download SOP PDF'}
+            {downloading ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Preparing PDF...</span>) : 'Download SOP PDF'}
           </button>
 
           {downloaded && !downloading && !error && (

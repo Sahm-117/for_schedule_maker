@@ -6,6 +6,7 @@ import AppOverflowMenu from '../AppOverflowMenu';
 import { messageTemplatesApi, settingsApi } from '../../services/api';
 import { buildTemplatePlaceholderSummary } from '../../utils/followUps';
 import { sortByText } from '../../utils/sort';
+import Spinner from '../Spinner';
 
 interface MessageBankPanelProps {
   templates: MessageTemplate[];
@@ -187,7 +188,7 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
                 disabled={savingLink || linkDraft.trim() === registrationLink}
                 className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
               >
-                {savingLink ? 'Saving…' : 'Save link'}
+                {savingLink ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save link'}
               </button>
             </>
           )}
@@ -210,7 +211,7 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
           <>
             <button type="button" onClick={() => setShowForm(false)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
             <button type="button" onClick={() => { void handleSave(); }} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60">
-              {saving ? 'Saving…' : 'Save template'}
+              {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save template'}
             </button>
           </>
         )}

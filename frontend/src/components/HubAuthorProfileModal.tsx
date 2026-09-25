@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ModalShell from './followups/ModalShell';
 import Avatar from './Avatar';
+import Spinner from './Spinner';
 import { useAuth } from '../hooks/useAuth';
 import { usersApi, groupsApi } from '../services/api';
 import type { Group, Participant, User } from '../types';
@@ -18,13 +19,12 @@ const formatLastActive = (iso?: string | null) => {
 };
 
 const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, isOpen, onClose }) => {
-  const { isAdmin, isSopPreparer } = useAuth();
+  const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [group, setGroup] = useState<Group | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !userId) return;
@@ -33,7 +33,6 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
     setProfileUser(null);
     setGroup(null);
     setParticipants([]);
-    setLightboxOpen(false);
 
     (async () => {
       try {
@@ -62,29 +61,22 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
     return () => { cancelled = true; };
   }, [isOpen, userId]);
 
-  const canViewFullProfile = isAdmin || isSopPreparer;
+  const canViewFullProfile = isAdmin;
 
   return (
     <ModalShell isOpen={isOpen} onClose={onClose} title="Profile">
       {loading || !profileUser ? (
-        <div className="py-10 text-center text-sm text-gray-500">Loading…</div>
+        <div className="flex items-center justify-center gap-1.5 py-10 text-center text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading…</div>
       ) : (
         <div className="space-y-5">
           <div className="flex flex-col items-center text-center">
-            <button
-              type="button"
-              onClick={() => setLightboxOpen(true)}
-              className="flex-shrink-0 rounded-full focus:outline-none focus:ring-4 focus:ring-primary/20"
-              title="View photo"
-              aria-label={`View ${profileUser.name}'s photo`}
-            >
-              <Avatar
-                name={profileUser.name}
-                avatarUrl={profileUser.avatarUrl}
-                size="xl"
-                className="border-4 border-white shadow-[0_12px_30px_-12px_rgba(17,24,39,0.35)]"
-              />
-            </button>
+            <Avatar
+              name={profileUser.name}
+              avatarUrl={profileUser.avatarUrl}
+              size="xl"
+              enlargeable
+              className="border-4 border-white shadow-[0_12px_30px_-12px_rgba(17,24,39,0.35)]"
+            />
             <h3 className="mt-3 max-w-full truncate text-xl font-bold text-gray-900">{profileUser.name}</h3>
             <span className="mt-1.5 inline-flex rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-600">
               {profileUser.role}
@@ -137,23 +129,6 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
             </button>
           )}
         </div>
-      )}
-
-      {lightboxOpen && profileUser && (
-        <button
-          type="button"
-          onClick={() => setLightboxOpen(false)}
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-6"
-          aria-label="Close photo"
-        >
-          {profileUser.avatarUrl ? (
-            <img src={profileUser.avatarUrl} alt={profileUser.name} className="max-h-[80vh] w-[min(88vw,440px)] rounded-2xl object-contain shadow-2xl" />
-          ) : (
-            <div className="grid h-56 w-56 place-items-center rounded-full bg-white text-4xl font-bold text-primary">
-              {profileUser.name.slice(0, 1).toUpperCase()}
-            </div>
-          )}
-        </button>
       )}
     </ModalShell>
   );

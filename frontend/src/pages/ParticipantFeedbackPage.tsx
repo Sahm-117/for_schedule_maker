@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import { participantAppApi } from '../services/api';
 import type { FeedbackAnswers, FeedbackRating } from '../types';
+import Spinner from '../components/Spinner';
 
 // Anonymous feedback, any time. The answers are stored with no name, account or
 // time attached. Surveys go out separately (e.g. a Google Form link in an
@@ -80,7 +81,7 @@ const ParticipantFeedbackPage: React.FC = () => {
             </label>
             {error && <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{error}</p>}
             <button type="button" onClick={() => { void submit(); }} disabled={sending} className="min-h-[48px] w-full rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60">
-              {sending ? 'Sending…' : 'Submit anonymously'}
+              {sending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending…</span>) : 'Submit anonymously'}
             </button>
           </div>
         )}

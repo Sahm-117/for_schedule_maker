@@ -27,7 +27,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore
 import webPush from 'https://esm.sh/web-push@3'
 import { PARTICIPANT_PUSH_STORE, sendToSubscriptions } from '../_shared/webpush.ts'
-import { insertNotifications } from '../_shared/notifications.ts'
+import { insertNotifications, insertParticipantNotifications } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -145,6 +145,10 @@ Deno.serve(async (req) => {
         }
       }
       if (participantIds.length > 0) {
+        // Participant bell row for everyone targeted, push or not.
+        await insertParticipantNotifications(supabase, participantIds.map((participantId) => ({
+          participantId, title: `📢 ${subject}`, body, path: '/me', type: 'ANNOUNCEMENT',
+        })))
         const { data: participantSubs } = await supabase
           .from('ParticipantPushSubscription')
           .select('participantId, endpoint, p256dh, auth')
@@ -272,7 +276,7 @@ Deno.serve(async (req) => {
       supabase,
       recipientIds.map((userId) => ({
         userId,
-        title: `📢 From FOF Ops`,
+        title: `TCN FOF Ops`,
         body: `${subject}: ${body}`,
         path: pathForRole(roleByUser.get(userId)),
         type: 'ANNOUNCEMENT',
@@ -299,7 +303,7 @@ Deno.serve(async (req) => {
     //    split subscriptions into admin vs support batches and send each with
     //    its own path — kept in sync with the in-app row's path above.
     const buildPayload = (path: string) => JSON.stringify({
-      title: `📢 From FOF Ops`,
+      title: `TCN FOF Ops`,
       body: `${subject}: ${body}`,
       icon: '/icon-192.png',
       tag: `fof-announcement-${announcement.id}`,

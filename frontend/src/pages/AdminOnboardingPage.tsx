@@ -15,6 +15,7 @@ import {
   participantOnboardingStatusApi,
   usersApi,
 } from '../services/api';
+import Spinner from '../components/Spinner';
 import { buildTemplatePlaceholderSummary } from '../utils/followUps';
 import { formatDateTime } from '../utils/time';
 import { sortByText } from '../utils/sort';
@@ -454,8 +455,8 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
               <h3 className="mt-1 text-lg font-bold text-gray-900">Progress by group</h3>
             </div>
             {statuses.length > 0 && (
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="w-44">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5">
+                <div className="min-w-0">
                   <AppSelect
                     value={statusFilter}
                     onChange={(v) => setStatusFilter(v as 'all' | 'completed' | 'in_progress')}
@@ -468,7 +469,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
                     compact
                   />
                 </div>
-                <div className="w-56">
+                <div className="min-w-0">
                   <AppSelect value={groupFilter} onChange={setGroupFilter} options={groupOptions} placeholder="All groups" compact />
                 </div>
               </div>
@@ -527,7 +528,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
           <>
             <button type="button" onClick={() => setShowForm(false)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
             <button type="button" onClick={() => { void handleSave(); }} disabled={saving || uploading} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60">
-              {saving ? 'Saving…' : 'Save template'}
+              {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save template'}
             </button>
           </>
         )}
@@ -588,7 +589,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
             ) : (
               <div className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-orange-200 bg-orange-50/30 py-8 transition hover:bg-orange-50" onClick={() => fileRef.current?.click()}>
                 {uploading ? (
-                  <p className="text-sm text-gray-500">Uploading…</p>
+                  <p className="flex items-center gap-1.5 text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Uploading…</p>
                 ) : (
                   <>
                     <svg className="h-8 w-8 text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">

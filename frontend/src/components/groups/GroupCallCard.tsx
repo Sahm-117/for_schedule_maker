@@ -4,6 +4,7 @@ import InfoTip from '../InfoTip';
 import { groupsApi } from '../../services/api';
 import type { Group, GroupCallPlatform } from '../../types';
 import { normalizeLink } from '../../utils/links';
+import Spinner from '../Spinner';
 
 const platformFromLink = (link: string | null | undefined): GroupCallPlatform | null => {
   if (!link?.trim()) return null;
@@ -161,7 +162,7 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
               </button>
             )}
             <button type="button" onClick={() => { void save(); }} disabled={saving} className="min-h-[46px] min-w-0 flex-auto rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">
-              {saving ? 'Saving…' : saveLabel}
+              {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : saveLabel}
             </button>
           </div>
         </div>

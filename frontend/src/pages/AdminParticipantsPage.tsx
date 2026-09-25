@@ -4,7 +4,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { participantsApi, groupsApi, participantFlagsApi, participantPushApi, cohortsApi, settingsApi, profileFieldsApi } from '../services/api';
+import { participantsApi, groupsApi, participantFlagsApi, participantPushApi, cohortsApi, settingsApi, profileFieldsApi, wrapUpApi, departmentReferralsApi } from '../services/api';
 import { buildDashboardModel, type PeopleSummary } from '../components/dashboard/healthModel';
 import { PERSON_HEALTH_LABEL, type PersonHealth } from '../utils/programmeRules';
 import type { Participant, Group, ParticipantFlag } from '../types';
@@ -22,6 +22,7 @@ import {
   type ParsedRegistrationRow,
   type SkippedImportRow,
 } from '../utils/contactImport';
+import Spinner from '../components/Spinner';
 import { sortByText } from '../utils/sort';
 import { reconcileById } from '../utils/reconcile';
 import { normalizeToIntlPhone } from '../utils/phone';
@@ -138,7 +139,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
         <>
           <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
           <button type="button" onClick={() => void handleSave()} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
           </button>
         </>
       }
@@ -476,7 +477,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
           ? <>
               <button type="button" onClick={handleClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
               <button type="button" onClick={() => void doImport()} disabled={importing} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-                {importing ? 'Importing…' : importLabel}
+                {importing ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Importing…</span>) : importLabel}
               </button>
             </>
           : undefined
@@ -711,7 +712,7 @@ const AssignGroupModal: React.FC<AssignGroupModalProps> = ({ participant, groups
         <>
           <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
           <button type="button" onClick={() => void handleSave()} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
           </button>
         </>
       }
@@ -775,6 +776,14 @@ const AdminParticipantsContent: React.FC = () => {
   // participants_without_push migration is applied.
   const [noAlertsIds, setNoAlertsIds] = useState<Set<string>>(new Set());
   const [noAlertsOnly, setNoAlertsOnly] = useState(false);
+  // noAlertsIds spans every cohort; the count shows only this cohort's active participants.
+  const noAlertsCount = participants.filter((p) => p.status === 'ACTIVE' && noAlertsIds.has(p.id)).length;
+  // Departments each participant wants to join, for the "Wants to join" filter
+  // (and the Export, which uses the same filtered list): their own answer in
+  // the app plus any department a support/admin logged for them (the
+  // department handoff), leaving out ones marked "didn't join".
+  const [wrapUpDeptById, setWrapUpDeptById] = useState<Map<string, Set<string>>>(new Map());
+  const [departmentFilter, setDepartmentFilter] = useState('');
 
   // `silent` background refreshes (realtime liveRevision bumps) update data in
   // place without the full-page "Loading…" flash.
@@ -783,7 +792,7 @@ const AdminParticipantsContent: React.FC = () => {
     if (!silent) setLoading(true);
     try {
       profileFieldsApi.getCohortCompletion(activeCohort.id).then(setCompletionById).catch(() => { /* column stays empty */ });
-      const [{ participants: ps }, { groups: gs }, { flags: fs }, health, peopleData, rules, unreachableIds] = await Promise.all([
+      const [{ participants: ps }, { groups: gs }, { flags: fs }, health, peopleData, rules, unreachableIds, wrapUpDepts] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true }),
         groupsApi.getAll({ cohortId: activeCohort.id }),
         participantFlagsApi.getAll({ openOnly: true }).catch(() => ({ flags: [] as ParticipantFlag[] })),
@@ -791,9 +800,21 @@ const AdminParticipantsContent: React.FC = () => {
         cohortsApi.getPeople(activeCohort.id).catch(() => null),
         settingsApi.getProgrammeRules(),
         participantPushApi.getUnreachableIds().catch(() => [] as string[]),
+        wrapUpApi.getDepartmentsForCohort(activeCohort.id).catch(() => new Map<string, string>()),
       ]);
       setFlags(fs);
       setNoAlertsIds(new Set(unreachableIds));
+      const referrals = await departmentReferralsApi.getForParticipants(ps.map((p) => p.id)).then((r) => r.referrals).catch(() => []);
+      const deptsById = new Map<string, Set<string>>();
+      const addDept = (id: string, dept: string | null | undefined) => {
+        const name = dept?.trim();
+        if (!name) return;
+        if (!deptsById.has(id)) deptsById.set(id, new Set());
+        deptsById.get(id)!.add(name);
+      };
+      wrapUpDepts.forEach((dept, id) => addDept(id, dept));
+      referrals.filter((r) => r.status !== 'NOT_JOINED').forEach((r) => addDept(r.participantId, r.department));
+      setWrapUpDeptById(deptsById);
       setPeople(health && peopleData
         ? buildDashboardModel(health, activeCohort, 0, peopleData, rules).people
         : null);
@@ -883,6 +904,24 @@ const AdminParticipantsContent: React.FC = () => {
     setSearchParams(params, { replace: true });
   };
 
+  // Departments named in "Wants to join", with how many active participants
+  // named each one.
+  const departmentCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    participants.forEach((p) => {
+      if (p.status !== 'ACTIVE') return;
+      wrapUpDeptById.get(p.id)?.forEach((dept) => counts.set(dept, (counts.get(dept) ?? 0) + 1));
+    });
+    return counts;
+  }, [participants, wrapUpDeptById]);
+  const departmentFilterOptions = useMemo(
+    () => [
+      { value: '', label: 'Wants to join: any' },
+      ...[...departmentCounts.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([name, count]) => ({ value: name, label: `${name} (${count})` })),
+    ],
+    [departmentCounts]
+  );
+
   const displayed = useMemo(() => {
     let ps = showArchived
       ? participants.filter((p) => p.status === 'ARCHIVED')
@@ -898,12 +937,13 @@ const AdminParticipantsContent: React.FC = () => {
     if (incompleteOnly) ps = ps.filter((p) => (completionById.get(p.id)?.percent ?? 0) < 100);
     if (healthFilter && healthById.size > 0) ps = ps.filter((p) => healthById.get(p.id)?.health === healthFilter);
     if (noAlertsOnly) ps = ps.filter((p) => noAlertsIds.has(p.id));
+    if (departmentFilter) ps = ps.filter((p) => wrapUpDeptById.get(p.id)?.has(departmentFilter));
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant, healthFilter, healthById, incompleteOnly, completionById, noAlertsOnly, noAlertsIds]);
+  }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant, healthFilter, healthById, incompleteOnly, completionById, noAlertsOnly, noAlertsIds, departmentFilter, wrapUpDeptById]);
 
   const unassignedCount = useMemo(
     () => participants.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
@@ -968,16 +1008,44 @@ const AdminParticipantsContent: React.FC = () => {
         <p className="text-sm text-gray-500">Select or create a cohort first.</p>
       ) : (
         <>
-          <div data-wt="participants-filters" className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+          <div data-wt="participants-filters" className="mb-4 space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <input
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search name or phone…"
-                className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:min-w-[12rem] sm:max-w-xs sm:flex-1"
+                className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-md sm:flex-1"
               />
-              <div className="w-full sm:w-40 sm:shrink-0">
+              <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
+                {flaggedCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFlaggedOnly((value) => !value)}
+                    aria-pressed={flaggedOnly}
+                    className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${flaggedOnly ? 'bg-amber-500 text-white' : 'bg-amber-100/80 text-amber-700'}`}
+                  >
+                    Concerns ({flaggedCount})
+                  </button>
+                )}
+                {completionById.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setIncompleteOnly((value) => !value)}
+                    aria-pressed={incompleteOnly}
+                    className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${incompleteOnly ? 'bg-sky-600 text-white' : 'bg-sky-100/80 text-sky-700'}`}
+                  >
+                    Incomplete profiles ({participants.filter((p) => p.status === 'ACTIVE' && (completionById.get(p.id)?.percent ?? 0) < 100).length})
+                  </button>
+                )}
+                <label className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-600">
+                  <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="accent-primary" />
+                  Show archived
+                </label>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
+              <div className="min-w-0">
                 <AppSelect
                   value={groupFilter}
                   onChange={(v) => { setGroupFilter(v); setSupportFilter(''); }}
@@ -987,7 +1055,7 @@ const AdminParticipantsContent: React.FC = () => {
                 />
               </div>
               {healthById.size > 0 && (
-                <div className="w-full sm:w-52 sm:shrink-0">
+                <div className="min-w-0">
                   <AppSelect
                     value={healthFilter}
                     onChange={setHealthFilter}
@@ -1003,7 +1071,7 @@ const AdminParticipantsContent: React.FC = () => {
                 </div>
               )}
               {supportOptions.length > 1 && (
-                <div className="w-full sm:w-40 sm:shrink-0">
+                <div className="min-w-0">
                   <AppSelect
                     value={supportFilter}
                     onChange={(v) => { setSupportFilter(v); setGroupFilter(''); }}
@@ -1013,46 +1081,31 @@ const AdminParticipantsContent: React.FC = () => {
                   />
                 </div>
               )}
-              {noAlertsIds.size > 0 && (
-                <div className="w-full sm:w-40 sm:shrink-0">
+              {noAlertsCount > 0 && (
+                <div className="min-w-0">
                   <AppSelect
                     value={noAlertsOnly ? 'no-alerts' : ''}
                     onChange={(v) => setNoAlertsOnly(v === 'no-alerts')}
                     options={[
                       { value: '', label: 'All alerts' },
-                      { value: 'no-alerts', label: `No alerts (${noAlertsIds.size})` },
+                      { value: 'no-alerts', label: `No alerts (${noAlertsCount})` },
                     ]}
                     placeholder="All alerts"
                     compact
                   />
                 </div>
               )}
-            </div>
-            <div className="flex items-center gap-3">
-              {flaggedCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setFlaggedOnly((value) => !value)}
-                  aria-pressed={flaggedOnly}
-                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${flaggedOnly ? 'bg-amber-500 text-white' : 'bg-amber-100/80 text-amber-700'}`}
-                >
-                  Concerns ({flaggedCount})
-                </button>
+              {departmentCounts.size > 0 && (
+                <div className="min-w-0">
+                  <AppSelect
+                    value={departmentFilter}
+                    onChange={setDepartmentFilter}
+                    options={departmentFilterOptions}
+                    placeholder="Wants to join"
+                    compact
+                  />
+                </div>
               )}
-              {completionById.size > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setIncompleteOnly((value) => !value)}
-                  aria-pressed={incompleteOnly}
-                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${incompleteOnly ? 'bg-sky-600 text-white' : 'bg-sky-100/80 text-sky-700'}`}
-                >
-                  Incomplete profiles ({participants.filter((p) => p.status === 'ACTIVE' && (completionById.get(p.id)?.percent ?? 0) < 100).length})
-                </button>
-              )}
-              <label className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-600">
-                <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="accent-primary" />
-                Show archived
-              </label>
             </div>
           </div>
 
@@ -1225,7 +1278,7 @@ const AdminParticipantsContent: React.FC = () => {
       />
 
       {exportOpen && (
-        <ParticipantsExportPopup participants={displayed} cohortName={activeCohort?.name ?? 'Cohort'} onClose={() => setExportOpen(false)} />
+        <ParticipantsExportPopup participants={displayed} cohortName={activeCohort?.name ?? 'Cohort'} subtitle={departmentFilter ? `Wants to join ${departmentFilter}` : undefined} onClose={() => setExportOpen(false)} />
       )}
 
       <AssignGroupModal

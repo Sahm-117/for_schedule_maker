@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
 import AttendanceCountdownCard from '../components/participantApp/AttendanceCountdownCard';
 import EndSummaryCard from '../components/participantApp/EndSummaryCard';
 import { useParticipantApp } from '../context/ParticipantAppContext';
@@ -42,7 +43,7 @@ const ParticipantJourneyPage: React.FC = () => {
   const [tab, setTab] = useState<'journey' | 'attendance'>('journey');
   const now = new Date();
 
-  if (loading || !home) return <p className="py-16 text-center text-sm text-gray-500">Loading…</p>;
+  if (loading || !home) return <PageLoader />;
 
   const totalWeeks = home.weeks.length;
   const weekNumber = currentWeekNumber(home.cohort?.startDate, now);

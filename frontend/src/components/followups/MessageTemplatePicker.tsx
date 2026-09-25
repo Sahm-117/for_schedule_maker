@@ -3,6 +3,7 @@ import type { FollowUpContact, MessageTemplate } from '../../types';
 import ModalShell from './ModalShell';
 import { fillTemplate } from '../../utils/followUps';
 import { buildWhatsAppLink } from '../../utils/phone';
+import Spinner from '../Spinner';
 
 interface MessageTemplatePickerProps {
   isOpen: boolean;
@@ -79,7 +80,7 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
               className="rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
               data-testid="whatsapp-link"
             >
-              {marking ? 'Opening…' : 'Open WhatsApp'}
+              {marking ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Opening…</span>) : 'Open WhatsApp'}
             </a>
           ) : (
             <span className="rounded-2xl bg-slate-100 px-5 py-2.5 text-sm font-semibold text-slate-400" title="Fix this contact's phone number to enable WhatsApp">

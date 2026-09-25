@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, NavLink, useParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import PageLoader from '../components/PageLoader';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
 import { useToast } from '../components/Toast';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { participantAppApi } from '../services/api';
 import { recapHasContent, reflectionEditable, reflectionFor } from '../utils/participantApp';
+import Spinner from '../components/Spinner';
 
 // One week for a participant: the recap (once their support releases it) and
 // their private three-question reflection. Matches the V2 design.
@@ -49,7 +51,7 @@ const ParticipantWeekPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reflection?.weekId, reflection?.updatedAt]);
 
-  if (loading) return <p className="py-16 text-center text-sm text-gray-500">Loading…</p>;
+  if (loading) return <PageLoader />;
   if (!home) return <Navigate to="/me" replace />;
   if (!week) return <Navigate to="/me" replace />;
 
@@ -144,7 +146,7 @@ const ParticipantWeekPage: React.FC = () => {
                   </label>
                   {saveError && <p className="mt-3 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{saveError}</p>}
                   <button type="button" onClick={() => { void save(); }} disabled={saving} className="mt-[18px] min-h-[48px] w-full rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60">
-                    {saving ? 'Saving…' : reflection ? 'Update reflection' : 'Save reflection'}
+                    {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : reflection ? 'Update reflection' : 'Save reflection'}
                   </button>
                   <LockNote>Your support sees that you reflected, never what you wrote. You can change it for a week after you first save it.</LockNote>
                 </>

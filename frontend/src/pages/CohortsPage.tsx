@@ -11,6 +11,7 @@ import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpCon
 import type { Cohort, FollowUpContact, User, Week } from '../types';
 import { sortByText } from '../utils/sort';
 import { DEFAULT_RECAP_RELEASE_TIMES, formatRecapReleaseAt, recapReleaseAt, type RecapReleaseTimes } from '../utils/recapReleaseTimes';
+import Spinner from '../components/Spinner';
 
 type CohortFormState = {
   name: string;
@@ -883,7 +884,7 @@ const CohortsPage: React.FC = () => {
               disabled={!activeCohort || savingCreate}
               className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
             >
-              {savingCreate ? 'Creating...' : 'Create Cohort'}
+              {savingCreate ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Creating...</span>) : 'Create Cohort'}
             </button>
           </div>
         </form>
@@ -999,7 +1000,7 @@ const CohortsPage: React.FC = () => {
                 disabled={savingDetails}
                 className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
               >
-                {savingDetails ? 'Saving...' : 'Save Details'}
+                {savingDetails ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving...</span>) : 'Save Details'}
               </button>
             </div>
           </form>
@@ -1088,7 +1089,7 @@ const CohortsPage: React.FC = () => {
               disabled={savingMembers}
               className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
             >
-              {savingMembers ? 'Saving...' : 'Save Members'}
+              {savingMembers ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving...</span>) : 'Save Members'}
             </button>
           </div>
         </div>
@@ -1140,7 +1141,7 @@ const CohortsPage: React.FC = () => {
               disabled={weekActionPending}
               className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
             >
-              {weekActionPending ? 'Adding...' : 'Add Week'}
+              {weekActionPending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Adding...</span>) : 'Add Week'}
             </button>
           </div>
         </div>
@@ -1175,7 +1176,7 @@ const CohortsPage: React.FC = () => {
               disabled={weekActionPending}
               className="rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
             >
-              {weekActionPending ? 'Deleting...' : 'Delete Week'}
+              {weekActionPending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Deleting...</span>) : 'Delete Week'}
             </button>
           </div>
         </div>
@@ -1225,7 +1226,7 @@ const CohortsPage: React.FC = () => {
               </div>
             ) : (
               <label className={`flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-300 px-4 py-4 text-sm font-semibold text-gray-600 hover:border-primary hover:text-primary ${recapDocUploading ? 'pointer-events-none opacity-50' : ''}`}>
-                {recapDocUploading ? 'Uploading…' : 'Upload recap document (PDF)'}
+                {recapDocUploading ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Uploading…</span>) : 'Upload recap document (PDF)'}
                 <input type="file" accept=".pdf,image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleRecapDocument(file); }} />
               </label>
             )}
@@ -1253,7 +1254,7 @@ const CohortsPage: React.FC = () => {
                 <div className="mt-2 flex items-center gap-3">
                   <p className="text-[11px] text-gray-500">Sent to a free AI service (OpenRouter). Check the result before saving.</p>
                   <button type="button" onClick={() => { void handleAiDraft(); }} disabled={aiDrafting || aiNotes.trim().length < 40} className="ml-auto flex-none rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">
-                    {aiDrafting ? 'Drafting…' : 'Draft summary and prompt'}
+                    {aiDrafting ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Drafting…</span>) : 'Draft summary and prompt'}
                   </button>
                 </div>
               </div>
@@ -1352,7 +1353,7 @@ const CohortsPage: React.FC = () => {
               disabled={weekActionPending}
               className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
             >
-              {weekActionPending ? 'Saving...' : 'Save week'}
+              {weekActionPending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving...</span>) : 'Save week'}
             </button>
           </div>
         </div>
@@ -1365,6 +1366,7 @@ const CohortsPage: React.FC = () => {
         title="Send to participants now?"
         message={weekEditTarget ? `Week ${weekEditTarget.week.weekNumber}'s recap will go to participants immediately, ahead of the usual time. Supports are not affected -- they still get it at their own configured time.` : ''}
         confirmText={sendingNow ? 'Sending...' : 'Send now'}
+        confirmLoading={sendingNow}
         type="info"
         confirmDisabled={sendingNow}
       />
@@ -1433,7 +1435,7 @@ const CohortsPage: React.FC = () => {
               disabled={!canDeleteSelectedCohort || deletingCohort}
               className="rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
             >
-              {deletingCohort ? 'Deleting...' : 'Delete Permanently'}
+              {deletingCohort ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Deleting...</span>) : 'Delete Permanently'}
             </button>
           </div>
         </div>

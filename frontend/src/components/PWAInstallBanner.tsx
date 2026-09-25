@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+import Spinner from './Spinner';
 
 const APP_NAME = 'FOF Ops';
 const APP_SHORT_NAME = 'FOF Ops';
@@ -56,7 +57,7 @@ const PWAInstallBanner: React.FC = () => {
                     disabled={isInstalling}
                     className="rounded-full px-3 py-1.5 text-sm font-semibold text-primary transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isInstalling ? 'Opening...' : 'Install'}
+                    {isInstalling ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Opening...</span>) : 'Install'}
                   </button>
                 ) : (
                   <span className="rounded-full bg-orange-50 px-3 py-1.5 text-sm font-semibold text-primary">
@@ -81,7 +82,7 @@ const PWAInstallBanner: React.FC = () => {
                   disabled={isInstalling}
                   className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isInstalling ? 'Opening…' : 'Install'}
+                  {isInstalling ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Opening…</span>) : 'Install'}
                 </button>
               )}
             </div>

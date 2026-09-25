@@ -15,7 +15,7 @@ import { sortByText } from '../utils/sort';
 type EnrichedActivity = Activity & { dayName: string };
 
 const ActivityOverviewPage: React.FC = () => {
-  const { user, isAdmin, isSopPreparer } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { weeks, selectedWeek, handleWeekSelect, loading } = useAppData();
   const [supportGroups, setSupportGroups] = useState<Label[]>([]);
   const [supportUsers, setSupportUsers] = useState<User[]>([]);
@@ -180,7 +180,7 @@ const ActivityOverviewPage: React.FC = () => {
     return <Navigate to="/support" replace />;
   }
 
-  if (!isAdmin && !isSopPreparer) {
+  if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
 

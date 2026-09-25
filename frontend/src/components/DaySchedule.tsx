@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { compareTimeStrings, parseTimeToMinutes } from '../utils/time';
 import { activityDescriptionToPlainText } from '../utils/activityDescription';
 import PeriodIcon, { getPeriodStyle } from './PeriodIcon';
+import Spinner from './Spinner';
 
 interface DayScheduleProps {
   day: Day;
@@ -388,7 +389,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
         type="danger"
       >
         {deleteSimilarLoading ? (
-          <p className="text-sm text-gray-500">Checking other weeks...</p>
+          <p className="flex items-center gap-1.5 text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Checking other weeks...</p>
         ) : deleteSimilarWeeks.length > 0 ? (
           <div className="border border-gray-200 rounded-md p-3 bg-gray-50">
             <div className="flex items-center justify-between gap-3">

@@ -1,4 +1,5 @@
 import React from 'react';
+import Spinner from './Spinner';
 
 export type SaveState = 'saving' | 'saved' | 'error';
 
@@ -9,10 +10,7 @@ const SaveStatus: React.FC<{ state?: SaveState }> = ({ state }) => {
   if (state === 'saving') {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500" role="status">
-        <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
-          <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-        </svg>
+        <Spinner className="h-3 w-3" />
         Saving…
       </span>
     );

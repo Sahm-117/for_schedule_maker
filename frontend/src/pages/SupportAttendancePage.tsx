@@ -10,6 +10,7 @@ import { attendanceApi, participantsApi } from '../services/api';
 import type { AttendanceRecord, AttendanceSession, AttendanceStatus, Participant, User, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
+import Spinner from '../components/Spinner';
 
 const STATUS_BUTTONS: Array<{ status: AttendanceStatus; label: string; activeCls: string }> = [
   { status: 'PRESENT', label: 'Present', activeCls: 'bg-emerald-100 text-emerald-700' },
@@ -214,7 +215,7 @@ const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
               <div className="min-w-[10rem] flex-1 sm:max-w-xs"><AppSelect value={selectedWeekId === 'ALL' ? 'ALL' : selectedWeekId ? String(selectedWeekId) : ''} onChange={(value) => setSelectedWeekId(value === 'ALL' ? 'ALL' : Number(value))} options={[{ value: 'ALL', label: 'All weeks' }, ...cohortWeeks.map((week) => ({ value: String(week.id), label: `Week ${week.weekNumber}` }))]} placeholder="Choose week" compact /></div>
               {!allWeeks && <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${finalised ? 'bg-emerald-100 text-emerald-700' : allMarked ? 'bg-sky-100 text-sky-700' : 'bg-neutral-100 text-neutral-600'}`}>{finalised ? 'Report sent' : `${markedCount} of ${participants.length} marked`}</span>}
               {!allWeeks && !activeSession.startedAt && !finalised && (
-                <button type="button" onClick={() => void startAttendance()} disabled={starting} className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50">{starting ? 'Starting…' : 'Start attendance'}</button>
+                <button type="button" onClick={() => void startAttendance()} disabled={starting} className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50">{starting ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Starting…</span>) : 'Start attendance'}</button>
               )}
               {!allWeeks && windowOpen && windowClosesAt && (
                 <span className="rounded-full bg-sky-100 px-3 py-1.5 text-xs font-bold text-sky-700">Closes in {countdownLabel(windowClosesAt, now)}</span>

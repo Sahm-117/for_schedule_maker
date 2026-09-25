@@ -5,9 +5,11 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import AppSelect from './AppSelect';
-import RejectedChangesNotification from './RejectedChangesNotification';
 import NotificationPromptModal from './NotificationPromptModal';
 import NotificationBlockedModal from './NotificationBlockedModal';
+import ClassFeedbackModal from './ClassFeedbackModal';
+import { useSupportClassFeedbackPrompt } from '../hooks/useSupportClassFeedbackPrompt';
+import { classFeedbackApi } from '../services/api';
 import PWAInstallBanner from './PWAInstallBanner';
 import NewNotificationBanner from './NewNotificationBanner';
 import NeedSupportButton from './NeedSupportButton';
@@ -25,7 +27,6 @@ type NavItem = {
   mobileLabel?: string;
   icon: React.ReactNode;
   adminOnly?: boolean;
-  sopHidden?: boolean;
   mobileHidden?: boolean;
   mobileMore?: boolean;
   /** Only shown to a support who is in a hub for the active cohort. */
@@ -70,6 +71,7 @@ const ICONS = {
   hub: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg></IconBox>,
   mobilisation: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M18 9v6m3-3h-6M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM3 20a6 6 0 0 1 12 0v1H3v-1Z" /></svg></IconBox>,
   more: <IconBox><svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4.25 10a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm7 0a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm7 0a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z" /></svg></IconBox>,
+  feedback: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8M8 14h5m-9 6l2.5-3H18a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14z" /></svg></IconBox>,
   rota: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 9h18M9 4v16M4 20h16a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" /></svg></IconBox>,
 };
 
@@ -85,6 +87,7 @@ const adminNav: NavItem[] = [
   { to: '/hubs', label: 'Hubs', icon: ICONS.groups, adminOnly: true },
   { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
   { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
+  { to: '/feedback', label: 'Feedback', icon: ICONS.feedback, adminOnly: true },
   { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
   { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
   { to: '/community', label: 'Community', icon: ICONS.hub },
@@ -119,6 +122,7 @@ const adminNavGroups: NavGroup[] = [
     label: 'Engagement',
     items: [
       { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
+      { to: '/feedback', label: 'Feedback', icon: ICONS.feedback, adminOnly: true },
       { to: '/community', label: 'Community', icon: ICONS.hub },
     ],
   },
@@ -163,11 +167,7 @@ const isNavActive = (pathname: string, to: string) => {
   return pathname === to || pathname.startsWith(`${to}/`) || sectionMatches(pathname, to);
 };
 
-const canShowNavItem = (item: NavItem, isAdmin: boolean, isSopPreparer: boolean) => {
-  if (item.adminOnly && !isAdmin) return false;
-  if (item.sopHidden && isSopPreparer) return false;
-  return true;
-};
+const canShowNavItem = (item: NavItem, isAdmin: boolean) => !(item.adminOnly && !isAdmin);
 
 const NavDot: React.FC = () => (
   <span className="ml-auto h-2 w-2 flex-shrink-0 rounded-full bg-primary" />
@@ -251,27 +251,27 @@ const NavGroupSection: React.FC<{
 );
 
 const AppShell: React.FC = () => {
-  const { user, isAdmin, isSopPreparer, logout, userLabels } = useAuth();
+  const { user, isAdmin, logout, userLabels } = useAuth();
   const {
     cohorts,
     activeCohort,
     setActiveCohort,
-    rejectedChanges,
-    unreadCount,
-    refreshRejectedChanges,
     globalPendingChanges,
     newResourceCount,
     hasNewHubActivity,
     myHub,
+    weeks,
   } = useAppData();
   const { showPrompt, showBlocked, enable, dismiss, dismissBlocked } = usePushNotifications(user?.id);
+  const isSupport = user?.role === 'SUPPORT';
+  // Supports only -- admins get the full per-week breakdown on the Feedback page instead.
+  const { dueWeek: classFeedbackDueWeek, dismiss: dismissClassFeedback, markAnswered: markClassFeedbackAnswered } =
+    useSupportClassFeedbackPrompt(isSupport ? activeCohort : null, isSupport ? weeks : [], isSupport ? user?.id : undefined);
   const [open, setOpen] = useState(false);
   const [openNavGroups, setOpenNavGroups] = useState<OpenNavGroups>({});
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-
-  const isSupport = user?.role === 'SUPPORT';
   // First-login order: password change, Welcome + Home tour, then the notification prompt.
   const { busy: tourBusy } = useTourState();
   // Day 5+ of the cohort, a hub support reaches My Hub more than Mobilisation,
@@ -287,17 +287,17 @@ const AppShell: React.FC = () => {
   };
   const navItems = useMemo(() => {
     if (isSupport) return supportNav.filter((item) => !item.hubOnly || !!myHub?.hub);
-    return adminNav.filter((item) => canShowNavItem(item, isAdmin, isSopPreparer));
-  }, [isAdmin, isSopPreparer, isSupport, myHub?.hub]);
+    return adminNav.filter((item) => canShowNavItem(item, isAdmin));
+  }, [isAdmin, isSupport, myHub?.hub]);
   const navGroups = useMemo(() => {
     if (isSupport) return [];
     return adminNavGroups
       .map((group) => ({
         ...group,
-        items: group.items.filter((item) => canShowNavItem(item, isAdmin, isSopPreparer)),
+        items: group.items.filter((item) => canShowNavItem(item, isAdmin)),
       }))
       .filter((group) => group.items.length > 0);
-  }, [isAdmin, isSopPreparer, isSupport]);
+  }, [isAdmin, isSupport]);
   const isNavGroupOpen = (label: string) => openNavGroups[label] ?? true;
   const toggleNavGroup = (label: string) => {
     setOpenNavGroups((current) => ({
@@ -319,7 +319,7 @@ const AppShell: React.FC = () => {
   const moreActive = mobileMoreItems.some((item) => isNavActive(location.pathname, item.to));
 
   const supportLabel = userLabels[0]?.name || 'Support';
-  const currentLabel = isAdmin ? 'Admin' : isSopPreparer ? 'SOP Preparer' : supportLabel;
+  const currentLabel = isAdmin ? 'Admin' : supportLabel;
   const formatDateLabel = (value?: string | null) => {
     if (!value) return null;
     const date = new Date(`${value}T12:00:00`);
@@ -339,13 +339,18 @@ const AppShell: React.FC = () => {
       <NewNotificationBanner />
       {!tourBusy && showPrompt && <NotificationPromptModal onEnable={enable} onDismiss={dismiss} />}
       {!tourBusy && showBlocked && <NotificationBlockedModal onDismiss={dismissBlocked} />}
-      {isSopPreparer && unreadCount > 0 && (
-        <RejectedChangesNotification
-          rejectedChanges={rejectedChanges}
-          unreadCount={unreadCount}
-          onUpdate={() => {
-            void refreshRejectedChanges();
+      {!tourBusy && !showPrompt && !showBlocked && user && activeCohort && classFeedbackDueWeek && (
+        <ClassFeedbackModal
+          weekNumber={classFeedbackDueWeek.weekNumber}
+          onSend={async (note) => {
+            await classFeedbackApi.submitSupportFeedback({ cohortId: activeCohort.id, weekId: classFeedbackDueWeek.weekId, supportId: user.id, note, isNone: false });
+            markClassFeedbackAnswered();
           }}
+          onNone={async () => {
+            await classFeedbackApi.submitSupportFeedback({ cohortId: activeCohort.id, weekId: classFeedbackDueWeek.weekId, supportId: user.id, note: '', isNone: true });
+            markClassFeedbackAnswered();
+          }}
+          onDismiss={dismissClassFeedback}
         />
       )}
 

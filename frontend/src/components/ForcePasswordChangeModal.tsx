@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../hooks/useAuth';
 import { usersApi } from '../services/api';
+import Spinner from './Spinner';
 
 // Shown after an admin resets someone's password: they can't use the app until
 // they replace the temporary password with one only they know.
@@ -72,7 +73,7 @@ const ForcePasswordChangeModal: React.FC = () => {
             disabled={saving || !current || !next || !confirm}
             className="min-h-[48px] rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60"
           >
-            {saving ? 'Saving…' : 'Save new password'}
+            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save new password'}
           </button>
           <button type="button" onClick={logout} className="text-sm font-semibold text-gray-500 hover:text-gray-700">
             Sign out instead

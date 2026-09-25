@@ -27,7 +27,7 @@ export interface User {
   email: string;
   phone?: string;
   name: string;
-  role: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT' | 'PARTICIPANT';
+  role: 'ADMIN' | 'SUPPORT' | 'PARTICIPANT';
   isActive?: boolean;
   deactivatedAt?: string | null;
   isCoordinator?: boolean;
@@ -201,6 +201,7 @@ export type NotificationType =
   | 'HUB'
   | 'REMINDER'
   | 'ESCALATION'
+  | 'SCHEDULE_CHANGE'
   | 'GENERAL';
 
 export interface Notification {
@@ -340,6 +341,7 @@ export interface Participant {
   /** Added by the participant in their app. */
   dateOfBirth?: string | null;
   occupation?: string | null;
+  avatarUrl?: string | null;
   groupId?: string | null;
   groupName?: string | null;
   createdAt?: string;
@@ -752,6 +754,16 @@ export interface ParticipantHomeWeek {
 
 export type CheckInResponse = 'OKAY' | 'NEED_HELP';
 
+export interface ParticipantNotification {
+  id: string;
+  title: string;
+  body: string;
+  path: string | null;
+  type: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
 export interface ParticipantHome {
   now: string;
   participant: { id: string; name: string; phone: string | null };
@@ -766,6 +778,7 @@ export interface ParticipantHome {
     callLink: string | null;
     supportName: string | null;
     supportPhone: string | null;
+    supportAvatarUrl: string | null;
   } | null;
   weeks: ParticipantHomeWeek[];
   reflections: ParticipantReflection[];
@@ -778,7 +791,7 @@ export interface ParticipantHome {
   /** Which FOF day the first scripture (position 1) shows on. */
   scriptureStartDay: number;
   lastCheckIn: { response: CheckInResponse; sundayMisses: number; meetingMisses: number; createdAt: string } | null;
-  members: Array<{ name: string }>;
+  members: Array<{ name: string; avatarUrl: string | null }>;
   profile: {
     email: string | null;
     avatarUrl: string | null;
@@ -793,10 +806,14 @@ export interface ParticipantHome {
   reminders: { meetingRemindMinutes: number[]; recapReleased: boolean };
   resources: Array<{ id: string; title: string; description: string | null; type: Resource['type']; url: string; fileName: string | null }>;
   announcement: { id: string; subject: string; body: string; linkUrl: string | null; linkLabel: string | null } | null;
-  wrapUp: { submitted: boolean };
+  wrapUp: { submitted: boolean; department: string | null };
   /** Fields admins requested that apply to this participant, with their answers. */
   profileFields: ProfileFieldEntry[];
   profileCompletion: ProfileCompletion;
+  /** The most recent class week not yet answered, even a future one; `open` is whether its feedback time has passed. */
+  classFeedbackDue: { weekId: number; weekNumber: number; open: boolean } | null;
+  /** True from the admin-chosen week's class Sunday onward, until they have a ParticipantWrapUp row. */
+  departmentPromptDue: boolean;
 }
 
 export type FeedbackRating = 'NOT_GREAT' | 'OKAY' | 'GREAT';
@@ -814,10 +831,34 @@ export interface FeedbackResults {
   answers: FeedbackAnswers[] | null;
 }
 
+/** One week of class_feedback_results(), admin-only. */
+export interface ClassFeedbackWeekResult {
+  weekId: number;
+  weekNumber: number;
+  title: string | null;
+  supports: Array<{ supportId: string; supportName: string; note: string | null; isNone: boolean; answeredAt: string }>;
+  supportsMissing: string[];
+  participants: {
+    count: number;
+    /** Answers show once the week has at least five, so nobody can be picked out. */
+    visible: boolean;
+    average: number | null;
+    answers: Array<{ rating: number; comment: string | null; name: string | null }> | null;
+  };
+}
+
 export interface ParticipantFaith {
   project: { id: string; body: string | null; status: FaithProjectStatus; updatedAt: string } | null;
   deadlineAt: string | null;
   trail: Array<{ id: string; body: string; createdAt: string; byParticipant: boolean; authorName: string | null }>;
+}
+
+// The participant People page: every active support/admin in their cohort
+// (my support flagged and listed first), plus their own group's other members.
+export interface ParticipantPeople {
+  supports: Array<{ id: string; name: string; avatarUrl: string | null; role: 'SUPPORT' | 'ADMIN'; isMySupport: boolean }>;
+  groupName: string | null;
+  members: Array<{ name: string; avatarUrl: string | null }>;
 }
 
 export interface ReflectionActivity {

@@ -7,7 +7,7 @@ import { announcementsApi } from '../services/api';
 import type { Announcement } from '../types';
 
 const AnnouncementsFeedPage: React.FC = () => {
-  const { user, isAdmin, isSopPreparer, userCohortIds, userLabelIds } = useAuth();
+  const { user, isAdmin, userCohortIds, userLabelIds } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
   const userId = user?.id;
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -19,14 +19,14 @@ const AnnouncementsFeedPage: React.FC = () => {
     announcementsApi.getHistory({
       cohortId: activeCohort?.id || null,
       userId,
-      isAdmin: isAdmin || isSopPreparer,
+      isAdmin,
       accessibleCohortIds: userCohortIds,
         userLabelIds,
     })
       .then((res) => setAnnouncements(res.announcements))
       .catch(() => setAnnouncements([]))
       .finally(() => setLoading(false));
-  }, [activeCohort?.id, isAdmin, isSopPreparer, liveRevision, userId, userCohortIds, userLabelIds]);
+  }, [activeCohort?.id, isAdmin, liveRevision, userId, userCohortIds, userLabelIds]);
 
   useEffect(() => {
     if (!userId) return;
@@ -34,7 +34,7 @@ const AnnouncementsFeedPage: React.FC = () => {
       announcementsApi.getHistory({
         cohortId: activeCohort?.id || null,
         userId,
-        isAdmin: isAdmin || isSopPreparer,
+        isAdmin,
         accessibleCohortIds: userCohortIds,
         userLabelIds,
       })
@@ -42,11 +42,11 @@ const AnnouncementsFeedPage: React.FC = () => {
         .catch(() => {});
     }, 15000);
     return () => clearInterval(interval);
-  }, [activeCohort?.id, isAdmin, isSopPreparer, userId, userCohortIds, userLabelIds]);
+  }, [activeCohort?.id, isAdmin, userId, userCohortIds, userLabelIds]);
 
   if (!user) return null;
 
-  if (user.role !== 'SUPPORT' && !isSopPreparer && !isAdmin) {
+  if (user.role !== 'SUPPORT' && !isAdmin) {
     return <Navigate to="/" replace />;
   }
 

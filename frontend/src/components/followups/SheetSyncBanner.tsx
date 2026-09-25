@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { followUpContactsApi } from '../../services/api';
 import type { FollowUpContact } from '../../types';
+import Spinner from '../Spinner';
 
 // Shows operations when prospects registered in the app aren't reaching the
 // Google sheet, and why, so a changed form is noticed quickly.
@@ -72,7 +73,7 @@ const SheetSyncBanner: React.FC<{ contacts: FollowUpContact[]; onRetried: () => 
             disabled={retrying}
             className="rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm disabled:opacity-60"
           >
-            {retrying ? 'Retrying…' : 'Retry now'}
+            {retrying ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Retrying…</span>) : 'Retry now'}
           </button>
         )}
       </div>

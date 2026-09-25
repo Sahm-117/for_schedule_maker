@@ -3,6 +3,7 @@ import ModalShell from '../followups/ModalShell';
 import type { Label } from '../../types';
 import { describeOwners, type LabelOwners, type RotaCell } from '../../utils/rotaGrid';
 import { ROTA_DUTIES } from '../../config/rotaDuties';
+import Spinner from '../Spinner';
 
 export interface StagedChange {
   key: string;
@@ -74,7 +75,7 @@ const RotaApplyModal: React.FC<RotaApplyModalProps> = ({
             disabled={applying || changes.length === 0}
             className="rounded-xl bg-[var(--color-primary,#f97316)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {applying ? 'Applying…' : 'Apply changes'}
+            {applying ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Applying…</span>) : 'Apply changes'}
           </button>
         </div>
       }

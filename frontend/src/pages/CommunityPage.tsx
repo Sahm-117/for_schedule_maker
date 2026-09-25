@@ -1,16 +1,18 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import PageHeader from '../components/PageHeader';
 import Avatar from '../components/Avatar';
 import ConfirmationModal from '../components/ConfirmationModal';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
+import PeoplePanel from '../components/community/PeoplePanel';
 import ModalShell from '../components/followups/ModalShell';
+import TourHelpButton from '../components/tour/TourHelpButton';
 import { hubApi } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { reconcileById } from '../utils/reconcile';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import type { HubTopic } from '../types';
+import Spinner from '../components/Spinner';
 
 const formatDate = (iso: string) =>
   new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(iso));
@@ -231,7 +233,7 @@ const NewTopicModal: React.FC<{
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
             <button type="submit" disabled={saving || !title.trim() || !body.trim()} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-              {saving ? 'Posting…' : 'Post topic'}
+              {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Posting…</span>) : 'Post topic'}
             </button>
           </div>
         </form>
@@ -248,33 +250,33 @@ const TrashIcon = () => (
 );
 
 const TopicCard: React.FC<{ topic: HubTopic; onClick: () => void; onToggleLike: () => void; onDelete?: () => void; onAuthorClick: () => void }> = ({ topic, onClick, onToggleLike, onDelete, onAuthorClick }) => (
-  <div className="relative rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)] transition hover:border-[#ffdeca]">
+  <div className="relative rounded-2xl border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)] transition hover:border-[#ffdeca]">
     <button
       type="button"
       onClick={onClick}
-      className="w-full p-5 text-left"
+      className="w-full p-4 text-left"
     >
-    <div className="flex items-center gap-3 pr-8">
+    <div className="flex items-center gap-2.5 pr-7">
       <span
         role="button"
         tabIndex={0}
         onClick={(e) => { e.stopPropagation(); onAuthorClick(); }}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onAuthorClick(); } }}
-        className="flex min-w-0 items-center gap-3 rounded-full hover:opacity-80"
+        className="flex min-w-0 items-center gap-2.5 rounded-full hover:opacity-80"
       >
-        <Avatar name={topic.authorName} avatarUrl={topic.authorAvatarUrl} size="sm" />
-        <span className="min-w-0">
-          <span className="block truncate text-sm font-bold text-gray-900">{topic.authorName}</span>
-          <span className="block text-xs text-gray-500">{formatDate(topic.createdAt)}</span>
+        <Avatar name={topic.authorName} avatarUrl={topic.authorAvatarUrl} size="sm" className="!h-9 !w-9" />
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span className="truncate text-sm font-semibold text-gray-900">{topic.authorName}</span>
+          <span className="flex-shrink-0 text-xs text-gray-400">{formatDate(topic.createdAt)}</span>
         </span>
       </span>
       {topic.status === 'CLOSED' && (
         <span className="ml-auto flex-shrink-0 rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-600">Closed</span>
       )}
     </div>
-    <p className="mb-1.5 mt-3.5 text-[17px] font-bold text-gray-900">{topic.title}</p>
+    <p className="mb-1 mt-2.5 text-[15px] font-semibold text-gray-900">{topic.title}</p>
     <p className="line-clamp-3 text-sm text-gray-600">{topic.body}</p>
-    <div className="mt-3 flex items-center gap-3">
+    <div className="mt-2.5 flex items-center">
       <span className="ml-auto flex items-center gap-3 text-xs text-gray-400">
         {/* Thumbs-up: nested inside the card's <button>, so use a role="button"
             span with stopPropagation to avoid invalid nested buttons + opening the topic. */}
@@ -312,6 +314,7 @@ type Tab = 'OPEN' | 'CLOSED';
 const CommunityPage: React.FC = () => {
   const { user } = useAuth();
   const { markHubSeen } = useAppData();
+  const [section, setSection] = useState<'discussion' | 'people'>('discussion');
   const [tab, setTab] = useState<Tab>('OPEN');
   const [topics, setTopics] = useState<HubTopic[]>([]);
   const [loading, setLoading] = useState(true);
@@ -423,35 +426,64 @@ const CommunityPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader
-        title="Community"
-        tourId="community"
-        subtitle="Share questions, ideas, and updates with everyone."
-        action={
+      {/* Title + help on the left, New topic as a compact pill on the right — one row, even on mobile. */}
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <h1 className="page-title">Community</h1>
+          <TourHelpButton tourId="community" />
+        </div>
+        {section === 'discussion' && (
           <button
             type="button"
             onClick={() => setNewTopicOpen(true)}
-            className="inline-flex h-11 items-center gap-2 rounded-2xl bg-primary px-5 text-sm font-semibold text-white hover:bg-primary/90"
+            className="inline-flex h-9 flex-none items-center gap-1.5 rounded-full bg-primary px-4 text-[13px] font-semibold text-white hover:bg-primary/90 active:scale-95"
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
             New topic
           </button>
-        }
-      />
+        )}
+      </div>
 
-      <div data-wt="hub-tabs" role="tablist" className="mb-3 grid max-w-[360px] grid-cols-2 gap-1.5 rounded-2xl border border-[#eef0f4] bg-white p-[5px]">
-        {(['OPEN', 'CLOSED'] as Tab[]).map((t) => (
+      {/* Discussion / People: slim underline tabs, sized to their content. */}
+      <div data-wt="community-sections" role="tablist" className="mb-4 flex items-center gap-5 border-b border-[#eef0f4]">
+        {([['discussion', 'Discussion'], ['people', 'People']] as const).map(([key, label]) => (
           <button
-            key={t}
+            key={key}
             type="button"
             role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-            className={`rounded-xl px-1.5 py-[9px] text-[12.5px] font-semibold transition ${tab === t ? 'bg-[#3f4757] text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+            aria-selected={section === key}
+            onClick={() => setSection(key)}
+            className={`relative pb-2.5 text-sm font-semibold transition ${section === key ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
           >
-            {t === 'OPEN' ? 'Open' : 'Closed'}
+            {label}
+            {section === key && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" aria-hidden="true" />}
           </button>
         ))}
+      </div>
+
+      {section === 'people' ? (
+        <PeoplePanel />
+      ) : (
+      <>
+      {/* Open/Closed: a secondary text toggle, with the result count on the same line. */}
+      <div data-wt="hub-tabs" role="tablist" className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-[13px]">
+          {(['OPEN', 'CLOSED'] as Tab[]).map((t, i) => (
+            <React.Fragment key={t}>
+              {i > 0 && <span className="text-gray-300" aria-hidden="true">·</span>}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === t}
+                onClick={() => setTab(t)}
+                className={`rounded-full px-1 py-0.5 transition ${tab === t ? 'font-semibold text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
+              >
+                {t === 'OPEN' ? 'Open' : 'Closed'}
+              </button>
+            </React.Fragment>
+          ))}
+        </div>
+        {!loading && <span className="text-xs text-gray-400">{topics.length} topic{topics.length === 1 ? '' : 's'}</span>}
       </div>
 
       {loading ? (
@@ -492,6 +524,8 @@ const CommunityPage: React.FC = () => {
             }
           }}
         />
+      )}
+      </>
       )}
 
       <ConfirmationModal
@@ -608,7 +642,7 @@ const HubTopicView: React.FC<{
     void hubApi.sendNotifications([{
       userId: topic.authorId,
       title: `${currentUser.name} commented on your topic`,
-      body: `"${topic.title}" — ${body.slice(0, 60)}`,
+      body: `"${topic.title}": ${body.slice(0, 60)}`,
       path: hubPathForRole(roleOf(topic.authorId)),
     }]);
   };
@@ -830,7 +864,7 @@ const HubTopicView: React.FC<{
             />
             <div className="flex gap-2">
               <button type="button" onClick={() => { setEditingTopicBody(false); setTopicBodyDraft(topic.body); }} className="rounded-2xl border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
-              <button type="button" onClick={() => void handleSaveTopicEdit()} disabled={savingTopicEdit} className="rounded-2xl bg-primary px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60">{savingTopicEdit ? 'Saving…' : 'Save'}</button>
+              <button type="button" onClick={() => void handleSaveTopicEdit()} disabled={savingTopicEdit} className="rounded-2xl bg-primary px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60">{savingTopicEdit ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}</button>
             </div>
           </div>
         ) : (
@@ -933,7 +967,7 @@ const HubTopicView: React.FC<{
                   />
                   <div className="flex gap-2">
                     <button type="button" onClick={() => setEditingCommentId(null)} className="rounded-2xl border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
-                    <button type="button" onClick={() => void handleSaveCommentEdit(comment.id)} disabled={savingCommentEdit === comment.id} className="rounded-2xl bg-primary px-3 py-1 text-xs font-semibold text-white disabled:opacity-60">{savingCommentEdit === comment.id ? 'Saving…' : 'Save'}</button>
+                    <button type="button" onClick={() => void handleSaveCommentEdit(comment.id)} disabled={savingCommentEdit === comment.id} className="rounded-2xl bg-primary px-3 py-1 text-xs font-semibold text-white disabled:opacity-60">{savingCommentEdit === comment.id ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}</button>
                   </div>
                 </div>
               ) : (
@@ -989,7 +1023,7 @@ const HubTopicView: React.FC<{
                           />
                           <div className="flex gap-2">
                             <button type="button" onClick={() => setEditingReplyId(null)} className="rounded-2xl border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
-                            <button type="button" onClick={() => void handleSaveReplyEdit(reply.id, comment.id)} disabled={savingReplyEdit === reply.id} className="rounded-2xl bg-primary px-3 py-1 text-xs font-semibold text-white disabled:opacity-60">{savingReplyEdit === reply.id ? 'Saving…' : 'Save'}</button>
+                            <button type="button" onClick={() => void handleSaveReplyEdit(reply.id, comment.id)} disabled={savingReplyEdit === reply.id} className="rounded-2xl bg-primary px-3 py-1 text-xs font-semibold text-white disabled:opacity-60">{savingReplyEdit === reply.id ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}</button>
                           </div>
                         </div>
                       ) : (
@@ -1054,7 +1088,7 @@ const HubTopicView: React.FC<{
                   disabled={postingComment || !newComment.trim()}
                   className="rounded-2xl bg-primary px-5 py-2 text-sm font-semibold text-white disabled:opacity-60"
                 >
-                  {postingComment ? 'Posting…' : 'Comment'}
+                  {postingComment ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Posting…</span>) : 'Comment'}
                 </button>
               </div>
             </div>
