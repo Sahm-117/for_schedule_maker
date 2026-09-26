@@ -202,6 +202,8 @@ export type NotificationType =
   | 'REMINDER'
   | 'ESCALATION'
   | 'SCHEDULE_CHANGE'
+  | 'FAITH_HELP'
+  | 'TESTIMONY'
   | 'GENERAL';
 
 export interface Notification {
@@ -851,6 +853,77 @@ export interface ParticipantFaith {
   project: { id: string; body: string | null; status: FaithProjectStatus; updatedAt: string } | null;
   deadlineAt: string | null;
   trail: Array<{ id: string; body: string; createdAt: string; byParticipant: boolean; authorName: string | null }>;
+  openHelpRequest: { id: string; reason: FaithHelpReason; note: string | null; wantsContact: boolean; createdAt: string } | null;
+}
+
+// ── Faith help ("Is it going well?") ────────────────────────────────────────
+
+export type FaithHelpReason = 'LOST_MOTIVATION' | 'SITUATION_CHANGED' | 'UNSURE_NEXT' | 'NO_TIME' | 'OTHER';
+
+export const FAITH_HELP_REASON_LABELS: Record<FaithHelpReason, string> = {
+  LOST_MOTIVATION: "I've lost motivation",
+  SITUATION_CHANGED: 'My situation changed',
+  UNSURE_NEXT: "I'm not sure what to do next",
+  NO_TIME: "I'm struggling to find the time",
+  OTHER: 'Something else',
+};
+
+export interface FaithHelpRequest {
+  id: string;
+  participantId: string;
+  participantName?: string | null;
+  participantPhone?: string | null;
+  faithProjectId?: string | null;
+  reason: FaithHelpReason;
+  note: string | null;
+  wantsContact: boolean;
+  createdAt: string;
+  resolvedAt: string | null;
+  resolvedById?: string | null;
+  resolvedByName?: string | null;
+}
+
+// ── Testimonies ──────────────────────────────────────────────────────────────
+
+export type TestimonyVisibility = 'SUPPORT' | 'GROUP' | 'COHORT';
+export type TestimonyStatus = 'PENDING' | 'APPROVED' | 'HIDDEN';
+
+export interface Testimony {
+  id: string;
+  participantId: string;
+  participantName?: string | null;
+  cohortId?: string;
+  groupId?: string | null;
+  title: string | null;
+  body: string;
+  visibility: TestimonyVisibility;
+  status: TestimonyStatus;
+  reviewedById?: string | null;
+  reviewedByName?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A lighter row for the participant app's own list and the shared feed. */
+export interface ParticipantTestimony {
+  id: string;
+  title: string | null;
+  body: string;
+  visibility: TestimonyVisibility;
+  status: TestimonyStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TestimonyFeedItem {
+  id: string;
+  title: string | null;
+  body: string;
+  visibility: TestimonyVisibility;
+  participantName: string;
+  avatarUrl: string | null;
+  createdAt: string;
 }
 
 // The participant People page: every active support/admin in their cohort

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import AttendanceCountdownCard from '../components/participantApp/AttendanceCountdownCard';
 import EndSummaryCard from '../components/participantApp/EndSummaryCard';
+import TestimoniesTab from '../components/participantApp/TestimoniesTab';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { currentWeekNumber, pickCallback, reflectionFor } from '../utils/participantApp';
 
@@ -39,8 +40,11 @@ const meetingLine = (status: string | undefined) => {
 const ParticipantJourneyPage: React.FC = () => {
   const { home, loading } = useParticipantApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [openWeekId, setOpenWeekId] = useState<number | null>(null);
-  const [tab, setTab] = useState<'journey' | 'attendance'>('journey');
+  const [tab, setTab] = useState<'journey' | 'attendance' | 'testimonies'>(
+    searchParams.get('tab') === 'testimonies' ? 'testimonies' : searchParams.get('tab') === 'attendance' ? 'attendance' : 'journey'
+  );
   const now = new Date();
 
   if (loading || !home) return <PageLoader />;
@@ -62,6 +66,7 @@ const ParticipantJourneyPage: React.FC = () => {
           {([
             { key: 'journey', label: 'Journey' },
             { key: 'attendance', label: 'Attendance' },
+            { key: 'testimonies', label: 'Testimonies' },
           ] as const).map((t) => (
             <button
               key={t.key}
@@ -163,6 +168,8 @@ const ParticipantJourneyPage: React.FC = () => {
 
             <EndSummaryCard lastWeek={totalWeeks} reflectionCount={home.reflections.length} />
           </>
+        ) : tab === 'testimonies' ? (
+          <TestimoniesTab />
         ) : (
           <section data-wt="pj-attendance" className={`${CARD} px-5 pb-4 pt-5`}>
             <h3 className="mb-1 text-base font-bold text-gray-900">Your attendance</h3>

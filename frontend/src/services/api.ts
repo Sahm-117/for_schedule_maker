@@ -41,6 +41,8 @@ import {
   faithProjectsApi as supabaseFaithProjectsApi,
   faithProjectSettingsApi as supabaseFaithProjectSettingsApi,
   faithProjectCategoriesApi as supabaseFaithProjectCategoriesApi,
+  faithHelpRequestsApi as supabaseFaithHelpRequestsApi,
+  testimoniesApi as supabaseTestimoniesApi,
   groupPrayersApi as supabaseGroupPrayersApi,
   groupPrayerFocusApi as supabaseGroupPrayerFocusApi,
   groupPrayerStatusApi as supabaseGroupPrayerStatusApi,
@@ -665,6 +667,18 @@ export const faithProjectCategoriesApi = USE_SUPABASE ? supabaseFaithProjectCate
   async archive(_categoryId: string): Promise<never> { return peopleUnavailable(); },
 };
 
+export const faithHelpRequestsApi = USE_SUPABASE ? supabaseFaithHelpRequestsApi : {
+  async getOpenForParticipants(_participantIds: string[]): Promise<{ requests: import('../types').FaithHelpRequest[] }> { return { requests: [] }; },
+  async getForParticipant(_participantId: string): Promise<{ requests: import('../types').FaithHelpRequest[] }> { return { requests: [] }; },
+  async resolve(_id: string, _resolvedById: string): Promise<never> { return peopleUnavailable(); },
+};
+
+export const testimoniesApi = USE_SUPABASE ? supabaseTestimoniesApi : {
+  async getForParticipants(_participantIds: string[]): Promise<{ testimonies: import('../types').Testimony[] }> { return { testimonies: [] }; },
+  async getAll(_options?: any): Promise<{ testimonies: import('../types').Testimony[] }> { return { testimonies: [] }; },
+  async review(_id: string, _status: 'APPROVED' | 'HIDDEN'): Promise<never> { return peopleUnavailable(); },
+};
+
 export const participantNotesApi = USE_SUPABASE ? supabaseParticipantNotesApi : {
   async getForParticipants(_participantIds: string[]): Promise<{ notes: import('../types').ParticipantNote[] }> { return { notes: [] }; },
   async getMeetingReports(_groupIds: string[]): Promise<{ notes: import('../types').ParticipantNote[] }> { return { notes: [] }; },
@@ -776,6 +790,11 @@ export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async recordCheckIn(_response: import('../types').CheckInResponse, _misses: { sunday: number; meeting: number }, _participantName: string): Promise<never> { return peopleUnavailable(); },
   async getFaith(): Promise<never> { return peopleUnavailable(); },
   async saveFaithProject(_body: string, _submit: boolean, _participantName: string): Promise<never> { return peopleUnavailable(); },
+  async submitFaithHelpRequest(_input: { reason: import('../types').FaithHelpReason; note: string; wantsContact: boolean }, _participantName: string): Promise<never> { return peopleUnavailable(); },
+  async getTestimonies(): Promise<{ mine: import('../types').ParticipantTestimony[]; feed: import('../types').TestimonyFeedItem[] }> { return { mine: [], feed: [] }; },
+  async submitTestimony(_input: { title: string; body: string; visibility: import('../types').TestimonyVisibility }, _participantName: string): Promise<never> { return peopleUnavailable(); },
+  async updateTestimony(_id: string, _input: { title: string; body: string; visibility: import('../types').TestimonyVisibility }, _participantName: string): Promise<never> { return peopleUnavailable(); },
+  async deleteTestimony(_id: string): Promise<never> { return peopleUnavailable(); },
   async saveReminders(_minutes: number[], _recapReleased: boolean): Promise<never> { return peopleUnavailable(); },
   async savePushSubscription(_subscription: PushSubscriptionJSON): Promise<never> { return peopleUnavailable(); },
   async uploadAvatar(_participantId: string, _file: File): Promise<never> { return peopleUnavailable(); },

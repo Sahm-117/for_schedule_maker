@@ -6,12 +6,19 @@ import AppSelect from '../AppSelect';
 import DepartmentHandoff from '../participants/DepartmentHandoff';
 import ProfileOverview from '../participants/ProfileOverview';
 import { useToast } from '../Toast';
-import { departmentReferralsApi, faithProjectsApi, participantCheckInsApi, participantPushApi, participantFlagsApi, participantNotesApi, participantsApi } from '../../services/api';
+import { departmentReferralsApi, faithHelpRequestsApi, faithProjectsApi, participantCheckInsApi, participantPushApi, participantFlagsApi, participantNotesApi, participantsApi } from '../../services/api';
 import { buildWhatsAppLink } from '../../utils/phone';
 import { shortMoment } from '../../utils/participantApp';
 import { unreadTrails, type FaithTrail, type ThreadReads } from '../../utils/faithThread';
-import type { DepartmentReferral, FaithProject, FaithProjectCategory, FaithProjectStatus, Participant, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote } from '../../types';
+import { FAITH_HELP_REASON_LABELS } from '../../types';
+import type { DepartmentReferral, FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectStatus, Participant, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote, Testimony } from '../../types';
 import Spinner from '../Spinner';
+
+const TESTIMONY_STATUS_CHIP: Record<Testimony['status'], { label: string; cls: string }> = {
+  PENDING: { label: 'Waiting for approval', cls: 'bg-amber-100/80 text-amber-700' },
+  APPROVED: { label: 'Shared', cls: 'bg-emerald-100/80 text-emerald-700' },
+  HIDDEN: { label: 'Hidden', cls: 'bg-neutral-100 text-neutral-600' },
+};
 
 // Faith project states mapped onto the V2 design's labels.
 const FP_CHIP: Record<FaithProjectStatus, { label: string; cls: string }> = {
@@ -283,6 +290,11 @@ interface ParticipantCardProps {
   onHelpHandled?: (checkIn: ParticipantCheckIn) => void;
   /** Has an active app login but no saved push subscription — can't get alerts. */
   noAlerts?: boolean;
+  /** Open ("is it going well?") faith help requests for this participant. */
+  faithHelpRequests?: FaithHelpRequest[];
+  onFaithHelpResolved?: (request: FaithHelpRequest) => void;
+  /** This participant's testimonies, every status. */
+  testimonies?: Testimony[];
 }
 
 const ParticipantCard: React.FC<ParticipantCardProps> = ({
@@ -308,6 +320,9 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   helpRequest,
   onHelpHandled,
   noAlerts,
+  faithHelpRequests,
+  onFaithHelpResolved,
+  testimonies,
 }) => {
   const [handlingHelp, setHandlingHelp] = useState(false);
   const markHelpHandled = async () => {
@@ -317,6 +332,15 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
       onHelpHandled?.((await participantCheckInsApi.markHandled(helpRequest.id, userId)).checkIn);
     } catch { /* stays visible to try again */ } finally {
       setHandlingHelp(false);
+    }
+  };
+  const [resolvingHelpId, setResolvingHelpId] = useState<string | null>(null);
+  const resolveFaithHelp = async (requestId: string) => {
+    setResolvingHelpId(requestId);
+    try {
+      onFaithHelpResolved?.((await faithHelpRequestsApi.resolve(requestId, userId)).request);
+    } catch { /* stays visible to try again */ } finally {
+      setResolvingHelpId(null);
     }
   };
   const unread = unreadTrails(participant.id, project, notes, userId, threadReads);
@@ -506,6 +530,22 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         </div>
       )}
 
+      {(faithHelpRequests ?? []).map((request) => (
+        <div key={request.id} className="mt-2.5 rounded-xl bg-orange-100/80 px-[13px] py-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-orange-700">Faith project isn&apos;t going well · {shortMoment(request.createdAt)}</p>
+          <p className="mt-1 text-[13px] font-semibold text-gray-800">{FAITH_HELP_REASON_LABELS[request.reason]}</p>
+          {request.note && <p className="mt-1 text-[13px] leading-relaxed text-gray-700">{request.note}</p>}
+          <div className="mt-2.5 flex gap-2">
+            {buildWhatsAppLink(participant.phone, '') && (
+              <a href={buildWhatsAppLink(participant.phone, '') ?? undefined} target="_blank" rel="noreferrer" className="inline-flex min-h-[38px] items-center rounded-[10px] bg-white px-3 text-[12.5px] font-semibold text-gray-700">WhatsApp</a>
+            )}
+            <button type="button" onClick={() => { void resolveFaithHelp(request.id); }} disabled={resolvingHelpId === request.id} className="min-h-[38px] rounded-[10px] bg-orange-700 px-3 text-[12.5px] font-semibold text-white disabled:opacity-60">
+              {resolvingHelpId === request.id ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Mark resolved'}
+            </button>
+          </div>
+        </div>
+      ))}
+
       {flag && concernOpen && (
         <div className="mt-2.5 rounded-xl border border-[#fde68a] bg-[#fffbeb] px-[13px] py-3">
           <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#92400e]">{flag.reason}</p>
@@ -613,6 +653,26 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
             </div>
             <NotesAccordion notes={notes.filter((note) => note.noteType === 'HANDOVER' || note.noteType === 'MEETING' || note.noteType === 'CHECK_IN')} />
           </div>
+          {(testimonies ?? []).length > 0 && (
+            <div className="rounded-[14px] border border-[#f1f2f5] p-3.5">
+              <p className="text-[13px] font-bold text-gray-900">Testimonies</p>
+              <div className="mt-2.5 flex flex-col gap-2">
+                {(testimonies ?? []).map((t) => {
+                  const chip = TESTIMONY_STATUS_CHIP[t.status];
+                  return (
+                    <div key={t.id} className="rounded-xl bg-[#f9fafb] p-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {t.title && <span className="text-[12.5px] font-bold text-gray-900">{t.title}</span>}
+                        <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold ${chip.cls}`}>{chip.label}</span>
+                        <span className="ml-auto text-[11px] text-gray-400">{shortMoment(t.createdAt)}</span>
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap text-[12.5px] leading-relaxed text-gray-700">{t.body}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </Sheet>
 

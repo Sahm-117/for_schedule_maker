@@ -2840,6 +2840,80 @@ export const participantAppApi = {
     return result.project;
   },
 
+  // "Is it going well?" -- returns the support's userId so the caller can
+  // push+bell them when the participant asked to be contacted.
+  async submitFaithHelpRequest(input: { reason: import('../types').FaithHelpReason; note: string; wantsContact: boolean }, participantName: string): Promise<void> {
+    const { data, error } = await supabase.rpc('submit_faith_help_request', {
+      p_token: getSessionToken(),
+      p_reason: input.reason,
+      p_note: input.note,
+      p_wants_contact: input.wantsContact,
+    });
+    if (error) throw participantAppError(error.message, 'Could not send that. Please try again.');
+    const supportId = (data as { supportId: string | null } | null)?.supportId;
+    if (input.wantsContact && supportId) {
+      void notify(
+        { userIds: [supportId] },
+        `${participantName} is not finding their faith project easy right now`,
+        'They asked you to reach out. Open their card in My Group for what they shared.',
+        '/support/participants',
+        'FAITH_HELP',
+      );
+    }
+  },
+
+  async getTestimonies(): Promise<{ mine: import('../types').ParticipantTestimony[]; feed: import('../types').TestimonyFeedItem[] }> {
+    const { data, error } = await supabase.rpc('participant_testimonies', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not load testimonies.');
+    return data as { mine: import('../types').ParticipantTestimony[]; feed: import('../types').TestimonyFeedItem[] };
+  },
+
+  async submitTestimony(input: { title: string; body: string; visibility: import('../types').TestimonyVisibility }, participantName: string): Promise<import('../types').ParticipantTestimony> {
+    const { data, error } = await supabase.rpc('submit_testimony', {
+      p_token: getSessionToken(),
+      p_title: input.title,
+      p_body: input.body,
+      p_visibility: input.visibility,
+    });
+    if (error) throw participantAppError(error.message, 'Could not save your testimony.');
+    const testimony = data as import('../types').ParticipantTestimony;
+    if (testimony.status === 'PENDING') {
+      void notifyAdmins(
+        'A testimony is waiting for approval',
+        `${participantName} shared a testimony with their ${input.visibility === 'COHORT' ? 'cohort' : 'group'}.`,
+        '/faith-projects?tab=testimonies',
+        'TESTIMONY',
+      );
+    }
+    return testimony;
+  },
+
+  async updateTestimony(id: string, input: { title: string; body: string; visibility: import('../types').TestimonyVisibility }, participantName: string): Promise<import('../types').ParticipantTestimony> {
+    const { data, error } = await supabase.rpc('update_testimony', {
+      p_token: getSessionToken(),
+      p_id: id,
+      p_title: input.title,
+      p_body: input.body,
+      p_visibility: input.visibility,
+    });
+    if (error) throw participantAppError(error.message, 'Could not save your testimony.');
+    const testimony = data as import('../types').ParticipantTestimony;
+    if (testimony.status === 'PENDING') {
+      void notifyAdmins(
+        'A testimony is waiting for approval',
+        `${participantName} shared a testimony with their ${input.visibility === 'COHORT' ? 'cohort' : 'group'}.`,
+        '/faith-projects?tab=testimonies',
+        'TESTIMONY',
+      );
+    }
+    return testimony;
+  },
+
+  async deleteTestimony(id: string): Promise<void> {
+    const { error } = await supabase.rpc('delete_testimony', { p_token: getSessionToken(), p_id: id });
+    if (error) throw participantAppError(error.message, 'Could not delete your testimony.');
+  },
+
   async saveReminders(meetingRemindMinutes: number[], recapReleased: boolean): Promise<void> {
     const { error } = await supabase.rpc('save_participant_reminders', {
       p_token: getSessionToken(),
@@ -5438,6 +5512,114 @@ export const faithProjectsApi = {
     const { error } = await supabase.from('FaithProject').delete().eq('id', projectId);
     if (error) throw new Error(error.message);
     return { message: 'Faith project deleted' };
+  },
+};
+
+// ── Faith help requests ("Is it going well?") ───────────────────────────────
+
+const FAITH_HELP_REQUEST_SELECT = '*, participant:Participant(id, fullName, phone), resolvedBy:User!FaithHelpRequest_resolvedById_fkey(id, name)';
+
+const mapFaithHelpRequest = (row: any): import('../types').FaithHelpRequest => ({
+  id: row.id,
+  participantId: row.participantId,
+  participantName: row.participant?.fullName ?? null,
+  participantPhone: row.participant?.phone ?? null,
+  faithProjectId: row.faithProjectId ?? null,
+  reason: row.reason,
+  note: row.note ?? null,
+  wantsContact: row.wantsContact,
+  createdAt: row.createdAt,
+  resolvedAt: row.resolvedAt ?? null,
+  resolvedById: row.resolvedById ?? null,
+  resolvedByName: row.resolvedBy?.name ?? null,
+});
+
+export const faithHelpRequestsApi = {
+  async getOpenForParticipants(participantIds: string[]): Promise<{ requests: import('../types').FaithHelpRequest[] }> {
+    if (participantIds.length === 0) return { requests: [] };
+    const { data, error } = await supabase.from('FaithHelpRequest').select(FAITH_HELP_REQUEST_SELECT)
+      .in('participantId', participantIds).is('resolvedAt', null).order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { requests: ((data as any[]) || []).map(mapFaithHelpRequest) };
+  },
+
+  async getForParticipant(participantId: string): Promise<{ requests: import('../types').FaithHelpRequest[] }> {
+    const { data, error } = await supabase.from('FaithHelpRequest').select(FAITH_HELP_REQUEST_SELECT)
+      .eq('participantId', participantId).order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { requests: ((data as any[]) || []).map(mapFaithHelpRequest) };
+  },
+
+  async resolve(id: string, resolvedById: string): Promise<{ request: import('../types').FaithHelpRequest }> {
+    const { data, error } = await supabase.from('FaithHelpRequest')
+      .update({ resolvedAt: new Date().toISOString(), resolvedById })
+      .eq('id', id)
+      .select(FAITH_HELP_REQUEST_SELECT)
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Could not mark that resolved.');
+    return { request: mapFaithHelpRequest(data) };
+  },
+};
+
+// ── Testimonies (support + admin side) ──────────────────────────────────────
+
+const TESTIMONY_SELECT = '*, participant:Participant(id, fullName), reviewedBy:User!Testimony_reviewedById_fkey(id, name)';
+
+const mapTestimony = (row: any): import('../types').Testimony => ({
+  id: row.id,
+  participantId: row.participantId,
+  participantName: row.participant?.fullName ?? null,
+  cohortId: row.cohortId,
+  groupId: row.groupId ?? null,
+  title: row.title ?? null,
+  body: row.body,
+  visibility: row.visibility,
+  status: row.status,
+  reviewedById: row.reviewedById ?? null,
+  reviewedByName: row.reviewedBy?.name ?? null,
+  reviewedAt: row.reviewedAt ?? null,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+});
+
+export const testimoniesApi = {
+  async getForParticipants(participantIds: string[]): Promise<{ testimonies: import('../types').Testimony[] }> {
+    if (participantIds.length === 0) return { testimonies: [] };
+    const { data, error } = await supabase.from('Testimony').select(TESTIMONY_SELECT)
+      .in('participantId', participantIds).order('createdAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return { testimonies: ((data as any[]) || []).map(mapTestimony) };
+  },
+
+  async getAll(options?: { cohortId?: string; status?: import('../types').TestimonyStatus }): Promise<{ testimonies: import('../types').Testimony[] }> {
+    let query = supabase.from('Testimony').select(TESTIMONY_SELECT).order('createdAt', { ascending: false });
+    if (options?.status) query = query.eq('status', options.status);
+    if (options?.cohortId) query = query.eq('cohortId', options.cohortId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return { testimonies: ((data as any[]) || []).map(mapTestimony) };
+  },
+
+  // Approve or hide. Approving also bells the participant (written by the
+  // review_testimony function itself, straight into ParticipantNotification).
+  async review(id: string, status: 'APPROVED' | 'HIDDEN'): Promise<{ testimony: import('../types').Testimony }> {
+    const { data, error } = await supabase.rpc('review_testimony', { p_id: id, p_status: status });
+    if (error) throw new Error(error.message);
+    const row = data as any;
+    return {
+      testimony: {
+        id: row.id,
+        participantId: row.participantId,
+        title: row.title ?? null,
+        body: row.body,
+        visibility: row.visibility,
+        status: row.status,
+        reviewedById: row.reviewedById ?? null,
+        reviewedAt: row.reviewedAt ?? null,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      },
+    };
   },
 };
 

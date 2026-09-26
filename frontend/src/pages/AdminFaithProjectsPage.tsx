@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { faithProjectsApi, faithProjectCategoriesApi, faithProjectSettingsApi, faithThreadReadsApi, participantNotesApi, participantsApi, groupsApi } from '../services/api';
-import type { FaithProject, FaithProjectCategory, FaithProjectReviewEntry, FaithProjectSettings, FaithProjectStatus, Group, Participant, ParticipantNote } from '../types';
+import { faithProjectsApi, faithProjectCategoriesApi, faithProjectSettingsApi, faithThreadReadsApi, faithHelpRequestsApi, testimoniesApi, participantNotesApi, participantsApi, groupsApi } from '../services/api';
+import { FAITH_HELP_REASON_LABELS } from '../types';
+import type { FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectReviewEntry, FaithProjectSettings, FaithProjectStatus, Group, Participant, ParticipantNote, Testimony, TestimonyStatus } from '../types';
 import { unreadTrails } from '../utils/faithThread';
 import ModalShell from '../components/followups/ModalShell';
 import AppSelect from '../components/AppSelect';
@@ -262,6 +263,109 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant,
   );
 };
 
+// ── Testimonies panel ────────────────────────────────────────────────────────
+
+const TESTIMONY_FILTERS: Array<{ value: TestimonyStatus | ''; label: string }> = [
+  { value: '', label: 'All' },
+  { value: 'PENDING', label: 'Waiting' },
+  { value: 'APPROVED', label: 'Shared' },
+  { value: 'HIDDEN', label: 'Hidden' },
+];
+
+const TESTIMONY_STATUS_CLS: Record<TestimonyStatus, string> = {
+  PENDING: 'bg-amber-100/80 text-amber-700',
+  APPROVED: 'bg-emerald-100/80 text-emerald-700',
+  HIDDEN: 'bg-neutral-100 text-neutral-600',
+};
+
+const TestimoniesPanel: React.FC<{
+  testimonies: Testimony[];
+  helpRequests: FaithHelpRequest[];
+  onReviewed: (testimony: Testimony) => void;
+}> = ({ testimonies, helpRequests, onReviewed }) => {
+  const [filter, setFilter] = useState<TestimonyStatus | ''>('PENDING');
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const displayed = filter ? testimonies.filter((t) => t.status === filter) : testimonies;
+
+  const review = async (id: string, status: 'APPROVED' | 'HIDDEN') => {
+    setBusyId(id);
+    try {
+      const { testimony } = await testimoniesApi.review(id, status);
+      onReviewed({ ...testimonies.find((t) => t.id === id)!, ...testimony });
+    } catch { /* stays visible to try again */ } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <>
+      {helpRequests.length > 0 && (
+        <div className="mb-6 rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
+          <p className="text-sm font-bold text-gray-900">Open faith project help requests ({helpRequests.length})</p>
+          <div className="mt-2.5 flex flex-col gap-2">
+            {helpRequests.map((r) => (
+              <div key={r.id} className="rounded-xl bg-orange-50/60 px-3.5 py-2.5 text-sm">
+                <span className="font-semibold text-gray-900">{r.participantName}</span>
+                <span className="text-gray-500"> · {FAITH_HELP_REASON_LABELS[r.reason]} · {formatReviewDate(r.createdAt)}</span>
+                {r.note && <p className="mt-1 text-xs text-gray-600">{r.note}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {TESTIMONY_FILTERS.map((f) => (
+          <button
+            key={f.value || 'all'}
+            type="button"
+            onClick={() => setFilter(f.value)}
+            className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${filter === f.value ? 'bg-primary text-white' : 'border border-orange-100 bg-white text-gray-600 hover:bg-orange-50'}`}
+          >
+            {f.label} <span className="ml-1 opacity-70">{f.value ? testimonies.filter((t) => t.status === f.value).length : testimonies.length}</span>
+          </button>
+        ))}
+      </div>
+
+      {displayed.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
+          <p className="text-sm text-gray-500">No testimonies here.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {displayed.map((t) => (
+            <div key={t.id} className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-gray-900">{t.participantName}</span>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${TESTIMONY_STATUS_CLS[t.status]}`}>
+                  {t.status === 'PENDING' ? 'Waiting for approval' : t.status === 'APPROVED' ? 'Shared' : 'Hidden'}
+                </span>
+                <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-600">{t.visibility === 'COHORT' ? 'Cohort' : t.visibility === 'GROUP' ? 'Group' : 'Support only'}</span>
+                <span className="ml-auto text-xs text-gray-400">{formatReviewDate(t.createdAt)}</span>
+              </div>
+              {t.title && <p className="mt-2 text-sm font-semibold text-gray-800">{t.title}</p>}
+              <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{t.body}</p>
+              {(t.status === 'PENDING' || t.status === 'APPROVED') && (
+                <div className="mt-3 flex gap-2">
+                  {t.status === 'PENDING' && (
+                    <button type="button" onClick={() => void review(t.id, 'APPROVED')} disabled={busyId === t.id} className="rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
+                      {busyId === t.id ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Approve'}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => void review(t.id, 'HIDDEN')} disabled={busyId === t.id} className="rounded-xl border border-orange-200 px-3.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-orange-50 disabled:opacity-60">
+                    Hide
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+};
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const AdminFaithProjectsPage: React.FC = () => {
@@ -273,6 +377,7 @@ const AdminFaithProjectsPage: React.FC = () => {
 const AdminFaithProjectsContent: React.FC = () => {
   const { user } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
+  const [searchParams] = useSearchParams();
 
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [projects, setProjects] = useState<FaithProject[]>([]);
@@ -290,6 +395,11 @@ const AdminFaithProjectsContent: React.FC = () => {
   const [categories, setCategories] = useState<FaithProjectCategory[]>([]);
   const [settings, setSettings] = useState<FaithProjectSettings | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [pageTab, setPageTab] = useState<'projects' | 'testimonies'>(
+    searchParams.get('tab') === 'testimonies' ? 'testimonies' : 'projects'
+  );
+  const [testimonies, setTestimonies] = useState<Testimony[]>([]);
+  const [openHelpRequests, setOpenHelpRequests] = useState<FaithHelpRequest[]>([]);
 
   const load = useCallback(async () => {
     if (!activeCohort) { setLoading(false); return; }
@@ -304,9 +414,11 @@ const AdminFaithProjectsContent: React.FC = () => {
       ]);
       setParticipants(sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName));
       const ids = ps.filter((p) => p.status === 'ACTIVE').map((p) => p.id);
-      const [notesRes, readsRes] = await Promise.all([
+      const [notesRes, readsRes, testimoniesRes, helpRequestsRes] = await Promise.all([
         participantNotesApi.getForParticipants(ids).catch(() => ({ notes: [] as ParticipantNote[] })),
         user ? faithThreadReadsApi.getForUser(user.id).catch(() => ({ reads: new Map<string, string>() })) : Promise.resolve({ reads: new Map<string, string>() }),
+        testimoniesApi.getAll({ cohortId: activeCohort.id }).catch(() => ({ testimonies: [] as Testimony[] })),
+        faithHelpRequestsApi.getOpenForParticipants(ids).catch(() => ({ requests: [] as FaithHelpRequest[] })),
       ]);
       setOfficeNotes(notesRes.notes.filter((n) => n.noteType === 'FAITH_OFFICE'));
       setThreadReads(readsRes.reads);
@@ -314,6 +426,8 @@ const AdminFaithProjectsContent: React.FC = () => {
       setGroups(sortByText(gs, (group) => group.name));
       setCategories(cs);
       setSettings(projectSettings);
+      setTestimonies(testimoniesRes.testimonies);
+      setOpenHelpRequests(helpRequestsRes.requests);
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [activeCohort, user]);
@@ -402,6 +516,32 @@ const AdminFaithProjectsContent: React.FC = () => {
         <p className="text-sm text-gray-500">Select or create a cohort first.</p>
       ) : (
         <>
+          <div className="mb-6 flex gap-2" role="tablist" aria-label="Faith projects sections">
+            {([
+              { key: 'projects', label: 'Faith projects' },
+              { key: 'testimonies', label: `Testimonies${testimonies.filter((t) => t.status === 'PENDING').length > 0 ? ` (${testimonies.filter((t) => t.status === 'PENDING').length})` : ''}` },
+            ] as const).map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={pageTab === t.key}
+                onClick={() => setPageTab(t.key)}
+                className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${pageTab === t.key ? 'bg-primary text-white' : 'border border-orange-100 bg-white text-gray-600 hover:bg-orange-50'}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {pageTab === 'testimonies' ? (
+            <TestimoniesPanel
+              testimonies={testimonies}
+              helpRequests={openHelpRequests}
+              onReviewed={(updated) => setTestimonies((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))}
+            />
+          ) : (
+          <>
           {/* Summary */}
           {!loading && (
             <div data-wt="faith-status" className="mb-6 flex flex-wrap gap-3">
@@ -500,6 +640,8 @@ const AdminFaithProjectsContent: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          )}
+          </>
           )}
         </>
       )}
