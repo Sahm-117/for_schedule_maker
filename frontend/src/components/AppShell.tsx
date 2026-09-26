@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import SectionTabs, { sectionMatches } from './SectionTabs';
 import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -9,8 +9,11 @@ import NotificationPromptModal from './NotificationPromptModal';
 import NotificationBlockedModal from './NotificationBlockedModal';
 import ClassFeedbackModal from './ClassFeedbackModal';
 import { useSupportClassFeedbackPrompt } from '../hooks/useSupportClassFeedbackPrompt';
-import { classFeedbackApi } from '../services/api';
+import { classFeedbackApi, groupsApi, myHubApi, supportKindApi } from '../services/api';
+import type { HubJob, SupportKind } from '../types';
+import { HUB_JOB_INFO, sortHubJobs } from './hubs/hubJobs';
 import PWAInstallBanner from './PWAInstallBanner';
+import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
 import NewNotificationBanner from './NewNotificationBanner';
 import NeedSupportButton from './NeedSupportButton';
 import NotificationBell from './NotificationBell';
@@ -31,6 +34,8 @@ type NavItem = {
   mobileMore?: boolean;
   /** Only shown to a support who is in a hub for the active cohort. */
   hubOnly?: boolean;
+  /** Hidden for a support whose kind in the active cohort is hub-only (no participant group). */
+  hiddenForHubOnly?: boolean;
 };
 
 type NavGroup = {
@@ -73,6 +78,7 @@ const ICONS = {
   more: <IconBox><svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4.25 10a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm7 0a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm7 0a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z" /></svg></IconBox>,
   feedback: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8M8 14h5m-9 6l2.5-3H18a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14z" /></svg></IconBox>,
   rota: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 9h18M9 4v16M4 20h16a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" /></svg></IconBox>,
+  website: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0c2.21 0 4-4.03 4-9s-1.79-9-4-9-4 4.03-4 9 1.79 9 4 9Zm-9-9h18" /></svg></IconBox>,
 };
 
 // Related pages sit under one item and share a tab strip (see SectionTabs):
@@ -92,6 +98,7 @@ const adminNav: NavItem[] = [
   { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
   { to: '/community', label: 'Community', icon: ICONS.hub },
   { to: '/resources', label: 'Resources', icon: ICONS.resources },
+  { to: '/website', label: 'Website', icon: ICONS.website, adminOnly: true },
   { to: '/settings', label: 'Settings', icon: ICONS.settings },
 ];
 
@@ -132,6 +139,7 @@ const adminNavGroups: NavGroup[] = [
       { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
       { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
       { to: '/resources', label: 'Resources', icon: ICONS.resources },
+      { to: '/website', label: 'Website', icon: ICONS.website, adminOnly: true },
       { to: '/settings', label: 'Settings', icon: ICONS.settings },
     ],
   },
@@ -141,7 +149,7 @@ const supportNav: NavItem[] = [
   { to: '/support', label: 'Home', icon: ICONS.dashboard },
   { to: '/support/mobilisation', label: 'Mobilisation', icon: ICONS.mobilisation },
   { to: '/support/schedule', label: 'My Schedule', mobileLabel: 'Schedule', icon: ICONS.schedule },
-  { to: '/support/participants', label: 'My Group', mobileLabel: 'Group', icon: ICONS.participants },
+  { to: '/support/participants', label: 'My Group', mobileLabel: 'Group', icon: ICONS.participants, hiddenForHubOnly: true },
   { to: '/support/my-hub', label: 'My Hub', icon: ICONS.groups, mobileMore: true, hubOnly: true },
   { to: '/support/attendance', label: 'Attendance', icon: ICONS.attendance, mobileMore: true },
   { to: '/support/onboarding', label: 'Onboard', icon: ICONS.onboarding, mobileMore: true },
@@ -173,27 +181,50 @@ const NavDot: React.FC = () => (
   <span className="ml-auto h-2 w-2 flex-shrink-0 rounded-full bg-primary" />
 );
 
+// Small pulsing dot for "a meeting is on right now" — same visual language as
+// HubMeetingPanel's LiveDot, just the dot on its own for a nav item.
+const PulsingDot: React.FC<{ className?: string }> = ({ className = 'ml-auto' }) => (
+  <span className={`relative flex h-2 w-2 flex-shrink-0 ${className}`} aria-label="Meeting is on now">
+    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+  </span>
+);
+
+// Tapping "My Hub"/"My Group" while their meeting is live opens the meeting
+// tab directly, instead of the plain page.
+const resolveNavTo = (item: NavItem, hubMeetingLive: boolean, groupMeetingLive: boolean) => {
+  if (item.to === '/support/my-hub' && hubMeetingLive) return '/support/my-hub?tab=meeting';
+  if (item.to === '/support/participants' && groupMeetingLive) return '/support/participants?tab=prayers';
+  return item.to;
+};
+
 const NavItemLink: React.FC<{
   item: NavItem;
   active: boolean;
   globalPendingCount: number;
   newResourceCount: number;
   hasNewHubActivity: boolean;
+  hubMeetingLive?: boolean;
+  groupMeetingLive?: boolean;
   onClick?: () => void;
-}> = ({ item, active, globalPendingCount, newResourceCount, hasNewHubActivity, onClick }) => (
-  <NavLink
-    key={item.to}
-    to={item.to}
-    end={item.to === '/support' || item.to === '/dashboard'}
-    onClick={onClick}
-    className={({ isActive }) => `nav-pill ${active || isActive ? 'nav-pill-active' : ''}`}
-  >
-    {item.icon}
-    <span>{item.label}</span>
-    {item.to === '/schedule' && <MobileBadge count={globalPendingCount} />}
-    {item.to.includes('community') && hasNewHubActivity && <NavDot />}
-  </NavLink>
-);
+}> = ({ item, active, globalPendingCount, newResourceCount, hasNewHubActivity, hubMeetingLive = false, groupMeetingLive = false, onClick }) => {
+  const isLive = (item.to === '/support/my-hub' && hubMeetingLive) || (item.to === '/support/participants' && groupMeetingLive);
+  return (
+    <NavLink
+      key={item.to}
+      to={resolveNavTo(item, hubMeetingLive, groupMeetingLive)}
+      end={item.to === '/support' || item.to === '/dashboard'}
+      onClick={onClick}
+      className={({ isActive }) => `nav-pill ${active || isActive ? 'nav-pill-active' : ''}`}
+    >
+      {item.icon}
+      <span>{item.label}</span>
+      {item.to === '/schedule' && <MobileBadge count={globalPendingCount} />}
+      {item.to.includes('community') && hasNewHubActivity && <NavDot />}
+      {isLive && <PulsingDot />}
+    </NavLink>
+  );
+};
 
 const NavGroupSection: React.FC<{
   group: NavGroup;
@@ -251,7 +282,7 @@ const NavGroupSection: React.FC<{
 );
 
 const AppShell: React.FC = () => {
-  const { user, isAdmin, logout, userLabels } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const {
     cohorts,
     activeCohort,
@@ -261,6 +292,7 @@ const AppShell: React.FC = () => {
     hasNewHubActivity,
     myHub,
     weeks,
+    liveRevision,
   } = useAppData();
   const { showPrompt, showBlocked, enable, dismiss, dismissBlocked } = usePushNotifications(user?.id);
   const isSupport = user?.role === 'SUPPORT';
@@ -285,10 +317,24 @@ const AppShell: React.FC = () => {
     if (item.to === '/support/my-hub') return !hubPhase;
     return !!item.mobileMore;
   };
+  // Kind tagged for this cohort: hub leads and operational supports don't run
+  // a participant group, so "My Group" doesn't apply to them.
+  const [supportKind, setSupportKind] = useState<SupportKind>('PARTICIPANT_SUPPORT');
+  useEffect(() => {
+    if (!isSupport || !user || !activeCohort) { setSupportKind('PARTICIPANT_SUPPORT'); return; }
+    let cancelled = false;
+    supportKindApi.getForCohort(activeCohort.id)
+      .then(({ kinds }) => { if (!cancelled) setSupportKind(kinds[user.id] ?? 'PARTICIPANT_SUPPORT'); })
+      .catch(() => { if (!cancelled) setSupportKind('PARTICIPANT_SUPPORT'); });
+    return () => { cancelled = true; };
+  }, [isSupport, user, activeCohort]);
+  const isHubOnlySupport = isSupport && (supportKind === 'HUB_LEAD' || supportKind === 'OPERATIONAL');
+  const canShowForKind = (item: NavItem) => !(item.hiddenForHubOnly && isHubOnlySupport);
   const navItems = useMemo(() => {
-    if (isSupport) return supportNav.filter((item) => !item.hubOnly || !!myHub?.hub);
+    if (isSupport) return supportNav.filter((item) => (!item.hubOnly || !!myHub?.hub) && canShowForKind(item));
     return adminNav.filter((item) => canShowNavItem(item, isAdmin));
-  }, [isAdmin, isSupport, myHub?.hub]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, isSupport, myHub?.hub, isHubOnlySupport]);
   const navGroups = useMemo(() => {
     if (isSupport) return [];
     return adminNavGroups
@@ -306,20 +352,65 @@ const AppShell: React.FC = () => {
     }));
   };
   const mobileNavItems = useMemo(() => {
-    if (isSupport) return supportNav.filter((item) => !item.mobileHidden && !isMobileMoreItem(item) && (!item.hubOnly || !!myHub?.hub));
+    if (isSupport) return supportNav.filter((item) => !item.mobileHidden && !isMobileMoreItem(item) && (!item.hubOnly || !!myHub?.hub) && canShowForKind(item));
     const mobileAdminRoutes = new Set(['/dashboard', '/schedule', '/participants', '/supports', '/community']);
     return navItems.filter((item) => mobileAdminRoutes.has(item.to));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSupport, navItems, myHub?.hub, hubPhase]);
+  }, [isSupport, navItems, myHub?.hub, hubPhase, isHubOnlySupport]);
   const mobileMoreItems = useMemo(
-    () => (isSupport ? supportNav.filter((item) => isMobileMoreItem(item) && (!item.hubOnly || !!myHub?.hub)) : []),
+    () => (isSupport ? supportNav.filter((item) => isMobileMoreItem(item) && (!item.hubOnly || !!myHub?.hub) && canShowForKind(item)) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isSupport, myHub?.hub, hubPhase]
+    [isSupport, myHub?.hub, hubPhase, isHubOnlySupport]
   );
   const moreActive = mobileMoreItems.some((item) => isNavActive(location.pathname, item.to));
 
-  const supportLabel = userLabels[0]?.name || 'Support';
-  const currentLabel = isAdmin ? 'Admin' : supportLabel;
+  // The support badge names the group(s) they lead in the selected cohort —
+  // activity tags aren't cohort-specific, so an old cohort's tag would show.
+  const [myGroupNames, setMyGroupNames] = useState<string[]>([]);
+  // This support's own group id, for the "My Group" nav dot (useGroupMeetingLive
+  // polls MeetingAttendance/GroupPrayerStatus for it — see that hook).
+  const [myGroupId, setMyGroupId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isSupport || !user || !activeCohort) { setMyGroupNames([]); setMyGroupId(null); return; }
+    let cancelled = false;
+    groupsApi.getAll({ cohortId: activeCohort.id })
+      .then((res) => {
+        if (cancelled) return;
+        const own = res.groups.filter((g) => g.supportId === user.id && !g.archivedAt);
+        setMyGroupNames(own.map((g) => g.name));
+        setMyGroupId(own[0]?.id ?? null);
+      })
+      .catch(() => { if (!cancelled) { setMyGroupNames([]); setMyGroupId(null); } });
+    return () => { cancelled = true; };
+  }, [isSupport, user, activeCohort]);
+  // Hub jobs held in the selected cohort — fetched across every hub this
+  // support belongs to or IT-supports, so an operational support on 2+ hubs
+  // still gets a single deduped list of job labels.
+  const [myHubJobs, setMyHubJobs] = useState<HubJob[]>([]);
+  // Whether ANY hub this support belongs to/IT-supports has a meeting on
+  // right now — an operational support covering 2+ hubs needs every one
+  // checked, not just myHub (which only ever holds one).
+  const [hubsMeetingLive, setHubsMeetingLive] = useState(false);
+  useEffect(() => {
+    if (!isSupport || !activeCohort) { setMyHubJobs([]); setHubsMeetingLive(false); return; }
+    let cancelled = false;
+    myHubApi.getMyHubs(activeCohort.id)
+      .then(({ hubs }) => {
+        if (cancelled) return;
+        const jobSet = new Set<HubJob>();
+        hubs.forEach((h) => (h.myJobs ?? []).forEach((job) => jobSet.add(job)));
+        setMyHubJobs(sortHubJobs([...jobSet]));
+        setHubsMeetingLive(hubs.some((h) => !!h.meetingLive));
+      })
+      .catch(() => { if (!cancelled) setMyHubJobs([]); });
+    return () => { cancelled = true; };
+    // liveRevision re-checks meetingLive on the app's existing refresh cadence
+    // (realtime + 15s fallback), same as myHub — no separate polling needed.
+  }, [isSupport, activeCohort, liveRevision]);
+  const myHubJobLabels = myHubJobs.map((job) => HUB_JOB_INFO[job].label);
+  const groupMeetingLive = !!useGroupMeetingLive(myGroupId);
+  const hubMeetingLive = hubsMeetingLive || !!myHub?.meetingLive;
+  const currentLabel = isAdmin ? 'Admin' : ([...myGroupNames, ...myHubJobLabels].join(' · ') || null);
   const formatDateLabel = (value?: string | null) => {
     if (!value) return null;
     const date = new Date(`${value}T12:00:00`);
@@ -389,6 +480,8 @@ const AppShell: React.FC = () => {
                   globalPendingCount={globalPendingChanges.length}
                   newResourceCount={newResourceCount}
                   hasNewHubActivity={hasNewHubActivity}
+                  hubMeetingLive={hubMeetingLive}
+                  groupMeetingLive={groupMeetingLive}
                 />
               ))}
             </div>
@@ -413,7 +506,7 @@ const AppShell: React.FC = () => {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{user?.name}</p>
-              <p className="text-xs text-gray-500">{currentLabel}</p>
+              <p className="text-xs text-gray-500">{currentLabel ?? 'Support'}</p>
             </div>
             <button
               type="button"
@@ -473,6 +566,9 @@ const AppShell: React.FC = () => {
                       active={isNavActive(location.pathname, item.to)}
                       globalPendingCount={globalPendingChanges.length}
                       newResourceCount={newResourceCount}
+                      hasNewHubActivity={hasNewHubActivity}
+                      hubMeetingLive={hubMeetingLive}
+                      groupMeetingLive={groupMeetingLive}
                       onClick={() => setOpen(false)}
                     />
                   ))}
@@ -517,7 +613,7 @@ const AppShell: React.FC = () => {
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{user?.name}</p>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                <span className="rounded-full bg-orange-100 px-2.5 py-1 font-semibold text-orange-700">{currentLabel}</span>
+                {currentLabel && <span className="rounded-full bg-orange-100 px-2.5 py-1 font-semibold text-orange-700">{currentLabel}</span>}
                 {activeCohort && (
                   <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">
                     {activeCohort.name}
@@ -578,10 +674,11 @@ const AppShell: React.FC = () => {
         <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.min(Math.max(mobileNavItems.length + (mobileMoreItems.length > 0 ? 1 : 0), 1), 5)}, minmax(0, 1fr))` }}>
           {mobileNavItems.map((item) => {
             const active = isNavActive(location.pathname, item.to);
+            const isLive = (item.to === '/support/my-hub' && hubMeetingLive) || (item.to === '/support/participants' && groupMeetingLive);
             return (
               <NavLink
                 key={item.to}
-                to={item.to}
+                to={resolveNavTo(item, hubMeetingLive, groupMeetingLive)}
                 className={isSupport
                   ? `relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-0.5 py-2 text-[10px] font-semibold tracking-tight ${active ? 'bg-primary text-white' : 'text-gray-500'}`
                   : `relative flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium ${active ? 'bg-orange-50 text-primary' : 'text-gray-500'}`}
@@ -594,6 +691,7 @@ const AppShell: React.FC = () => {
                 {item.to.includes('community') && hasNewHubActivity && (
                   <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />
                 )}
+                {isLive && <PulsingDot className="absolute right-3 top-1.5" />}
               </NavLink>
             );
           })}
@@ -606,7 +704,7 @@ const AppShell: React.FC = () => {
             >
               {ICONS.more}
               <span className="truncate">More</span>
-              {hasNewHubActivity && (
+              {(hasNewHubActivity || mobileMoreItems.some((item) => (item.to === '/support/my-hub' && hubMeetingLive) || (item.to === '/support/participants' && groupMeetingLive))) && (
                 <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />
               )}
             </button>
@@ -623,16 +721,18 @@ const AppShell: React.FC = () => {
           >
             {mobileMoreItems.map((item) => {
               const active = isNavActive(location.pathname, item.to);
+              const isLive = (item.to === '/support/my-hub' && hubMeetingLive) || (item.to === '/support/participants' && groupMeetingLive);
               return (
                 <NavLink
                   key={item.to}
-                  to={item.to}
+                  to={resolveNavTo(item, hubMeetingLive, groupMeetingLive)}
                   onClick={() => setMoreOpen(false)}
                   className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition ${active ? 'bg-[#fff8f3] text-[#c2410c]' : 'text-gray-800 hover:bg-gray-50'}`}
                 >
                   {item.icon}
                   <span>{item.label}</span>
                   {item.to.includes('community') && hasNewHubActivity && <NavDot />}
+                  {isLive && <PulsingDot />}
                 </NavLink>
               );
             })}

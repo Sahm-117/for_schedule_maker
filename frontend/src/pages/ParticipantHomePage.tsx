@@ -209,6 +209,22 @@ const ParticipantHomePage: React.FC = () => {
       />
 
       <div className="flex flex-col gap-4">
+        {home.groupMeetingLive && (
+          <section className="flex items-center justify-between gap-3 rounded-[16px] bg-emerald-100/80 px-4 py-3">
+            <span className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+              <span className="relative flex h-2 w-2 flex-none">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+              Your group meeting is on now
+            </span>
+            {groupCallLink ? (
+              <a href={groupCallLink} target="_blank" rel="noreferrer" className="flex-none rounded-xl bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white">Join</a>
+            ) : (
+              <NavLink to="/me/group" className="flex-none rounded-xl bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white">Open</NavLink>
+            )}
+          </section>
+        )}
         <AttendanceCountdownCard openWindow={home.openWindow} />
         <section data-wt="ph-progress" className="rounded-[22px] border border-[#ffdeca] bg-white p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
           <div className="flex flex-wrap items-baseline gap-3">

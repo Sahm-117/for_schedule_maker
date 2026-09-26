@@ -756,18 +756,35 @@ export const cohortsApi = {
   },
 
   async setMembers(cohortId: string, userIds: string[]): Promise<{ message: string }> {
-    const { error: deleteError } = await supabase
+    // Only add/remove the rows that changed, so kept members keep their supportKind.
+    const { data: existing, error: readError } = await supabase
       .from('UserCohort')
-      .delete()
+      .select('userId')
       .eq('cohortId', cohortId);
 
-    if (deleteError) throw new Error(deleteError.message);
+    if (readError) throw new Error(readError.message);
+
+    const current = new Set(((existing || []) as any[]).map((row) => row.userId as string));
+    const wanted = new Set(userIds);
+    const toRemove = [...current].filter((id) => !wanted.has(id));
+    const toAdd = userIds.filter((id) => !current.has(id));
+
+    if (toRemove.length > 0) {
+      const { error: deleteError } = await supabase
+        .from('UserCohort')
+        .delete()
+        .eq('cohortId', cohortId)
+        .in('userId', toRemove);
+
+      if (deleteError) throw new Error(deleteError.message);
+    }
 
     if (userIds.length === 0) return { message: 'Cohort members cleared' };
+    if (toAdd.length === 0) return { message: 'Cohort members updated' };
 
     const { error: insertError } = await supabase
       .from('UserCohort')
-      .insert(userIds.map((userId) => ({ userId, cohortId })));
+      .insert(toAdd.map((userId) => ({ userId, cohortId })));
 
     if (insertError) throw new Error(insertError.message);
     return { message: 'Cohort members updated' };
@@ -1937,6 +1954,91 @@ export const settingsApi = {
     if (error) throw new Error(error.message);
     return value;
   },
+
+  // Public FOF landing page photos (Settings > Programme > Website photos).
+  // Each is a public URL into the 'resources' bucket's landing/ prefix, or
+  // null when that slot hasn't been set — the landing page falls back to a
+  // gradient wherever a slot is null.
+  async getLandingImages(): Promise<LandingImages> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'landing_images')
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const value = (data as any)?.value || {};
+    return {
+      hero: typeof value.hero === 'string' ? value.hero : null,
+      group: typeof value.group === 'string' ? value.group : null,
+      class: typeof value.class === 'string' ? value.class : null,
+    };
+  },
+
+  async setLandingImages(images: LandingImages): Promise<LandingImages> {
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert([{ settingKey: 'landing_images', value: images, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+    if (error) throw new Error(error.message);
+    return images;
+  },
+
+  // Every piece of editable copy on the public landing page (Settings >
+  // Website). Stored as one JSON blob — LandingPage.tsx and the admin editor
+  // both deep-merge this against DEFAULT_LANDING_CONTENT, so a missing/empty
+  // row (or a partial one) always renders sensibly.
+  async getLandingContent(): Promise<Record<string, unknown>> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'landing_content')
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const value = (data as any)?.value;
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  },
+
+  async setLandingContent(content: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert([{ settingKey: 'landing_content', value: content, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+    if (error) throw new Error(error.message);
+    return content;
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Public FOF landing page photo uploads (Settings > Programme > Website
+// photos). Same bucket + client-resize-before-upload pattern as scripturesApi
+// above, just without a DB row — the public URL is stored directly on the
+// 'landing_images' AppSetting (see settingsApi.setLandingImages).
+// ---------------------------------------------------------------------------
+
+export interface LandingImages {
+  hero: string | null;
+  group: string | null;
+  class: string | null;
+}
+
+export const landingImagesApi = {
+  async upload(slot: 'hero' | 'group' | 'class', image: Blob): Promise<string> {
+    const extension = image.type === 'image/webp' ? 'webp' : image.type === 'image/png' ? 'png' : 'jpg';
+    const path = `landing/${slot}-${Date.now()}.${extension}`;
+    const { error } = await supabase.storage.from('resources').upload(path, image, { upsert: false, contentType: image.type || undefined });
+    if (error) throw new Error(error.message);
+    const { data } = supabase.storage.from('resources').getPublicUrl(path);
+    return data.publicUrl;
+  },
+
+  // Best-effort cleanup of the file a slot used to point at; never blocks the
+  // AppSetting write that replaces or clears it.
+  async removeByUrl(url: string | null): Promise<void> {
+    if (!url) return;
+    const marker = '/resources/';
+    const idx = url.indexOf(marker);
+    if (idx === -1) return;
+    const path = url.slice(idx + marker.length);
+    void supabase.storage.from('resources').remove([path]);
+  },
 };
 
 const normalizeSupportCompletionError = (error: any): Error => {
@@ -2862,6 +2964,12 @@ export const participantAppApi = {
     }
   },
 
+  async setPrayerShare(shared: boolean): Promise<{ id: string; sharedForPrayer: boolean }> {
+    const { data, error } = await supabase.rpc('set_faith_project_prayer_share', { p_token: getSessionToken(), p_shared: shared });
+    if (error || !data) throw participantAppError(error?.message, 'Could not save that. Please try again.');
+    return data as { id: string; sharedForPrayer: boolean };
+  },
+
   async getTestimonies(): Promise<{ mine: import('../types').ParticipantTestimony[]; feed: import('../types').TestimonyFeedItem[] }> {
     const { data, error } = await supabase.rpc('participant_testimonies', { p_token: getSessionToken() });
     if (error) throw participantAppError(error.message, 'Could not load testimonies.');
@@ -2876,16 +2984,27 @@ export const participantAppApi = {
       p_visibility: input.visibility,
     });
     if (error) throw participantAppError(error.message, 'Could not save your testimony.');
-    const testimony = data as import('../types').ParticipantTestimony;
-    if (testimony.status === 'PENDING') {
+    const result = data as import('../types').ParticipantTestimony & { supportId?: string | null };
+    if (result.status === 'PENDING') {
       void notifyAdmins(
         'A testimony is waiting for approval',
         `${participantName} shared a testimony with their ${input.visibility === 'COHORT' ? 'cohort' : 'group'}.`,
         '/faith-projects?tab=testimonies',
         'TESTIMONY',
       );
+    } else if (result.status === 'APPROVED' && input.visibility === 'SUPPORT' && result.supportId) {
+      // "Just my support" is born APPROVED -- no admin review, so this is the
+      // only alert. Same mechanism as FAITH_HELP: notify() straight to the
+      // support's userId, path opens their card in My Group.
+      void notify(
+        { userIds: [result.supportId] },
+        `${participantName} shared a testimony with you`,
+        'Open their card in My Group to read it.',
+        '/support/participants',
+        'TESTIMONY',
+      );
     }
-    return testimony;
+    return { id: result.id, title: result.title, body: result.body, visibility: result.visibility, status: result.status, createdAt: result.createdAt, updatedAt: result.updatedAt };
   },
 
   async updateTestimony(id: string, input: { title: string; body: string; visibility: import('../types').TestimonyVisibility }, participantName: string): Promise<import('../types').ParticipantTestimony> {
@@ -2897,16 +3016,24 @@ export const participantAppApi = {
       p_visibility: input.visibility,
     });
     if (error) throw participantAppError(error.message, 'Could not save your testimony.');
-    const testimony = data as import('../types').ParticipantTestimony;
-    if (testimony.status === 'PENDING') {
+    const result = data as import('../types').ParticipantTestimony & { supportId?: string | null };
+    if (result.status === 'PENDING') {
       void notifyAdmins(
         'A testimony is waiting for approval',
         `${participantName} shared a testimony with their ${input.visibility === 'COHORT' ? 'cohort' : 'group'}.`,
         '/faith-projects?tab=testimonies',
         'TESTIMONY',
       );
+    } else if (result.status === 'APPROVED' && input.visibility === 'SUPPORT' && result.supportId) {
+      void notify(
+        { userIds: [result.supportId] },
+        `${participantName} shared a testimony with you`,
+        'Open their card in My Group to read it.',
+        '/support/participants',
+        'TESTIMONY',
+      );
     }
-    return testimony;
+    return { id: result.id, title: result.title, body: result.body, visibility: result.visibility, status: result.status, createdAt: result.createdAt, updatedAt: result.updatedAt };
   },
 
   async deleteTestimony(id: string): Promise<void> {
@@ -5096,12 +5223,21 @@ export const attendanceFollowUpTasksApi = {
 // ── Support Hubs (Phase 3) ────────────────────────────────────────────────────
 // Named supportHubsApi (not hubApi) — hubApi below is the Community forum.
 
+const SUPPORT_HUB_SELECT = '*, lead:User!SupportHub_leadUserId_fkey(id, name), assistantLead:User!SupportHub_assistantLeadUserId_fkey(id, name), recapLead:User!SupportHub_recapLeadUserId_fkey(id, name), prayerLead:User!SupportHub_prayerLeadUserId_fkey(id, name)';
+
 const mapSupportHub = (row: any): import('../types').SupportHub => ({
   id: row.id,
   cohortId: row.cohortId,
   name: row.name,
   leadUserId: row.leadUserId ?? null,
   leadName: row.lead?.name ?? null,
+  assistantLeadUserId: row.assistantLeadUserId ?? null,
+  assistantLeadName: row.assistantLead?.name ?? null,
+  assistantPermissions: row.assistantPermissions ?? [],
+  recapLeadUserId: row.recapLeadUserId ?? null,
+  recapLeadName: row.recapLead?.name ?? null,
+  prayerLeadUserId: row.prayerLeadUserId ?? null,
+  prayerLeadName: row.prayerLead?.name ?? null,
   createdAt: row.createdAt,
 });
 
@@ -5109,7 +5245,7 @@ export const supportHubsApi = {
   async getAll(cohortId: string): Promise<{ hubs: import('../types').SupportHub[] }> {
     const { data, error } = await supabase
       .from('SupportHub')
-      .select('*, lead:User!SupportHub_leadUserId_fkey(id, name)')
+      .select(SUPPORT_HUB_SELECT)
       .eq('cohortId', cohortId)
       .order('name');
     if (error) throw new Error(error.message);
@@ -5120,21 +5256,64 @@ export const supportHubsApi = {
     const { data, error } = await supabase
       .from('SupportHub')
       .insert([{ cohortId: input.cohortId, name: input.name, leadUserId: input.leadUserId || null }])
-      .select('*, lead:User!SupportHub_leadUserId_fkey(id, name)')
+      .select(SUPPORT_HUB_SELECT)
       .single();
     if (error || !data) throw new Error(error?.message || 'Failed to create hub');
     return { hub: mapSupportHub(data) };
   },
 
-  async update(hubId: string, input: { name?: string; leadUserId?: string | null }): Promise<{ hub: import('../types').SupportHub }> {
+  async update(hubId: string, input: { name?: string; leadUserId?: string | null; assistantLeadUserId?: string | null; recapLeadUserId?: string | null; prayerLeadUserId?: string | null }): Promise<{ hub: import('../types').SupportHub }> {
     const { data, error } = await supabase
       .from('SupportHub')
       .update(input)
       .eq('id', hubId)
-      .select('*, lead:User!SupportHub_leadUserId_fkey(id, name)')
+      .select(SUPPORT_HUB_SELECT)
       .single();
     if (error || !data) throw new Error(error?.message || 'Failed to update hub');
     return { hub: mapSupportHub(data) };
+  },
+
+  // The hub lead (or admin) chooses which of the assistant's actions
+  // (MEETING/ATTENDANCE/MESSAGE) they can run — see app_hub_can in
+  // 20260926120000_hub_roles.sql.
+  async setAssistantPermissions(hubId: string, perms: import('../types').AssistantHubPermission[]): Promise<{ id: string; assistantPermissions: import('../types').AssistantHubPermission[] }> {
+    const { data, error } = await supabase.rpc('set_assistant_permissions', { p_hub_id: hubId, p_perms: perms });
+    if (error || !data) throw new Error(error?.message || 'Failed to save assistant permissions');
+    return data as { id: string; assistantPermissions: import('../types').AssistantHubPermission[] };
+  },
+
+  // The hub's IT support(s) — an operational support covering 2+ hubs without
+  // being a HubMembership member of any of them.
+  async getItSupports(hubId: string): Promise<{ itSupports: import('../types').HubItSupportEntry[] }> {
+    const { data, error } = await supabase
+      .from('HubItSupport')
+      .select('user:User(id, name)')
+      .eq('hubId', hubId);
+    if (error) throw new Error(error.message);
+    return { itSupports: ((data as any[]) || []).map((r) => ({ userId: r.user?.id, name: r.user?.name })).filter((r) => r.userId) };
+  },
+
+  // Diffs against the hub's current IT-support list, same shape as setMembers.
+  async setItSupports(hubId: string, userIds: string[]): Promise<{ message: string }> {
+    const { data: existingRows, error: existingError } = await supabase
+      .from('HubItSupport')
+      .select('userId')
+      .eq('hubId', hubId);
+    if (existingError) throw new Error(existingError.message);
+    const existingIds = new Set(((existingRows as any[]) || []).map((r) => r.userId as string));
+    const nextIds = new Set(userIds);
+    const toRemove = [...existingIds].filter((id) => !nextIds.has(id));
+    const toAdd = userIds.filter((id) => !existingIds.has(id));
+
+    if (toRemove.length > 0) {
+      const { error: removeError } = await supabase.from('HubItSupport').delete().eq('hubId', hubId).in('userId', toRemove);
+      if (removeError) throw new Error(removeError.message);
+    }
+    if (toAdd.length > 0) {
+      const { error: insError } = await supabase.from('HubItSupport').insert(toAdd.map((userId) => ({ hubId, userId })));
+      if (insError) throw new Error(insError.message);
+    }
+    return { message: 'IT supports updated' };
   },
 
   async remove(hubId: string): Promise<void> {
@@ -5267,22 +5446,22 @@ export const supportSessionsApi = {
 
   // Every member's mark for one hub's recap in one week, so the lead's marking
   // screen can show current status without a call per member.
-  async getForHubWeek(hubId: string, weekId: number): Promise<{ attendance: Array<{ userId: string; status: import('../types').SupportAttendanceStatus }> }> {
+  async getForHubWeek(hubId: string, weekId: number): Promise<{ attendance: Array<{ userId: string; status: import('../types').SupportAttendanceStatus }>; session?: { id: string; notes: string | null; submittedAt: string | null } | null }> {
     const { data: session, error: sessionError } = await supabase
       .from('SupportSession')
-      .select('id')
+      .select('id, notes, submittedAt')
       .eq('hubId', hubId)
       .eq('weekId', weekId)
       .eq('type', 'SUNDAY_RECAP')
       .maybeSingle();
     if (sessionError) throw new Error(sessionError.message);
-    if (!session) return { attendance: [] };
+    if (!session) return { attendance: [], session: null };
     const { data, error } = await supabase
       .from('SupportSessionAttendance')
       .select('userId, status')
       .eq('sessionId', (session as any).id);
     if (error) throw new Error(error.message);
-    return { attendance: (data as any[]) || [] };
+    return { attendance: (data as any[]) || [], session: session as { id: string; notes: string | null; submittedAt: string | null } };
   },
 
   // Phase 4 — pre-cohort trainings / get-togethers: every session of the given
@@ -5378,6 +5557,97 @@ export const myHubApi = {
     });
     if (error || !data) throw new Error(error?.message || 'Failed to save the hub meeting');
     return { hub: data as NonNullable<import('../types').MyHubPayload['hub']> };
+  },
+
+  // Every hub the caller belongs to or IT-supports in a cohort — for an
+  // operational support covering 2+ hubs, where get() only returns one.
+  async getMyHubs(cohortId: string): Promise<{ hubs: import('../types').MyHubPayload[] }> {
+    const { data, error } = await supabase.rpc('get_my_hubs', { p_cohort_id: cohortId });
+    if (error) throw new Error(error.message);
+    return { hubs: (data as import('../types').MyHubPayload[]) ?? [] };
+  },
+
+  // One hub by id, for a caller who is a member, IT support, or admin of it.
+  async getHubView(hubId: string): Promise<import('../types').MyHubPayload> {
+    const { data, error } = await supabase.rpc('get_hub_view', { p_hub_id: hubId });
+    if (error) throw new Error(error.message);
+    return data as import('../types').MyHubPayload;
+  },
+
+  async submitMeeting(hubId: string, weekId: number, notes: string): Promise<{ sessionId: string; hubId: string; weekId: number; notes: string | null; submittedAt: string; submittedById: string | null }> {
+    const { data, error } = await supabase.rpc('submit_hub_meeting', { p_hub_id: hubId, p_week_id: weekId, p_notes: notes });
+    if (error || !data) throw new Error(error?.message || 'Failed to submit the hub meeting');
+    return data as any;
+  },
+
+  async reopenMeeting(hubId: string, weekId: number): Promise<{ sessionId: string; hubId: string; weekId: number; submittedAt: string | null }> {
+    const { data, error } = await supabase.rpc('reopen_hub_meeting', { p_hub_id: hubId, p_week_id: weekId });
+    if (error || !data) throw new Error(error?.message || 'Failed to reopen the hub meeting');
+    return data as any;
+  },
+
+  // Approved + shared-for-prayer faith projects for this hub's members' groups.
+  async prayerList(hubId: string): Promise<{ items: import('../types').HubPrayerListItem[] }> {
+    const { data, error } = await supabase.rpc('hub_prayer_list', { p_hub_id: hubId });
+    if (error) throw new Error(error.message);
+    return { items: (data as import('../types').HubPrayerListItem[]) ?? [] };
+  },
+
+  async markRoleIntroSeen(hubId: string, job: import('../types').HubJob): Promise<void> {
+    const { error } = await supabase.rpc('mark_hub_role_intro_seen', { p_hub_id: hubId, p_job: job });
+    if (error) throw new Error(error.message);
+  },
+
+  // Live "now praying for" focus, one at a time, saved per hub/week. Setting
+  // it broadcasts to hub-meeting:<hubId>:<weekId> so every open Hub meeting
+  // tab refetches — see HubMeetingPanel for why (SupportSession's RLS blocks
+  // postgres_changes here).
+  async getPrayerFocus(hubId: string, weekId: number): Promise<import('../types').HubPrayerFocus> {
+    const { data, error } = await supabase.rpc('get_hub_prayer_focus', { p_hub_id: hubId, p_week_id: weekId });
+    if (error) throw new Error(error.message);
+    return (data as import('../types').HubPrayerFocus) ?? { faithProjectId: null, participantName: null, groupName: null, projectText: null, setAt: null, prayedForIds: [], hubPrayerDone: false, prayerFinished: false };
+  },
+
+  async setPrayerFocus(hubId: string, weekId: number, faithProjectId: string | null): Promise<{ faithProjectId: string | null; setAt: string | null; prayedForIds: string[] }> {
+    const { data, error } = await supabase.rpc('set_hub_prayer_focus', { p_hub_id: hubId, p_week_id: weekId, p_faith_project_id: faithProjectId });
+    if (error || !data) throw new Error(error?.message || 'Failed to set the prayer focus');
+    return data as { faithProjectId: string | null; setAt: string | null; prayedForIds: string[] };
+  },
+
+  // Persisted "1 · Pray for your hub" done + "Finish prayer" — nullable args,
+  // only changes what's passed. Finishing also clears the live focus
+  // server-side (see set_hub_prayer_state), so the frontend just re-fetches
+  // getPrayerFocus and broadcasts, same as setPrayerFocus.
+  async setPrayerState(hubId: string, weekId: number, input: { hubPrayerDone?: boolean; prayerFinished?: boolean }): Promise<{ hubPrayerDone: boolean; prayerFinished: boolean }> {
+    const { data, error } = await supabase.rpc('set_hub_prayer_state', {
+      p_hub_id: hubId,
+      p_week_id: weekId,
+      p_hub_prayer_done: input.hubPrayerDone ?? null,
+      p_prayer_finished: input.prayerFinished ?? null,
+    });
+    if (error || !data) throw new Error(error?.message || 'Failed to save this');
+    return data as { hubPrayerDone: boolean; prayerFinished: boolean };
+  },
+};
+
+// ── Support kind (admin-set: PARTICIPANT_SUPPORT / HUB_LEAD / OPERATIONAL) ──
+
+export const supportKindApi = {
+  async getForCohort(cohortId: string): Promise<{ kinds: Record<string, import('../types').SupportKind> }> {
+    const { data, error } = await supabase
+      .from('UserCohort')
+      .select('userId, supportKind')
+      .eq('cohortId', cohortId);
+    if (error) throw new Error(error.message);
+    const kinds: Record<string, import('../types').SupportKind> = {};
+    ((data || []) as any[]).forEach((row) => { kinds[row.userId] = row.supportKind ?? 'PARTICIPANT_SUPPORT'; });
+    return { kinds };
+  },
+
+  async set(userId: string, cohortId: string, kind: import('../types').SupportKind): Promise<{ userId: string; cohortId: string; supportKind: import('../types').SupportKind }> {
+    const { data, error } = await supabase.rpc('set_support_kind', { p_user_id: userId, p_cohort_id: cohortId, p_kind: kind });
+    if (error || !data) throw new Error(error?.message || 'Failed to set support kind');
+    return data as { userId: string; cohortId: string; supportKind: import('../types').SupportKind };
   },
 };
 
@@ -5578,6 +5848,7 @@ const mapTestimony = (row: any): import('../types').Testimony => ({
   reviewedById: row.reviewedById ?? null,
   reviewedByName: row.reviewedBy?.name ?? null,
   reviewedAt: row.reviewedAt ?? null,
+  viewedAt: row.viewedAt ?? null,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
@@ -5620,6 +5891,18 @@ export const testimoniesApi = {
         updatedAt: row.updatedAt,
       },
     };
+  },
+
+  // Clears the "New testimony" pill once the assigned support opens the
+  // participant's card. Staff already have full read/write on Testimony via
+  // the "Staff can manage testimonies" RLS policy, so this is a plain update.
+  async markViewed(ids: string[], userId: string): Promise<void> {
+    if (ids.length === 0) return;
+    const { error } = await supabase.from('Testimony')
+      .update({ viewedAt: new Date().toISOString(), viewedById: userId })
+      .in('id', ids)
+      .is('viewedAt', null);
+    if (error) throw new Error(error.message);
   },
 };
 
@@ -6160,6 +6443,37 @@ export const meetingAttendanceApi = {
       .single();
     if (error || !data) throw new Error(error?.message || 'Failed to save meeting attendance');
     return { record: mapMeetingAttendance(data) };
+  },
+
+  // "Group meeting is on now" — no SupportSession-style row for group
+  // meetings, so this is computed from data already recorded: the earliest
+  // attendance mark for a (group, week) is when that week's meeting started;
+  // "live" means that's within the last 3 hours and the week isn't submitted
+  // (GroupPrayerStatus.done) yet. MeetingAttendance/GroupPrayerStatus are
+  // staff-only tables (20260918040000_staff_only_meetings_attendance.sql), so
+  // this queries them directly — same as meetingAttendanceApi/groupPrayerStatusApi
+  // above, no RPC needed on the support side.
+  async getLiveForGroup(groupId: string): Promise<{ weekId: number; startedAt: string } | null> {
+    const { data, error } = await supabase.from('MeetingAttendance').select('weekId, markedAt').eq('groupId', groupId);
+    if (error) throw new Error(error.message);
+    const rows = (data as Array<{ weekId: number; markedAt: string }>) || [];
+    if (rows.length === 0) return null;
+    const startedByWeek = new Map<number, string>();
+    rows.forEach((row) => {
+      const current = startedByWeek.get(row.weekId);
+      if (!current || new Date(row.markedAt).getTime() < new Date(current).getTime()) startedByWeek.set(row.weekId, row.markedAt);
+    });
+    const { data: statusRows, error: statusError } = await supabase.from('GroupPrayerStatus').select('weekId, done').eq('groupId', groupId);
+    if (statusError) throw new Error(statusError.message);
+    const doneWeeks = new Set(((statusRows as Array<{ weekId: number; done: boolean }>) || []).filter((s) => s.done).map((s) => s.weekId));
+    const threeHoursAgo = Date.now() - 3 * 60 * 60 * 1000;
+    let best: { weekId: number; startedAt: string } | null = null;
+    startedByWeek.forEach((startedAt, weekId) => {
+      if (doneWeeks.has(weekId)) return;
+      if (new Date(startedAt).getTime() < threeHoursAgo) return;
+      if (!best || new Date(startedAt).getTime() > new Date(best.startedAt).getTime()) best = { weekId, startedAt };
+    });
+    return best;
   },
 };
 
@@ -6724,5 +7038,28 @@ export const profileFieldsApi = {
     const { data, error } = await supabase.rpc('participant_profile_overview', { p_participant_id: participantId });
     if (error) throw new Error(error.message);
     return data as { completion: import('../types').ProfileCompletion; fields: import('../types').ProfileFieldEntry[] };
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Public FOF landing page (fof.tcnikorodu.org) — signed-out visitors only
+// ---------------------------------------------------------------------------
+
+export interface PublicLandingInfo {
+  registrationLink: string;
+  nextCohort: { name: string; startDate: string } | null;
+  classStartTime: string | null;
+  landingImages: LandingImages;
+  /** Raw saved override for DEFAULT_LANDING_CONTENT (components/landing/landingContent.ts)
+   * — absent/empty until an admin edits Settings > Website, and possibly
+   * partial even then; always render it through deepMerge/resolveLandingContent. */
+  landingContent?: Record<string, unknown> | null;
+}
+
+export const landingApi = {
+  async get(): Promise<PublicLandingInfo> {
+    const { data, error } = await supabase.rpc('public_fof_landing');
+    if (error) throw new Error(error.message);
+    return data as PublicLandingInfo;
   },
 };

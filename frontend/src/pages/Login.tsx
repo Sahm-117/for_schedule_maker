@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const isValidNigerianPhone = (value: string) => /^0[7-9][0-1]\d{8}$/.test(value);
 const looksLikePhone = (value: string) => /^[0-9+]/.test(value) && !value.includes('@');
@@ -104,9 +104,9 @@ const Login: React.FC = () => {
             <div aria-hidden="true" className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#ff914d]/35 blur-3xl" />
             <div aria-hidden="true" className="absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-[#ffb27d]/15 blur-3xl" />
 
-            <div className="relative inline-flex w-fit rounded-2xl bg-white p-2.5 shadow-lg">
+            <Link to="/" className="relative inline-flex w-fit rounded-2xl bg-white p-2.5 shadow-lg">
               <img src="/logo-full.png" alt="The Covenant Nation | Ikorodu" className="h-11 w-auto object-contain" />
-            </div>
+            </Link>
 
             <div className="relative mt-auto pt-16">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#ffb27d]">Foundation of Faith</p>
@@ -141,9 +141,9 @@ const Login: React.FC = () => {
           <main className="fof-rise flex flex-col justify-center [animation-delay:80ms]">
             {/* Brand — mobile */}
             <div className="mb-7 flex flex-col items-center text-center lg:hidden">
-              <div className="rounded-2xl bg-white p-2.5 shadow-[0_10px_30px_-12px_rgba(31,26,23,0.25)]">
+              <Link to="/" className="rounded-2xl bg-white p-2.5 shadow-[0_10px_30px_-12px_rgba(31,26,23,0.25)]">
                 <img src="/logo-full.png" alt="The Covenant Nation | Ikorodu" className="h-11 w-auto object-contain" />
-              </div>
+              </Link>
               <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.22em] text-[#c2410c]">Foundation of Faith</p>
             </div>
 

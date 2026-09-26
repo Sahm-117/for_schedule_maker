@@ -37,6 +37,7 @@ import {
   supportNotesApi as supabaseSupportNotesApi,
   supportSessionsApi as supabaseSupportSessionsApi,
   myHubApi as supabaseMyHubApi,
+  supportKindApi as supabaseSupportKindApi,
   supportRecapsApi as supabaseSupportRecapsApi,
   faithProjectsApi as supabaseFaithProjectsApi,
   faithProjectSettingsApi as supabaseFaithProjectSettingsApi,
@@ -72,6 +73,10 @@ import {
   participantCheckInsApi as supabaseParticipantCheckInsApi,
   scripturesApi as supabaseScripturesApi,
   tourProgressApi as supabaseTourProgressApi,
+  landingApi as supabaseLandingApi,
+  landingImagesApi as supabaseLandingImagesApi,
+  type PublicLandingInfo,
+  type LandingImages,
   getSessionToken as supabaseGetSessionToken,
   SESSION_TOKEN_KEY,
   setAuthToken as supabaseSetAuthToken,
@@ -504,6 +509,18 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async setSupportContact(contact: { name: string; phone: string }): Promise<{ name: string; phone: string }> {
     return contact;
   },
+  async getLandingImages(): Promise<LandingImages> {
+    return { hero: null, group: null, class: null };
+  },
+  async setLandingImages(images: LandingImages): Promise<LandingImages> {
+    return images;
+  },
+  async getLandingContent(): Promise<Record<string, unknown>> {
+    return {};
+  },
+  async setLandingContent(content: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return content;
+  },
 };
 
 export const pushSubscriptionsApi = USE_SUPABASE ? supabasePushSubscriptionsApi : {
@@ -615,6 +632,9 @@ export const supportHubsApi = USE_SUPABASE ? supabaseSupportHubsApi : {
   async getAll(_cohortId: string): Promise<{ hubs: import('../types').SupportHub[] }> { return { hubs: [] }; },
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
   async update(_hubId: string, _input: any): Promise<never> { return peopleUnavailable(); },
+  async setAssistantPermissions(_hubId: string, _perms: import('../types').AssistantHubPermission[]): Promise<never> { return peopleUnavailable(); },
+  async getItSupports(_hubId: string): Promise<{ itSupports: import('../types').HubItSupportEntry[] }> { return { itSupports: [] }; },
+  async setItSupports(_hubId: string, _userIds: string[]): Promise<never> { return peopleUnavailable(); },
   async remove(_hubId: string): Promise<never> { return peopleUnavailable(); },
   async getMembershipsForCohort(_cohortId: string): Promise<{ memberships: import('../types').HubMembership[] }> { return { memberships: [] }; },
   async getMembers(_hubId: string): Promise<{ members: import('../types').User[] }> { return { members: [] }; },
@@ -642,6 +662,20 @@ export const myHubApi = USE_SUPABASE ? supabaseMyHubApi : {
   async updateMessage(_messageId: string, _subject: string, _body: string): Promise<never> { return peopleUnavailable(); },
   async deleteMessage(_messageId: string): Promise<never> { return peopleUnavailable(); },
   async updateMeeting(_hubId: string, _input: any): Promise<never> { return peopleUnavailable(); },
+  async getMyHubs(_cohortId: string): Promise<{ hubs: import('../types').MyHubPayload[] }> { return { hubs: [] }; },
+  async getHubView(_hubId: string): Promise<import('../types').MyHubPayload> { return { hub: null, isLead: false, members: [], messages: [], myAttendance: [] }; },
+  async submitMeeting(_hubId: string, _weekId: number, _notes: string): Promise<never> { return peopleUnavailable(); },
+  async reopenMeeting(_hubId: string, _weekId: number): Promise<never> { return peopleUnavailable(); },
+  async prayerList(_hubId: string): Promise<{ items: import('../types').HubPrayerListItem[] }> { return { items: [] }; },
+  async markRoleIntroSeen(_hubId: string, _job: import('../types').HubJob): Promise<void> { return; },
+  async getPrayerFocus(_hubId: string, _weekId: number): Promise<import('../types').HubPrayerFocus> { return { faithProjectId: null, participantName: null, groupName: null, projectText: null, setAt: null, prayedForIds: [], hubPrayerDone: false, prayerFinished: false }; },
+  async setPrayerFocus(_hubId: string, _weekId: number, _faithProjectId: string | null): Promise<never> { return peopleUnavailable(); },
+  async setPrayerState(_hubId: string, _weekId: number, _input: { hubPrayerDone?: boolean; prayerFinished?: boolean }): Promise<never> { return peopleUnavailable(); },
+};
+
+export const supportKindApi = USE_SUPABASE ? supabaseSupportKindApi : {
+  async getForCohort(_cohortId: string): Promise<{ kinds: Record<string, import('../types').SupportKind> }> { return { kinds: {} }; },
+  async set(_userId: string, _cohortId: string, _kind: import('../types').SupportKind): Promise<never> { return peopleUnavailable(); },
 };
 
 export const supportRecapsApi = USE_SUPABASE ? supabaseSupportRecapsApi : {
@@ -677,6 +711,7 @@ export const testimoniesApi = USE_SUPABASE ? supabaseTestimoniesApi : {
   async getForParticipants(_participantIds: string[]): Promise<{ testimonies: import('../types').Testimony[] }> { return { testimonies: [] }; },
   async getAll(_options?: any): Promise<{ testimonies: import('../types').Testimony[] }> { return { testimonies: [] }; },
   async review(_id: string, _status: 'APPROVED' | 'HIDDEN'): Promise<never> { return peopleUnavailable(); },
+  async markViewed(_ids: string[], _userId: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const participantNotesApi = USE_SUPABASE ? supabaseParticipantNotesApi : {
@@ -718,6 +753,7 @@ export const meetingAttendanceApi = USE_SUPABASE ? supabaseMeetingAttendanceApi 
   async getForGroupWeek(_groupId: string, _weekId: number): Promise<{ records: import('../types').MeetingAttendance[] }> { return { records: [] }; },
   async getForWeeks(_weekIds: number[]): Promise<{ records: import('../types').MeetingAttendance[] }> { return { records: [] }; },
   async mark(_input: any): Promise<never> { return peopleUnavailable(); },
+  async getLiveForGroup(_groupId: string): Promise<{ weekId: number; startedAt: string } | null> { return null; },
 };
 
 export const participantFlagsApi = USE_SUPABASE ? supabaseParticipantFlagsApi : {
@@ -791,6 +827,7 @@ export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async getFaith(): Promise<never> { return peopleUnavailable(); },
   async saveFaithProject(_body: string, _submit: boolean, _participantName: string): Promise<never> { return peopleUnavailable(); },
   async submitFaithHelpRequest(_input: { reason: import('../types').FaithHelpReason; note: string; wantsContact: boolean }, _participantName: string): Promise<never> { return peopleUnavailable(); },
+  async setPrayerShare(_shared: boolean): Promise<never> { return peopleUnavailable(); },
   async getTestimonies(): Promise<{ mine: import('../types').ParticipantTestimony[]; feed: import('../types').TestimonyFeedItem[] }> { return { mine: [], feed: [] }; },
   async submitTestimony(_input: { title: string; body: string; visibility: import('../types').TestimonyVisibility }, _participantName: string): Promise<never> { return peopleUnavailable(); },
   async updateTestimony(_id: string, _input: { title: string; body: string; visibility: import('../types').TestimonyVisibility }, _participantName: string): Promise<never> { return peopleUnavailable(); },
@@ -843,6 +880,11 @@ export const tourProgressApi = USE_SUPABASE ? supabaseTourProgressApi : {
   async markSeen(_key: string): Promise<void> { return; },
 };
 
+export const landingImagesApi = USE_SUPABASE ? supabaseLandingImagesApi : {
+  async upload(_slot: 'hero' | 'group' | 'class', _image: Blob): Promise<never> { return peopleUnavailable(); },
+  async removeByUrl(_url: string | null): Promise<void> { return; },
+};
+
 export const aiApi = USE_SUPABASE ? supabaseAiApi : {
   async getSummaryState(): Promise<never> { return peopleUnavailable(); },
   async setOptIn(_optIn: boolean): Promise<never> { return peopleUnavailable(); },
@@ -865,6 +907,30 @@ export const profileFieldsApi = USE_SUPABASE ? supabaseProfileFieldsApi : {
 
 export const formRegistrationsApi = USE_SUPABASE ? supabaseFormRegistrationsApi : {
   async getAll(_options?: any): Promise<{ registrations: import('./supabase-api').FormRegistration[] }> { return { registrations: [] }; },
+};
+
+// Public FOF landing page (fof.tcnikorodu.org). Hardcoded fallback covers
+// both non-Supabase mode and the RPC failing (e.g. before this migration
+// has been applied), so the page always has a working Register link.
+const FALLBACK_REGISTRATION_LINK = 'https://forms.gle/tCaAqnBF72efNexW6';
+const FALLBACK_LANDING_INFO: PublicLandingInfo = {
+  registrationLink: FALLBACK_REGISTRATION_LINK,
+  nextCohort: null,
+  classStartTime: null,
+  landingImages: { hero: null, group: null, class: null },
+  landingContent: null,
+};
+
+export const landingApi = {
+  async get(): Promise<PublicLandingInfo> {
+    if (!USE_SUPABASE) return FALLBACK_LANDING_INFO;
+    try {
+      const info = await supabaseLandingApi.get();
+      return { ...info, registrationLink: info.registrationLink || FALLBACK_REGISTRATION_LINK };
+    } catch {
+      return FALLBACK_LANDING_INFO;
+    }
+  },
 };
 
 export { SESSION_TOKEN_KEY };

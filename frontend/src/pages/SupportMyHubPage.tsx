@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import SegmentedTabs from '../components/SegmentedTabs';
 import AppSelect from '../components/AppSelect';
@@ -7,13 +8,26 @@ import SaveStatus, { type SaveState } from '../components/SaveStatus';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { MeetingCallCard, type MeetingSaveInput } from '../components/groups/GroupCallCard';
+import HubMeetingPanel from '../components/hubs/HubMeetingPanel';
+import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { myHubApi, supportNotesApi, supportSessionsApi } from '../services/api';
+import { myHubApi, supportHubsApi, supportNotesApi, supportRecapsApi, supportSessionsApi } from '../services/api';
 import { buildWhatsAppLink } from '../utils/phone';
 import { sortByText } from '../utils/sort';
 import { cohortMode } from '../components/dashboard/healthModel';
-import type { HubMessage, MyHubMember, SupportAttendanceStatus, SupportSession, SupportSessionType, SupportNote } from '../types';
+import type {
+  AssistantHubPermission,
+  HubJob,
+  HubMessage,
+  MyHubMember,
+  MyHubPayload,
+  SupportAttendanceStatus,
+  SupportSession,
+  SupportSessionType,
+  SupportNote,
+  SupportRecap,
+} from '../types';
 import Spinner from '../components/Spinner';
 
 const SESSION_TYPE_PILL: Record<SupportSessionType, string> = {
@@ -42,65 +56,155 @@ const STATUS_PILL: Record<SupportAttendanceStatus, string> = {
   EXCUSED: 'bg-violet-100/80 text-violet-700',
 };
 
-type HubTab = 'overview' | 'recap' | 'trainings' | 'notes' | 'message';
+const PERMISSION_OPTIONS: Array<{ value: AssistantHubPermission; label: string; hint: string; summary: string }> = [
+  { value: 'MEETING', label: 'Meeting time & link', hint: 'Edit when and where the hub meets.', summary: 'edit meeting time & link' },
+  { value: 'ATTENDANCE', label: 'Attendance & hub meeting', hint: 'Mark attendance and run the hub meeting.', summary: 'run attendance & hub meeting' },
+  { value: 'MESSAGE', label: 'Message the hub', hint: 'Send messages to everyone in the hub.', summary: 'message the hub' },
+];
+
+type HubTab = 'overview' | 'meeting' | 'trainings' | 'notes' | 'message';
 
 const SupportMyHubPage: React.FC = () => {
   const { user } = useAuth();
-  const { myHub, refreshMyHub, weeks, activeCohort, cohorts } = useAppData();
-  const [tab, setTab] = useState<HubTab>('overview');
-  const [loaded, setLoaded] = useState(!!myHub);
+  const { refreshMyHub, weeks, activeCohort, cohorts } = useAppData();
+  // /support/my-hub?tab=meeting opens straight to the Hub meeting tab — used
+  // by the "Open hub meeting" home button and the live-dot nav links.
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState<HubTab>(() => {
+    const requested = searchParams.get('tab');
+    return (['overview', 'meeting', 'trainings', 'notes', 'message'] as const).includes(requested as HubTab)
+      ? (requested as HubTab)
+      : 'overview';
+  });
+  const [loaded, setLoaded] = useState(false);
+
+  // ── My hub(s) — an operational support may cover 2+ hubs, so this page ────
+  // loads the full list and lets them switch; a support with just one hub
+  // sees no switcher at all.
+  const [hubs, setHubs] = useState<MyHubPayload[]>([]);
+  const [selectedHubId, setSelectedHubId] = useState<string | null>(null);
+
+  const loadHubs = useCallback(async () => {
+    if (user?.role !== 'SUPPORT' || !activeCohort?.id) { setHubs([]); return; }
+    const { hubs: list } = await myHubApi.getMyHubs(activeCohort.id);
+    setHubs(list);
+    setSelectedHubId((prev) => (prev && list.some((h) => h.hub?.id === prev) ? prev : list[0]?.hub?.id ?? null));
+  }, [user?.role, activeCohort?.id]);
 
   useEffect(() => {
-    void refreshMyHub().finally(() => setLoaded(true));
+    setLoaded(false);
+    void loadHubs().finally(() => setLoaded(true));
+  }, [loadHubs]);
+
+  const myHub = useMemo(() => hubs.find((h) => h.hub?.id === selectedHubId) ?? null, [hubs, selectedHubId]);
+
+  // ── Prayer list — visible to every hub member, not just the lead ─────────
+  const [prayerItems, setPrayerItems] = useState<import('../types').HubPrayerListItem[]>([]);
+  const [prayerLoading, setPrayerLoading] = useState(false);
+
+  useEffect(() => {
+    if (!myHub?.hub) { setPrayerItems([]); return; }
+    setPrayerLoading(true);
+    myHubApi.prayerList(myHub.hub.id)
+      .then(({ items }) => setPrayerItems(items))
+      .catch(() => setPrayerItems([]))
+      .finally(() => setPrayerLoading(false));
+  }, [myHub?.hub?.id]);
+
+  // ── Role intro popup — first time seeing a job, or reopened by tapping ────
+  // your own pill.
+  const [introQueue, setIntroQueue] = useState<HubJob[]>([]);
+  const [manualIntroJob, setManualIntroJob] = useState<HubJob | null>(null);
+
+  useEffect(() => {
+    setIntroQueue(myHub?.unseenIntroJobs ?? []);
+    // Only reseed when the selected hub changes, not on every payload refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCohort?.id]);
+  }, [myHub?.hub?.id]);
 
-  // ── Recap attendance (lead only) ──────────────────────────────────────────
-  const sortedWeeks = useMemo(() => [...weeks].sort((a, b) => b.weekNumber - a.weekNumber), [weeks]);
-  const [recapWeekId, setRecapWeekId] = useState<number | null>(null);
-  const [recapMarks, setRecapMarks] = useState<Record<string, SupportAttendanceStatus>>({});
-  const [recapLoading, setRecapLoading] = useState(false);
-  // Per-person save feedback on the recap marks, keyed by userId.
-  const [recapSaveState, setRecapSaveState] = useState<Record<string, SaveState>>({});
+  const activeIntroJob = manualIntroJob ?? introQueue[0] ?? null;
 
-  useEffect(() => {
-    if (sortedWeeks.length > 0 && recapWeekId == null) setRecapWeekId(sortedWeeks[0].id);
-  }, [sortedWeeks, recapWeekId]);
-
-  useEffect(() => {
-    if (tab !== 'recap' || !myHub?.hub || recapWeekId == null) return;
-    setRecapLoading(true);
-    supportSessionsApi.getForHubWeek(myHub.hub.id, recapWeekId)
-      .then(({ attendance }) => {
-        const map: Record<string, SupportAttendanceStatus> = {};
-        attendance.forEach((a) => { map[a.userId] = a.status; });
-        setRecapMarks(map);
-      })
-      .catch(() => setRecapMarks({}))
-      .finally(() => setRecapLoading(false));
-  }, [tab, myHub?.hub, recapWeekId]);
-
-  const handleMark = async (userId: string, status: SupportAttendanceStatus) => {
-    if (!myHub?.hub || recapWeekId == null) return;
-    const setState = (state?: SaveState) => setRecapSaveState((prev) => {
-      const next = { ...prev };
-      if (state) next[userId] = state; else delete next[userId];
-      return next;
-    });
-    setState('saving');
+  const dismissIntro = async () => {
+    if (!activeIntroJob || !myHub?.hub) return;
+    const job = activeIntroJob;
+    const hubId = myHub.hub.id;
+    if (manualIntroJob) setManualIntroJob(null);
+    else setIntroQueue((prev) => prev.slice(1));
     try {
-      await supportSessionsApi.mark({ status, userId, hubId: myHub.hub.id, weekId: recapWeekId });
-      setRecapMarks((prev) => ({ ...prev, [userId]: status }));
-      setState('saved');
-      setTimeout(() => setRecapSaveState((prev) => {
-        if (prev[userId] !== 'saved') return prev;
-        const next = { ...prev };
-        delete next[userId];
-        return next;
-      }), 2000);
+      await myHubApi.markRoleIntroSeen(hubId, job);
     } catch {
-      setState('error');
+      /* not worth blocking the popup on */
     }
+  };
+
+  // ── Assistant permissions (lead only) ─────────────────────────────────────
+  // Read-only one-line summary by default; tapping Edit reveals the switches
+  // as a draft (Save/Cancel), collapsing back to the summary once saved.
+  const [permEditing, setPermEditing] = useState(false);
+  const [permDraft, setPermDraft] = useState<AssistantHubPermission[]>([]);
+  const [permSaving, setPermSaving] = useState(false);
+  const [permError, setPermError] = useState('');
+
+  const startEditingPermissions = () => {
+    setPermDraft(myHub?.hub?.assistantPermissions ?? []);
+    setPermError('');
+    setPermEditing(true);
+  };
+
+  const handleToggleDraftPermission = (perm: AssistantHubPermission) => {
+    setPermDraft((prev) => (prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]));
+  };
+
+  const handleSavePermissions = async () => {
+    if (!myHub?.hub) return;
+    setPermSaving(true);
+    setPermError('');
+    try {
+      await supportHubsApi.setAssistantPermissions(myHub.hub.id, permDraft);
+      await loadHubs();
+      setPermEditing(false);
+    } catch (err) {
+      setPermError(err instanceof Error ? err.message : 'Could not save this.');
+    } finally {
+      setPermSaving(false);
+    }
+  };
+
+  // ── Hub meeting (lead, or assistant with ATTENDANCE permission) ───────────
+  const sortedWeeks = useMemo(() => [...weeks].sort((a, b) => b.weekNumber - a.weekNumber), [weeks]);
+  const [meetingWeekId, setMeetingWeekId] = useState<number | null>(null);
+  const [recaps, setRecaps] = useState<SupportRecap[]>([]);
+
+  useEffect(() => {
+    if (sortedWeeks.length > 0 && meetingWeekId == null) setMeetingWeekId(sortedWeeks[0].id);
+  }, [sortedWeeks, meetingWeekId]);
+
+  useEffect(() => {
+    if (tab !== 'meeting' || !activeCohort?.id) return;
+    supportRecapsApi.getForCohort(activeCohort.id)
+      .then(({ recaps: list }) => setRecaps(list))
+      .catch(() => setRecaps([]));
+  }, [tab, activeCohort?.id]);
+
+  const meetingAttendanceRows = useMemo(
+    () => (myHub?.myAttendance ?? []).filter((a) => a.type === 'SUNDAY_RECAP'),
+    [myHub?.myAttendance]
+  );
+  const submittedWeekIds = useMemo(
+    () => meetingAttendanceRows.filter((a) => !!a.submittedAt && a.weekId != null).map((a) => a.weekId as number),
+    [meetingAttendanceRows]
+  );
+
+  const handleSubmitMeeting = async (weekId: number, notes: string) => {
+    if (!myHub?.hub) return;
+    await myHubApi.submitMeeting(myHub.hub.id, weekId, notes);
+    await Promise.all([loadHubs(), refreshMyHub()]);
+  };
+
+  const handleReopenMeeting = async (weekId: number) => {
+    if (!myHub?.hub) return;
+    await myHubApi.reopenMeeting(myHub.hub.id, weekId);
+    await Promise.all([loadHubs(), refreshMyHub()]);
   };
 
   // ── Trainings & get-togethers (lead only) ─────────────────────────────────
@@ -220,7 +324,7 @@ const SupportMyHubPage: React.FC = () => {
     }
   };
 
-  // ── Message hub (lead only) ───────────────────────────────────────────────
+  // ── Message hub (lead, or assistant with MESSAGE permission) ──────────────
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
@@ -235,6 +339,7 @@ const SupportMyHubPage: React.FC = () => {
       setSubject('');
       setBody('');
       setSendStatus('success');
+      void loadHubs();
       void refreshMyHub();
     } catch {
       setSendStatus('error');
@@ -266,6 +371,7 @@ const SupportMyHubPage: React.FC = () => {
     try {
       await myHubApi.updateMessage(editingMessage.id, editSubject.trim(), editBody.trim());
       setEditingMessage(null);
+      void loadHubs();
       void refreshMyHub();
     } catch (err) {
       setEditError(err instanceof Error ? err.message : 'Could not save this message.');
@@ -280,6 +386,7 @@ const SupportMyHubPage: React.FC = () => {
     try {
       await myHubApi.deleteMessage(deletingMessage.id);
       setDeletingMessage(null);
+      void loadHubs();
       void refreshMyHub();
     } catch {
       /* leave the dialog open so the lead can retry */
@@ -288,26 +395,35 @@ const SupportMyHubPage: React.FC = () => {
     }
   };
 
-  // ── Hub meeting (lead only edits; every member sees it) ───────────────────
+  // ── Hub meeting time/link (lead, or assistant with MEETING permission) ────
   const handleSaveMeeting = async (input: MeetingSaveInput) => {
     if (!myHub?.hub) return;
     await myHubApi.updateMeeting(myHub.hub.id, input);
+    void loadHubs();
     void refreshMyHub();
   };
 
   if (user?.role !== 'SUPPORT') return <Navigate to="/dashboard" replace />;
 
   const isLead = !!myHub?.isLead;
+  const canMeeting = isLead || !!myHub?.canMeeting;
+  const canAttendance = isLead || !!myHub?.canAttendance;
+  const canMessage = isLead || !!myHub?.canMessage;
+  const isRecapLead = (myHub?.myJobs ?? []).includes('RECAP_LEAD');
+  const isPrayerLead = (myHub?.myJobs ?? []).includes('PRAYER_LEAD');
   const leadMember = myHub?.hub ? myHub.members.find((m) => m.userId === myHub.hub!.leadUserId) : undefined;
   const leadWhatsAppLink = myHub?.hub ? buildWhatsAppLink(leadMember?.phone, `Hi ${myHub.hub.leadName?.split(' ')[0] ?? ''}`) : null;
+  // Every hub member can open the Hub meeting tab now — full walk-through
+  // (lead/assistant), single-step access (recap or prayer lead), or read-only
+  // follow-along for everyone else. See HubMeetingPanel for the split.
   const tabs = [
     { key: 'overview', label: 'My Hub' },
+    { key: 'meeting', label: 'Hub meeting', shortLabel: 'Meeting' },
     ...(isLead ? [
-      { key: 'recap', label: 'Recap attendance', shortLabel: 'Recap' },
       { key: 'trainings', label: 'Trainings & get-togethers', shortLabel: 'Trainings' },
       { key: 'notes', label: 'Notes' },
-      { key: 'message', label: 'Message hub', shortLabel: 'Message' },
     ] : []),
+    ...(canMessage ? [{ key: 'message', label: 'Message hub', shortLabel: 'Message' }] : []),
   ];
 
   return (
@@ -322,6 +438,18 @@ const SupportMyHubPage: React.FC = () => {
         <div className="surface-card p-8 text-center text-sm text-gray-500">You’re not in a hub for this cohort yet.</div>
       ) : (
         <div className="space-y-4">
+          {hubs.length > 1 && (
+            <div className="w-full sm:w-72">
+              <AppSelect
+                value={selectedHubId ?? ''}
+                onChange={setSelectedHubId}
+                options={hubs.filter((h) => h.hub).map((h) => ({ value: h.hub!.id, label: h.hub!.name }))}
+                placeholder="Choose hub"
+                compact
+              />
+            </div>
+          )}
+
           {tabs.length > 1 && (
             <div data-wt="hub-tabs">
               <SegmentedTabs tabs={tabs} active={tab} onChange={(k) => setTab(k as HubTab)} />
@@ -353,28 +481,153 @@ const SupportMyHubPage: React.FC = () => {
                   resetKey={myHub.hub.id}
                   linkLabel="Meeting Call Link"
                   saveLabel="Save hub meeting"
-                  onSave={isLead ? handleSaveMeeting : undefined}
+                  onSave={canMeeting ? handleSaveMeeting : undefined}
                 />
               </section>
 
               <section data-wt="hub-members" className="surface-card p-5">
                 <p className="mb-2 text-sm font-semibold text-gray-700">Fellow supports</p>
-                {myHub.members.length === 0 ? (
+                {myHub.members.length === 0 && !(myHub.hub?.itSupports?.length) ? (
                   <p className="text-sm text-gray-400">No members yet.</p>
                 ) : (
                   <ul className="divide-y divide-orange-50">
-                    {myHub.members.map((m) => (
-                      <li key={m.userId} className="flex items-center justify-between py-2 text-sm">
-                        <span className="text-gray-800">
-                          {m.name}
-                          {m.isLead && <span className="ml-2 rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>}
-                        </span>
-                        <span className="text-xs text-gray-400">{m.groupName || 'No group'}</span>
+                    {myHub.members.map((m) => {
+                      // A member can also be this hub's IT support; the member row carries that label too.
+                      const jobs: HubJob[] = [...(m.jobs ?? []), ...((myHub.hub?.itSupports ?? []).some((it) => it.userId === m.userId) && !(m.jobs ?? []).includes('IT_SUPPORT') ? ['IT_SUPPORT' as HubJob] : [])];
+                      return (
+                      <li key={m.userId} className="flex items-center justify-between gap-2 py-2 text-sm">
+                        <div className="min-w-0">
+                          <p className="text-gray-800">{m.name}</p>
+                          {!!jobs.length && (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {sortHubJobs(jobs).map((job) => (
+                                <HubJobPillButton
+                                  key={job}
+                                  job={job}
+                                  isOwn={m.userId === user?.id}
+                                  onOwnTap={() => setManualIntroJob(job)}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <span className="flex-none text-xs text-gray-400">{m.groupName || 'No group'}</span>
+                      </li>
+                      );
+                    })}
+                    {(myHub.hub?.itSupports ?? [])
+                      .filter((it) => !myHub.members.some((m) => m.userId === it.userId))
+                      .map((it) => (
+                        <li key={`it-${it.userId}`} className="flex items-center justify-between gap-2 py-2 text-sm">
+                          <div className="min-w-0">
+                            <p className="text-gray-800">{it.name}</p>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              <HubJobPillButton
+                                job="IT_SUPPORT"
+                                isOwn={it.userId === user?.id}
+                                onOwnTap={() => setManualIntroJob('IT_SUPPORT')}
+                              />
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </section>
+
+              <section className="surface-card p-5">
+                <p className="mb-2 text-sm font-semibold text-gray-700">Prayer list</p>
+                {prayerLoading ? (
+                  <p className="flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
+                ) : prayerItems.length === 0 ? (
+                  <p className="text-sm text-gray-400">Nothing shared for prayer yet.</p>
+                ) : (
+                  <ul className="max-h-72 space-y-2 overflow-y-auto">
+                    {[...prayerItems]
+                      .sort((a, b) => (a.timesPrayedFor !== b.timesPrayedFor
+                        ? a.timesPrayedFor - b.timesPrayedFor
+                        : (a.lastPrayedWeek ?? -Infinity) - (b.lastPrayedWeek ?? -Infinity)))
+                      .map((item) => (
+                      <li key={item.participantId} className="rounded-xl border border-orange-100 p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-semibold text-gray-900">{item.fullName}</p>
+                          <span className="flex-none rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-bold text-neutral-600">
+                            {item.timesPrayedFor > 0 ? `Prayed for ${item.timesPrayedFor}× · last Week ${item.lastPrayedWeek}` : 'Not prayed for yet'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400">{item.groupName || 'No group'}{item.categoryName ? ` · ${item.categoryName}` : ''}</p>
+                        <p className="mt-1 whitespace-pre-line text-sm text-gray-700">{item.body}</p>
                       </li>
                     ))}
                   </ul>
                 )}
               </section>
+
+              {isLead && myHub.hub.assistantLeadUserId && (
+                <section className="surface-card p-5">
+                  <p className="mb-1 text-sm font-semibold text-gray-700">Assistant permissions</p>
+                  <p className="mb-3 text-xs text-gray-400">What {myHub.hub.assistantLeadName || 'your assistant'} can do.</p>
+                  {permError && <p className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600">{permError}</p>}
+                  {permEditing ? (
+                    <>
+                      <div className="space-y-3">
+                        {PERMISSION_OPTIONS.map((opt) => {
+                          const checked = permDraft.includes(opt.value);
+                          return (
+                            <div key={opt.value} className="flex items-center justify-between gap-4 rounded-2xl bg-gray-50 px-3 py-2.5">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-gray-800">{opt.label}</p>
+                                <p className="text-xs text-gray-500">{opt.hint}</p>
+                              </div>
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={checked}
+                                aria-label={opt.label}
+                                onClick={() => handleToggleDraftPermission(opt.value)}
+                                disabled={permSaving}
+                                className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition disabled:opacity-60 ${checked ? 'bg-primary' : 'bg-slate-200'}`}
+                              >
+                                <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${checked ? 'translate-x-7' : 'translate-x-1'}`} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3.5 flex gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => { setPermEditing(false); setPermError(''); }}
+                          disabled={permSaving}
+                          className="min-h-[42px] rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 disabled:opacity-60"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { void handleSavePermissions(); }}
+                          disabled={permSaving}
+                          className="min-h-[42px] flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-white disabled:opacity-60"
+                        >
+                          {permSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="min-w-0 text-sm text-gray-700">
+                        {(() => {
+                          const granted = PERMISSION_OPTIONS.filter((opt) => (myHub.hub!.assistantPermissions ?? []).includes(opt.value));
+                          return granted.length === 0
+                            ? "Assistant can't do anything extra yet."
+                            : `Assistant can: ${granted.map((opt) => opt.summary).join(' · ')}`;
+                        })()}
+                      </p>
+                      <button type="button" onClick={startEditingPermissions} className="flex-none text-sm font-semibold text-primary">Edit</button>
+                    </div>
+                  )}
+                </section>
+              )}
 
               <section className="surface-card p-5">
                 <p className="mb-2 text-sm font-semibold text-gray-700">Messages from the lead</p>
@@ -442,44 +695,27 @@ const SupportMyHubPage: React.FC = () => {
             </div>
           )}
 
-          {tab === 'recap' && isLead && (
-            <section className="surface-card p-5">
-              <div className="mb-4 w-full sm:w-64">
-                <AppSelect
-                  value={recapWeekId != null ? String(recapWeekId) : ''}
-                  onChange={(v) => setRecapWeekId(v ? Number(v) : null)}
-                  options={sortedWeeks.map((w) => ({ value: String(w.id), label: `Week ${w.weekNumber}` }))}
-                  placeholder="Pick a week"
-                  compact
-                />
-              </div>
-              {recapLoading ? (
-                <p className="flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
-              ) : myHub.members.length === 0 ? (
-                <p className="text-sm text-gray-400">No members yet.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {myHub.members.map((m) => (
-                    <li key={m.userId} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900">{m.name}</p>
-                        <SaveStatus state={recapSaveState[m.userId]} />
-                      </div>
-                      <div className="w-40 flex-none">
-                        <AppSelect
-                          value={recapMarks[m.userId] ?? ''}
-                          onChange={(v) => v && void handleMark(m.userId, v as SupportAttendanceStatus)}
-                          options={STATUS_OPTIONS}
-                          placeholder="Not marked"
-                          disabled={recapSaveState[m.userId] === 'saving'}
-                          compact
-                        />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+          {tab === 'meeting' && (
+            <HubMeetingPanel
+              hubId={myHub.hub.id}
+              members={myHub.members}
+              weeks={sortedWeeks}
+              weekId={meetingWeekId}
+              onWeekChange={setMeetingWeekId}
+              submittedWeekIds={submittedWeekIds}
+              hubLeadName={myHub.hub.leadName}
+              recapLeadName={myHub.hub.recapLeadName}
+              prayerLeadName={myHub.hub.prayerLeadName}
+              prayerItems={prayerItems}
+              recaps={recaps}
+              messages={myHub.messages}
+              canReopen={canAttendance}
+              canAttendance={canAttendance}
+              isRecapLead={isRecapLead}
+              isPrayerLead={isPrayerLead}
+              onSubmit={handleSubmitMeeting}
+              onReopen={handleReopenMeeting}
+            />
           )}
 
           {tab === 'trainings' && isLead && (
@@ -586,7 +822,7 @@ const SupportMyHubPage: React.FC = () => {
             </section>
           )}
 
-          {tab === 'message' && isLead && (
+          {tab === 'message' && canMessage && (
             <section className="surface-card p-5">
               {sendStatus === 'success' && <p className="mb-3 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">Message sent to the hub.</p>}
               {sendStatus === 'error' && <p className="mb-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">Failed to send. Please try again.</p>}
@@ -617,6 +853,23 @@ const SupportMyHubPage: React.FC = () => {
             </section>
           )}
         </div>
+      )}
+
+      {activeIntroJob && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-end bg-black/50 p-0 sm:items-center sm:justify-center sm:p-4">
+          <div className="w-full rounded-t-3xl bg-white p-6 shadow-xl sm:max-w-md sm:rounded-2xl">
+            <h3 className="text-lg font-semibold text-gray-900">You're the {HUB_JOB_INFO[activeIntroJob].label}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-gray-600">{HUB_JOB_INFO[activeIntroJob].introBody}</p>
+            <button
+              type="button"
+              onClick={() => void dismissIntro()}
+              className="mt-5 w-full rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-white active:scale-95"
+            >
+              Got it
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
 
       {editingMessage && (
@@ -673,6 +926,65 @@ const SupportMyHubPage: React.FC = () => {
         type="danger"
       />
     </div>
+  );
+};
+
+// Small colour pill for one job; tapping it shows a short explanation, except
+// on your own pill which reopens the full role-intro popup instead.
+const HubJobPillButton: React.FC<{ job: HubJob; isOwn: boolean; onOwnTap: () => void }> = ({ job, isOwn, onOwnTap }) => {
+  const info = HUB_JOB_INFO[job];
+  const [open, setOpen] = useState(false);
+  const [style, setStyle] = useState<React.CSSProperties>({});
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const popRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const place = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = Math.min(240, window.innerWidth - 24);
+      const left = Math.min(Math.max(12, rect.left + rect.width / 2 - width / 2), window.innerWidth - width - 12);
+      const below = rect.bottom + 8;
+      const top = below + 100 > window.innerHeight ? Math.max(12, rect.top - 8 - 100) : below;
+      setStyle({ position: 'fixed', top, left, width, zIndex: 130 });
+    };
+    const close = (event: PointerEvent) => {
+      if (popRef.current?.contains(event.target as Node) || buttonRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    document.addEventListener('pointerdown', close);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+      document.removeEventListener('pointerdown', close);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          if (isOwn) { onOwnTap(); return; }
+          setOpen((value) => !value);
+        }}
+        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${info.pill}`}
+      >
+        {info.label}
+      </button>
+      {open && !isOwn && createPortal(
+        <div ref={popRef} role="tooltip" style={style} className="rounded-xl bg-gray-800 px-3 py-2.5 text-xs font-medium leading-relaxed text-white shadow-[0_12px_30px_-10px_rgba(17,24,39,0.45)]">
+          {info.description}
+        </div>,
+        document.body
+      )}
+    </>
   );
 };
 

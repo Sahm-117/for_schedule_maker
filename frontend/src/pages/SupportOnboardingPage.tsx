@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, NavLink } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
 import PageHeader from '../components/PageHeader';
 import SegmentedTabs from '../components/SegmentedTabs';
@@ -660,8 +660,12 @@ const SupportOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
           )}
 
           {!selectedGroupId ? (
-            <section className="surface-card p-6 text-center">
-              <p className="text-sm text-gray-500">You do not have a group assigned yet.</p>
+            <section className="surface-card p-8 text-center">
+              <p className="text-sm font-semibold text-gray-700">You don&apos;t have a participant group this cohort</p>
+              <p className="mt-1 text-xs text-gray-400">Onboarding steps live here for a participant group — head to My Hub for your hub instead.</p>
+              <NavLink to="/support/my-hub" className="mt-4 inline-flex min-h-[38px] items-center rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white">
+                Open My Hub
+              </NavLink>
             </section>
           ) : (
             <>

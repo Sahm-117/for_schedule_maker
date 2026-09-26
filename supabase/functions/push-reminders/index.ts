@@ -529,7 +529,7 @@ Deno.serve(async (req) => {
 
         const { data: hubs } = await supabase
           .from('SupportHub')
-          .select('id, name, meetingTime, callLink')
+          .select('id, name, meetingTime, callLink, leadUserId, assistantLeadUserId, recapLeadUserId, prayerLeadUserId')
           .eq('meetingDay', DAY_NAMES_UPPER[target.dayIndex])
           .not('meetingTime', 'is', null)
           .not('callLink', 'is', null)
@@ -558,7 +558,17 @@ Deno.serve(async (req) => {
             .select('userId')
             .eq('hubId', hub.id)
 
-          let memberIds = [...new Set(((members || []) as any[]).map((m: any) => m.userId))]
+          // Operational IT supports cover this hub without a HubMembership
+          // row, but still get the reminder — deduped against members.
+          const { data: itSupports } = await supabase
+            .from('HubItSupport')
+            .select('userId')
+            .eq('hubId', hub.id)
+
+          let memberIds = [...new Set([
+            ...((members || []) as any[]).map((m: any) => m.userId),
+            ...((itSupports || []) as any[]).map((m: any) => m.userId),
+          ])]
           memberIds = memberIds.filter((id) => wantsInterval(id, interval))
           if (onlyUserIds) memberIds = memberIds.filter((id) => onlyUserIds!.includes(id))
           if (memberIds.length === 0) continue
@@ -570,17 +580,32 @@ Deno.serve(async (req) => {
 
           if (!subs || subs.length === 0) continue
 
-          const payload = JSON.stringify({
-            title: `🙏 Hub meeting reminder: ${minuteLabel} away`,
-            body: `${hub.name} meets at ${hub.meetingTime}. Join: ${hub.callLink}`,
-            icon: '/icon-192.png',
-            tag: `fof-hubmeeting-${hub.id}-${interval}`,
-            data: { path: '/support/my-hub' },
-          })
+          const baseBody = `${hub.name} meets at ${hub.meetingTime}. Join: ${hub.callLink}`
 
           for (const userId of memberIds) {
             const userSubs = (subs as any[]).filter((s: any) => s.userId === userId)
             if (userSubs.length === 0) continue
+
+            // Personal line for whichever job(s) this recipient holds on the
+            // hub — IT supports and plain members get none.
+            const jobPhrases: string[] = []
+            if (hub.leadUserId === userId) jobPhrases.push("leading Announcements")
+            if (hub.assistantLeadUserId === userId) jobPhrases.push("making sure everyone is there")
+            if (hub.recapLeadUserId === userId) jobPhrases.push("leading Review & Recap")
+            if (hub.prayerLeadUserId === userId) jobPhrases.push("leading prayer")
+            const personalLine = jobPhrases.length === 0
+              ? ''
+              : jobPhrases.length === 1
+              ? ` You're ${jobPhrases[0]}.`
+              : ` You're ${jobPhrases.slice(0, -1).join(', ')} and ${jobPhrases[jobPhrases.length - 1]}.`
+
+            const payload = JSON.stringify({
+              title: `🙏 Hub meeting reminder: ${minuteLabel} away`,
+              body: `${baseBody}${personalLine}`,
+              icon: '/icon-192.png',
+              tag: `fof-hubmeeting-${hub.id}-${interval}`,
+              data: { path: '/support/my-hub' },
+            })
 
             if (dryRun) {
               debug.push({ wouldSend: 'HUB_MEETING', hubId: hub.id, interval, userId, subs: userSubs.length })

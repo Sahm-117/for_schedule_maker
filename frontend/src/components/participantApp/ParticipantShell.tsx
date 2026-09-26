@@ -44,6 +44,15 @@ const MORE: NavEntry[] = [
 
 const Dot: React.FC = () => <span className="h-2 w-2 flex-none rounded-full bg-red-500" aria-label="New reply" />;
 
+// Small pulsing dot for "your group meeting is on now" — same visual
+// language as the support app's nav dot (AppShell's PulsingDot).
+const LiveDot: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <span className={`relative flex h-2 w-2 flex-none ${className}`} aria-label="Meeting is on now">
+    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+  </span>
+);
+
 const isActive = (pathname: string, to: string, exact?: boolean) =>
   exact ? pathname === to : to === '/me/journey'
     ? pathname === to || pathname.startsWith('/me/journey/') || pathname.startsWith('/me/week/')
@@ -104,6 +113,7 @@ const ShellLayout: React.FC = () => {
   const { user, logout } = useAuth();
   const { home, reload } = useParticipantApp();
   const faithUnread = !!home?.faithUnread;
+  const groupMeetingLive = !!home?.groupMeetingLive;
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
   const { showPrompt, showBlocked, enable, dismiss, dismissBlocked } = useParticipantPush();
@@ -146,6 +156,7 @@ const ShellLayout: React.FC = () => {
                 <Icon d={item.icon} />
                 <span className="flex-1">{item.label}</span>
                 {item.faith && faithUnread && <Dot />}
+                {item.to === '/me/group' && groupMeetingLive && <LiveDot />}
               </NavLink>
             );
           })}
@@ -200,6 +211,7 @@ const ShellLayout: React.FC = () => {
                 <Icon d={item.icon} />
                 <span className="truncate">{item.mobileLabel ?? item.label}</span>
                 {item.faith && faithUnread && <span className="absolute right-3 top-1.5 h-2 w-2 rounded-full bg-red-500" aria-label="New reply" />}
+                {item.to === '/me/group' && groupMeetingLive && <LiveDot className="absolute right-3 top-1.5" />}
               </NavLink>
             );
           })}

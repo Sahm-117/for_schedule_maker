@@ -295,6 +295,8 @@ interface ParticipantCardProps {
   onFaithHelpResolved?: (request: FaithHelpRequest) => void;
   /** This participant's testimonies, every status. */
   testimonies?: Testimony[];
+  /** Marks these testimony ids as viewed by this support (clears the "New testimony" pill). */
+  onTestimonyViewed?: (ids: string[]) => void;
 }
 
 const ParticipantCard: React.FC<ParticipantCardProps> = ({
@@ -323,6 +325,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   faithHelpRequests,
   onFaithHelpResolved,
   testimonies,
+  onTestimonyViewed,
 }) => {
   const [handlingHelp, setHandlingHelp] = useState(false);
   const markHelpHandled = async () => {
@@ -344,6 +347,12 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
     }
   };
   const unread = unreadTrails(participant.id, project, notes, userId, threadReads);
+  // Shared "just my support" testimony -- the one thing on this list that's
+  // addressed to this support specifically, so it gets its own labelled
+  // section (like the faith-help box) instead of hiding in the View sheet.
+  const supportTestimonies = (testimonies ?? []).filter((t) => t.visibility === 'SUPPORT' && t.status === 'APPROVED');
+  const sharedTestimony = supportTestimonies[0] ?? null;
+  const unseenTestimonyIds = supportTestimonies.filter((t) => !t.viewedAt).map((t) => t.id);
   const [menu, setMenu] = useState<'closed' | 'main' | 'concern'>('closed');
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -360,6 +369,11 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
     if (viewOpen) loadReferrals();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewOpen, participant.id]);
+  // Opening the card clears the "New testimony" pill.
+  useEffect(() => {
+    if (viewOpen && unseenTestimonyIds.length > 0) onTestimonyViewed?.(unseenTestimonyIds);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewOpen, unseenTestimonyIds.join(',')]);
   const [editingName, setEditingName] = useState(false);
   const [fpOpen, setFpOpen] = useState(false);
 
@@ -513,6 +527,11 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
             Reflected {shortMoment(reflectedAt)}
           </span>
         )}
+        {unseenTestimonyIds.length > 0 && (
+          <span className="rounded-full bg-emerald-100/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+            New testimony
+          </span>
+        )}
       </div>
 
       {helpRequest && (
@@ -545,6 +564,14 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
           </div>
         </div>
       ))}
+
+      {sharedTestimony && (
+        <div className="mt-2.5 rounded-xl bg-emerald-100/80 px-[13px] py-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-emerald-700">Testimony · {shortMoment(sharedTestimony.createdAt)}</p>
+          {sharedTestimony.title && <p className="mt-1 text-[13px] font-semibold text-gray-800">{sharedTestimony.title}</p>}
+          <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-gray-700">{sharedTestimony.body}</p>
+        </div>
+      )}
 
       {flag && concernOpen && (
         <div className="mt-2.5 rounded-xl border border-[#fde68a] bg-[#fffbeb] px-[13px] py-3">

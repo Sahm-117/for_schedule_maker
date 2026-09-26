@@ -22,7 +22,7 @@ export const formatMeetingSlot = (day?: string | null, time?: string | null, dur
   return durationMins ? `${base} · ${durationMins} minutes` : base;
 };
 
-const formatMeetingTime = (day?: string | null, time?: string | null): string | null => {
+export const formatMeetingTime = (day?: string | null, time?: string | null): string | null => {
   if (!day || !time) return null;
   const [h, m] = time.split(':').map(Number);
   const dayLabel = day.charAt(0) + day.slice(1).toLowerCase();

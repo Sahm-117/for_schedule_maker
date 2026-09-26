@@ -44,7 +44,7 @@ const ParticipantCompletePage: React.FC = () => {
 
   return (
     <div className="max-w-[480px]">
-      <PageHeader title="Wrapping up" subtitle="Tell us what comes next for you." />
+      <PageHeader title="Wrapping up" subtitle="Tell us what comes next for you." back={{ label: 'Home', fallbackTo: '/me' }} />
       <section className={CARD}>
         {sent || home.wrapUp.submitted ? (
           <div className="px-2.5 py-5 text-center">

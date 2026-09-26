@@ -107,7 +107,7 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
           <div className="min-w-0">
             <p className="text-lg font-semibold text-gray-900">Registration link</p>
             <p className="mt-1 text-sm text-gray-500">
-              Used wherever a template contains {'{{registration_link}}'}.
+              Used wherever a template contains {'{{registration_link}}'}. Also used for the Register button on fof.tcnikorodu.org.
             </p>
             <p className="mt-3 truncate text-[15px] font-medium text-gray-800 sm:break-all">
               {registrationLink || 'Not set yet.'}
@@ -198,7 +198,7 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Registration link</label>
               <input className={inputClass} value={linkDraft} onChange={(e) => setLinkDraft(e.target.value)} placeholder="https://..." />
             </div>
-            <p className="text-xs text-gray-500">Used wherever a template contains {'{{registration_link}}'}.</p>
+            <p className="text-xs text-gray-500">Used wherever a template contains {'{{registration_link}}'}. Also used for the Register button on fof.tcnikorodu.org.</p>
           </div>
         </ModalShell>
       )}

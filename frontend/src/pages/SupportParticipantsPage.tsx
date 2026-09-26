@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { NavLink, Navigate, useSearchParams } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
 import SegmentedTabs from '../components/SegmentedTabs';
 import GroupCallCard, { formatMeetingSlot } from '../components/groups/GroupCallCard';
@@ -358,9 +358,12 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
           </button>
         </section>
       ) : !selectedGroupId ? (
-        <section className="surface-card p-6 text-center">
-          <p className="text-sm text-gray-500">You do not have a group assigned yet.</p>
-          <p className="mt-1 text-xs text-gray-400">Once a group is assigned, your group workspace will appear here.</p>
+        <section className="surface-card p-8 text-center">
+          <p className="text-sm font-semibold text-gray-700">You don&apos;t have a participant group this cohort</p>
+          <p className="mt-1 text-xs text-gray-400">Your hub's members, prayer list and meetings live on My Hub instead.</p>
+          <NavLink to="/support/my-hub" className="mt-4 inline-flex min-h-[38px] items-center rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white">
+            Open My Hub
+          </NavLink>
         </section>
       ) : (
         <div className="max-w-[760px] space-y-3">
@@ -442,6 +445,10 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
                 faithHelpRequests={faithHelpRequests.filter((entry) => entry.participantId === participant.id)}
                 onFaithHelpResolved={(resolved) => setFaithHelpRequests((prev) => prev.filter((entry) => entry.id !== resolved.id))}
                 testimonies={testimonies.filter((entry) => entry.participantId === participant.id)}
+                onTestimonyViewed={(ids) => {
+                  setTestimonies((prev) => prev.map((t) => (ids.includes(t.id) ? { ...t, viewedAt: new Date().toISOString() } : t)));
+                  void testimoniesApi.markViewed(ids, user.id).catch(() => undefined);
+                }}
                 onFlagRaised={(flag) => setFlags((prev) => [flag, ...prev.filter((entry) => entry.participantId !== flag.participantId)])}
                 onFlagCleared={(flagId) => setFlags((prev) => prev.filter((entry) => entry.id !== flagId))}
               />

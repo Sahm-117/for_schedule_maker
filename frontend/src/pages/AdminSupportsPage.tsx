@@ -12,9 +12,10 @@ import Spinner from '../components/Spinner';
 import Avatar from '../components/Avatar';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { cohortsApi, participantNotesApi, settingsApi, supportHubsApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
-import type { HubMembership, ParticipantNote, SupportHub, SupportNote, SupportSession, User } from '../types';
+import { cohortsApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
+import type { HubMembership, ParticipantNote, SupportHub, SupportKind, SupportNote, SupportSession, User } from '../types';
 import AppSelect from '../components/AppSelect';
+import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
 import {
   PERSON_HEALTH_LABEL,
@@ -36,6 +37,22 @@ const HEALTH_PILL: Record<PersonHealth, string> = {
 };
 const SEVERITY: Record<PersonHealth, number> = { critical: 0, warning: 1, good: 2 };
 
+const KIND_OPTIONS: Array<{ value: SupportKind; label: string }> = [
+  { value: 'PARTICIPANT_SUPPORT', label: 'Participant support' },
+  { value: 'HUB_LEAD', label: 'Hub lead' },
+  { value: 'OPERATIONAL', label: 'Operational support' },
+];
+const KIND_LABEL: Record<SupportKind, string> = {
+  PARTICIPANT_SUPPORT: 'Participant support',
+  HUB_LEAD: 'Hub lead',
+  OPERATIONAL: 'Operational support',
+};
+// Participant support is the default/common case — kept quiet (no pill).
+const KIND_PILL: Partial<Record<SupportKind, string>> = {
+  HUB_LEAD: 'bg-violet-100/80 text-violet-700',
+  OPERATIONAL: 'bg-sky-100/80 text-sky-700',
+};
+
 type Filter = 'all' | PersonHealth;
 
 const AdminSupportsPage: React.FC = () => {
@@ -56,6 +73,10 @@ const AdminSupportsPage: React.FC = () => {
   const [trainingAttendance, setTrainingAttendance] = useState<Array<{ sessionId: string; userId: string; status: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // A support's kind for this cohort (missing entry = PARTICIPANT_SUPPORT, the default).
+  const [kinds, setKinds] = useState<Record<string, SupportKind>>({});
+  const [savingKindIds, setSavingKindIds] = useState<Set<string>>(new Set());
+  const toast = useToast();
 
   const filterParam = searchParams.get('health');
   const filter: Filter = filterParam === 'critical' || filterParam === 'warning' || filterParam === 'good' ? filterParam : 'all';
@@ -65,7 +86,7 @@ const AdminSupportsPage: React.FC = () => {
     if (!activeCohort?.id) { setLoading(false); return; }
     try {
       setError('');
-      const [h, p, r, u, hb, ms, ts] = await Promise.all([
+      const [h, p, r, u, hb, ms, ts, k] = await Promise.all([
         cohortsApi.getHealth(activeCohort.id),
         cohortsApi.getPeople(activeCohort.id),
         settingsApi.getProgrammeRules(),
@@ -73,6 +94,7 @@ const AdminSupportsPage: React.FC = () => {
         supportHubsApi.getAll(activeCohort.id).then((res) => res.hubs).catch(() => [] as SupportHub[]),
         supportHubsApi.getMembershipsForCohort(activeCohort.id).then((res) => res.memberships).catch(() => [] as HubMembership[]),
         supportSessionsApi.getForCohort(activeCohort.id, ['PRE_COHORT_TRAINING']).catch(() => ({ sessions: [] as SupportSession[], attendance: [] as Array<{ sessionId: string; userId: string; status: string }> })),
+        supportKindApi.getForCohort(activeCohort.id).then((res) => res.kinds).catch(() => ({} as Record<string, SupportKind>)),
       ]);
       setHealth(h);
       setPeople(p);
@@ -81,6 +103,7 @@ const AdminSupportsPage: React.FC = () => {
       setHubs(hb);
       setMemberships(ms);
       setTrainingSessions(ts.sessions);
+      setKinds(k);
       setTrainingAttendance(ts.attendance);
       const groupIds = h.groups.map((g) => g.id);
       setReports(await participantNotesApi.getMeetingReports(groupIds).then((res) => res.notes).catch(() => [] as ParticipantNote[]));
@@ -142,6 +165,25 @@ const AdminSupportsPage: React.FC = () => {
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
+  const saveKind = async (userId: string, kind: SupportKind) => {
+    if (!activeCohort) return;
+    const prev = kinds[userId] ?? 'PARTICIPANT_SUPPORT';
+    setKinds((cur) => ({ ...cur, [userId]: kind }));
+    setSavingKindIds((cur) => new Set(cur).add(userId));
+    try {
+      await supportKindApi.set(userId, activeCohort.id, kind);
+    } catch (err) {
+      setKinds((cur) => ({ ...cur, [userId]: prev }));
+      toast({ message: err instanceof Error ? err.message : 'Could not save that. Please try again.', tone: 'error' });
+    } finally {
+      setSavingKindIds((cur) => {
+        const next = new Set(cur);
+        next.delete(userId);
+        return next;
+      });
+    }
+  };
+
   const setFilter = (next: string) => {
     const params = new URLSearchParams(searchParams);
     if (next === 'all') params.delete('health'); else params.set('health', next);
@@ -158,16 +200,25 @@ const AdminSupportsPage: React.FC = () => {
   const userById = new Map(users.map((u) => [u.id, u]));
   const groupById = new Map((health?.groups ?? []).map((g) => [g.id, g]));
 
+  const kindOf = (userId: string): SupportKind => kinds[userId] ?? 'PARTICIPANT_SUPPORT';
+  const isProblemKind = (userId: string) => kindOf(userId) === 'PARTICIPANT_SUPPORT';
+
   // Supports who lead no group still show up as a simple card when they're in
-  // a hub — otherwise the only trace of them is a name in the collapsed line
-  // below, and the hub filter used to hide them from the page entirely. They
-  // have no health, so a health filter other than "all" hides their card too.
-  const notLeadingWithHub = (model?.notLeading ?? []).filter((u) => !!hubByUserId.get(u.id));
+  // a hub, or when their kind is Hub lead / Operational support (they aren't
+  // meant to lead a group) — otherwise the only trace of them is a name in the
+  // collapsed line below, and the hub filter used to hide them from the page
+  // entirely. They have no health, so a health filter other than "all" hides
+  // their card too.
+  const notLeadingWithHub = (model?.notLeading ?? []).filter((u) => !!hubByUserId.get(u.id) || !isProblemKind(u.id));
   const notLeadingCards = filter === 'all'
     ? notLeadingWithHub.filter((u) => !hubFilter || hubByUserId.get(u.id)?.id === hubFilter)
     : [];
   const notLeadingCardIds = new Set(notLeadingCards.map((u) => u.id));
-  const notLeadingCollapsed = (model?.notLeading ?? []).filter((u) => !notLeadingCardIds.has(u.id));
+  // Hub leads and operational supports are never flagged as a "no group"
+  // problem, regardless of the health filter/tab in view.
+  const notLeadingCollapsed = (model?.notLeading ?? [])
+    .filter((u) => !notLeadingCardIds.has(u.id))
+    .filter((u) => isProblemKind(u.id));
 
   return (
     <div>
@@ -250,10 +301,21 @@ const AdminSupportsPage: React.FC = () => {
                     const weekId = model.weekIdByNumber.get(weekNumber);
                     return weekId == null ? null : reportByKey.get(`${evaluation.groupId}:${weekId}`) ?? null;
                   }}
+                  kind={kinds[evaluation.supportId] ?? 'PARTICIPANT_SUPPORT'}
+                  kindSaving={savingKindIds.has(evaluation.supportId)}
+                  onKindChange={(kind) => void saveKind(evaluation.supportId, kind)}
                 />
               ))}
               {notLeadingCards.map((u) => (
-                <NoLeadSupportCard key={u.id} user={u} hub={hubByUserId.get(u.id)!} training={trainingCountFor(trainingCounts, u.id, trainingsTotal)} />
+                <NoLeadSupportCard
+                  key={u.id}
+                  user={u}
+                  hub={hubByUserId.get(u.id)!}
+                  training={trainingCountFor(trainingCounts, u.id, trainingsTotal)}
+                  kind={kinds[u.id] ?? 'PARTICIPANT_SUPPORT'}
+                  kindSaving={savingKindIds.has(u.id)}
+                  onKindChange={(kind) => void saveKind(u.id, kind)}
+                />
               ))}
             </ul>
           )}
@@ -272,7 +334,24 @@ const AdminSupportsPage: React.FC = () => {
               {notLeadingCollapsed.length > 0 && (
                 <details className={model.unsupported.length > 0 ? 'mt-3' : ''}>
                   <summary className="cursor-pointer text-sm font-semibold text-gray-700">{notLeadingCollapsed.length} support{notLeadingCollapsed.length === 1 ? ' isn’t' : 's aren’t'} leading a group this cohort</summary>
-                  <p className="mt-2 text-sm text-gray-600">{notLeadingCollapsed.map((u) => u.name).join(', ')}</p>
+                  <ul className="mt-2 flex flex-col gap-2">
+                    {notLeadingCollapsed.map((u) => (
+                      <li key={u.id} className="flex items-center justify-between gap-3 text-sm text-gray-600">
+                        <span className="min-w-0 truncate">{u.name}</span>
+                        <div className="w-44 flex-none">
+                          <AppSelect
+                            value={kindOf(u.id)}
+                            onChange={(v) => void saveKind(u.id, v as SupportKind)}
+                            options={KIND_OPTIONS}
+                            placeholder="Participant support"
+                            disabled={savingKindIds.has(u.id)}
+                            loading={savingKindIds.has(u.id)}
+                            compact
+                          />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 </details>
               )}
             </section>
@@ -294,7 +373,10 @@ const SupportCard: React.FC<{
   hub: { id: string; name: string; isLead: boolean } | null;
   training: { attended: number; total: number };
   reportFor: (weekNumber: number) => ParticipantNote | null;
-}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor }) => {
+  kind: SupportKind;
+  kindSaving: boolean;
+  onKindChange: (kind: SupportKind) => void;
+}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange }) => {
   const [open, setOpen] = useState(false);
   const [openReport, setOpenReport] = useState<number | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -343,6 +425,7 @@ const SupportCard: React.FC<{
           <p className="text-base font-semibold text-gray-900">
             {supportName}
             {hub?.isLead && <span className="ml-2 rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>}
+            {KIND_PILL[kind] && <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>}
           </p>
           <p className="text-sm text-gray-500">
             {groupName} · {evaluation.members} participant{evaluation.members === 1 ? '' : 's'}
@@ -355,6 +438,10 @@ const SupportCard: React.FC<{
           </p>
         </div>
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${HEALTH_PILL[evaluation.health]}`}>{PERSON_HEALTH_LABEL[evaluation.health]}</span>
+      </div>
+
+      <div className="mt-3 w-full sm:w-56">
+        <AppSelect value={kind} onChange={(v) => onKindChange(v as SupportKind)} options={KIND_OPTIONS} placeholder="Participant support" disabled={kindSaving} loading={kindSaving} compact label="Kind" />
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
@@ -483,9 +570,12 @@ const SupportCard: React.FC<{
 // group-leading card has.
 const NoLeadSupportCard: React.FC<{
   user: User;
-  hub: { id: string; name: string; isLead: boolean };
+  hub: { id: string; name: string; isLead: boolean } | null;
   training: { attended: number; total: number };
-}> = ({ user, hub, training }) => {
+  kind: SupportKind;
+  kindSaving: boolean;
+  onKindChange: (kind: SupportKind) => void;
+}> = ({ user, hub, training, kind, kindSaving, onKindChange }) => {
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState<SupportNote[] | null>(null);
   const [noteBody, setNoteBody] = useState('');
@@ -504,7 +594,7 @@ const NoLeadSupportCard: React.FC<{
     if (!noteBody.trim()) return;
     setNoteSaving(true);
     try {
-      const { note } = await supportNotesApi.create({ supportId: user.id, hubId: hub.id, noteType: 'NOTE', body: noteBody.trim() });
+      const { note } = await supportNotesApi.create({ supportId: user.id, hubId: hub?.id ?? null, noteType: 'NOTE', body: noteBody.trim() });
       setNotes((prev) => [note, ...(prev ?? [])]);
       setNoteBody('');
     } catch { /* ignore */ }
@@ -517,10 +607,11 @@ const NoLeadSupportCard: React.FC<{
         <div className="min-w-0 flex-1">
           <p className="text-base font-semibold text-gray-900">
             {user.name}
-            {hub.isLead && <span className="ml-2 rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>}
+            {hub?.isLead && <span className="ml-2 rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>}
+            {KIND_PILL[kind] && <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>}
           </p>
           <p className="text-sm text-gray-500">
-            <span className="rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>
+            {hub && <span className="rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>}
             {training.total > 0 && (
               <span className="ml-1.5 rounded-full bg-sky-100/80 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
                 Trainings {training.attended}/{training.total}
@@ -530,7 +621,11 @@ const NoLeadSupportCard: React.FC<{
         </div>
       </div>
 
-      <p className="mt-3 text-sm text-gray-600">Not leading a group yet</p>
+      {kind === 'PARTICIPANT_SUPPORT' && <p className="mt-3 text-sm text-gray-600">Not leading a group yet</p>}
+
+      <div className="mt-3 w-full sm:w-56">
+        <AppSelect value={kind} onChange={(v) => onKindChange(v as SupportKind)} options={KIND_OPTIONS} placeholder="Participant support" disabled={kindSaving} loading={kindSaving} compact label="Kind" />
+      </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
         {whatsapp && (

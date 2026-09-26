@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import FaithProjectGuide from '../components/FaithProjectGuide';
+import SegmentedTabs from '../components/SegmentedTabs';
+import TestimoniesTab from '../components/participantApp/TestimoniesTab';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
 import { useParticipantApp } from '../context/ParticipantAppContext';
@@ -117,6 +119,20 @@ const NotGoingWellSheet: React.FC<{
 
 const CARD = 'rounded-[20px] border border-[#eef0f4] bg-white p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
 
+const Switch: React.FC<{ on: boolean; onToggle?: () => void; label: string; disabled?: boolean }> = ({ on, onToggle, label, disabled }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={on}
+    aria-label={label}
+    onClick={onToggle}
+    disabled={disabled}
+    className={`relative inline-flex h-7 w-12 flex-none items-center rounded-full transition disabled:opacity-60 ${on ? 'bg-primary' : 'bg-gray-200'}`}
+  >
+    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${on ? 'translate-x-6' : 'translate-x-1'}`} />
+  </button>
+);
+
 const STATUS: Record<FaithProjectStatus, { label: string; cls: string; editable: boolean }> = {
   NOT_DRAFTED: { label: 'Start your project', cls: 'bg-[#f6f7f9] text-gray-500', editable: true },
   AWAITING_DRAFT: { label: 'Changes requested', cls: 'bg-[#fef3c7] text-[#b45309]', editable: true },
@@ -125,11 +141,15 @@ const STATUS: Record<FaithProjectStatus, { label: string; cls: string; editable:
   APPROVED: { label: 'Approved', cls: 'bg-[#f2fbf5] text-[#15803d]', editable: false },
 };
 
+type FaithTab = 'project' | 'testimonies';
+
 const ParticipantFaithPage: React.FC = () => {
   const { user } = useAuth();
   const { home, reload } = useParticipantApp();
   const toast = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState<FaithTab>(searchParams.get('tab') === 'testimonies' ? 'testimonies' : 'project');
   const [faith, setFaith] = useState<ParticipantFaith | null>(null);
   const [draft, setDraft] = useState('');
   const [loadError, setLoadError] = useState('');
@@ -137,6 +157,8 @@ const ParticipantFaithPage: React.FC = () => {
   const [error, setError] = useState('');
   const [trailOpen, setTrailOpen] = useState(false);
   const [helpSheetOpen, setHelpSheetOpen] = useState(false);
+  const [prayerShare, setPrayerShare] = useState(false);
+  const [prayerShareSaving, setPrayerShareSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -145,6 +167,7 @@ const ParticipantFaithPage: React.FC = () => {
         if (cancelled) return;
         setFaith(data);
         setDraft(data.project?.body ?? '');
+        setPrayerShare(!!data.project?.sharedForPrayer);
         // A new support reply deserves attention once; otherwise keep this compact.
         setTrailOpen(!!home?.faithUnread);
       })
@@ -152,6 +175,20 @@ const ParticipantFaithPage: React.FC = () => {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const togglePrayerShare = async () => {
+    const next = !prayerShare;
+    setPrayerShare(next);
+    setPrayerShareSaving(true);
+    try {
+      await participantAppApi.setPrayerShare(next);
+    } catch (err) {
+      setPrayerShare(!next);
+      toast({ message: err instanceof Error ? err.message : 'Could not save that. Please try again.', tone: 'error' });
+    } finally {
+      setPrayerShareSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (!trailOpen || !home?.faithUnread) return;
@@ -192,6 +229,20 @@ const ParticipantFaithPage: React.FC = () => {
     <div className="max-w-2xl">
       <PageHeader title="Faith Project" tourId="participant:faith" />
 
+      <div className="mb-3.5">
+        <SegmentedTabs
+          tabs={[
+            { key: 'project', label: 'My Faith Project', shortLabel: 'Project' },
+            { key: 'testimonies', label: 'Testimonies' },
+          ]}
+          active={tab}
+          onChange={(key) => setTab(key as FaithTab)}
+        />
+      </div>
+
+      {tab === 'testimonies' ? (
+        <TestimoniesTab />
+      ) : (
       <div className="flex flex-col gap-3.5">
         <FaithProjectGuide />
 
@@ -234,6 +285,16 @@ const ParticipantFaithPage: React.FC = () => {
             </>
           )}
         </section>
+
+        {faith.project?.status === 'APPROVED' && (
+          <section className="flex items-center justify-between gap-3 rounded-[16px] border border-[#eef0f4] bg-white px-4 py-3.5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+            <div className="min-w-0">
+              <p className="text-[14px] font-semibold text-gray-900">Include my Faith Project in the general prayers</p>
+              <p className="mt-0.5 text-[12.5px] text-gray-500">Your name and project will be shown to the church team who pray together each week.</p>
+            </div>
+            <Switch on={prayerShare} onToggle={() => { void togglePrayerShare(); }} label="Include my Faith Project in the general prayers" disabled={prayerShareSaving} />
+          </section>
+        )}
 
         {faith.project?.status === 'APPROVED' && (
           faith.openHelpRequest ? (
@@ -292,6 +353,7 @@ const ParticipantFaithPage: React.FC = () => {
           )}
         </section>
       </div>
+      )}
 
       <NotGoingWellSheet
         open={helpSheetOpen}

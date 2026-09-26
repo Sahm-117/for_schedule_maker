@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import SegmentedTabs from '../components/SegmentedTabs';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { cohortsApi, groupsApi, supportHubsApi, supportSessionsApi, usersApi } from '../services/api';
-import type { Cohort, Group, HubMembership, SupportAttendanceStatus, SupportHub, SupportSession, SupportSessionType, User, Week } from '../types';
+import { cohortsApi, groupsApi, supportHubsApi, supportKindApi, supportSessionsApi, usersApi } from '../services/api';
+import type { Cohort, Group, HubItSupportEntry, HubJob, HubMembership, SupportAttendanceStatus, SupportHub, SupportKind, SupportSession, SupportSessionType, User, Week } from '../types';
+import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -196,32 +197,80 @@ const HubFormModal: React.FC<{
   );
 };
 
-// ── Assign Lead Modal ──────────────────────────────────────────────────────────
+// ── Hub Roles Modal ────────────────────────────────────────────────────────────
+// Single picks for the hub's four named jobs (candidates = the hub's own
+// members, same pool the old lead-only picker used), plus a multi-pick for IT
+// support — an operational support who can cover this hub without being a
+// member of it, so its candidate pool is every support in the cohort, not just
+// this hub's members.
 
-const AssignLeadModal: React.FC<{
+const HubRolesModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   onSaved: (h: SupportHub) => void;
   hub: SupportHub;
   members: User[];
-}> = ({ isOpen, onClose, onSaved, hub, members }) => {
+  itSupportCandidates: User[];
+  currentItSupportIds: string[];
+  onItSupportsSaved: (userIds: string[]) => void;
+}> = ({ isOpen, onClose, onSaved, hub, members, itSupportCandidates, currentItSupportIds, onItSupportsSaved }) => {
   const [leadUserId, setLeadUserId] = useState('');
+  const [assistantLeadUserId, setAssistantLeadUserId] = useState('');
+  const [recapLeadUserId, setRecapLeadUserId] = useState('');
+  const [prayerLeadUserId, setPrayerLeadUserId] = useState('');
+  const [itSupportIds, setItSupportIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
   useEffect(() => {
-    if (isOpen) { setLeadUserId(hub.leadUserId ?? ''); setErr(''); }
-  }, [isOpen, hub]);
+    if (isOpen) {
+      setLeadUserId(hub.leadUserId ?? '');
+      setAssistantLeadUserId(hub.assistantLeadUserId ?? '');
+      setRecapLeadUserId(hub.recapLeadUserId ?? '');
+      setPrayerLeadUserId(hub.prayerLeadUserId ?? '');
+      setItSupportIds(new Set(currentItSupportIds));
+      setErr('');
+    }
+  }, [isOpen, hub, currentItSupportIds]);
+
+  const toggleItSupport = (id: string) => {
+    setItSupportIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const sortedItSupportCandidates = useMemo(
+    () => selectedFirst(itSupportCandidates, (u) => itSupportIds.has(u.id)),
+    [itSupportCandidates, itSupportIds]
+  );
+
+  const memberOptions = [{ value: '', label: '— None —' }, ...members.map((u) => ({ value: u.id, label: u.name }))];
+  // The same person can't hold both jobs: each picker excludes whoever is
+  // currently picked for the other one — except when they're already the same
+  // (an existing saved hub), so that current selection still shows its real
+  // name instead of falling back to "— None —".
+  const leadOptions = memberOptions.filter((o) => o.value === '' || o.value !== assistantLeadUserId || o.value === leadUserId);
+  const assistantOptions = memberOptions.filter((o) => o.value === '' || o.value !== leadUserId || o.value === assistantLeadUserId);
+  const sameLeadAndAssistant = !!leadUserId && leadUserId === assistantLeadUserId;
 
   const handleSave = async () => {
     setSaving(true);
     setErr('');
     try {
-      const { hub: updated } = await supportHubsApi.update(hub.id, { leadUserId: leadUserId || null });
+      const { hub: updated } = await supportHubsApi.update(hub.id, {
+        leadUserId: leadUserId || null,
+        assistantLeadUserId: assistantLeadUserId || null,
+        recapLeadUserId: recapLeadUserId || null,
+        prayerLeadUserId: prayerLeadUserId || null,
+      });
+      await supportHubsApi.setItSupports(hub.id, [...itSupportIds]);
       onSaved(updated);
+      onItSupportsSaved([...itSupportIds]);
       onClose();
     } catch (e: any) {
-      setErr(e.message || 'Failed to assign lead');
+      setErr(e.message || 'Failed to save hub roles');
     } finally {
       setSaving(false);
     }
@@ -231,7 +280,8 @@ const AssignLeadModal: React.FC<{
     <ModalShell
       isOpen={isOpen}
       onClose={onClose}
-      title={`Pick lead — ${hub.name}`}
+      title={`Hub roles — ${hub.name}`}
+      wide
       footer={
         <>
           <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
@@ -246,17 +296,51 @@ const AssignLeadModal: React.FC<{
         {members.length === 0 ? (
           <p className="text-sm text-gray-500">Add supports to this hub first.</p>
         ) : (
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Hub lead</label>
-            <AppSelect
-              value={leadUserId}
-              onChange={setLeadUserId}
-              options={[{ value: '', label: '— None —' }, ...members.map((u) => ({ value: u.id, label: u.name }))]}
-              placeholder="— None —"
-              compact
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Hub lead</label>
+              <AppSelect value={leadUserId} onChange={setLeadUserId} options={leadOptions} placeholder="— None —" compact />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Assistant hub lead</label>
+              <AppSelect value={assistantLeadUserId} onChange={setAssistantLeadUserId} options={assistantOptions} placeholder="— None —" compact />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Recap lead</label>
+              <AppSelect value={recapLeadUserId} onChange={setRecapLeadUserId} options={memberOptions} placeholder="— None —" compact />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Prayer lead</label>
+              <AppSelect value={prayerLeadUserId} onChange={setPrayerLeadUserId} options={memberOptions} placeholder="— None —" compact />
+            </div>
           </div>
         )}
+        {sameLeadAndAssistant && (
+          <p className="-mt-2 rounded-xl bg-amber-100/80 px-3 py-2 text-xs font-semibold text-amber-700">Hub Lead and Assistant should be different people</p>
+        )}
+
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">IT support</label>
+          {itSupportCandidates.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              No operational supports yet. Set someone's type to Operational support on the{' '}
+              <Link to="/supports" className="font-semibold text-primary underline">Supports page</Link> first.
+            </p>
+          ) : (
+            <ul className="max-h-64 overflow-y-auto divide-y divide-orange-50 rounded-xl border border-orange-100">
+              {sortedItSupportCandidates.map((u) => (
+                <li
+                  key={u.id}
+                  onClick={() => toggleItSupport(u.id)}
+                  className={`flex cursor-pointer items-center gap-3 px-3 py-2.5 transition ${itSupportIds.has(u.id) ? 'bg-orange-50/60' : 'hover:bg-gray-50'}`}
+                >
+                  <input type="checkbox" checked={itSupportIds.has(u.id)} readOnly tabIndex={-1} className="pointer-events-none h-4 w-4 accent-primary" />
+                  <span className="flex-1 text-sm text-gray-800">{u.name}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </ModalShell>
   );
@@ -578,6 +662,10 @@ const AdminHubsPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<SupportHub | null>(null);
   const [recapTarget, setRecapTarget] = useState<SupportHub | null>(null);
   const [recapByHub, setRecapByHub] = useState<Record<string, { weekId: number; weekNumber: number; marked: number; total: number; absent: number }>>({});
+  const [itSupportsByHub, setItSupportsByHub] = useState<Record<string, HubItSupportEntry[]>>({});
+  // A support's kind for this cohort (missing entry = PARTICIPANT_SUPPORT) — used
+  // to offer only operational supports as IT-support candidates.
+  const [kinds, setKinds] = useState<Record<string, SupportKind>>({});
   // Recap marks for the summary strip, keyed "hubId:weekId" -> { userId: status },
   // covering every week of the cohort (not just summaryWeek) for the "week by
   // week" disclosure. Kept in step by handleRecapMarked.
@@ -617,13 +705,14 @@ const AdminHubsPage: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [{ hubs: hs }, { memberships: ms }, { users }, { groups: gs }, { sessions: ss, attendance: sa }, { sessions: rs, attendance: ra }] = await Promise.all([
+      const [{ hubs: hs }, { memberships: ms }, { users }, { groups: gs }, { sessions: ss, attendance: sa }, { sessions: rs, attendance: ra }, { kinds: ks }] = await Promise.all([
         supportHubsApi.getAll(activeCohort.id),
         supportHubsApi.getMembershipsForCohort(activeCohort.id),
         usersApi.getAll(),
         groupsApi.getAll({ cohortId: activeCohort.id }),
         supportSessionsApi.getForCohort(trainingListCohortIds, ['PRE_COHORT_TRAINING', 'GET_TOGETHER']),
         supportSessionsApi.getForCohort(activeCohort.id, ['SUNDAY_RECAP']),
+        supportKindApi.getForCohort(activeCohort.id).catch(() => ({ kinds: {} as Record<string, SupportKind> })),
       ]);
       const cohortMembers = await Promise.all(trainingListCohortIds.map((id) => cohortsApi.getMembers(id)));
       setSupportIdsByCohort(new Map(trainingListCohortIds.map((id, i) => [
@@ -636,6 +725,9 @@ const AdminHubsPage: React.FC = () => {
       setGroups(gs);
       setSessions(ss);
       setSessionAttendance(sa);
+      setKinds(ks);
+      const itSupportEntries = await Promise.all(hs.map((h) => supportHubsApi.getItSupports(h.id).then((res) => res.itSupports).catch(() => [] as HubItSupportEntry[])));
+      setItSupportsByHub(Object.fromEntries(hs.map((h, i) => [h.id, itSupportEntries[i]])));
       // Fold recap sessions + marks into "hubId:weekId" -> marks for the
       // summary strip's week-by-week table.
       const sessionHubWeek = new Map(rs.map((s) => [s.id, `${s.hubId}:${s.weekId}`]));
@@ -911,7 +1003,7 @@ const AdminHubsPage: React.FC = () => {
                       align="right"
                       items={[
                         { label: 'Manage members', onClick: () => setMembersTarget(h) },
-                        { label: 'Pick lead', onClick: () => setLeadTarget(h) },
+                        { label: 'Hub roles', onClick: () => setLeadTarget(h) },
                         { label: 'Recap attendance', onClick: () => setRecapTarget(h) },
                         { label: 'Edit name', onClick: () => { setEditing(h); setFormOpen(true); } },
                         { label: 'Delete hub', onClick: () => setDeleteTarget(h), tone: 'danger' },
@@ -930,24 +1022,43 @@ const AdminHubsPage: React.FC = () => {
                   );
                 })()}
 
-                {memberUsers.length === 0 ? (
+                {memberUsers.length === 0 && (itSupportsByHub[h.id] ?? []).length === 0 ? (
                   <p className="rounded-xl border border-dashed border-orange-200 px-3 py-4 text-center text-xs text-gray-400">No supports yet</p>
                 ) : (
                   <div className="flex flex-col gap-2">
                     {memberUsers.map((u) => {
                       const led = groupBySupportId.get(u.id);
+                      const jobs = sortHubJobs(([
+                        u.id === h.leadUserId ? 'HUB_LEAD' : null,
+                        u.id === h.assistantLeadUserId ? 'ASSISTANT_HUB_LEAD' : null,
+                        u.id === h.recapLeadUserId ? 'RECAP_LEAD' : null,
+                        u.id === h.prayerLeadUserId ? 'PRAYER_LEAD' : null,
+                        (itSupportsByHub[h.id] ?? []).some((s) => s.userId === u.id) ? 'IT_SUPPORT' : null,
+                      ].filter(Boolean) as HubJob[]));
                       return (
                         <div key={u.id} className="rounded-xl border border-orange-100 bg-white px-3 py-2 shadow-sm">
-                          <p className="truncate text-sm font-semibold leading-tight text-gray-900">
-                            {u.name}
-                            {u.id === h.leadUserId && (
-                              <span className="ml-2 rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>
-                            )}
-                          </p>
+                          <p className="truncate text-sm font-semibold leading-tight text-gray-900">{u.name}</p>
+                          {jobs.length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {jobs.map((job) => (
+                                <span key={job} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${HUB_JOB_INFO[job].pill}`}>{HUB_JOB_INFO[job].label}</span>
+                              ))}
+                            </div>
+                          )}
                           {led && <p className="text-xs text-gray-400">Leads {led.name}</p>}
                         </div>
                       );
                     })}
+                    {(itSupportsByHub[h.id] ?? [])
+                      .filter((s) => !memberUsers.some((u) => u.id === s.userId))
+                      .map((s) => (
+                        <div key={`it-${s.userId}`} className="rounded-xl border border-orange-100 bg-white px-3 py-2 shadow-sm">
+                          <p className="truncate text-sm font-semibold leading-tight text-gray-900">{s.name}</p>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${HUB_JOB_INFO.IT_SUPPORT.pill}`}>{HUB_JOB_INFO.IT_SUPPORT.label}</span>
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 )}
               </div>
@@ -970,12 +1081,24 @@ const AdminHubsPage: React.FC = () => {
       />
 
       {leadTarget && (
-        <AssignLeadModal
+        <HubRolesModal
           isOpen={!!leadTarget}
           onClose={() => setLeadTarget(null)}
           hub={leadTarget}
           members={(membersByHub.get(leadTarget.id) ?? []).map((id) => userById.get(id)).filter(Boolean) as User[]}
+          itSupportCandidates={(() => {
+            const currentIds = new Set((itSupportsByHub[leadTarget.id] ?? []).map((s) => s.userId));
+            // Operational supports are the intended pool; a support already
+            // ticked keeps showing even if their kind isn't (yet) Operational,
+            // so changing kind elsewhere never silently drops them here.
+            return supportUsers.filter((u) => kinds[u.id] === 'OPERATIONAL' || currentIds.has(u.id));
+          })()}
+          currentItSupportIds={(itSupportsByHub[leadTarget.id] ?? []).map((s) => s.userId)}
           onSaved={(h) => { setHubs((prev) => prev.map((x) => (x.id === h.id ? h : x))); setLeadTarget(null); }}
+          onItSupportsSaved={(userIds) => setItSupportsByHub((prev) => ({
+            ...prev,
+            [leadTarget.id]: userIds.map((id) => ({ userId: id, name: userById.get(id)?.name ?? '' })),
+          }))}
         />
       )}
 

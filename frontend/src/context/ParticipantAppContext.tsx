@@ -59,6 +59,14 @@ export const ParticipantAppProvider: React.FC<{ children: React.ReactNode }> = (
     return () => window.clearInterval(timer);
   }, [home?.openWindow, reload]);
 
+  // Unconditional slow poll so groupMeetingLive (the "your group meeting is
+  // on now" banner + nav dot) goes stale at most a minute behind, even if the
+  // tab is left open in the foreground without a visibilitychange.
+  useEffect(() => {
+    const timer = window.setInterval(() => { void reload(); }, 60000);
+    return () => window.clearInterval(timer);
+  }, [reload]);
+
   const applyReflection = (reflection: ParticipantReflection) => {
     setHome((prev) => prev && ({
       ...prev,

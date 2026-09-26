@@ -95,6 +95,34 @@ const SummaryRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label
   </div>
 );
 
+/** A single scannable stat in a read-only summary: a big value with a small
+ * unit on the same line, and a short plain-English label underneath (the
+ * full sentence sits in the title tooltip). Replaces long grey label rows.
+ * Left-aligned, fixed height so a row of tiles lines up evenly. */
+const StatTile: React.FC<{ value: React.ReactNode; unit?: string; label: string; title?: string }> = ({ value, unit, label, title }) => (
+  <div className="flex min-h-[84px] flex-col justify-between rounded-2xl bg-gray-50 px-3 py-2.5 text-left" title={title}>
+    <p className="whitespace-nowrap text-xl font-bold leading-tight text-gray-900">
+      {value}
+      {unit && <span className="ml-1 text-xs font-semibold text-gray-500">{unit}</span>}
+    </p>
+    <p className="mt-1 text-xs leading-snug text-gray-500">{label}</p>
+  </div>
+);
+
+/** Groups a set of StatTiles under a small labelled heading with a colour
+ * accent dot, per the house "Smooth Pill" status-dot convention. Tiles fill
+ * the row evenly (auto-fill) instead of a fixed 2/3-column split, so a
+ * narrow column (e.g. this card beside another) doesn't cramp them. */
+const StatSection: React.FC<{ title: string; dot: string; children: React.ReactNode }> = ({ title, dot, children }) => (
+  <div>
+    <div className="mb-2 flex items-center gap-1.5">
+      <span className={`h-2 w-2 flex-none rounded-full ${dot}`} />
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</p>
+    </div>
+    <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>{children}</div>
+  </div>
+);
+
 // Editable contact behind the floating "Need Support" button. Lets admins change
 // who help routes to (name + WhatsApp number) without a deploy.
 const SupportContactCard: React.FC = () => {
@@ -174,42 +202,57 @@ const SupportContactCard: React.FC = () => {
 
 // The rules the dashboard judges participants and supports by. Agreed with
 // leadership; editable here so they can change without a developer.
-const RULE_FIELDS: Array<{ section: string; fields: Array<{ key: keyof ProgrammeRules; label: string; unit: string; max: number }> }> = [
+const RULE_FIELDS: Array<{ section: string; fields: Array<{ key: keyof ProgrammeRules; label: string; shortLabel: string; unit: string; max: number }> }> = [
   {
     section: 'Completion',
     fields: [
-      { key: 'completionAttendancePct', label: 'Sunday classes a participant must attend to complete FOF', unit: '%', max: 100 },
-      { key: 'cohortSuccessPct', label: 'Participants who must complete for the cohort to count as a success', unit: '%', max: 100 },
+      { key: 'completionAttendancePct', label: 'Sunday classes a participant must attend to complete FOF', shortLabel: 'Sunday classes to complete', unit: '%', max: 100 },
+      { key: 'cohortSuccessPct', label: 'Participants who must complete for the cohort to count as a success', shortLabel: 'Cohort success target', unit: '%', max: 100 },
     ],
   },
   {
     section: 'Participants',
     fields: [
-      { key: 'participantRedSundayMisses', label: 'Sunday misses before “Needs attention”', unit: 'misses', max: 20 },
-      { key: 'participantRedMeetingMisses', label: 'Group meeting misses before “Needs attention”', unit: 'misses', max: 20 },
+      { key: 'participantRedSundayMisses', label: 'Sunday misses before “Needs attention”', shortLabel: 'Sunday misses → Needs attention', unit: 'misses', max: 20 },
+      { key: 'participantRedMeetingMisses', label: 'Group meeting misses before “Needs attention”', shortLabel: 'Meeting misses → Needs attention', unit: 'misses', max: 20 },
     ],
   },
   {
     section: 'Supports',
     fields: [
-      { key: 'supportAmberMissedWeeks', label: 'Unrecorded weeks before “Keep an eye on”', unit: 'weeks', max: 20 },
-      { key: 'supportRedMissedWeeks', label: 'Unrecorded weeks before “Needs attention”', unit: 'weeks', max: 20 },
-      { key: 'onboardingMaxDays', label: 'Days a support has to onboard their group', unit: 'days', max: 60 },
-      { key: 'minTrainingsAttended', label: 'Pre-cohort trainings a support must attend to get a group', unit: 'trainings', max: 20 },
+      { key: 'supportAmberMissedWeeks', label: 'Unrecorded weeks before “Keep an eye on”', shortLabel: 'Unrecorded → Keep an eye on', unit: 'weeks', max: 20 },
+      { key: 'supportRedMissedWeeks', label: 'Unrecorded weeks before “Needs attention”', shortLabel: 'Unrecorded → Needs attention', unit: 'weeks', max: 20 },
+      { key: 'onboardingMaxDays', label: 'Days a support has to onboard their group', shortLabel: 'Days to onboard group', unit: 'days', max: 60 },
+      { key: 'minTrainingsAttended', label: 'Pre-cohort trainings a support must attend to get a group', shortLabel: 'Trainings to get a group', unit: 'trainings', max: 20 },
     ],
   },
   {
     section: 'Attendance',
     fields: [
-      { key: 'attendanceWindowMinutes', label: 'How long the Sunday register stays open after Start', unit: 'minutes', max: 120 },
+      { key: 'attendanceWindowMinutes', label: 'How long the Sunday register stays open after Start', shortLabel: 'Register stays open', unit: 'minutes', max: 120 },
     ],
   },
 ];
 
-// The editor puts the unit beside a number box as a fixed label; the read-only
-// summary reads as a sentence, so it needs "1 week", not "1 weeks".
-const unitLabel = (unit: string, value: number) =>
-  unit === '%' || value === 1 ? unit.replace(/e?s$/, '') : unit;
+// Short unit for a stat tile — sits in small text right after the big number,
+// so it needs to be brief rather than a grammatically-correct sentence unit.
+const TILE_UNIT: Record<string, string> = {
+  '%': '%',
+  misses: 'misses',
+  weeks: 'wks',
+  days: 'days',
+  trainings: 'trainings',
+  minutes: 'min',
+};
+const TILE_UNIT_ONE: Record<string, string> = { misses: 'miss', weeks: 'wk', days: 'day', trainings: 'training' };
+const tileUnit = (unit: string, value?: number) => (value === 1 && TILE_UNIT_ONE[unit]) || (TILE_UNIT[unit] ?? unit);
+
+const RULE_SECTION_DOT: Record<string, string> = {
+  Completion: 'bg-emerald-500',
+  Participants: 'bg-sky-500',
+  Supports: 'bg-violet-500',
+  Attendance: 'bg-amber-500',
+};
 
 const ProgrammeRulesCard: React.FC = () => {
   const [rules, setRules] = useState<ProgrammeRules>(DEFAULT_PROGRAMME_RULES);
@@ -270,14 +313,19 @@ const ProgrammeRulesCard: React.FC = () => {
         </button>
       )}
       summary={(
-        <div className="space-y-3">
+        <div className="space-y-4">
           {RULE_FIELDS.map((group) => (
-            <div key={group.section}>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{group.section}</p>
+            <StatSection key={group.section} title={group.section} dot={RULE_SECTION_DOT[group.section] ?? 'bg-gray-400'}>
               {group.fields.map((field) => (
-                <SummaryRow key={field.key} label={field.label} value={`${saved[field.key]} ${unitLabel(field.unit, saved[field.key])}`} />
+                <StatTile
+                  key={field.key}
+                  value={saved[field.key]}
+                  unit={tileUnit(field.unit, Number(saved[field.key]))}
+                  label={field.shortLabel}
+                  title={field.label}
+                />
               ))}
-            </div>
+            </StatSection>
           ))}
         </div>
       )}
@@ -540,6 +588,8 @@ const formatTimeOfDay = (time: string): string => {
 };
 
 const dayLabel = (value: string) => RECAP_DAY_OPTIONS.find((d) => d.value === value)?.label ?? value;
+// 3-letter form for a tile's big value — the full name is in the tooltip.
+const dayShort = (value: string) => dayLabel(value).slice(0, 3);
 
 // When supports and participants get a week's recap, when they get asked
 // about the class, and which week the department prompt opens from. Days are
@@ -616,13 +666,41 @@ const RecapTimingsCard: React.FC = () => {
       saveLabel="Save timings"
       status={status}
       summary={(
-        <div className="space-y-1.5">
-          <SummaryRow label="Recap: supports" value={`${dayLabel(saved.supportDay)}, ${formatTimeOfDay(saved.supportTime)}`} />
-          <SummaryRow label="Recap: participants" value={`${dayLabel(saved.participantDay)}, ${formatTimeOfDay(saved.participantTime)}`} />
-          <SummaryRow label="After-class feedback: supports" value={`${dayLabel(savedFeedbackTimes.supportDay)}, ${formatTimeOfDay(savedFeedbackTimes.supportTime)}`} />
-          <SummaryRow label="After-class feedback: participants" value={`${dayLabel(savedFeedbackTimes.participantDay)}, ${formatTimeOfDay(savedFeedbackTimes.participantTime)}`} />
-          <SummaryRow label="Department question" value={savedFeedbackTimes.departmentWeek ? `Week ${savedFeedbackTimes.departmentWeek}` : 'Off'} />
-          <SummaryRow label="Class starts at" value={formatTimeOfDay(savedClassStartTime)} />
+        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
+          <StatTile
+            value={dayShort(saved.supportDay)}
+            unit={formatTimeOfDay(saved.supportTime)}
+            label="Recap: supports"
+            title={`Recap: supports, ${dayLabel(saved.supportDay)} at ${formatTimeOfDay(saved.supportTime)}`}
+          />
+          <StatTile
+            value={dayShort(saved.participantDay)}
+            unit={formatTimeOfDay(saved.participantTime)}
+            label="Recap: participants"
+            title={`Recap: participants, ${dayLabel(saved.participantDay)} at ${formatTimeOfDay(saved.participantTime)}`}
+          />
+          <StatTile
+            value={dayShort(savedFeedbackTimes.supportDay)}
+            unit={formatTimeOfDay(savedFeedbackTimes.supportTime)}
+            label="Feedback: supports"
+            title={`After-class feedback: supports, ${dayLabel(savedFeedbackTimes.supportDay)} at ${formatTimeOfDay(savedFeedbackTimes.supportTime)}`}
+          />
+          <StatTile
+            value={dayShort(savedFeedbackTimes.participantDay)}
+            unit={formatTimeOfDay(savedFeedbackTimes.participantTime)}
+            label="Feedback: participants"
+            title={`After-class feedback: participants, ${dayLabel(savedFeedbackTimes.participantDay)} at ${formatTimeOfDay(savedFeedbackTimes.participantTime)}`}
+          />
+          <StatTile
+            value={savedFeedbackTimes.departmentWeek ? `Wk ${savedFeedbackTimes.departmentWeek}` : 'Off'}
+            label="Department question"
+            title="Department question goes out in"
+          />
+          <StatTile
+            value={formatTimeOfDay(savedClassStartTime)}
+            label="Class starts"
+            title="Class starts at"
+          />
         </div>
       )}
     >

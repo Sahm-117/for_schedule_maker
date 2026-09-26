@@ -16,6 +16,9 @@ const resolvePath = (n: Notification, isSupport: boolean): string | null => {
     case 'ANNOUNCEMENT':
       return isSupport ? '/support/announcements' : '/team-announcements';
     case 'HUB':
+      // HUB covers both Community posts and support-hub alerts (added to a
+      // hub, hub jobs, lead messages) — the latter are stored with a My Hub path.
+      if (n.path?.includes('/my-hub')) return '/support/my-hub';
       return isSupport ? '/support/community' : '/community';
     case 'FOLLOWUP_ASSIGNMENT':
     case 'FOLLOWUP_TERMINAL':

@@ -3,6 +3,7 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../components/Toast';
 import { useAppData } from '../context/AppDataContext';
 import { faithProjectsApi, faithProjectCategoriesApi, faithProjectSettingsApi, faithThreadReadsApi, faithHelpRequestsApi, testimoniesApi, participantNotesApi, participantsApi, groupsApi } from '../services/api';
 import { FAITH_HELP_REASON_LABELS } from '../types';
@@ -283,17 +284,26 @@ const TestimoniesPanel: React.FC<{
   helpRequests: FaithHelpRequest[];
   onReviewed: (testimony: Testimony) => void;
 }> = ({ testimonies, helpRequests, onReviewed }) => {
+  const showToast = useToast();
   const [filter, setFilter] = useState<TestimonyStatus | ''>('PENDING');
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const displayed = filter ? testimonies.filter((t) => t.status === filter) : testimonies;
 
+  // Optimistic: the chip/filter counts update immediately; a failure reverts
+  // and shows an error toast, matching applyMove in AdminAllocationPage.tsx.
   const review = async (id: string, status: 'APPROVED' | 'HIDDEN') => {
+    const previous = testimonies.find((t) => t.id === id);
+    if (!previous) return;
     setBusyId(id);
+    onReviewed({ ...previous, status });
     try {
       const { testimony } = await testimoniesApi.review(id, status);
-      onReviewed({ ...testimonies.find((t) => t.id === id)!, ...testimony });
-    } catch { /* stays visible to try again */ } finally {
+      onReviewed({ ...previous, ...testimony });
+    } catch (err) {
+      onReviewed(previous);
+      showToast({ message: err instanceof Error ? err.message : 'Could not update that testimony. Please try again.', tone: 'error' });
+    } finally {
       setBusyId(null);
     }
   };

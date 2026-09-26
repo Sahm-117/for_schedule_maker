@@ -4,13 +4,16 @@ import PageHeader from '../components/PageHeader';
 import ActivityText from '../components/ActivityText';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, faithProjectsApi, groupsApi, participantCheckInsApi, participantsApi, resourcesApi, supportActivityCompletionsApi, supportChecklistApi } from '../services/api';
-import type { Announcement, FaithProject, Group, Participant, ParticipantCheckIn, SupportActivityCompletion, SupportChecklistItem, User } from '../types';
+import { announcementsApi, faithProjectsApi, groupsApi, myHubApi, participantCheckInsApi, participantsApi, resourcesApi, supportActivityCompletionsApi, supportChecklistApi, supportKindApi } from '../services/api';
+import type { Announcement, FaithProject, Group, HubJob, MyHubPayload, Participant, ParticipantCheckIn, SupportActivityCompletion, SupportChecklistItem, SupportKind, User } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
 import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
 import { normalizeLink } from '../utils/links';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
+import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
+import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
+import { formatMeetingTime } from '../components/groups/GroupCallCard';
 import Spinner from '../components/Spinner';
 
 type HomeActivity = {
@@ -27,6 +30,23 @@ const PERIOD_LABEL: Record<string, string> = {
   MORNING: 'Morning',
   AFTERNOON: 'Afternoon',
   EVENING: 'Evening',
+};
+
+// Next real-world occurrence of a weekly "day + HH:mm" slot, as a timestamp,
+// so several hubs' meeting slots can be compared to find the soonest.
+const MEETING_DAY_INDEX: Record<string, number> = {
+  SUNDAY: 0, MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6,
+};
+const nextOccurrence = (day: string, time: string, from: Date): number => {
+  const dayIndex = MEETING_DAY_INDEX[day];
+  if (dayIndex === undefined) return Infinity;
+  const [h, m] = time.split(':').map(Number);
+  const candidate = new Date(from);
+  candidate.setHours(h, m, 0, 0);
+  let deltaDays = (dayIndex - from.getDay() + 7) % 7;
+  if (deltaDays === 0 && candidate.getTime() <= from.getTime()) deltaDays = 7;
+  candidate.setDate(candidate.getDate() + deltaDays);
+  return candidate.getTime();
 };
 
 const formatWhen = (value: string) => {
@@ -66,6 +86,67 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   }, [myHub?.myAttendance, selectedWeek]);
   const showRecapNudge = isHubLead && !recapMarkedThisWeek && tickNow.getDay() === 0 && tickNow.getHours() >= 17;
 
+  // Every hub this support belongs to or IT-supports (an operational support
+  // may cover 2+), for the role reminder cards and the group-vs-hub tiles.
+  const [hubsList, setHubsList] = useState<MyHubPayload[]>([]);
+  useEffect(() => {
+    if (!activeCohort?.id) { setHubsList([]); return; }
+    myHubApi.getMyHubs(activeCohort.id).then(({ hubs }) => setHubsList(hubs)).catch(() => setHubsList([]));
+  }, [activeCohort?.id, liveRevision]);
+
+  // Admin-tagged kind: hub leads and operational supports don't run a
+  // participant group, so the group-only tiles/pages swap for hub ones.
+  const [supportKind, setSupportKind] = useState<SupportKind>('PARTICIPANT_SUPPORT');
+  useEffect(() => {
+    if (!activeCohort?.id) { setSupportKind('PARTICIPANT_SUPPORT'); return; }
+    supportKindApi.getForCohort(activeCohort.id)
+      .then(({ kinds }) => setSupportKind(kinds[user.id] ?? 'PARTICIPANT_SUPPORT'))
+      .catch(() => setSupportKind('PARTICIPANT_SUPPORT'));
+  }, [activeCohort?.id, user.id]);
+  const isHubOnlySupport = supportKind === 'HUB_LEAD' || supportKind === 'OPERATIONAL';
+  // "Mark attendance" varies by kind: hidden for an IT-only (OPERATIONAL)
+  // support, "Open hub meeting" for a hub lead, unchanged for a participant
+  // support.
+  const isOperationalSupport = supportKind === 'OPERATIONAL';
+  const isHubLeadSupport = supportKind === 'HUB_LEAD';
+
+  // "Meeting is on now" banner — a hub lead/IT support's hub(s), or a
+  // participant support's own group.
+  const hubMeetingLive = hubsList.map((h) => h.meetingLive).find((live) => !!live) ?? null;
+  const groupMeetingLive = useGroupMeetingLive(!isHubOnlySupport ? myGroups[0]?.id ?? null : null);
+
+  // Next hub meeting (hub-only supports only): the soonest upcoming meeting
+  // slot across every hub they cover — an IT support on 2+ hubs sees the
+  // nearer one, not just the first hub returned.
+  const nextHubMeeting = useMemo(() => {
+    if (!isHubOnlySupport) return null;
+    const hubs = hubsList.map((h) => h.hub).filter((h): h is NonNullable<typeof h> => !!h);
+    const withSlot = hubs.filter((h) => h.meetingDay && h.meetingTime);
+    if (withSlot.length === 0) return { hub: hubs[0] ?? null };
+    const soonest = withSlot.reduce((best, h) => {
+      const t = nextOccurrence(h.meetingDay!, h.meetingTime!, tickNow);
+      return t < best.time ? { hub: h, time: t } : best;
+    }, { hub: withSlot[0], time: nextOccurrence(withSlot[0].meetingDay!, withSlot[0].meetingTime!, tickNow) });
+    return { hub: soonest.hub };
+  }, [isHubOnlySupport, hubsList, tickNow]);
+
+  // Role reminder cards — "You're a Recap Lead", one per job the support
+  // holds; always shown while they hold it. One card per JOB, not per
+  // hub+job: an operational support covering several hubs with the same job
+  // (e.g. IT support on Hub 1 and Hub 2) sees a single card listing every
+  // hub for that job, comma-separated.
+  const roleReminders = useMemo(() => {
+    const hubNamesByJob = new Map<HubJob, string[]>();
+    hubsList.forEach((h) => {
+      if (!h.hub) return;
+      (h.myJobs ?? []).forEach((job) => {
+        const names = hubNamesByJob.get(job) ?? [];
+        names.push(h.hub!.name);
+        hubNamesByJob.set(job, names);
+      });
+    });
+    return sortHubJobs([...hubNamesByJob.keys()]).map((job) => ({ job, hubNames: hubNamesByJob.get(job)! }));
+  }, [hubsList]);
 
   useEffect(() => {
     if (!user) return;
@@ -256,11 +337,54 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
 
             <div className="mt-4 grid grid-cols-2 gap-2.5">
               <QuickStat title="Activities today" value={todayActivities.length} detail={todayName} to="/support/schedule" tone="plain" />
-              <QuickStat title="Next Group Meeting" value={nextGroupPrayerDisplay?.label ?? 'Not set'} detail={nextGroupPrayerDisplay?.detail ?? 'Weekly group meeting'} to="/support/participants" tone="rose" />
-              <QuickStat title="Faith Projects" value={`${draftedProjectCount}/${participants.length}`} detail={participants.length > 0 ? 'Participants drafted' : 'No participants yet'} to="/support/participants" tone="green" />
+              {isHubOnlySupport ? (
+                <QuickStat title="My Hub" value={hubsList[0]?.hub?.name ?? 'Not assigned'} detail="Open My Hub" to="/support/my-hub" tone="rose" />
+              ) : (
+                <QuickStat title="Next Group Meeting" value={nextGroupPrayerDisplay?.label ?? 'Not set'} detail={nextGroupPrayerDisplay?.detail ?? 'Weekly group meeting'} to="/support/participants" tone="rose" />
+              )}
+              {isHubOnlySupport ? (
+                <NextHubMeetingCard
+                  hubName={nextHubMeeting?.hub?.name ?? null}
+                  meetingDay={nextHubMeeting?.hub?.meetingDay}
+                  meetingTime={nextHubMeeting?.hub?.meetingTime}
+                  callLink={nextHubMeeting?.hub?.callLink}
+                />
+              ) : (
+                <QuickStat title="Faith Projects" value={`${draftedProjectCount}/${participants.length}`} detail={participants.length > 0 ? 'Participants drafted' : 'No participants yet'} to="/support/participants" tone="green" />
+              )}
               <QuickStat title="Next class" value={nextWeek?.title?.trim() || 'Not set'} detail={nextWeek ? "This week's topic" : 'Programme complete'} to="/support/schedule" tone="blue" />
             </div>
           </section>
+
+          {(hubMeetingLive || groupMeetingLive) && (
+            <section className="flex items-center justify-between gap-3 rounded-[16px] bg-emerald-100/80 px-4 py-3">
+              <span className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                <span className="relative flex h-2 w-2 flex-none">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                </span>
+                {hubMeetingLive ? 'Hub meeting is on now' : 'Your group meeting is on now'}
+              </span>
+              <NavLink
+                to={hubMeetingLive ? '/support/my-hub?tab=meeting' : '/support/participants?tab=prayers'}
+                className="flex-none rounded-xl bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white"
+              >
+                {hubMeetingLive ? 'Join' : 'Open'}
+              </NavLink>
+            </section>
+          )}
+
+          {roleReminders.map(({ job, hubNames }) => (
+            <section key={job} className="relative rounded-[18px] border border-[#e4e1fb] bg-[#f7f6ff] px-4 py-3.5">
+              <NavLink to="/support/my-hub" className="flex items-center gap-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-bold text-gray-900">You're {/^[AEIOU]/i.test(HUB_JOB_INFO[job].label) ? 'an' : 'a'} {HUB_JOB_INFO[job].label}{hubNames.length > 1 ? ` for ${hubNames.join(', ')}` : ''}</span>
+                  <span className="mt-1 block text-[13px] leading-relaxed text-gray-600">{HUB_JOB_INFO[job].description}</span>
+                </span>
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" className="shrink-0 text-[#5b21b6]"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 6 6 6-6 6" /></svg>
+              </NavLink>
+            </section>
+          ))}
 
           {homeAnnouncement && (
             <section className="rounded-[18px] border border-[#fecaca] bg-[#fef2f2] px-4 py-3.5">
@@ -292,8 +416,8 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                   .join(', ')}
               </p>
               <p className="mt-1 text-[13px] leading-relaxed text-gray-600">They answered &ldquo;I need help&rdquo; in the participant app. Please reach out today.</p>
-              <NavLink to="/support/participants" className="mt-3 inline-flex min-h-[38px] items-center rounded-[10px] bg-red-700 px-3.5 text-[13px] font-semibold text-white">
-                Open my group
+              <NavLink to={isHubOnlySupport ? '/support/my-hub' : '/support/participants'} className="mt-3 inline-flex min-h-[38px] items-center rounded-[10px] bg-red-700 px-3.5 text-[13px] font-semibold text-white">
+                {isHubOnlySupport ? 'Open My Hub' : 'Open my group'}
               </NavLink>
             </section>
           )}
@@ -308,22 +432,28 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
             </section>
           )}
 
-          <NavLink
-            to="/support/attendance"
-            data-wt="home-attendance"
-            className="flex min-h-[44px] items-center justify-center gap-2 rounded-2xl bg-[#3f4757] px-2.5 py-3.5 text-[13px] font-bold text-white sm:min-h-[56px] sm:justify-start sm:gap-2.5 sm:px-[22px] sm:py-4 sm:text-[15px]"
-          >
-            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 5h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0-2h6v3H9V3Zm-1 9 2 2 4-4" /></svg>
-            Mark attendance
-          </NavLink>
+          {!isOperationalSupport && (
+            <NavLink
+              to={isHubLeadSupport ? '/support/my-hub?tab=meeting' : '/support/attendance'}
+              data-wt="home-attendance"
+              className="flex min-h-[44px] items-center justify-center gap-2 rounded-2xl bg-[#3f4757] px-2.5 py-3.5 text-[13px] font-bold text-white sm:min-h-[56px] sm:justify-start sm:gap-2.5 sm:px-[22px] sm:py-4 sm:text-[15px]"
+            >
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 5h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0-2h6v3H9V3Zm-1 9 2 2 4-4" /></svg>
+              {isHubLeadSupport ? 'Open hub meeting' : 'Mark attendance'}
+            </NavLink>
+          )}
 
           <div data-wt="home-quick-links" className="grid gap-3" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
-            <QuickLink
-              to={groupCallLink ? undefined : '/support/participants'}
-              href={groupCallLink ?? undefined}
-              label="Join call"
-              icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" />}
-            />
+            {isHubOnlySupport ? (
+              <QuickLink to="/support/my-hub" label="My Hub" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />} />
+            ) : (
+              <QuickLink
+                to={groupCallLink ? undefined : '/support/participants'}
+                href={groupCallLink ?? undefined}
+                label="Join call"
+                icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10.5 21 7v10l-6-3.5ZM3 6h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" />}
+              />
+            )}
             <QuickLink to="/support/schedule?tab=checklist" label="My Tasks" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 11l3 3L22 4M2 12a10 10 0 1 0 5-8.66" />} />
             <QuickLink to="/support/resources" label="Resources" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Zm0 17A2.5 2.5 0 0 1 6.5 19H20" />} />
             <QuickLink to="/support/recap" label="Recap" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M7 3h7l5 5v13H7zM14 3v5h5M9 13h6M9 17h6" />} />
@@ -475,7 +605,47 @@ const QuickStat: React.FC<{
   );
 };
 
-const QUICK_LINK_CLASS = 'flex min-h-[44px] min-w-0 flex-col items-center gap-2.5 rounded-2xl border border-[#eef0f4] bg-white px-1 py-4 transition hover:border-[#ffdeca]';
+// Faith Projects tile's swap-in for hub-only supports: hub name, day + time
+// (same formatting as the My Hub meeting card), and a Join button — instead
+// of a plain NavLink, since it needs its own "Join Call" link.
+const NextHubMeetingCard: React.FC<{
+  hubName: string | null;
+  meetingDay?: string | null;
+  meetingTime?: string | null;
+  callLink?: string | null;
+}> = ({ hubName, meetingDay, meetingTime, callLink }) => {
+  const when = formatMeetingTime(meetingDay, meetingTime);
+  const link = normalizeLink(callLink || '');
+  const style = QUICK_STAT_TONES.green;
+  return (
+    <div className={`rounded-2xl border p-3.5 ${style.box}`}>
+      <p className={`text-xs font-semibold ${style.title}`}>Next hub meeting</p>
+      {when ? (
+        <>
+          <p className="mt-1.5 line-clamp-1 text-xl font-extrabold leading-tight text-gray-900">{hubName}</p>
+          <p className={`mt-0.5 text-xs ${style.detail}`}>{when}</p>
+          {link && (
+            <a
+              href={link}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex h-8 min-h-8 items-center justify-center rounded-[10px] bg-primary px-3.5 text-xs font-semibold leading-none text-white"
+            >
+              Join Call
+            </a>
+          )}
+        </>
+      ) : (
+        <>
+          <p className="mt-1.5 text-sm font-semibold leading-snug text-gray-800">Your hub hasn't set a meeting time yet</p>
+          <NavLink to="/support/my-hub" className={`mt-1.5 inline-block text-xs font-semibold underline ${style.detail}`}>Open My Hub</NavLink>
+        </>
+      )}
+    </div>
+  );
+};
+
+const QUICK_LINK_CLASS ='flex min-h-[44px] min-w-0 flex-col items-center gap-2.5 rounded-2xl border border-[#eef0f4] bg-white px-1 py-4 transition hover:border-[#ffdeca]';
 
 const QuickLink: React.FC<{ to?: string; href?: string; label: string; icon: React.ReactNode }> = ({ to, href, label, icon }) => {
   const content = (

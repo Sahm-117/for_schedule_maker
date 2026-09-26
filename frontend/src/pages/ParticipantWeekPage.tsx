@@ -71,7 +71,7 @@ const ParticipantWeekPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title={`Week ${week.weekNumber}`} tourId="participant:week" />
+      <PageHeader title={`Week ${week.weekNumber}`} tourId="participant:week" back={{ label: 'Journey', fallbackTo: '/me/journey' }} />
 
       <div className="flex flex-col gap-3.5">
         {!week.released ? (

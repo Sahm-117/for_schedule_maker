@@ -782,6 +782,8 @@ export interface ParticipantHome {
     supportPhone: string | null;
     supportAvatarUrl: string | null;
   } | null;
+  /** Set when the group's meeting has an attendance mark in the last 3 hours and this week isn't submitted yet. */
+  groupMeetingLive: { weekId: number; startedAt: string } | null;
   weeks: ParticipantHomeWeek[];
   reflections: ParticipantReflection[];
   sunday: Array<{ weekId: number; status: string; lateExcused?: boolean }>;
@@ -850,7 +852,7 @@ export interface ClassFeedbackWeekResult {
 }
 
 export interface ParticipantFaith {
-  project: { id: string; body: string | null; status: FaithProjectStatus; updatedAt: string } | null;
+  project: { id: string; body: string | null; status: FaithProjectStatus; updatedAt: string; sharedForPrayer: boolean } | null;
   deadlineAt: string | null;
   trail: Array<{ id: string; body: string; createdAt: string; byParticipant: boolean; authorName: string | null }>;
   openHelpRequest: { id: string; reason: FaithHelpReason; note: string | null; wantsContact: boolean; createdAt: string } | null;
@@ -901,6 +903,8 @@ export interface Testimony {
   reviewedById?: string | null;
   reviewedByName?: string | null;
   reviewedAt?: string | null;
+  /** When the assigned support opened this participant's card and saw it (SUPPORT-visibility only). Null = not yet seen. */
+  viewedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1024,12 +1028,34 @@ export interface ProfileCompletion {
 // support picked as lead. The lead marks Sunday-recap attendance, messages
 // the hub and keeps private notes on each support.
 
+/** Granular permissions a hub lead can grant their assistant. */
+export type AssistantHubPermission = 'MEETING' | 'ATTENDANCE' | 'MESSAGE';
+
+/** A support's kind within a cohort (UserCohort.supportKind). */
+export type SupportKind = 'PARTICIPANT_SUPPORT' | 'HUB_LEAD' | 'OPERATIONAL';
+
+/** The jobs a member can hold at a hub. */
+export type HubJob = 'HUB_LEAD' | 'ASSISTANT_HUB_LEAD' | 'RECAP_LEAD' | 'PRAYER_LEAD' | 'IT_SUPPORT';
+
+export interface HubItSupportEntry {
+  userId: string;
+  name: string;
+}
+
 export interface SupportHub {
   id: string;
   cohortId: string;
   name: string;
   leadUserId?: string | null;
   leadName?: string | null;
+  assistantLeadUserId?: string | null;
+  assistantLeadName?: string | null;
+  assistantPermissions?: AssistantHubPermission[];
+  recapLeadUserId?: string | null;
+  recapLeadName?: string | null;
+  prayerLeadUserId?: string | null;
+  prayerLeadName?: string | null;
+  itSupports?: HubItSupportEntry[];
   memberCount?: number;
   createdAt?: string;
 }
@@ -1105,6 +1131,7 @@ export interface MyHubMember {
   phone?: string | null;
   isLead: boolean;
   groupName?: string | null;
+  jobs?: HubJob[];
 }
 
 export interface MyHubAttendanceRow {
@@ -1114,16 +1141,62 @@ export interface MyHubAttendanceRow {
   sessionDate: string;
   weekId?: number | null;
   status: SupportAttendanceStatus;
+  /** SUNDAY_RECAP sessions only: the hub's submitted meeting notes. */
+  notes?: string | null;
+  submittedAt?: string | null;
 }
 
 export interface MyHubPayload {
   hub: {
     id: string; name: string; leadUserId: string | null; leadName: string | null; cohortId: string;
+    assistantLeadUserId?: string | null; assistantLeadName?: string | null;
+    assistantPermissions?: AssistantHubPermission[];
+    recapLeadUserId?: string | null; recapLeadName?: string | null;
+    prayerLeadUserId?: string | null; prayerLeadName?: string | null;
+    itSupports?: HubItSupportEntry[];
     meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null;
     callPlatform?: GroupCallPlatform | null; callLink?: string | null;
   } | null;
   isLead: boolean;
+  isAssistant?: boolean;
+  isItSupport?: boolean;
+  canMeeting?: boolean;
+  canAttendance?: boolean;
+  canMessage?: boolean;
+  myJobs?: HubJob[];
+  unseenIntroJobs?: HubJob[];
   members: MyHubMember[];
   messages: HubMessage[];
   myAttendance: MyHubAttendanceRow[];
+  /** Set when this hub's SUNDAY_RECAP session has an attendance mark in the last 3 hours and isn't submitted yet. */
+  meetingLive?: { weekId: number; startedAt: string } | null;
+}
+
+/** hub_prayer_list: shared faith-project entries for a hub's members' groups. */
+export interface HubPrayerListItem {
+  faithProjectId: string;
+  participantId: string;
+  fullName: string;
+  groupName: string | null;
+  supportName: string | null;
+  body: string;
+  categoryName: string | null;
+  /** How many of this hub's Sunday recaps (this cohort) have prayed for them. */
+  timesPrayedFor: number;
+  /** The most recent such week's number, or null if never. */
+  lastPrayedWeek: number | null;
+}
+
+/** get_hub_prayer_focus: the one Faith Project the hub is currently praying for. */
+export interface HubPrayerFocus {
+  faithProjectId: string | null;
+  participantName: string | null;
+  groupName: string | null;
+  projectText: string | null;
+  setAt: string | null;
+  prayedForIds: string[];
+  /** Persisted "1 · Pray for your hub" done toggle, this hub/week. */
+  hubPrayerDone: boolean;
+  /** Persisted "Finish prayer" — clears the focus for everyone when set. */
+  prayerFinished: boolean;
 }

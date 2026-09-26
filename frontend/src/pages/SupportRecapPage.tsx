@@ -33,7 +33,7 @@ const SupportRecapPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="This week's recap" subtitle="What each class covered, for you to bring to your group." />
+      <PageHeader title="This week's recap" subtitle="What each class covered, for you to bring to your group." back={{ label: 'Home', fallbackTo: '/support' }} />
 
       {loading ? (
         <PageLoader />

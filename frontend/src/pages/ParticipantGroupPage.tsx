@@ -4,6 +4,7 @@ import PageLoader from '../components/PageLoader';
 import Avatar from '../components/Avatar';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { buildWhatsAppLink } from '../utils/phone';
+import { normalizeLink } from '../utils/links';
 import { currentWeekNumber, formatTime, titleCaseDay } from '../utils/participantApp';
 
 // My Group: the weekly group meeting, who is in the group, and a way to reach
@@ -33,6 +34,20 @@ const ParticipantGroupPage: React.FC = () => {
           <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">{group.name}</p>
 
           <section data-wt="pg-meeting" className={CARD}>
+            {home.groupMeetingLive && (
+              <div className="mb-3.5 flex items-center justify-between gap-3 rounded-[14px] bg-emerald-100/80 px-3.5 py-2.5">
+                <span className="flex items-center gap-2 text-[13px] font-bold text-emerald-700">
+                  <span className="relative flex h-2 w-2 flex-none">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                  </span>
+                  On now
+                </span>
+                {normalizeLink(group.callLink?.trim() || '') && (
+                  <a href={normalizeLink(group.callLink!.trim())!} target="_blank" rel="noreferrer" className="flex-none rounded-xl bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white">Join</a>
+                )}
+              </div>
+            )}
             <div className="flex flex-wrap items-baseline gap-3">
               <p className="text-xs font-bold uppercase tracking-[0.04em] text-gray-400">Next meeting</p>
               <span className={`ml-auto rounded-full px-2.5 py-1 text-[11px] font-bold ${scheduled ? 'bg-[#f2fbf5] text-[#15803d]' : 'bg-[#f6f7f9] text-gray-500'}`}>

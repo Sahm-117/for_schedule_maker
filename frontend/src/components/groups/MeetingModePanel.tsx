@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AppSelect from '../AppSelect';
+import CompactAttendanceRow from '../CompactAttendanceRow';
 import DocumentViewerSheet from '../DocumentViewerSheet';
 import InfoTip from '../InfoTip';
 import { meetingAttendanceApi } from '../../services/api';
@@ -20,16 +21,14 @@ const shorten = (text: string, max = 60) => {
 };
 const DONE_STEP = STEPS.length;
 
-const MARK_BUTTONS: Array<{ mark: MeetingMark; label: string; activeCls: string }> = [
-  { mark: 'JOINED', label: 'Joined', activeCls: 'bg-emerald-100/80 text-emerald-700' },
-  { mark: 'EXCUSED', label: 'Excused', activeCls: 'bg-amber-100/80 text-amber-700' },
-  { mark: 'MISSED', label: 'Missed', activeCls: 'bg-red-100/80 text-red-700' },
+const MARK_OPTIONS: Array<{ value: MeetingMark; label: string }> = [
+  { value: 'JOINED', label: 'Joined' },
+  { value: 'EXCUSED', label: 'Excused' },
+  { value: 'MISSED', label: 'Missed' },
 ];
 
 const CARD = 'rounded-[20px] border border-[#eef0f4] bg-white p-[18px] shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
 const TEXTAREA = 'w-full resize-y rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
-
-const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
 
 interface MeetingModePanelProps {
   groupId: string | null;
@@ -204,20 +203,25 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
           </div>
         )}
 
-        {!submitted && <div className="mt-3 flex gap-1">
+        {!submitted && <div className="mt-3 flex flex-wrap gap-1.5">
           {STEPS.map((label, index) => {
             const current = index === Math.min(step, STEPS.length - 1);
             const cls = current
               ? 'bg-primary text-white'
-              : index < step ? 'bg-[#fff1e7] text-[#c2410c]' : 'bg-[#f4f5f7] text-gray-400';
+              : index < step ? 'bg-[#fff1e7] text-[#c2410c]' : 'bg-[#f4f5f7] text-gray-500';
             return (
               <button
                 key={label}
                 type="button"
                 onClick={() => setStep(index)}
-                className={`min-w-0 flex-1 rounded-lg px-1 py-2 text-center transition ${cls}`}
+                aria-label={label}
+                title={label}
+                className={`rounded-lg px-2.5 py-1.5 text-center transition ${cls}`}
               >
-                <span className="mt-0.5 block text-[11.5px] font-semibold">{label}</span>
+                <span className="flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold leading-tight">
+                  <span className={`grid h-4 w-4 flex-none place-items-center rounded-full text-[10px] ${current ? 'bg-white text-primary' : 'bg-white/70'}`}>{index < step ? '✓' : index + 1}</span>
+                  {label}
+                </span>
               </button>
             );
           })}
@@ -247,26 +251,17 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
           {participants.length === 0 ? (
             <div className="mt-3.5 rounded-2xl border border-dashed border-orange-200 py-10 text-center text-sm text-gray-500">No participants are in this group yet.</div>
           ) : (
-            <div className="mt-3.5 flex flex-col gap-2">
+            <ul className="mt-3.5 space-y-2">
               {participants.map((participant) => (
-                <div key={participant.id} className="flex flex-wrap items-center gap-2.5 rounded-[14px] border border-[#f1f2f5] px-3 py-2.5">
-                  <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#fff1e7] text-xs font-bold text-[#c2410c]">{initialsOf(participant.fullName)}</div>
-                  <span className="min-w-0 truncate text-sm font-semibold text-gray-900">{participant.fullName}</span>
-                  <div className="ml-auto flex flex-wrap gap-1.5">
-                    {MARK_BUTTONS.map(({ mark, label, activeCls }) => (
-                      <button
-                        key={mark}
-                        type="button"
-                        onClick={() => { void saveMark(participant.id, mark); }}
-                        className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${marks[participant.id] === mark ? activeCls : 'bg-[#f4f5f7] text-gray-500 hover:bg-gray-200/70'}`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <CompactAttendanceRow
+                  key={participant.id}
+                  name={participant.fullName}
+                  value={marks[participant.id] ?? ''}
+                  onChange={(v) => { void saveMark(participant.id, v as MeetingMark); }}
+                  options={MARK_OPTIONS}
+                />
               ))}
-            </div>
+            </ul>
           )}
           <p className="mt-3 text-xs text-gray-500">{attendanceSummary}</p>
           {markError && <p className="mt-1 text-xs text-red-600">{markError}</p>}
