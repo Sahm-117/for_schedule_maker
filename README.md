@@ -1,6 +1,6 @@
 # FOF Ops
 
-A Progressive Web App for running the Foundation of Faith (FOF) discipleship programme at The Covenant Nation (TCN) Ikorodu — the weekly schedule, the participants, and the support team's day-to-day work.
+A Progressive Web App for running the Foundation of Faith (FOF) discipleship programme at The Covenant Nation (TCN) Ikorodu — the weekly schedule, the participants, the support team's day-to-day work, and a participant app of its own.
 
 **Live app:** https://for-schedule-maker.vercel.app
 **GitHub:** https://github.com/Sahm-117/for_schedule_maker
@@ -11,13 +11,25 @@ A Progressive Web App for running the Foundation of Faith (FOF) discipleship pro
 
 FOF runs in cohorts. Each cohort has its own weeks, participants, and small groups led by a support person. The app is the single source of truth for all of it — installable on any phone, works offline, and pushes notifications when things change.
 
-**Three roles:**
+**Three audiences:**
 
-| Role | What they get |
+| Who | What they get |
 |---|---|
-| **Admin** | The back office: cohorts, participants, groups, attendance, faith projects, follow-ups, rota, users, announcements, resources, settings |
-| **SOP Preparer** | Submits schedule edits for admin approval, and views the schedule |
-| **Support** | Their own mobile-first app: schedule, group, participants, mobilisation, hub, resources |
+| **Admin** | The back office: cohorts, participants, groups, hubs, supports, attendance, faith projects and testimonies, follow-ups, feedback, users, announcements, resources, settings |
+| **Support** | Their own mobile-first app (`/support`): schedule, group, participants, mobilisation, My Hub, community, resources |
+| **Participant** | A separate app (`/me`): home, journey, group, faith project, testimonies, people, resources, feedback, profile |
+
+### Supports and hubs
+
+Supports are grouped into **hubs** per cohort. Each support has a kind for the cohort:
+
+- **Participant support** — leads a small group of participants
+- **Hub lead** — leads supports only, no participant group
+- **Operational support** — IT/technical help covering two or more hubs, no participant group
+
+On top of that, each hub has named jobs: **Hub Lead** (runs the hub, does announcements), **Assistant Hub Lead** (makes sure the meeting happens and everyone attends; the Hub Lead decides what else they may do), **Recap Lead**, **Prayer Lead** and **IT Support**. Jobs show as labels on names in My Hub, with an introduction the first time someone gets one.
+
+The weekly **hub meeting** (the Sunday recap meeting) has its own walk-through: Attendance → Prayer → Review & Recap → Announcements → Notes → Submit. The prayer step lists the Faith Projects that participants have chosen to include in the general prayers.
 
 ### The support app (`/support`)
 
@@ -26,7 +38,14 @@ FOF runs in cohorts. Each cohort has its own weeks, participants, and small grou
 - **My Schedule** — the week's activities, a per-support checklist (ticked items tuck away after a short countdown), and PDF download
 - **My Group** — participants, faith projects, notes, concerns; a five-step group meeting flow (attendance → prayer → recap → notes → submit); and Sunday class attendance
 - **Onboard** — onboarding steps and message templates (adding a support is coordinator-only)
-- **Hub, Resources, Profile** — team discussion, shared files, and personal settings
+- **My Hub** — fellow supports and their jobs, the hub meeting walk-through, prayer list, messages from the lead, trainings (leads), and a hub switcher for IT supports on several hubs
+- **Community, Resources, Profile** — team discussion and people directory, shared files, and personal settings
+
+Supports without a participant group (hub leads, operational supports) get a Home and empty states that point them to My Hub instead.
+
+### The participant app (`/me`)
+
+Participants sign in with their phone number once their support enrols them. They see the week's class and recap, their attendance, their group and support, their Faith Project (with an opt-in to include it in the general prayers, and a way to ask for help if it isn't going well), testimonies, a notifications bell, and after-class feedback.
 
 ### Notable flows
 
@@ -61,7 +80,8 @@ fof_schedule/
 │   │   │   │                   #   DocumentViewerSheet, NotificationBell, …)
 │   │   │   ├── attendance/     # Sunday class panel
 │   │   │   ├── followups/      # Follow-up table, modals, message bank
-│   │   │   └── groups/         # Group call card, meeting mode, participant card
+│   │   │   ├── groups/         # Group call card, meeting mode, participant card
+│   │   │   └── hubs/           # Hub meeting walk-through, hub job labels
 │   │   ├── pages/              # Route-level pages (admin + /support/*)
 │   │   ├── hooks/              # useAuth, usePWAInstall, walkthrough, …
 │   │   ├── services/           # api.ts → supabase-api.ts (all data access)
@@ -71,7 +91,8 @@ fof_schedule/
 ├── supabase/
 │   ├── migrations/             # SQL migrations, applied in order
 │   └── functions/              # Edge functions (notify-*, send-announcement,
-│                               #   push-reminders)
+│                               #   push-reminders, daily-checks, …)
+├── scripts/                    # Maintainer scripts (apply-migration.cjs, …)
 └── supabase-schema.sql         # Full schema for a fresh setup
 ```
 
@@ -124,17 +145,10 @@ npm run preview           # serve the built app
 ## Database
 
 - **Fresh setup:** run `supabase-schema.sql` in the Supabase SQL editor, then the files in `supabase/migrations/` in filename order.
-- **Existing database:** apply only the new migration files, in order.
+- **Existing database:** apply only the new migration files, in order. `node scripts/apply-migration.cjs supabase/migrations/<file>.sql` applies one file using the root `.env.local` (set `PG_PATH` to a folder containing the `pg` package if it isn't installed).
 - Migrations are additive by convention, so a deployed app keeps working while a new frontend rolls out.
 
-Create the first admin by inserting into `User`:
-
-```sql
-INSERT INTO "User" (name, email, role, password)
-VALUES ('Your Name', 'you@example.com', 'ADMIN', 'yourpassword');
-```
-
-> **Security note:** passwords are still stored as plain text. Do not reuse a password from anywhere else. Replacing this is the first task of the planned auth rebuild.
+Passwords are stored hashed (`password_hash`), and the browser can't read that column.
 
 ---
 
@@ -142,11 +156,11 @@ VALUES ('Your Name', 'you@example.com', 'ADMIN', 'yourpassword');
 
 The app uses **custom authentication**, not Supabase Auth.
 
-- Login queries the `User` table directly using the anon key
-- A mock token (`mock_token_${userId}`) is kept in `localStorage`
-- Every request runs as the PostgreSQL `anon` role
+- Signing in calls a `SECURITY DEFINER` function that checks the hashed password and creates a row in `AppSession`
+- The session token is kept in `localStorage` and sent on every request as the `x-session-token` header
+- Requests still run as the PostgreSQL `anon` role; database helpers (`app_current_user_id()`, `app_is_staff()`, `app_participant_id(token)`) read the header to work out who is asking
 
-**So:** RLS policies are `USING (true)` and access control lives in the UI layer, not the database. Anyone adding tables should follow the same pattern (`"Allow all operations"`) or the app will break.
+**So:** staff tables are locked to signed-in staff by RLS, and participant data is only reachable through token-checked functions. New tables should follow the same staff-only pattern (see the `staff_only_*` migrations) rather than open policies.
 
 ---
 
@@ -200,6 +214,8 @@ Status chips follow a soft-pill palette: a pastel surface with saturated text (e
 | `src/context/AppDataContext.tsx` | Active cohort, weeks, notifications, live refresh |
 | `src/components/AppShell.tsx` | Navigation for both the back office and the support app |
 | `src/components/groups/MeetingModePanel.tsx` | The five-step group meeting flow |
+| `src/components/hubs/HubMeetingPanel.tsx` | The six-step hub meeting flow |
+| `src/components/hubs/hubJobs.ts` | Hub job names, colours and explanations |
 | `src/components/DocumentViewerSheet.tsx` | In-app PDF/image viewer |
 | `src/sw.ts` | Service worker: caching, push, notification clicks |
 
