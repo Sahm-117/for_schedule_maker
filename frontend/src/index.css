@@ -37,6 +37,11 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Installed app: our own pull-to-refresh replaces the phone's (see PullToRefresh). */
+@media (display-mode: standalone) {
+  html, body { overscroll-behavior-y: none; }
+}
+
 * {
   box-sizing: border-box;
   transition-property: color, background-color, border-color, opacity, box-shadow, transform;

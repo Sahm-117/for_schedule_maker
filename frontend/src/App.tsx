@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
 import PWAUpdateBanner from './components/PWAUpdateBanner';
+import PullToRefresh from './components/PullToRefresh';
 import AppShell from './components/AppShell';
 import { AppDataProvider } from './context/AppDataContext';
 import { TourProvider } from './context/TourContext';
@@ -87,6 +88,7 @@ function App() {
             against React's commit and threw "Can't perform a React state
             update on a component that hasn't mounted yet" on every login. */}
         <PWAUpdateBanner />
+        <PullToRefresh />
         <TourProvider>
         <Routes>
           <Route path="/login" element={<Login />} />

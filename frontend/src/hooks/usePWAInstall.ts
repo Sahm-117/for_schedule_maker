@@ -13,7 +13,7 @@ function isAndroid() {
   return /android/i.test(navigator.userAgent);
 }
 
-function isInStandaloneMode() {
+export function isInStandaloneMode() {
   return window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as any).standalone === true;
 }
