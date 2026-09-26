@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import Avatar from '../components/Avatar';
@@ -47,6 +47,7 @@ const ParticipantHomePage: React.FC = () => {
   const { user } = useAuth();
   const { home, loading, error, reload, applyReflection } = useParticipantApp();
   const toast = useToast();
+  const navigate = useNavigate();
   const [goalSaving, setGoalSaving] = useState(false);
   const [scriptureDay, setScriptureDay] = useState<number | null>(null);
   // Live drag offset (px) while swiping, or the animated value while settling/springing back.
@@ -210,7 +211,15 @@ const ParticipantHomePage: React.FC = () => {
 
       <div className="flex flex-col gap-4">
         {home.groupMeetingLive && (
-          <section className="flex items-center justify-between gap-3 rounded-[16px] bg-emerald-100/80 px-4 py-3">
+          // Tapping the banner opens the meeting on My Group; Join still goes
+          // straight to the call link.
+          <section
+            role="link"
+            tabIndex={0}
+            onClick={() => navigate('/me/group')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/me/group'); } }}
+            className="flex cursor-pointer items-center justify-between gap-3 rounded-[16px] bg-emerald-100/80 px-4 py-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          >
             <span className="flex items-center gap-2 text-sm font-bold text-emerald-700">
               <span className="relative flex h-2 w-2 flex-none">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -219,9 +228,9 @@ const ParticipantHomePage: React.FC = () => {
               Your group meeting is on now
             </span>
             {groupCallLink ? (
-              <a href={groupCallLink} target="_blank" rel="noreferrer" className="flex-none rounded-xl bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white">Join</a>
+              <a href={groupCallLink} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex-none rounded-xl bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white">Join</a>
             ) : (
-              <NavLink to="/me/group" className="flex-none rounded-xl bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white">Open</NavLink>
+              <span className="flex-none rounded-xl bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white">Open</span>
             )}
           </section>
         )}

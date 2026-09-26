@@ -3,6 +3,7 @@ import { normaliseRules } from '../utils/programmeRules';
 import { normaliseRecapReleaseTimes } from '../utils/recapReleaseTimes';
 import { normaliseClassFeedbackTimes } from '../utils/classFeedbackTimes';
 import { normaliseClassStartTime } from '../utils/classStartTime';
+import { notifyGroupMeetingChanged } from '../utils/meetingLiveEvents';
 import { DEFAULT_CHURCH_DEPARTMENTS } from '../constants/departments';
 import type {
   User,
@@ -6127,7 +6128,30 @@ export const groupPrayerStatusApi = {
       .single();
 
     if (error || !data) throw new Error(error?.message || 'Failed to update prayer status');
+    notifyGroupMeetingChanged();
     return { status: mapGroupPrayerStatus(data) };
+  },
+
+  /** Support moved past (or back to) the Prayer step — participants' My Group switches between prayer and recap. */
+  async setPrayerFinished(groupId: string, weekId: number, finished: boolean): Promise<void> {
+    const { error } = await supabase
+      .from('GroupPrayerStatus')
+      .upsert(
+        { groupId, weekId, prayerFinishedAt: finished ? new Date().toISOString() : null },
+        { onConflict: 'groupId,weekId' }
+      );
+    if (error) throw new Error(error.message);
+  },
+
+  /** Support moved past (or back to) the Recap step — participants' My Group shows the meeting as completed. */
+  async setRecapFinished(groupId: string, weekId: number, finished: boolean): Promise<void> {
+    const { error } = await supabase
+      .from('GroupPrayerStatus')
+      .upsert(
+        { groupId, weekId, recapFinishedAt: finished ? new Date().toISOString() : null },
+        { onConflict: 'groupId,weekId' }
+      );
+    if (error) throw new Error(error.message);
   },
 };
 
@@ -6442,6 +6466,7 @@ export const meetingAttendanceApi = {
       .select('*')
       .single();
     if (error || !data) throw new Error(error?.message || 'Failed to save meeting attendance');
+    notifyGroupMeetingChanged();
     return { record: mapMeetingAttendance(data) };
   },
 
@@ -6474,6 +6499,41 @@ export const meetingAttendanceApi = {
       if (!best || new Date(startedAt).getTime() > new Date(best.startedAt).getTime()) best = { weekId, startedAt };
     });
     return best;
+  },
+
+  /** Meetings with attendance marked but no report submitted, newest first (reminder card on support Home). */
+  async getUnfinishedForGroup(groupId: string): Promise<Array<{ weekId: number; startedAt: string }>> {
+    const [{ data, error }, { data: statusRows, error: statusError }] = await Promise.all([
+      supabase.from('MeetingAttendance').select('weekId, markedAt').eq('groupId', groupId),
+      supabase.from('GroupPrayerStatus').select('weekId, done').eq('groupId', groupId),
+    ]);
+    if (error) throw new Error(error.message);
+    if (statusError) throw new Error(statusError.message);
+    const doneWeeks = new Set(((statusRows as Array<{ weekId: number; done: boolean }>) || []).filter((s) => s.done).map((s) => s.weekId));
+    const startedByWeek = new Map<number, string>();
+    ((data as Array<{ weekId: number; markedAt: string }>) || []).forEach((row) => {
+      if (doneWeeks.has(row.weekId)) return;
+      const current = startedByWeek.get(row.weekId);
+      if (!current || new Date(row.markedAt).getTime() < new Date(current).getTime()) startedByWeek.set(row.weekId, row.markedAt);
+    });
+    return [...startedByWeek.entries()]
+      .map(([weekId, startedAt]) => ({ weekId, startedAt }))
+      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+  },
+
+  /** "It was a test": clears an unsubmitted meeting's attendance, prayer pick and live progress. Refuses a submitted one. */
+  async discardUnfinished(groupId: string, weekId: number): Promise<void> {
+    const { data: status, error: statusError } = await supabase.from('GroupPrayerStatus').select('done').eq('groupId', groupId).eq('weekId', weekId).maybeSingle();
+    if (statusError) throw new Error(statusError.message);
+    if ((status as { done: boolean } | null)?.done) throw new Error('This meeting was already submitted.');
+    const results = await Promise.all([
+      supabase.from('MeetingAttendance').delete().eq('groupId', groupId).eq('weekId', weekId),
+      supabase.from('GroupPrayerFocus').delete().eq('groupId', groupId).eq('weekId', weekId),
+      supabase.from('GroupPrayerStatus').delete().eq('groupId', groupId).eq('weekId', weekId).eq('done', false),
+    ]);
+    const failed = results.find((r) => r.error);
+    if (failed?.error) throw new Error(failed.error.message);
+    notifyGroupMeetingChanged();
   },
 };
 

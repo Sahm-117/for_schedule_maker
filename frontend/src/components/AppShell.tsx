@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SectionTabs, { sectionMatches } from './SectionTabs';
+import LiveNavDot from './LiveNavDot';
 import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -183,18 +184,11 @@ const NavDot: React.FC = () => (
 
 // Small pulsing dot for "a meeting is on right now" — same visual language as
 // HubMeetingPanel's LiveDot, just the dot on its own for a nav item.
-const PulsingDot: React.FC<{ className?: string }> = ({ className = 'ml-auto' }) => (
-  <span className={`relative flex h-2 w-2 flex-shrink-0 ${className}`} aria-label="Meeting is on now">
-    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-  </span>
-);
-
 // Tapping "My Hub"/"My Group" while their meeting is live opens the meeting
 // tab directly, instead of the plain page.
-const resolveNavTo = (item: NavItem, hubMeetingLive: boolean, groupMeetingLive: boolean) => {
+const resolveNavTo = (item: NavItem, hubMeetingLive: boolean, groupMeetingLive: boolean, groupLiveWeekId?: number | null) => {
   if (item.to === '/support/my-hub' && hubMeetingLive) return '/support/my-hub?tab=meeting';
-  if (item.to === '/support/participants' && groupMeetingLive) return '/support/participants?tab=prayers';
+  if (item.to === '/support/participants' && groupMeetingLive) return `/support/participants?tab=prayers${groupLiveWeekId ? `&week=${groupLiveWeekId}` : ''}`;
   return item.to;
 };
 
@@ -206,13 +200,14 @@ const NavItemLink: React.FC<{
   hasNewHubActivity: boolean;
   hubMeetingLive?: boolean;
   groupMeetingLive?: boolean;
+  groupLiveWeekId?: number | null;
   onClick?: () => void;
-}> = ({ item, active, globalPendingCount, newResourceCount, hasNewHubActivity, hubMeetingLive = false, groupMeetingLive = false, onClick }) => {
+}> = ({ item, active, globalPendingCount, newResourceCount, hasNewHubActivity, hubMeetingLive = false, groupMeetingLive = false, groupLiveWeekId = null, onClick }) => {
   const isLive = (item.to === '/support/my-hub' && hubMeetingLive) || (item.to === '/support/participants' && groupMeetingLive);
   return (
     <NavLink
       key={item.to}
-      to={resolveNavTo(item, hubMeetingLive, groupMeetingLive)}
+      to={resolveNavTo(item, hubMeetingLive, groupMeetingLive, groupLiveWeekId)}
       end={item.to === '/support' || item.to === '/dashboard'}
       onClick={onClick}
       className={({ isActive }) => `nav-pill ${active || isActive ? 'nav-pill-active' : ''}`}
@@ -221,7 +216,7 @@ const NavItemLink: React.FC<{
       <span>{item.label}</span>
       {item.to === '/schedule' && <MobileBadge count={globalPendingCount} />}
       {item.to.includes('community') && hasNewHubActivity && <NavDot />}
-      {isLive && <PulsingDot />}
+      {isLive && <LiveNavDot className="ml-auto" ringClass="ring-transparent" />}
     </NavLink>
   );
 };
@@ -408,7 +403,9 @@ const AppShell: React.FC = () => {
     // (realtime + 15s fallback), same as myHub — no separate polling needed.
   }, [isSupport, activeCohort, liveRevision]);
   const myHubJobLabels = myHubJobs.map((job) => HUB_JOB_INFO[job].label);
-  const groupMeetingLive = !!useGroupMeetingLive(myGroupId);
+  const groupMeetingLiveInfo = useGroupMeetingLive(myGroupId);
+  const groupMeetingLive = !!groupMeetingLiveInfo;
+  const groupLiveWeekId = groupMeetingLiveInfo?.weekId ?? null;
   const hubMeetingLive = hubsMeetingLive || !!myHub?.meetingLive;
   const currentLabel = isAdmin ? 'Admin' : ([...myGroupNames, ...myHubJobLabels].join(' · ') || null);
   const formatDateLabel = (value?: string | null) => {
@@ -482,6 +479,7 @@ const AppShell: React.FC = () => {
                   hasNewHubActivity={hasNewHubActivity}
                   hubMeetingLive={hubMeetingLive}
                   groupMeetingLive={groupMeetingLive}
+                  groupLiveWeekId={groupLiveWeekId}
                 />
               ))}
             </div>
@@ -569,6 +567,7 @@ const AppShell: React.FC = () => {
                       hasNewHubActivity={hasNewHubActivity}
                       hubMeetingLive={hubMeetingLive}
                       groupMeetingLive={groupMeetingLive}
+                      groupLiveWeekId={groupLiveWeekId}
                       onClick={() => setOpen(false)}
                     />
                   ))}
@@ -678,12 +677,15 @@ const AppShell: React.FC = () => {
             return (
               <NavLink
                 key={item.to}
-                to={resolveNavTo(item, hubMeetingLive, groupMeetingLive)}
+                to={resolveNavTo(item, hubMeetingLive, groupMeetingLive, groupLiveWeekId)}
                 className={isSupport
                   ? `relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-0.5 py-2 text-[10px] font-semibold tracking-tight ${active ? 'bg-primary text-white' : 'text-gray-500'}`
                   : `relative flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium ${active ? 'bg-orange-50 text-primary' : 'text-gray-500'}`}
               >
-                {item.icon}
+                <span className="relative inline-flex">
+                  {item.icon}
+                  {isLive && <LiveNavDot className="absolute -right-1.5 -top-1" ringClass={active ? (isSupport ? 'ring-primary' : 'ring-orange-50') : 'ring-white'} />}
+                </span>
                 <span className="truncate">{item.mobileLabel ?? item.label}</span>
                 {item.to === '/schedule' && globalPendingChanges.length > 0 && (
                   <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />
@@ -691,7 +693,6 @@ const AppShell: React.FC = () => {
                 {item.to.includes('community') && hasNewHubActivity && (
                   <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-primary" />
                 )}
-                {isLive && <PulsingDot className="absolute right-3 top-1.5" />}
               </NavLink>
             );
           })}
@@ -725,14 +726,14 @@ const AppShell: React.FC = () => {
               return (
                 <NavLink
                   key={item.to}
-                  to={resolveNavTo(item, hubMeetingLive, groupMeetingLive)}
+                  to={resolveNavTo(item, hubMeetingLive, groupMeetingLive, groupLiveWeekId)}
                   onClick={() => setMoreOpen(false)}
                   className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition ${active ? 'bg-[#fff8f3] text-[#c2410c]' : 'text-gray-800 hover:bg-gray-50'}`}
                 >
                   {item.icon}
                   <span>{item.label}</span>
                   {item.to.includes('community') && hasNewHubActivity && <NavDot />}
-                  {isLive && <PulsingDot />}
+                  {isLive && <LiveNavDot className="ml-auto" ringClass="ring-transparent" />}
                 </NavLink>
               );
             })}

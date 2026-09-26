@@ -783,7 +783,9 @@ export interface ParticipantHome {
     supportAvatarUrl: string | null;
   } | null;
   /** Set when the group's meeting has an attendance mark in the last 3 hours and this week isn't submitted yet. */
-  groupMeetingLive: { weekId: number; startedAt: string } | null;
+  groupMeetingLive: { weekId: number; startedAt: string; /** Support has moved past the Prayer step. */ prayerFinished?: boolean; /** Support has moved past the Recap step. */ recapFinished?: boolean; /** The meeting week's recap, sent once the support reaches Recap even before its normal release time. */ recap?: { recapSummary: string | null; discussionPrompt: string | null; recapDocumentUrl: string | null; recapDocumentName: string | null } | null } | null;
+  /** Who the group is praying for in the meeting that's on now. projectText only when approved and shared for prayer. */
+  groupPrayerFocus: { weekId: number; participantName: string; projectText: string | null } | null;
   weeks: ParticipantHomeWeek[];
   reflections: ParticipantReflection[];
   sunday: Array<{ weekId: number; status: string; lateExcused?: boolean }>;

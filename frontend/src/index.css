@@ -170,9 +170,19 @@ body {
 }
 .fof-glow-ring { animation: fof-glow-ring 2.4s ease-in-out infinite; }
 
+/* "Meeting is on now" nav dot: two soft sonar rings, staggered, so it reads
+   as live without flashing (see LiveNavDot). */
+@keyframes fof-live-sonar {
+  0% { transform: scale(1); opacity: 0.55; }
+  75%, 100% { transform: scale(3); opacity: 0; }
+}
+.fof-live-sonar { animation: fof-live-sonar 2.6s cubic-bezier(0, 0, 0.2, 1) infinite; }
+.fof-live-sonar-late { animation-delay: 1.3s; }
+
 @media (prefers-reduced-motion: reduce) {
   .fof-toast, .fof-orb, .fof-orb-slow, .fof-rise,
   .fof-fade-in, .fof-fade-out, .fof-sheet-up, .fof-step-in, .fof-tour-ring,
   .fof-help-ping,
   .fof-glow-ring { animation: none; }
+  .fof-live-sonar { animation: none; opacity: 0; }
 }

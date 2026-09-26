@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { meetingAttendanceApi } from '../services/api';
+import { GROUP_MEETING_CHANGED_EVENT } from '../utils/meetingLiveEvents';
 
 // "Your group meeting is on now" — a support's own group, and a participant's
 // group (via participant_home's groupMeetingLive, read elsewhere). Support
@@ -22,11 +23,13 @@ export const useGroupMeetingLive = (groupId: string | null | undefined) => {
     const onVisible = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', load);
+    window.addEventListener(GROUP_MEETING_CHANGED_EVENT, load);
     return () => {
       cancelled = true;
       window.clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', load);
+      window.removeEventListener(GROUP_MEETING_CHANGED_EVENT, load);
     };
   }, [groupId]);
 

@@ -754,6 +754,8 @@ export const meetingAttendanceApi = USE_SUPABASE ? supabaseMeetingAttendanceApi 
   async getForWeeks(_weekIds: number[]): Promise<{ records: import('../types').MeetingAttendance[] }> { return { records: [] }; },
   async mark(_input: any): Promise<never> { return peopleUnavailable(); },
   async getLiveForGroup(_groupId: string): Promise<{ weekId: number; startedAt: string } | null> { return null; },
+  async getUnfinishedForGroup(_groupId: string): Promise<Array<{ weekId: number; startedAt: string }>> { return []; },
+  async discardUnfinished(_groupId: string, _weekId: number): Promise<never> { return peopleUnavailable(); },
 };
 
 export const participantFlagsApi = USE_SUPABASE ? supabaseParticipantFlagsApi : {
@@ -791,6 +793,8 @@ export const groupPrayerFocusApi = USE_SUPABASE ? supabaseGroupPrayerFocusApi : 
 export const groupPrayerStatusApi = USE_SUPABASE ? supabaseGroupPrayerStatusApi : {
   async getForCohort(_cohortId: string): Promise<{ statuses: import('../types').GroupPrayerStatus[] }> { return { statuses: [] }; },
   async setDone(_groupId: string, _weekId: number, _done: boolean, _markedById?: string): Promise<never> { return peopleUnavailable(); },
+  async setPrayerFinished(_groupId: string, _weekId: number, _finished: boolean): Promise<never> { return peopleUnavailable(); },
+  async setRecapFinished(_groupId: string, _weekId: number, _finished: boolean): Promise<never> { return peopleUnavailable(); },
 };
 
 export const hubApi = USE_SUPABASE ? supabaseHubApi : {

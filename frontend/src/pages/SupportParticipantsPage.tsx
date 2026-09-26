@@ -219,9 +219,20 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
     if (cohortWeeks.length === 0) return;
     const selectedStillExists = selectedWeekId !== null && cohortWeeks.some((week) => week.id === selectedWeekId);
     if (!selectedStillExists) {
-      setSelectedWeekId(getIdealWeekForCohort(activeCohort, cohortWeeks)?.id ?? cohortWeeks[0].id);
+      // ?week= (from the "meeting isn't finished" card on Home) opens that week.
+      const requestedWeekId = Number(searchParams.get('week'));
+      const requested = cohortWeeks.find((week) => week.id === requestedWeekId);
+      setSelectedWeekId(requested?.id ?? getIdealWeekForCohort(activeCohort, cohortWeeks)?.id ?? cohortWeeks[0].id);
     }
-  }, [activeCohort, cohortWeeks, selectedWeekId]);
+  }, [activeCohort, cohortWeeks, selectedWeekId, searchParams]);
+
+  // Opening a link with ?week= while already on this page (e.g. the live
+  // meeting banner/nav) switches to that week.
+  const requestedWeekParam = searchParams.get('week');
+  useEffect(() => {
+    const requestedWeekId = Number(requestedWeekParam);
+    if (requestedWeekId && cohortWeeks.some((week) => week.id === requestedWeekId)) setSelectedWeekId(requestedWeekId);
+  }, [requestedWeekParam, cohortWeeks]);
 
   const groupOptions = useMemo(() => {
     const map = new Map<string, { value: string; label: string; meta?: string }>();
@@ -467,6 +478,18 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
               focusParticipantId={currentPrayerFocus?.participantId ?? null}
               savingFocus={savingPrayerFocus}
               onSetFocus={setPrayerFocus}
+              onPrayerFinishedChange={(finished) => {
+                if (!selectedGroupId || !selectedWeekId) return;
+                void groupPrayerStatusApi.setPrayerFinished(selectedGroupId, selectedWeekId, finished).catch(() => {
+                  // Best-effort: only drives what participants see; the meeting itself carries on.
+                });
+              }}
+              onRecapFinishedChange={(finished) => {
+                if (!selectedGroupId || !selectedWeekId) return;
+                void groupPrayerStatusApi.setRecapFinished(selectedGroupId, selectedWeekId, finished).catch(() => {
+                  // Best-effort, same as prayer above.
+                });
+              }}
               submitted={!!currentPrayerStatus?.done}
               submittedWeekIds={groupPrayerStatuses.filter((status) => status.groupId === selectedGroupId && status.done).map((status) => status.weekId)}
               onSubmit={handleMeetingSubmit}

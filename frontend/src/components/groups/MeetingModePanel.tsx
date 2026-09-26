@@ -42,6 +42,10 @@ interface MeetingModePanelProps {
   focusParticipantId: string | null;
   savingFocus: boolean;
   onSetFocus: (participantId: string) => Promise<void>;
+  /** Called when the support moves past the Prayer step (true) or back to it (false). */
+  onPrayerFinishedChange?: (finished: boolean) => void;
+  /** Called when the support moves past the Recap step (true) or back to it (false). */
+  onRecapFinishedChange?: (finished: boolean) => void;
   submitted: boolean;
   /** Weeks whose report is already in, so the picker can tick them. */
   submittedWeekIds?: number[];
@@ -66,6 +70,8 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
   focusParticipantId,
   savingFocus,
   onSetFocus,
+  onPrayerFinishedChange,
+  onRecapFinishedChange,
   submitted,
   submittedWeekIds = [],
   onSubmit,
@@ -165,8 +171,18 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
       ? { label: 'In progress', cls: 'bg-[#fff8f3] text-[#c2410c]' }
       : { label: 'Not started', cls: 'bg-[#f4f5f7] text-gray-500' };
 
+  // Participants follow the support's step: leaving Prayer (index 1) shows
+  // them the recap, leaving Recap (index 2) shows the meeting as completed.
+  // Stepping back undoes each.
+  const goToStep = (next: number) => {
+    setStep(next);
+    if (submitted) return;
+    if ((step > 1) !== (next > 1)) onPrayerFinishedChange?.(next > 1);
+    if ((step > 2) !== (next > 2)) onRecapFinishedChange?.(next > 2);
+  };
+
   const handleNext = async () => {
-    if (step < STEPS.length - 1) { setStep(step + 1); return; }
+    if (step < STEPS.length - 1) { goToStep(step + 1); return; }
     if (submitted) { setStep(DONE_STEP); return; }
     if (blockedByMarks) return;
     setBusy(true);
@@ -213,7 +229,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
               <button
                 key={label}
                 type="button"
-                onClick={() => setStep(index)}
+                onClick={() => goToStep(index)}
                 aria-label={label}
                 title={label}
                 className={`rounded-lg px-2.5 py-1.5 text-center transition ${cls}`}
@@ -379,7 +395,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
                   : `${unmarkedParticipants.length} people still need a mark.`}
                 {' '}Missed and Excused count.
               </span>
-              <button type="button" onClick={() => setStep(0)} className="flex-none rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-amber-800">
+              <button type="button" onClick={() => goToStep(0)} className="flex-none rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-amber-800">
                 Mark attendance
               </button>
             </div>
@@ -393,7 +409,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
           <h3 className="mt-2 text-[17px] font-bold text-gray-900">{weekLabel} meeting recorded</h3>
           <p className="mt-1.5 text-sm leading-normal text-gray-500">{submitted && markedCount === 0 ? 'This week’s meeting has been submitted.' : doneSummary}</p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-            <button type="button" onClick={() => setStep(0)} className="rounded-xl border border-gray-200 bg-white px-[18px] py-[11px] text-sm font-semibold text-gray-800">
+            <button type="button" onClick={() => goToStep(0)} className="rounded-xl border border-gray-200 bg-white px-[18px] py-[11px] text-sm font-semibold text-gray-800">
               Record another week
             </button>
             {submitted && (
@@ -409,7 +425,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
         <div className="flex gap-2.5 rounded-b-2xl border-t border-[#eef0f4] bg-white/85 p-3">
           <button
             type="button"
-            onClick={() => setStep(Math.max(0, step - 1))}
+            onClick={() => goToStep(Math.max(0, step - 1))}
             disabled={step === 0}
             className="min-h-[46px] rounded-xl border border-gray-200 bg-white px-[18px] py-3 text-sm font-semibold text-gray-800 disabled:opacity-50"
           >

@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, NavLink } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import ActivityText from '../components/ActivityText';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, faithProjectsApi, groupsApi, myHubApi, participantCheckInsApi, participantsApi, resourcesApi, supportActivityCompletionsApi, supportChecklistApi, supportKindApi } from '../services/api';
+import { announcementsApi, faithProjectsApi, groupsApi, meetingAttendanceApi, myHubApi, participantCheckInsApi, participantsApi, resourcesApi, supportActivityCompletionsApi, supportChecklistApi, supportKindApi } from '../services/api';
 import type { Announcement, FaithProject, Group, HubJob, MyHubPayload, Participant, ParticipantCheckIn, SupportActivityCompletion, SupportChecklistItem, SupportKind, User } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
@@ -12,6 +12,7 @@ import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
 import { normalizeLink } from '../utils/links';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
+import { GROUP_MEETING_CHANGED_EVENT } from '../utils/meetingLiveEvents';
 import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
 import { formatMeetingTime } from '../components/groups/GroupCallCard';
 import Spinner from '../components/Spinner';
@@ -114,6 +115,37 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   // participant support's own group.
   const hubMeetingLive = hubsList.map((h) => h.meetingLive).find((live) => !!live) ?? null;
   const groupMeetingLive = useGroupMeetingLive(!isHubOnlySupport ? myGroups[0]?.id ?? null : null);
+
+  // Meetings started (attendance marked) but never submitted — e.g. a test
+  // run. The one currently live already has the green banner, so it's left out.
+  const [unfinishedMeetings, setUnfinishedMeetings] = useState<Array<{ weekId: number; startedAt: string }>>([]);
+  const [discardingWeekId, setDiscardingWeekId] = useState<number | null>(null);
+  const [confirmDiscardWeekId, setConfirmDiscardWeekId] = useState<number | null>(null);
+  const [discardError, setDiscardError] = useState('');
+  const unfinishedGroupId = !isHubOnlySupport ? myGroups[0]?.id ?? null : null;
+  const loadUnfinished = useCallback(() => {
+    if (!unfinishedGroupId) { setUnfinishedMeetings([]); return; }
+    meetingAttendanceApi.getUnfinishedForGroup(unfinishedGroupId).then(setUnfinishedMeetings).catch(() => setUnfinishedMeetings([]));
+  }, [unfinishedGroupId]);
+  useEffect(() => { loadUnfinished(); }, [loadUnfinished, liveRevision]);
+  useEffect(() => {
+    window.addEventListener(GROUP_MEETING_CHANGED_EVENT, loadUnfinished);
+    return () => window.removeEventListener(GROUP_MEETING_CHANGED_EVENT, loadUnfinished);
+  }, [loadUnfinished]);
+  const handleDiscardMeeting = async (weekId: number) => {
+    if (!unfinishedGroupId) return;
+    setDiscardingWeekId(weekId);
+    setDiscardError('');
+    try {
+      await meetingAttendanceApi.discardUnfinished(unfinishedGroupId, weekId);
+      setConfirmDiscardWeekId(null);
+      loadUnfinished();
+    } catch (err) {
+      setDiscardError(err instanceof Error ? err.message : 'Could not discard this meeting. Try again.');
+    } finally {
+      setDiscardingWeekId(null);
+    }
+  };
 
   // Next hub meeting (hub-only supports only): the soonest upcoming meeting
   // slot across every hub they cover — an IT support on 2+ hubs sees the
@@ -357,7 +389,11 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
           </section>
 
           {(hubMeetingLive || groupMeetingLive) && (
-            <section className="flex items-center justify-between gap-3 rounded-[16px] bg-emerald-100/80 px-4 py-3">
+            // The whole banner opens the meeting, not just the button.
+            <NavLink
+              to={hubMeetingLive ? '/support/my-hub?tab=meeting' : `/support/participants?tab=prayers${groupMeetingLive ? `&week=${groupMeetingLive.weekId}` : ''}`}
+              className="flex items-center justify-between gap-3 rounded-[16px] bg-emerald-100/80 px-4 py-3"
+            >
               <span className="flex items-center gap-2 text-sm font-bold text-emerald-700">
                 <span className="relative flex h-2 w-2 flex-none">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -365,14 +401,44 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                 </span>
                 {hubMeetingLive ? 'Hub meeting is on now' : 'Your group meeting is on now'}
               </span>
-              <NavLink
-                to={hubMeetingLive ? '/support/my-hub?tab=meeting' : '/support/participants?tab=prayers'}
-                className="flex-none rounded-xl bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white"
-              >
+              <span className="flex-none rounded-xl bg-emerald-700 px-3.5 py-1.5 text-[13px] font-semibold text-white">
                 {hubMeetingLive ? 'Join' : 'Open'}
-              </NavLink>
-            </section>
+              </span>
+            </NavLink>
           )}
+
+          {unfinishedMeetings.filter((meeting) => meeting.weekId !== groupMeetingLive?.weekId).map((meeting) => {
+            const weekNumber = weeks.find((w) => w.id === meeting.weekId)?.weekNumber;
+            const weekLabel = weekNumber ? `Week ${weekNumber}` : 'A';
+            const confirming = confirmDiscardWeekId === meeting.weekId;
+            const discarding = discardingWeekId === meeting.weekId;
+            const started = new Date(meeting.startedAt).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+            return (
+              <section key={meeting.weekId} className="rounded-[16px] bg-amber-100/80 px-4 py-3.5">
+                <p className="flex items-center gap-2 text-sm font-bold text-amber-800">
+                  <svg className="h-4 w-4 flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /></svg>
+                  Your {weekLabel} meeting isn&apos;t finished
+                </p>
+                <p className="mt-0.5 pl-6 text-[13px] text-amber-800/80">Started {started} · report not submitted</p>
+                {confirming ? (
+                  <div className="mt-3 rounded-xl bg-white/70 p-3">
+                    <p className="text-[13px] font-semibold text-gray-900">Discard the {weekLabel} meeting?</p>
+                    <p className="mt-0.5 text-xs text-gray-600">This clears its attendance and prayer pick. Only do this if it was a test.</p>
+                    {discardError && <p className="mt-2 text-xs text-red-600">{discardError}</p>}
+                    <div className="mt-2.5 flex gap-2">
+                      <button type="button" onClick={() => { setConfirmDiscardWeekId(null); setDiscardError(''); }} disabled={discarding} className="rounded-xl border border-gray-200 bg-white px-3.5 py-1.5 text-[13px] font-semibold text-gray-800 disabled:opacity-60">Keep it</button>
+                      <button type="button" onClick={() => { void handleDiscardMeeting(meeting.weekId); }} disabled={discarding} className="rounded-xl bg-red-600 px-3.5 py-1.5 text-[13px] font-semibold text-white disabled:opacity-60">{discarding ? 'Discarding…' : 'Yes, discard'}</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex flex-wrap gap-2 pl-6">
+                    <NavLink to={`/support/participants?tab=prayers&week=${meeting.weekId}`} className="rounded-xl bg-amber-700 px-3.5 py-1.5 text-[13px] font-semibold text-white">Finish report</NavLink>
+                    <button type="button" onClick={() => { setConfirmDiscardWeekId(meeting.weekId); setDiscardError(''); }} className="rounded-xl bg-white/80 px-3.5 py-1.5 text-[13px] font-semibold text-amber-800">Discard, it was a test</button>
+                  </div>
+                )}
+              </section>
+            );
+          })}
 
           {roleReminders.map(({ job, hubNames }) => (
             <section key={job} className="relative rounded-[18px] border border-[#e4e1fb] bg-[#f7f6ff] px-4 py-3.5">

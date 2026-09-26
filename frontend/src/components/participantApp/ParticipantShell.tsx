@@ -14,6 +14,7 @@ import { useParticipantPush } from '../../hooks/useParticipantPush';
 import NotificationPromptModal from '../NotificationPromptModal';
 import NotificationBlockedModal from '../NotificationBlockedModal';
 import ParticipantNotificationBell from './ParticipantNotificationBell';
+import LiveNavDot from '../LiveNavDot';
 
 // Layout for the participant app: sidebar on desktop, floating bar on mobile, the
 // same look as the support app. Also asks "are you okay?" when their attendance
@@ -43,15 +44,6 @@ const MORE: NavEntry[] = [
 ];
 
 const Dot: React.FC = () => <span className="h-2 w-2 flex-none rounded-full bg-red-500" aria-label="New reply" />;
-
-// Small pulsing dot for "your group meeting is on now" — same visual
-// language as the support app's nav dot (AppShell's PulsingDot).
-const LiveDot: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <span className={`relative flex h-2 w-2 flex-none ${className}`} aria-label="Meeting is on now">
-    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-  </span>
-);
 
 const isActive = (pathname: string, to: string, exact?: boolean) =>
   exact ? pathname === to : to === '/me/journey'
@@ -156,7 +148,7 @@ const ShellLayout: React.FC = () => {
                 <Icon d={item.icon} />
                 <span className="flex-1">{item.label}</span>
                 {item.faith && faithUnread && <Dot />}
-                {item.to === '/me/group' && groupMeetingLive && <LiveDot />}
+                {item.to === '/me/group' && groupMeetingLive && <LiveNavDot ringClass="ring-transparent" />}
               </NavLink>
             );
           })}
@@ -208,10 +200,12 @@ const ShellLayout: React.FC = () => {
                 to={item.to}
                 className={`relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-0.5 py-2 text-[10px] font-semibold tracking-tight ${active ? 'bg-primary text-white' : 'text-gray-500'}`}
               >
-                <Icon d={item.icon} />
+                <span className="relative inline-flex">
+                  <Icon d={item.icon} />
+                  {item.to === '/me/group' && groupMeetingLive && <LiveNavDot className="absolute -right-1.5 -top-1" ringClass={active ? 'ring-primary' : 'ring-white'} />}
+                </span>
                 <span className="truncate">{item.mobileLabel ?? item.label}</span>
                 {item.faith && faithUnread && <span className="absolute right-3 top-1.5 h-2 w-2 rounded-full bg-red-500" aria-label="New reply" />}
-                {item.to === '/me/group' && groupMeetingLive && <LiveDot className="absolute right-3 top-1.5" />}
               </NavLink>
             );
           })}

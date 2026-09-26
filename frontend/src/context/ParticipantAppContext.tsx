@@ -59,6 +59,14 @@ export const ParticipantAppProvider: React.FC<{ children: React.ReactNode }> = (
     return () => window.clearInterval(timer);
   }, [home?.openWindow, reload]);
 
+  // While the group meeting is on, poll faster so the "Now praying for" pick
+  // on My Group shows up soon after the support makes it.
+  useEffect(() => {
+    if (!home?.groupMeetingLive) return undefined;
+    const timer = window.setInterval(() => { void reload(); }, 20000);
+    return () => window.clearInterval(timer);
+  }, [home?.groupMeetingLive, reload]);
+
   // Unconditional slow poll so groupMeetingLive (the "your group meeting is
   // on now" banner + nav dot) goes stale at most a minute behind, even if the
   // tab is left open in the foreground without a visibilitychange.
