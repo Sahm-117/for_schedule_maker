@@ -4,6 +4,7 @@ import ModalShell from './followups/ModalShell';
 import Avatar from './Avatar';
 import Spinner from './Spinner';
 import { useAuth } from '../hooks/useAuth';
+import { useAppData } from '../context/AppDataContext';
 import { usersApi, groupsApi } from '../services/api';
 import type { Group, Participant, User } from '../types';
 
@@ -20,6 +21,9 @@ const formatLastActive = (iso?: string | null) => {
 
 const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, isOpen, onClose }) => {
   const { isAdmin } = useAuth();
+  // Group and participants are always the ones in the cohort being viewed.
+  const { activeCohort } = useAppData();
+  const cohortId = activeCohort?.id ?? null;
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [profileUser, setProfileUser] = useState<User | null>(null);
@@ -41,7 +45,7 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
         setProfileUser(user);
 
         if (user.role === 'SUPPORT') {
-          const { group: assignedGroup } = await groupsApi.getForSupport(userId);
+          const { group: assignedGroup } = await groupsApi.getForSupport(userId, cohortId);
           if (cancelled) return;
           setGroup(assignedGroup);
 
@@ -59,7 +63,7 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
     })();
 
     return () => { cancelled = true; };
-  }, [isOpen, userId]);
+  }, [isOpen, userId, cohortId]);
 
   const canViewFullProfile = isAdmin;
 

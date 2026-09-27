@@ -4644,12 +4644,18 @@ export const groupsApi = {
   // Unlike resolveSupportScopedGroups, this has no "guess the only group"
   // fallback — used when viewing a THIRD PARTY's assignment (Hub author
   // profile popup), where a wrong guess would misattribute someone else's group.
-  async getForSupport(userId: string): Promise<{ group: import('../types').Group | null }> {
-    const { data, error } = await supabase
+  // Pass the cohort being viewed so an old cohort's group never shows up; the
+  // newest one wins if a support somehow leads two in the same cohort.
+  async getForSupport(userId: string, cohortId?: string | null): Promise<{ group: import('../types').Group | null }> {
+    let query = supabase
       .from('Group')
       .select(GROUP_SELECT)
       .eq('supportId', userId)
-      .is('archivedAt', null)
+      .is('archivedAt', null);
+    if (cohortId) query = query.eq('cohortId', cohortId);
+    const { data, error } = await query
+      .order('createdAt', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (error) throw new Error(error.message);

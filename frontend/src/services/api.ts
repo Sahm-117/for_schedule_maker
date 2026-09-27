@@ -600,7 +600,7 @@ export const groupsApi = USE_SUPABASE ? supabaseGroupsApi : {
   async archive(_id: string, _archivedById?: string | null): Promise<never> { return peopleUnavailable(); },
   async unarchive(_id: string): Promise<never> { return peopleUnavailable(); },
   async getParticipants(_groupId: string): Promise<{ participants: import('../types').Participant[] }> { return { participants: [] }; },
-  async getForSupport(_userId: string): Promise<{ group: import('../types').Group | null }> { return { group: null }; },
+  async getForSupport(_userId: string, _cohortId?: string | null): Promise<{ group: import('../types').Group | null }> { return { group: null }; },
   async setParticipants(_groupId: string, _ids: string[]): Promise<never> { return peopleUnavailable(); },
   async moveParticipant(_participantId: string, _toGroupId: string | null): Promise<never> { return peopleUnavailable(); },
   async bulkAssign(_assignments: Array<{ participantId: string; groupId: string }>): Promise<never> { return peopleUnavailable(); },
