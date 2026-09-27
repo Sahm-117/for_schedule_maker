@@ -562,9 +562,9 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
       <p className="mt-0.5 text-[13px] text-gray-500">
         {recapLeadName ? `${recapLeadName} leads this part.` : 'No recap lead assigned yet.'}
       </p>
-      {!recap || !recap.released ? (
+      {!recap ? (
         <div className="mt-3 rounded-[14px] border border-dashed border-[#e5e7eb] px-3.5 py-6 text-center text-[13px] text-gray-500">
-          This week's recap isn't out yet.
+          No recap for this week yet.
         </div>
       ) : (
         <>

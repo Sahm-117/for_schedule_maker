@@ -104,7 +104,7 @@ export interface Week {
   days: Day[];
 }
 
-/** One week as support_recaps() returns it: content only once support-released. */
+/** One week as support_recaps() returns it: content always included; `released` = support release time passed. */
 export interface SupportRecap {
   weekId: number;
   weekNumber: number;

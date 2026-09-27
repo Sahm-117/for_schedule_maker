@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { useAuth } from '../hooks/useAuth';
 
 const PWAUpdateBanner: React.FC = () => {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
@@ -42,7 +44,13 @@ const PWAUpdateBanner: React.FC = () => {
     };
   }, [registration]);
 
-  if (!needRefresh) return null;
+  // Signed-out visitors at the root URL see the public landing page
+  // (ProtectedRoute) — no update bar there; login and the app keep it.
+  const { user } = useAuth();
+  const { pathname } = useLocation();
+  const onLandingPage = !user && pathname === '/';
+
+  if (!needRefresh || onLandingPage) return null;
 
   return (
     <div className="fixed top-4 left-4 right-4 z-50 max-w-md mx-auto">
