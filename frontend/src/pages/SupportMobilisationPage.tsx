@@ -194,6 +194,12 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     return contacts.filter((contact) => contactInCohortScope(contact, activeCohort.id, activeCohort.id));
   }, [contacts, showPastCohorts, activeCohort]);
 
+  // "People you added" follows the same cohort scope as the follow-up list.
+  const cohortScopedProspects = useMemo(() => {
+    if (showPastCohorts || !activeCohort) return myProspects;
+    return myProspects.filter((contact) => contactInCohortScope(contact, activeCohort.id, activeCohort.id));
+  }, [myProspects, showPastCohorts, activeCohort]);
+
   const openContacts = useMemo(() => cohortScopedContacts.filter((contact) => !contact.archivedAt), [cohortScopedContacts]);
   const visibleContacts = useMemo(() => {
     const list = showClosed ? cohortScopedContacts.filter((contact) => !!contact.archivedAt) : [...openContacts];
@@ -541,11 +547,11 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               )}
             </section>
 
-            {myProspects.length > 0 && (
+            {cohortScopedProspects.length > 0 && (
               <section className={`${CARD} p-[18px]`}>
                 <h3 className="mb-3 text-sm font-bold text-gray-900">People you added</h3>
                 <div className="flex flex-col gap-2.5">
-                  {myProspects.map((contact) => {
+                  {cohortScopedProspects.map((contact) => {
                     const statusLabel = contact.ownerId ? FOLLOW_UP_STATUS_META[computeFollowUpStatus(contact)].label : 'Waiting to be assigned';
                     return (
                       <div key={contact.id} className="rounded-[14px] border border-[#f1f2f5] p-3">
