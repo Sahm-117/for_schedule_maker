@@ -14,7 +14,7 @@ const PWAInstallBanner: React.FC = () => {
   const isTopInfobar = isAndroidDevice && !isIOSDevice;
 
   return (
-    <div className={`pointer-events-none fixed inset-x-0 z-40 flex justify-center px-3 ${isTopInfobar ? 'top-3' : 'bottom-20 px-4 lg:bottom-6'}`}>
+    <div className={`pointer-events-none fixed inset-x-0 z-40 flex justify-center px-3 ${isTopInfobar ? 'bottom-24 lg:bottom-6' : 'bottom-20 px-4 lg:bottom-6'}`}>
       <div className={`pointer-events-auto w-full overflow-hidden border bg-white ring-1 ring-black/5 ${isTopInfobar ? 'max-w-xl rounded-[20px] border-slate-200 shadow-[0_18px_40px_rgba(15,23,42,0.18)]' : 'max-w-md rounded-[28px] border-orange-100 shadow-[0_24px_70px_rgba(15,23,42,0.18)]'}`}>
         <div className={`flex gap-3 ${isTopInfobar ? 'items-center px-3 py-3' : 'items-start px-4 py-4'}`}>
           <div className={`grid flex-shrink-0 place-items-center overflow-hidden bg-white ring-1 ring-orange-100 ${isTopInfobar ? 'h-10 w-10 rounded-xl' : 'h-12 w-12 rounded-2xl'}`}>
