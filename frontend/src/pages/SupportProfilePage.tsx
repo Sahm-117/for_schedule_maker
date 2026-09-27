@@ -192,9 +192,9 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
             <SectionLabel>Your details</SectionLabel>
             <section className={LIST}>
               <Row label="Photo" missing={photoMissing}>
-                <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} className="rounded-lg text-sm font-semibold text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60">
-                  {uploadingAvatar ? 'Uploading…' : photoMissing ? 'Add photo' : 'Change'}
-                </button>
+                {photoMissing
+                  ? <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60">{uploadingAvatar ? 'Uploading…' : 'Add photo'}</button>
+                  : <EditButton label="Change photo" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} />}
               </Row>
               <Row label="Gender" missing={!gender}>
                 <div className="w-40"><AppSelect value={gender} onChange={(value) => { void saveDetails({ gender: value, ageRange }); }} options={toSelectOptions(GENDER_OPTIONS)} placeholder="Choose…" compact /></div>
@@ -208,10 +208,10 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
                     ? (
                       <span className="flex min-w-0 items-center gap-2">
                         <span className="truncate text-sm font-semibold text-gray-900">{phone}</span>
-                        <button type="button" onClick={() => { setPhoneDraft(phone); setPhoneError(''); setEditingPhone(true); }} className="flex-none rounded-lg text-sm font-semibold text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">Edit</button>
+                        <EditButton label="Edit phone number" onClick={() => { setPhoneDraft(phone); setPhoneError(''); setEditingPhone(true); }} />
                       </span>
                     )
-                    : <button type="button" onClick={() => { setPhoneDraft(''); setPhoneError(''); setEditingPhone(true); }} className="rounded-lg text-sm font-semibold text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">Add number</button>}
+                    : <button type="button" onClick={() => { setPhoneDraft(''); setPhoneError(''); setEditingPhone(true); }} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60">Add number</button>}
                 </Row>
               ) : (
                 <div className="space-y-2 px-4 py-3">
@@ -256,10 +256,14 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
               </Row>
               {!editingWhatsapp ? (
                 <Row label="WhatsApp group">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className={`min-w-0 truncate text-sm ${whatsappGroupUrl ? 'font-semibold text-gray-900' : 'text-gray-400'}`}>{whatsappGroupUrl ? whatsappGroupUrl.replace(/^https?:\/\//, '') : 'Not set'}</span>
-                    <button type="button" onClick={() => setEditingWhatsapp(true)} className="flex-none text-sm font-semibold text-primary">{whatsappGroupUrl ? 'Edit' : 'Add'}</button>
-                  </span>
+                  {whatsappGroupUrl ? (
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="min-w-0 truncate text-sm font-semibold text-gray-900">{whatsappGroupUrl.replace(/^https?:\/\//, '')}</span>
+                      <EditButton label="Edit WhatsApp group link" onClick={() => setEditingWhatsapp(true)} />
+                    </span>
+                  ) : (
+                    <button type="button" onClick={() => setEditingWhatsapp(true)} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60">Add link</button>
+                  )}
                 </Row>
               ) : (
                 <div className="space-y-2 px-4 py-3">
@@ -362,6 +366,22 @@ const Row: React.FC<{ label: string; missing?: boolean; children: React.ReactNod
     </span>
     <div className="flex min-w-0 justify-end">{children}</div>
   </div>
+);
+
+// Soft round pencil, the same shape as the Reminders edit button.
+const EditButton: React.FC<{ label: string; onClick: () => void; disabled?: boolean }> = ({ label, onClick, disabled }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    aria-label={label}
+    title={label}
+    className="grid h-8 w-8 flex-none place-items-center rounded-full bg-primary/10 text-primary hover:bg-primary/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60"
+  >
+    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m15.232 5.232 3.536 3.536M9 11l6.232-6.232a2.5 2.5 0 1 1 3.536 3.536L12.536 14.5A4 4 0 0 1 10.7 15.6L7 17l1.4-3.7a4 4 0 0 1 1.1-1.836Z" />
+    </svg>
+  </button>
 );
 
 const CameraIcon: React.FC = () => (
