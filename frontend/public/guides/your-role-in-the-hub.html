@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFFAF5">
+<title>Your Role in the Hub · FOF</title>
+<style>
+body{margin:0;background:#FFFAF5}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:inherit}
+button:focus-visible{outline:3px solid #C2410C;outline-offset:2px}
+.app{--o:#FF914D;--od:#C2410C;--t:#FFF1E6;--ink:#1F1A17;--mut:#6B625C;--soft:#F6F1EC;--line:#F0E6DD;display:flex;flex-direction:column;background:#FFFAF5;color:#1F1A17;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;overflow:hidden;position:relative;-webkit-font-smoothing:antialiased}
+.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.ic.s{width:14px;height:14px}.ic.xs{width:12px;height:12px;stroke-width:2.4}.ic.l{width:22px;height:22px}
+.top{height:60px;display:flex;align-items:center;gap:12px;padding:0 16px;flex-shrink:0}
+.iconbtn{width:44px;height:44px;border-radius:16px;background:#fff;box-shadow:0 1px 2px rgba(90,45,10,.06),0 6px 16px -6px rgba(90,45,10,.14);display:grid;place-items:center;color:#1F1A17}
+.dots{flex:1;display:flex;gap:5px;justify-content:center;align-items:center;flex-wrap:wrap;max-height:22px;overflow:hidden}
+.dot{width:6px;height:6px;border-radius:3px;background:#EADFD6;transition:width .35s,background .35s}
+.dot.done{background:#FFC9A6}
+.dot.on{width:20px;background:#FF914D}
+.count{font-size:13px;font-weight:600;color:#6B625C;min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
+.stage{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;scrollbar-width:none}
+.stage::-webkit-scrollbar{display:none}
+.card{padding:2px 20px 16px;display:flex;flex-direction:column;gap:14px}
+.fwd .card{animation:inR .45s cubic-bezier(.2,.8,.2,1) both}
+.bwd .card{animation:inL .45s cubic-bezier(.2,.8,.2,1) both}
+@keyframes inR{from{opacity:0;transform:translateX(44px)}to{opacity:1;transform:none}}
+@keyframes inL{from{opacity:0;transform:translateX(-44px)}to{opacity:1;transform:none}}
+.card .mock,.card .art{animation:rise .55s .05s cubic-bezier(.2,.8,.2,1) both}
+.card .cap{animation:rise .55s .14s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.eyebrow{display:flex;gap:6px;align-items:center}
+h1,h2,h3{margin:0}
+h2{font-size:26px;line-height:1.15;letter-spacing:-.02em;font-weight:700}
+.say{font-size:17px;line-height:1.4;color:#6B625C;margin:6px 0 0}
+.cap{padding:0 2px}
+.bottom{padding:10px 16px 22px;display:flex;gap:10px;flex-shrink:0;background:linear-gradient(rgba(255,250,245,0),#FFFAF5 30%)}
+.btn{height:54px;border-radius:27px;font-size:17px;font-weight:650;display:flex;align-items:center;justify-content:center;gap:6px;transition:transform .15s}
+.btn:active{transform:scale(.97)}
+.btn.ghost{width:64px;background:#fff;box-shadow:0 1px 2px rgba(90,45,10,.06),0 6px 16px -6px rgba(90,45,10,.14)}
+.btn.pri{flex:1;background:#FF914D;color:#2B1204;box-shadow:0 10px 24px -10px rgba(255,120,40,.7)}
+.restartbtn{display:none}
+.at-end .nextbtn{display:none}
+.at-end .restartbtn{display:flex}
+.on-pick .bottom,.on-pick .dots,.on-pick .count,.on-pick .homebtn{display:none}
+.on-pick .top{height:12px}
+.pill{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 11px;border-radius:13px;font-size:13px;font-weight:650;white-space:nowrap;line-height:1}
+.pill.xs{height:20px;padding:0 8px;font-size:10.5px;border-radius:10px}
+.p-hl{background:#EDE9FE;color:#6D28D9}.p-ahl{background:#E0F2FE;color:#0369A1}.p-rc{background:#E0E7FF;color:#4338CA}.p-pr{background:#D1FAE5;color:#047857}.p-it{background:#F5F5F5;color:#525252}.p-star{background:#FEF3C7;color:#B45309}.p-ps{background:#FFF1E6;color:#C2410C}.p-all{background:#FFF1E6;color:#C2410C}.p-ev{background:#F6F1EC;color:#6B625C}
+.mock{background:#fff;border-radius:28px;box-shadow:0 2px 6px rgba(90,45,10,.05),0 22px 44px -18px rgba(90,45,10,.22);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.art{background:#fff;border-radius:28px;box-shadow:0 2px 6px rgba(90,45,10,.05),0 22px 44px -18px rgba(90,45,10,.22);padding:14px;position:relative}
+.m-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:16px 16px 10px}
+.m-title{font-size:18px;font-weight:750;letter-spacing:-.01em}
+.m-sub{font-size:11px;color:#8A817A;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.m-body{padding:0 12px 14px;display:flex;flex-direction:column;gap:7px}
+.m-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 12px}
+.tab{height:28px;padding:0 11px;border-radius:14px;background:#F6F1EC;color:#6B625C;font-size:12px;font-weight:650;display:inline-flex;align-items:center;gap:4px}
+.tab.on{background:#FFF1E6;color:#C2410C}
+.row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:16px;background:#FBF8F5;min-height:46px}
+.row.col{flex-direction:column;align-items:stretch}
+.rowtop{display:flex;align-items:center;gap:9px}
+.av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:750;flex-shrink:0}
+.a1{background:#FFD8BF;color:#7C2D12}.a2{background:#DDD6FE;color:#4C1D95}.a3{background:#BAE6FD;color:#075985}.a4{background:#C7D2FE;color:#3730A3}.a5{background:#A7F3D0;color:#065F46}.a6{background:#E5E5E5;color:#404040}.a7{background:#FDE68A;color:#78350F}
+.nm{font-size:13.5px;font-weight:650;flex:1;min-width:0;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.m-nav{margin-top:auto;display:flex;justify-content:space-around;padding:8px 6px 12px;border-top:1px solid #F0E6DD;background:#fff}
+.nv{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:600;color:#A39A93;padding:5px 10px;border-radius:14px}
+.nv.on{color:#C2410C;background:#FFF1E6}
+.hl{position:relative;z-index:1}
+.hl::after{content:"";position:absolute;inset:-5px;border-radius:inherit;border:2.5px solid #FF914D;animation:ring 1.8s ease-out infinite;pointer-events:none}
+.hl::before{content:"";position:absolute;inset:-3px;border-radius:inherit;box-shadow:0 0 0 3px rgba(255,145,77,.28);pointer-events:none}
+@keyframes ring{0%{opacity:1;transform:scale(.97)}75%{opacity:0;transform:scale(1.12)}100%{opacity:0}}
+.tapme{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#C2410C}
+.tapme::before{content:"";width:8px;height:8px;border-radius:50%;background:#FF914D;animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.25}}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.sc{height:24px;padding:0 9px;border-radius:12px;font-size:11px;font-weight:650;background:#F6F1EC;color:#8A817A;display:inline-flex;align-items:center;gap:4px}
+.sc.done{background:#FFF1E6;color:#C2410C}
+.sc.now{background:#FF914D;color:#2B1204}
+.sc.lock{color:#B5ACA5}
+.sc.live{background:#D1FAE5;color:#047857}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#10B981;box-shadow:0 0 0 0 rgba(16,185,129,.6);animation:live 1.6s infinite;flex-shrink:0}
+@keyframes live{0%{box-shadow:0 0 0 0 rgba(16,185,129,.55)}80%{box-shadow:0 0 0 7px rgba(16,185,129,0)}100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+.chip{height:24px;padding:0 10px;border-radius:12px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.chip.prog{background:#FEF3C7;color:#B45309}
+.chip.done{background:#D1FAE5;color:#047857}
+.chip.view{background:#F6F1EC;color:#6B625C}
+.seg{display:flex;background:#F1EAE3;border-radius:11px;padding:2px;gap:2px;margin-top:6px}
+.seg span{flex:1;font-size:11px;text-align:center;padding:6px 0;border-radius:9px;color:#6B625C;font-weight:650}
+.st-p{background:#D1FAE5;color:#047857}.st-l{background:#FEF3C7;color:#B45309}.st-a{background:#FEE2E2;color:#B91C1C}.st-e{background:#E0F2FE;color:#0369A1}
+.seg .st-p{background:#fff;color:#047857;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.field{padding:10px 12px;border-radius:14px;background:#FBF8F5;display:flex;flex-direction:column;gap:4px}
+.flabel{font-size:11px;font-weight:650;color:#8A817A}
+.fval{font-size:14px;font-weight:600;display:flex;align-items:center;gap:7px}
+.mbtn{height:40px;border-radius:20px;background:#FF914D;color:#2B1204;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px}
+.mbtn.soft{background:#FFF1E6;color:#C2410C}
+.meet{background:#FFF1E6;border-radius:18px;padding:12px 14px;display:flex;align-items:center;gap:10px}
+.meet .when{font-size:15px;font-weight:750}
+.meet .lbl{font-size:11px;font-weight:650;color:#C2410C}
+.join{margin-left:auto;height:32px;padding:0 12px;border-radius:16px;background:#fff;color:#C2410C;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:5px}
+.swrow{display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;background:#FBF8F5;width:100%;min-height:52px}
+.swrow .t{flex:1;font-size:14px;font-weight:650}
+.sw{width:46px;height:28px;border-radius:14px;background:#E5DDD6;position:relative;transition:background .25s;flex-shrink:0}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.18);transition:transform .25s cubic-bezier(.3,1.4,.5,1)}
+.sw.on,.perm-a .sw-a,.perm-b .sw-b,.perm-c .sw-c,.corp-on .sw-corp{background:#FF914D}
+.sw.on::after,.perm-a .sw-a::after,.perm-b .sw-b::after,.perm-c .sw-c::after,.corp-on .sw-corp::after{transform:translateX(18px)}
+.summary{padding:12px 14px;border-radius:16px;background:#E0F2FE;color:#0369A1;font-size:13px;font-weight:650;line-height:1.35}
+.sheet{margin:0 12px 12px;padding:14px;border-radius:20px;background:#FFF8F2;min-height:96px}
+.sheet p{margin:8px 0 0;font-size:13.5px;line-height:1.4;color:#1F1A17}
+.js{display:none}
+.job-none .js-none,.job-hl .js-hl,.job-ahl .js-ahl,.job-rc .js-rc,.job-pr .js-pr,.job-it .js-it{display:block;animation:rise .35s both}
+.jp{transition:transform .15s}
+.jp:active{transform:scale(.94)}
+.job-hl .jp-hl,.job-ahl .jp-ahl,.job-rc .jp-rc,.job-pr .jp-pr,.job-it .jp-it{box-shadow:0 0 0 2px currentColor}
+.if-sub,.if-noted,.if-corp{display:none}
+.submitted .if-sub,.noted .if-noted,.corp-on .if-corp{display:inline-flex;animation:pop .4s cubic-bezier(.3,1.5,.5,1) both}
+.submitted .if-nosub,.noted .if-nonoted,.corp-on .if-nocorp{display:none}
+@keyframes pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+.block{display:block}
+.submitted .if-sub.block,.noted .if-noted.block,.corp-on .if-corp.block{display:block}
+.fp{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:#FBF8F5;width:100%;min-height:52px;transition:background .2s}
+.fp .t{flex:1;display:flex;flex-direction:column;gap:2px}
+.fp .t b{font-size:14px}
+.fp .t span{font-size:11.5px;color:#8A817A;font-weight:600}
+.radio{width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 2px #E0D6CD;flex-shrink:0;transition:box-shadow .2s}
+.pray-1 .fp1,.pray-2 .fp2,.pray-3 .fp3,.gc-1 .g1,.gc-2 .g2,.gc-3 .g3{background:#FFF1E6}
+.pray-1 .fp1 .radio,.pray-2 .fp2 .radio,.pray-3 .fp3 .radio,.gc-1 .g1 .radio,.gc-2 .g2 .radio,.gc-3 .g3 .radio{box-shadow:inset 0 0 0 7px #FF914D}
+.livecard{border-radius:20px;background:#ECFDF5;padding:12px 14px;display:flex;align-items:center;gap:10px;color:#065F46}
+.livecard .k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#047857}
+.livecard .v{font-size:16px;font-weight:750;color:#064E3B}
+.pn{display:none}
+.pray-0 .pn0,.pray-1 .pn1,.pray-2 .pn2,.pray-3 .pn3{display:inline;animation:rise .35s both}
+.skel{height:8px;border-radius:4px;background:#EEE6DF}
+.vsteps{display:flex;flex-direction:column;gap:0;padding:4px 4px 0}
+.vs{display:flex;align-items:center;gap:12px;position:relative;padding:8px 0}
+.vs .n{width:30px;height:30px;border-radius:50%;background:#F6F1EC;color:#8A817A;display:grid;place-items:center;font-size:13px;font-weight:750;flex-shrink:0;position:relative;z-index:1}
+.vs.done .n{background:#FFF1E6;color:#C2410C}
+.vs.now .n{background:#FF914D;color:#2B1204}
+.vs .t{font-size:15px;font-weight:650}
+.vs.up .t{color:#8A817A}
+.vs+.vs::before{content:"";position:absolute;left:14px;top:-10px;height:22px;width:2px;background:#F0E6DD}
+.tile{display:flex;gap:14px;align-items:center;padding:12px;border-radius:20px;background:#FBF8F5}
+.tile svg{width:64px;height:64px;flex-shrink:0}
+.tt{font-size:15.5px;font-weight:750;margin-bottom:3px}
+.ts{font-size:13.5px;color:#6B625C;line-height:1.35}
+.scrim{position:absolute;inset:0;background:rgba(31,26,23,.34);display:flex;align-items:center;justify-content:center;padding:22px}
+.pop{background:#fff;border-radius:26px;padding:20px 18px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;box-shadow:0 30px 60px -20px rgba(0,0,0,.4);animation:pop .6s .25s cubic-bezier(.3,1.4,.5,1) both;width:100%}
+.pop h3{font-size:19px;letter-spacing:-.01em}
+.pop p{margin:0;font-size:13.5px;color:#6B625C;line-height:1.4}
+.qr{display:grid;grid-template-columns:minmax(0,1.55fr) repeat(5,minmax(0,1fr));align-items:center;row-gap:4px}
+.qh{font-size:10px;font-weight:700;color:#8A817A;text-align:center;line-height:1.2;padding:0 1px 6px}
+.qc{display:flex;justify-content:center;align-items:center;min-height:46px}
+.qr .qrole{min-height:46px;display:flex;align-items:center}
+.qr .qrole .pill{white-space:normal;height:auto;min-height:22px;padding:4px 8px;line-height:1.15;font-size:11px}
+.ok,.no{width:24px;height:24px;border-radius:50%;display:grid;place-items:center}
+.ok{background:#D1FAE5;color:#047857}.no{background:#F5F5F5;color:#A3A3A3}
+.mini{font-size:9.5px;font-weight:750;padding:4px 5px;border-radius:8px;background:#FFF1E6;color:#C2410C;text-align:center;line-height:1.1}
+.mini.sky{background:#E0F2FE;color:#0369A1}
+.tbl{display:grid;grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(0,1fr));row-gap:6px;align-items:center}
+.th{font-size:10px;font-weight:700;color:#8A817A;text-align:center;line-height:1.15;text-transform:uppercase;letter-spacing:.03em}
+.tn{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:650}
+.tc{display:flex;justify-content:center}
+.bubble{padding:12px 14px;border-radius:18px 18px 18px 6px;background:#FBF8F5;font-size:14px;line-height:1.4}
+.pick{padding-top:6px;gap:10px}
+.hero{display:flex;justify-content:center}
+.hero svg{width:100%;max-width:320px;height:auto}
+.ttl{font-size:32px;line-height:1.08;letter-spacing:-.025em;font-weight:800;text-align:center}
+.center{text-align:center;margin-top:0}
+.roles{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.role{display:flex;align-items:center;gap:12px;height:54px;padding:0 14px 0 10px;border-radius:20px;background:#fff;box-shadow:0 1px 2px rgba(90,45,10,.05),0 8px 20px -12px rgba(90,45,10,.2);font-size:16px;font-weight:650;transition:transform .15s}
+.role:active{transform:scale(.98)}
+.role .rl{flex:1}
+.role .rdot{width:36px;height:36px;border-radius:12px;display:grid;place-items:center}
+.role .chev{color:#C8BDB4}
+.role.all{background:#FF914D;color:#2B1204;justify-content:center;box-shadow:0 10px 24px -10px rgba(255,120,40,.7)}
+.role.all .rl{flex:0 0 auto}
+.dia text{font-family:inherit}
+.svt{font-size:13px;font-weight:750;text-anchor:middle}
+.svs{font-size:10.5px;font-weight:650;fill:#8A817A}
+.ln{fill:none;stroke:#F2C6A8;stroke-width:2;stroke-linecap:round}
+.lnd{fill:none;stroke:#EADFD6;stroke-width:1.5;stroke-linecap:round}
+.float{animation:float 4s ease-in-out infinite}
+.float2{animation:float 4.6s .6s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-4px)}}
+.note-box{padding:12px 14px;border-radius:16px;background:#FFFBEB;font-size:14px;line-height:1.45;color:#1F1A17;min-height:78px}
+.note-box .ph{display:block;font-size:11px;font-weight:700;color:#B45309;margin-bottom:4px}
+.saved{width:100%;align-items:center;justify-content:center;gap:6px;height:40px;border-radius:20px;background:#D1FAE5;color:#047857;font-size:14px;font-weight:700}
+.lockrow{display:flex;align-items:center;gap:6px;font-size:12px;color:#8A817A;font-weight:600}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+html,body{margin:0;min-height:100%;background:#FFFAF5}
+.app{width:100%;height:100vh;height:100dvh;max-width:520px;margin:0 auto}
+@media (min-width:640px){
+ body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#F6EDE4}
+ .app{width:430px;height:min(900px,calc(100vh - 48px));border-radius:40px;box-shadow:0 40px 90px -40px rgba(90,45,10,.45),0 2px 8px rgba(90,45,10,.06)}
+}
+@media (min-width:1100px) and (min-height:980px){.app{zoom:1.1}}
+@media (max-height:700px){.card{gap:10px}h2{font-size:22px}.say{font-size:15.5px}.ttl{font-size:28px}.role{height:48px}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+<div class="top">
+<button class="iconbtn homebtn" aria-label="Choose a role" data-act="home"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>
+<div class="dots" id="dots"></div>
+<span class="count" data-bind="counter"></span>
+</div>
+<div class="stage" id="stage">
+
+<section data-card="pick" hidden>
+<div class="card pick">
+<div class="hero">
+<svg viewBox="0 0 320 150" aria-hidden="true">
+<ellipse cx="160" cy="84" rx="150" ry="62" fill="#FFF1E6"/>
+<g class="float"><circle cx="40" cy="70" r="9" fill="#DDD6FE"/><path d="M25 100a15 15 0 0 1 30 0z" fill="#DDD6FE"/></g>
+<g class="float2"><circle cx="88" cy="40" r="9" fill="#BAE6FD"/><path d="M73 70a15 15 0 0 1 30 0z" fill="#BAE6FD"/></g>
+<g class="float2"><circle cx="232" cy="40" r="9" fill="#C7D2FE"/><path d="M217 70a15 15 0 0 1 30 0z" fill="#C7D2FE"/></g>
+<g class="float"><circle cx="280" cy="70" r="9" fill="#A7F3D0"/><path d="M265 100a15 15 0 0 1 30 0z" fill="#A7F3D0"/></g>
+<g class="float"><circle cx="100" cy="104" r="9" fill="#FFD3B5"/><path d="M85 134a15 15 0 0 1 30 0z" fill="#FFD3B5"/></g>
+<g class="float2"><circle cx="220" cy="104" r="9" fill="#E5E5E5"/><path d="M205 134a15 15 0 0 1 30 0z" fill="#E5E5E5"/></g>
+<circle cx="160" cy="86" r="30" fill="#FF914D"/>
+<circle cx="150" cy="76" r="7" fill="#FFB785"/>
+<path d="M160 56c0-10 6-17 16-19-1 10-7 17-16 19z" fill="#34A36E"/>
+<path d="M160 57c-1-6-4-10-9-12" fill="none" stroke="#7C4A1E" stroke-width="3" stroke-linecap="round"/>
+<path d="M126 22l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" fill="#FFB785"/>
+<path d="M198 14l2 4.5 4.5 2-4.5 2-2 4.5-2-4.5-4.5-2 4.5-2z" fill="#FF914D"/>
+</svg>
+</div>
+<h1 class="ttl">Your Role in the Hub</h1>
+<p class="say center">What's your role?</p>
+<div class="roles">
+<button class="role" data-act="go_ps"><span class="rdot p-ps"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><circle cx="5" cy="10" r="2.2"/><circle cx="19" cy="10" r="2.2"/><path d="M6.5 20a5.5 5.5 0 0 1 11 0"/></svg></span><span class="rl">Participant support</span><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+<button class="role" data-act="go_hl"><span class="rdot p-hl"><svg class="ic" viewBox="0 0 24 24"><path d="M3 18h18l-2-10-5 4-2-6-2 6-5-4z"/></svg></span><span class="rl">Hub Lead</span><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+<button class="role" data-act="go_ahl"><span class="rdot p-ahl"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/></svg></span><span class="rl">Assistant Hub Lead</span><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+<button class="role" data-act="go_rc"><span class="rdot p-rc"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h5a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H4z"/><path d="M20 5h-5a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h6z"/></svg></span><span class="rl">Recap Lead</span><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+<button class="role" data-act="go_pr"><span class="rdot p-pr"><svg class="ic" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></span><span class="rl">Prayer Lead</span><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+<button class="role" data-act="go_it"><span class="rdot p-it"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M2 20h20"/></svg></span><span class="rl">IT Support</span><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+<button class="role all" data-act="go_all"><span class="rl">All roles</span><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+</div>
+</div>
+</section>
+
+<section data-card="fit" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-all">The basics</span></div>
+<div class="art">
+<svg class="dia" viewBox="0 0 300 372" aria-label="A cohort splits into hubs. Each hub has supports. Supports look after small groups of participants. Hubs meet every Sunday.">
+<path class="ln" d="M150 44 C150 70 60 66 60 92"/>
+<path class="ln" d="M150 44 V92"/>
+<path class="ln" d="M150 44 C150 70 240 66 240 92"/>
+<rect x="95" y="8" width="110" height="36" rx="18" fill="#FF914D"/>
+<text class="svt" x="150" y="31" fill="#2B1204">Cohort</text>
+<circle cx="60" cy="118" r="26" fill="#FFF1E6"/><text class="svt" x="60" y="122" fill="#C2410C">Hub</text>
+<circle cx="240" cy="118" r="26" fill="#FFF1E6"/><text class="svt" x="240" y="122" fill="#C2410C">Hub</text>
+<circle cx="150" cy="118" r="28" fill="#FFD3B5"/><text class="svt" x="150" y="122" fill="#9A3412">Hub</text>
+<path class="ln" d="M150 146 C150 164 96 160 96 176"/>
+<path class="ln" d="M150 146 V176"/>
+<path class="ln" d="M150 146 C150 164 204 160 204 176"/>
+<text class="svs" x="0" y="206">Supports</text>
+<circle cx="96" cy="188" r="8" fill="#FF914D"/><path d="M82 214a14 14 0 0 1 28 0z" fill="#FF914D"/>
+<circle cx="150" cy="188" r="8" fill="#FF914D"/><path d="M136 214a14 14 0 0 1 28 0z" fill="#FF914D"/>
+<circle cx="204" cy="188" r="8" fill="#FF914D"/><path d="M190 214a14 14 0 0 1 28 0z" fill="#FF914D"/>
+<path class="lnd" d="M96 216 L82 240 M96 216 V240 M96 216 L110 240"/>
+<path class="lnd" d="M150 216 L136 240 M150 216 V240 M150 216 L164 240"/>
+<path class="lnd" d="M204 216 L190 240 M204 216 V240 M204 216 L218 240"/>
+<text class="svs" x="0" y="252">Participants</text>
+<circle cx="82" cy="247" r="6" fill="#FFC9A6"/><circle cx="96" cy="247" r="6" fill="#FFC9A6"/><circle cx="110" cy="247" r="6" fill="#FFC9A6"/>
+<circle cx="136" cy="247" r="6" fill="#FFC9A6"/><circle cx="150" cy="247" r="6" fill="#FFC9A6"/><circle cx="164" cy="247" r="6" fill="#FFC9A6"/>
+<circle cx="190" cy="247" r="6" fill="#FFC9A6"/><circle cx="204" cy="247" r="6" fill="#FFC9A6"/><circle cx="218" cy="247" r="6" fill="#FFC9A6"/>
+<rect x="10" y="282" width="280" height="70" rx="22" fill="#FFF1E6"/>
+<rect x="26" y="297" width="40" height="40" rx="11" fill="#FF914D"/>
+<text x="46" y="311" style="font-size:8.5px;font-weight:800;text-anchor:middle;letter-spacing:.08em" fill="#2B1204">SUN</text>
+<path d="M37 322l6 6 12-12" fill="none" stroke="#2B1204" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="80" y="314" style="font-size:14px;font-weight:750" fill="#1F1A17">Every Sunday</text>
+<text x="80" y="332" style="font-size:12.5px;font-weight:600" fill="#C2410C">Hub meeting · weekly recap</text>
+</svg>
+</div>
+<div class="cap"><h2>How it fits together</h2><p class="say">A cohort splits into hubs. Supports look after small groups, and each hub meets every Sunday.</p></div>
+</div>
+</section>
+
+<section data-card="kinds" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-all">The basics</span></div>
+<div class="art" style="display: flex; flex-direction: column; gap: 8px">
+<div class="tile">
+<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="18" fill="#FFF1E6"/><circle cx="32" cy="19" r="7" fill="#FF914D"/><path d="M20 38a12 12 0 0 1 24 0z" fill="#FF914D"/><circle cx="19" cy="50" r="4.5" fill="#FFC9A6"/><circle cx="32" cy="50" r="4.5" fill="#FFC9A6"/><circle cx="45" cy="50" r="4.5" fill="#FFC9A6"/></svg>
+<div><div class="tt">Participant support</div><div class="ts">Has a group. Runs their weekly group call.</div></div>
+</div>
+<div class="tile">
+<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="18" fill="#EDE9FE"/><circle cx="16" cy="31" r="5" fill="#C4B5FD"/><path d="M7 47a9 9 0 0 1 18 0z" fill="#C4B5FD"/><circle cx="48" cy="31" r="5" fill="#C4B5FD"/><path d="M39 47a9 9 0 0 1 18 0z" fill="#C4B5FD"/><circle cx="32" cy="24" r="7" fill="#7C3AED"/><path d="M20 45a12 12 0 0 1 24 0z" fill="#7C3AED"/><path d="M26 13l3 3 3-5 3 5 3-3-1 5H27z" fill="#6D28D9"/></svg>
+<div><div class="tt">Hub Lead</div><div class="ts">Leads the supports in a hub. No group of their own.</div></div>
+</div>
+<div class="tile">
+<svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="18" fill="#F5F5F5"/><rect x="15" y="20" width="34" height="21" rx="3" fill="#fff" stroke="#525252" stroke-width="2.5"/><path d="M10 46h44" stroke="#525252" stroke-width="3" stroke-linecap="round"/><circle cx="48" cy="14" r="5" fill="#D4D4D4"/><circle cx="54" cy="20" r="5" fill="#A3A3A3"/><path d="M28 30l3 3 6-6" fill="none" stroke="#525252" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<div><div class="tt">Operational support (IT)</div><div class="ts">Tech help for 2 or more hubs. No group.</div></div>
+</div>
+</div>
+<div class="cap"><h2>Three kinds of support</h2><p class="say">Most supports have a group. Hub Leads and IT don't.</p></div>
+</div>
+</section>
+
+<section data-card="jobs" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-all">The basics</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">My Hub</span><span class="tapme">Tap a label</span></div>
+<div class="m-body">
+<div class="row"><span class="av a2">GO</span><span class="nm">Grace O.</span><button class="pill xs p-hl jp jp-hl hl" data-act="job_hl">Hub Lead</button></div>
+<div class="row"><span class="av a3">DA</span><span class="nm">Daniel A.</span><button class="pill xs p-ahl jp jp-ahl" data-act="job_ahl">Assistant Hub Lead</button></div>
+<div class="row"><span class="av a4">RM</span><span class="nm">Ruth M.</span><button class="pill xs p-rc jp jp-rc" data-act="job_rc">Recap Lead</button></div>
+<div class="row"><span class="av a5">SK</span><span class="nm">Samuel K.</span><button class="pill xs p-pr jp jp-pr" data-act="job_pr">Prayer Lead</button></div>
+<div class="row"><span class="av a6">JE</span><span class="nm">Joy E.</span><button class="pill xs p-it jp jp-it" data-act="job_it">IT Support</button></div>
+</div>
+<div class="sheet">
+<div class="js js-none"><span class="pill xs p-ev">What does it mean?</span><p>Tap any label above.</p></div>
+<div class="js js-hl"><span class="pill xs p-hl">Hub Lead</span><p>Runs the hub, leads Announcements and can message the whole hub.</p></div>
+<div class="js js-ahl"><span class="pill xs p-ahl">Assistant Hub Lead</span><p>Makes sure the meeting happens and everyone turns up. Only does what the Hub Lead allows. Never the same person as the Hub Lead.</p></div>
+<div class="js js-rc"><span class="pill xs p-rc">Recap Lead</span><p>Leads the Review &amp; Recap step. A hub can have more than one.</p></div>
+<div class="js js-pr"><span class="pill xs p-pr">Prayer Lead</span><p>Leads prayer. A hub can have more than one.</p></div>
+<div class="js js-it"><span class="pill xs p-it">IT Support</span><p>Operational support attached to the hub.</p></div>
+</div>
+</div>
+<div class="cap"><h2>Jobs inside a hub</h2><p class="say">A job is a label on someone's name. Tap one to see what it means.</p></div>
+</div>
+</section>
+
+<section data-card="welcome" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-ev">Everyone with a job</span></div>
+<div class="mock" style="height: 340px">
+<div class="m-bar"><span class="m-title">My Hub</span></div>
+<div class="m-body">
+<div class="row"><span class="av a2">GO</span><span class="nm">Grace O.</span><span class="pill xs p-hl">Hub Lead</span></div>
+<div class="row"><span class="av a5">SK</span><span class="nm">You</span><span class="pill xs p-pr">Prayer Lead</span></div>
+<div class="row"><span class="av a4">RM</span><span class="nm">Ruth M.</span><span class="pill xs p-rc">Recap Lead</span></div>
+</div>
+<div class="scrim">
+<div class="pop">
+<svg viewBox="0 0 120 44" width="120" height="44" aria-hidden="true"><circle cx="60" cy="24" r="18" fill="#D1FAE5"/><path d="M60 33s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 68 22c0 6-8 11-8 11z" fill="#10B981"/><rect x="14" y="10" width="7" height="3" rx="1.5" fill="#FF914D" transform="rotate(-30 17 11)"/><rect x="98" y="8" width="7" height="3" rx="1.5" fill="#A78BFA" transform="rotate(25 101 9)"/><circle cx="30" cy="32" r="2.5" fill="#38BDF8"/><circle cx="92" cy="30" r="2.5" fill="#FBBF24"/><rect x="104" y="30" width="6" height="3" rx="1.5" fill="#FF914D" transform="rotate(-20 107 31)"/><circle cx="8" cy="26" r="2" fill="#818CF8"/></svg>
+<span class="pill xs p-pr">Prayer Lead</span>
+<h3>Welcome, Prayer Lead!</h3>
+<p>You lead prayer in your hub.</p>
+<span class="mbtn" style="width: 100%; margin-top: 4px">Got it</span>
+</div>
+</div>
+</div>
+<div class="cap"><h2>A welcome for each job</h2><p class="say">A popup explains your new job. Tap your own label in My Hub to see it again.</p></div>
+</div>
+</section>
+<section data-card="welcome_ahl" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-ahl">Assistant Hub Lead</span></div>
+<div class="mock" style="height: 340px">
+<div class="m-bar"><span class="m-title">My Hub</span></div>
+<div class="m-body">
+<div class="row"><span class="av a2">GO</span><span class="nm">Grace O.</span><span class="pill xs p-hl">Hub Lead</span></div>
+<div class="row"><span class="av a3">ME</span><span class="nm">You</span><span class="pill xs p-ahl">Assistant Hub Lead</span></div>
+<div class="row"><span class="av a4">RM</span><span class="nm">Ruth M.</span><span class="pill xs p-rc">Recap Lead</span></div>
+</div>
+<div class="scrim">
+<div class="pop">
+<svg viewBox="0 0 120 44" width="120" height="44" aria-hidden="true"><circle cx="60" cy="24" r="18" fill="#E0F2FE"/><rect x="51" y="16" width="18" height="17" rx="4" fill="none" stroke="#0369A1" stroke-width="2.4"/><path d="M51 21h18" stroke="#0369A1" stroke-width="2.4"/><path d="M56 27l3 3 5-5" fill="none" stroke="#0369A1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="14" y="10" width="7" height="3" rx="1.5" fill="#FF914D" transform="rotate(-30 17 11)"/><rect x="98" y="8" width="7" height="3" rx="1.5" fill="#A78BFA" transform="rotate(25 101 9)"/><circle cx="30" cy="32" r="2.5" fill="#38BDF8"/><circle cx="92" cy="30" r="2.5" fill="#FBBF24"/><rect x="104" y="30" width="6" height="3" rx="1.5" fill="#FF914D" transform="rotate(-20 107 31)"/><circle cx="8" cy="26" r="2" fill="#818CF8"/></svg>
+<span class="pill xs p-ahl">Assistant Hub Lead</span>
+<h3>Welcome, Assistant Hub Lead!</h3>
+<p>You make sure the Hub meeting happens and everyone turns up.</p>
+<span class="mbtn" style="width: 100%; margin-top: 4px">Got it</span>
+</div>
+</div>
+</div>
+<div class="cap"><h2>Welcome to your job</h2><p class="say">A popup explains your new job. Tap your own label in My Hub to see it again.</p></div>
+</div>
+</section>
+<section data-card="welcome_rc" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-rc">Recap Lead</span></div>
+<div class="mock" style="height: 340px">
+<div class="m-bar"><span class="m-title">My Hub</span></div>
+<div class="m-body">
+<div class="row"><span class="av a2">GO</span><span class="nm">Grace O.</span><span class="pill xs p-hl">Hub Lead</span></div>
+<div class="row"><span class="av a4">ME</span><span class="nm">You</span><span class="pill xs p-rc">Recap Lead</span></div>
+<div class="row"><span class="av a4">RM</span><span class="nm">Ruth M.</span><span class="pill xs p-rc">Recap Lead</span></div>
+</div>
+<div class="scrim">
+<div class="pop">
+<svg viewBox="0 0 120 44" width="120" height="44" aria-hidden="true"><circle cx="60" cy="24" r="18" fill="#E0E7FF"/><path d="M50 17h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3h-7z M70 17h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z" fill="none" stroke="#4338CA" stroke-width="2.2" stroke-linejoin="round"/><rect x="14" y="10" width="7" height="3" rx="1.5" fill="#FF914D" transform="rotate(-30 17 11)"/><rect x="98" y="8" width="7" height="3" rx="1.5" fill="#A78BFA" transform="rotate(25 101 9)"/><circle cx="30" cy="32" r="2.5" fill="#38BDF8"/><circle cx="92" cy="30" r="2.5" fill="#FBBF24"/><rect x="104" y="30" width="6" height="3" rx="1.5" fill="#FF914D" transform="rotate(-20 107 31)"/><circle cx="8" cy="26" r="2" fill="#818CF8"/></svg>
+<span class="pill xs p-rc">Recap Lead</span>
+<h3>Welcome, Recap Lead!</h3>
+<p>You lead the Review &amp; Recap step of the Hub meeting.</p>
+<span class="mbtn" style="width: 100%; margin-top: 4px">Got it</span>
+</div>
+</div>
+</div>
+<div class="cap"><h2>Welcome to your job</h2><p class="say">A popup explains your new job. Tap your own label in My Hub to see it again.</p></div>
+</div>
+</section>
+<section data-card="welcome_pr" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-pr">Prayer Lead</span></div>
+<div class="mock" style="height: 340px">
+<div class="m-bar"><span class="m-title">My Hub</span></div>
+<div class="m-body">
+<div class="row"><span class="av a2">GO</span><span class="nm">Grace O.</span><span class="pill xs p-hl">Hub Lead</span></div>
+<div class="row"><span class="av a5">ME</span><span class="nm">You</span><span class="pill xs p-pr">Prayer Lead</span></div>
+<div class="row"><span class="av a4">RM</span><span class="nm">Ruth M.</span><span class="pill xs p-rc">Recap Lead</span></div>
+</div>
+<div class="scrim">
+<div class="pop">
+<svg viewBox="0 0 120 44" width="120" height="44" aria-hidden="true"><circle cx="60" cy="24" r="18" fill="#D1FAE5"/><path d="M60 33s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 68 22c0 6-8 11-8 11z" fill="#10B981"/><rect x="14" y="10" width="7" height="3" rx="1.5" fill="#FF914D" transform="rotate(-30 17 11)"/><rect x="98" y="8" width="7" height="3" rx="1.5" fill="#A78BFA" transform="rotate(25 101 9)"/><circle cx="30" cy="32" r="2.5" fill="#38BDF8"/><circle cx="92" cy="30" r="2.5" fill="#FBBF24"/><rect x="104" y="30" width="6" height="3" rx="1.5" fill="#FF914D" transform="rotate(-20 107 31)"/><circle cx="8" cy="26" r="2" fill="#818CF8"/></svg>
+<span class="pill xs p-pr">Prayer Lead</span>
+<h3>Welcome, Prayer Lead!</h3>
+<p>You lead prayer in your hub.</p>
+<span class="mbtn" style="width: 100%; margin-top: 4px">Got it</span>
+</div>
+</div>
+</div>
+<div class="cap"><h2>Welcome to your job</h2><p class="say">A popup explains your new job. Tap your own label in My Hub to see it again.</p></div>
+</div>
+</section>
+<section data-card="welcome_it" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-it">IT Support</span></div>
+<div class="mock" style="height: 340px">
+<div class="m-bar"><span class="m-title">My Hub</span></div>
+<div class="m-body">
+<div class="row"><span class="av a2">GO</span><span class="nm">Grace O.</span><span class="pill xs p-hl">Hub Lead</span></div>
+<div class="row"><span class="av a6">ME</span><span class="nm">You</span><span class="pill xs p-it">IT Support</span></div>
+<div class="row"><span class="av a4">RM</span><span class="nm">Ruth M.</span><span class="pill xs p-rc">Recap Lead</span></div>
+</div>
+<div class="scrim">
+<div class="pop">
+<svg viewBox="0 0 120 44" width="120" height="44" aria-hidden="true"><circle cx="60" cy="24" r="18" fill="#F5F5F5"/><rect x="50" y="17" width="20" height="13" rx="2" fill="none" stroke="#525252" stroke-width="2.4"/><path d="M47 34h26" stroke="#525252" stroke-width="2.6" stroke-linecap="round"/><rect x="14" y="10" width="7" height="3" rx="1.5" fill="#FF914D" transform="rotate(-30 17 11)"/><rect x="98" y="8" width="7" height="3" rx="1.5" fill="#A78BFA" transform="rotate(25 101 9)"/><circle cx="30" cy="32" r="2.5" fill="#38BDF8"/><circle cx="92" cy="30" r="2.5" fill="#FBBF24"/><rect x="104" y="30" width="6" height="3" rx="1.5" fill="#FF914D" transform="rotate(-20 107 31)"/><circle cx="8" cy="26" r="2" fill="#818CF8"/></svg>
+<span class="pill xs p-it">IT Support</span>
+<h3>Welcome, IT Support!</h3>
+<p>You are operational support attached to the hub.</p>
+<span class="mbtn" style="width: 100%; margin-top: 4px">Got it</span>
+</div>
+</div>
+</div>
+<div class="cap"><h2>Welcome to your job</h2><p class="say">A popup explains your new job. Tap your own label in My Hub to see it again.</p></div>
+</div>
+</section>
+
+<section data-card="myhub" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-ev">Everyone</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">My Hub</span></div>
+<div class="m-tabs">
+<span class="tab on">My Hub</span>
+<span class="tab">Hub meeting</span>
+<span class="tab"><svg class="ic xs" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Trainings &amp; get-togethers</span>
+<span class="tab"><svg class="ic xs" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Notes</span>
+<span class="tab"><svg class="ic xs" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Message hub</span>
+</div>
+<div class="m-body">
+<div class="meet"><svg class="ic l" viewBox="0 0 24 24" style="color: #C2410C"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><div><div class="lbl">Hub meeting</div><div class="when">Sunday · 7:00 pm</div></div><span class="join"><svg class="ic s" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Join</span></div>
+<div class="row"><span class="av a2">GO</span><span class="nm">Grace O.</span><span class="pill xs p-hl">Hub Lead</span></div>
+<div class="row"><span class="av a3">DA</span><span class="nm">Daniel A.</span><span class="pill xs p-ahl">Assistant Hub Lead</span></div>
+</div>
+<div class="m-nav">
+<span class="nv"><svg class="ic" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</span>
+<span class="nv"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><circle cx="5" cy="10" r="2.2"/><circle cx="19" cy="10" r="2.2"/><path d="M6.5 20a5.5 5.5 0 0 1 11 0"/></svg>Group</span>
+<span class="nv on hl"><svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18.5 14.5A6.5 6.5 0 0 1 21.5 20"/></svg>My Hub</span>
+<span class="nv"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h5a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H4z"/><path d="M20 5h-5a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h6z"/></svg>Resources</span>
+</div>
+</div>
+<div class="cap"><h2>Your My Hub page</h2><p class="say">Tap My Hub in the bottom menu. Tabs with a lock are for the Hub Lead.</p></div>
+</div>
+</section>
+
+<section data-card="hl1" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-hl">Hub Lead</span><span class="pill p-ev">1 · Your hub</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">My Hub</span><span class="m-sub">6 supports</span></div>
+<div class="m-body">
+<div class="row"><span class="av a2">GO</span><span class="nm">You</span><span class="pill xs p-hl">Hub Lead</span></div>
+<div class="row"><span class="av a3">DA</span><span class="nm">Daniel A.</span><span class="pill xs p-ahl">Assistant Hub Lead</span></div>
+<div class="row"><span class="av a4">RM</span><span class="nm">Ruth M. <span class="pill xs p-star hl">★</span></span><span class="pill xs p-rc">Recap Lead</span></div>
+<div class="row"><span class="av a5">SK</span><span class="nm">Samuel K.</span><span class="pill xs p-pr">Prayer Lead</span></div>
+<div class="row"><span class="av a1">MT</span><span class="nm">Mark T. <span class="pill xs p-star">★</span></span></div>
+<div class="row"><span class="av a6">JE</span><span class="nm">Joy E.</span><span class="pill xs p-it">IT Support</span></div>
+</div>
+</div>
+<div class="cap"><h2>See your hub</h2><p class="say">Everyone's labels at a glance. A ★ means there are notes, and only you and admins see it.</p></div>
+</div>
+</section>
+
+<section data-card="hl2" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-hl">Hub Lead</span><span class="pill p-ev">2 · Meeting</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Hub meeting details</span></div>
+<div class="m-body">
+<div class="field"><span class="flabel">Meeting time</span><span class="fval"><svg class="ic s" viewBox="0 0 24 24" style="color: #C2410C"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Sunday · 7:00 pm</span></div>
+<div class="field"><span class="flabel">Meeting link</span><span class="fval"><svg class="ic s" viewBox="0 0 24 24" style="color: #C2410C"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>[your meeting link]</span></div>
+<span class="mbtn hl" style="margin-top: 6px">Save</span>
+<div class="lockrow" style="margin-top: 8px"><svg class="ic s" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18.5 14.5A6.5 6.5 0 0 1 21.5 20"/></svg>Everyone in the hub sees this</div>
+<div class="meet" style="margin-top: 2px"><svg class="ic l" viewBox="0 0 24 24" style="color: #C2410C"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><div><div class="lbl">Hub meeting</div><div class="when">Sunday · 7:00 pm</div></div><span class="join">Join</span></div>
+</div>
+</div>
+<div class="cap"><h2>Set the time &amp; link</h2><p class="say">Pick the meeting time and paste the link. It shows on everyone's My Hub.</p></div>
+</div>
+</section>
+
+<section data-card="hl3" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-hl">Hub Lead</span><span class="pill p-ev">3 · Your assistant</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Assistant permissions</span></div>
+<div class="m-body">
+<div class="row" style="background: transparent; padding: 0 2px 4px; min-height: 0"><span class="av a3">DA</span><span class="nm">Daniel A.</span><span class="pill xs p-ahl">Assistant Hub Lead</span></div>
+<button class="swrow" data-act="pa"><span class="t">Meeting time &amp; link</span><span class="sw sw-a"></span></button>
+<button class="swrow hl" data-act="pb"><span class="t">Attendance &amp; hub meeting</span><span class="sw sw-b"></span></button>
+<button class="swrow" data-act="pc"><span class="t">Message the hub</span><span class="sw sw-c"></span></button>
+<div class="summary" data-bind="summary"></div>
+</div>
+</div>
+<div class="cap"><h2>Choose what your assistant can do</h2><p class="say">Flip the switches. The blue line sums it up.</p></div>
+</div>
+</section>
+
+<section data-card="hl4" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-hl">Hub Lead</span><span class="pill p-ev">4 · Hub meeting</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Hub meeting</span><span class="chip prog">In progress</span></div>
+<div class="m-body">
+<div class="chips"><span class="sc now">1 Attendance</span><span class="sc">2 Prayer</span><span class="sc">3 Review &amp; Recap</span><span class="sc">4 Announcements</span><span class="sc">5 Notes</span><span class="sc">6 Submit</span></div>
+<div class="row col"><div class="rowtop"><span class="av a3">DA</span><span class="nm">Daniel A.</span></div><div class="seg hl"><span class="st-p">Present</span><span>Late</span><span>Absent</span><span>Excused</span></div></div>
+<div class="row"><span class="av a4">RM</span><span class="nm">Ruth M.</span><span class="pill xs st-l">Late</span></div>
+<div class="row"><span class="av a5">SK</span><span class="nm">Samuel K.</span><span class="pill xs st-p">Present</span></div>
+<div class="row"><span class="av a1">MT</span><span class="nm">Mark T.</span><span class="pill xs st-a">Absent</span></div>
+<div class="row"><span class="av a6">JE</span><span class="nm">Joy E.</span><span class="pill xs st-e">Excused</span></div>
+</div>
+</div>
+<div class="cap"><h2>Run the Hub meeting</h2><p class="say">Go step by step, starting with attendance. You lead Announcements.</p></div>
+</div>
+</section>
+
+<section data-card="hl5" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-hl">Hub Lead</span><span class="pill p-ev">5 · Submit</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Hub meeting</span><span class="chip prog if-nosub">In progress</span><span class="chip done if-sub"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg>Submitted</span></div>
+<div class="m-body">
+<div class="vsteps">
+<div class="vs done"><span class="n"><svg class="ic s" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span><span class="t">Attendance</span></div>
+<div class="vs done"><span class="n"><svg class="ic s" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span><span class="t">Prayer</span></div>
+<div class="vs done"><span class="n"><svg class="ic s" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span><span class="t">Review &amp; Recap</span></div>
+<div class="vs done"><span class="n"><svg class="ic s" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span><span class="t">Announcements</span></div>
+<div class="vs done"><span class="n"><svg class="ic s" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span><span class="t">Notes</span></div>
+<div class="vs now"><span class="n">6</span><span class="t">Submit</span></div>
+</div>
+<button class="mbtn hl if-nosub" style="margin-top: 8px" data-act="sub">Submit hub meeting</button>
+<button class="saved if-sub" style="margin-top: 8px" data-act="sub"><svg class="ic s" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg>Submitted. Well done!</button>
+</div>
+</div>
+<div class="cap"><h2>Submit when you're done</h2><p class="say">Try it: tap Submit and watch the chip turn green.</p></div>
+</div>
+</section>
+
+<section data-card="hl6" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-hl">Hub Lead</span><span class="pill p-ev">6 · Notes</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Notes</span><span class="lockrow"><svg class="ic s" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Private</span></div>
+<div class="m-body">
+<div class="row"><span class="av a1">MT</span><span class="nm">Mark T. <span class="pill xs p-star if-noted">★</span></span></div>
+<div class="note-box"><span class="ph">Your note about Mark</span>[Write your note here]</div>
+<button class="mbtn hl if-nonoted" data-act="note">Save note</button>
+<span class="saved if-noted"><svg class="ic s" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg>Saved. See the ★?</span>
+<div class="lockrow" style="margin-top: 4px"><svg class="ic s" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Only you and admins see notes and ★</div>
+</div>
+</div>
+<div class="cap"><h2>Write a note on a support</h2><p class="say">Tap Save. A ★ appears beside their name.</p></div>
+</div>
+</section>
+
+<section data-card="hl7" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-hl">Hub Lead</span><span class="pill p-ev">7 · Trainings</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Trainings &amp; get-togethers</span></div>
+<div class="m-body">
+<div class="tbl">
+<span></span><span class="th">Training 1</span><span class="th">Get-together</span><span class="th">Training 2</span>
+<span class="tn"><span class="av a3">DA</span>Daniel</span><span class="tc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="tc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="tc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span>
+<span class="tn"><span class="av a4">RM</span>Ruth</span><span class="tc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="tc"><span class="no"><svg class="ic xs" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></span><span class="tc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span>
+<span class="tn"><span class="av a5">SK</span>Samuel</span><span class="tc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="tc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="tc"><span class="ok hl" style="border-radius: 50%"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span>
+<span class="tn"><span class="av a1">MT</span>Mark</span><span class="tc"><span class="no"><svg class="ic xs" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></span><span class="tc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="tc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span>
+<span class="tn"><span class="av a6">JE</span>Joy</span><span class="tc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="tc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="tc"><span class="no"><svg class="ic xs" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></span>
+</div>
+</div>
+</div>
+<div class="cap"><h2>Track trainings &amp; get-togethers</h2><p class="say">Mark who came to each support training and get-together.</p></div>
+</div>
+</section>
+
+<section data-card="hl8" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-hl">Hub Lead</span><span class="pill p-ev">8 · Message</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Message hub</span></div>
+<div class="m-body">
+<div class="field"><span class="flabel">To</span><span class="fval"><svg class="ic s" viewBox="0 0 24 24" style="color: #C2410C"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18.5 14.5A6.5 6.5 0 0 1 21.5 20"/></svg>Everyone in the hub</span></div>
+<div class="bubble">[Your message, e.g. a reminder about Sunday's Hub meeting]</div>
+<div style="display: flex; gap: 6px; align-items: center">
+<span class="av a2" style="width: 26px; height: 26px; font-size: 10px">DA</span><span class="av a4" style="width: 26px; height: 26px; font-size: 10px; margin-left: -12px">RM</span><span class="av a5" style="width: 26px; height: 26px; font-size: 10px; margin-left: -12px">SK</span><span class="av a1" style="width: 26px; height: 26px; font-size: 10px; margin-left: -12px">MT</span><span class="av a6" style="width: 26px; height: 26px; font-size: 10px; margin-left: -12px">JE</span>
+<span class="lockrow" style="margin-left: 4px">All get it</span>
+</div>
+<span class="mbtn hl" style="margin-top: 4px"><svg class="ic s" viewBox="0 0 24 24"><path d="M21 3 10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></svg>Send</span>
+</div>
+</div>
+<div class="cap"><h2>Message the hub</h2><p class="say">One message reaches everyone in your hub. Your assistant can too, if you allow it.</p></div>
+</div>
+</section>
+
+<section data-card="as1" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-ahl">Assistant Hub Lead</span></div>
+<div class="art">
+<svg viewBox="0 0 300 250" aria-hidden="true" style="width: 100%; height: auto; display: block">
+<rect x="0" y="0" width="300" height="250" rx="20" fill="#F0F9FF"/>
+<g class="float"><rect x="105" y="22" width="90" height="84" rx="18" fill="#fff"/><rect x="105" y="22" width="90" height="26" rx="13" fill="#38BDF8"/><rect x="105" y="36" width="90" height="12" fill="#38BDF8"/><text x="150" y="40" style="font-size:11px;font-weight:800;text-anchor:middle;letter-spacing:.08em" fill="#082F49">SUNDAY</text><path d="M130 78l12 12 24-24" fill="none" stroke="#0369A1" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></g>
+<g><circle cx="46" cy="160" r="12" fill="#BAE6FD"/><path d="M26 204a20 20 0 0 1 40 0z" fill="#BAE6FD"/><circle cx="60" cy="150" r="8" fill="#10B981"/><path d="M56 150l3 3 5-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></g>
+<g><circle cx="98" cy="160" r="12" fill="#DDD6FE"/><path d="M78 204a20 20 0 0 1 40 0z" fill="#DDD6FE"/><circle cx="112" cy="150" r="8" fill="#10B981"/><path d="M108 150l3 3 5-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></g>
+<g><circle cx="150" cy="160" r="12" fill="#0EA5E9"/><path d="M130 204a20 20 0 0 1 40 0z" fill="#0EA5E9"/><circle cx="164" cy="150" r="8" fill="#10B981"/><path d="M160 150l3 3 5-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></g>
+<g><circle cx="202" cy="160" r="12" fill="#A7F3D0"/><path d="M182 204a20 20 0 0 1 40 0z" fill="#A7F3D0"/><circle cx="216" cy="150" r="8" fill="#10B981"/><path d="M212 150l3 3 5-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></g>
+<g><circle cx="254" cy="160" r="12" fill="#FFD3B5"/><path d="M234 204a20 20 0 0 1 40 0z" fill="#FFD3B5"/><circle cx="268" cy="150" r="8" fill="#10B981"/><path d="M264 150l3 3 5-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></g>
+<text x="150" y="232" style="font-size:12.5px;font-weight:700;text-anchor:middle" fill="#0369A1">Meeting on. Everyone here.</text>
+</svg>
+</div>
+<div class="cap"><h2>Your job</h2><p class="say">Make sure the Hub meeting happens and everyone turns up.</p></div>
+</div>
+</section>
+
+<section data-card="as2" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-ahl">Assistant Hub Lead</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Set by your Hub Lead</span><span class="pill xs p-hl">Hub Lead</span></div>
+<div class="m-body">
+<div class="swrow"><span class="t">Meeting time &amp; link</span><span class="sw on"></span></div>
+<div class="swrow"><span class="t">Attendance &amp; hub meeting</span><span class="sw"></span></div>
+<div class="swrow"><span class="t">Message the hub</span><span class="sw on"></span></div>
+<div class="summary hl">Assistant can: edit meeting time &amp; link · message the hub</div>
+</div>
+</div>
+<div class="cap"><h2>You do what's switched on</h2><p class="say">Your Hub Lead chooses what you can open. Everything else, you follow along.</p></div>
+</div>
+</section>
+
+<section data-card="pr1" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-pr">Prayer Lead</span><span class="pill p-ev">Your step</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Hub meeting</span></div>
+<div class="m-body">
+<div class="chips"><span class="sc lock"><svg class="ic xs" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Attendance</span><span class="sc now hl">Prayer</span><span class="sc lock"><svg class="ic xs" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Review &amp; Recap</span><span class="sc lock"><svg class="ic xs" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Announcements</span><span class="sc lock"><svg class="ic xs" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Notes</span></div>
+<div class="m-sub" style="margin: 6px 2px 0">First: pray for your hub</div>
+<div class="row"><span class="av a2">GO</span><span class="nm">Grace O.</span><svg class="ic s" viewBox="0 0 24 24" style="color: #10B981"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></div>
+<div class="row"><span class="av a3">DA</span><span class="nm">Daniel A.</span><svg class="ic s" viewBox="0 0 24 24" style="color: #10B981"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></div>
+<div class="row"><span class="av a4">RM</span><span class="nm">Ruth M.</span><svg class="ic s" viewBox="0 0 24 24" style="color: #10B981"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></div>
+<div class="row"><span class="av a1">MT</span><span class="nm">Mark T.</span><svg class="ic s" viewBox="0 0 24 24" style="color: #10B981"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></div>
+</div>
+</div>
+<div class="cap"><h2>You open only Prayer</h2><p class="say">First, pray for the members of your hub.</p></div>
+</div>
+</section>
+
+<section data-card="pr2" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-pr">Prayer Lead</span><span class="pill p-ev">Faith Projects</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Prayer</span><span class="tapme">Tap one</span></div>
+<div class="m-body">
+<div class="m-sub" style="margin: 0 2px">Everyone in the hub sees</div>
+<div class="livecard"><span class="live-dot"></span><div><div class="k">Now praying for</div><div class="v"><span class="pn pn0">…pick a Faith Project</span><span class="pn pn1">Amara</span><span class="pn pn2">Tobi</span><span class="pn pn3">Lydia</span></div></div></div>
+<div class="m-sub" style="margin: 6px 2px 0">Shared Faith Projects</div>
+<button class="fp fp1" data-act="pray_1"><span class="av a7">A</span><span class="t"><b>Amara</b><span>Faith Project</span></span><span class="radio"></span></button>
+<button class="fp fp2" data-act="pray_2"><span class="av a3">T</span><span class="t"><b>Tobi</b><span>Faith Project</span></span><span class="radio"></span></button>
+<button class="fp fp3" data-act="pray_3"><span class="av a5">L</span><span class="t"><b>Lydia</b><span>Faith Project</span></span><span class="radio"></span></button>
+</div>
+</div>
+<div class="cap"><h2>Then, one Faith Project at a time</h2><p class="say">Everyone sees it live. Prayed-for names are saved with this week's meeting.</p></div>
+</div>
+</section>
+
+<section data-card="pr3" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-pr">Prayer Lead</span><span class="pill p-ev">Who's on the list?</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Lydia's Faith Project</span></div>
+<div class="m-body">
+<button class="swrow hl" data-act="corp"><span class="t">Include in the general corporate prayers</span><span class="sw sw-corp"></span></button>
+<div class="lockrow" style="margin: 0 4px">Off by default. The participant chooses.</div>
+<div class="m-sub" style="margin: 10px 2px 0">Hub prayer list</div>
+<div class="fp"><span class="av a7">A</span><span class="t"><b>Amara</b><span>Faith Project</span></span></div>
+<div class="fp"><span class="av a3">T</span><span class="t"><b>Tobi</b><span>Faith Project</span></span></div>
+<div class="fp if-corp"><span class="av a5">L</span><span class="t"><b>Lydia</b><span>Just added</span></span><span class="pill xs p-pr">New</span></div>
+<div class="fp if-nocorp" style="background: transparent; box-shadow: inset 0 0 0 2px #F0E6DD"><span class="t"><span>Lydia is not on the list yet</span></span></div>
+</div>
+</div>
+<div class="cap"><h2>Only if they switch it on</h2><p class="say">A Faith Project joins the prayer list only when the participant turns this on.</p></div>
+</div>
+</section>
+
+<section data-card="rc1" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-rc">Recap Lead</span><span class="pill p-ev">Your step</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Hub meeting</span></div>
+<div class="m-body">
+<div class="chips"><span class="sc lock"><svg class="ic xs" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Attendance</span><span class="sc lock"><svg class="ic xs" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Prayer</span><span class="sc now hl">Review &amp; Recap</span><span class="sc lock"><svg class="ic xs" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Announcements</span><span class="sc lock"><svg class="ic xs" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Notes</span></div>
+<div style="border-radius: 20px; background: #EEF2FF; padding: 14px; display: flex; flex-direction: column; gap: 10px; margin-top: 4px">
+<div style="display: flex; align-items: center; gap: 8px; color: #4338CA; font-weight: 750; font-size: 14px"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h5a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H4z"/><path d="M20 5h-5a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h6z"/></svg>This week's recap</div>
+<div class="skel" style="width: 92%; background: #C7D2FE"></div><div class="skel" style="width: 78%; background: #C7D2FE"></div><div class="skel" style="width: 85%; background: #C7D2FE"></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 4px 2px">
+<div class="skel" style="width: 70%"></div><div class="skel" style="width: 55%"></div>
+</div>
+</div>
+</div>
+<div class="cap"><h2>You open only Review &amp; Recap</h2><p class="say">Walk the hub through the week's recap.</p></div>
+</div>
+</section>
+
+<section data-card="follow" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-ev">Everyone</span><span class="pill p-ev">Not your step?</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Hub meeting</span><span class="chip view"><svg class="ic xs" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>View only</span></div>
+<div class="m-body">
+<div class="chips"><span class="sc done">Attendance</span><span class="sc live hl"><span class="live-dot"></span>Prayer</span><span class="sc">Review &amp; Recap</span><span class="sc">Announcements</span><span class="sc">Notes</span><span class="sc">Submit</span></div>
+<div class="livecard" style="margin-top: 6px"><span class="live-dot"></span><div><div class="k">Now praying for</div><div class="v">Amara</div></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 2px">
+<div class="skel" style="width: 88%"></div><div class="skel" style="width: 64%"></div><div class="skel" style="width: 76%"></div>
+</div>
+</div>
+</div>
+<div class="cap"><h2>When it's not your step</h2><p class="say">You follow along, view only. The live dot shows which step is on now.</p></div>
+</div>
+</section>
+
+<section data-card="ps1" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-ps">Participant support</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Weekly group call</span><span class="chip prog">In progress</span></div>
+<div class="m-body">
+<div class="vsteps">
+<div class="vs done"><span class="n"><svg class="ic s" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span><span class="t">Attendance</span></div>
+<div class="vs done"><span class="n"><svg class="ic s" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span><span class="t">Prayer</span></div>
+<div class="vs now"><span class="n hl" style="border-radius: 50%">3</span><span class="t">Recap</span></div>
+<div class="vs up"><span class="n">4</span><span class="t">Notes</span></div>
+<div class="vs up"><span class="n">5</span><span class="t">Submit</span></div>
+</div>
+<div style="display: flex; gap: 6px; margin-top: 6px"><span class="av a7">A</span><span class="av a3">T</span><span class="av a5">L</span><span class="av a1">+3</span><span class="lockrow" style="margin-left: 4px">Your group</span></div>
+</div>
+</div>
+<div class="cap"><h2>Your weekly group call</h2><p class="say">Go step by step: Attendance, Prayer, Recap, Notes, then Submit.</p></div>
+</div>
+</section>
+
+<section data-card="ps2" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-ps">Participant support</span><span class="pill p-ev">Prayer</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Prayer</span><span class="tapme">Pick one</span></div>
+<div class="m-body">
+<button class="fp g1" data-act="gc_1"><span class="av a7">A</span><span class="t"><b>Amara</b><span>Faith Project</span></span><span class="radio"></span></button>
+<button class="fp g2" data-act="gc_2"><span class="av a3">T</span><span class="t"><b>Tobi</b><span>Faith Project</span></span><span class="radio"></span></button>
+<button class="fp g3" data-act="gc_3"><span class="av a5">L</span><span class="t"><b>Lydia</b><span>Faith Project</span></span><span class="radio"></span></button>
+<div class="lockrow" style="margin: 6px 4px 0"><svg class="ic s" viewBox="0 0 24 24" style="color: #10B981"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>One Faith Project per call</div>
+</div>
+</div>
+<div class="cap"><h2>Pray for one Faith Project</h2><p class="say">At the Prayer step, pick just one to pray for together.</p></div>
+</div>
+</section>
+
+<section data-card="it1" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-it">IT Support</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Hi, Joy</span><span class="av a6">JE</span></div>
+<div class="m-body">
+<div class="meet hl" style="background: #F5F5F5; border-radius: 20px; padding: 16px"><svg class="ic l" viewBox="0 0 24 24" style="color: #525252"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18.5 14.5A6.5 6.5 0 0 1 21.5 20"/></svg><div><div class="lbl" style="color: #525252">Your hub</div><div class="when">Open My Hub</div></div><span class="join" style="color: #525252"><svg class="ic s" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+<div class="field" style="opacity: .6"><span class="flabel">No group to run</span><span class="skel" style="width: 60%"></span></div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 2px">
+<div class="skel" style="width: 80%"></div><div class="skel" style="width: 58%"></div>
+</div>
+</div>
+<div class="m-nav">
+<span class="nv on"><svg class="ic" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</span>
+<span class="nv"><svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18.5 14.5A6.5 6.5 0 0 1 21.5 20"/></svg>My Hub</span>
+<span class="nv"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h5a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H4z"/><path d="M20 5h-5a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h6z"/></svg>Resources</span>
+<span class="nv"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Profile</span>
+</div>
+</div>
+<div class="cap"><h2>Home points to My Hub</h2><p class="say">You have no group, so your home page sends you to My Hub. You can still follow the Hub meeting.</p></div>
+</div>
+</section>
+
+<section data-card="ref" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-all">Quick reference</span></div>
+<div class="art" style="padding: 14px 10px 12px">
+<div class="qr">
+<span></span><span class="qh">My Hub</span><span class="qh">Follow meeting</span><span class="qh">Leads</span><span class="qh">Notes &amp; trainings</span><span class="qh">Message hub</span>
+<span class="qrole"><span class="pill p-ps">Participant support</span></span><span class="qc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="qc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="qc"><span class="mini">Group call</span></span><span class="qc"><span class="no"><svg class="ic xs" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></span><span class="qc"><span class="no"><svg class="ic xs" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></span>
+<span class="qrole"><span class="pill p-hl">Hub Lead</span></span><span class="qc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="qc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="qc"><span class="mini">Hub meeting</span></span><span class="qc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="qc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span>
+<span class="qrole"><span class="pill p-ahl">Assistant Hub Lead</span></span><span class="qc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="qc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="qc"><span class="mini sky">If allowed</span></span><span class="qc"><span class="no"><svg class="ic xs" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></span><span class="qc"><span class="mini sky">If allowed</span></span>
+<span class="qrole"><span class="pill p-rc">Recap Lead</span></span><span class="qc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="qc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="qc"><span class="mini">Review &amp; Recap</span></span><span class="qc"><span class="no"><svg class="ic xs" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></span><span class="qc"><span class="no"><svg class="ic xs" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></span>
+<span class="qrole"><span class="pill p-pr">Prayer Lead</span></span><span class="qc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="qc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="qc"><span class="mini">Prayer</span></span><span class="qc"><span class="no"><svg class="ic xs" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></span><span class="qc"><span class="no"><svg class="ic xs" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></span>
+<span class="qrole"><span class="pill p-it">IT Support</span></span><span class="qc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="qc"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="qc"><span class="no"><svg class="ic xs" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></span><span class="qc"><span class="no"><svg class="ic xs" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></span><span class="qc"><span class="no"><svg class="ic xs" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></span>
+</div>
+<div class="lockrow" style="margin: 10px 4px 0; gap: 8px"><span class="pill xs p-star">★</span>Has notes. Only admins and the Hub Lead see it.</div>
+</div>
+<div class="cap"><h2>Quick reference</h2><p class="say">Who can open and do what, all in one place.</p></div>
+</div>
+</section>
+
+</div>
+<div class="bottom">
+<button class="btn ghost backbtn" aria-label="Back" data-act="back"><svg class="ic l" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
+<button class="btn pri nextbtn" data-act="next">Next<svg class="ic" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+<button class="btn pri restartbtn" data-act="home"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>Start again</button>
+</div>
+</div>
+<script>
+(function(){
+var C={initial: function() {
+    return { path: '', i: 0, dir: 'fwd', job: '', pa: true, pb: false, pc: true, sub: false, noted: false, pray: 0, corp: false, gc: 1 };
+  },
+  paths: function() {
+    return {
+      ps: ['ps1', 'ps2', 'myhub', 'follow', 'ref'],
+      hl: ['hl1', 'hl2', 'hl3', 'hl4', 'hl5', 'hl6', 'hl7', 'hl8', 'ref'],
+      ahl: ['welcome_ahl', 'as1', 'as2', 'follow', 'ref'],
+      rc: ['welcome_rc', 'rc1', 'follow', 'ref'],
+      pr: ['welcome_pr', 'pr1', 'pr2', 'pr3', 'ref'],
+      it: ['welcome_it', 'it1', 'follow', 'ref'],
+      all: ['fit', 'kinds', 'jobs', 'welcome', 'myhub', 'ps1', 'ps2', 'hl1', 'hl2', 'hl3', 'hl4', 'hl5', 'hl6', 'hl7', 'hl8', 'as1', 'as2', 'pr1', 'pr2', 'pr3', 'rc1', 'follow', 'it1', 'ref']
+    };
+  },
+  reduce: function(s, n) {
+    var list = C.paths()[s.path] || [];
+    if (n === 'next') return s.path && s.i < list.length - 1 ? { i: s.i + 1, dir: 'fwd' } : {};
+    if (n === 'back') return !s.path ? {} : s.i > 0 ? { i: s.i - 1, dir: 'bwd' } : { path: '', i: 0, dir: 'bwd' };
+    if (n === 'home') return { path: '', i: 0, dir: 'bwd', job: '', sub: false, noted: false, pray: 0, corp: false, gc: 1 };
+    if (n.indexOf('go_') === 0) return { path: n.slice(3), i: 0, dir: 'fwd' };
+    if (n.indexOf('job_') === 0) { var j = n.slice(4); return { job: s.job === j ? '' : j }; }
+    if (n === 'pa' || n === 'pb' || n === 'pc') { var o = {}; o[n] = !s[n]; return o; }
+    if (n === 'sub') return { sub: !s.sub };
+    if (n === 'note') return { noted: true };
+    if (n.indexOf('pray_') === 0) return { pray: +n.slice(5) };
+    if (n === 'corp') return { corp: !s.corp };
+    if (n.indexOf('gc_') === 0) return { gc: +n.slice(3) };
+    return {};
+  },
+  view: function(s) {
+    var list = C.paths()[s.path] || [];
+    var id = s.path ? list[s.i] : 'pick';
+    var cls = ['app', s.dir, s.path ? '' : 'on-pick', s.path && s.i === list.length - 1 ? 'at-end' : '', 'job-' + (s.job || 'none'),
+      s.pa ? 'perm-a' : '', s.pb ? 'perm-b' : '', s.pc ? 'perm-c' : '', s.sub ? 'submitted' : '', s.noted ? 'noted' : '',
+      'pray-' + s.pray, s.corp ? 'corp-on' : '', 'gc-' + s.gc].filter(Boolean).join(' ');
+    var parts = [];
+    if (s.pa) parts.push('edit meeting time & link');
+    if (s.pb) parts.push('take attendance & run the hub meeting');
+    if (s.pc) parts.push('message the hub');
+    var summary = 'Assistant can: ' + (parts.length ? parts.join(' · ') : 'nothing extra yet');
+    var dots = list.map(function (x, k) { return 'dot' + (k === s.i ? ' on' : k < s.i ? ' done' : ''); });
+    var counter = s.path ? (s.i + 1) + ' / ' + list.length : '';
+    return { id: id, cls: cls, summary: summary, dots: dots, counter: counter };
+  }};
+var s=C.initial();
+// Opened from the app as #role=hl (etc.): start on that role's path.
+var m=/role=(\w+)/.exec(location.hash);if(m&&C.paths()[m[1]])s.path=m[1];
+var app=document.getElementById('app'),stage=document.getElementById('stage'),dotsEl=document.getElementById('dots');
+var cards=[].slice.call(document.querySelectorAll('[data-card]'));
+var last='';
+function render(){
+ var v=C.view(s);
+ app.className=v.cls;
+ cards.forEach(function(c){c.hidden=c.getAttribute('data-card')!==v.id;});
+ dotsEl.innerHTML=v.dots.map(function(c){return '<span class="'+c+'"></span>';}).join('');
+ [].forEach.call(document.querySelectorAll('[data-bind]'),function(el){el.textContent=v[el.getAttribute('data-bind')];});
+ if(v.id!==last){stage.scrollTop=0;last=v.id;}
+}
+function act(n){var p=C.reduce(s,n);for(var k in p)s[k]=p[k];render();}
+document.addEventListener('click',function(e){var b=e.target.closest('[data-act]');if(b){act(b.getAttribute('data-act'));}});
+document.addEventListener('keydown',function(e){if(e.key==='ArrowRight')act('next');else if(e.key==='ArrowLeft')act('back');});
+var x=null,y=0;
+stage.addEventListener('touchstart',function(e){x=e.touches[0].clientX;y=e.touches[0].clientY;},{passive:true});
+stage.addEventListener('touchend',function(e){if(x==null)return;var t=e.changedTouches[0],dx=t.clientX-x,dy=t.clientY-y;x=null;
+ if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.3)act(dx<0?'next':'back');},{passive:true});
+render();
+})();
+</script>
+</body>
+</html>

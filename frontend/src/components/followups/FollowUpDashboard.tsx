@@ -62,6 +62,9 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; onShowUnassigne
   const introducers = computeIntroducerBreakdown(contacts);
   const totalMet = introducers.reduce((sum, row) => sum + row.met, 0);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const priorContacts = contacts.filter((c) => !c.cohortId);
+  const priorCohort = { total: priorContacts.length, unassigned: priorContacts.filter((c) => !c.ownerId).length };
+  const currentCohortCount = contacts.length - priorCohort.total;
 
   const totals = owners.reduce(
     (sum, row) => ({
@@ -134,6 +137,30 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; onShowUnassigne
           detail={stoppedDetail}
         />
       </div>
+
+      {/* Contacts with no cohort are prior-cohort follow-ups shown under the
+          active cohort; split them out so the two groups aren't confused. */}
+      {priorCohort.total > 0 && (
+        <section className="surface-card p-5 sm:p-6">
+          <h3 className="text-base font-semibold text-gray-900">This cohort vs. prior cohort follow-ups</h3>
+          <p className="mb-4 text-xs text-gray-500">Prior-cohort people join this cohort once they’re assigned to a support.</p>
+          <div className="mb-4 flex h-2.5 overflow-hidden rounded-full bg-gray-100">
+            <span className="block h-full bg-primary" style={{ width: `${(currentCohortCount / contacts.length) * 100}%` }} />
+            <span className="block h-full bg-neutral-300" style={{ width: `${(priorCohort.total / contacts.length) * 100}%` }} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-primary/10 px-4 py-3">
+              <p className="text-2xl font-bold tabular-nums text-gray-900">{currentCohortCount}</p>
+              <p className="text-xs font-semibold text-primary-dark">This cohort</p>
+            </div>
+            <div className="rounded-2xl bg-neutral-100 px-4 py-3">
+              <p className="text-2xl font-bold tabular-nums text-gray-900">{priorCohort.total}</p>
+              <p className="text-xs font-semibold text-neutral-600">From a prior cohort</p>
+              <p className="mt-0.5 text-[11px] text-neutral-500">{priorCohort.unassigned} still to assign</p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* One line per status, so the parts always add up to the whole. */}
       <section className="surface-card p-5 sm:p-6">

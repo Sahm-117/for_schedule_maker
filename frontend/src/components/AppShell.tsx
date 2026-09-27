@@ -9,6 +9,8 @@ import AppSelect from './AppSelect';
 import NotificationPromptModal from './NotificationPromptModal';
 import NotificationBlockedModal from './NotificationBlockedModal';
 import ClassFeedbackModal from './ClassFeedbackModal';
+import HubRoleIntroModal from './hubs/HubRoleIntroModal';
+import RoleGuideModal from './hubs/RoleGuideModal';
 import { useSupportClassFeedbackPrompt } from '../hooks/useSupportClassFeedbackPrompt';
 import { classFeedbackApi, groupsApi, myHubApi, supportKindApi } from '../services/api';
 import type { HubJob, SupportKind } from '../types';
@@ -291,6 +293,17 @@ const AppShell: React.FC = () => {
   } = useAppData();
   const { showPrompt, showBlocked, enable, dismiss, dismissBlocked } = usePushNotifications(user?.id);
   const isSupport = user?.role === 'SUPPORT';
+  // First time a support opens the app after getting a hub job: welcome them
+  // to it (once per job, remembered on the server), with a link to the guide.
+  const [introDoneJobs, setIntroDoneJobs] = useState<HubJob[]>([]);
+  const [guideJob, setGuideJob] = useState<HubJob | null>(null);
+  const pendingIntroJob = isSupport && myHub?.hub
+    ? (myHub.unseenIntroJobs ?? []).find((job) => !introDoneJobs.includes(job)) ?? null
+    : null;
+  const finishIntro = (job: HubJob) => {
+    setIntroDoneJobs((prev) => [...prev, job]);
+    if (myHub?.hub) void myHubApi.markRoleIntroSeen(myHub.hub.id, job).catch(() => undefined);
+  };
   // Supports only -- admins get the full per-week breakdown on the Feedback page instead.
   const { dueWeek: classFeedbackDueWeek, dismiss: dismissClassFeedback, markAnswered: markClassFeedbackAnswered } =
     useSupportClassFeedbackPrompt(isSupport ? activeCohort : null, isSupport ? weeks : [], isSupport ? user?.id : undefined);
@@ -441,6 +454,14 @@ const AppShell: React.FC = () => {
           onDismiss={dismissClassFeedback}
         />
       )}
+      {!tourBusy && !showPrompt && !showBlocked && !classFeedbackDueWeek && pendingIntroJob && (
+        <HubRoleIntroModal
+          job={pendingIntroJob}
+          onGotIt={() => finishIntro(pendingIntroJob)}
+          onSeeGuide={() => { finishIntro(pendingIntroJob); setGuideJob(pendingIntroJob); }}
+        />
+      )}
+      {guideJob && <RoleGuideModal job={guideJob} onClose={() => setGuideJob(null)} />}
 
       <aside className="surface-card fixed inset-y-4 left-4 z-30 hidden w-72 flex-col overflow-hidden lg:flex">
         <div className="border-b border-orange-100 px-6 py-6">

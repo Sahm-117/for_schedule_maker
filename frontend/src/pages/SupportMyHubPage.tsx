@@ -9,6 +9,8 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { MeetingCallCard, type MeetingSaveInput } from '../components/groups/GroupCallCard';
 import HubMeetingPanel from '../components/hubs/HubMeetingPanel';
+import RoleGuideModal from '../components/hubs/RoleGuideModal';
+import HubRoleIntroModal from '../components/hubs/HubRoleIntroModal';
 import { HUB_JOB_INFO, PERSON_OF_INTEREST_INFO, sortHubJobs } from '../components/hubs/hubJobs';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
@@ -114,23 +116,19 @@ const SupportMyHubPage: React.FC = () => {
 
   // ── Role intro popup — first time seeing a job, or reopened by tapping ────
   // your own pill.
-  const [introQueue, setIntroQueue] = useState<HubJob[]>([]);
+  // First-time intros are shown app-wide by AppShell; here it's only reopened
+  // by tapping your own pill.
   const [manualIntroJob, setManualIntroJob] = useState<HubJob | null>(null);
+  const activeIntroJob = manualIntroJob;
 
-  useEffect(() => {
-    setIntroQueue(myHub?.unseenIntroJobs ?? []);
-    // Only reseed when the selected hub changes, not on every payload refresh.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [myHub?.hub?.id]);
-
-  const activeIntroJob = manualIntroJob ?? introQueue[0] ?? null;
+  // "Your Role in the Hub" guide: false = closed, null = role picker, a job = that role.
+  const [guideJob, setGuideJob] = useState<HubJob | null | false>(false);
 
   const dismissIntro = async () => {
     if (!activeIntroJob || !myHub?.hub) return;
     const job = activeIntroJob;
     const hubId = myHub.hub.id;
-    if (manualIntroJob) setManualIntroJob(null);
-    else setIntroQueue((prev) => prev.slice(1));
+    setManualIntroJob(null);
     try {
       await myHubApi.markRoleIntroSeen(hubId, job);
     } catch {
@@ -437,7 +435,20 @@ const SupportMyHubPage: React.FC = () => {
 
   return (
     <div className="page-content">
-      <PageHeader title="My Hub" tourId={myHub?.isLead ? 'support:my-hub-lead' : 'support:my-hub'} subtitle={myHub?.hub ? myHub.hub.name : 'Your hub'} />
+      <PageHeader
+        title="My Hub"
+        tourId={myHub?.isLead ? 'support:my-hub-lead' : 'support:my-hub'}
+        subtitle={myHub?.hub ? myHub.hub.name : 'Your hub'}
+        action={(
+          <button
+            type="button"
+            onClick={() => setGuideJob(null)}
+            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-2xl bg-primary/10 px-4 text-sm font-semibold text-primary-dark hover:bg-primary/15 active:scale-95"
+          >
+            Role guide
+          </button>
+        )}
+      />
 
       {!loaded ? (
         <div className="space-y-3" aria-busy="true">
@@ -868,22 +879,15 @@ const SupportMyHubPage: React.FC = () => {
         </div>
       )}
 
-      {activeIntroJob && createPortal(
-        <div className="fixed inset-0 z-[120] flex items-end bg-black/50 p-0 sm:items-center sm:justify-center sm:p-4">
-          <div className="w-full rounded-t-3xl bg-white p-6 shadow-xl sm:max-w-md sm:rounded-2xl">
-            <h3 className="text-lg font-semibold text-gray-900">You're the {HUB_JOB_INFO[activeIntroJob].label}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-gray-600">{HUB_JOB_INFO[activeIntroJob].introBody}</p>
-            <button
-              type="button"
-              onClick={() => void dismissIntro()}
-              className="mt-5 w-full rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-white active:scale-95"
-            >
-              Got it
-            </button>
-          </div>
-        </div>,
-        document.body
+      {activeIntroJob && (
+        <HubRoleIntroModal
+          job={activeIntroJob}
+          onGotIt={() => void dismissIntro()}
+          onSeeGuide={() => { const job = activeIntroJob; void dismissIntro(); setGuideJob(job); }}
+        />
       )}
+
+      {guideJob !== false && <RoleGuideModal job={guideJob} onClose={() => setGuideJob(false)} />}
 
       {editingMessage && (
         <div className="fixed inset-0 z-[70] flex items-end bg-black/50 p-0 sm:items-center sm:justify-center sm:p-4">
@@ -987,9 +991,10 @@ const HubJobPillButton: React.FC<{ job: HubJob; isOwn: boolean; onOwnTap: () => 
           if (isOwn) { onOwnTap(); return; }
           setOpen((value) => !value);
         }}
-        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${info.pill}`}
+        className={`inline-flex items-center gap-0.5 rounded-full py-0.5 pl-2 pr-1.5 text-[10px] font-semibold ${info.pill}`}
       >
         {info.label}
+        <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
       </button>
       {open && !isOwn && createPortal(
         <div ref={popRef} role="tooltip" style={style} className="rounded-xl bg-gray-800 px-3 py-2.5 text-xs font-medium leading-relaxed text-white shadow-[0_12px_30px_-10px_rgba(17,24,39,0.45)]">
