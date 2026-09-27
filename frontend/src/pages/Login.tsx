@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate, Link } from 'react-router-dom';
+import { toLocalNigerianPhone } from '../utils/phone';
 
 const isValidNigerianPhone = (value: string) => /^0[7-9][0-1]\d{8}$/.test(value);
 const looksLikePhone = (value: string) => /^[0-9+]/.test(value) && !value.includes('@');
+// A full Nigerian number typed or pasted as +234…, 234… or with spaces becomes
+// the 080… form people sign in with; anything else is left as typed.
+const toLocalPhoneInput = (value: string) => {
+  if (!looksLikePhone(value.trim()) || /^0[7-9][01]\d{8}$/.test(value)) return value;
+  return toLocalNigerianPhone(value) ?? value;
+};
 
 const Icon: React.FC<{ d: string; className?: string }> = ({ d, className = 'h-[18px] w-[18px]' }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -174,7 +181,7 @@ const Login: React.FC = () => {
                       className={`${inputCls} pr-4`}
                       placeholder="you@example.com or 0801…"
                       value={emailOrPhone}
-                      onChange={(e) => setEmailOrPhone(e.target.value)}
+                      onChange={(e) => setEmailOrPhone(toLocalPhoneInput(e.target.value))}
                     />
                   </div>
                   {phoneHint && <p className="mt-1.5 text-xs text-amber-700">{phoneHint}</p>}

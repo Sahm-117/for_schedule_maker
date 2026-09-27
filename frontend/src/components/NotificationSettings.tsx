@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { notificationSettingsApi } from '../services/api';
+import { notificationSettingsApi, pushSubscriptionsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import Spinner from './Spinner';
@@ -31,6 +31,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
   const [editing, setEditing] = useState(false);
+  const [testState, setTestState] = useState<'idle' | 'sending' | 'sent' | 'none' | 'error'>('idle');
 
   const shouldRender = embedded || isOpen;
 
@@ -66,6 +67,16 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
       setStatus('Failed to save settings.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const sendTest = async () => {
+    if (!user?.id) return;
+    setTestState('sending');
+    try {
+      setTestState((await pushSubscriptionsApi.sendTest(user.id)) > 0 ? 'sent' : 'none');
+    } catch {
+      setTestState('error');
     }
   };
 
@@ -177,14 +188,31 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={enable}
-            disabled={!canEnableDevice}
-            className="shrink-0 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {deviceStatus === 'saving' ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving...</span>) : 'Enable on this device'}
-          </button>
+          {/* Once this device is on, there's nothing to enable: offer a test instead. */}
+          {deviceStatus === 'enabled' ? (
+            <div className="shrink-0">
+              <button
+                type="button"
+                onClick={() => { void sendTest(); }}
+                disabled={testState === 'sending'}
+                className="text-sm font-semibold text-primary hover:underline disabled:opacity-60"
+              >
+                {testState === 'sending' ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending...</span>) : 'Send me a test'}
+              </button>
+              {testState === 'sent' && <p className="mt-1 text-xs text-green-700">Sent. Check your phone&apos;s notifications.</p>}
+              {testState === 'none' && <p className="mt-1 text-xs text-red-600">No device saved for your account. Close and reopen the app, then try again.</p>}
+              {testState === 'error' && <p className="mt-1 text-xs text-red-600">Could not send the test. Try again.</p>}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={enable}
+              disabled={!canEnableDevice}
+              className="shrink-0 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {deviceStatus === 'saving' ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving...</span>) : 'Enable on this device'}
+            </button>
+          )}
         </div>
       </div>
       {embedded ? (

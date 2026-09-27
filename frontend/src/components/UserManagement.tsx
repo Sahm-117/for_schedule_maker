@@ -152,7 +152,29 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setError('');
     setSuccess('');
     try {
-      const response = await usersApi.update(selectedUser.id, { name: nextName });
+      // Email and phone can be added or corrected here (e.g. an account made with
+      // a phone only). The phone is saved as 080… so it's what they sign in with.
+      const nextEmail = selectedUserDraft.email.trim().toLowerCase();
+      const phoneInput = selectedUserDraft.phone.trim();
+      const nextPhone = phoneInput ? toLocalNigerianPhone(phoneInput) : '';
+      if (nextPhone === null) {
+        setError('Enter a valid Nigerian phone number, e.g. 08012345678.');
+        return;
+      }
+      if (nextEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+        setError('Enter a valid email address.');
+        return;
+      }
+      if (!nextEmail && !nextPhone) {
+        setError('Keep at least an email or a phone number so they can sign in.');
+        return;
+      }
+      const response = await usersApi.update(selectedUser.id, {
+        name: nextName,
+        email: nextEmail || null,
+        phone: nextPhone || null,
+      });
+      setSelectedUserDraft((prev) => ({ ...prev, email: response.user.email || '', phone: response.user.phone || '' }));
       setSelectedUser(response.user);
       setUsers((prev) => sortByText(
         prev.map((entry) => (entry.id === selectedUser.id ? { ...entry, ...response.user } : entry)),
@@ -794,8 +816,25 @@ const UserManagement: React.FC<UserManagementProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email/Phone</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">{selectedUser.email || selectedUser.phone || 'N/A'}</div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={selectedUserDraft.email}
+                    onChange={(e) => setSelectedUserDraft((prev) => ({ ...prev, email: e.target.value }))}
+                    placeholder="Add an email"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    value={selectedUserDraft.phone}
+                    onChange={(e) => setSelectedUserDraft((prev) => ({ ...prev, phone: e.target.value }))}
+                    placeholder="08012345678"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-primary"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>

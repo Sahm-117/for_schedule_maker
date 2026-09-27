@@ -19,6 +19,8 @@ import { cohortMode } from '../components/dashboard/healthModel';
 import AttendanceSummaryStrip from '../components/hubs/AttendanceSummaryStrip';
 import Spinner from '../components/Spinner';
 import SupportNotesStar from '../components/hubs/SupportNotesStar';
+import Avatar from '../components/Avatar';
+import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 
 // ── Recap Attendance Modal ────────────────────────────────────────────────────
 // Same controls and API calls as the hub lead's Recap tab in SupportMyHubPage.
@@ -477,6 +479,8 @@ const AdminHubsPage: React.FC = () => {
   const [leadTarget, setLeadTarget] = useState<SupportHub | null>(null);
   const [membersTarget, setMembersTarget] = useState<SupportHub | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SupportHub | null>(null);
+  // Tap a support's photo or name to see their profile, as on Community.
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [recapTarget, setRecapTarget] = useState<SupportHub | null>(null);
   const [recapByHub, setRecapByHub] = useState<Record<string, { weekId: number; weekNumber: number; marked: number; total: number; absent: number }>>({});
   const [itSupportsByHub, setItSupportsByHub] = useState<Record<string, HubItSupportEntry[]>>({});
@@ -747,8 +751,12 @@ const AdminHubsPage: React.FC = () => {
                       ].filter(Boolean) as HubJob[]));
                       const isPoi = (notedIdsByHub[h.id] ?? []).includes(u.id);
                       return (
-                        <div key={u.id} className="rounded-xl border border-orange-100 bg-white px-3 py-2 shadow-sm">
-                          <p className="truncate text-sm font-semibold leading-tight text-gray-900">{u.name}</p>
+                        <div key={u.id} className="flex items-start gap-2.5 rounded-xl border border-orange-100 bg-white px-3 py-2 shadow-sm">
+                          <button type="button" onClick={() => setProfileUserId(u.id)} aria-label={`View ${u.name}'s profile`} className="mt-0.5 flex-none rounded-full">
+                            <Avatar name={u.name} avatarUrl={u.avatarUrl} size="sm" />
+                          </button>
+                          <div className="min-w-0 flex-1">
+                          <button type="button" onClick={() => setProfileUserId(u.id)} className="block max-w-full truncate text-left text-sm font-semibold leading-tight text-gray-900 hover:underline">{u.name}</button>
                           {(jobs.length > 0 || isPoi) && (
                             <div className="mt-1 flex flex-wrap gap-1">
                               {jobs.map((job) => (
@@ -758,16 +766,22 @@ const AdminHubsPage: React.FC = () => {
                             </div>
                           )}
                           {led && <p className="text-xs text-gray-400">Leads {led.name}</p>}
+                          </div>
                         </div>
                       );
                     })}
                     {(itSupportsByHub[h.id] ?? [])
                       .filter((s) => !memberUsers.some((u) => u.id === s.userId))
                       .map((s) => (
-                        <div key={`it-${s.userId}`} className="rounded-xl border border-orange-100 bg-white px-3 py-2 shadow-sm">
-                          <p className="truncate text-sm font-semibold leading-tight text-gray-900">{s.name}</p>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${HUB_JOB_INFO.IT_SUPPORT.pill}`}>{HUB_JOB_INFO.IT_SUPPORT.label}</span>
+                        <div key={`it-${s.userId}`} className="flex items-start gap-2.5 rounded-xl border border-orange-100 bg-white px-3 py-2 shadow-sm">
+                          <button type="button" onClick={() => setProfileUserId(s.userId)} aria-label={`View ${s.name}'s profile`} className="mt-0.5 flex-none rounded-full">
+                            <Avatar name={s.name} avatarUrl={userById.get(s.userId)?.avatarUrl} size="sm" />
+                          </button>
+                          <div className="min-w-0 flex-1">
+                            <button type="button" onClick={() => setProfileUserId(s.userId)} className="block max-w-full truncate text-left text-sm font-semibold leading-tight text-gray-900 hover:underline">{s.name}</button>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${HUB_JOB_INFO.IT_SUPPORT.pill}`}>{HUB_JOB_INFO.IT_SUPPORT.label}</span>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -844,6 +858,8 @@ const AdminHubsPage: React.FC = () => {
           onMarked={handleRecapMarked}
         />
       )}
+
+      <HubAuthorProfileModal userId={profileUserId} isOpen={!!profileUserId} onClose={() => setProfileUserId(null)} />
 
       <ConfirmationModal
         isOpen={!!deleteTarget}

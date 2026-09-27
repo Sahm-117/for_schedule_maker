@@ -2402,7 +2402,8 @@ export const usersApi = {
 
   async update(userId: string, updateData: {
     name?: string;
-    email?: string;
+    email?: string | null;
+    phone?: string | null;
     password?: string;
     role?: 'ADMIN' | 'SUPPORT';
     isActive?: boolean;
@@ -2618,6 +2619,23 @@ export const pushSubscriptionsApi = {
   // admin Users page's "No alerts" tag/filter (anyone active and not in this
   // set can't receive a push). Direct table read: PushSubscription's RLS is
   // already app_is_staff(), no new function needed.
+  // Sends one test notification to the signed-in user's own saved devices, via
+  // the same notify-users function as every other alert. Returns how many
+  // devices it reached (0 = nothing saved for this account).
+  async sendTest(userId: string): Promise<number> {
+    const { data, error } = await supabase.functions.invoke('notify-users', {
+      body: {
+        userIds: [userId],
+        title: 'Test notification',
+        body: 'Notifications are working on this device.',
+        path: '/profile',
+        type: 'REMINDER',
+      },
+    });
+    if (error) throw new Error(error.message);
+    return Number((data as { sent?: number } | null)?.sent ?? 0);
+  },
+
   async listSubscribedUserIds(): Promise<string[]> {
     const { data, error } = await supabase.from('PushSubscription').select('userId');
     if (error) throw new Error(error.message);

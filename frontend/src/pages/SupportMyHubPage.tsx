@@ -7,7 +7,9 @@ import AppSelect from '../components/AppSelect';
 import SaveStatus, { type SaveState } from '../components/SaveStatus';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
-import { MeetingCallCard, type MeetingSaveInput } from '../components/groups/GroupCallCard';
+import { MeetingCallCard, formatMeetingSlot, type MeetingSaveInput } from '../components/groups/GroupCallCard';
+import Avatar from '../components/Avatar';
+import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import HubMeetingPanel from '../components/hubs/HubMeetingPanel';
 import RoleGuideModal from '../components/hubs/RoleGuideModal';
 import HubRoleIntroModal from '../components/hubs/HubRoleIntroModal';
@@ -126,6 +128,10 @@ const SupportMyHubPage: React.FC = () => {
 
   // "Your Role in the Hub" guide: false = closed, null = role picker, a job = that role.
   const [guideJob, setGuideJob] = useState<HubJob | null | false>(false);
+  // Overview tap-to-open rows; unset = default (Messages opens while one needs a "Got it").
+  const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
+  // Tap a fellow support's photo or name to see their profile, as on Community.
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
   const dismissIntro = async () => {
     if (!activeIntroJob || !myHub?.hub) return;
@@ -459,7 +465,7 @@ const SupportMyHubPage: React.FC = () => {
           {[0, 1].map((i) => <div key={i} className="surface-card h-24 animate-pulse" />)}
         </div>
       ) : !myHub?.hub ? (
-        <div className="surface-card p-8 text-center text-sm text-gray-500">You’re not in a hub for this cohort yet.</div>
+        <div className={`${SURFACE} px-6 py-10 text-center text-[15px] text-gray-500`}>You’re not in a hub for this cohort yet.</div>
       ) : (
         <div className="space-y-4">
           {hubs.length > 1 && (
@@ -480,245 +486,247 @@ const SupportMyHubPage: React.FC = () => {
             </div>
           )}
 
-          {tab === 'overview' && (
-            <div className="space-y-4">
-              <section className="surface-card p-5">
-                <p className="text-sm text-gray-500">Lead</p>
-                <div className="mt-1 flex items-center justify-between gap-2">
-                  <p className="text-base font-semibold text-gray-900">{myHub.hub.leadName || 'No lead assigned'}</p>
-                  {leadWhatsAppLink && (
-                    <a href={leadWhatsAppLink} target="_blank" rel="noreferrer" className="rounded-xl bg-emerald-100/80 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">WhatsApp</a>
-                  )}
-                </div>
+          {tab === 'overview' && (() => {
+            const hub = myHub.hub!;
+            const slot = formatMeetingSlot(hub.meetingDay, hub.meetingTime, hub.meetingDurationMins);
+            const callHref = hub.callLink ? (/^https?:\/\//i.test(hub.callLink) ? hub.callLink : `https://${hub.callLink}`) : null;
+            const unacked = isLead ? 0 : myHub.messages.filter((msg) => !msg.ackedByMe && !ackedLocal.has(msg.id)).length;
+            const isOpen = (key: string) => openRows[key] ?? (key === 'messages' && unacked > 0);
+            const toggle = (key: string) => setOpenRows((prev) => ({ ...prev, [key]: !isOpen(key) }));
+            const itOnly = (hub.itSupports ?? []).filter((it) => !myHub.members.some((m) => m.userId === it.userId));
+            const grantedPerms = PERMISSION_OPTIONS.filter((opt) => (hub.assistantPermissions ?? []).includes(opt.value));
+            return (
+            <div className="flex flex-col gap-6">
+              {/* One card for the hub: who leads it, when it meets, and the one or two things to tap. */}
+              <section className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
+                <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+                  {isLead ? 'You lead this hub' : `Led by ${hub.leadName || 'no one yet'}`}
+                </span>
+                <h2 className="mt-2 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">{hub.name}</h2>
+                <p className="mt-3 text-[15.5px] leading-[1.7] text-gray-600">
+                  {slot ? `Meets ${slot}.` : canMeeting ? 'No meeting time yet. Set it up below.' : 'Meeting time not set yet.'}
+                </p>
+                {(callHref || (!isLead && leadWhatsAppLink)) && (
+                  <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
+                    {callHref && <a href={callHref} target="_blank" rel="noreferrer" className={PRIMARY}>Join the call</a>}
+                    {!isLead && leadWhatsAppLink && <a href={leadWhatsAppLink} target="_blank" rel="noreferrer" className={callHref ? SECONDARY : PRIMARY}>Message {hub.leadName?.split(' ')[0] || 'the lead'}</a>}
+                  </div>
+                )}
               </section>
 
-              <section className="surface-card p-5">
-                <p className="mb-2 text-sm font-semibold text-gray-700">Hub meeting</p>
-                <MeetingCallCard
-                  slot={{
-                    meetingDay: myHub.hub.meetingDay ?? null,
-                    meetingTime: myHub.hub.meetingTime ?? null,
-                    meetingDurationMins: myHub.hub.meetingDurationMins ?? null,
-                  }}
-                  callPlatform={myHub.hub.callPlatform ?? null}
-                  callLink={myHub.hub.callLink ?? null}
-                  resetKey={myHub.hub.id}
-                  linkLabel="Meeting Call Link"
-                  saveLabel="Save hub meeting"
-                  onSave={canMeeting ? handleSaveMeeting : undefined}
-                />
-              </section>
-
-              <section data-wt="hub-members" className="surface-card p-5">
-                <p className="mb-2 text-sm font-semibold text-gray-700">Fellow supports</p>
-                {myHub.members.length === 0 && !(myHub.hub?.itSupports?.length) ? (
-                  <p className="text-sm text-gray-400">No members yet.</p>
+              <section data-wt="hub-members" className={`${SURFACE} px-6 py-5 sm:px-8`}>
+                <h3 className="text-[16px] font-semibold text-gray-900">Fellow supports<span className="ml-1.5 text-[14px] font-normal text-gray-400">{myHub.members.length + itOnly.length}</span></h3>
+                {myHub.members.length === 0 && itOnly.length === 0 ? (
+                  <p className="mt-2 text-[14px] text-gray-500">No members yet.</p>
                 ) : (
-                  <ul className="divide-y divide-orange-50">
+                  <ul className="mt-2">
                     {myHub.members.map((m) => {
                       // A member can also be this hub's IT support; the member row carries that label too.
-                      const jobs: HubJob[] = [...(m.jobs ?? []), ...((myHub.hub?.itSupports ?? []).some((it) => it.userId === m.userId) && !(m.jobs ?? []).includes('IT_SUPPORT') ? ['IT_SUPPORT' as HubJob] : [])];
+                      const jobs: HubJob[] = [...(m.jobs ?? []), ...((hub.itSupports ?? []).some((it) => it.userId === m.userId) && !(m.jobs ?? []).includes('IT_SUPPORT') ? ['IT_SUPPORT' as HubJob] : [])];
                       return (
-                      <li key={m.userId} className="flex items-center justify-between gap-2 py-2 text-sm">
-                        <div className="min-w-0">
-                          <p className="text-gray-800">{m.name}</p>
-                          {(!!jobs.length || m.isPersonOfInterest) && (
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {sortHubJobs(jobs).map((job) => (
-                                <HubJobPillButton
-                                  key={job}
-                                  job={job}
-                                  isOwn={m.userId === user?.id}
-                                  onOwnTap={() => setManualIntroJob(job)}
-                                />
-                              ))}
-                              {m.isPersonOfInterest && <span title={PERSON_OF_INTEREST_INFO.description} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
-                            </div>
-                          )}
-                        </div>
-                        <span className="flex-none text-xs text-gray-400">{m.groupName || 'No group'}</span>
-                      </li>
-                      );
-                    })}
-                    {(myHub.hub?.itSupports ?? [])
-                      .filter((it) => !myHub.members.some((m) => m.userId === it.userId))
-                      .map((it) => (
-                        <li key={`it-${it.userId}`} className="flex items-center justify-between gap-2 py-2 text-sm">
-                          <div className="min-w-0">
-                            <p className="text-gray-800">{it.name}</p>
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              <HubJobPillButton
-                                job="IT_SUPPORT"
-                                isOwn={it.userId === user?.id}
-                                onOwnTap={() => setManualIntroJob('IT_SUPPORT')}
-                              />
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                  </ul>
-                )}
-              </section>
-
-              <section className="surface-card p-5">
-                <p className="mb-2 text-sm font-semibold text-gray-700">Prayer list</p>
-                {prayerLoading ? (
-                  <p className="flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
-                ) : prayerItems.length === 0 ? (
-                  <p className="text-sm text-gray-400">Nothing shared for prayer yet.</p>
-                ) : (
-                  <ul className="max-h-72 space-y-2 overflow-y-auto">
-                    {[...prayerItems]
-                      .sort((a, b) => (a.timesPrayedFor !== b.timesPrayedFor
-                        ? a.timesPrayedFor - b.timesPrayedFor
-                        : (a.lastPrayedWeek ?? -Infinity) - (b.lastPrayedWeek ?? -Infinity)))
-                      .map((item) => (
-                      <li key={item.participantId} className="rounded-xl border border-orange-100 p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-semibold text-gray-900">{item.fullName}</p>
-                          <span className="flex-none rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-bold text-neutral-600">
-                            {item.timesPrayedFor > 0 ? `Prayed for ${item.timesPrayedFor}× · last Week ${item.lastPrayedWeek}` : 'Not prayed for yet'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-400">{item.groupName || 'No group'}{item.categoryName ? ` · ${item.categoryName}` : ''}</p>
-                        <p className="mt-1 whitespace-pre-line text-sm text-gray-700">{item.body}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-
-              {isLead && myHub.hub.assistantLeadUserId && (
-                <section className="surface-card p-5">
-                  <p className="mb-1 text-sm font-semibold text-gray-700">Assistant permissions</p>
-                  <p className="mb-3 text-xs text-gray-400">What {myHub.hub.assistantLeadName || 'your assistant'} can do.</p>
-                  {permError && <p className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600">{permError}</p>}
-                  {permEditing ? (
-                    <>
-                      <div className="space-y-3">
-                        {PERMISSION_OPTIONS.map((opt) => {
-                          const checked = permDraft.includes(opt.value);
-                          return (
-                            <div key={opt.value} className="flex items-center justify-between gap-4 rounded-2xl bg-gray-50 px-3 py-2.5">
-                              <div className="min-w-0">
-                                <p className="text-sm font-semibold text-gray-800">{opt.label}</p>
-                                <p className="text-xs text-gray-500">{opt.hint}</p>
+                        <li key={m.userId} className="flex items-center gap-3 border-t border-[#f0f0f2] py-3 first:border-t-0">
+                          <button type="button" onClick={() => setProfileUserId(m.userId)} aria-label={`View ${m.name}'s profile`} className="flex-none rounded-full">
+                            <Avatar name={m.name} avatarUrl={m.avatarUrl} size="md" />
+                          </button>
+                          <div className="min-w-0 flex-1">
+                            <button type="button" onClick={() => setProfileUserId(m.userId)} className="text-left text-[15px] font-medium text-gray-900 hover:underline">{m.name}{m.userId === user?.id && <span className="ml-1.5 text-[13px] font-normal text-gray-400">You</span>}</button>
+                            {(!!jobs.length || m.isPersonOfInterest) && (
+                              <div className="mt-1 flex flex-wrap gap-1">
+                                {sortHubJobs(jobs).map((job) => (
+                                  <HubJobPillButton key={job} job={job} isOwn={m.userId === user?.id} onOwnTap={() => setManualIntroJob(job)} />
+                                ))}
+                                {m.isPersonOfInterest && <span title={PERSON_OF_INTEREST_INFO.description} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
                               </div>
-                              <button
-                                type="button"
-                                role="switch"
-                                aria-checked={checked}
-                                aria-label={opt.label}
-                                onClick={() => handleToggleDraftPermission(opt.value)}
-                                disabled={permSaving}
-                                className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition disabled:opacity-60 ${checked ? 'bg-primary' : 'bg-slate-200'}`}
-                              >
-                                <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${checked ? 'translate-x-7' : 'translate-x-1'}`} />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="mt-3.5 flex gap-2.5">
-                        <button
-                          type="button"
-                          onClick={() => { setPermEditing(false); setPermError(''); }}
-                          disabled={permSaving}
-                          className="min-h-[42px] rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 disabled:opacity-60"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { void handleSavePermissions(); }}
-                          disabled={permSaving}
-                          className="min-h-[42px] flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-white disabled:opacity-60"
-                        >
-                          {permSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="min-w-0 text-sm text-gray-700">
-                        {(() => {
-                          const granted = PERMISSION_OPTIONS.filter((opt) => (myHub.hub!.assistantPermissions ?? []).includes(opt.value));
-                          return granted.length === 0
-                            ? "Assistant can't do anything extra yet."
-                            : `Assistant can: ${granted.map((opt) => opt.summary).join(' · ')}`;
-                        })()}
-                      </p>
-                      <button type="button" onClick={startEditingPermissions} className="flex-none text-sm font-semibold text-primary">Edit</button>
-                    </div>
-                  )}
-                </section>
-              )}
-
-              <section className="surface-card p-5">
-                <p className="mb-2 text-sm font-semibold text-gray-700">Messages from the lead</p>
-                {myHub.messages.length === 0 ? (
-                  <p className="text-sm text-gray-400">No messages yet.</p>
-                ) : (
-                  <ul className="max-h-[26rem] space-y-3 overflow-y-auto">
-                    {myHub.messages.map((msg) => {
-                      const acked = !!msg.ackedByMe || ackedLocal.has(msg.id);
-                      const canManage = isLead || msg.authorId === user?.id;
-                      return (
-                        <li key={msg.id} className="rounded-xl border border-orange-100 p-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-sm font-semibold text-gray-900">{msg.subject}</p>
-                            {canManage && (
-                              <AppOverflowMenu
-                                items={[
-                                  { label: 'Edit', onClick: () => startEditMessage(msg) },
-                                  { label: 'Delete', tone: 'danger', onClick: () => setDeletingMessage(msg) },
-                                ]}
-                              />
                             )}
                           </div>
-                          <p className="mt-1 whitespace-pre-line text-sm text-gray-700">{msg.body}</p>
-                          <p className="mt-1.5 text-[11px] text-gray-400">
-                            {msg.authorName || 'Hub lead'} · {new Date(msg.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                            {msg.editedAt && ' · edited'}
-                          </p>
-                          {!isLead && (
-                            acked ? (
-                              <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2.5 py-1 text-xs font-semibold text-emerald-700">✓ Acknowledged</span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => void handleAcknowledge(msg.id)}
-                                className="fof-glow-ring mt-2 rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200"
-                              >
-                                Got it
-                              </button>
-                            )
-                          )}
-                          {isLead && <HubMessageAckSummary message={msg} members={myHub.members} />}
+                          <span className="flex-none text-[13px] text-gray-400">{m.groupName || 'No group'}</span>
                         </li>
                       );
                     })}
+                    {itOnly.map((it) => (
+                      <li key={`it-${it.userId}`} className="flex items-center gap-3 border-t border-[#f0f0f2] py-3 first:border-t-0">
+                        <button type="button" onClick={() => setProfileUserId(it.userId)} aria-label={`View ${it.name}'s profile`} className="flex-none rounded-full">
+                          <Avatar name={it.name} avatarUrl={it.avatarUrl} size="md" />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <button type="button" onClick={() => setProfileUserId(it.userId)} className="text-left text-[15px] font-medium text-gray-900 hover:underline">{it.name}</button>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <HubJobPillButton job="IT_SUPPORT" isOwn={it.userId === user?.id} onOwnTap={() => setManualIntroJob('IT_SUPPORT')} />
+                          </div>
+                        </div>
+                      </li>
+                    ))}
                   </ul>
                 )}
               </section>
 
-              <section className="surface-card p-5">
-                <p className="mb-2 text-sm font-semibold text-gray-700">My attendance</p>
-                {myHub.myAttendance.length === 0 ? (
-                  <p className="text-sm text-gray-400">No marks yet.</p>
-                ) : (
-                  <ul className="divide-y divide-orange-50">
-                    {myHub.myAttendance.map((a) => (
-                      <li key={a.sessionId} className="flex items-center justify-between py-2 text-sm">
-                        <span className="text-gray-800">{a.title}</span>
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_PILL[a.status]}`}>{a.status}</span>
-                      </li>
-                    ))}
-                  </ul>
+              {/* Everything else, quietly, as tap-to-open rows. */}
+              <section className={`${SURFACE} px-6 py-1.5 sm:px-8`}>
+                <DisclosureRow
+                  label={isLead ? 'Your messages' : 'Messages from the lead'}
+                  hint={unacked > 0 ? `${unacked} new` : myHub.messages.length === 0 ? 'None yet' : String(myHub.messages.length)}
+                  hintCls={unacked > 0 ? 'font-semibold text-primary' : undefined}
+                  open={isOpen('messages')}
+                  onToggle={() => toggle('messages')}
+                >
+                  {myHub.messages.length === 0 ? (
+                    <p className="text-[14px] text-gray-500">No messages yet.</p>
+                  ) : (
+                    <ul className="max-h-[26rem] space-y-2 overflow-y-auto">
+                      {myHub.messages.map((msg) => {
+                        const acked = !!msg.ackedByMe || ackedLocal.has(msg.id);
+                        const canManage = isLead || msg.authorId === user?.id;
+                        return (
+                          <li key={msg.id} className="rounded-2xl bg-[#f5f5f7] p-4">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-[15px] font-semibold text-gray-900">{msg.subject}</p>
+                              {canManage && (
+                                <AppOverflowMenu
+                                  items={[
+                                    { label: 'Edit', onClick: () => startEditMessage(msg) },
+                                    { label: 'Delete', tone: 'danger', onClick: () => setDeletingMessage(msg) },
+                                  ]}
+                                />
+                              )}
+                            </div>
+                            <p className="mt-1 whitespace-pre-line text-[14px] leading-relaxed text-gray-700">{msg.body}</p>
+                            <p className="mt-2 text-[12px] text-gray-400">
+                              {msg.authorName || 'Hub lead'} · {new Date(msg.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              {msg.editedAt && ' · edited'}
+                            </p>
+                            {!isLead && (
+                              acked ? (
+                                <span className="mt-2.5 inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2.5 py-1 text-xs font-semibold text-emerald-700">✓ Acknowledged</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleAcknowledge(msg.id)}
+                                  className="fof-glow-ring mt-2.5 min-h-[40px] rounded-full bg-gray-900 px-4 text-[13px] font-semibold text-white"
+                                >
+                                  Got it
+                                </button>
+                              )
+                            )}
+                            {isLead && <HubMessageAckSummary message={msg} members={myHub.members} />}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </DisclosureRow>
+
+                <DisclosureRow label="Prayer list" hint={prayerLoading ? undefined : prayerItems.length === 0 ? 'None yet' : String(prayerItems.length)} open={isOpen('prayer')} onToggle={() => toggle('prayer')}>
+                  {prayerLoading ? (
+                    <p className="flex items-center gap-1.5 text-[14px] text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
+                  ) : prayerItems.length === 0 ? (
+                    <p className="text-[14px] text-gray-500">Nothing shared for prayer yet.</p>
+                  ) : (
+                    <ul className="max-h-72 space-y-2 overflow-y-auto">
+                      {[...prayerItems]
+                        .sort((a, b) => (a.timesPrayedFor !== b.timesPrayedFor
+                          ? a.timesPrayedFor - b.timesPrayedFor
+                          : (a.lastPrayedWeek ?? -Infinity) - (b.lastPrayedWeek ?? -Infinity)))
+                        .map((item) => (
+                        <li key={item.participantId} className="rounded-2xl bg-[#f5f5f7] p-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-[14px] font-semibold text-gray-900">{item.fullName}</p>
+                            <span className="flex-none rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-neutral-600">
+                              {item.timesPrayedFor > 0 ? `Prayed for ${item.timesPrayedFor}× · last Week ${item.lastPrayedWeek}` : 'Not prayed for yet'}
+                            </span>
+                          </div>
+                          <p className="text-[12px] text-gray-400">{item.groupName || 'No group'}{item.categoryName ? ` · ${item.categoryName}` : ''}</p>
+                          <p className="mt-1 whitespace-pre-line text-[14px] text-gray-700">{item.body}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </DisclosureRow>
+
+                <DisclosureRow label="My attendance" hint={myHub.myAttendance.length === 0 ? 'No marks yet' : String(myHub.myAttendance.length)} open={isOpen('attendance')} onToggle={() => toggle('attendance')}>
+                  {myHub.myAttendance.length === 0 ? (
+                    <p className="text-[14px] text-gray-500">No marks yet.</p>
+                  ) : (
+                    <ul>
+                      {myHub.myAttendance.map((a) => (
+                        <li key={a.sessionId} className="flex items-center justify-between gap-2 border-t border-[#f0f0f2] py-2.5 text-[14px] first:border-t-0">
+                          <span className="text-gray-800">{a.title}</span>
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_PILL[a.status]}`}>{a.status}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </DisclosureRow>
+
+                {canMeeting && (
+                  <DisclosureRow label="Meeting time & link" hint={slot ? 'Set' : 'Not set'} hintCls={slot ? undefined : 'font-semibold text-primary'} open={isOpen('meeting')} onToggle={() => toggle('meeting')}>
+                    <MeetingCallCard
+                      slot={{
+                        meetingDay: hub.meetingDay ?? null,
+                        meetingTime: hub.meetingTime ?? null,
+                        meetingDurationMins: hub.meetingDurationMins ?? null,
+                      }}
+                      callPlatform={hub.callPlatform ?? null}
+                      callLink={hub.callLink ?? null}
+                      resetKey={hub.id}
+                      linkLabel="Meeting Call Link"
+                      saveLabel="Save hub meeting"
+                      onSave={handleSaveMeeting}
+                    />
+                  </DisclosureRow>
+                )}
+
+                {isLead && hub.assistantLeadUserId && (
+                  <DisclosureRow label="Assistant permissions" hint={grantedPerms.length === 0 ? 'None' : `${grantedPerms.length} on`} open={isOpen('perms')} onToggle={() => toggle('perms')}>
+                    <p className="mb-3 text-[13px] text-gray-500">What {hub.assistantLeadName || 'your assistant'} can do.</p>
+                    {permError && <p className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600">{permError}</p>}
+                    {permEditing ? (
+                      <>
+                        <div className="space-y-2">
+                          {PERMISSION_OPTIONS.map((opt) => {
+                            const checked = permDraft.includes(opt.value);
+                            return (
+                              <div key={opt.value} className="flex items-center justify-between gap-4 rounded-2xl bg-[#f5f5f7] px-4 py-3">
+                                <div className="min-w-0">
+                                  <p className="text-[14px] font-semibold text-gray-800">{opt.label}</p>
+                                  <p className="text-xs text-gray-500">{opt.hint}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  role="switch"
+                                  aria-checked={checked}
+                                  aria-label={opt.label}
+                                  onClick={() => handleToggleDraftPermission(opt.value)}
+                                  disabled={permSaving}
+                                  className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition disabled:opacity-60 ${checked ? 'bg-primary' : 'bg-slate-200'}`}
+                                >
+                                  <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${checked ? 'translate-x-7' : 'translate-x-1'}`} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
+                          <button type="button" onClick={() => { void handleSavePermissions(); }} disabled={permSaving} className={PRIMARY}>
+                            {permSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
+                          </button>
+                          <button type="button" onClick={() => { setPermEditing(false); setPermError(''); }} disabled={permSaving} className={SECONDARY}>Cancel</button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="min-w-0 text-[14px] text-gray-700">
+                          {grantedPerms.length === 0 ? "Assistant can't do anything extra yet." : `Assistant can: ${grantedPerms.map((opt) => opt.summary).join(' · ')}`}
+                        </p>
+                        <button type="button" onClick={startEditingPermissions} className="flex-none text-sm font-semibold text-primary">Edit</button>
+                      </div>
+                    )}
+                  </DisclosureRow>
                 )}
               </section>
             </div>
-          )}
+            );
+          })()}
 
           {tab === 'meeting' && (
             <HubMeetingPanel
@@ -806,7 +814,9 @@ const SupportMyHubPage: React.FC = () => {
           )}
 
           {tab === 'notes' && isLead && (
-            <section className="surface-card p-5">
+            <section className={`${SURFACE} px-6 py-6 sm:px-8`}>
+              <h2 className="text-[22px] font-bold tracking-[-0.02em] text-gray-900">Private notes</h2>
+              <p className="mb-4 mt-1 text-[14px] text-gray-500">Only you and admins can see these.</p>
               <div className="mb-4 w-full sm:w-64">
                 <AppSelect
                   value={noteSupportId}
@@ -822,13 +832,13 @@ const SupportMyHubPage: React.FC = () => {
                   onChange={(e) => setNoteBody(e.target.value)}
                   rows={3}
                   placeholder="Write a private note — only you and admin can see this."
-                  className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={`${FIELD} resize-y`}
                 />
                 <button
                   type="button"
                   onClick={() => void handleAddNote()}
                   disabled={noteSaving || !noteBody.trim()}
-                  className="self-end rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-60"
+                  className={PRIMARY}
                 >
                   {noteSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Add note'}
                 </button>
@@ -840,7 +850,7 @@ const SupportMyHubPage: React.FC = () => {
               ) : (
                 <ul className="space-y-2">
                   {notes.map((n) => (
-                    <li key={n.id} className="rounded-xl border border-orange-100 p-3">
+                    <li key={n.id} className="rounded-2xl bg-[#f5f5f7] p-4">
                       <p className="whitespace-pre-line text-sm text-gray-800">{n.body}</p>
                       <p className="mt-1.5 text-[11px] text-gray-400">{n.authorName || 'You'} · {new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                     </li>
@@ -851,7 +861,8 @@ const SupportMyHubPage: React.FC = () => {
           )}
 
           {tab === 'message' && canMessage && (
-            <section className="surface-card p-5">
+            <section className={`${SURFACE} px-6 py-6 sm:px-8`}>
+              <h2 className="mb-4 text-[22px] font-bold tracking-[-0.02em] text-gray-900">Message the hub</h2>
               {sendStatus === 'success' && <p className="mb-3 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">Message sent to the hub.</p>}
               {sendStatus === 'error' && <p className="mb-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">Failed to send. Please try again.</p>}
               <div className="flex flex-col gap-3">
@@ -860,20 +871,20 @@ const SupportMyHubPage: React.FC = () => {
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="Subject"
-                  className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={`${FIELD} min-h-[48px]`}
                 />
                 <textarea
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   rows={4}
                   placeholder="Message"
-                  className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={`${FIELD} resize-y`}
                 />
                 <button
                   type="button"
                   onClick={() => void handleSend()}
                   disabled={sending || !subject.trim() || !body.trim()}
-                  className="self-end rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60"
+                  className={PRIMARY}
                 >
                   {sending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending…</span>) : 'Send to hub'}
                 </button>
@@ -890,6 +901,8 @@ const SupportMyHubPage: React.FC = () => {
           onSeeGuide={() => { const job = activeIntroJob; void dismissIntro(); setGuideJob(job); }}
         />
       )}
+
+      <HubAuthorProfileModal userId={profileUserId} isOpen={!!profileUserId} onClose={() => setProfileUserId(null)} />
 
       {guideJob !== false && <RoleGuideModal job={guideJob} onClose={() => setGuideJob(false)} />}
 
@@ -949,6 +962,25 @@ const SupportMyHubPage: React.FC = () => {
     </div>
   );
 };
+
+// Same card, pill buttons and tap-to-open rows as the participant week page.
+const SURFACE = 'rounded-[28px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]';
+const PRIMARY = 'flex h-[52px] w-full sm:flex-1 items-center justify-center gap-2 rounded-full bg-primary px-5 text-[15px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60';
+const SECONDARY = 'flex h-[52px] w-full sm:flex-1 items-center justify-center gap-2 rounded-full bg-[#f2f2f4] px-5 text-[15px] font-semibold text-gray-900 transition active:scale-[0.98] disabled:opacity-60';
+const FIELD = 'w-full rounded-2xl border-0 bg-[#f5f5f7] px-4 py-3.5 text-[15px] placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30';
+
+const DisclosureRow: React.FC<{ label: string; hint?: string; hintCls?: string; open: boolean; onToggle: () => void; children: React.ReactNode }> = ({ label, hint, hintCls, open, onToggle, children }) => (
+  <div className="border-t border-[#f0f0f2] first:border-t-0">
+    <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-h-[60px] w-full items-center gap-2 text-left">
+      <span className="min-w-0 flex-1 text-[16px] font-semibold text-gray-900">{label}</span>
+      {hint && <span className={`flex-none whitespace-nowrap text-[14px] ${hintCls ?? 'text-gray-400'}`}>{hint}</span>}
+      <svg className={`h-4 w-4 flex-none text-gray-300 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" />
+      </svg>
+    </button>
+    {open && <div className="pb-5">{children}</div>}
+  </div>
+);
 
 // Small colour pill for one job; tapping it shows a short explanation, except
 // on your own pill which reopens the full role-intro popup instead.

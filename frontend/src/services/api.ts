@@ -423,7 +423,8 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
 
   async update(userId: string, updateData: {
     name?: string;
-    email?: string;
+    email?: string | null;
+    phone?: string | null;
     password?: string;
     role?: string;
     isActive?: boolean;
@@ -545,6 +546,7 @@ export const pushSubscriptionsApi = USE_SUPABASE ? supabasePushSubscriptionsApi 
   async save(_userId: string, _subscription: PushSubscriptionJSON): Promise<void> {},
   async remove(_userId: string, _endpoint: string): Promise<void> {},
   async listSubscribedUserIds(): Promise<string[]> { return []; },
+  async sendTest(_userId: string): Promise<number> { return 0; },
 };
 
 export const notificationSettingsApi = USE_SUPABASE ? supabaseNotificationSettingsApi : {

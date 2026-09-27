@@ -1120,6 +1120,7 @@ export type HubJob = 'HUB_LEAD' | 'ASSISTANT_HUB_LEAD' | 'RECAP_LEAD' | 'PRAYER_
 export interface HubItSupportEntry {
   userId: string;
   name: string;
+  avatarUrl?: string | null;
 }
 
 export interface SupportHub {
@@ -1210,6 +1211,7 @@ export interface MyHubMember {
   userId: string;
   name: string;
   phone?: string | null;
+  avatarUrl?: string | null;
   isLead: boolean;
   groupName?: string | null;
   jobs?: HubJob[];
