@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { FollowUpContact, FollowUpNoteEntry, FollowUpStatus, User } from '../../types';
 import AppSelect from '../AppSelect';
+import { genderAgeLine } from '../../utils/people';
 import AppOverflowMenu from '../AppOverflowMenu';
 import NotInterestedPopup from './NotInterestedPopup';
 import {
@@ -121,7 +122,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     }
   };
 
-  const ownerOptions = [{ value: '', label: 'Unassigned' }, ...sortByText(owners, (o) => o.name).map((o) => ({ value: o.id, label: o.name }))];
+  const ownerOptions = [{ value: '', label: 'Unassigned' }, ...sortByText(owners, (o) => o.name).map((o) => ({ value: o.id, label: o.name, meta: genderAgeLine(o) || undefined }))];
   // The support who added a contact goes first in that contact's picker, so
   // handing it back to them needs no searching.
   const ownerOptionsFor = (contact: FollowUpContact) => {
@@ -130,7 +131,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     const adderName = owners.find((o) => o.id === adderId)?.name || contact.registeredByName;
     if (!adderName) return ownerOptions;
     return [
-      { value: adderId, label: `${adderName} · added them` },
+      { value: adderId, label: `${adderName} · added them`, meta: ownerOptions.find((option) => option.value === adderId)?.meta },
       ...ownerOptions.filter((option) => option.value !== adderId),
     ];
   };
@@ -297,6 +298,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                         </button>
                       )}
                     </p>
+                    {genderAgeLine(contact) && <p className="mt-0.5 text-xs text-gray-500">{genderAgeLine(contact)}</p>}
                     {viewingInfo === contact.id && (
                       <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
                         <p>{contact.phone || 'No phone'}</p>
@@ -378,6 +380,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                     </button>
                   )}
                 </div>
+                {genderAgeLine(contact) && <p className="mt-0.5 text-xs text-gray-500">{genderAgeLine(contact)}</p>}
                 {viewingInfo === contact.id && (
                   <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
                     <p>{contact.phone || 'No phone'}</p>
@@ -506,7 +509,10 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                       }}
                       className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition hover:bg-orange-50 ${isCurrent ? 'font-semibold text-gray-900' : 'text-gray-700'}`}
                     >
-                      <span className="truncate">{option.label}</span>
+                      <span className="min-w-0">
+                        <span className="block truncate">{option.label}</span>
+                        {option.meta && <span className="block truncate text-xs font-normal text-gray-500">{option.meta}</span>}
+                      </span>
                       {isCurrent && (
                         <svg className="h-4 w-4 shrink-0 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <path d="M20 6 9 17l-5-5" />

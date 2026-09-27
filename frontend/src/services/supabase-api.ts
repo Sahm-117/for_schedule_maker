@@ -142,7 +142,7 @@ const friendlyUserError = (rawMessage: string | undefined, fallback: string): st
 // Auth API using Supabase Auth
 // Every column of "User" the app uses. password_hash is deliberately absent so a
 // stolen anon key (or DevTools) can never read password material.
-const USER_SELECT = 'id, email, phone, name, role, "isActive", "deactivatedAt", "isCoordinator", "avatarUrl", "themeColor", "hubLastSeenAt", "whatsappGroupUrl", "onboardingCompleted", "onboardingReplayCount", "onboardingLastReplayAt", "mustChangePassword", "createdAt", "updatedAt"';
+const USER_SELECT = 'id, email, phone, name, role, "isActive", "deactivatedAt", "isCoordinator", "avatarUrl", "themeColor", "hubLastSeenAt", "whatsappGroupUrl", gender, "ageRange", "onboardingCompleted", "onboardingReplayCount", "onboardingLastReplayAt", "mustChangePassword", "createdAt", "updatedAt"';
 
 export const authApi = {
   async login(identifier: string, password: string): Promise<AuthResponse> {
@@ -2535,6 +2535,11 @@ export const usersApi = {
 
   async saveWhatsappGroupUrl(userId: string, url: string | null): Promise<void> {
     const { error } = await supabase.from('User').update({ whatsappGroupUrl: url, updatedAt: new Date().toISOString() }).eq('id', userId);
+    if (error) throw new Error(error.message);
+  },
+
+  async saveProfileDetails(userId: string, details: { gender: string | null; ageRange: string | null }): Promise<void> {
+    const { error } = await supabase.from('User').update({ ...details, updatedAt: new Date().toISOString() }).eq('id', userId);
     if (error) throw new Error(error.message);
   },
 

@@ -10,6 +10,7 @@ import { supabase } from '../../lib/supabase';
 import { sortByText } from '../../utils/sort';
 import { selectedFirst } from '../../utils/selectedFirst';
 import Spinner from '../Spinner';
+import { genderAgeLine } from '../../utils/people';
 
 interface FollowUpIssuesPanelProps {
   issues: FollowUpIssue[];
@@ -348,7 +349,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
               label="Owner (optional)"
               value={ownerId}
               onChange={setOwnerId}
-              options={[{ value: '', label: 'No owner' }, ...sortByText(owners, (o) => o.name).map((o) => ({ value: o.id, label: o.name }))]}
+              options={[{ value: '', label: 'No owner' }, ...sortByText(owners, (o) => o.name).map((o) => ({ value: o.id, label: o.name, meta: genderAgeLine(o) || undefined }))]}
               placeholder="No owner"
             />
           )}

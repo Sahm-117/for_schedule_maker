@@ -35,6 +35,8 @@ export interface User {
   themeColor?: string | null;
   hubLastSeenAt?: string | null;
   whatsappGroupUrl?: string | null;
+  gender?: string | null;
+  ageRange?: string | null;
   /** Set by an admin-issued reset: the app blocks until they pick a new password. */
   mustChangePassword?: boolean;
   /** Participant app only: the participant record behind this sign-in. */
@@ -389,7 +391,7 @@ export interface FollowUpIssue {
 // ── Participants ──────────────────────────────────────────────────────────────
 
 export type ParticipantStatus = 'ACTIVE' | 'ARCHIVED';
-export type ParticipantSource = 'FOLLOW_UP' | 'MANUAL' | 'IMPORT';
+export type ParticipantSource = 'FOLLOW_UP' | 'FORM' | 'MANUAL' | 'IMPORT';
 
 export interface Participant {
   id: string;

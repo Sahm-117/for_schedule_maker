@@ -18,6 +18,7 @@ import { reconcileById } from '../utils/reconcile';
 import { buildTrainingCounts, trainingCountFor, DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
 import { normalizeLink } from '../utils/links';
 import Spinner from '../components/Spinner';
+import { genderAgeLine } from '../utils/people';
 
 // ── Training eligibility (Phase 4) ────────────────────────────────────────────
 // Shared by GroupFormModal and AssignSupportModal: a support who attended
@@ -639,7 +640,7 @@ const AdminGroupsContent: React.FC = () => {
                 options={[
                   { value: '', label: 'All support' },
                   { value: NO_SUPPORT_OPTION, label: `No support assigned (${noSupportCount})` },
-                  ...supportUsers.map((u) => ({ value: u.id, label: u.name })),
+                  ...supportUsers.map((u) => ({ value: u.id, label: u.name, meta: genderAgeLine(u) || undefined })),
                 ]}
                 placeholder="All support"
                 compact

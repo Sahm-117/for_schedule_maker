@@ -15,6 +15,7 @@ import NotificationPromptModal from '../NotificationPromptModal';
 import NotificationBlockedModal from '../NotificationBlockedModal';
 import ParticipantNotificationBell from './ParticipantNotificationBell';
 import LiveNavDot from '../LiveNavDot';
+import ProfileMenu from '../ProfileMenu';
 
 // Layout for the participant app: sidebar on desktop, floating bar on mobile, the
 // same look as the support app. Also asks "are you okay?" when their attendance
@@ -170,6 +171,7 @@ const ShellLayout: React.FC = () => {
       <div className="lg:pl-[19rem]">
         <header className="sticky top-0 z-20 border-b border-white/70 bg-white/80 backdrop-blur-xl">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
+            <ProfileMenu name={user.name} avatarUrl={home?.profile?.avatarUrl} profilePath="/me/profile" onLogout={logout} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{user.name}</p>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">

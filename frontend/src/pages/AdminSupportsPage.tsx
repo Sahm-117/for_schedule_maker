@@ -18,6 +18,7 @@ import AppSelect from '../components/AppSelect';
 import { PERSON_OF_INTEREST_INFO } from '../components/hubs/hubJobs';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
+import { genderAgeLine, isSupportProfileComplete } from '../utils/people';
 import {
   PERSON_HEALTH_LABEL,
   buildTrainingCounts,
@@ -468,20 +469,21 @@ const SupportCard: React.FC<{
       <div className="flex flex-wrap items-start gap-3">
         <Avatar name={supportName} avatarUrl={user?.avatarUrl} size="sm" enlargeable className="mt-0.5" />
         <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold text-gray-900">
-            {supportName}
-            {hub?.isLead && <span className="ml-2 rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>}
-            {KIND_PILL[kind] && <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>}
-          </p>
+          <p className="text-base font-semibold text-gray-900">{supportName}</p>
           <p className="text-sm text-gray-500">
-            {groupName} · {evaluation.members} participant{evaluation.members === 1 ? '' : 's'}
-            {hub && <span className="ml-1.5 rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>}
-            {training.total > 0 && (
-              <span className={`ml-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ${training.attended >= rules.minTrainingsAttended ? 'bg-emerald-100/80 text-emerald-700' : 'bg-amber-100/80 text-amber-700'}`}>
+            {[groupName, `${evaluation.members} participant${evaluation.members === 1 ? '' : 's'}`, user ? genderAgeLine(user) : ''].filter(Boolean).join(' · ')}
+          </p>
+          <SupportTagRow tags={[
+            user && <ProfileTag key="profile" user={user} />,
+            hub?.isLead && <span key="lead" className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>,
+            KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
+            hub && <span key="hub" className="rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>,
+            training.total > 0 && (
+              <span key="training" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${training.attended >= rules.minTrainingsAttended ? 'bg-emerald-100/80 text-emerald-700' : 'bg-amber-100/80 text-amber-700'}`}>
                 Trainings {training.attended}/{training.total}
               </span>
-            )}
-          </p>
+            ),
+          ]} />
         </div>
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${HEALTH_PILL[evaluation.health]}`}>{PERSON_HEALTH_LABEL[evaluation.health]}</span>
       </div>
@@ -655,19 +657,19 @@ const NoLeadSupportCard: React.FC<{
     <li className="surface-card p-4 sm:p-5">
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold text-gray-900">
-            {user.name}
-            {hub?.isLead && <span className="ml-2 rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>}
-            {KIND_PILL[kind] && <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>}
-          </p>
-          <p className="text-sm text-gray-500">
-            {hub && <span className="rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>}
-            {training.total > 0 && (
-              <span className="ml-1.5 rounded-full bg-sky-100/80 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+          <p className="text-base font-semibold text-gray-900">{user.name}</p>
+          {genderAgeLine(user) && <p className="text-sm text-gray-500">{genderAgeLine(user)}</p>}
+          <SupportTagRow tags={[
+            <ProfileTag key="profile" user={user} />,
+            hub?.isLead && <span key="lead" className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>,
+            KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
+            hub && <span key="hub" className="rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>,
+            training.total > 0 && (
+              <span key="training" className="rounded-full bg-sky-100/80 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
                 Trainings {training.attended}/{training.total}
               </span>
-            )}
-          </p>
+            ),
+          ]} />
         </div>
       </div>
 
@@ -723,6 +725,29 @@ const NoLeadSupportCard: React.FC<{
         </div>
       )}
     </li>
+  );
+};
+
+const ProfileTag: React.FC<{ user: User }> = ({ user }) => (
+  isSupportProfileComplete(user)
+    ? <span className="rounded-full bg-emerald-100/80 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Profile complete</span>
+    : <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-600">Profile incomplete</span>
+);
+
+// Long tag rows fold to the first two plus "+N"; tap it to see the rest.
+const SupportTagRow: React.FC<{ tags: React.ReactNode[] }> = ({ tags }) => {
+  const [open, setOpen] = useState(false);
+  const shown = tags.filter(Boolean);
+  if (shown.length === 0) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+      {open ? shown : shown.slice(0, 2)}
+      {shown.length > 2 && (
+        <button type="button" onClick={() => setOpen((v) => !v)} className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-600 hover:bg-neutral-200">
+          {open ? 'Less' : `+${shown.length - 2}`}
+        </button>
+      )}
+    </div>
   );
 };
 

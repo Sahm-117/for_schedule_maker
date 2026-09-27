@@ -16,6 +16,7 @@ import { classFeedbackApi, groupsApi, myHubApi, supportKindApi } from '../servic
 import type { HubJob, SupportKind } from '../types';
 import { HUB_JOB_INFO, sortHubJobs } from './hubs/hubJobs';
 import PWAInstallBanner from './PWAInstallBanner';
+import ProfileMenu from './ProfileMenu';
 import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
 import NewNotificationBanner from './NewNotificationBanner';
 import NeedSupportButton from './NeedSupportButton';
@@ -636,6 +637,8 @@ const AppShell: React.FC = () => {
             <button type="button" onClick={() => setOpen(true)} className="rounded-2xl border border-orange-100 bg-white p-2 text-gray-500 lg:hidden">
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
+
+            {user && <ProfileMenu name={user.name} avatarUrl={user.avatarUrl} profilePath={isSupport ? '/support/profile' : '/settings'} onLogout={logout} />}
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{user?.name}</p>

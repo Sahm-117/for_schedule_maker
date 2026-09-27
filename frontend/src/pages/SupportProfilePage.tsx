@@ -21,6 +21,9 @@ import NotificationSettings from '../components/NotificationSettings';
 import { useAuth } from '../hooks/useAuth';
 import Avatar from '../components/Avatar';
 import { applyTheme, DEFAULT_THEME } from '../utils/theme';
+import AppSelect from '../components/AppSelect';
+import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
+import { supportProfileChecklist } from '../utils/people';
 
 const SupportProfilePage: React.FC = () => {
   const { user } = useAuth();
@@ -38,6 +41,9 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
   const [whatsappGroupUrl, setWhatsappGroupUrl] = useState<string>(user?.whatsappGroupUrl ?? '');
   const [editingWhatsapp, setEditingWhatsapp] = useState(false);
   const [savingWhatsapp, setSavingWhatsapp] = useState(false);
+  const [gender, setGender] = useState<string>(user?.gender ?? '');
+  const [ageRange, setAgeRange] = useState<string>(user?.ageRange ?? '');
+  const [detailsError, setDetailsError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { liveRevision, activeCohort } = useAppData();
 
@@ -85,6 +91,26 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
       setSavingWhatsapp(false);
     }
   };
+
+  // Gender and age range save as soon as they are picked.
+  const saveDetails = async (next: { gender: string; ageRange: string }) => {
+    const previous = { gender, ageRange };
+    setGender(next.gender);
+    setAgeRange(next.ageRange);
+    setDetailsError('');
+    try {
+      await usersApi.saveProfileDetails(user.id, { gender: next.gender || null, ageRange: next.ageRange || null });
+      refreshUser({ gender: next.gender || null, ageRange: next.ageRange || null });
+    } catch {
+      setGender(previous.gender);
+      setAgeRange(previous.ageRange);
+      setDetailsError('Could not save. Please try again.');
+    }
+  };
+
+  const checklist = supportProfileChecklist({ avatarUrl, gender, ageRange, phone: user.phone });
+  const doneCount = checklist.filter((item) => item.done).length;
+  const missing = checklist.filter((item) => !item.done);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -137,8 +163,40 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
             </div>
           </div>
 
+          <div className="mt-5">
+            {missing.length === 0 ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+                Profile complete
+              </span>
+            ) : (
+              <>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-semibold text-gray-900">Profile {Math.round((doneCount / checklist.length) * 100)}% complete</span>
+                  <span className="text-gray-500">{missing.length} to add</span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100">
+                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(doneCount / checklist.length) * 100}%` }} />
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  Still to add: {missing.map((item) => item.label).join(', ')}.
+                  {missing.some((item) => item.key === 'phone') && ' Ask an admin to add your phone number.'}
+                </p>
+              </>
+            )}
+          </div>
+
           <div className="mt-5 flex flex-col gap-3">
             <InfoRow label="Name" value={user.name} />
+            <InfoRow
+              label="Gender"
+              content={<div className="min-w-0 flex-1"><AppSelect value={gender} onChange={(value) => { void saveDetails({ gender: value, ageRange }); }} options={toSelectOptions(GENDER_OPTIONS)} placeholder="Choose…" compact /></div>}
+            />
+            <InfoRow
+              label="Age range"
+              content={<div className="min-w-0 flex-1"><AppSelect value={ageRange} onChange={(value) => { void saveDetails({ gender, ageRange: value }); }} options={toSelectOptions(AGE_RANGE_OPTIONS)} placeholder="Choose…" compact /></div>}
+            />
+            {detailsError && <p className="text-xs font-medium text-red-700">{detailsError}</p>}
             <InfoRow label="Role" value="Support" />
             <InfoRow label="Group" value={userLabels[0]?.name || 'Not assigned'} />
             <InfoRow label="Cohort" value={activeCohort?.name || 'No active cohort'} />

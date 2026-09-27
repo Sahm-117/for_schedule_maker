@@ -35,6 +35,7 @@ import RequestInfoModal from '../components/participants/RequestInfoModal';
 
 const SOURCE_LABEL: Record<string, string> = {
   FOLLOW_UP: 'Follow-up',
+  FORM: 'Reg form',
   MANUAL: 'Manual',
   IMPORT: 'Import',
 };

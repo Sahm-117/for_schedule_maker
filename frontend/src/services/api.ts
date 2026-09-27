@@ -460,6 +460,7 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
     throw new Error('Avatar upload is not available in REST mode');
   },
   async saveWhatsappGroupUrl(_userId: string, _url: string | null): Promise<void> { return; },
+  async saveProfileDetails(_userId: string, _details: { gender: string | null; ageRange: string | null }): Promise<void> { return; },
   async markHubSeen(_userId: string): Promise<void> { return; },
 };
 

@@ -6,6 +6,7 @@ import { followUpContactsApi } from '../../services/api';
 import { normalizeToIntlPhone } from '../../utils/phone';
 import { sortByText } from '../../utils/sort';
 import Spinner from '../Spinner';
+import { genderAgeLine } from '../../utils/people';
 
 interface FollowUpContactModalProps {
   isOpen: boolean;
@@ -181,7 +182,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
             label="Assigned to"
             value={ownerId}
             onChange={setOwnerId}
-            options={[{ value: '', label: 'Unassigned' }, ...sortByText(owners, (o) => o.name).map((o) => ({ value: o.id, label: o.name }))]}
+            options={[{ value: '', label: 'Unassigned' }, ...sortByText(owners, (o) => o.name).map((o) => ({ value: o.id, label: o.name, meta: genderAgeLine(o) || undefined }))]}
             placeholder="Unassigned"
           />
         )}
