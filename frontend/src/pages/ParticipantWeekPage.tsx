@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Clarity from '@microsoft/clarity';
-import { Navigate, NavLink, useParams } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
@@ -59,7 +59,7 @@ const ManualNoteBox: React.FC<{ weekId: number; initialBody: string | null; onSa
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder="Private notes only you can see."
-        className="w-full min-h-[88px] resize-y rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="w-full min-h-[88px] resize-y rounded-2xl border-0 bg-[#f5f5f7] px-4 py-3.5 text-[15px] placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
       />
     </div>
   );
@@ -71,23 +71,25 @@ const ManualNoteBox: React.FC<{ weekId: number; initialBody: string | null; onSa
 // Compact tap-to-open row: keeps the week page to one clear action (the
 // manual) with everything else one tap away.
 const DisclosureRow: React.FC<{ label: string; hint?: string; open: boolean; onToggle: () => void; children: React.ReactNode }> = ({ label, hint, open, onToggle, children }) => (
-  <div className="border-t border-[#f1f2f5] first:border-t-0">
-    <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-h-[52px] w-full items-center gap-2 text-left">
-      <span className="text-[14.5px] font-semibold text-gray-900">{label}</span>
-      {hint && <span className="ml-auto text-[12.5px] font-medium text-gray-500">{hint}</span>}
-      <svg className={`h-4 w-4 flex-none text-gray-400 transition-transform ${hint ? '' : 'ml-auto'} ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+  <div className="border-t border-[#f0f0f2] first:border-t-0">
+    <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-h-[60px] w-full items-center gap-2 text-left">
+      <span className="text-[16px] font-semibold text-gray-900">{label}</span>
+      {hint && <span className="ml-auto text-[14px] text-gray-400">{hint}</span>}
+      <svg className={`h-4 w-4 flex-none text-gray-300 transition-transform ${hint ? '' : 'ml-auto'} ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" />
       </svg>
     </button>
-    {open && <div className="pb-4">{children}</div>}
+    {open && <div className="pb-5">{children}</div>}
   </div>
 );
 
-const CARD = 'rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
-const FIELD = 'w-full rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
+const SURFACE = 'rounded-[28px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]';
+const PRIMARY = 'flex h-[52px] w-full sm:flex-1 items-center justify-center gap-2 rounded-full bg-primary px-5 text-[15px] font-semibold text-white transition active:scale-[0.98]';
+const SECONDARY = 'flex h-[52px] w-full sm:flex-1 items-center justify-center gap-2 rounded-full bg-[#f2f2f4] px-5 text-[15px] font-semibold text-gray-900 transition active:scale-[0.98]';
+const FIELD = 'w-full rounded-2xl border-0 bg-[#f5f5f7] px-4 py-3.5 text-[15px] placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30';
 
 const LockNote: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="mt-3.5 flex items-start gap-2 rounded-xl bg-[#f6f7f9] px-3 py-2.5 text-[12.5px] leading-normal text-gray-500">
+  <div className="mt-4 flex items-start justify-center gap-2 px-2 text-center text-[12.5px] leading-normal text-gray-400">
     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="mt-0.5 flex-none" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M7 11V7a5 5 0 0 1 10 0v4M5 11h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1Z" />
     </svg>
@@ -165,14 +167,14 @@ const ParticipantWeekPage: React.FC = () => {
         onChange={(e) => { setQuestion(e.target.value); setQuestionError(''); }}
         placeholder="Ask anything about this week's manual."
         rows={2}
-        className="w-full resize-y rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="w-full resize-y rounded-2xl border-0 bg-[#f5f5f7] px-4 py-3.5 text-[15px] placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
       />
       {questionError && <p className="mt-1.5 text-xs font-medium text-red-700">{questionError}</p>}
       <button
         type="button"
         onClick={() => void askQuestion()}
         disabled={askingQuestion}
-        className="mt-2.5 min-h-[44px] rounded-xl bg-[#3f4757] px-4 text-sm font-semibold text-white disabled:opacity-60"
+        className="mt-3 min-h-[44px] rounded-full bg-gray-900 px-5 text-sm font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
       >
         {askingQuestion ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending…</span>) : 'Send question'}
       </button>
@@ -180,7 +182,7 @@ const ParticipantWeekPage: React.FC = () => {
       {week.manualQuestions.length > 0 && (
         <ul className="mt-4 space-y-2">
           {week.manualQuestions.map((q) => (
-            <li key={q.id} className="rounded-[14px] bg-[#f9fafb] p-3.5">
+            <li key={q.id} className="rounded-2xl bg-[#f5f5f7] p-4">
               <p className="text-sm leading-relaxed text-gray-800">{q.body}</p>
               {q.status === 'REPLIED' && q.reply ? (
                 <p className="mt-1.5 text-[13px] leading-relaxed text-gray-600"><span className="font-semibold text-gray-800">Reply: </span>{q.reply}</p>
@@ -208,155 +210,121 @@ const ParticipantWeekPage: React.FC = () => {
     }
   };
 
+  // Before the recap is out, the class manual is what there is to read.
+  const summary = (week.released ? week.recapSummary : week.manual?.summary)?.trim();
+  const prompt = (week.released ? week.discussionPrompt : week.manual?.discussionPrompt)?.trim()
+    || week.manual?.discussionPrompt?.trim();
+  const canReadRecap = week.released && !!week.recapDocumentUrl;
+  const canOpenManual = !!week.manual?.documentUrl;
+  const openManual = () => {
+    if (manualComic) { setManualReaderOpen(true); Clarity.event('manual_reader_opened'); }
+    else { setManualDocOpen(true); Clarity.event('manual_pdf_opened'); }
+  };
+  const stateLabel = week.released ? 'Recap out' : week.shared ? 'Recap coming soon' : 'No recap this week';
+
   return (
     <div className="max-w-2xl">
       <PageHeader title={`Week ${week.weekNumber}`} tourId="participant:week" back={{ label: 'Journey', fallbackTo: '/me/journey' }} />
 
-      <div className="flex flex-col gap-3.5">
-        {week.manual && (
-          <section data-wt="pw-manual" className={`${CARD} overflow-hidden`}>
-            <div className="px-5 pt-5">
-              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Class manual</span>
-              {week.manual.summary?.trim() && (
-                <p className="mt-2 whitespace-pre-line text-[14.5px] leading-[1.65] text-gray-700">{week.manual.summary.trim()}</p>
-              )}
-              {week.manual.discussionPrompt?.trim() && (
-                <div className="mt-3 rounded-[14px] border border-[#f1f2f5] p-3.5">
-                  <p className="text-[13px] font-bold text-gray-900">Something to think about</p>
-                  <p className="mt-1 text-sm leading-normal text-gray-700">{week.manual.discussionPrompt.trim()}</p>
-                </div>
-              )}
-              {week.manual.documentUrl && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (manualComic) { setManualReaderOpen(true); Clarity.event('manual_reader_opened'); }
-                    else { setManualDocOpen(true); Clarity.event('manual_pdf_opened'); }
-                  }}
-                  className="mt-3 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[15px] font-semibold text-white"
-                >
-                  <svg className="h-[18px] w-[18px] flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.5A3.5 3.5 0 0 0 8.5 3H4v14h5a3 3 0 0 1 3 3m0-13.5A3.5 3.5 0 0 1 15.5 3H20v14h-5a3 3 0 0 0-3 3m0-13.5V20" />
-                  </svg>
-                  Open the manual
-                  <span aria-hidden="true">→</span>
-                </button>
-              )}
-              {week.manual.documentUrl && manualComic && (
+      <div className="flex flex-col gap-6">
+        {/* One card for the week: what it's about, one thing to think about,
+            and the one or two things to open. */}
+        <section data-wt="pw-recap" className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
+          <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500">
+            <span className={`h-1.5 w-1.5 rounded-full ${week.released ? 'bg-emerald-500' : week.shared ? 'bg-amber-400' : 'bg-gray-300'}`} aria-hidden="true" />
+            {stateLabel}
+          </span>
+          <h2 className="mt-2 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">{week.title || `Week ${week.weekNumber}`}</h2>
+
+          {summary ? (
+            <p className="mt-4 whitespace-pre-line text-[15.5px] leading-[1.7] text-gray-600">{summary}</p>
+          ) : week.released && !recapHasContent(week) ? (
+            <p className="mt-4 text-[15.5px] leading-[1.7] text-gray-500">No written recap this week. You can still write your reflection below.</p>
+          ) : !week.released ? (
+            <p className="mt-4 text-[15.5px] leading-[1.7] text-gray-500">
+              {week.shared ? 'You will be notified as soon as the recap is out.' : 'There is no recap to read this week. See you on Sunday.'}
+            </p>
+          ) : null}
+
+          {prompt && (
+            <figure className="mt-5 rounded-2xl bg-[#f5f5f7] px-5 py-4">
+              <figcaption className="text-[12px] font-semibold text-gray-400">Something to think about</figcaption>
+              <blockquote className="mt-1 text-[16px] font-medium leading-[1.55] text-gray-900">{prompt}</blockquote>
+            </figure>
+          )}
+
+          {(canReadRecap || canOpenManual) && (
+            <div data-wt="pw-manual" className="mt-6">
+              <div className="flex flex-col gap-2.5 sm:flex-row">
+                {canReadRecap && <button type="button" onClick={() => setDocOpen(true)} className={PRIMARY}>Read the recap</button>}
+                {canOpenManual && <button type="button" onClick={openManual} className={canReadRecap ? SECONDARY : PRIMARY}>Open the manual</button>}
+              </div>
+              {canOpenManual && manualComic && (
                 <button
                   type="button"
                   onClick={() => { setManualDocOpen(true); Clarity.event('manual_pdf_opened'); }}
-                  className="mt-2 w-full py-1.5 text-center text-[13px] font-semibold text-[#9a6a4b] underline-offset-2 hover:underline"
+                  className="mt-3 w-full py-1 text-center text-[13.5px] font-medium text-gray-500 hover:text-gray-900"
                 >
                   Prefer the plain PDF? Open the PDF instead
                 </button>
               )}
             </div>
-            <div className="mt-2 px-5 pb-1">
-              <DisclosureRow label="My notes" hint={week.manualNote?.trim() ? 'Saved' : undefined} open={notesOpen} onToggle={() => setNotesOpen((o) => !o)}>
-                <ManualNoteBox weekId={week.id} initialBody={week.manualNote} onSaved={applyManualNote} bare />
-              </DisclosureRow>
-              <DisclosureRow
-                label="Ask a question"
-                hint={week.manualQuestions.length > 0 ? `${week.manualQuestions.length} sent` : undefined}
-                open={questionOpen}
-                onToggle={() => setQuestionOpen((o) => !o)}
-              >
-                {questionForm}
-              </DisclosureRow>
-            </div>
-          </section>
-        )}
+          )}
+        </section>
 
-        {!week.released ? (
-          <section className={`${CARD} px-[22px] py-[34px] text-center`}>
-            <p className="text-[15px] font-bold text-gray-900">
-              {week.shared ? `Week ${week.weekNumber} recap pending` : 'No recap for this week'}
-            </p>
-            <p className="mx-auto mt-1.5 max-w-[38ch] text-[13.5px] leading-[1.55] text-gray-500">
-              {week.shared ? 'Stay tuned — you will be notified as soon as it is out.' : 'There is no recap to read this week. See you on Sunday.'}
-            </p>
-            <NavLink to="/me" className="mt-4 inline-block text-[13px] font-semibold text-[#c2410c]">Back to Home</NavLink>
-          </section>
-        ) : (
-          <>
-            <section data-wt="pw-recap" className={`${CARD} overflow-hidden`}>
-              <div className="px-5 pt-5">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Recap</span>
-                  <span className="ml-auto rounded-full bg-[#f2fbf5] px-[9px] py-[3px] text-[11px] font-bold text-[#15803d]">Released</span>
-                </div>
-                <h2 className="mt-2 text-xl font-bold tracking-[-0.01em] text-gray-900">{week.title || `Week ${week.weekNumber}`}</h2>
-                {week.recapSummary?.trim() ? (
-                  <p className="mt-2 whitespace-pre-line text-[14.5px] leading-[1.65] text-gray-700">{week.recapSummary.trim()}</p>
-                ) : !recapHasContent(week) ? (
-                  <p className="mt-2 text-[14.5px] leading-[1.65] text-gray-500">No written recap this week. You can still write your reflection below.</p>
-                ) : null}
-                {week.discussionPrompt?.trim() && (
-                  <div className="mt-3 rounded-[14px] border border-[#f1f2f5] p-3.5">
-                    <p className="text-[13px] font-bold text-gray-900">Something to think about</p>
-                    <p className="mt-1 text-sm leading-normal text-gray-700">{week.discussionPrompt.trim()}</p>
-                  </div>
-                )}
-              </div>
-              <div className="px-5 pb-5 pt-4">
-                {week.recapDocumentUrl && (
-                  /* This was a pale outline button and read as an optional
-                     extra, so it got skipped. It is the main thing to do on
-                     this card, so it carries the solid accent the rest of the
-                     app uses for a primary action. */
-                  <button
-                    type="button"
-                    onClick={() => setDocOpen(true)}
-                    className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[15px] font-semibold text-white"
-                  >
-                    <svg className="h-[18px] w-[18px] flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.5A3.5 3.5 0 0 0 8.5 3H4v14h5a3 3 0 0 1 3 3m0-13.5A3.5 3.5 0 0 1 15.5 3H20v14h-5a3 3 0 0 0-3 3m0-13.5V20" />
-                    </svg>
-                    Read the full recap
-                    <span aria-hidden="true">→</span>
-                  </button>
-                )}
-              </div>
-            </section>
-
-            <section data-wt="pw-reflection" className={`${CARD} px-5 py-1`}>
-              <DisclosureRow label="Your reflection" hint={reflection ? 'Done ✓' : 'Write'} open={reflectionOpen} onToggle={() => setReflectionOpen((o) => !o)}>
+        {week.released && (
+          <section data-wt="pw-reflection" className={`${SURFACE} px-6 py-1.5 sm:px-8`}>
+            <DisclosureRow label="Your reflection" hint={reflection ? 'Done ✓' : '3 short questions'} open={reflectionOpen} onToggle={() => setReflectionOpen((o) => !o)}>
 
               {editable ? (
                 <>
                   <label className="block">
-                    <span className="mb-[7px] block text-[13.5px] font-semibold text-gray-900">1. What stood out to you?</span>
+                    <span className="mb-[7px] block text-[14px] font-semibold text-gray-900">1. What stood out to you?</span>
                     <textarea value={stoodOut} onChange={(e) => setStoodOut(e.target.value)} placeholder="Anything from the recap that stayed with you." className={`${FIELD} min-h-[88px] resize-y`} />
                   </label>
-                  <label className="mt-4 block">
-                    <span className="mb-[3px] block text-[13.5px] font-semibold text-gray-900">2. What is one thing you will do this week because of it?</span>
+                  <label className="mt-5 block">
+                    <span className="mb-[7px] block text-[14px] font-semibold text-gray-900">2. What is one thing you will do this week because of it?</span>
                     <textarea value={goal} onChange={(e) => { setGoal(e.target.value); setGoalError(false); }} placeholder="Pray with my sister on Wednesday evening." className={`${FIELD} min-h-[76px] resize-y`} />
                     {goalError && <span className="mt-[5px] block text-xs font-medium text-red-700">Write one thing you will do.</span>}
                   </label>
-                  <label className="mt-4 block">
-                    <span className="mb-[3px] block text-[13.5px] font-semibold text-gray-900">3. How will you know you did it?</span>
+                  <label className="mt-5 block">
+                    <span className="mb-[7px] block text-[14px] font-semibold text-gray-900">3. How will you know you did it?</span>
                     <input value={goalCheck} onChange={(e) => setGoalCheck(e.target.value)} placeholder="We prayed, even for five minutes." className={`${FIELD} min-h-[48px]`} />
                   </label>
                   {saveError && <p className="mt-3 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{saveError}</p>}
-                  <button type="button" onClick={() => { void save(); }} disabled={saving} className="mt-[18px] min-h-[48px] w-full rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60">
+                  <button type="button" onClick={() => { void save(); }} disabled={saving} className={`${PRIMARY} mt-6 w-full disabled:opacity-60`}>
                     {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : reflection ? 'Update reflection' : 'Save reflection'}
                   </button>
                   <LockNote>Your support sees that you reflected, never what you wrote. You can change it for a week after you first save it.</LockNote>
                 </>
               ) : reflection ? (
-                <div className="rounded-[14px] bg-[#f9fafb] p-3.5">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-gray-400">What stood out</p>
-                  <p className="mt-[5px] text-sm leading-relaxed text-gray-700">{reflection.stoodOut || '—'}</p>
-                  <div className="my-[13px] h-px bg-[#eef0f4]" />
-                  <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#9a6a4b]">Your goal</p>
-                  <p className="mt-1.5 text-sm leading-relaxed text-gray-700">{reflection.goal}</p>
-                  {reflection.goalCheck && <p className="mt-1 text-[13px] text-gray-500">You will know when: {reflection.goalCheck}</p>}
+                <div className="rounded-2xl bg-[#f5f5f7] p-4">
+                  <p className="text-[12px] font-semibold text-gray-400">What stood out</p>
+                  <p className="mt-1 text-[15px] leading-relaxed text-gray-700">{reflection.stoodOut || '—'}</p>
+                  <div className="my-4 h-px bg-[#e8e8ec]" />
+                  <p className="text-[12px] font-semibold text-primary">Your goal</p>
+                  <p className="mt-1 text-[15px] leading-relaxed text-gray-900">{reflection.goal}</p>
+                  {reflection.goalCheck && <p className="mt-1 text-[13.5px] text-gray-500">You will know when: {reflection.goalCheck}</p>}
                 </div>
               ) : null}
-              </DisclosureRow>
-            </section>
-          </>
+            </DisclosureRow>
+          </section>
+        )}
+
+        {week.manual && (
+          <section className={`${SURFACE} px-6 py-1.5 sm:px-8`}>
+            <DisclosureRow label="My notes" hint={week.manualNote?.trim() ? 'Saved' : undefined} open={notesOpen} onToggle={() => setNotesOpen((o) => !o)}>
+              <ManualNoteBox weekId={week.id} initialBody={week.manualNote} onSaved={applyManualNote} bare />
+            </DisclosureRow>
+            <DisclosureRow
+              label="Ask a question"
+              hint={week.manualQuestions.length > 0 ? `${week.manualQuestions.length} sent` : undefined}
+              open={questionOpen}
+              onToggle={() => setQuestionOpen((o) => !o)}
+            >
+              {questionForm}
+            </DisclosureRow>
+          </section>
         )}
       </div>
 

@@ -12,12 +12,28 @@ import type { ManualQuestion, SupportRecap } from '../types';
 import { formatRecapReleaseAt } from '../utils/recapReleaseTimes';
 import { currentWeekNumber } from '../utils/participantApp';
 
-// Newest week first. Every week starts folded; tap to open. The current
-// week is labelled. Before a week's support release time, the card just
-// says when it arrives. Each week also carries its class manual (once
-// released) and the questions participants asked about it.
+// One big card for this week (or the newest week before the cohort starts),
+// then every other week as a quiet list that opens in place. Each week shows
+// one short summary, one thing to think about, and one or two clear actions.
+// Participants' questions sit under the week they were asked about.
 
-const CARD = 'rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
+const SURFACE = 'rounded-[28px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]';
+const PRIMARY = 'flex h-[52px] w-full sm:flex-1 items-center justify-center gap-2 rounded-full bg-primary px-5 text-[15px] font-semibold text-white transition active:scale-[0.98]';
+const SECONDARY = 'flex h-[52px] w-full sm:flex-1 items-center justify-center gap-2 rounded-full bg-[#f2f2f4] px-5 text-[15px] font-semibold text-gray-900 transition active:scale-[0.98]';
+
+const Chevron: React.FC<{ open?: boolean; className?: string }> = ({ open, className = '' }) => (
+  <svg className={`h-4 w-4 flex-none text-gray-300 transition-transform duration-200 ${open ? 'rotate-90' : ''} ${className}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
+    <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />
+  </svg>
+);
+
+// "Out now" / "Arrives Sun, 6pm" — a dot and a few words, nothing louder.
+const WeekState: React.FC<{ week: SupportRecap }> = ({ week }) => (
+  <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500">
+    <span className={`h-1.5 w-1.5 rounded-full ${week.released ? 'bg-emerald-500' : 'bg-amber-400'}`} aria-hidden="true" />
+    {week.released ? 'Recap out' : `Recap arrives ${formatRecapReleaseAt(week.releasedAt ? new Date(week.releasedAt) : null)}`}
+  </span>
+);
 
 const QuestionRow: React.FC<{ question: ManualQuestion; onChanged: () => void }> = ({ question, onChanged }) => {
   const [replying, setReplying] = useState(false);
@@ -55,7 +71,7 @@ const QuestionRow: React.FC<{ question: ManualQuestion; onChanged: () => void }>
   };
 
   return (
-    <li className="rounded-[14px] bg-[#f9fafb] p-3.5">
+    <li className="rounded-2xl bg-[#f5f5f7] p-4">
       <p className="text-[13px] font-semibold text-gray-900">{question.participantName}</p>
       <p className="mt-1 text-sm leading-relaxed text-gray-700">{question.body}</p>
       {question.status === 'REPLIED' && question.reply ? (
@@ -87,20 +103,56 @@ const QuestionRow: React.FC<{ question: ManualQuestion; onChanged: () => void }>
   );
 };
 
-// One tap-to-open block inside a week (Recap, Class manual, Questions), so an
-// open week stays short until the support picks what they need.
-const WeekPart: React.FC<{ label: string; badge?: React.ReactNode; open: boolean; onToggle: () => void; children: React.ReactNode }> = ({ label, badge, open, onToggle, children }) => (
-  <div className="border-t border-[#f1f2f5] px-5">
-    <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-h-[52px] w-full items-center gap-2 text-left">
-      <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">{label}</span>
-      {badge}
-      <svg className={`ml-auto h-4 w-4 flex-none text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-      </svg>
-    </button>
-    {open && <div className="pb-5">{children}</div>}
-  </div>
-);
+// The inside of a week: summary, one prompt, the actions, then questions.
+const WeekBody: React.FC<{
+  week: SupportRecap;
+  questions: ManualQuestion[];
+  onReadRecap: () => void;
+  onOpenManual: () => void;
+  onQuestionsChanged: () => void;
+}> = ({ week, questions, onReadRecap, onOpenManual, onQuestionsChanged }) => {
+  const [questionsOpen, setQuestionsOpen] = useState(false);
+  // Before the recap is out, the class manual is what there is to read.
+  const summary = (week.released ? week.recapSummary : week.manual?.summary)?.trim();
+  const prompt = (week.released ? week.discussionPrompt : week.manual?.discussionPrompt)?.trim()
+    || week.manual?.discussionPrompt?.trim();
+  const canReadRecap = week.released && !!week.recapDocumentUrl;
+  const canOpenManual = !!week.manual?.documentUrl;
+  return (
+    <>
+      {summary && <p className="whitespace-pre-line text-[15px] leading-[1.7] text-gray-600">{summary}</p>}
+      {prompt && (
+        <figure className="mt-5 rounded-2xl bg-[#f5f5f7] px-5 py-4">
+          <figcaption className="text-[12px] font-semibold text-gray-400">Something to think about</figcaption>
+          <blockquote className="mt-1 text-[15.5px] font-medium leading-[1.55] text-gray-900">{prompt}</blockquote>
+        </figure>
+      )}
+      {(canReadRecap || canOpenManual) && (
+        <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
+          {canReadRecap && <button type="button" onClick={onReadRecap} className={PRIMARY}>Read the recap</button>}
+          {canOpenManual && <button type="button" onClick={onOpenManual} className={canReadRecap ? SECONDARY : PRIMARY}>Open the manual</button>}
+        </div>
+      )}
+      {questions.length > 0 && (
+        <div className="mt-5 border-t border-[#f0f0f2] pt-1">
+          <button type="button" onClick={() => setQuestionsOpen((o) => !o)} aria-expanded={questionsOpen} className="flex min-h-[52px] w-full items-center gap-2 text-left">
+            <span className="text-[15px] font-semibold text-gray-900">Questions from participants</span>
+            {week.unreadQuestionCount > 0 && (
+              <span className="rounded-full bg-orange-100/80 px-2 py-0.5 text-[12px] font-bold text-orange-700">{week.unreadQuestionCount} new</span>
+            )}
+            <span className="ml-auto text-[14px] tabular-nums text-gray-400">{questions.length}</span>
+            <Chevron open={questionsOpen} />
+          </button>
+          {questionsOpen && (
+            <ul className="space-y-2 pb-1">
+              {questions.map((q) => <QuestionRow key={q.id} question={q} onChanged={onQuestionsChanged} />)}
+            </ul>
+          )}
+        </div>
+      )}
+    </>
+  );
+};
 
 const SupportRecapPage: React.FC = () => {
   const { activeCohort } = useAppData();
@@ -111,19 +163,8 @@ const SupportRecapPage: React.FC = () => {
   const [doc, setDoc] = useState<{ url: string; title: string; fileName?: string | null } | null>(null);
   // Comic reader for weeks that have one; its "original PDF" button hands over to the doc viewer.
   const [reader, setReader] = useState<{ content: ManualContent; pdf: { url: string; title: string; fileName?: string | null } } | null>(null);
-  const [openWeekIds, setOpenWeekIds] = useState<Set<number>>(new Set());
+  const [openWeekId, setOpenWeekId] = useState<number | null>(null);
   const thisWeekNumber = currentWeekNumber(activeCohort?.startDate, new Date());
-  const [openParts, setOpenParts] = useState<Set<string>>(new Set());
-  const togglePart = (key: string) => setOpenParts((prev) => {
-    const next = new Set(prev);
-    if (next.has(key)) next.delete(key); else next.add(key);
-    return next;
-  });
-  const toggleWeek = (weekId: number) => setOpenWeekIds((prev) => {
-    const next = new Set(prev);
-    if (next.has(weekId)) next.delete(weekId); else next.add(weekId);
-    return next;
-  });
 
   const load = () => {
     if (!activeCohort?.id) { setLoading(false); return; }
@@ -143,127 +184,80 @@ const SupportRecapPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCohort?.id]);
 
+  const readRecap = (week: SupportRecap) => {
+    if (week.recapDocumentUrl) setDoc({ url: week.recapDocumentUrl, title: `Week ${week.weekNumber} recap`, fileName: week.recapDocumentName });
+  };
+  const openManual = (week: SupportRecap) => {
+    if (!week.manual?.documentUrl) return;
+    const pdf = { url: week.manual.documentUrl, title: `Week ${week.weekNumber} class manual`, fileName: week.manual.documentName };
+    loadManualForWeek(week.title)
+      .then((content) => { if (content) setReader({ content, pdf }); else setDoc(pdf); })
+      .catch(() => setDoc(pdf));
+  };
+  const bodyFor = (week: SupportRecap) => (
+    <WeekBody
+      week={week}
+      questions={questions.filter((q) => q.weekId === week.weekId)}
+      onReadRecap={() => readRecap(week)}
+      onOpenManual={() => openManual(week)}
+      onQuestionsChanged={load}
+    />
+  );
+
+  // Recaps arrive newest first. The big card is this week, or the newest one
+  // before the cohort has started.
+  const featured = recaps.find((w) => w.weekNumber === thisWeekNumber) ?? recaps[0] ?? null;
+  const others = recaps.filter((w) => w !== featured);
+  const isThisWeek = featured?.weekNumber === thisWeekNumber;
+
   return (
     <div className="max-w-2xl">
-      <PageHeader title="This week's recap" subtitle="What each class covered, for you to bring to your group." back={{ label: 'Home', fallbackTo: '/support' }} />
+      <PageHeader title="Recaps" subtitle="What each class covered, to bring to your group." back={{ label: 'Home', fallbackTo: '/support' }} />
 
       {loading ? (
         <PageLoader />
       ) : error ? (
         <p className="py-16 text-center text-sm text-red-600">{error}</p>
-      ) : recaps.length === 0 ? (
-        <section className={`${CARD} px-[22px] py-[34px] text-center`}>
-          <p className="text-[15px] font-bold text-gray-900">No recaps yet</p>
-          <p className="mx-auto mt-1.5 max-w-[38ch] text-[13.5px] leading-[1.55] text-gray-500">Once a class recap is added, it will show up here.</p>
+      ) : !featured ? (
+        <section className={`${SURFACE} px-8 py-14 text-center`}>
+          <p className="text-[19px] font-semibold tracking-[-0.01em] text-gray-900">No recaps yet</p>
+          <p className="mx-auto mt-2 max-w-[34ch] text-[15px] leading-[1.55] text-gray-500">When a class recap is added, it will be here.</p>
         </section>
       ) : (
-        <div className="flex flex-col gap-3.5">
-          {recaps.map((week) => {
-            const open = openWeekIds.has(week.weekId);
-            const isThisWeek = week.weekNumber === thisWeekNumber;
-            const weekQuestions = questions.filter((q) => q.weekId === week.weekId);
-            return (
-            <section key={week.weekId} data-wt="support-recap-week" className={`${CARD} overflow-hidden`}>
-              <button type="button" onClick={() => toggleWeek(week.weekId)} aria-expanded={open} className={`flex w-full items-center gap-3 px-5 text-left ${open ? 'pt-5' : 'py-5'}`}>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Week {week.weekNumber}</span>
-                    {isThisWeek && (
-                      <span className="rounded-full bg-sky-100/80 px-[9px] py-[3px] text-[11px] font-bold text-sky-700">This week</span>
-                    )}
-                    {week.unreadQuestionCount > 0 && (
-                      <span className="rounded-full bg-orange-100/80 px-[9px] py-[3px] text-[11px] font-bold text-orange-700">{week.unreadQuestionCount} new question{week.unreadQuestionCount === 1 ? '' : 's'}</span>
-                    )}
-                    <span className={`ml-auto rounded-full px-[9px] py-[3px] text-[11px] font-bold ${week.released ? 'bg-[#f2fbf5] text-[#15803d]' : 'bg-amber-100/80 text-amber-700'}`}>
-                      {week.released ? 'Released' : 'Not out yet'}
-                    </span>
-                  </div>
-                  <h2 className="mt-2 text-xl font-bold tracking-[-0.01em] text-gray-900">{week.title || `Week ${week.weekNumber}`}</h2>
-                </div>
-                <svg className={`h-5 w-5 flex-none text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+        <div className="flex flex-col gap-8">
+          <section data-wt="support-recap-week" className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
+            <p className="text-[13px] font-semibold text-primary">{isThisWeek ? `This week · Week ${featured.weekNumber}` : `Week ${featured.weekNumber}`}</p>
+            <h2 className="mt-1.5 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">{featured.title || `Week ${featured.weekNumber}`}</h2>
+            <div className="mb-5 mt-3"><WeekState week={featured} /></div>
+            {bodyFor(featured)}
+          </section>
 
-              {open && (
-              <div className="mt-4">
-              <WeekPart label="Recap" open={openParts.has(`${week.weekId}:recap`)} onToggle={() => togglePart(`${week.weekId}:recap`)}>
-                {week.released ? (
-                  <>
-                    {week.recapSummary?.trim() && (
-                      <p className="whitespace-pre-line text-[14.5px] leading-[1.65] text-gray-700">{week.recapSummary.trim()}</p>
-                    )}
-                    {week.discussionPrompt?.trim() && (
-                      <div className="mt-3 rounded-[14px] border border-[#f1f2f5] p-3.5">
-                        <p className="text-[13px] font-bold text-gray-900">Something to think about</p>
-                        <p className="mt-1 text-sm leading-normal text-gray-700">{week.discussionPrompt.trim()}</p>
-                      </div>
-                    )}
-                    {week.recapDocumentUrl && (
-                      <button
-                        type="button"
-                        onClick={() => setDoc({ url: week.recapDocumentUrl as string, title: `Week ${week.weekNumber} recap`, fileName: week.recapDocumentName })}
-                        className="mt-4 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[15px] font-semibold text-white"
-                      >
-                        <svg className="h-[18px] w-[18px] flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.5A3.5 3.5 0 0 0 8.5 3H4v14h5a3 3 0 0 1 3 3m0-13.5A3.5 3.5 0 0 1 15.5 3H20v14h-5a3 3 0 0 0-3 3m0-13.5V20" />
-                        </svg>
-                        Read the full recap
-                        <span aria-hidden="true">→</span>
+          {others.length > 0 && (
+            <section>
+              <h3 className="mb-2.5 px-1 text-[13px] font-semibold text-gray-500">Other weeks</h3>
+              <ul className={`${SURFACE} divide-y divide-[#f0f0f2] overflow-hidden`}>
+                {others.map((week) => {
+                  const open = openWeekId === week.weekId;
+                  return (
+                    <li key={week.weekId}>
+                      <button type="button" onClick={() => setOpenWeekId(open ? null : week.weekId)} aria-expanded={open} className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-[#fafafa]">
+                        <span className="flex h-10 w-10 flex-none items-center justify-center rounded-[14px] bg-[#f2f2f4] text-[15px] font-bold tabular-nums text-gray-900">{week.weekNumber}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[16px] font-semibold text-gray-900">{week.title || `Week ${week.weekNumber}`}</span>
+                          <WeekState week={week} />
+                        </span>
+                        {week.unreadQuestionCount > 0 && (
+                          <span className="rounded-full bg-orange-100/80 px-2 py-0.5 text-[12px] font-bold text-orange-700">{week.unreadQuestionCount} new</span>
+                        )}
+                        <Chevron open={open} />
                       </button>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-[14.5px] leading-[1.65] text-gray-500">Arrives {formatRecapReleaseAt(week.releasedAt ? new Date(week.releasedAt) : null)}</p>
-                )}
-              </WeekPart>
-
-              {week.manual && (
-                <WeekPart label="Class manual" open={openParts.has(`${week.weekId}:manual`)} onToggle={() => togglePart(`${week.weekId}:manual`)}>
-                  {week.manual.summary?.trim() && (
-                    <p className="whitespace-pre-line text-[14.5px] leading-[1.65] text-gray-700">{week.manual.summary.trim()}</p>
-                  )}
-                  {week.manual.discussionPrompt?.trim() && (
-                    <div className="mt-3 rounded-[14px] border border-[#f1f2f5] p-3.5">
-                      <p className="text-[13px] font-bold text-gray-900">Something to think about</p>
-                      <p className="mt-1 text-sm leading-normal text-gray-700">{week.manual.discussionPrompt.trim()}</p>
-                    </div>
-                  )}
-                  {week.manual.documentUrl && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const pdf = { url: week.manual!.documentUrl as string, title: `Week ${week.weekNumber} class manual`, fileName: week.manual!.documentName };
-                        loadManualForWeek(week.title)
-                          .then((content) => { if (content) setReader({ content, pdf }); else setDoc(pdf); })
-                          .catch(() => setDoc(pdf));
-                      }}
-                      className="mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-[#3f4757] px-4 text-[14px] font-semibold text-white first:mt-0"
-                    >
-                      Open the manual
-                      <span aria-hidden="true">→</span>
-                    </button>
-                  )}
-                </WeekPart>
-              )}
-
-              {weekQuestions.length > 0 && (
-                <WeekPart
-                  label="Questions"
-                  badge={<span className="rounded-full bg-orange-100/80 px-[8px] py-[2px] text-[10.5px] font-bold text-orange-700">{weekQuestions.length}</span>}
-                  open={openParts.has(`${week.weekId}:questions`)}
-                  onToggle={() => togglePart(`${week.weekId}:questions`)}
-                >
-                  <ul className="space-y-2">
-                    {weekQuestions.map((q) => <QuestionRow key={q.id} question={q} onChanged={load} />)}
-                  </ul>
-                </WeekPart>
-              )}
-              </div>
-              )}
+                      {open && <div className="px-5 pb-6 pt-1">{bodyFor(week)}</div>}
+                    </li>
+                  );
+                })}
+              </ul>
             </section>
-            );
-          })}
+          )}
         </div>
       )}
 
