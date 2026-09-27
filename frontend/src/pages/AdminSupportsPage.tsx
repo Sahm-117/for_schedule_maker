@@ -83,6 +83,7 @@ const AdminSupportsPage: React.FC = () => {
   const filter: Filter = filterParam === 'critical' || filterParam === 'warning' || filterParam === 'good' ? filterParam : 'all';
   const hubFilter = searchParams.get('hub') ?? '';
   const notesOnly = searchParams.get('notes') === '1';
+  const [search, setSearch] = useState('');
   // Supports with a note about them — they get a ★ and the "With notes" filter.
   const [notedIds, setNotedIds] = useState<Set<string>>(new Set());
 
@@ -206,9 +207,14 @@ const AdminSupportsPage: React.FC = () => {
     setSearchParams(params, { replace: true });
   };
 
+  const searchTerm = search.trim().toLowerCase();
+  const nameById = new Map(users.map((u) => [u.id, u.name.toLowerCase()]));
+  const matchesSearch = (userId: string) => !searchTerm || (nameById.get(userId) ?? '').includes(searchTerm);
+
   const visible = (model?.evaluations.filter((e) => filter === 'all' || e.health === filter) ?? [])
     .filter((e) => !hubFilter || hubByUserId.get(e.supportId)?.id === hubFilter)
-    .filter((e) => !notesOnly || notedIds.has(e.supportId));
+    .filter((e) => !notesOnly || notedIds.has(e.supportId))
+    .filter((e) => matchesSearch(e.supportId));
   const userById = new Map(users.map((u) => [u.id, u]));
   const groupById = new Map((health?.groups ?? []).map((g) => [g.id, g]));
 
@@ -223,7 +229,7 @@ const AdminSupportsPage: React.FC = () => {
   // their card too.
   const notLeadingWithHub = (model?.notLeading ?? []).filter((u) => !!hubByUserId.get(u.id) || !isProblemKind(u.id));
   const notLeadingCards = filter === 'all'
-    ? notLeadingWithHub.filter((u) => (!hubFilter || hubByUserId.get(u.id)?.id === hubFilter) && (!notesOnly || notedIds.has(u.id)))
+    ? notLeadingWithHub.filter((u) => (!hubFilter || hubByUserId.get(u.id)?.id === hubFilter) && (!notesOnly || notedIds.has(u.id)) && matchesSearch(u.id))
     : [];
   const notLeadingCardIds = new Set(notLeadingCards.map((u) => u.id));
   // Hub leads and operational supports are never flagged as a "no group"
@@ -231,7 +237,8 @@ const AdminSupportsPage: React.FC = () => {
   const notLeadingCollapsed = (model?.notLeading ?? [])
     .filter((u) => !notLeadingCardIds.has(u.id))
     .filter((u) => isProblemKind(u.id))
-    .filter((u) => !notesOnly || notedIds.has(u.id));
+    .filter((u) => !notesOnly || notedIds.has(u.id))
+    .filter((u) => matchesSearch(u.id));
 
   return (
     <div>
@@ -282,6 +289,14 @@ const AdminSupportsPage: React.FC = () => {
               </div>
             </div>
           </section>
+
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search supports"
+            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
 
           <div className="grid grid-cols-2 gap-2 sm:flex">
             {hubs.length > 0 && (

@@ -67,6 +67,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   // Staff userIds with no saved push subscription — "No alerts" tag + filter.
   const [subscribedUserIds, setSubscribedUserIds] = useState<Set<string>>(new Set());
   const [noAlertsOnly, setNoAlertsOnly] = useState(false);
+  const [noAlertsCopied, setNoAlertsCopied] = useState(false);
   const [roleChangeTarget, setRoleChangeTarget] = useState<User | null>(null);
   const [roleChangeValue, setRoleChangeValue] = useState<'ADMIN' | 'SUPPORT'>('SUPPORT');
 
@@ -338,6 +339,30 @@ const UserManagement: React.FC<UserManagementProps> = ({
     return matchesRole && matchesSearch && matchesAlerts;
   }), (user) => user.name);
 
+  // WhatsApp-ready list of the supports shown under the "No alerts" filter,
+  // with install videos, so an admin can paste it into a group chat.
+  const noAlertsSupports = noAlertsOnly ? filteredUsers.filter((user) => user.role === 'SUPPORT') : [];
+  const noAlertsMessage = [
+    'The following supports do not have alerts set up on their phone yet, so they are missing reminders:',
+    '',
+    ...noAlertsSupports.map((user, i) => `${i + 1}. ${user.name}`),
+    '',
+    '*If you already have the app:* open it, go to *Profile → Reminders* and tap *Enable on this device*, then tap *Allow*.',
+    '',
+    "*If you haven't installed the app yet:* watch the video for your phone, then open the app, sign in and tap *Allow* when it asks about notifications.",
+    '📱 Android: https://youtu.be/VaQ8qL11bos',
+    '🍎 iPhone: https://youtu.be/wyXzG3JqndY',
+    '',
+    'Open the app here: https://fof.tcnikorodu.org',
+  ].join('\n');
+  const copyNoAlertsMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(noAlertsMessage);
+      setNoAlertsCopied(true);
+      setTimeout(() => setNoAlertsCopied(false), 2000);
+    } catch { /* ignore */ }
+  };
+
   const renderStatusBadge = (user: User) => (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${user.isActive === false ? 'bg-slate-100 text-slate-600' : 'bg-emerald-100 text-emerald-700'}`}>
       {user.isActive === false ? 'Inactive' : 'Active'}
@@ -545,6 +570,25 @@ const UserManagement: React.FC<UserManagementProps> = ({
                       placeholder="All alerts"
                       compact
                     />
+                  </div>
+                )}
+                {noAlertsSupports.length > 0 && (
+                  <div className="col-span-2 flex min-w-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void copyNoAlertsMessage()}
+                      className="inline-flex h-10 flex-1 items-center justify-center rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      {noAlertsCopied ? 'Copied ✓' : 'Copy message'}
+                    </button>
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(noAlertsMessage)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-10 flex-1 items-center justify-center rounded-xl bg-[#25D366] px-3 text-sm font-semibold text-white hover:bg-[#1ebe5b]"
+                    >
+                      WhatsApp
+                    </a>
                   </div>
                 )}
               </div>
