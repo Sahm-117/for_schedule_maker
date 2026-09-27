@@ -928,7 +928,7 @@ export interface ClassFeedbackWeekResult {
 }
 
 export interface ParticipantFaith {
-  project: { id: string; body: string | null; status: FaithProjectStatus; updatedAt: string; sharedForPrayer: boolean } | null;
+  project: { id: string; body: string | null; status: FaithProjectStatus; updatedAt: string; sharedForPrayer: boolean; fromForm?: boolean } | null;
   deadlineAt: string | null;
   trail: Array<{ id: string; body: string; createdAt: string; byParticipant: boolean; authorName: string | null }>;
   openHelpRequest: { id: string; reason: FaithHelpReason; note: string | null; wantsContact: boolean; createdAt: string } | null;

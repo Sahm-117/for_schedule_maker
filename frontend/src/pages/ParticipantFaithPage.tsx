@@ -257,6 +257,9 @@ const ParticipantFaithPage: React.FC = () => {
           {deadlineText && <p className={`mt-3 rounded-xl px-3 py-2 text-xs font-semibold ${late ? 'bg-amber-50 text-amber-800' : 'bg-[#fff8f3] text-[#9a6a4b]'}`}>{late ? `Past the submission deadline: ${deadlineText}. You can still submit.` : `Submit by ${deadlineText}.`}</p>}
           {status.editable ? (
             <>
+              {faith.project?.fromForm && draft === faith.project.body && (
+                <p className="mt-3 rounded-xl bg-[#fff8f3] px-3 py-2 text-xs font-semibold text-[#9a6a4b]">This is the SMART request you wrote on the registration form. It is saved as your draft. Shape it into your faith project, then submit it.</p>
+              )}
               <label className="mt-4 block">
                 <span className="mb-1.5 block text-[13.5px] font-semibold text-gray-900">What are you believing God for?</span>
                 <textarea

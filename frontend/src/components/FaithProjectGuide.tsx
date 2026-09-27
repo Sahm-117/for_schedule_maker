@@ -92,7 +92,7 @@ export default function FaithProjectGuide() {
               <ol><li><strong>Begin with gratitude.</strong> Thank God in advance.</li><li><strong>Be specific.</strong> Clearly declare your request.</li><li><strong>Stand on Scripture.</strong> Include verses that support your faith.</li><li><strong>Speak in the present tense.</strong> Declare it as though it is happening.</li><li><strong>Trust His timing.</strong> Rest in God’s perfect plan.</li></ol>
               <div className="faith-reader-confession"><span>AN EXAMPLE TO HELP YOU BEGIN</span>
                 <p>Father, I thank You because You are my provider, and You supply all my needs according to Your riches in glory (Philippians 4:19).</p>
-                <p>I declare that I am receiving divine favor and wisdom to secure a better-paying job as a financial consultant. Doors of opportunity are opening for me, and I walk in confidence, knowing that You are directing my steps (Proverbs 3:5–6).</p>
+                <p>I declare that I am receiving divine favor and wisdom to secure a better-paying job as a financial consultant with a salary of N700,000 by the end of November. Doors of opportunity are opening for me, and I walk in confidence, knowing that You are directing my steps (Proverbs 3:5–6).</p>
                 <p>I refuse to fear or doubt because I know that what I have asked for in prayer, I have received (Mark 11:24).</p>
                 <p>In Jesus’ Name, I declare that this testimony is mine. Amen!</p>
               </div><p className="faith-reader-note">Speak it daily, believe it in your heart, and act in faith. God’s Word never returns void — Isaiah 55:11.</p>

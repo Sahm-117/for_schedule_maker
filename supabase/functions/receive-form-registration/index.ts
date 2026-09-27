@@ -204,6 +204,12 @@ Deno.serve(async (req) => {
       .from('SheetRegistration')
       .update({ outcome, outcomeDetail: detail, contactId })
       .eq('id', registration.id)
+    // Copy their form answers onto their profile (and the SMART request into a
+    // draft faith project), so they don't have to type it all again.
+    if (contactId) {
+      const { error: fillError } = await supabase.rpc('fill_profile_from_form', { p_registration_id: registration.id })
+      if (fillError) console.error('receive-form-registration: could not fill profile', fillError.message)
+    }
     return json({ ok: true, outcome })
   }
 
