@@ -117,7 +117,28 @@ const NotGoingWellSheet: React.FC<{
 // their support's replies. Notes between the support and the back office are
 // never shown here. Matches the V2 design.
 
-const CARD = 'rounded-[20px] border border-[#eef0f4] bg-white p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
+// Same card, pill buttons and tap-to-open rows as the participant week page.
+const SURFACE = 'rounded-[28px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]';
+const PRIMARY = 'flex h-[52px] w-full sm:flex-1 items-center justify-center gap-2 rounded-full bg-primary px-5 text-[15px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60';
+const SECONDARY = 'flex h-[52px] w-full sm:flex-1 items-center justify-center gap-2 rounded-full bg-[#f2f2f4] px-5 text-[15px] font-semibold text-gray-900 transition active:scale-[0.98] disabled:opacity-60';
+const FIELD = 'w-full rounded-2xl border-0 bg-[#f5f5f7] px-4 py-3.5 text-[15px] placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30';
+
+const Chevron: React.FC<{ open?: boolean; className?: string }> = ({ open, className = '' }) => (
+  <svg className={`h-4 w-4 flex-none text-gray-300 transition-transform ${open ? 'rotate-90' : ''} ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" />
+  </svg>
+);
+
+const DisclosureRow: React.FC<{ label: string; hint?: string; hintCls?: string; open: boolean; onToggle: () => void; wt?: string; children: React.ReactNode }> = ({ label, hint, hintCls, open, onToggle, wt, children }) => (
+  <div data-wt={wt} className="border-t border-[#f0f0f2] first:border-t-0">
+    <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-h-[60px] w-full items-center gap-2 text-left">
+      <span className="min-w-0 flex-1 text-[16px] font-semibold text-gray-900">{label}</span>
+      {hint && <span className={`flex-none whitespace-nowrap text-[14px] ${hintCls ?? 'text-gray-400'}`}>{hint}</span>}
+      <Chevron open={open} />
+    </button>
+    {open && <div className="pb-5">{children}</div>}
+  </div>
+);
 
 const Switch: React.FC<{ on: boolean; onToggle?: () => void; label: string; disabled?: boolean }> = ({ on, onToggle, label, disabled }) => (
   <button
@@ -133,12 +154,12 @@ const Switch: React.FC<{ on: boolean; onToggle?: () => void; label: string; disa
   </button>
 );
 
-const STATUS: Record<FaithProjectStatus, { label: string; cls: string; editable: boolean }> = {
-  NOT_DRAFTED: { label: 'Start your project', cls: 'bg-[#f6f7f9] text-gray-500', editable: true },
-  AWAITING_DRAFT: { label: 'Changes requested', cls: 'bg-[#fef3c7] text-[#b45309]', editable: true },
-  NEEDS_REFINEMENT: { label: 'With your support', cls: 'bg-[#fff1e6] text-[#c2410c]', editable: false },
-  UNDER_REFINEMENT: { label: 'With programme team', cls: 'bg-[#ede9fe] text-[#6d28d9]', editable: false },
-  APPROVED: { label: 'Approved', cls: 'bg-[#f2fbf5] text-[#15803d]', editable: false },
+const STATUS: Record<FaithProjectStatus, { label: string; dot: string; editable: boolean }> = {
+  NOT_DRAFTED: { label: 'Start your project', dot: 'bg-gray-300', editable: true },
+  AWAITING_DRAFT: { label: 'Changes requested', dot: 'bg-amber-400', editable: true },
+  NEEDS_REFINEMENT: { label: 'With your support', dot: 'bg-orange-400', editable: false },
+  UNDER_REFINEMENT: { label: 'With programme team', dot: 'bg-violet-500', editable: false },
+  APPROVED: { label: 'Approved', dot: 'bg-emerald-500', editable: false },
 };
 
 type FaithTab = 'project' | 'testimonies';
@@ -243,118 +264,118 @@ const ParticipantFaithPage: React.FC = () => {
       {tab === 'testimonies' ? (
         <TestimoniesTab />
       ) : (
-      <div className="flex flex-col gap-3.5">
-        <FaithProjectGuide />
+      <div className="flex flex-col gap-6">
+        {/* One card for the project itself: where it stands, what it says,
+            and the one or two things to do next. */}
+        <section data-wt="pf-project" className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
+          <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500">
+            <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} aria-hidden="true" />
+            {status.label}
+          </span>
+          <h2 className="mt-2 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">Your faith project</h2>
+          {deadlineText && <p className={`mt-2 text-[14px] font-medium ${late ? 'text-amber-700' : 'text-gray-500'}`}>{late ? `Past the submission deadline: ${deadlineText}. You can still submit.` : `Submit by ${deadlineText}.`}</p>}
 
-        <section data-wt="pf-project" className={CARD}>
-          <div className="flex items-start gap-3">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-[17px] font-bold text-gray-900">Your faith project</h2>
-            </div>
-            <span className={`flex-none rounded-full px-2.5 py-1 text-[11px] font-bold ${status.cls}`}>{status.label}</span>
-          </div>
-
-          {deadlineText && <p className={`mt-3 rounded-xl px-3 py-2 text-xs font-semibold ${late ? 'bg-amber-50 text-amber-800' : 'bg-[#fff8f3] text-[#9a6a4b]'}`}>{late ? `Past the submission deadline: ${deadlineText}. You can still submit.` : `Submit by ${deadlineText}.`}</p>}
           {status.editable ? (
             <>
               {faith.project?.fromForm && draft === faith.project.body && (
-                <p className="mt-3 rounded-xl bg-[#fff8f3] px-3 py-2 text-xs font-semibold text-[#9a6a4b]">This is the SMART request you wrote on the registration form. It is saved as your draft. Shape it into your faith project, then submit it.</p>
+                <p className="mt-4 text-[14px] leading-[1.6] text-gray-500">This is the SMART request you wrote on the registration form. It is saved as your draft. Shape it into your faith project, then submit it.</p>
               )}
-              <label className="mt-4 block">
-                <span className="mb-1.5 block text-[13.5px] font-semibold text-gray-900">What are you believing God for?</span>
+              <label className="mt-5 block">
+                <span className="mb-[7px] block text-[14px] font-semibold text-gray-900">What are you believing God for?</span>
                 <textarea
                   value={draft}
                   onChange={(e) => { setDraft(e.target.value); setError(''); }}
                   placeholder="Be specific. Who, what, and by when."
-                  className="min-h-[120px] w-full resize-y rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className={`${FIELD} min-h-[120px] resize-y`}
                 />
               </label>
               {error && <p className="mt-1.5 text-xs font-medium text-red-700">{error}</p>}
-              <div className="mt-3.5 grid grid-cols-2 gap-2.5">
-                <button type="button" onClick={() => { void save(false); }} disabled={saving !== null} className="min-h-[46px] rounded-xl border border-[#ffdeca] bg-white p-3 text-sm font-semibold text-[#c2410c] disabled:opacity-60">
-                  {saving === 'draft' ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save draft'}
-                </button>
-                <button type="button" onClick={() => { void save(true); }} disabled={saving !== null} className="min-h-[46px] rounded-xl bg-primary p-3 text-sm font-semibold text-white disabled:opacity-60">
+              <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
+                <button type="button" onClick={() => { void save(true); }} disabled={saving !== null} className={PRIMARY}>
                   {saving === 'submit' ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending…</span>) : 'Submit for review'}
                 </button>
+                <button type="button" onClick={() => { void save(false); }} disabled={saving !== null} className={SECONDARY}>
+                  {saving === 'draft' ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save draft'}
+                </button>
               </div>
+              <FaithProjectGuide className="mt-3 flex w-full items-center justify-center gap-1.5 py-1 text-center text-[13.5px] font-medium text-gray-500 hover:text-gray-900" />
             </>
           ) : (
             <>
-              <div className="mt-4 whitespace-pre-wrap rounded-[14px] border border-[#ffdeca] bg-[#fff8f3] p-3.5 text-[14.5px] leading-relaxed text-gray-800">{faith.project?.body || '—'}</div>
-              <p className="mt-2.5 text-[12.5px] leading-[1.55] text-gray-500">
-                {faith.project?.status === 'APPROVED' ? 'Approved' : `With ${supportFirst}`}
-              </p>
+              <figure className="mt-5 rounded-2xl bg-[#f5f5f7] px-5 py-4">
+                <figcaption className="text-[12px] font-semibold text-gray-400">What you are believing God for</figcaption>
+                <blockquote className="mt-1 whitespace-pre-wrap text-[16px] font-medium leading-[1.55] text-gray-900">{faith.project?.body || '—'}</blockquote>
+              </figure>
+              {faith.project?.status !== 'APPROVED' && <p className="mt-3 text-[14px] leading-[1.6] text-gray-500">With {supportFirst} for now. Their replies show below.</p>}
+              <div className="mt-6 flex">
+                <FaithProjectGuide className={SECONDARY} />
+              </div>
             </>
           )}
         </section>
 
-        {faith.project?.status === 'APPROVED' && (
-          <section className="flex items-center justify-between gap-3 rounded-[16px] border border-[#eef0f4] bg-white px-4 py-3.5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-            <div className="min-w-0">
-              <p className="text-[14px] font-semibold text-gray-900">Include my Faith Project in the general prayers</p>
-              <p className="mt-0.5 text-[12.5px] text-gray-500">Your name and project will be shown to the church team who pray together each week.</p>
-            </div>
-            <Switch on={prayerShare} onToggle={() => { void togglePrayerShare(); }} label="Include my Faith Project in the general prayers" disabled={prayerShareSaving} />
-          </section>
-        )}
-
-        {faith.project?.status === 'APPROVED' && (
-          faith.openHelpRequest ? (
-            <div className="rounded-[16px] bg-[#f6f7f9] px-4 py-3 text-[13px] leading-relaxed text-gray-600">
-              We&apos;ve let {supportFirst} know things aren&apos;t going well. They&apos;ll be in touch.
-            </div>
-          ) : (
-            <section className="flex items-center justify-between gap-3 rounded-[16px] border border-[#eef0f4] bg-white px-4 py-3.5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-              <div className="min-w-0">
-                <p className="text-[14px] font-semibold text-gray-900">Is it going well?</p>
-                <p className="mt-0.5 text-[12.5px] text-gray-500">Tell us if your faith project isn&apos;t going the way you hoped.</p>
-              </div>
-              <button type="button" onClick={() => setHelpSheetOpen(true)} className="flex-none rounded-xl border border-[#ffdeca] bg-[#fff8f3] px-3.5 py-2.5 text-[13px] font-semibold text-[#c2410c]">
-                It&apos;s not going well
-              </button>
-            </section>
-          )
-        )}
-
-        <div className="px-1 text-xs">
-          {supportLink ? <a href={supportLink} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-[#c2410c]">Got questions? Reach out to your support <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 17 17 7m0 0H9m8 0v8" /></svg></a> : <button type="button" onClick={() => navigate('/me/group')} className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-[#c2410c]">Got questions? Find your support <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 17 17 7m0 0H9m8 0v8" /></svg></button>}
-        </div>
-        <section data-wt="pf-thread" className={CARD}>
-          <button type="button" onClick={() => setTrailOpen((open) => !open)} className="flex w-full items-center gap-2.5 text-left" aria-expanded={trailOpen}>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-base font-bold text-gray-900">Feedback from your support</h3>
-              <p className="mt-0.5 text-[13px] text-gray-500">{replies === 0 ? 'No replies yet' : `${replies} ${replies === 1 ? 'reply' : 'replies'}`}</p>
-            </div>
-            <span className={`inline-flex h-8 w-8 flex-none items-center justify-center text-gray-500 transition-transform ${trailOpen ? 'rotate-90' : ''}`} aria-hidden="true">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
-            </span>
-          </button>
-          {trailOpen && (
-            <>
-              {faith.trail.length === 0 ? (
-                <p className="mt-3 text-[13px] text-gray-500">No replies yet.</p>
-              ) : (
-                <div className="mt-3.5 flex flex-col gap-2.5">
-                  {faith.trail.map((entry) => (
-                    <div key={entry.id} className={`rounded-xl px-3.5 py-3 ${entry.byParticipant ? 'bg-[#fff8f3]' : 'bg-[#f6f7f9]'}`}>
-                      <div className="flex flex-wrap items-baseline gap-2">
-                        <span className="text-[13px] font-bold text-gray-900">{entry.byParticipant ? 'You' : entry.authorName || 'Your support'}</span>
-                        <span className="text-[11px] font-semibold text-gray-400">{entry.byParticipant ? 'Submitted' : 'Support'}</span>
-                        <span className="ml-auto text-[11px] text-gray-400">{shortMoment(entry.createdAt)}</span>
-                      </div>
-                      <p className="mt-1 whitespace-pre-wrap text-[13.5px] leading-relaxed text-gray-700">{entry.body}</p>
+        {/* Everything else, quietly, as tap-to-open rows. */}
+        <section className={`${SURFACE} px-6 py-1.5 sm:px-8`}>
+          <DisclosureRow
+            wt="pf-thread"
+            label="Support feedback"
+            hint={home?.faithUnread && !trailOpen ? 'New reply' : replies === 0 ? 'None yet' : `${replies} ${replies === 1 ? 'reply' : 'replies'}`}
+            hintCls={home?.faithUnread && !trailOpen ? 'font-semibold text-primary' : undefined}
+            open={trailOpen}
+            onToggle={() => setTrailOpen((open) => !open)}
+          >
+            {faith.trail.length === 0 ? (
+              <p className="text-[14px] text-gray-500">No replies yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {faith.trail.map((entry) => (
+                  <li key={entry.id} className={`rounded-2xl p-4 ${entry.byParticipant ? 'bg-[#fff6ef]' : 'bg-[#f5f5f7]'}`}>
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-[13.5px] font-semibold text-gray-900">{entry.byParticipant ? 'You' : entry.authorName || 'Your support'}</span>
+                      <span className="ml-auto text-[12px] text-gray-400">{shortMoment(entry.createdAt)}</span>
                     </div>
-                  ))}
-                </div>
-              )}
-              <div className="mt-3.5 flex items-start gap-2 rounded-xl bg-[#f6f7f9] px-3 py-2.5 text-[12.5px] leading-normal text-gray-500">
-                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="mt-0.5 flex-none" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M7 11V7a5 5 0 0 1 10 0v4M5 11h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1Z" /></svg>
-                <span>Notes between your support and the programme team are not shown here.</span>
+                    <p className="mt-1 whitespace-pre-wrap text-[14px] leading-relaxed text-gray-700">{entry.body}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-4 flex items-start justify-center gap-2 px-2 text-center text-[12.5px] leading-normal text-gray-400">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="mt-0.5 flex-none" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M7 11V7a5 5 0 0 1 10 0v4M5 11h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1Z" /></svg>
+              <span>Notes between your support and the programme team are not shown here.</span>
+            </div>
+          </DisclosureRow>
+
+          {faith.project?.status === 'APPROVED' && (
+            <div className="flex min-h-[60px] items-center gap-3 border-t border-[#f0f0f2] py-3.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-[16px] font-semibold text-gray-900">Include in the general prayers</p>
+                <p className="mt-0.5 text-[13px] leading-snug text-gray-500">Your name and project will be shown to the church team who pray together each week.</p>
               </div>
-            </>
+              <Switch on={prayerShare} onToggle={() => { void togglePrayerShare(); }} label="Include my Faith Project in the general prayers" disabled={prayerShareSaving} />
+            </div>
+          )}
+
+          {faith.project?.status === 'APPROVED' && (
+            faith.openHelpRequest ? (
+              <div className="border-t border-[#f0f0f2] py-4">
+                <p className="text-[16px] font-semibold text-gray-900">Is it going well?</p>
+                <p className="mt-0.5 text-[13px] leading-snug text-gray-500">We&apos;ve let {supportFirst} know things aren&apos;t going well. They&apos;ll be in touch.</p>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setHelpSheetOpen(true)} className="flex min-h-[60px] w-full items-center gap-2 border-t border-[#f0f0f2] text-left">
+                <span className="text-[16px] font-semibold text-gray-900">Is it going well?</span>
+                <span className="ml-auto text-[14px] text-gray-400">Tell us if not</span>
+                <Chevron />
+              </button>
+            )
           )}
         </section>
+
+        <div className="-mt-2 flex justify-center">
+          {supportLink
+            ? <a href={supportLink} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-1.5 text-[13.5px] font-medium text-gray-500 hover:text-gray-900">Got questions? Reach out to your support <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 17 17 7m0 0H9m8 0v8" /></svg></a>
+            : <button type="button" onClick={() => navigate('/me/group')} className="inline-flex min-h-11 items-center gap-1.5 text-[13.5px] font-medium text-gray-500 hover:text-gray-900">Got questions? Find your support <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 17 17 7m0 0H9m8 0v8" /></svg></button>}
+        </div>
       </div>
       )}
 
