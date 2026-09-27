@@ -543,7 +543,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
 
             {myProspects.length > 0 && (
               <section className={`${CARD} p-[18px]`}>
-                <h3 className="mb-3 text-sm font-bold text-gray-900">People you registered</h3>
+                <h3 className="mb-3 text-sm font-bold text-gray-900">People you added</h3>
                 <div className="flex flex-col gap-2.5">
                   {myProspects.map((contact) => {
                     const statusLabel = contact.ownerId ? FOLLOW_UP_STATUS_META[computeFollowUpStatus(contact)].label : 'Waiting to be assigned';
