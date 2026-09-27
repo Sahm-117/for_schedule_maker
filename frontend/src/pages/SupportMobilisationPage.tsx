@@ -62,6 +62,15 @@ const shortDate = (value?: string | null) => {
   return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(date);
 };
 
+// "27 Sept, 9:38 am" — when someone filled in the form.
+const shortDateTime = (value?: string | null) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const time = new Intl.DateTimeFormat('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true }).format(date);
+  return `${shortDate(value)}, ${time}`;
+};
+
 
 const SupportMobilisationPage: React.FC = () => {
   const { user } = useAuth();
@@ -503,13 +512,13 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                     <div key={row.id} className="rounded-[14px] border border-[#f1f2f5] p-3">
                       <div className="flex flex-wrap items-center gap-2.5">
                         <span className="text-sm font-semibold text-gray-900">{row.fullName}</span>
-                        <span className="ml-auto text-[11px] font-semibold text-gray-500">{shortDate(row.signedUpAt)}</span>
+                        <span className="ml-auto text-[11px] font-semibold text-gray-500">{shortDateTime(row.signedUpAt)}</span>
                       </div>
                       <p className="mt-1 text-xs text-gray-500">{row.phone}</p>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         {row.contactId ? (
                           <span className="rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">
-                            {row.outcome === 'MATCHED' ? 'Already a contact' : 'Added as a new prospect'}
+                            Signed up on reg form
                           </span>
                         ) : row.outcome === 'FAILED' ? (
                           <span className="rounded-full bg-red-100/80 px-2.5 py-0.5 text-[11px] font-bold text-red-700">Could not be added</span>
