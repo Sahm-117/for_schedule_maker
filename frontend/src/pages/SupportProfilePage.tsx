@@ -137,6 +137,7 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
       setPhoneError('Enter a valid Nigerian number, e.g. 08012345678.');
       return;
     }
+    if (local === phone) { setEditingPhone(false); return; }
     setSavingPhone(true);
     setPhoneError('');
     try {
@@ -204,13 +205,18 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
 {!editingPhone ? (
                 <Row label="Phone" missing={!phone}>
                   {phone
-                    ? <span className="truncate text-sm font-semibold text-gray-900">{phone}</span>
+                    ? (
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-gray-900">{phone}</span>
+                        <button type="button" onClick={() => { setPhoneDraft(phone); setPhoneError(''); setEditingPhone(true); }} className="flex-none rounded-lg text-sm font-semibold text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">Edit</button>
+                      </span>
+                    )
                     : <button type="button" onClick={() => { setPhoneDraft(''); setPhoneError(''); setEditingPhone(true); }} className="rounded-lg text-sm font-semibold text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">Add number</button>}
                 </Row>
               ) : (
                 <div className="space-y-2 px-4 py-3">
                   <p className="text-sm font-semibold text-gray-900">Your WhatsApp number</p>
-                  <p className="text-xs text-gray-500">Participants and admins tap this to message you on WhatsApp.</p>
+                  <p className="text-xs text-gray-500">Participants and admins tap this to message you on WhatsApp.{phone ? ' If you sign in with your phone number, use the new one next time.' : ''}</p>
                   <input
                     type="tel"
                     inputMode="tel"
