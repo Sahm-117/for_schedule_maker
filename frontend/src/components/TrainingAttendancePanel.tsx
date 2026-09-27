@@ -9,6 +9,7 @@ import { cohortMode } from './dashboard/healthModel';
 import { sortByText } from '../utils/sort';
 import type { SupportAttendanceStatus, SupportSession, User } from '../types';
 import MarkCounter from './supports/MarkCounter';
+import MarkRestAbsentButton from './supports/MarkRestAbsentButton';
 
 // Trainings & get-togethers register, for the supports an admin picked on the
 // Attendance page. Lists every support in the session's cohort, marked the
@@ -180,6 +181,13 @@ const TrainingAttendancePanel: React.FC = () => {
               );
             })}
           </div>
+          {onlyUnmarked && !q && session && (
+            <MarkRestAbsentButton
+              count={visible.length}
+              sessionTitle={session.title}
+              onConfirm={async () => { for (const u of visible) await mark(u, 'ABSENT'); }}
+            />
+          )}
         </section>
       )}
     </>

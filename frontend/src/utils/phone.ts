@@ -12,6 +12,17 @@ export const normalizeToIntlPhone = (raw: string | null | undefined): string | n
   return null;
 };
 
+// Any way a Nigerian number gets pasted ("+234 803 123 4567", "2348031234567",
+// "+234 0803…", "803-123-4567") → the 080… form people sign in with.
+// Null when it isn't a Nigerian mobile number.
+export const toLocalNigerianPhone = (raw: string | null | undefined): string | null => {
+  if (!raw) return null;
+  let digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('234')) digits = digits.slice(3);
+  if (!digits.startsWith('0')) digits = `0${digits}`;
+  return /^0[7-9][01]\d{8}$/.test(digits) ? digits : null;
+};
+
 export const buildWhatsAppLink = (phone: string | null | undefined, message: string): string | null => {
   const intl = normalizeToIntlPhone(phone);
   if (!intl) return null;

@@ -11,6 +11,7 @@ import { selectedFirst } from '../utils/selectedFirst';
 import { useAuth } from '../hooks/useAuth';
 import Spinner from './Spinner';
 import InviteMessageCard, { type InviteDetails } from './InviteMessageCard';
+import { toLocalNigerianPhone } from '../utils/phone';
 
 const ROLE_BADGE: Record<User['role'], string> = {
   ADMIN: 'bg-orange-100/80 text-orange-700',
@@ -191,6 +192,12 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUser.name || (!newUser.email && !newUser.phone)) return;
+    // Pasted any way (+234…, spaces…), saved as 080… so it's the number they sign in with.
+    const phone = newUser.phone.trim() ? toLocalNigerianPhone(newUser.phone) : '';
+    if (phone === null) {
+      setError('Enter a valid Nigerian phone number, e.g. 08012345678.');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -209,7 +216,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
         password,
         role: newUser.role,
         ...(newUser.email ? { email: newUser.email } : {}),
-        ...(newUser.phone ? { phone: newUser.phone } : {}),
+        ...(phone ? { phone } : {}),
       };
       const created = await authApi.register(userData);
       if (newUser.role === 'SUPPORT' && newUserLabelIds.length > 0 && created?.user?.id) {
@@ -221,7 +228,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
           (user) => user.name
         ));
       }
-      setInvite({ name: newUser.name, email: newUser.email.trim(), phone: newUser.phone.trim(), password });
+      setInvite({ name: newUser.name, email: newUser.email.trim(), phone, password });
       setNewUser({ name: '', email: '', phone: '', role: 'SUPPORT' });
       setNewUserLabelIds([]);
     } catch (error: any) {
@@ -435,8 +442,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
               type="tel"
               value={newUser.phone}
               onChange={(e) => setNewUser((prev) => ({ ...prev, phone: e.target.value }))}
+              onBlur={() => setNewUser((prev) => ({ ...prev, phone: toLocalNigerianPhone(prev.phone) ?? prev.phone }))}
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-primary"
-              placeholder="+1234567890"
+              placeholder="08012345678"
             />
           </div>
           <div>

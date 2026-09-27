@@ -14,6 +14,7 @@ import LearnedAnswers from './LearnedAnswers';
 import { sortByText } from '../../utils/sort';
 import { cohortMode } from '../dashboard/healthModel';
 import MarkCounter from './MarkCounter';
+import MarkRestAbsentButton from './MarkRestAbsentButton';
 
 // Trainings & get-togethers tab on the admin Supports page (moved from Hubs,
 // which now keeps only Sunday recaps). Admins create sessions and mark
@@ -203,6 +204,7 @@ const SessionAttendanceModal: React.FC<{
         ) : shown.length === 0 ? (
           <p className="text-sm text-gray-400">Everyone is marked.</p>
         ) : (
+          <>
           <ul className="space-y-2">
             {shown.map((u) => (
               <li key={u.id} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
@@ -223,6 +225,14 @@ const SessionAttendanceModal: React.FC<{
               </li>
             ))}
           </ul>
+          {onlyUnmarked && (
+            <MarkRestAbsentButton
+              count={shown.length}
+              sessionTitle={session.title}
+              onConfirm={async () => { for (const u of shown) await handleMark(u.id, 'ABSENT'); }}
+            />
+          )}
+          </>
         )}
       </div>
     </ModalShell>
@@ -250,10 +260,17 @@ const SessionResultsModal: React.FC<{
   onMark: () => void;
 }> = ({ isOpen, onClose, session, people, attendance, onMark }) => {
   const [filter, setFilter] = useState<ResultKey>('ALL');
+  const [onlyNotShared, setOnlyNotShared] = useState(false);
   const byUser = new Map(attendance.filter((a) => a.sessionId === session.id).map((a) => [a.userId, a]));
   const keyFor = (userId: string): ResultKey => byUser.get(userId)?.status ?? 'NOT_MARKED';
   const counts = RESULT_CARDS.map((c) => ({ ...c, count: people.filter((u) => keyFor(u.id) === c.key).length }));
-  const shown = filter === 'ALL' ? people : people.filter((u) => keyFor(u.id) === filter);
+  // "What I learned" is asked of everyone present or late at a pre-cohort training.
+  const asksLearning = session.type === 'PRE_COHORT_TRAINING';
+  const attended = people.filter((u) => keyFor(u.id) === 'PRESENT' || keyFor(u.id) === 'LATE');
+  const notShared = attended.filter((u) => !byUser.get(u.id)?.learned);
+  const notSharedIds = new Set(notShared.map((u) => u.id));
+  const shown = (filter === 'ALL' ? people : people.filter((u) => keyFor(u.id) === filter))
+    .filter((u) => !onlyNotShared || notSharedIds.has(u.id));
   const toneFor = (key: ResultKey) => RESULT_CARDS.find((c) => c.key === key)?.tone ?? '';
   const labelFor = (key: ResultKey) => RESULT_CARDS.find((c) => c.key === key)?.label ?? '';
 
@@ -293,6 +310,16 @@ const SessionResultsModal: React.FC<{
             </button>
           ))}
         </div>
+        {asksLearning && attended.length > 0 && (
+          <MarkCounter
+            marked={attended.length - notShared.length}
+            notMarked={notShared.length}
+            onlyUnmarked={onlyNotShared}
+            onToggle={setOnlyNotShared}
+            doneLabel="shared what they learned"
+            todoLabel="haven't shared"
+          />
+        )}
         {shown.length === 0 ? (
           <p className="py-6 text-center text-sm text-gray-400">No one here.</p>
         ) : (
