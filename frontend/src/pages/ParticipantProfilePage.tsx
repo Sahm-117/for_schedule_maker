@@ -13,6 +13,7 @@ import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants
 import { useSearchParams } from 'react-router-dom';
 import type { ProfileFieldEntry } from '../types';
 import Spinner from '../components/Spinner';
+import PasswordInput from '../components/PasswordInput';
 
 // Participant profile: how complete it is, their photo and details (including any
 // fields the FOF team requested), their programme, reminders and password.
@@ -414,8 +415,8 @@ const ParticipantProfilePage: React.FC = () => {
 
         <Fold title="Password" summary="Change your password">
           <div className="flex flex-col gap-2.5">
-            <input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="Current password" className={FIELD} />
-            <input type="password" autoComplete="new-password" value={next} onChange={(e) => { setNext(e.target.value); setPasswordError(''); }} placeholder="New password (at least 8 characters)" className={FIELD} />
+            <PasswordInput autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="Current password" className={FIELD} />
+            <PasswordInput autoComplete="new-password" value={next} onChange={(e) => { setNext(e.target.value); setPasswordError(''); }} placeholder="New password (at least 8 characters)" className={FIELD} />
             {passwordError && <p className="text-xs font-medium text-red-700">{passwordError}</p>}
             <button type="button" onClick={() => { void changePassword(); }} disabled={changing || !current || !next} className="min-h-[44px] rounded-xl bg-[#3f4757] px-4 text-sm font-semibold text-white disabled:opacity-50">
               {changing ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Change password'}

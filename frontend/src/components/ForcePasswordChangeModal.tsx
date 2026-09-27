@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { getLoginPassword } from '../utils/loginPassword';
 import { usersApi } from '../services/api';
 import Spinner from './Spinner';
+import PasswordInput from './PasswordInput';
 
 // Shown after an admin resets someone's password: they can't use the app until
 // they replace the temporary password with one only they know.
@@ -56,18 +57,17 @@ const ForcePasswordChangeModal: React.FC = () => {
           {askCurrent && (
             <label className="block">
               <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Temporary password</span>
-              <input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} className={INPUT} />
+              <PasswordInput autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} className={INPUT} />
             </label>
           )}
           <label className="block">
             <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">New password</span>
-            <input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} className={INPUT} />
+            <PasswordInput autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} className={INPUT} />
             <span className="mt-1 block text-xs text-gray-500">At least 8 characters.</span>
           </label>
           <label className="block">
             <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Confirm new password</span>
-            <input
-              type="password"
+            <PasswordInput
               autoComplete="new-password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
