@@ -103,8 +103,9 @@ function ManualItemView({ item }: { item: ManualItem }) {
         <figure className="cmr-item-scripture">
           <div className="cmr-scripture-tear" aria-hidden="true" />
           <div className="cmr-scripture-body">
+            {item.refFirst && <div className="cmr-scripture-ref-first">{item.ref}</div>}
             <blockquote>{item.text}</blockquote>
-            <figcaption>{item.ref}</figcaption>
+            {!item.refFirst && <figcaption>{item.ref}</figcaption>}
           </div>
           <div className="cmr-scripture-tear" aria-hidden="true" />
         </figure>
@@ -133,13 +134,78 @@ function ManualItemView({ item }: { item: ManualItem }) {
           <p>{item.text}</p>
         </div>
       );
+    case 'smart':
+      return (
+        <div className="cmr-item-smart">
+          <h3 className="cmr-smart-word" aria-label={item.letter + item.rest}>
+            <span aria-hidden="true" className="cmr-smart-letter">{item.letter}</span>
+            <span aria-hidden="true" className="cmr-smart-rest">{item.rest}</span>
+          </h3>
+          <div className="cmr-objective-box"><p>{item.text}</p></div>
+          <div className="cmr-smart-exlabel">{item.exLabel}</div>
+          <div className="cmr-item-speech">
+            <SpeakerAvatar who={item.who} />
+            <div className="cmr-speech-bubble"><p>{item.example}</p></div>
+          </div>
+        </div>
+      );
+    case 'example':
+      return (
+        <div className={`cmr-item-example cmr-example-${item.tone === 'bad' ? 'bad' : 'good'}`}>
+          <div className="cmr-example-label">{item.label}</div>
+          <p>{item.text}</p>
+        </div>
+      );
+    case 'numlist':
+      return (
+        <ol className="cmr-item-numlist">
+          {item.steps.map((step, i) => (
+            <li key={i}>
+              <span className="cmr-numlist-num">{step.num}</span>
+              <span className="cmr-numlist-text">{step.lead && <strong>{step.lead} </strong>}{step.text}</span>
+            </li>
+          ))}
+        </ol>
+      );
+    case 'table':
+      return (
+        <div className="cmr-item-table">
+          <div className="cmr-table-legend">
+            {item.head.map((h, i) => <span key={i} className={`cmr-table-chip cmr-table-chip-${i}`}>{h}</span>)}
+          </div>
+          {item.rows.map((row, r) => (
+            <div key={r} className="cmr-table-row">
+              <div className="cmr-table-aspect">{row[0]}</div>
+              <div className="cmr-table-cells">
+                {row.slice(1).map((cell, c) => (
+                  <div key={c} className={`cmr-table-cell cmr-table-cell-${c + 1}`}>
+                    <span className="cmr-table-cell-label">{item.head[c + 1]}</span>
+                    <span>{cell}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    case 'confession':
+      return (
+        <div className="cmr-item-confession">
+          <div className="cmr-confession-mark" aria-hidden="true">“</div>
+          <div className="cmr-confession-body">
+            {item.paras.map((para, i) => <p key={i}>{para}</p>)}
+          </div>
+        </div>
+      );
+    case 'shout':
+      return <p className="cmr-item-shout">{item.text}</p>;
     default:
       return null;
   }
 }
 
-function PanelView({ panel, showScenes }: { panel: ManualPanel; showScenes: boolean }) {
-  const sceneMarkup = panel.scene ? CLASS_MANUAL_SCENE_ART[panel.scene] : null;
+function PanelView({ panel, showScenes, scenes }: { panel: ManualPanel; showScenes: boolean; scenes: Record<string, string> }) {
+  const sceneMarkup = panel.scene ? scenes[panel.scene] : null;
   return (
     <div className="cmr-panel" data-panel="1">
       {showScenes && sceneMarkup && (
@@ -165,6 +231,8 @@ export default function ClassManualReader({ content, onOpenOriginalPdf, renderEn
   const ioRef = useRef<IntersectionObserver | null>(null);
 
   const n = content.chapters.length;
+  // Manuals after Class 1 bring their own illustrations.
+  const art = content.art ?? { defs: CLASS_MANUAL_SVG_DEFS, cover: CLASS_MANUAL_COVER_ART, endCard: CLASS_MANUAL_END_CARD_ART, scenes: CLASS_MANUAL_SCENE_ART as Record<string, string> };
   const [ch, setCh] = useState(() => loadChapter(content.id, n));
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -327,7 +395,7 @@ export default function ClassManualReader({ content, onOpenOriginalPdf, renderEn
     >
       <div ref={rootRef} className="class-manual-reader">
         <svg width="0" height="0" aria-hidden="true" className="cmr-defs">
-          <defs dangerouslySetInnerHTML={{ __html: CLASS_MANUAL_SVG_DEFS }} />
+          <defs dangerouslySetInnerHTML={{ __html: art.defs }} />
         </svg>
 
         <div className="cmr-topbar">
@@ -434,27 +502,33 @@ export default function ClassManualReader({ content, onOpenOriginalPdf, renderEn
               <>
                 <div className="cmr-card cmr-cover-card" data-panel="1">
                   <div className="cmr-cover-art">
-                    <svg viewBox="0 0 360 230" role="img" aria-label="Illustration" dangerouslySetInnerHTML={{ __html: CLASS_MANUAL_COVER_ART }} />
+                    <svg viewBox="0 0 360 230" role="img" aria-label="Illustration" dangerouslySetInnerHTML={{ __html: art.cover }} />
                   </div>
                   <div className="cmr-cover-body">
                     <div className="cmr-cover-org">{content.cover.org}</div>
-                    <div className="cmr-cover-series">{content.cover.series}</div>
+                    {content.cover.series && <div className="cmr-cover-series">{content.cover.series}</div>}
                     <h1 className="cmr-cover-title">{content.cover.title}</h1>
+                    {content.cover.subtitle && <p className="cmr-cover-subtitle">{content.cover.subtitle}</p>}
                   </div>
                 </div>
 
-                <div className="cmr-card cmr-block-card" data-panel="1">
-                  <div className="cmr-block-pill cmr-block-pill-left">{content.cover.objectiveLabel}</div>
-                  <div className="cmr-objective-box">
-                    <p>{content.cover.objective}</p>
+                {content.cover.tagline && <div className="cmr-tagline" data-panel="1">{content.cover.tagline}</div>}
+
+                {content.cover.objective && (
+                  <div className="cmr-card cmr-block-card" data-panel="1">
+                    {content.cover.objectiveLabel && <div className="cmr-block-pill cmr-block-pill-left">{content.cover.objectiveLabel}</div>}
+                    <div className="cmr-objective-box">
+                      <p>{content.cover.objective}</p>
+                    </div>
+                    {content.cover.mainText && <div className="cmr-main-text">{content.cover.mainText}</div>}
                   </div>
-                </div>
+                )}
 
                 <div className="cmr-card cmr-block-card" data-panel="1">
                   <div className="cmr-block-pill cmr-block-pill-right">{content.cover.outlineLabel}</div>
                   <div className="cmr-outline-list">
                     {content.cover.outline.map((o, i) => (
-                      <button key={i} type="button" className="cmr-outline-item" onClick={() => handleOutline(i + 1)}>
+                      <button key={i} type="button" className="cmr-outline-item" onClick={() => handleOutline(o.chapter ?? i + 1)}>
                         <span className="cmr-outline-num">{o.num}</span>
                         <span className="cmr-outline-text">{o.text}</span>
                         <span aria-hidden="true" className="cmr-outline-chevron">
@@ -480,13 +554,25 @@ export default function ClassManualReader({ content, onOpenOriginalPdf, renderEn
                 </div>
 
                 {chapter.panels.map((panel, i) => (
-                  <PanelView key={i} panel={panel} showScenes={settings.showScenes} />
+                  <PanelView key={i} panel={panel} showScenes={settings.showScenes} scenes={art.scenes} />
                 ))}
+
+                {content.closing && ch === n && (
+                  <div className="cmr-card cmr-end-card" data-panel="1">
+                    <div className="cmr-end-card-art">
+                      <svg viewBox="0 0 360 110" role="img" aria-label="Illustration" dangerouslySetInnerHTML={{ __html: art.endCard }} />
+                    </div>
+                    <div className="cmr-closing-body">
+                      <p>{content.closing.text}</p>
+                      <div className="cmr-closing-signoff">{content.closing.signoff}</div>
+                    </div>
+                  </div>
+                )}
 
                 {renderEndCard && (
                   <div className="cmr-card cmr-end-card" data-panel="1">
                     <div className="cmr-end-card-art">
-                      <svg viewBox="0 0 360 110" role="img" aria-label="Illustration" dangerouslySetInnerHTML={{ __html: CLASS_MANUAL_END_CARD_ART }} />
+                      <svg viewBox="0 0 360 110" role="img" aria-label="Illustration" dangerouslySetInnerHTML={{ __html: art.endCard }} />
                     </div>
                     <div className="cmr-end-card-body">{renderEndCard()}</div>
                   </div>

@@ -67,14 +67,15 @@ export const FAITH_PROJECT_PARTICIPANT_LABEL: Record<FaithProjectStatus, string>
   APPROVED: 'Approved',
 };
 
-// "Meet your cohort" on the pre-start Get ready list ticks once they've opened
-// People. Remembered on this phone only; the read/write can throw in private mode.
-const peopleSeenKey = (participantId: string) => `fof_people_seen_${participantId}`;
-export const hasSeenPeople = (participantId: string) => {
-  try { return localStorage.getItem(peopleSeenKey(participantId)) === '1'; } catch { return false; }
+// Pre-start Get ready steps that tick once opened ("Meet your cohort", the Intro
+// Class prep). Remembered on this phone only; the read/write can throw in private mode.
+type ReadyStep = 'people' | 'intro';
+const readyStepKey = (step: ReadyStep, participantId: string) => (step === 'people' ? `fof_people_seen_${participantId}` : `fof_ready_${step}_${participantId}`);
+export const hasDoneReadyStep = (step: ReadyStep, participantId: string) => {
+  try { return localStorage.getItem(readyStepKey(step, participantId)) === '1'; } catch { return false; }
 };
-export const markPeopleSeen = (participantId: string) => {
-  try { localStorage.setItem(peopleSeenKey(participantId), '1'); } catch { /* ignore */ }
+export const markReadyStepDone = (step: ReadyStep, participantId: string) => {
+  try { localStorage.setItem(readyStepKey(step, participantId), '1'); } catch { /* ignore */ }
 };
 
 /** Misses so far, counted the same way as the programme rules (recorded misses only). */

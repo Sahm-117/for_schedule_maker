@@ -4,6 +4,8 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import Avatar from '../components/Avatar';
 import AttendanceCountdownCard from '../components/participantApp/AttendanceCountdownCard';
+import ClassManualReader from '../components/classManual/ClassManualReader';
+import { useManualContent } from '../components/classManual/manuals';
 import { useAuth } from '../hooks/useAuth';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { participantAppApi } from '../services/api';
@@ -14,7 +16,8 @@ import {
   FAITH_PROJECT_PARTICIPANT_LABEL,
   currentWeekNumber,
   formatTime,
-  hasSeenPeople,
+  hasDoneReadyStep,
+  markReadyStepDone,
   reflectionFor,
   scriptureDayIndex,
   scriptureForDay,
@@ -54,6 +57,7 @@ const ParticipantHomePage: React.FC = () => {
   // Live drag offset (px) while swiping, or the animated value while settling/springing back.
   const [scriptureDragPx, setScriptureDragPx] = useState(0);
   const [scriptureAnimating, setScriptureAnimating] = useState(false);
+  const [introOpen, setIntroOpen] = useState(false);
   const scriptureTrackRef = useRef<HTMLDivElement>(null);
   const scriptureDrag = useRef<{ pointerId: number; x: number; y: number; time: number } | null>(null);
 
@@ -65,6 +69,9 @@ const ParticipantHomePage: React.FC = () => {
   useEffect(() => {
     setScriptureDay(todayScriptureDay);
   }, [todayScriptureDay]);
+
+  // Intro Class reader for the pre-start Get ready list (week 1's class).
+  const introManual = useManualContent(home?.weeks.find((w) => w.weekNumber === 1)?.title);
 
   if (loading) {
     return <PageLoader label="Loading your FOF space…" />;
@@ -123,10 +130,15 @@ const ParticipantHomePage: React.FC = () => {
   // photo step only shows while they have no photo.
   const preStart = !started && home.cohort?.status !== 'COMPLETED';
   const faithStarted = !!home.faithProjectStatus && home.faithProjectStatus !== 'NOT_DRAFTED';
-  const readyItems = [
+  const openIntro = () => {
+    markReadyStepDone('intro', home.participant.id);
+    setIntroOpen(true);
+  };
+  const readyItems: Array<{ key: string; label: string; to?: string; onClick?: () => void; done: boolean }> = [
     ...(!home.profile.avatarUrl ? [{ key: 'photo', label: 'Add a profile photo', to: '/me/profile', done: false }] : []),
+    ...(introManual ? [{ key: 'intro', label: 'Prep for the Intro Class', onClick: openIntro, done: hasDoneReadyStep('intro', home.participant.id) }] : []),
     { key: 'faith', label: 'Start your faith project', to: '/me/faith', done: faithStarted },
-    { key: 'people', label: 'Meet your cohort', to: '/me/people', done: hasSeenPeople(home.participant.id) },
+    { key: 'people', label: 'Meet your cohort', to: '/me/people', done: hasDoneReadyStep('people', home.participant.id) },
   ];
   const readyDone = readyItems.filter((item) => item.done).length;
 
@@ -389,16 +401,24 @@ const ParticipantHomePage: React.FC = () => {
               <span className="ml-auto text-xs font-semibold text-gray-500">{readyDone} of {readyItems.length} done</span>
             </div>
             <div className="mt-3 flex flex-col gap-2">
-              {readyItems.map((item) => (
-                <NavLink key={item.key} to={item.to} className="flex min-h-[48px] items-center gap-3 rounded-[14px] border border-[#f1f2f5] px-3.5 py-3 hover:border-[#ffdeca]">
+              {readyItems.map((item) => {
+                const rowClass = 'flex min-h-[48px] w-full items-center gap-3 rounded-[14px] border border-[#f1f2f5] px-3.5 py-3 text-left hover:border-[#ffdeca]';
+                const row = (
+                  <>
                   <span className={`grid h-6 w-6 flex-none place-items-center rounded-full ${item.done ? 'bg-emerald-500 text-white' : 'border-2 border-gray-300'}`} aria-hidden="true">
                     {item.done && <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 12 5 5L20 7" /></svg>}
                   </span>
                   <span className={`text-sm font-semibold ${item.done ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{item.label}</span>
                   <span className="sr-only">{item.done ? '(done)' : ''}</span>
                   <span className="ml-auto text-gray-300" aria-hidden="true">&#8250;</span>
-                </NavLink>
-              ))}
+                  </>
+                );
+                return item.onClick ? (
+                  <button key={item.key} type="button" onClick={item.onClick} className={rowClass}>{row}</button>
+                ) : (
+                  <NavLink key={item.key} to={item.to ?? '/me'} className={rowClass}>{row}</NavLink>
+                );
+              })}
             </div>
           </section>
         )}
@@ -501,6 +521,7 @@ const ParticipantHomePage: React.FC = () => {
           </section>
         )}
       </div>
+      {introOpen && introManual && <ClassManualReader content={introManual} onClose={() => setIntroOpen(false)} />}
     </div>
   );
 };

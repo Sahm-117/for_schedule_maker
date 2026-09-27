@@ -690,6 +690,62 @@
   padding: 14px;
 }
 
+/* Cover extras some manuals carry (subtitle, tagline, main text) and the closing card */
+.cmr-cover-subtitle {
+  margin: 0;
+  font-size: 1.15em;
+  font-weight: 700;
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+.cmr-tagline {
+  margin: 0 4px;
+  background-color: #ffd35a;
+  background-image: radial-gradient(rgba(255, 145, 77, 0.6) 1.6px, transparent 1.8px);
+  background-size: 9px 9px;
+  border: 3.5px solid var(--cmr-ink);
+  box-shadow: 5px 5px 0 var(--cmr-ink);
+  padding: 20px 16px;
+  text-align: center;
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 1.55em;
+  line-height: 1.15;
+  transform: rotate(-1.4deg);
+  text-wrap: balance;
+}
+.cmr-main-text {
+  align-self: flex-start;
+  background: #ffffff;
+  border: 3px solid var(--cmr-ink);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-weight: 700;
+}
+.cmr-closing-body {
+  padding: 20px 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: center;
+  text-align: center;
+}
+.cmr-closing-body p {
+  margin: 0;
+  font-size: 1.1em;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+.cmr-closing-signoff {
+  background: #ff914d;
+  border: 3.5px solid var(--cmr-ink);
+  box-shadow: 4px 4px 0 var(--cmr-ink);
+  padding: 10px 22px;
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 1.9em;
+  line-height: 1.1;
+  transform: rotate(-2deg);
+}
+
 /* Prev/Next */
 .cmr-chapter-nav {
   display: flex;
@@ -773,4 +829,272 @@
     padding-left: max(14px, calc((100% - 640px) / 2 + 14px));
     padding-right: max(14px, calc((100% - 640px) / 2 + 14px));
   }
+}
+
+/* Scripture with the reference above the verse */
+.cmr-scripture-ref-first {
+  align-self: flex-start;
+  background: var(--cmr-accent);
+  border: 2.5px solid var(--cmr-ink);
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 0.95em;
+  box-shadow: 2px 2px 0 var(--cmr-ink);
+}
+
+/* Faith Project Guide items */
+.cmr-item-smart {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cmr-smart-word {
+  margin: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  font-family: 'CMR Lilita', sans-serif;
+  font-weight: 400;
+  line-height: 1;
+}
+.cmr-smart-letter {
+  flex: none;
+  width: 76px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ff914d;
+  border: 3.5px solid var(--cmr-ink);
+  border-radius: 14px;
+  box-shadow: 4px 4px 0 var(--cmr-ink);
+  font-size: 3.1em;
+  transform: rotate(-4deg);
+}
+.cmr-smart-rest {
+  font-size: 1.9em;
+  padding: 0 0 4px 4px;
+}
+.cmr-smart-exlabel {
+  align-self: flex-start;
+  background: var(--cmr-ink);
+  color: #fff6ea;
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-weight: 700;
+  font-size: 16px;
+}
+.cmr-item-example {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cmr-example-label {
+  align-self: flex-start;
+  border: 3px solid var(--cmr-ink);
+  box-shadow: 3px 3px 0 var(--cmr-ink);
+  padding: 6px 14px;
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 1.2em;
+  line-height: 1.2;
+}
+.cmr-item-example p {
+  margin: 0;
+  border-radius: 22px;
+  padding: 16px 18px;
+  font-family: 'CMR Literata', Georgia, serif;
+  font-style: italic;
+  font-size: 1.15em;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+.cmr-example-bad .cmr-example-label {
+  background: #d8ccbe;
+  transform: rotate(-1deg);
+}
+.cmr-example-bad p {
+  background: #eee7e0;
+  border: 3px dashed var(--cmr-ink);
+}
+.cmr-example-good .cmr-example-label {
+  background: #ff914d;
+  transform: rotate(1deg);
+}
+.cmr-example-good p {
+  background: #ffffff;
+  border: 3.5px solid var(--cmr-ink);
+  box-shadow: 5px 5px 0 #ff914d;
+}
+.cmr-item-numlist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cmr-item-numlist li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: #ffffff;
+  border: 3px solid var(--cmr-ink);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 3px 3px 0 var(--cmr-ink);
+}
+.cmr-numlist-num {
+  flex: none;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #ffd35a;
+  border: 2.5px solid var(--cmr-ink);
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 1.05em;
+}
+.cmr-numlist-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.55;
+  padding-top: 6px;
+}
+.cmr-item-table {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cmr-table-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cmr-table-chip {
+  border: 2.5px solid var(--cmr-ink);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-weight: 700;
+  font-size: 16px;
+}
+.cmr-table-chip-0 {
+  background: var(--cmr-ink);
+  color: #fff6ea;
+}
+.cmr-table-chip-1 {
+  background: #eee7e0;
+  border-style: dashed;
+}
+.cmr-table-chip-2 {
+  background: #ffd9b0;
+}
+.cmr-table-chip-3 {
+  background: #fff3c4;
+}
+.cmr-table-row {
+  border: 3px solid var(--cmr-ink);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 3px 3px 0 var(--cmr-ink);
+  background: var(--cmr-ink);
+}
+.cmr-table-aspect {
+  background: var(--cmr-ink);
+  color: #fff6ea;
+  padding: 8px 14px;
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 1.3em;
+  line-height: 1.2;
+}
+.cmr-table-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 3px;
+}
+.cmr-table-cell {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.5;
+}
+.cmr-table-cell-label {
+  font-weight: 700;
+  font-size: 16px;
+}
+.cmr-table-cell-1 {
+  background: #eee7e0;
+}
+.cmr-table-cell-1 .cmr-table-cell-label {
+  color: #6b4a3a;
+}
+.cmr-table-cell-2 {
+  background: #ffd9b0;
+}
+.cmr-table-cell-2 .cmr-table-cell-label {
+  color: #9a3f1c;
+}
+.cmr-table-cell-3 {
+  background: #fff3c4;
+}
+.cmr-table-cell-3 .cmr-table-cell-label {
+  color: #6b4a1a;
+}
+.cmr-item-confession {
+  position: relative;
+  margin-top: 14px;
+  background: #ffffff;
+  border: 3.5px solid var(--cmr-ink);
+  border-radius: 24px;
+  box-shadow: 5px 5px 0 var(--cmr-ink);
+  padding: 32px 18px 18px;
+}
+.cmr-confession-mark {
+  position: absolute;
+  top: -24px;
+  left: 16px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #ff914d;
+  border: 3px solid var(--cmr-ink);
+  box-shadow: 2px 2px 0 var(--cmr-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'CMR Literata', Georgia, serif;
+  font-size: 46px;
+  line-height: 1;
+  padding-top: 16px;
+}
+.cmr-confession-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-family: 'CMR Literata', Georgia, serif;
+  font-size: 1.05em;
+  line-height: 1.7;
+}
+.cmr-confession-body p {
+  margin: 0;
+  text-wrap: pretty;
+}
+.cmr-item-shout {
+  margin: 6px 4px;
+  background-color: #ff914d;
+  background-image: radial-gradient(rgba(42, 26, 18, 0.2) 1.6px, transparent 1.8px);
+  background-size: 9px 9px;
+  border: 3.5px solid var(--cmr-ink);
+  box-shadow: 5px 5px 0 var(--cmr-ink);
+  padding: 22px 16px;
+  text-align: center;
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 1.9em;
+  line-height: 1.1;
+  transform: rotate(-1.5deg);
+  text-wrap: balance;
 }

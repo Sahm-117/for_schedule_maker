@@ -11,7 +11,7 @@ import { participantAppApi } from '../services/api';
 import { recapHasContent, reflectionEditable, reflectionFor } from '../utils/participantApp';
 import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
-import { manualContentForWeek } from '../components/classManual/manuals';
+import { useManualContent } from '../components/classManual/manuals';
 
 const MANUAL_QUESTION_STATUS_LABEL: Record<string, string> = {
   NEW: 'To be answered in class',
@@ -116,7 +116,7 @@ const ParticipantWeekPage: React.FC = () => {
   const [questionError, setQuestionError] = useState('');
 
   const week = home?.weeks.find((w) => w.weekNumber === Number(weekParam)) ?? null;
-  const manualComic = manualContentForWeek(week?.title);
+  const manualComic = useManualContent(week?.title);
   const reflection = week && home ? reflectionFor(home.reflections, week.id) : null;
   const now = new Date();
   const editable = reflectionEditable(reflection, now);

@@ -4,7 +4,7 @@ import PageLoader from '../components/PageLoader';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
 import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
-import { manualContentForWeek } from '../components/classManual/manuals';
+import { loadManualForWeek } from '../components/classManual/manuals';
 import type { ManualContent } from '../components/classManual/types';
 import { useAppData } from '../context/AppDataContext';
 import { supportRecapsApi, manualQuestionsApi } from '../services/api';
@@ -234,8 +234,9 @@ const SupportRecapPage: React.FC = () => {
                       type="button"
                       onClick={() => {
                         const pdf = { url: week.manual!.documentUrl as string, title: `Week ${week.weekNumber} class manual`, fileName: week.manual!.documentName };
-                        const content = manualContentForWeek(week.title);
-                        if (content) setReader({ content, pdf }); else setDoc(pdf);
+                        loadManualForWeek(week.title)
+                          .then((content) => { if (content) setReader({ content, pdf }); else setDoc(pdf); })
+                          .catch(() => setDoc(pdf));
                       }}
                       className="mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-[#3f4757] px-4 text-[14px] font-semibold text-white first:mt-0"
                     >

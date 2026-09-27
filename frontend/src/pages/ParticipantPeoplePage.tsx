@@ -5,7 +5,7 @@ import Avatar from '../components/Avatar';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { participantAppApi } from '../services/api';
 import { buildWhatsAppLink } from '../utils/phone';
-import { markPeopleSeen } from '../utils/participantApp';
+import { markReadyStepDone } from '../utils/participantApp';
 import type { ParticipantPeople } from '../types';
 
 // People: every support/admin in the participant's cohort, and their own group
@@ -29,7 +29,7 @@ const ParticipantPeoplePage: React.FC = () => {
 
   const participantId = home?.participant.id;
   useEffect(() => {
-    if (people && participantId) markPeopleSeen(participantId);
+    if (people && participantId) markReadyStepDone('people', participantId);
   }, [people, participantId]);
 
   if (loadError) return <p className="py-16 text-center text-sm text-gray-500">{loadError}</p>;
