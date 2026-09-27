@@ -283,6 +283,16 @@ export type FollowUpNextAction = 'SEND_MESSAGE' | 'SEND_REMINDER' | 'CALL' | 'CL
 export type FollowUpStatus = 'TO_CONTACT' | 'WAITING' | 'NEEDS_REMINDER' | 'REPLIED' | 'CALL_BACK_LATER' | 'REGISTERED' | 'WRONG_NUMBER' | 'NOT_INTERESTED' | 'NO_RESPONSE' | 'NEXT_COHORT' | 'LOGIN_SHARED';
 export type IssueStatus = 'OPEN' | 'RESOLVED';
 
+/** One saved version of a contact's note, with who wrote it and when. */
+export interface FollowUpNoteEntry {
+  id: string;
+  body: string;
+  authorName: string | null;
+  /** Copied in from before note history existed; the date is approximate. */
+  imported: boolean;
+  notedAt: string;
+}
+
 export interface FollowUpContact {
   id: string;
   fullName: string;

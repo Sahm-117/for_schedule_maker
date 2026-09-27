@@ -1,6 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { FollowUpContact, FollowUpStatus, User } from '../../types';
+import type { FollowUpContact, FollowUpNoteEntry, FollowUpStatus, User } from '../../types';
 import AppSelect from '../AppSelect';
 import AppOverflowMenu from '../AppOverflowMenu';
 import NotInterestedPopup from './NotInterestedPopup';
@@ -12,6 +12,8 @@ import {
 } from '../../utils/followUps';
 import Spinner from '../Spinner';
 import { sortByText } from '../../utils/sort';
+import { formatDate, formatDateTime } from '../../utils/time';
+import { followUpContactsApi } from '../../services/api';
 
 interface FollowUpContactsTableProps {
   contacts: FollowUpContact[];
@@ -61,6 +63,17 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const [editingDueDate, setEditingDueDate] = useState<FollowUpContact | null>(null);
   const [dueDateValue, setDueDateValue] = useState('');
   const [editingNotes, setEditingNotes] = useState<FollowUpContact | null>(null);
+  // Note history for the contact whose note popup is open.
+  const [noteHistory, setNoteHistory] = useState<FollowUpNoteEntry[] | null>(null);
+  useEffect(() => {
+    if (!editingNotes) { setNoteHistory(null); return; }
+    let cancelled = false;
+    setNoteHistory(null);
+    followUpContactsApi.getNoteHistory(editingNotes.id)
+      .then(({ entries }) => { if (!cancelled) setNoteHistory(entries); })
+      .catch(() => { if (!cancelled) setNoteHistory([]); });
+    return () => { cancelled = true; };
+  }, [editingNotes]);
   const [notesValue, setNotesValue] = useState('');
   const [viewingInfo, setViewingInfo] = useState<string | null>(null);
   const [savingFields, setSavingFields] = useState<Set<string>>(new Set());
@@ -109,6 +122,36 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   };
 
   const ownerOptions = [{ value: '', label: 'Unassigned' }, ...sortByText(owners, (o) => o.name).map((o) => ({ value: o.id, label: o.name }))];
+  // The support who added a contact goes first in that contact's picker, so
+  // handing it back to them needs no searching.
+  const ownerOptionsFor = (contact: FollowUpContact) => {
+    const adderId = contact.registeredById;
+    if (!adderId) return ownerOptions;
+    const adderName = owners.find((o) => o.id === adderId)?.name || contact.registeredByName;
+    if (!adderName) return ownerOptions;
+    return [
+      { value: adderId, label: `${adderName} · added them` },
+      ...ownerOptions.filter((option) => option.value !== adderId),
+    ];
+  };
+  const assignToAdder = (contact: FollowUpContact) => {
+    if (!contact.registeredById) return;
+    onFieldChange(contact, { ownerId: contact.registeredById, previousOwnerId: contact.ownerId || null });
+  };
+  const addedByLine = (contact: FollowUpContact) => (
+    <p className="mt-0.5 text-[11px] text-gray-400">
+      Added for follow up by {contact.registeredByName}
+      {canAssign && !contact.ownerId && contact.registeredById && (
+        <button
+          type="button"
+          onClick={() => assignToAdder(contact)}
+          className="ml-2 font-semibold text-primary-dark hover:underline"
+        >
+          Assign to {contact.registeredByName?.split(' ')[0]}
+        </button>
+      )}
+    </p>
+  );
 
   const statusDropdown = (contact: FollowUpContact) => {
     const key = `${contact.id}:followUpStatus`;
@@ -258,16 +301,20 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                       <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
                         <p>{contact.phone || 'No phone'}</p>
                         {contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
+                    {contact.createdAt && <p className="mt-0.5 text-gray-300">Added {formatDateTime(contact.createdAt)}</p>}
                       </div>
                     )}
                     {contact.registeredByName && (
-                      <p className="mt-0.5 text-[11px] text-gray-400">Added for follow up by {contact.registeredByName}</p>
+                      addedByLine(contact)
                     )}
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
                       {contact.ownerName && (
                         <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
                           {contact.ownerName}
                         </span>
+                      )}
+                      {!contact.cohortId && (
+                        <span title="Not tied to any cohort yet. Joins this cohort once assigned." className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-1 text-[11px] font-semibold text-neutral-600">From prior cohort</span>
                       )}
 
                     </div>
@@ -278,7 +325,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                     <AppSelect
                       value={contact.ownerId || ''}
                       onChange={(v) => onFieldChange(contact, { ownerId: v || null, previousOwnerId: contact.ownerId || null })}
-                      options={ownerOptions}
+                      options={ownerOptionsFor(contact)}
                       placeholder="Unassigned"
                       compact
                       className="min-w-[136px]"
@@ -335,13 +382,17 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                   <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
                     <p>{contact.phone || 'No phone'}</p>
                     {contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
+                    {contact.createdAt && <p className="mt-0.5 text-gray-300">Added {formatDateTime(contact.createdAt)}</p>}
                   </div>
                 )}
                 {contact.registeredByName && (
-                  <p className="mt-0.5 text-[11px] text-gray-400">Added for follow up by {contact.registeredByName}</p>
+                  addedByLine(contact)
                 )}
                 {canAssign && contact.ownerName && (
                   <p className="mt-0.5 text-xs text-gray-500">{contact.ownerName}</p>
+                )}
+                {!contact.cohortId && (
+                  <div className="mt-1"><span title="Not tied to any cohort yet. Joins this cohort once assigned." className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-1 text-[11px] font-semibold text-neutral-600">From prior cohort</span></div>
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
@@ -405,7 +456,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
       {editingDueDate && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center" onClick={() => setEditingDueDate(null)}>
           <div className="absolute inset-0 bg-slate-900/35" />
-          <div className="relative mb-20 w-[90vw] max-w-[320px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0" onClick={(e) => e.stopPropagation()}>
+          <div className="relative mb-20 w-[90vw] max-w-[380px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0" onClick={(e) => e.stopPropagation()}>
             <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Due date</p>
             <p className="mb-4 truncate text-center text-sm font-semibold text-gray-900">{editingDueDate.fullName}</p>
             <input
@@ -441,7 +492,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
             <div className="mt-3 flex max-h-72 flex-col gap-1 overflow-y-auto overscroll-contain">
               {(() => {
                 const query = ownerSearch.trim().toLowerCase();
-                const matches = ownerOptions.filter((option) => !query || option.label.toLowerCase().includes(query));
+                const matches = ownerOptionsFor(assigningOwner).filter((option) => !query || option.label.toLowerCase().includes(query));
                 if (matches.length === 0) return <p className="px-3 py-2 text-center text-sm text-gray-400">No support matches “{ownerSearch.trim()}”.</p>;
                 return matches.map((option) => {
                   const isCurrent = (assigningOwner.ownerId || '') === option.value;
@@ -541,6 +592,26 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
           <div className="relative mb-20 w-[90vw] max-w-[320px] rounded-[28px] bg-white p-5 shadow-[0_28px_80px_rgba(15,23,42,0.25)] sm:mb-0" onClick={(e) => e.stopPropagation()}>
             <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Note</p>
             <p className="mb-4 truncate text-center text-sm font-semibold text-gray-900">{editingNotes.fullName}</p>
+            <div className="mb-3">
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">History</p>
+              {noteHistory === null ? (
+                <p className="inline-flex items-center gap-1.5 text-xs text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
+              ) : noteHistory.length === 0 ? (
+                <p className="text-xs text-gray-400">No earlier notes.</p>
+              ) : (
+                <ul className="max-h-48 space-y-2 overflow-y-auto overscroll-contain">
+                  {noteHistory.map((entry) => (
+                    <li key={entry.id} className="rounded-2xl bg-slate-50 px-3 py-2">
+                      <p className="text-[11px] font-semibold text-gray-500">
+                        {entry.authorName || 'Unknown'} · {entry.imported ? `around ${formatDate(entry.notedAt)}` : formatDateTime(entry.notedAt)}
+                      </p>
+                      <p className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-gray-700">{entry.body}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Current note</p>
             <textarea
               value={notesValue}
               onChange={(e) => setNotesValue(e.target.value)}

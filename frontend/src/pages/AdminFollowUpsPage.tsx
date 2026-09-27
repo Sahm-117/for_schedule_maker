@@ -230,6 +230,9 @@ const AdminFollowUpsPage: React.FC = () => {
 
   const handleFieldChange = async (contact: FollowUpContact, patch: FollowUpContactUpdate) => {
     try {
+      // A contact with no cohort (from a prior cohort) joins the active cohort
+      // once it's handed to a support.
+      if (patch.ownerId && !contact.cohortId && activeCohort?.id) patch.cohortId = activeCohort.id;
       if (patch.registrationStatus) {
         if (patch.registrationStatus === 'REGISTERED') {
           // Signing up no longer closes the follow-up -- their app login is still
@@ -265,7 +268,13 @@ const AdminFollowUpsPage: React.FC = () => {
   };
 
   const handleBulkAssign = async (ids: string[], ownerId: string, dueDate: string | null) => {
-    const { contacts: updated } = await followUpContactsApi.assignMany(ids, ownerId, dueDate);
+    let { contacts: updated } = await followUpContactsApi.assignMany(ids, ownerId, dueDate);
+    const untagged = activeCohort?.id ? updated.filter((c) => !c.cohortId) : [];
+    if (untagged.length > 0) {
+      const tagged = await Promise.all(untagged.map((c) => followUpContactsApi.update(c.id, { cohortId: activeCohort!.id }).then((r) => r.contact)));
+      const byId = new Map(tagged.map((c) => [c.id, c]));
+      updated = updated.map((c) => byId.get(c.id) || c);
+    }
     setContacts((prev) => {
       const map = new Map(updated.map((c) => [c.id, c]));
       return sortByText(prev.map((c) => map.get(c.id) || c), (contact) => contact.fullName);

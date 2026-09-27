@@ -3355,6 +3355,26 @@ export const followUpContactsApi = {
     return { contacts: ((data as any[]) || []).map(mapFollowUpContact) };
   },
 
+  // Every saved version of a contact's note, newest first (recorded by a
+  // database trigger whenever the note changes).
+  async getNoteHistory(contactId: string): Promise<{ entries: import('../types').FollowUpNoteEntry[] }> {
+    const { data, error } = await supabase
+      .from('FollowUpNoteHistory')
+      .select('id, body, imported, notedAt, authorLabel, author:User!FollowUpNoteHistory_authorId_fkey(name)')
+      .eq('contactId', contactId)
+      .order('notedAt', { ascending: false });
+    if (error) throw new Error(error.message);
+    return {
+      entries: ((data as any[]) || []).map((row) => ({
+        id: row.id,
+        body: row.body,
+        authorName: row.author?.name ?? row.authorLabel ?? null,
+        imported: !!row.imported,
+        notedAt: row.notedAt,
+      })),
+    };
+  },
+
   // Re-send every recent registered prospect that hasn't reached the Google sheet.
   async retrySheetSync(): Promise<{ attempted: number; sent: number }> {
     const { data, error } = await supabase.functions.invoke('sync-lead-to-sheet', { body: { pending: true } });

@@ -215,6 +215,7 @@ const followUpsUnavailable = () => {
 
 export const followUpContactsApi = USE_SUPABASE ? supabaseFollowUpContactsApi : {
   async retrySheetSync(): Promise<{ attempted: number; sent: number }> { return { attempted: 0, sent: 0 }; },
+  async getNoteHistory(_contactId: string): Promise<{ entries: import('../types').FollowUpNoteEntry[] }> { return { entries: [] }; },
   async getAll(_options?: any): Promise<{ contacts: import('../types').FollowUpContact[] }> { return { contacts: [] }; },
   async create(_input: any): Promise<never> { return followUpsUnavailable(); },
   async createMany(_rows: any[]): Promise<never> { return followUpsUnavailable(); },
