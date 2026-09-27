@@ -129,8 +129,8 @@ const WeekBody: React.FC<{
       )}
       {(canReadRecap || canOpenManual) && (
         <div className="mt-5 flex flex-col gap-2.5 sm:flex-row">
-          {canReadRecap && <button type="button" onClick={onReadRecap} className={PRIMARY}>Read the recap</button>}
-          {canOpenManual && <button type="button" onClick={onOpenManual} className={canReadRecap ? SECONDARY : PRIMARY}>Open the manual</button>}
+          {canOpenManual && <button type="button" onClick={onOpenManual} className={PRIMARY}>Open the manual</button>}
+          {canReadRecap && <button type="button" onClick={onReadRecap} className={canOpenManual ? SECONDARY : PRIMARY}>Read the recap</button>}
         </div>
       )}
       {questions.length > 0 && (

@@ -256,8 +256,8 @@ const ParticipantWeekPage: React.FC = () => {
           {(canReadRecap || canOpenManual) && (
             <div data-wt="pw-manual" className="mt-6">
               <div className="flex flex-col gap-2.5 sm:flex-row">
-                {canReadRecap && <button type="button" onClick={() => setDocOpen(true)} className={PRIMARY}>Read the recap</button>}
-                {canOpenManual && <button type="button" onClick={openManual} className={canReadRecap ? SECONDARY : PRIMARY}>Open the manual</button>}
+                {canOpenManual && <button type="button" onClick={openManual} className={PRIMARY}>Open the manual</button>}
+                {canReadRecap && <button type="button" onClick={() => setDocOpen(true)} className={canOpenManual ? SECONDARY : PRIMARY}>Read the recap</button>}
               </div>
               {canOpenManual && manualComic && (
                 <button
