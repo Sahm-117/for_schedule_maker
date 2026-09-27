@@ -60,6 +60,9 @@ import {
   faithThreadReadsApi as supabaseFaithThreadReadsApi,
   supportChecklistApi as supabaseSupportChecklistApi,
   recapDocumentsApi as supabaseRecapDocumentsApi,
+  manualDocumentsApi as supabaseManualDocumentsApi,
+  earlierClassDocumentsApi as supabaseEarlierClassDocumentsApi,
+  manualQuestionsApi as supabaseManualQuestionsApi,
   onboardingEventsApi as supabaseOnboardingEventsApi,
   hubApi as supabaseHubApi,
   participantAccountsApi as supabaseParticipantAccountsApi,
@@ -179,7 +182,7 @@ export const weeksApi = USE_SUPABASE ? supabaseWeeksApi : {
     };
   },
 
-  async update(_weekId: number, _input: { title?: string | null; shareWithParticipants?: boolean; participantReleasedEarlyAt?: string | null; expectations?: string | null }): Promise<{ week: Week }> {
+  async update(_weekId: number, _input: { title?: string | null; recapSummary?: string | null; discussionPrompt?: string | null; recapDocumentUrl?: string | null; recapDocumentName?: string | null; shareWithParticipants?: boolean; participantReleasedEarlyAt?: string | null; expectations?: string | null; manualSummary?: string | null; manualDiscussionPrompt?: string | null; manualDocumentUrl?: string | null; manualDocumentName?: string | null; manualReleasedEarlyAt?: string | null }): Promise<{ week: Week }> {
     throw new Error('Weeks are only editable in Supabase mode.');
   },
 };
@@ -776,6 +779,23 @@ export const supportChecklistApi = USE_SUPABASE ? supabaseSupportChecklistApi : 
 export const recapDocumentsApi = USE_SUPABASE ? supabaseRecapDocumentsApi : {
   async upload(_weekId: number, _file: File): Promise<never> { return peopleUnavailable(); },
   async remove(_weekId: number): Promise<never> { return peopleUnavailable(); },
+  async choose(_weekId: number, _url: string, _name: string | null): Promise<never> { return peopleUnavailable(); },
+};
+
+export const manualDocumentsApi = USE_SUPABASE ? supabaseManualDocumentsApi : {
+  async upload(_weekId: number, _file: File): Promise<never> { return peopleUnavailable(); },
+  async remove(_weekId: number): Promise<never> { return peopleUnavailable(); },
+  async choose(_weekId: number, _url: string, _name: string | null): Promise<never> { return peopleUnavailable(); },
+};
+
+export const earlierClassDocumentsApi = USE_SUPABASE ? supabaseEarlierClassDocumentsApi : {
+  async getAll(_excludeCohortId?: string): Promise<{ documents: import('../types').EarlierClassDocument[] }> { return { documents: [] }; },
+};
+
+export const manualQuestionsApi = USE_SUPABASE ? supabaseManualQuestionsApi : {
+  async listForCohort(_cohortId: string, _filters?: { weekId?: number; groupId?: string }): Promise<{ questions: import('../types').ManualQuestion[] }> { return { questions: [] }; },
+  async markInClass(_id: string): Promise<never> { return peopleUnavailable(); },
+  async reply(_id: string, _reply: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const groupPrayersApi = USE_SUPABASE ? supabaseGroupPrayersApi : {
@@ -827,6 +847,8 @@ export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async getPeople(): Promise<never> { return peopleUnavailable(); },
   async saveReflection(_weekId: number, _input: { stoodOut: string; goal: string; goalCheck: string }): Promise<never> { return peopleUnavailable(); },
   async setGoalDone(_weekId: number, _done: boolean): Promise<never> { return peopleUnavailable(); },
+  async askManualQuestion(_weekId: number, _body: string, _weekNumber: number, _participantName: string): Promise<never> { return peopleUnavailable(); },
+  async saveManualNote(_weekId: number, _body: string): Promise<never> { return peopleUnavailable(); },
   async recordCheckIn(_response: import('../types').CheckInResponse, _misses: { sunday: number; meeting: number }, _participantName: string): Promise<never> { return peopleUnavailable(); },
   async getFaith(): Promise<never> { return peopleUnavailable(); },
   async saveFaithProject(_body: string, _submit: boolean, _participantName: string): Promise<never> { return peopleUnavailable(); },

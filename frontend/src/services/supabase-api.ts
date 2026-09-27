@@ -76,6 +76,11 @@ const mapWeekRow = (week: any): Week => {
     shareWithParticipants: week.shareWithParticipants ?? true,
     participantReleasedEarlyAt: week.participantReleasedEarlyAt ?? null,
     expectations: week.expectations ?? null,
+    manualDocumentUrl: week.manualDocumentUrl ?? null,
+    manualDocumentName: week.manualDocumentName ?? null,
+    manualSummary: week.manualSummary ?? null,
+    manualDiscussionPrompt: week.manualDiscussionPrompt ?? null,
+    manualReleasedEarlyAt: week.manualReleasedEarlyAt ?? null,
     days: sortedDays.map((day: any) => ({
       id: day.id,
       weekId: day.weekId,
@@ -357,7 +362,7 @@ export const weeksApi = {
     return { week, pendingChanges };
   },
 
-  async update(weekId: number, input: { title?: string | null; recapSummary?: string | null; discussionPrompt?: string | null; recapDocumentUrl?: string | null; recapDocumentName?: string | null; shareWithParticipants?: boolean; participantReleasedEarlyAt?: string | null; expectations?: string | null }): Promise<{ week: Week }> {
+  async update(weekId: number, input: { title?: string | null; recapSummary?: string | null; discussionPrompt?: string | null; recapDocumentUrl?: string | null; recapDocumentName?: string | null; shareWithParticipants?: boolean; participantReleasedEarlyAt?: string | null; expectations?: string | null; manualSummary?: string | null; manualDiscussionPrompt?: string | null; manualDocumentUrl?: string | null; manualDocumentName?: string | null; manualReleasedEarlyAt?: string | null }): Promise<{ week: Week }> {
     const { data, error } = await supabase
       .from('Week')
       .update(input)
@@ -2914,6 +2919,36 @@ export const participantAppApi = {
     const { data, error } = await supabase.rpc('set_reflection_goal_done', { p_token: getSessionToken(), p_week_id: weekId, p_done: done });
     if (error) throw participantAppError(error.message, 'Could not update your goal. Please try again.');
     return data as import('../types').ParticipantReflection;
+  },
+
+  // Same instant-notify pattern as submitTestimony: bell + push straight to
+  // the participant's support, plus notifyAdmins, right after the RPC returns.
+  async askManualQuestion(weekId: number, body: string, weekNumber: number, participantName: string): Promise<import('../types').ParticipantManualQuestion> {
+    const { data, error } = await supabase.rpc('ask_manual_question', { p_token: getSessionToken(), p_week_id: weekId, p_body: body });
+    if (error) throw participantAppError(error.message, 'Could not send your question. Please try again.');
+    const result = data as import('../types').ParticipantManualQuestion & { supportId?: string | null };
+    if (result.supportId) {
+      void notify(
+        { userIds: [result.supportId] },
+        `${participantName} asked a question`,
+        `About Week ${weekNumber}'s class manual.`,
+        '/support/recap',
+        'MANUAL_QUESTION',
+      );
+    }
+    void notifyAdmins(
+      `${participantName} asked a question`,
+      `About Week ${weekNumber}'s class manual.`,
+      '/feedback?tab=manual',
+      'MANUAL_QUESTION',
+    );
+    return { id: result.id, body: result.body, status: result.status, reply: result.reply, createdAt: result.createdAt };
+  },
+
+  async saveManualNote(weekId: number, body: string): Promise<{ weekId: number; body: string; updatedAt: string }> {
+    const { data, error } = await supabase.rpc('save_manual_note', { p_token: getSessionToken(), p_week_id: weekId, p_body: body });
+    if (error) throw participantAppError(error.message, 'Could not save your note. Please try again.');
+    return data as { weekId: number; body: string; updatedAt: string };
   },
 
   async getFaith(): Promise<import('../types').ParticipantFaith> {
@@ -6762,6 +6797,75 @@ export const recapDocumentsApi = {
 
   async remove(weekId: number): Promise<void> {
     const { error } = await supabase.from('Week').update({ recapDocumentUrl: null, recapDocumentName: null }).eq('id', weekId);
+    if (error) throw new Error(error.message);
+  },
+
+  /** Attach an already-uploaded document (from another cohort's week) instead of uploading a new file. */
+  async choose(weekId: number, url: string, name: string | null): Promise<void> {
+    const { error } = await supabase.from('Week').update({ recapDocumentUrl: url, recapDocumentName: name }).eq('id', weekId);
+    if (error) throw new Error(error.message);
+  },
+};
+
+// Class manual document (usually a PDF), separate from the recap. Same
+// storage shape as recapDocumentsApi, under manuals/ instead of recaps/.
+export const manualDocumentsApi = {
+  async upload(weekId: number, file: File): Promise<{ url: string; name: string }> {
+    const path = `manuals/week-${weekId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const { error: uploadError } = await supabase.storage.from('resources').upload(path, file, { upsert: false, contentType: file.type || undefined });
+    if (uploadError) throw new Error(uploadError.message);
+    const { data } = supabase.storage.from('resources').getPublicUrl(path);
+    const { error } = await supabase
+      .from('Week')
+      .update({ manualDocumentUrl: data.publicUrl, manualDocumentName: file.name })
+      .eq('id', weekId);
+    if (error) throw new Error(error.message);
+    return { url: data.publicUrl, name: file.name };
+  },
+
+  async remove(weekId: number): Promise<void> {
+    const { error } = await supabase.from('Week').update({ manualDocumentUrl: null, manualDocumentName: null }).eq('id', weekId);
+    if (error) throw new Error(error.message);
+  },
+
+  /** Attach an already-uploaded document (from another cohort's week) instead of uploading a new file. */
+  async choose(weekId: number, url: string, name: string | null): Promise<void> {
+    const { error } = await supabase.from('Week').update({ manualDocumentUrl: url, manualDocumentName: name }).eq('id', weekId);
+    if (error) throw new Error(error.message);
+  },
+};
+
+// "Choose an earlier file" picker: every distinct manual/recap document ever
+// uploaded, from other cohorts.
+export const earlierClassDocumentsApi = {
+  async getAll(excludeCohortId?: string): Promise<{ documents: import('../types').EarlierClassDocument[] }> {
+    const { data, error } = await supabase.rpc('list_earlier_class_documents', { p_exclude_cohort_id: excludeCohortId ?? null });
+    if (error) throw new Error(error.message);
+    return { documents: (data as import('../types').EarlierClassDocument[]) || [] };
+  },
+};
+
+// Manual questions: participants ask via SECURITY DEFINER RPCs (token-based,
+// same as testimonies/faith help); support/admin read and act on them via
+// staff RPCs (session-token header, same as get_my_hub).
+export const manualQuestionsApi = {
+  async listForCohort(cohortId: string, filters?: { weekId?: number; groupId?: string }): Promise<{ questions: import('../types').ManualQuestion[] }> {
+    const { data, error } = await supabase.rpc('list_manual_questions', {
+      p_cohort_id: cohortId,
+      p_week_id: filters?.weekId ?? null,
+      p_group_id: filters?.groupId ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return { questions: (data as import('../types').ManualQuestion[]) || [] };
+  },
+
+  async markInClass(id: string): Promise<void> {
+    const { error } = await supabase.rpc('mark_manual_question_in_class', { p_id: id });
+    if (error) throw new Error(error.message);
+  },
+
+  async reply(id: string, reply: string): Promise<void> {
+    const { error } = await supabase.rpc('reply_manual_question', { p_id: id, p_reply: reply });
     if (error) throw new Error(error.message);
   },
 };

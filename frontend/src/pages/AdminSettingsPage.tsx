@@ -680,6 +680,12 @@ const RecapTimingsCard: React.FC = () => {
             title={`Recap: participants, ${dayLabel(saved.participantDay)} at ${formatTimeOfDay(saved.participantTime)}`}
           />
           <StatTile
+            value={dayShort(saved.manualDay)}
+            unit={formatTimeOfDay(saved.manualTime)}
+            label="Class manual"
+            title={`Class manual, ${dayLabel(saved.manualDay)} at ${formatTimeOfDay(saved.manualTime)}`}
+          />
+          <StatTile
             value={dayShort(savedFeedbackTimes.supportDay)}
             unit={formatTimeOfDay(savedFeedbackTimes.supportTime)}
             label="Feedback: supports"
@@ -744,6 +750,27 @@ const RecapTimingsCard: React.FC = () => {
               className="w-full rounded-2xl border border-gray-300 px-3 py-1.5 text-sm focus:border-primary focus:outline-none disabled:opacity-50"
             />
           </div>
+        </div>
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Class manual</p>
+          <div className="grid grid-cols-2 gap-3">
+            <AppSelect
+              value={times.manualDay}
+              onChange={(v) => setTimes((prev) => ({ ...prev, manualDay: v }))}
+              options={RECAP_DAY_OPTIONS}
+              placeholder="Day"
+              compact
+              disabled={saving}
+            />
+            <input
+              type="time"
+              value={times.manualTime}
+              disabled={saving}
+              onChange={(e) => setTimes((prev) => ({ ...prev, manualTime: e.target.value }))}
+              className="w-full rounded-2xl border border-gray-300 px-3 py-1.5 text-sm focus:border-primary focus:outline-none disabled:opacity-50"
+            />
+          </div>
+          <p className="mt-1 text-xs text-gray-400">Same moment for both supports and participants.</p>
         </div>
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">After-class feedback: supports</p>

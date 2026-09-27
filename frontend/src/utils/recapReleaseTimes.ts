@@ -13,6 +13,9 @@ export interface RecapReleaseTimes {
   supportTime: string;
   participantDay: string;
   participantTime: string;
+  /** Class manual: one day/time shared by both supports and participants. */
+  manualDay: string;
+  manualTime: string;
 }
 
 export const DEFAULT_RECAP_RELEASE_TIMES: RecapReleaseTimes = {
@@ -20,6 +23,8 @@ export const DEFAULT_RECAP_RELEASE_TIMES: RecapReleaseTimes = {
   supportTime: '16:00',
   participantDay: 'MONDAY',
   participantTime: '18:00',
+  manualDay: 'THURSDAY',
+  manualTime: '18:00',
 };
 
 export const RECAP_DAY_OPTIONS = [
@@ -45,6 +50,8 @@ export const normaliseRecapReleaseTimes = (value: unknown): RecapReleaseTimes =>
     supportTime: time(source.supportTime, DEFAULT_RECAP_RELEASE_TIMES.supportTime),
     participantDay: day(source.participantDay, DEFAULT_RECAP_RELEASE_TIMES.participantDay),
     participantTime: time(source.participantTime, DEFAULT_RECAP_RELEASE_TIMES.participantTime),
+    manualDay: day(source.manualDay, DEFAULT_RECAP_RELEASE_TIMES.manualDay),
+    manualTime: time(source.manualTime, DEFAULT_RECAP_RELEASE_TIMES.manualTime),
   };
 };
 

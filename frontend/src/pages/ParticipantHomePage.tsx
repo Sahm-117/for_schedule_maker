@@ -361,6 +361,16 @@ const ParticipantHomePage: React.FC = () => {
           </section>
         ) : null}
 
+        {week?.manual && (
+          <section className="rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">This week&apos;s manual</p>
+            <p className="mt-2 text-base font-semibold leading-[1.45] text-gray-900">{week.title || `Week ${week.weekNumber}`}</p>
+            <NavLink to={`/me/week/${week.weekNumber}`} className="mt-3.5 flex min-h-[46px] w-full items-center justify-center rounded-xl bg-primary p-3 text-sm font-semibold text-white">
+              Open the manual
+            </NavLink>
+          </section>
+        )}
+
         {scripture && todayScriptureDay && scriptureDay && (
           <section data-wt="ph-scripture" className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
             <div className="flex flex-wrap items-center gap-2.5 px-5 pb-3 pt-[18px]">

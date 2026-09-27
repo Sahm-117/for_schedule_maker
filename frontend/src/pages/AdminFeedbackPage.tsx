@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import AppSelect from '../components/AppSelect';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { aiApi, feedbackApi } from '../services/api';
-import type { ClassFeedbackWeekResult, FeedbackAnswers, FeedbackRating, FeedbackResults } from '../types';
+import { aiApi, feedbackApi, groupsApi, manualQuestionsApi } from '../services/api';
+import type { ClassFeedbackWeekResult, FeedbackAnswers, FeedbackRating, FeedbackResults, Group, ManualQuestion } from '../types';
 import Spinner from '../components/Spinner';
+import SegmentedTabs from '../components/SegmentedTabs';
 
 // Anonymous feedback participants send from their app, for the active cohort.
 // The answers show once at least five have come in, so nobody can be picked out.
@@ -91,10 +92,87 @@ const ClassFeedbackWeekCard: React.FC<{ week: ClassFeedbackWeekResult }> = ({ we
   );
 };
 
+// A question as list_manual_questions() returns it to an admin (every group),
+// with the same "To be answered in class" / "Reply" actions as the support
+// Recap page's version, plus the group name since an admin sees every group.
+const ManualQuestionRow: React.FC<{ question: ManualQuestion; onChanged: () => void }> = ({ question, onChanged }) => {
+  const [replying, setReplying] = useState(false);
+  const [reply, setReply] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [rowError, setRowError] = useState('');
+
+  const markInClass = async () => {
+    setBusy(true);
+    setRowError('');
+    try {
+      await manualQuestionsApi.markInClass(question.id);
+      onChanged();
+    } catch (err) {
+      setRowError(err instanceof Error ? err.message : 'Could not update this question.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendReply = async () => {
+    if (!reply.trim()) return;
+    setBusy(true);
+    setRowError('');
+    try {
+      await manualQuestionsApi.reply(question.id, reply.trim());
+      setReplying(false);
+      setReply('');
+      onChanged();
+    } catch (err) {
+      setRowError(err instanceof Error ? err.message : 'Could not send your reply.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <li className="rounded-2xl bg-gray-50 px-4 py-3">
+      <p className="text-sm font-semibold text-gray-900">{question.participantName}{question.groupName ? ` · ${question.groupName}` : ''}</p>
+      <p className="mt-1 text-sm text-gray-700">{question.body}</p>
+      {question.status === 'REPLIED' && question.reply ? (
+        <p className="mt-2 text-sm text-gray-600"><span className="font-semibold text-gray-800">Reply: </span>{question.reply}</p>
+      ) : replying ? (
+        <div className="mt-2">
+          <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={2} placeholder="Write a short reply" className="w-full resize-y rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+          <div className="mt-2 flex gap-2">
+            <button type="button" onClick={() => void sendReply()} disabled={busy || !reply.trim()} className="rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50">
+              {busy ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3 w-3" />Sending…</span>) : 'Send reply'}
+            </button>
+            <button type="button" onClick={() => { setReplying(false); setReply(''); }} className="rounded-full border border-gray-200 px-3.5 py-1.5 text-xs font-semibold text-gray-600">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button type="button" onClick={() => void markInClass()} disabled={busy} className="rounded-full bg-amber-100/80 px-3 py-1.5 text-xs font-bold text-amber-700 disabled:opacity-50">
+            {question.status === 'IN_CLASS' ? 'To be answered in class ✓' : 'To be answered in class'}
+          </button>
+          <button type="button" onClick={() => setReplying(true)} disabled={busy} className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 disabled:opacity-50">Reply</button>
+        </div>
+      )}
+      {rowError && <p className="mt-1.5 text-xs text-red-700">{rowError}</p>}
+    </li>
+  );
+};
+
+type FeedbackTab = 'general' | 'class' | 'manual';
+
+const FEEDBACK_TABS: Array<{ key: FeedbackTab; label: string; shortLabel?: string }> = [
+  { key: 'general', label: 'General' },
+  { key: 'class', label: 'After class' },
+  { key: 'manual', label: 'Manual questions', shortLabel: 'Questions' },
+];
+
 const AdminFeedbackPage: React.FC = () => {
   const { isAdmin } = useAuth();
   const { activeCohort, weeks } = useAppData();
   const toast = useToast();
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState<FeedbackTab>(() => (searchParams.get('tab') === 'manual' ? 'manual' : 'general'));
   const [results, setResults] = useState<FeedbackResults | null>(null);
   const [error, setError] = useState('');
   const [themes, setThemes] = useState<{ themes: string; createdAt: string } | null>(null);
@@ -102,6 +180,11 @@ const AdminFeedbackPage: React.FC = () => {
   const [classFeedback, setClassFeedback] = useState<ClassFeedbackWeekResult[] | null>(null);
   const [classFeedbackError, setClassFeedbackError] = useState('');
   const [selectedWeekId, setSelectedWeekId] = useState('');
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [questions, setQuestions] = useState<ManualQuestion[] | null>(null);
+  const [questionsError, setQuestionsError] = useState('');
+  const [questionWeekId, setQuestionWeekId] = useState('');
+  const [questionGroupId, setQuestionGroupId] = useState('');
 
   useEffect(() => {
     if (!activeCohort) return;
@@ -117,11 +200,36 @@ const AdminFeedbackPage: React.FC = () => {
     feedbackApi.getClassFeedbackResults(activeCohort.id)
       .then((rows) => { setClassFeedback(rows); setSelectedWeekId(rows[0] ? String(rows[0].weekId) : ''); })
       .catch((err) => setClassFeedbackError(err instanceof Error ? err.message : 'Could not load after-class feedback.'));
+    groupsApi.getAll({ cohortId: activeCohort.id }).then((res) => setGroups(res.groups)).catch(() => setGroups([]));
   }, [activeCohort?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadQuestions = () => {
+    if (!activeCohort) return;
+    manualQuestionsApi.listForCohort(activeCohort.id, {
+      weekId: questionWeekId ? Number(questionWeekId) : undefined,
+      groupId: questionGroupId || undefined,
+    })
+      .then((res) => setQuestions(res.questions))
+      .catch((err) => setQuestionsError(err instanceof Error ? err.message : 'Could not load manual questions.'));
+  };
+
+  useEffect(() => {
+    loadQuestions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCohort?.id, questionWeekId, questionGroupId]);
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'manual') setTab('manual');
+  }, [searchParams]);
 
   const weekOptions = useMemo(
     () => [...weeks].sort((a, b) => b.weekNumber - a.weekNumber).map((w) => ({ value: String(w.id), label: w.title ? `Week ${w.weekNumber} — ${w.title}` : `Week ${w.weekNumber}` })),
     [weeks],
+  );
+  const questionWeekOptions = useMemo(() => [{ value: '', label: 'All weeks' }, ...weekOptions], [weekOptions]);
+  const groupOptions = useMemo(
+    () => [{ value: '', label: 'All groups' }, ...groups.map((g) => ({ value: g.id, label: g.name }))],
+    [groups],
   );
   const selectedWeek = classFeedback?.find((w) => String(w.weekId) === selectedWeekId) ?? null;
 
@@ -144,9 +252,13 @@ const AdminFeedbackPage: React.FC = () => {
 
   return (
     <div>
-      <PageHeader title="Feedback" subtitle="Anonymous feedback participants send from their app. Answers show once at least five have come in." />
+      <PageHeader title="Feedback" subtitle="What participants send from their app." />
 
-      {error ? (
+      <div className="mb-4">
+        <SegmentedTabs tabs={FEEDBACK_TABS} active={tab} onChange={(k) => setTab(k as FeedbackTab)} />
+      </div>
+
+      {tab === 'general' && (error ? (
         <p className={`${CARD} text-sm text-red-700`}>{error}</p>
       ) : !results ? (
         <p className="flex items-center justify-center gap-1.5 py-12 text-center text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading feedback…</p>
@@ -199,10 +311,9 @@ const AdminFeedbackPage: React.FC = () => {
             </>
           )}
         </section>
-      )}
+      ))}
 
-      <h2 className="mb-3 mt-8 text-xs font-semibold uppercase tracking-wide text-gray-500">After class</h2>
-      {classFeedbackError ? (
+      {tab === 'class' && (classFeedbackError ? (
         <p className={`${CARD} text-sm text-red-700`}>{classFeedbackError}</p>
       ) : classFeedback === null ? (
         <p className="flex items-center justify-center gap-1.5 py-8 text-center text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading after-class feedback…</p>
@@ -215,6 +326,26 @@ const AdminFeedbackPage: React.FC = () => {
           </div>
           {selectedWeek ? <ClassFeedbackWeekCard week={selectedWeek} /> : (
             <p className="mt-4 text-sm text-gray-500">Choose a week to see answers.</p>
+          )}
+        </section>
+      ))}
+
+      {tab === 'manual' && (
+        <section className={CARD}>
+          <div className="flex flex-wrap gap-3">
+            <div className="w-full max-w-xs sm:w-auto"><AppSelect value={questionWeekId} onChange={setQuestionWeekId} options={questionWeekOptions} placeholder="All weeks" compact /></div>
+            <div className="w-full max-w-xs sm:w-auto"><AppSelect value={questionGroupId} onChange={setQuestionGroupId} options={groupOptions} placeholder="All groups" compact /></div>
+          </div>
+          {questionsError ? (
+            <p className="mt-4 text-sm text-red-700">{questionsError}</p>
+          ) : questions === null ? (
+            <p className="mt-4 flex items-center gap-1.5 text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading questions…</p>
+          ) : questions.length === 0 ? (
+            <p className="mt-4 text-sm text-gray-400">No questions yet.</p>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {questions.map((q) => <ManualQuestionRow key={q.id} question={q} onChanged={loadQuestions} />)}
+            </ul>
           )}
         </section>
       )}

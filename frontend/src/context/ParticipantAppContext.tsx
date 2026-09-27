@@ -14,6 +14,10 @@ interface ParticipantAppContextValue {
   /** Put a just-saved reflection into the loaded data without a refetch. */
   applyReflection: (reflection: ParticipantReflection) => void;
   applyCheckIn: (checkIn: NonNullable<ParticipantHome['lastCheckIn']>) => void;
+  /** Put a just-asked manual question into that week without a refetch. */
+  applyManualQuestion: (weekId: number, question: import('../types').ParticipantManualQuestion) => void;
+  /** Put a just-saved manual note into that week without a refetch. */
+  applyManualNote: (weekId: number, body: string) => void;
 }
 
 const ParticipantAppContext = createContext<ParticipantAppContextValue | undefined>(undefined);
@@ -86,8 +90,22 @@ export const ParticipantAppProvider: React.FC<{ children: React.ReactNode }> = (
     setHome((prev) => prev && ({ ...prev, lastCheckIn: checkIn }));
   };
 
+  const applyManualQuestion = (weekId: number, question: import('../types').ParticipantManualQuestion) => {
+    setHome((prev) => prev && ({
+      ...prev,
+      weeks: prev.weeks.map((w) => (w.id === weekId ? { ...w, manualQuestions: [...w.manualQuestions, question] } : w)),
+    }));
+  };
+
+  const applyManualNote = (weekId: number, body: string) => {
+    setHome((prev) => prev && ({
+      ...prev,
+      weeks: prev.weeks.map((w) => (w.id === weekId ? { ...w, manualNote: body } : w)),
+    }));
+  };
+
   return (
-    <ParticipantAppContext.Provider value={{ home, loading, error, reload, applyReflection, applyCheckIn }}>
+    <ParticipantAppContext.Provider value={{ home, loading, error, reload, applyReflection, applyCheckIn, applyManualQuestion, applyManualNote }}>
       {children}
     </ParticipantAppContext.Provider>
   );

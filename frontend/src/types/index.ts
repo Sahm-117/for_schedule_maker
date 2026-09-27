@@ -101,7 +101,22 @@ export interface Week {
   participantReleasedEarlyAt?: string | null;
   /** What participants should do this week, one item per line. */
   expectations?: string | null;
+  /** The class manual document, separate from the recap. */
+  manualDocumentUrl?: string | null;
+  manualDocumentName?: string | null;
+  manualSummary?: string | null;
+  manualDiscussionPrompt?: string | null;
+  /** Set by "Send manual now"; overrides the configured manual release time. */
+  manualReleasedEarlyAt?: string | null;
   days: Day[];
+}
+
+/** The class manual's content once released, same shape everywhere it appears. */
+export interface ManualContent {
+  documentUrl: string | null;
+  documentName: string | null;
+  summary: string | null;
+  discussionPrompt: string | null;
 }
 
 /** One week as support_recaps() returns it: content always included; `released` = support release time passed. */
@@ -115,6 +130,48 @@ export interface SupportRecap {
   discussionPrompt: string | null;
   recapDocumentUrl: string | null;
   recapDocumentName: string | null;
+  /** Present only once released (same manual release time for supports and participants). */
+  manual: ManualContent | null;
+  manualReleased: boolean;
+  manualReleasedAt: string | null;
+  /** NEW-status questions for this week, scoped to the caller's own groups (all cohort for an admin). */
+  unreadQuestionCount: number;
+}
+
+export type ManualQuestionStatus = 'NEW' | 'IN_CLASS' | 'REPLIED';
+
+/** A participant's own question, as returned inside participant_home. */
+export interface ParticipantManualQuestion {
+  id: string;
+  body: string;
+  status: ManualQuestionStatus;
+  reply: string | null;
+  createdAt: string;
+}
+
+/** A question as support/admin see it via list_manual_questions(). */
+export interface ManualQuestion {
+  id: string;
+  weekId: number;
+  weekNumber: number;
+  groupId: string | null;
+  groupName: string | null;
+  participantId: string;
+  participantName: string;
+  body: string;
+  status: ManualQuestionStatus;
+  reply: string | null;
+  repliedAt: string | null;
+  createdAt: string;
+}
+
+/** One row from list_earlier_class_documents(), for the "choose an earlier file" picker. */
+export interface EarlierClassDocument {
+  kind: 'RECAP' | 'MANUAL';
+  url: string;
+  name: string | null;
+  cohortName: string;
+  weekNumber: number;
 }
 
 export interface SupportActivityCompletion {
@@ -204,6 +261,7 @@ export type NotificationType =
   | 'SCHEDULE_CHANGE'
   | 'FAITH_HELP'
   | 'TESTIMONY'
+  | 'MANUAL_QUESTION'
   | 'GENERAL';
 
 export interface Notification {
@@ -752,6 +810,12 @@ export interface ParticipantHomeWeek {
   discussionPrompt: string | null;
   recapDocumentUrl: string | null;
   recapDocumentName: string | null;
+  /** Present only once released (manualReleasedEarlyAt, or the configured manual release time has passed) and a document exists. */
+  manual: ManualContent | null;
+  /** This participant's own questions for this week, always visible to them regardless of release. */
+  manualQuestions: ParticipantManualQuestion[];
+  /** This participant's own private note for this week, or null if they haven't written one. */
+  manualNote: string | null;
 }
 
 export type CheckInResponse = 'OKAY' | 'NEED_HELP';

@@ -1,0 +1,776 @@
+/* Class Manual reader — every selector is scoped under .class-manual-reader (or .cmr-dialog,
+   its native <dialog> host) so nothing leaks into the rest of the app. Mobile-first at 390px. */
+
+@font-face {
+  font-family: 'CMR Atkinson';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/class-manual/AtkinsonHyperlegible-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'CMR Atkinson';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/class-manual/AtkinsonHyperlegible-Bold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'CMR Lilita';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/class-manual/LilitaOne-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'CMR Literata';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/class-manual/Literata-Italic.woff2') format('woff2');
+}
+
+.cmr-dialog {
+  padding: 0;
+  border: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+  color-scheme: light;
+}
+.cmr-dialog::backdrop {
+  background: #1a120a;
+}
+.cmr-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.class-manual-reader {
+  --cmr-ink: #2a1a12;
+  --cmr-bg: #f6e6d2;
+  --cmr-card: #fffdf8;
+  --cmr-accent: #ff914d;
+  --cmr-yellow: #ffd35a;
+  --cmr-tan: #f2b98a;
+  --cmr-cream: #fff3dc;
+  --cmr-muted: #6d6259;
+  height: 100dvh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--cmr-bg);
+  background-image: radial-gradient(rgba(255, 145, 77, 0.28) 1.6px, transparent 1.8px);
+  background-size: 14px 14px;
+  color: var(--cmr-ink);
+  font-family: 'CMR Atkinson', system-ui, sans-serif;
+  overflow: hidden;
+}
+.class-manual-reader * {
+  box-sizing: border-box;
+}
+/* :where() keeps this reset at element weight, so app buttons placed in the
+   end card (Tailwind classes) keep their own look. */
+:where(.class-manual-reader) button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+.class-manual-reader button:focus-visible {
+  outline: 3px solid var(--cmr-ink);
+  outline-offset: 2px;
+}
+.cmr-sr-heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip: rect(0 0 0 0);
+  margin: 0;
+}
+
+/* Top bar: close + settings */
+.cmr-topbar {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
+  background: var(--cmr-card);
+  border-bottom: 3px solid var(--cmr-ink);
+}
+.cmr-topbar-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.cmr-topbar-label > span {
+  padding: 0 8px;
+  color: var(--cmr-accent);
+}
+.cmr-topbar-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+.cmr-icon-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #eee7dc;
+  font-size: 16px;
+  display: grid;
+  place-items: center;
+}
+.cmr-settings-panel {
+  position: fixed;
+  top: calc(56px + env(safe-area-inset-top));
+  right: 14px;
+  z-index: 30;
+  width: min(280px, calc(100vw - 28px));
+  background: var(--cmr-card);
+  border: 3px solid var(--cmr-ink);
+  border-radius: 14px;
+  box-shadow: 5px 5px 0 var(--cmr-ink);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cmr-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cmr-settings-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+.cmr-segmented {
+  display: flex;
+  border: 2px solid var(--cmr-ink);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.cmr-segmented button {
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  min-height: 32px;
+}
+.cmr-segmented button + button {
+  border-left: 2px solid var(--cmr-ink);
+}
+.cmr-segmented-active {
+  background: var(--cmr-accent);
+}
+.cmr-toggle {
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  border: 2px solid var(--cmr-ink);
+  background: #ddd2c2;
+  position: relative;
+  flex: none;
+  padding: 0;
+}
+.cmr-toggle[data-on='true'] {
+  background: var(--cmr-accent);
+}
+.cmr-toggle span {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--cmr-card);
+  border: 2px solid var(--cmr-ink);
+  transition: transform 0.15s ease;
+}
+.cmr-toggle[data-on='true'] span {
+  transform: translateX(16px);
+}
+
+/* Chapter bar: tabs + progress + label */
+.cmr-header {
+  flex: none;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--cmr-card);
+  border-bottom: 3.5px solid var(--cmr-ink);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cmr-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cmr-tabs::-webkit-scrollbar {
+  display: none;
+}
+.cmr-tabs button {
+  flex: 1 1 0;
+  min-width: 40px;
+  height: 40px;
+  border: 3px solid var(--cmr-ink);
+  border-radius: 10px;
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 15px;
+  padding: 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.cmr-tab-active {
+  background: var(--cmr-accent);
+  box-shadow: 3px 3px 0 var(--cmr-ink);
+}
+.cmr-tab-inactive {
+  background: var(--cmr-card);
+}
+.cmr-progress-track {
+  height: 9px;
+  border: 2.5px solid var(--cmr-ink);
+  border-radius: 999px;
+  background: var(--cmr-card);
+  overflow: hidden;
+}
+.cmr-progress-fill {
+  height: 100%;
+  background: var(--cmr-accent);
+  border-right: 2.5px solid var(--cmr-ink);
+  transition: width 0.3s ease;
+}
+.cmr-bar-label-row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 13px;
+  line-height: 1.3;
+  min-width: 0;
+}
+.cmr-bar-label {
+  flex: none;
+  font-weight: 700;
+}
+.cmr-bar-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.85;
+}
+
+/* Scroll area + main column */
+.cmr-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cmr-main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Shared comic-panel card shell */
+.cmr-card {
+  background: var(--cmr-card);
+  border: 3.5px solid var(--cmr-ink);
+  box-shadow: 6px 6px 0 var(--cmr-ink);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* Cover */
+.cmr-cover-art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-bottom: 3.5px solid var(--cmr-ink);
+}
+.cmr-cover-body {
+  padding: 16px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+.cmr-cover-org {
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-size: 0.78em;
+}
+.cmr-cover-series {
+  background: var(--cmr-accent);
+  border: 3px solid var(--cmr-ink);
+  box-shadow: 3px 3px 0 var(--cmr-ink);
+  padding: 6px 12px;
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 1.05em;
+  transform: rotate(-1.2deg);
+}
+.cmr-cover-title {
+  margin: 4px 0 0;
+  font-family: 'CMR Lilita', sans-serif;
+  font-weight: 400;
+  font-size: clamp(1.7em, 7vw, 2.35em);
+  line-height: 1.05;
+  text-wrap: balance;
+}
+.cmr-block-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cmr-block-pill {
+  align-self: flex-start;
+  background: var(--cmr-accent);
+  border: 3px solid var(--cmr-ink);
+  box-shadow: 3px 3px 0 var(--cmr-ink);
+  padding: 6px 14px;
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 1.2em;
+  line-height: 1.2;
+}
+.cmr-block-pill-left {
+  transform: rotate(-1deg);
+}
+.cmr-block-pill-right {
+  transform: rotate(1deg);
+}
+.cmr-objective-box {
+  background: #ffe7b8;
+  border: 3px solid var(--cmr-ink);
+  box-shadow: 3px 3px 0 var(--cmr-ink);
+  padding: 12px 14px;
+  line-height: 1.6;
+}
+.cmr-objective-box p {
+  margin: 0;
+  text-wrap: pretty;
+}
+.cmr-outline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cmr-outline-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 12px;
+  background: var(--cmr-card);
+  border: 3px solid var(--cmr-ink);
+  border-radius: 10px;
+  box-shadow: 3px 3px 0 var(--cmr-ink);
+  font-size: 1em;
+  line-height: 1.3;
+}
+.cmr-outline-num {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2.5px solid var(--cmr-ink);
+  border-radius: 50%;
+  background: var(--cmr-yellow);
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 0.9em;
+}
+.cmr-outline-text {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+}
+.cmr-outline-chevron {
+  flex: none;
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 1.2em;
+}
+
+/* Chapter banner */
+.cmr-chapter-banner {
+  position: relative;
+  background-color: var(--cmr-accent);
+  background-image: radial-gradient(rgba(42, 26, 18, 0.22) 1.6px, transparent 1.8px);
+  background-size: 9px 9px;
+  border: 3.5px solid var(--cmr-ink);
+  box-shadow: 6px 6px 0 var(--cmr-ink);
+  border-radius: 6px;
+  padding: 16px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+.cmr-chapter-pill {
+  align-self: flex-start;
+  background: var(--cmr-card);
+  border: 3px solid var(--cmr-ink);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-weight: 700;
+  font-size: 13px;
+}
+.cmr-chapter-title-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.cmr-chapter-tab-circle {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border: 3.5px solid var(--cmr-ink);
+  border-radius: 50%;
+  background: var(--cmr-yellow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 1.7em;
+  box-shadow: 3px 3px 0 var(--cmr-ink);
+}
+.cmr-chapter-title {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-family: 'CMR Lilita', sans-serif;
+  font-weight: 400;
+  font-size: 1.5em;
+  line-height: 1.08;
+  text-wrap: balance;
+  background: var(--cmr-card);
+  border: 3px solid var(--cmr-ink);
+  padding: 8px 10px;
+  transform: rotate(-1deg);
+}
+
+/* Panels */
+.cmr-panel {
+  background: var(--cmr-card);
+  border: 3.5px solid var(--cmr-ink);
+  box-shadow: 6px 6px 0 var(--cmr-ink);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.cmr-panel-scene {
+  border-bottom: 3.5px solid var(--cmr-ink);
+  line-height: 0;
+  background: #ffe7c2;
+}
+.cmr-panel-scene svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.cmr-panel-items {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Item types */
+.cmr-item-heading {
+  margin: 0;
+  align-self: flex-start;
+  background: var(--cmr-accent);
+  border: 3px solid var(--cmr-ink);
+  box-shadow: 3px 3px 0 var(--cmr-ink);
+  padding: 6px 14px;
+  font-family: 'CMR Lilita', sans-serif;
+  font-weight: 400;
+  font-size: 1.25em;
+  line-height: 1.2;
+  transform: rotate(-1deg);
+  text-wrap: balance;
+}
+.cmr-item-caption {
+  background: #ffe7b8;
+  border: 3px solid var(--cmr-ink);
+  box-shadow: 3px 3px 0 var(--cmr-ink);
+  padding: 12px 14px;
+  line-height: 1.6;
+}
+.cmr-item-caption p {
+  margin: 0;
+  text-wrap: pretty;
+}
+.cmr-item-speech {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.cmr-avatar {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 3px solid var(--cmr-ink);
+  background: #ffd9b0;
+  overflow: hidden;
+  line-height: 0;
+}
+.cmr-avatar svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.cmr-speech-bubble {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: #fff;
+  border: 3px solid var(--cmr-ink);
+  border-radius: 20px;
+  padding: 12px 14px;
+  line-height: 1.6;
+  box-shadow: 3px 3px 0 var(--cmr-ink);
+}
+.cmr-speech-bubble::before {
+  content: '';
+  position: absolute;
+  left: -9px;
+  top: 14px;
+  width: 15px;
+  height: 15px;
+  background: #fff;
+  border-left: 3px solid var(--cmr-ink);
+  border-bottom: 3px solid var(--cmr-ink);
+  transform: rotate(45deg);
+}
+.cmr-speech-bubble p {
+  margin: 0;
+  position: relative;
+  text-wrap: pretty;
+}
+.cmr-item-scripture {
+  margin: 0;
+}
+.cmr-scripture-tear {
+  height: 14px;
+  background: #f2c98f;
+  border: 3px solid var(--cmr-ink);
+  border-radius: 10px;
+}
+.cmr-scripture-tear + .cmr-scripture-body {
+  margin-top: -3px;
+}
+.cmr-scripture-body {
+  background: var(--cmr-cream);
+  border-left: 3px solid var(--cmr-ink);
+  border-right: 3px solid var(--cmr-ink);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cmr-scripture-body + .cmr-scripture-tear {
+  margin-top: -3px;
+}
+.cmr-item-scripture blockquote {
+  margin: 0;
+  font-family: 'CMR Literata', Georgia, serif;
+  font-style: italic;
+  font-size: 1em;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+.cmr-item-scripture figcaption {
+  align-self: flex-end;
+  background: var(--cmr-accent);
+  border: 2.5px solid var(--cmr-ink);
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 0.95em;
+  box-shadow: 2px 2px 0 var(--cmr-ink);
+}
+.cmr-item-callout {
+  margin: 4px;
+  background-color: var(--cmr-yellow);
+  background-image: radial-gradient(rgba(255, 145, 77, 0.6) 1.6px, transparent 1.8px);
+  background-size: 9px 9px;
+  border: 3.5px solid var(--cmr-ink);
+  box-shadow: 5px 5px 0 var(--cmr-ink);
+  padding: 18px 14px;
+  text-align: center;
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 1.4em;
+  line-height: 1.15;
+  transform: rotate(-1.2deg);
+  text-wrap: balance;
+}
+.cmr-item-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cmr-item-list li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: #fff;
+  border: 3px solid var(--cmr-ink);
+  border-radius: 12px;
+  padding: 10px 12px;
+  line-height: 1.5;
+  box-shadow: 3px 3px 0 var(--cmr-ink);
+}
+.cmr-list-bullet {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-top: 5px;
+  background: var(--cmr-accent);
+  border: 2.5px solid var(--cmr-ink);
+  transform: rotate(45deg);
+}
+.cmr-item-reflist {
+  background: var(--cmr-cream);
+  border: 3px solid var(--cmr-ink);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cmr-reflist-label {
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 1em;
+  line-height: 1.25;
+}
+.cmr-item-reflist p {
+  margin: 0;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+/* End card */
+.cmr-end-card-art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-bottom: 3.5px solid var(--cmr-ink);
+}
+.cmr-end-card-body {
+  padding: 14px;
+}
+
+/* Prev/Next */
+.cmr-chapter-nav {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+.cmr-nav-button {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: var(--cmr-card);
+  border: 3px solid var(--cmr-ink);
+  border-radius: 12px;
+  box-shadow: 4px 4px 0 var(--cmr-ink);
+  text-align: left;
+}
+.cmr-nav-prev {
+  align-items: flex-start;
+}
+.cmr-nav-next {
+  align-items: flex-end;
+  text-align: right;
+  background: var(--cmr-accent);
+}
+.cmr-nav-kicker {
+  font-family: 'CMR Lilita', sans-serif;
+  font-size: 17px;
+}
+.cmr-nav-title {
+  font-size: 13px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Footer */
+.cmr-footer {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 14px calc(28px + env(safe-area-inset-bottom));
+  border-top: 2.5px dashed var(--cmr-ink);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+}
+.cmr-footer-org {
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  font-size: 12px;
+}
+.cmr-footer-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 2px solid var(--cmr-ink);
+  border-radius: 999px;
+  background: var(--cmr-card);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .class-manual-reader [data-panel] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+@media (min-width: 640px) {
+  .cmr-topbar,
+  .cmr-header {
+    padding-left: max(14px, calc((100% - 640px) / 2 + 14px));
+    padding-right: max(14px, calc((100% - 640px) / 2 + 14px));
+  }
+}

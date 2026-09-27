@@ -7,8 +7,8 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import NextCohortAssignModal from '../components/followups/NextCohortAssignModal';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, aiApi, settingsApi } from '../services/api';
-import type { Cohort, FollowUpContact, User, Week } from '../types';
+import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, manualDocumentsApi, earlierClassDocumentsApi, aiApi, settingsApi } from '../services/api';
+import type { Cohort, EarlierClassDocument, FollowUpContact, User, Week } from '../types';
 import { sortByText } from '../utils/sort';
 import { DEFAULT_RECAP_RELEASE_TIMES, formatRecapReleaseAt, recapReleaseAt, type RecapReleaseTimes } from '../utils/recapReleaseTimes';
 import Spinner from '../components/Spinner';
@@ -30,6 +30,61 @@ const emptyForm = (): CohortFormState => ({
   endDate: '',
   weekCount: 10,
 });
+
+// "Thu 6:00 PM", read straight off a RecapReleaseTimes day/time pair -- no
+// cohort start date needed, unlike formatRecapReleaseAt (which needs a real
+// calendar date). Used in the week editor's compact "Goes out ..." labels.
+const DAY_SHORT_LABEL: Record<string, string> = {
+  SUNDAY: 'Sun', MONDAY: 'Mon', TUESDAY: 'Tue', WEDNESDAY: 'Wed', THURSDAY: 'Thu', FRIDAY: 'Fri', SATURDAY: 'Sat',
+};
+const formatDayTime = (day: string, time: string) => {
+  const [h, m] = time.split(':').map(Number);
+  const hour12 = ((h + 11) % 12) + 1;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  return `${DAY_SHORT_LABEL[day] || day} ${hour12}:${String(m).padStart(2, '0')} ${ampm}`;
+};
+
+// "Choose an earlier file" picker, shared by the manual and recap steps of
+// the week editor: an inline expandable list rather than a nested modal
+// (ModalShell already portals the week editor to body).
+const EarlierFilePicker: React.FC<{
+  open: boolean;
+  docs: import('../types').EarlierClassDocument[];
+  loading: boolean;
+  error: string;
+  onChoose: (doc: import('../types').EarlierClassDocument) => void;
+  onCancel: () => void;
+}> = ({ open, docs, loading, error, onChoose, onCancel }) => {
+  if (!open) return null;
+  return (
+    <div className="mt-2 rounded-2xl border border-gray-200 p-3">
+      {loading ? (
+        <p className="flex items-center gap-1.5 py-3 text-center text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading earlier files…</p>
+      ) : error ? (
+        <p className="py-2 text-sm text-red-700">{error}</p>
+      ) : docs.length === 0 ? (
+        <p className="py-2 text-sm text-gray-400">No earlier files yet.</p>
+      ) : (
+        <ul className="max-h-56 space-y-1.5 overflow-y-auto">
+          {docs.map((doc, index) => (
+            <li key={`${doc.url}-${index}`}>
+              <button
+                type="button"
+                onClick={() => onChoose(doc)}
+                className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm hover:bg-gray-50"
+              >
+                <span className={`flex-none rounded-full px-2 py-0.5 text-[10px] font-bold ${doc.kind === 'MANUAL' ? 'bg-indigo-100/80 text-indigo-700' : 'bg-sky-100/80 text-sky-700'}`}>{doc.kind === 'MANUAL' ? 'Manual' : 'Recap'}</span>
+                <span className="min-w-0 flex-1 truncate font-medium text-gray-900">{doc.name || 'Document'}</span>
+                <span className="flex-none text-xs text-gray-400">{doc.cohortName} · Wk {doc.weekNumber}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button type="button" onClick={onCancel} className="mt-2 text-xs font-semibold text-gray-500">Cancel</button>
+    </div>
+  );
+};
 
 const formatDateRange = (startDate?: string | null, endDate?: string | null) => {
   const formatDate = (value?: string | null) => {
@@ -111,6 +166,23 @@ const CohortsPage: React.FC = () => {
   const [recapReleaseTimes, setRecapReleaseTimes] = useState<RecapReleaseTimes>(DEFAULT_RECAP_RELEASE_TIMES);
   const [sendNowConfirmOpen, setSendNowConfirmOpen] = useState(false);
   const [sendingNow, setSendingNow] = useState(false);
+  // Class manual (step 1 of the redesigned week editor) -- same shape as the
+  // recap fields above, plus its own AI-helper toggle and send-now confirm.
+  const [manualSummaryDraft, setManualSummaryDraft] = useState('');
+  const [manualDiscussionPromptDraft, setManualDiscussionPromptDraft] = useState('');
+  const [manualAiOpen, setManualAiOpen] = useState(false);
+  const [manualAiNotes, setManualAiNotes] = useState('');
+  const [manualAiDrafting, setManualAiDrafting] = useState(false);
+  const [manualAiError, setManualAiError] = useState('');
+  const [manualDocUploading, setManualDocUploading] = useState(false);
+  const [manualDocError, setManualDocError] = useState('');
+  const [manualSendNowConfirmOpen, setManualSendNowConfirmOpen] = useState(false);
+  const [sendingManualNow, setSendingManualNow] = useState(false);
+  // "Choose an earlier file" picker, shared by the manual and recap steps.
+  const [earlierPicker, setEarlierPicker] = useState<'manual' | 'recap' | null>(null);
+  const [earlierDocs, setEarlierDocs] = useState<EarlierClassDocument[]>([]);
+  const [earlierDocsLoading, setEarlierDocsLoading] = useState(false);
+  const [earlierDocsError, setEarlierDocsError] = useState('');
 
   useEffect(() => {
     settingsApi.getRecapReleaseTimes().then(setRecapReleaseTimes).catch(() => {});
@@ -408,6 +480,13 @@ const CohortsPage: React.FC = () => {
     setAiNotesOpen(false);
     setAiNotes('');
     setAiError('');
+    setManualSummaryDraft(week.manualSummary || '');
+    setManualDiscussionPromptDraft(week.manualDiscussionPrompt || '');
+    setManualAiOpen(false);
+    setManualAiNotes('');
+    setManualAiError('');
+    setManualDocError('');
+    setEarlierPicker(null);
     setStatus('');
   };
 
@@ -505,6 +584,8 @@ const CohortsPage: React.FC = () => {
         discussionPrompt: discussionPromptDraft.trim() || null,
         shareWithParticipants: shareWithParticipantsDraft,
         expectations: expectationsDraft.split('\n').map((line) => line.trim()).filter(Boolean).join('\n') || null,
+        manualSummary: manualSummaryDraft.trim() || null,
+        manualDiscussionPrompt: manualDiscussionPromptDraft.trim() || null,
       });
       await syncCohortWeeks(weekEditTarget.cohortId);
       if (activeCohort?.id === weekEditTarget.cohortId) {
@@ -540,6 +621,110 @@ const CohortsPage: React.FC = () => {
     } finally {
       setSendingNow(false);
     }
+  };
+
+  // Class manual document saves straight away, same shape as handleRecapDocument.
+  const handleManualDocument = async (file: File | null) => {
+    if (!weekEditTarget) return;
+    setManualDocUploading(true);
+    setManualDocError('');
+    try {
+      if (file) {
+        const { url, name } = await manualDocumentsApi.upload(weekEditTarget.week.id, file);
+        setWeekEditTarget((prev) => (prev ? { ...prev, week: { ...prev.week, manualDocumentUrl: url, manualDocumentName: name } } : prev));
+      } else {
+        await manualDocumentsApi.remove(weekEditTarget.week.id);
+        setWeekEditTarget((prev) => (prev ? { ...prev, week: { ...prev.week, manualDocumentUrl: null, manualDocumentName: null } } : prev));
+      }
+      await syncCohortWeeks(weekEditTarget.cohortId);
+      if (activeCohort?.id === weekEditTarget.cohortId) await reloadWeeks();
+    } catch (error) {
+      setManualDocError(error instanceof Error ? error.message : 'The manual document could not be saved.');
+    } finally {
+      setManualDocUploading(false);
+    }
+  };
+
+  const handleManualAiDraft = async () => {
+    if (!weekEditTarget) return;
+    setManualAiDrafting(true);
+    setManualAiError('');
+    try {
+      const draft = await aiApi.draftRecap(weekTitleDraft.trim() || weekEditTarget.week.title || '', manualAiNotes);
+      setManualSummaryDraft(draft.summary);
+      if (draft.prompt) setManualDiscussionPromptDraft(draft.prompt);
+      setManualAiOpen(false);
+      setManualAiNotes('');
+    } catch (error) {
+      setManualAiError(error instanceof Error ? error.message : 'AI help is not available right now.');
+    } finally {
+      setManualAiDrafting(false);
+    }
+  };
+
+  // Releases this week's manual to supports and participants right away,
+  // ahead of the configured manual time. Unlike recap's send-now, this
+  // affects both audiences -- they share one manual release time.
+  const handleSendManualNow = async () => {
+    if (!weekEditTarget) return;
+    setSendingManualNow(true);
+    setStatus('');
+    try {
+      const { week } = await weeksApi.update(weekEditTarget.week.id, { manualReleasedEarlyAt: new Date().toISOString() });
+      setWeekEditTarget((prev) => (prev ? { ...prev, week } : prev));
+      await syncCohortWeeks(weekEditTarget.cohortId);
+      if (activeCohort?.id === weekEditTarget.cohortId) await reloadWeeks();
+      setStatus(`Week ${weekEditTarget.week.weekNumber}'s manual was sent now.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Failed to send the manual now.');
+    } finally {
+      setSendingManualNow(false);
+    }
+  };
+
+  const openEarlierPicker = async (field: 'manual' | 'recap') => {
+    if (!weekEditTarget) return;
+    setEarlierPicker(field);
+    setEarlierDocsLoading(true);
+    setEarlierDocsError('');
+    try {
+      const { documents } = await earlierClassDocumentsApi.getAll(weekEditTarget.cohortId);
+      setEarlierDocs(documents);
+    } catch (error) {
+      setEarlierDocsError(error instanceof Error ? error.message : 'Could not load earlier files.');
+    } finally {
+      setEarlierDocsLoading(false);
+    }
+  };
+
+  const chooseEarlierDocument = async (doc: EarlierClassDocument) => {
+    if (!weekEditTarget || !earlierPicker) return;
+    if (earlierPicker === 'manual') {
+      setManualDocUploading(true);
+      try {
+        await manualDocumentsApi.choose(weekEditTarget.week.id, doc.url, doc.name);
+        setWeekEditTarget((prev) => (prev ? { ...prev, week: { ...prev.week, manualDocumentUrl: doc.url, manualDocumentName: doc.name } } : prev));
+        await syncCohortWeeks(weekEditTarget.cohortId);
+        if (activeCohort?.id === weekEditTarget.cohortId) await reloadWeeks();
+      } catch (error) {
+        setManualDocError(error instanceof Error ? error.message : 'Could not attach that file.');
+      } finally {
+        setManualDocUploading(false);
+      }
+    } else {
+      setRecapDocUploading(true);
+      try {
+        await recapDocumentsApi.choose(weekEditTarget.week.id, doc.url, doc.name);
+        setWeekEditTarget((prev) => (prev ? { ...prev, week: { ...prev.week, recapDocumentUrl: doc.url, recapDocumentName: doc.name } } : prev));
+        await syncCohortWeeks(weekEditTarget.cohortId);
+        if (activeCohort?.id === weekEditTarget.cohortId) await reloadWeeks();
+      } catch (error) {
+        setRecapDocError(error instanceof Error ? error.message : 'Could not attach that file.');
+      } finally {
+        setRecapDocUploading(false);
+      }
+    }
+    setEarlierPicker(null);
   };
 
   const handleArchiveToggle = async (cohort: Cohort) => {
@@ -1185,7 +1370,7 @@ const CohortsPage: React.FC = () => {
       <ModalShell
         isOpen={!!weekEditTarget}
         title={weekEditTarget ? `Week ${weekEditTarget.week.weekNumber}` : 'Week'}
-        subtitle="Class title and the recap supports use in their group meeting."
+        subtitle="Class manual, recap, and what participants see."
         onClose={() => {
           if (weekActionPending) return;
           setWeekEditTarget(null);
@@ -1193,147 +1378,8 @@ const CohortsPage: React.FC = () => {
           setRecapSummaryDraft('');
           setDiscussionPromptDraft('');
         }}
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Class title</label>
-            <input
-              type="text"
-              value={weekTitleDraft}
-              onChange={(event) => setWeekTitleDraft(event.target.value)}
-              placeholder="e.g. Faith"
-              maxLength={60}
-              className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
-            />
-            <p className="mt-1.5 text-xs text-gray-500">Shows on the support Home “Next class” card and as the recap heading.</p>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Recap document</label>
-            {weekEditTarget?.week.recapDocumentUrl ? (
-              <div className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3">
-                <span className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-red-50 text-[10px] font-bold text-red-600">PDF</span>
-                <a href={weekEditTarget.week.recapDocumentUrl} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900 hover:text-primary">
-                  {weekEditTarget.week.recapDocumentName || 'Recap document'}
-                </a>
-                <label className={`flex-none cursor-pointer text-xs font-semibold text-primary ${recapDocUploading ? 'pointer-events-none opacity-50' : ''}`}>
-                  Replace
-                  <input type="file" accept=".pdf,image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleRecapDocument(file); }} />
-                </label>
-                <button type="button" onClick={() => void handleRecapDocument(null)} disabled={recapDocUploading} className="flex-none text-xs font-semibold text-red-700 disabled:opacity-50">
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <label className={`flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-300 px-4 py-4 text-sm font-semibold text-gray-600 hover:border-primary hover:text-primary ${recapDocUploading ? 'pointer-events-none opacity-50' : ''}`}>
-                {recapDocUploading ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Uploading…</span>) : 'Upload recap document (PDF)'}
-                <input type="file" accept=".pdf,image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleRecapDocument(file); }} />
-              </label>
-            )}
-            {recapDocError && <p className="mt-1.5 text-xs text-red-700">{recapDocError}</p>}
-            <p className="mt-1.5 text-xs text-gray-500">Supports open it inside the app in step 3 of their group meeting. Saves as soon as you upload.</p>
-          </div>
-
-          <div>
-            <div className="mb-1.5 flex items-center gap-3">
-              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500">Recap summary (optional)</label>
-              <button type="button" onClick={() => setAiNotesOpen((open) => !open)} className="ml-auto text-xs font-semibold text-primary">
-                {aiNotesOpen ? 'Close' : 'Draft with AI'}
-              </button>
-            </div>
-            {aiNotesOpen && (
-              <div className="mb-3 rounded-2xl border border-orange-100 bg-orange-50/40 p-3">
-                <textarea
-                  value={aiNotes}
-                  onChange={(event) => { setAiNotes(event.target.value); setAiError(''); }}
-                  placeholder="Paste the class notes or manual text. The AI writes a short recap summary and a discussion prompt for you to check and edit."
-                  rows={5}
-                  className="w-full resize-y rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none"
-                />
-                {aiError && <p className="mt-1.5 text-xs text-red-700">{aiError}</p>}
-                <div className="mt-2 flex items-center gap-3">
-                  <p className="text-[11px] text-gray-500">Sent to a free AI service (OpenRouter). Check the result before saving.</p>
-                  <button type="button" onClick={() => { void handleAiDraft(); }} disabled={aiDrafting || aiNotes.trim().length < 40} className="ml-auto flex-none rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">
-                    {aiDrafting ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Drafting…</span>) : 'Draft summary and prompt'}
-                  </button>
-                </div>
-              </div>
-            )}
-            <textarea
-              value={recapSummaryDraft}
-              onChange={(event) => setRecapSummaryDraft(event.target.value)}
-              placeholder="A short summary of what this week's class covered."
-              rows={3}
-              className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Discussion prompt (optional)</label>
-            <textarea
-              value={discussionPromptDraft}
-              onChange={(event) => setDiscussionPromptDraft(event.target.value)}
-              placeholder="A question or action for the group to talk through."
-              rows={2}
-              className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">What&apos;s expected this week (optional)</label>
-            <textarea
-              value={expectationsDraft}
-              onChange={(event) => setExpectationsDraft(event.target.value)}
-              placeholder={'Bring your Bible and a journal\nBe ready to share one takeaway with your group'}
-              rows={3}
-              className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
-            />
-            <p className="mt-1.5 text-xs text-gray-500">One item per line. Shows on the participant Home under “This week”.</p>
-          </div>
-
-          <div className="flex items-center justify-between gap-4 rounded-2xl border border-orange-100 px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900">Share recap with participants</p>
-              <p className="mt-0.5 text-xs text-gray-500">Participants read it in their own app once this week&apos;s meeting has happened. Turn it off to keep this week&apos;s recap staff-only.</p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={shareWithParticipantsDraft}
-              aria-label="Share recap with participants"
-              onClick={() => setShareWithParticipantsDraft((prev) => !prev)}
-              className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition ${shareWithParticipantsDraft ? 'bg-primary' : 'bg-slate-200'}`}
-            >
-              <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${shareWithParticipantsDraft ? 'translate-x-7' : 'translate-x-1'}`} />
-            </button>
-          </div>
-
-          {weekEditTarget && (
-            <div className="rounded-2xl bg-gray-50 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">When this recap goes out</p>
-              <p className="mt-1.5 text-sm text-gray-700">
-                Supports: {formatRecapReleaseAt(recapReleaseAt(cohorts.find((c) => c.id === weekEditTarget.cohortId)?.startDate, weekEditTarget.week.weekNumber, recapReleaseTimes.supportDay, recapReleaseTimes.supportTime))}
-                {' · '}
-                Participants: {weekEditTarget.week.participantReleasedEarlyAt
-                  ? 'sent early'
-                  : formatRecapReleaseAt(recapReleaseAt(cohorts.find((c) => c.id === weekEditTarget.cohortId)?.startDate, weekEditTarget.week.weekNumber, recapReleaseTimes.participantDay, recapReleaseTimes.participantTime))}
-              </p>
-              {weekEditTarget.week.participantReleasedEarlyAt ? (
-                <p className="mt-2 text-xs text-emerald-700">Sent to participants early on {new Date(weekEditTarget.week.participantReleasedEarlyAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Africa/Lagos' })}.</p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setSendNowConfirmOpen(true)}
-                  disabled={weekActionPending}
-                  className="mt-2.5 text-xs font-semibold text-primary hover:text-primary-dark disabled:opacity-50"
-                >
-                  Send to participants now
-                </button>
-              )}
-            </div>
-          )}
-
-          <div className="flex justify-end gap-2">
+        footer={(
+          <>
             <button
               type="button"
               onClick={() => {
@@ -1355,9 +1401,287 @@ const CohortsPage: React.FC = () => {
             >
               {weekActionPending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving...</span>) : 'Save week'}
             </button>
-          </div>
-        </div>
+          </>
+        )}
+      >
+        {(() => {
+          const week = weekEditTarget?.week;
+          const manualDone = !!week?.manualDocumentUrl;
+          const recapDone = !!(week?.recapDocumentUrl || recapSummaryDraft.trim());
+          const nextLine = !manualDone
+            ? `Next: upload the manual · goes out ${formatDayTime(recapReleaseTimes.manualDay, recapReleaseTimes.manualTime)}`
+            : !recapDone
+            ? 'Next: add the recap'
+            : 'All set';
+          return (
+            <div className="space-y-4">
+              <div>
+                <input
+                  type="text"
+                  value={weekTitleDraft}
+                  onChange={(event) => setWeekTitleDraft(event.target.value)}
+                  placeholder="e.g. Faith"
+                  maxLength={60}
+                  className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-base font-semibold focus:border-primary focus:outline-none"
+                />
+                <p className="mt-1.5 text-xs font-semibold text-gray-500">{nextLine}</p>
+              </div>
+
+              {/* ① Class manual */}
+              <div className="rounded-2xl border border-orange-100 p-4">
+                <div className="flex items-center gap-2.5">
+                  <span className={`grid h-6 w-6 flex-none place-items-center rounded-full text-xs font-bold ${manualDone ? 'bg-emerald-100/80 text-emerald-700' : 'bg-neutral-100 text-neutral-600'}`}>
+                    {manualDone ? '✓' : '1'}
+                  </span>
+                  <p className="text-sm font-bold text-gray-900">Class manual</p>
+                  <span className="ml-auto text-[11px] font-semibold text-gray-500">Goes out {formatDayTime(recapReleaseTimes.manualDay, recapReleaseTimes.manualTime)}</span>
+                </div>
+                <p className="ml-[34px] mt-0.5 text-xs text-gray-500">{manualDone ? 'Document attached' : 'No document yet'}</p>
+
+                <div className="mt-3">
+                  {week?.manualDocumentUrl ? (
+                    <div className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3">
+                      <span className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-red-50 text-[10px] font-bold text-red-600">PDF</span>
+                      <a href={week.manualDocumentUrl} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900 hover:text-primary">
+                        {week.manualDocumentName || 'Class manual'}
+                      </a>
+                      <label className={`flex-none cursor-pointer text-xs font-semibold text-primary ${manualDocUploading ? 'pointer-events-none opacity-50' : ''}`}>
+                        Replace
+                        <input type="file" accept=".pdf,image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleManualDocument(file); }} />
+                      </label>
+                      <button type="button" onClick={() => void handleManualDocument(null)} disabled={manualDocUploading} className="flex-none text-xs font-semibold text-red-700 disabled:opacity-50">
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <label className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-300 px-4 py-4 text-sm font-semibold text-gray-600 hover:border-primary hover:text-primary ${manualDocUploading ? 'pointer-events-none opacity-50' : ''}`}>
+                        {manualDocUploading ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Uploading…</span>) : 'Upload PDF'}
+                        <input type="file" accept=".pdf,image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleManualDocument(file); }} />
+                      </label>
+                      <button type="button" onClick={() => void openEarlierPicker('manual')} disabled={manualDocUploading} className="flex-none rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                        Choose earlier file
+                      </button>
+                    </div>
+                  )}
+                  {manualDocError && <p className="mt-1.5 text-xs text-red-700">{manualDocError}</p>}
+                </div>
+
+                <EarlierFilePicker
+                  open={earlierPicker === 'manual'}
+                  docs={earlierDocs}
+                  loading={earlierDocsLoading}
+                  error={earlierDocsError}
+                  onChoose={(doc) => void chooseEarlierDocument(doc)}
+                  onCancel={() => setEarlierPicker(null)}
+                />
+
+                <button type="button" onClick={() => setManualAiOpen((open) => !open)} className="mt-3 text-xs font-semibold text-primary">
+                  {manualAiOpen ? 'Close' : 'Write with AI'}
+                </button>
+                {manualAiOpen && (
+                  <div className="mt-2 space-y-3">
+                    <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-3">
+                      <textarea
+                        value={manualAiNotes}
+                        onChange={(event) => { setManualAiNotes(event.target.value); setManualAiError(''); }}
+                        placeholder="Paste the manual text. The AI writes a short summary and a discussion prompt for you to check and edit."
+                        rows={4}
+                        className="w-full resize-y rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none"
+                      />
+                      {manualAiError && <p className="mt-1.5 text-xs text-red-700">{manualAiError}</p>}
+                      <div className="mt-2 flex items-center gap-3">
+                        <p className="text-[11px] text-gray-500">Sent to a free AI service (OpenRouter). Check before saving.</p>
+                        <button type="button" onClick={() => { void handleManualAiDraft(); }} disabled={manualAiDrafting || manualAiNotes.trim().length < 40} className="ml-auto flex-none rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">
+                          {manualAiDrafting ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Drafting…</span>) : 'Draft with AI'}
+                        </button>
+                      </div>
+                    </div>
+                    <textarea
+                      value={manualSummaryDraft}
+                      onChange={(event) => setManualSummaryDraft(event.target.value)}
+                      placeholder="A short summary of the manual (optional)."
+                      rows={3}
+                      className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
+                    />
+                    <textarea
+                      value={manualDiscussionPromptDraft}
+                      onChange={(event) => setManualDiscussionPromptDraft(event.target.value)}
+                      placeholder="A discussion prompt (optional)."
+                      rows={2}
+                      className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* ② Recap */}
+              <div className="rounded-2xl border border-orange-100 p-4">
+                <div className="flex items-center gap-2.5">
+                  <span className={`grid h-6 w-6 flex-none place-items-center rounded-full text-xs font-bold ${recapDone ? 'bg-emerald-100/80 text-emerald-700' : 'bg-neutral-100 text-neutral-600'}`}>
+                    {recapDone ? '✓' : '2'}
+                  </span>
+                  <p className="text-sm font-bold text-gray-900">Recap</p>
+                </div>
+                <p className="ml-[34px] mt-0.5 text-xs text-gray-500">{recapDone ? 'Recap ready' : 'No recap yet'}</p>
+
+                <div className="mt-3">
+                  {week?.recapDocumentUrl ? (
+                    <div className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3">
+                      <span className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-red-50 text-[10px] font-bold text-red-600">PDF</span>
+                      <a href={week.recapDocumentUrl} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900 hover:text-primary">
+                        {week.recapDocumentName || 'Recap document'}
+                      </a>
+                      <label className={`flex-none cursor-pointer text-xs font-semibold text-primary ${recapDocUploading ? 'pointer-events-none opacity-50' : ''}`}>
+                        Replace
+                        <input type="file" accept=".pdf,image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleRecapDocument(file); }} />
+                      </label>
+                      <button type="button" onClick={() => void handleRecapDocument(null)} disabled={recapDocUploading} className="flex-none text-xs font-semibold text-red-700 disabled:opacity-50">
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <label className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-300 px-4 py-4 text-sm font-semibold text-gray-600 hover:border-primary hover:text-primary ${recapDocUploading ? 'pointer-events-none opacity-50' : ''}`}>
+                        {recapDocUploading ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Uploading…</span>) : 'Upload PDF'}
+                        <input type="file" accept=".pdf,image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleRecapDocument(file); }} />
+                      </label>
+                      <button type="button" onClick={() => void openEarlierPicker('recap')} disabled={recapDocUploading} className="flex-none rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                        Choose earlier file
+                      </button>
+                    </div>
+                  )}
+                  {recapDocError && <p className="mt-1.5 text-xs text-red-700">{recapDocError}</p>}
+                </div>
+
+                <EarlierFilePicker
+                  open={earlierPicker === 'recap'}
+                  docs={earlierDocs}
+                  loading={earlierDocsLoading}
+                  error={earlierDocsError}
+                  onChoose={(doc) => void chooseEarlierDocument(doc)}
+                  onCancel={() => setEarlierPicker(null)}
+                />
+
+                <div className="mt-3">
+                  <div className="mb-1.5 flex items-center gap-3">
+                    <button type="button" onClick={() => setAiNotesOpen((open) => !open)} className="text-xs font-semibold text-primary">
+                      {aiNotesOpen ? 'Close' : 'Draft with AI'}
+                    </button>
+                  </div>
+                  {aiNotesOpen && (
+                    <div className="mb-3 rounded-2xl border border-orange-100 bg-orange-50/40 p-3">
+                      <textarea
+                        value={aiNotes}
+                        onChange={(event) => { setAiNotes(event.target.value); setAiError(''); }}
+                        placeholder="Paste the class notes. The AI writes a short recap summary and a discussion prompt for you to check and edit."
+                        rows={5}
+                        className="w-full resize-y rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm focus:border-primary focus:outline-none"
+                      />
+                      {aiError && <p className="mt-1.5 text-xs text-red-700">{aiError}</p>}
+                      <div className="mt-2 flex items-center gap-3">
+                        <p className="text-[11px] text-gray-500">Sent to a free AI service (OpenRouter). Check the result before saving.</p>
+                        <button type="button" onClick={() => { void handleAiDraft(); }} disabled={aiDrafting || aiNotes.trim().length < 40} className="ml-auto flex-none rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">
+                          {aiDrafting ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Drafting…</span>) : 'Draft summary and prompt'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <textarea
+                    value={recapSummaryDraft}
+                    onChange={(event) => setRecapSummaryDraft(event.target.value)}
+                    placeholder="A short summary of what this week's class covered."
+                    rows={3}
+                    className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
+                  />
+                  <textarea
+                    value={discussionPromptDraft}
+                    onChange={(event) => setDiscussionPromptDraft(event.target.value)}
+                    placeholder="A question or action for the group to talk through."
+                    rows={2}
+                    className="mt-2 w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* ③ Participants */}
+              <div className="rounded-2xl border border-orange-100 p-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="grid h-6 w-6 flex-none place-items-center rounded-full bg-neutral-100 text-xs font-bold text-neutral-600">3</span>
+                  <p className="text-sm font-bold text-gray-900">Participants</p>
+                </div>
+                <p className="ml-[34px] mt-0.5 text-xs text-gray-500">{shareWithParticipantsDraft ? 'Participants will see this' : 'Kept staff-only'}</p>
+
+                <div className="mt-3">
+                  <textarea
+                    value={expectationsDraft}
+                    onChange={(event) => setExpectationsDraft(event.target.value)}
+                    placeholder={'What\'s expected this week (optional)\nBring your Bible and a journal'}
+                    rows={3}
+                    className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
+                  />
+                  <p className="mt-1.5 text-xs text-gray-500">One item per line.</p>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl border border-orange-100 px-4 py-3">
+                  <p className="min-w-0 text-sm font-semibold text-gray-900">Share recap with participants</p>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={shareWithParticipantsDraft}
+                    aria-label="Share recap with participants"
+                    onClick={() => setShareWithParticipantsDraft((prev) => !prev)}
+                    className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition ${shareWithParticipantsDraft ? 'bg-primary' : 'bg-slate-200'}`}
+                  >
+                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${shareWithParticipantsDraft ? 'translate-x-7' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+
+                {week && (
+                  <div className="mt-3 rounded-2xl bg-gray-50 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">When manual + recap go out</p>
+                    <p className="mt-1.5 text-sm text-gray-700">
+                      Manual: {week.manualReleasedEarlyAt ? 'sent early' : formatDayTime(recapReleaseTimes.manualDay, recapReleaseTimes.manualTime)}
+                      {' · '}
+                      Recap (supports): {formatRecapReleaseAt(recapReleaseAt(cohorts.find((c) => c.id === weekEditTarget?.cohortId)?.startDate, week.weekNumber, recapReleaseTimes.supportDay, recapReleaseTimes.supportTime))}
+                      {' · '}
+                      Recap (participants): {week.participantReleasedEarlyAt ? 'sent early' : formatRecapReleaseAt(recapReleaseAt(cohorts.find((c) => c.id === weekEditTarget?.cohortId)?.startDate, week.weekNumber, recapReleaseTimes.participantDay, recapReleaseTimes.participantTime))}
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap gap-4">
+                      {week.manualReleasedEarlyAt ? (
+                        <p className="text-xs text-emerald-700">Manual sent early on {new Date(week.manualReleasedEarlyAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Africa/Lagos' })}.</p>
+                      ) : (
+                        <button type="button" onClick={() => setManualSendNowConfirmOpen(true)} disabled={weekActionPending || !manualDone} className="text-xs font-semibold text-primary hover:text-primary-dark disabled:opacity-50">
+                          Send manual now
+                        </button>
+                      )}
+                      {week.participantReleasedEarlyAt ? (
+                        <p className="text-xs text-emerald-700">Recap sent early on {new Date(week.participantReleasedEarlyAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Africa/Lagos' })}.</p>
+                      ) : (
+                        <button type="button" onClick={() => setSendNowConfirmOpen(true)} disabled={weekActionPending} className="text-xs font-semibold text-primary hover:text-primary-dark disabled:opacity-50">
+                          Send recap to participants now
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </ModalShell>
+
+      <ConfirmationModal
+        isOpen={manualSendNowConfirmOpen}
+        onClose={() => setManualSendNowConfirmOpen(false)}
+        onConfirm={() => void handleSendManualNow()}
+        title="Send manual now?"
+        message={weekEditTarget ? `Week ${weekEditTarget.week.weekNumber}'s class manual will go out to supports and participants immediately, ahead of the usual time.` : ''}
+        confirmText={sendingManualNow ? 'Sending...' : 'Send now'}
+        confirmLoading={sendingManualNow}
+        type="info"
+        confirmDisabled={sendingManualNow}
+      />
 
       <ConfirmationModal
         isOpen={sendNowConfirmOpen}
@@ -1584,7 +1908,9 @@ const ModalShell: React.FC<{
   subtitle?: string;
   onClose: () => void;
   children: React.ReactNode;
-}> = ({ isOpen, title, subtitle, onClose, children }) => {
+  /** Actions pinned to the bottom (frosted sticky bar), always reachable on long forms. */
+  footer?: React.ReactNode;
+}> = ({ isOpen, title, subtitle, onClose, children, footer }) => {
   if (!isOpen) return null;
 
   return (
@@ -1609,6 +1935,11 @@ const ModalShell: React.FC<{
           </div>
         </div>
         <div className="px-6 py-6">{children}</div>
+        {footer && (
+          <div className="sticky bottom-0 z-10 flex items-center justify-end gap-2 border-t border-gray-100 bg-white/80 px-6 py-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] backdrop-blur-xl">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

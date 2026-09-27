@@ -4,7 +4,7 @@ import PageHeader from '../components/PageHeader';
 import ActivityText from '../components/ActivityText';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, faithProjectsApi, groupsApi, meetingAttendanceApi, myHubApi, participantCheckInsApi, participantsApi, resourcesApi, supportActivityCompletionsApi, supportChecklistApi, supportKindApi } from '../services/api';
+import { announcementsApi, faithProjectsApi, groupsApi, meetingAttendanceApi, myHubApi, participantCheckInsApi, participantsApi, resourcesApi, supportActivityCompletionsApi, supportChecklistApi, supportKindApi, supportRecapsApi } from '../services/api';
 import type { Announcement, FaithProject, Group, HubJob, MyHubPayload, Participant, ParticipantCheckIn, SupportActivityCompletion, SupportChecklistItem, SupportKind, User } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
@@ -77,7 +77,17 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [checklist, setChecklist] = useState<SupportChecklistItem[]>([]);
   const [homeAnnouncement, setHomeAnnouncement] = useState<Announcement | null>(null);
+  const [newQuestionCount, setNewQuestionCount] = useState(0);
   const autoHide = useChecklistAutoHide();
+
+  useEffect(() => {
+    if (!activeCohort?.id) { setNewQuestionCount(0); return; }
+    let cancelled = false;
+    supportRecapsApi.getForCohort(activeCohort.id)
+      .then((res) => { if (!cancelled) setNewQuestionCount(res.recaps.reduce((sum, w) => sum + (w.unreadQuestionCount || 0), 0)); })
+      .catch(() => { if (!cancelled) setNewQuestionCount(0); });
+    return () => { cancelled = true; };
+  }, [activeCohort?.id]);
 
   // Sunday-evening nudge for a hub lead who hasn't marked this week's recap yet.
   const isHubLead = !!myHub?.isLead;
@@ -496,6 +506,13 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                 Mark recap
               </NavLink>
             </section>
+          )}
+
+          {newQuestionCount > 0 && (
+            <NavLink to="/support/recap" className="flex items-center justify-between gap-3 rounded-[16px] bg-orange-100/80 px-4 py-3">
+              <span className="text-sm font-bold text-orange-700">{newQuestionCount} new question{newQuestionCount === 1 ? '' : 's'} from your group</span>
+              <span aria-hidden="true" className="flex-none text-orange-700">→</span>
+            </NavLink>
           )}
 
           {!isOperationalSupport && (

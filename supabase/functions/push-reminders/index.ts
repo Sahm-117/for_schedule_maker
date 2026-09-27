@@ -141,6 +141,8 @@ interface RecapReleaseTimes {
   supportTime: string
   participantDay: string
   participantTime: string
+  manualDay: string
+  manualTime: string
 }
 
 const DEFAULT_RECAP_RELEASE_TIMES: RecapReleaseTimes = {
@@ -148,6 +150,8 @@ const DEFAULT_RECAP_RELEASE_TIMES: RecapReleaseTimes = {
   supportTime: '16:00',
   participantDay: 'MONDAY',
   participantTime: '18:00',
+  manualDay: 'THURSDAY',
+  manualTime: '18:00',
 }
 
 // Default Sunday class start time used in the Sat/Sun participant nudges,
@@ -167,6 +171,15 @@ const DEFAULT_CLASS_START_TIME = '09:30'
 const recapReleaseTarget = (startIso: string, weekNumber: number, day: string, time: string) => {
   const offset = Math.max(0, DAY_NAMES_UPPER.indexOf(String(day || '').toUpperCase()))
   const isoDate = addLagosDays(startIso, (weekNumber - 1) * 7 + offset)
+  const minutes = parseTime(time) ?? 0
+  return { isoDate, minutes }
+}
+
+// The manual goes out before class: the chosen weekday on or before that
+// week's class Sunday (Thursday = 3 days before). Mirrors recap_release_at('manual').
+const manualReleaseTarget = (startIso: string, weekNumber: number, day: string, time: string) => {
+  const offset = Math.max(0, DAY_NAMES_UPPER.indexOf(String(day || '').toUpperCase()))
+  const isoDate = addLagosDays(startIso, (weekNumber - 1) * 7 - ((7 - offset) % 7))
   const minutes = parseTime(time) ?? 0
   return { isoDate, minutes }
 }
@@ -247,7 +260,7 @@ const resolveLiveWeeks = async (todayIso: string, hour: number): Promise<LiveWee
  * than a duplicate.
  */
 const claimReminder = async (
-  kind: 'ACTIVITY' | 'GROUP_MEETING' | 'HUB_MEETING' | 'RECAP_SUPPORT',
+  kind: 'ACTIVITY' | 'GROUP_MEETING' | 'HUB_MEETING' | 'RECAP_SUPPORT' | 'MANUAL_SUPPORT',
   targetId: string,
   userId: string,
   reminderDate: string,
@@ -639,6 +652,8 @@ Deno.serve(async (req) => {
         supportTime: (recapSettingRow as any)?.value?.supportTime || DEFAULT_RECAP_RELEASE_TIMES.supportTime,
         participantDay: (recapSettingRow as any)?.value?.participantDay || DEFAULT_RECAP_RELEASE_TIMES.participantDay,
         participantTime: (recapSettingRow as any)?.value?.participantTime || DEFAULT_RECAP_RELEASE_TIMES.participantTime,
+        manualDay: (recapSettingRow as any)?.value?.manualDay || DEFAULT_RECAP_RELEASE_TIMES.manualDay,
+        manualTime: (recapSettingRow as any)?.value?.manualTime || DEFAULT_RECAP_RELEASE_TIMES.manualTime,
       }
 
       const { data: classStartSettingRow } = await supabase
@@ -684,7 +699,7 @@ Deno.serve(async (req) => {
 
         const [{ data: accounts }, { data: pWeeks }, { data: pGroups }, { data: settings }] = await Promise.all([
           supabase.from('ParticipantAccount').select('participantId, participant:Participant!inner(id, cohortId, status)').eq('isActive', true).eq('participant.cohortId', cohort.id).eq('participant.status', 'ACTIVE'),
-          supabase.from('Week').select('id, weekNumber, title, shareWithParticipants, recapSummary, recapDocumentUrl, participantReleasedEarlyAt').eq('cohortId', cohort.id),
+          supabase.from('Week').select('id, weekNumber, title, shareWithParticipants, recapSummary, recapDocumentUrl, participantReleasedEarlyAt, manualDocumentUrl, manualReleasedEarlyAt').eq('cohortId', cohort.id),
           supabase.from('Group').select('id, name, meetingDay, meetingTime, members:GroupParticipant(participantId)').eq('cohortId', cohort.id),
           supabase.from('ParticipantReminderSetting').select('participantId, meetingRemindMinutes, recapReleased'),
         ])
@@ -812,6 +827,57 @@ Deno.serve(async (req) => {
             const payload = JSON.stringify({ title, body, icon: '/icon-192.png', tag: `RECAP_SUPPORT:${week.id}`, data: { path: '/support/recap' } })
             const r = await sendToSubscriptions(webPush, supabase, rows, payload)
             if (r.failed > 0) console.error(`push-reminders (RECAP_SUPPORT:${week.id}): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
+          }
+        }
+
+        // e) "Class manual is out", once the configured manual release time has
+        //    passed (or an early release) -- one moment for both audiences.
+        //    Only the newest released week is announced (same "backlog" guard
+        //    as RECAP_SUPPORT above), so a batch of manuals uploaded late never
+        //    fans out into a pile of alerts.
+        const manualWeeks = weeks.filter((w) => {
+          if (!w.manualDocumentUrl) return false
+          if (w.manualReleasedEarlyAt) return true
+          const target = manualReleaseTarget(startIso, w.weekNumber, recapTimes.manualDay, recapTimes.manualTime)
+          return recapReleaseHasPassed(target, pToday, pNowMinutes)
+        }).sort((a, b) => b.weekNumber - a.weekNumber).slice(0, 1)
+
+        for (const week of manualWeeks) {
+          // Participants: same claim/bell/push helper as the recap-out block above.
+          await pushParticipants([...participantIds], {
+            title: `Week ${week.weekNumber} class manual is out`,
+            body: `${week.title ? `${String(week.title).trim()}. ` : ''}Read it before your group meeting.`,
+            path: `/me/week/${week.weekNumber}`,
+            tag: `MANUAL:${week.id}`,
+          })
+
+          // Supports: same PushReminderLog claim/bell/push shape as RECAP_SUPPORT.
+          if (!dryRun) {
+            const { data: cohortGroups } = await supabase
+              .from('Group').select('supportId').eq('cohortId', cohort.id).is('archivedAt', null)
+            const supportIds = [...new Set(((cohortGroups ?? []) as any[]).map((g) => g.supportId).filter(Boolean))] as string[]
+            const releaseDateIso = week.manualReleasedEarlyAt
+              ? pToday
+              : manualReleaseTarget(startIso, week.weekNumber, recapTimes.manualDay, recapTimes.manualTime).isoDate
+            const claimed: string[] = []
+            for (const userId of supportIds) {
+              if (await claimReminder('MANUAL_SUPPORT', String(week.id), userId, releaseDateIso, 0)) claimed.push(userId)
+            }
+            if (claimed.length > 0) {
+              const title = `Week ${week.weekNumber} class manual is ready`
+              const body = `${week.title ? `${String(week.title).trim()}. ` : ''}Read it before your group meeting.`
+              await insertNotifications(supabase, claimed.map((userId) => ({ userId, title, body, path: '/support/recap', type: 'REMINDER' })))
+              const { data: subs } = await supabase
+                .from('PushSubscription').select('userId, endpoint, p256dh, auth').in('userId', claimed)
+              const rows = ((subs ?? []) as any[]).map((row) => ({ userId: row.userId, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth }))
+              if (rows.length > 0) {
+                const payload = JSON.stringify({ title, body, icon: '/icon-192.png', tag: `MANUAL_SUPPORT:${week.id}`, data: { path: '/support/recap' } })
+                const r = await sendToSubscriptions(webPush, supabase, rows, payload)
+                if (r.failed > 0) console.error(`push-reminders (MANUAL_SUPPORT:${week.id}): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
+              }
+            }
+          } else {
+            debug.push({ wouldSend: 'MANUAL', weekId: week.id })
           }
         }
       }
