@@ -172,7 +172,7 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
                   disabled={uploadingAvatar}
                   title="Change photo"
                   aria-label="Change photo"
-                  className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-gray-900 text-white shadow-md hover:bg-gray-800 disabled:opacity-60"
+                  className={`absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-white text-white shadow-md disabled:opacity-60 ${photoMissing ? 'bg-orange-500 hover:bg-orange-600' : 'bg-gray-900 hover:bg-gray-800'}`}
                 >
                   {uploadingAvatar ? <Spinner className="h-3.5 w-3.5" /> : <CameraIcon />}
                 </button>
@@ -181,6 +181,12 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-lg font-bold leading-tight text-gray-900">{user.name}</p>
                 <p className="truncate text-sm text-gray-500">{user.email || user.phone || 'No contact detail'}</p>
+                {photoMissing && (
+                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-orange-700 disabled:opacity-60">
+                    <span className="h-1.5 w-1.5 rounded-full bg-orange-500" aria-hidden="true" />
+                    {uploadingAvatar ? 'Uploading…' : 'Add a profile photo'}
+                  </button>
+                )}
               </div>
             </div>
             <div className="mt-4">
@@ -191,11 +197,6 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
           <div>
             <SectionLabel>Your details</SectionLabel>
             <section className={LIST}>
-              <Row label="Photo" missing={photoMissing}>
-                {photoMissing
-                  ? <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60">{uploadingAvatar ? 'Uploading…' : 'Add photo'}</button>
-                  : <EditButton label="Change photo" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} />}
-              </Row>
               <Row label="Gender" missing={!gender}>
                 <div className="w-40"><AppSelect value={gender} onChange={(value) => { void saveDetails({ gender: value, ageRange }); }} options={toSelectOptions(GENDER_OPTIONS)} placeholder="Choose…" compact /></div>
               </Row>

@@ -35,7 +35,7 @@ const ProfileCompletionStrip: React.FC<{
       <div className="text-orange-700">
         <div className="mb-1.5 flex items-center justify-between text-xs font-semibold">
           <span>Profile {percent}% complete</span>
-          <span>{missing.length} to add below</span>
+          <span>{missing.length} to add</span>
         </div>
         {bar('bg-orange-100')}
       </div>
