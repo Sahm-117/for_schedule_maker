@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { useAuth } from '../hooks/useAuth';
 
 const PWAUpdateBanner: React.FC = () => {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const {
-    needRefresh: [needRefresh, setNeedRefresh],
+    needRefresh: [needRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onRegistered: (workerRegistration) => {
@@ -44,43 +43,35 @@ const PWAUpdateBanner: React.FC = () => {
     };
   }, [registration]);
 
-  // Signed-out visitors at the root URL see the public landing page
-  // (ProtectedRoute) — no update bar there; login and the app keep it.
-  const { user } = useAuth();
+  // No "Refresh" bar: a new version applies itself. To never reload under
+  // someone mid-tap or mid-typing, it waits for a natural break — the next
+  // page change, or the app going to the background — then reloads.
   const { pathname } = useLocation();
-  const onLandingPage = !user && pathname === '/';
+  const [seenPath, setSeenPath] = useState(pathname);
+  useEffect(() => {
+    if (!needRefresh) return undefined;
+    let applied = false;
+    const apply = async () => {
+      if (applied) return;
+      applied = true;
+      await updateServiceWorker(true);
+      window.location.reload();
+    };
+    if (document.visibilityState === 'hidden') { void apply(); return undefined; }
+    const handleHidden = () => { if (document.visibilityState === 'hidden') void apply(); };
+    document.addEventListener('visibilitychange', handleHidden);
+    return () => document.removeEventListener('visibilitychange', handleHidden);
+  }, [needRefresh, updateServiceWorker]);
 
-  if (!needRefresh || onLandingPage) return null;
+  useEffect(() => {
+    if (pathname === seenPath) return;
+    setSeenPath(pathname);
+    if (needRefresh) {
+      void updateServiceWorker(true).then(() => window.location.reload());
+    }
+  }, [pathname, seenPath, needRefresh, updateServiceWorker]);
 
-  return (
-    <div className="fixed top-4 left-4 right-4 z-50 max-w-md mx-auto">
-      <div className="bg-primary text-white rounded-2xl shadow-xl px-4 py-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          <p className="text-sm font-medium">New version available</p>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <button
-            onClick={async () => { await updateServiceWorker(true); window.location.reload(); }}
-            className="px-3 py-1 bg-white text-primary text-xs font-bold rounded-lg hover:bg-gray-100"
-          >
-            Refresh
-          </button>
-          <button
-            onClick={() => setNeedRefresh(false)}
-            className="p-1 text-white/70 hover:text-white"
-            aria-label="Dismiss"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  return null;
 };
 
 export default PWAUpdateBanner;

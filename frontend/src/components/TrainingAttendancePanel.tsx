@@ -4,6 +4,7 @@ import PageLoader from './PageLoader';
 import { useToast } from './Toast';
 import { useAppData } from '../context/AppDataContext';
 import { cohortsApi, supportSessionsApi } from '../services/api';
+import { supabase } from '../lib/supabase';
 import { cohortMode } from './dashboard/healthModel';
 import { sortByText } from '../utils/sort';
 import type { SupportAttendanceStatus, SupportSession, User } from '../types';
@@ -66,6 +67,32 @@ const TrainingAttendancePanel: React.FC = () => {
     return () => { cancelled = true; };
   }, [cohortIds]);
 
+  // Live: several people can mark the same training at once. Each mark is
+  // broadcast (postgres_changes can't see these staff-only rows, see
+  // HubMeetingPanel), with a 15s refetch in case a channel drops.
+  const [channel, setChannel] = useState<ReturnType<typeof supabase.channel> | null>(null);
+  useEffect(() => {
+    if (!sessionId) return undefined;
+    const ch = supabase
+      .channel(`training-attendance:${sessionId}`)
+      .on('broadcast', { event: 'mark' }, ({ payload }) => {
+        const { userId, status } = (payload ?? {}) as { userId?: string; status?: SupportAttendanceStatus };
+        if (userId && status) setMarks((prev) => ({ ...prev, [sessionId]: { ...prev[sessionId], [userId]: status } }));
+      })
+      .subscribe();
+    setChannel(ch);
+    const interval = setInterval(() => {
+      supportSessionsApi.getForCohort(cohortIds, ['PRE_COHORT_TRAINING', 'GET_TOGETHER'])
+        .then(({ attendance }) => {
+          const fresh: Record<string, SupportAttendanceStatus> = {};
+          attendance.forEach((a) => { if (a.sessionId === sessionId) fresh[a.userId] = a.status; });
+          setMarks((prev) => ({ ...prev, [sessionId]: { ...prev[sessionId], ...fresh } }));
+        })
+        .catch(() => { /* try again next tick */ });
+    }, 15000);
+    return () => { clearInterval(interval); void supabase.removeChannel(ch); setChannel(null); };
+  }, [sessionId, cohortIds]);
+
   const session = sessions.find((s) => s.id === sessionId) ?? null;
   const supports = session ? supportsByCohort[session.cohortId] ?? [] : [];
   const sessionMarks = session ? marks[session.id] ?? {} : {};
@@ -82,6 +109,7 @@ const TrainingAttendancePanel: React.FC = () => {
     try {
       await supportSessionsApi.mark({ status, userId: user.id, sessionId: session.id });
       setMarks((prev) => ({ ...prev, [session.id]: { ...prev[session.id], [user.id]: status } }));
+      void channel?.send({ type: 'broadcast', event: 'mark', payload: { userId: user.id, status } });
     } catch (error) {
       toast({ tone: 'error', message: error instanceof Error ? error.message : `Couldn’t save ${user.name}.` });
     } finally {
