@@ -59,7 +59,7 @@ const SettingsCard: React.FC<{
     ) : editing ? (
       <div className="space-y-4">
         {children}
-        <div className="flex flex-wrap items-center gap-3 border-t border-orange-50 pt-4">
+        <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-4">
           <button
             type="button"
             onClick={onCancel}

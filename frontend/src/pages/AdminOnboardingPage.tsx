@@ -22,7 +22,7 @@ import { sortByText } from '../utils/sort';
 import type { GroupOnboardingStatus, MessageTemplate, OnboardingEvent, ParticipantOnboardingStatus, User } from '../types';
 
 const inputClass =
-  'w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-100';
+  'w-full rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20';
 
 type TemplateTab = 'ONBOARDING' | 'COORDINATOR';
 type ParticipantKey = 'contacted' | 'addedToGroup' | 'introductionDone' | 'venueAcknowledged';
@@ -341,7 +341,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
                 <button
                   type="button"
                   onClick={() => setCoordinatorOpen(true)}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-orange-200 bg-white text-gray-500 hover:bg-orange-50 hover:text-primary"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-primary"
                   title="Manage coordinators"
                   aria-label="Manage coordinators"
                 >
@@ -381,7 +381,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
           </div>
 
           {filteredTemplates.length === 0 ? (
-            <div className="mt-4 rounded-3xl border border-dashed border-orange-200 py-16 text-center">
+            <div className="mt-4 rounded-3xl border border-dashed border-gray-200 py-16 text-center">
               <p className="text-sm text-gray-500">No templates in this section yet.</p>
               <p className="mt-1 text-xs text-gray-400">Add your first template to get started.</p>
             </div>
@@ -392,8 +392,8 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
                   {template.imageUrl ? (
                     <img src={template.imageUrl} alt={template.imageName ?? ''} loading="lazy" className="h-28 w-full object-cover" />
                   ) : (
-                    <div className="flex h-28 w-full items-center justify-center bg-orange-50/60">
-                      <svg className="h-7 w-7 text-orange-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="flex h-28 w-full items-center justify-center bg-primary/5">
+                      <svg className="h-7 w-7 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5l-3 3v-3Z" />
                       </svg>
                     </div>
@@ -424,13 +424,13 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Recent activity</p>
           <h3 className="mt-1 text-lg font-bold text-gray-900">Onboarding event feed</h3>
           {events.length === 0 ? (
-            <div className="mt-4 rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">
+            <div className="mt-4 rounded-2xl bg-gray-50/80 py-12 text-center text-sm text-gray-500">
               No onboarding updates yet.
             </div>
           ) : (
             <div className="mt-4 grid min-h-0 flex-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
               {events.slice(0, eventLimit).map((event) => (
-                <div key={event.id} className="rounded-2xl border border-orange-100 bg-orange-50/40 px-4 py-3">
+                <div key={event.id} className="rounded-2xl bg-gray-50 px-4 py-3">
                   <p className="text-sm font-semibold text-gray-900">{describeEvent(event)}</p>
                   <p className="mt-1 text-xs text-gray-500">{formatDateTime(event.createdAt)}</p>
                 </div>
@@ -479,14 +479,14 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
           {loading ? (
             <PageLoader />
           ) : visibleGroupSummaries.length === 0 ? (
-            <div className="mt-4 rounded-2xl border border-dashed border-orange-200 py-12 text-center">
+            <div className="mt-4 rounded-2xl bg-gray-50/80 py-12 text-center">
               <p className="text-sm text-gray-500">No group progress yet.</p>
             </div>
           ) : (
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 {visibleGroupSummaries.map(({ status, pct, participantCount, completed, completedParticipants, members }) => {
                   return (
-                    <div key={status.groupId} className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
+                    <div key={status.groupId} className="surface-card p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-base font-bold text-gray-900">{status.groupName}</p>
@@ -526,7 +526,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
         wide
         footer={(
           <>
-            <button type="button" onClick={() => setShowForm(false)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
+            <button type="button" onClick={() => setShowForm(false)} className="rounded-2xl border border-gray-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
             <button type="button" onClick={() => { void handleSave(); }} disabled={saving || uploading} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60">
               {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save template'}
             </button>
@@ -535,7 +535,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
       >
         <div className="space-y-4">
           {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-          <div className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-3">
+          <div className="rounded-2xl bg-gray-50 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Template type</p>
             <div className="mt-2 flex items-center gap-3">
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${templateTab === 'ONBOARDING' ? 'bg-primary text-white' : 'bg-violet-100 text-violet-700'}`}>
@@ -568,7 +568,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
                       setTimeout(() => setCopiedToken(null), 1500);
                     }}
                     title="Click to copy"
-                    className="rounded-lg border border-orange-100 bg-orange-50 px-1.5 py-0.5 font-mono text-xs text-orange-700 hover:bg-orange-100 active:scale-95"
+                    className="rounded-lg bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-700 hover:bg-gray-200 active:scale-95"
                   >
                     {copiedToken === bare ? 'Copied!' : token}
                   </button>
@@ -579,7 +579,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Graphic / image (optional)</label>
             {imageUrl ? (
-              <div className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50/40 p-3">
+              <div className="flex items-center gap-3 rounded-2xl bg-gray-50 p-3">
                 <img src={imageUrl} alt={imageName ?? ''} loading="lazy" className="h-16 w-16 rounded-xl object-cover" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-gray-800">{imageName}</p>
@@ -587,12 +587,12 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
                 </div>
               </div>
             ) : (
-              <div className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-orange-200 bg-orange-50/30 py-8 transition hover:bg-orange-50" onClick={() => fileRef.current?.click()}>
+              <div className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl bg-gray-50/80 py-8 transition hover:bg-gray-50" onClick={() => fileRef.current?.click()}>
                 {uploading ? (
                   <p className="flex items-center gap-1.5 text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Uploading…</p>
                 ) : (
                   <>
-                    <svg className="h-8 w-8 text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-8 w-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4-4m0 0 4 4m-4-4v9M8 7a4 4 0 0 1 8 0M12 3v4" />
                     </svg>
                     <p className="text-sm text-gray-500">Click to upload image</p>
@@ -637,7 +637,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
           </div>
 
           {coordinatorUsers.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-orange-200 py-10 text-center text-sm text-gray-500">
+            <div className="rounded-2xl bg-gray-50/80 py-10 text-center text-sm text-gray-500">
               No coordinators selected yet.
             </div>
           ) : (
@@ -648,7 +648,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
                   type="button"
                   onClick={() => { void handleCoordinatorToggle(supportUser); }}
                   disabled={updatingCoordinatorId === supportUser.id}
-                  className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-semibold text-gray-800 disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-800 disabled:opacity-60"
                 >
                   <span>{supportUser.name}</span>
                   <span className="text-xs text-gray-500">{supportUser.email || supportUser.phone}</span>
@@ -676,7 +676,7 @@ const TabButton: React.FC<{ label: string; active: boolean; onClick: () => void 
   <button
     type="button"
     onClick={onClick}
-    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${active ? 'bg-primary text-white' : 'border border-orange-200 bg-white text-gray-600 hover:bg-orange-50'}`}
+    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${active ? 'bg-primary text-white' : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
   >
     {label}
   </button>

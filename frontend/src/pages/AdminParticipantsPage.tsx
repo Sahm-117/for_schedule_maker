@@ -138,7 +138,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
       title={existing ? 'Edit Participant' : 'Add Participant'}
       footer={
         <>
-          <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
+          <button type="button" onClick={onClose} className="rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Cancel</button>
           <button type="button" onClick={() => void handleSave()} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
             {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
           </button>
@@ -153,7 +153,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
             type="text"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             placeholder="e.g. Adaeze Obi"
           />
         </div>
@@ -163,7 +163,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             placeholder="e.g. 08012345678"
           />
         </div>
@@ -173,12 +173,12 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
-            className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
 
         {/* Registration details — collapsed by default */}
-        <div className="rounded-xl border border-orange-100">
+        <div className="rounded-xl border border-gray-100">
           <button
             type="button"
             onClick={() => setDetailsOpen((v) => !v)}
@@ -191,14 +191,14 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
           </button>
 
           {detailsOpen && (
-            <div className="flex flex-col gap-4 border-t border-orange-100 px-3.5 py-4">
+            <div className="flex flex-col gap-4 border-t border-gray-100 px-3.5 py-4">
               <div>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Email</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="e.g. adaeze@example.com"
                 />
               </div>
@@ -235,7 +235,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
                   type="date"
                   value={registrationDate}
                   onChange={(e) => setRegistrationDate(e.target.value)}
-                  className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
               <div>
@@ -244,7 +244,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
                   value={smartRequest}
                   onChange={(e) => setSmartRequest(e.target.value)}
                   rows={3}
-                  className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="Their SMART goal / prayer request"
                 />
               </div>
@@ -424,7 +424,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
   };
 
   const tabClass = (active: boolean) =>
-    `rounded-2xl px-4 py-2 text-sm font-semibold transition ${active ? 'bg-primary text-white' : 'bg-orange-50 text-gray-600 hover:bg-orange-100'}`;
+    `rounded-2xl px-4 py-2 text-sm font-semibold transition ${active ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`;
 
   const csvRowsForImport = csvSplit
     ? [
@@ -476,7 +476,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
       footer={
         canImport
           ? <>
-              <button type="button" onClick={handleClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
+              <button type="button" onClick={handleClose} className="rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200">Cancel</button>
               <button type="button" onClick={() => void doImport()} disabled={importing} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
                 {importing ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Importing…</span>) : importLabel}
               </button>
@@ -501,7 +501,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
                 value={pasteText}
                 onChange={(e) => setPasteText(e.target.value)}
                 rows={8}
-                className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 font-mono text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 font-mono text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 placeholder={"Adaeze Obi\t08012345678\nTunde Balogun\t07098765432"}
               />
             </div>
@@ -509,12 +509,12 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
               type="button"
               onClick={handlePreview}
               disabled={!pasteText.trim()}
-              className="self-start rounded-2xl bg-orange-100 px-5 py-2.5 text-sm font-semibold text-orange-700 active:scale-95 disabled:opacity-60"
+              className="self-start rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95 disabled:opacity-60"
             >
               Preview
             </button>
             {preview && (
-              <div className="rounded-2xl border border-orange-100 bg-orange-50/50 p-4">
+              <div className="rounded-2xl bg-gray-50 p-4">
                 <p className="mb-2 text-sm font-semibold text-gray-700">
                   {preview.rows.length} to import
                   {preview.skipped > 0 && <span className="ml-2 text-xs text-amber-600">· {preview.skipped} unparseable skipped</span>}
@@ -536,14 +536,14 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Registration CSV</label>
               <p className="mb-2 text-xs text-gray-500">Columns like Email, Gender, Age Range, Department(s), Registration Date, SMART Request are read automatically. Existing people (matched by phone) have their empty fields filled in.</p>
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-orange-300 bg-orange-50/40 px-4 py-6 text-sm font-semibold text-orange-700 hover:bg-orange-50">
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-sm font-semibold text-orange-700 hover:bg-gray-50">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v12m0-12 4 4m-4-4-4 4M4 20h16" /></svg>
                 {fileName || 'Choose CSV file'}
                 <input type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => handleFile(e.target.files?.[0] ?? null)} />
               </label>
             </div>
             {csvRows && csvSplit && (
-              <div className="rounded-2xl border border-orange-100 bg-orange-50/50 p-4">
+              <div className="rounded-2xl bg-gray-50 p-4">
                 <div className="mb-2 flex flex-wrap gap-2 text-xs">
                   <button type="button" onClick={() => setCsvPreviewFilter('new')} className={csvPillClass(csvPreviewFilter === 'new', 'new')}>
                     {csvSplit.toCreate} new
@@ -558,7 +558,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
                     </button>
                   )}
                 </div>
-                <div className="mb-3 rounded-2xl border border-orange-100 bg-white/60 px-3 py-3">
+                <div className="mb-3 rounded-2xl border border-gray-100 bg-white/60 px-3 py-3">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Import actions</p>
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -711,7 +711,7 @@ const AssignGroupModal: React.FC<AssignGroupModalProps> = ({ participant, groups
       subtitle={p.fullName}
       footer={
         <>
-          <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
+          <button type="button" onClick={onClose} className="rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Cancel</button>
           <button type="button" onClick={() => void handleSave()} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
             {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
           </button>
@@ -1016,7 +1016,7 @@ const AdminParticipantsContent: React.FC = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search name or phone…"
-                className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-md sm:flex-1"
+                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-md sm:flex-1"
               />
               <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
                 {flaggedCount > 0 && (
@@ -1113,26 +1113,26 @@ const AdminParticipantsContent: React.FC = () => {
           {loading ? (
             <PageLoader />
           ) : displayed.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
+            <div className="rounded-2xl bg-gray-50/80 py-12 text-center">
               <p className="text-sm text-gray-500">{participants.length === 0 ? 'No participants yet. Add one or import a list.' : 'No participants match these filters.'}</p>
             </div>
           ) : (
-            <div data-wt="participants-table" className="overflow-x-auto rounded-2xl border border-orange-100 bg-white shadow-sm">
+            <div data-wt="participants-table" className="overflow-x-auto surface-card">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="border-b border-orange-100 bg-orange-50/60">
+                  <tr className="border-b border-gray-100 bg-primary/5">
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Name</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Phone</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Profile</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Source</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Support</th>
-                    <th className="sticky right-0 bg-orange-50/60 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
+                    <th className="sticky right-0 bg-primary/5 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-orange-50">
+                <tbody className="divide-y divide-gray-100">
                   {displayed.map((p) => (
-                    <tr key={p.id} className="hover:bg-orange-50/30">
+                    <tr key={p.id} className="hover:bg-gray-50/30">
                       <td className="px-4 py-3 font-medium text-gray-900">
                         <NavLink to={`/participants/${p.id}`} className="hover:text-primary hover:underline">{p.fullName}</NavLink>
                         {flagsByParticipant.has(p.id) && (

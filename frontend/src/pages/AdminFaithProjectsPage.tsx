@@ -63,12 +63,12 @@ const SupportConversation: React.FC<{
   };
 
   return (
-    <div className="rounded-xl border border-orange-100">
-      <p className="border-b border-orange-100 px-3.5 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Conversation with the support</p>
+    <div className="rounded-xl border border-gray-100">
+      <p className="border-b border-gray-100 px-3.5 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Conversation with the support</p>
       {entries.length === 0 ? (
         <p className="px-3.5 py-4 text-sm text-gray-400">No messages yet.</p>
       ) : (
-        <div className="max-h-72 divide-y divide-orange-50 overflow-y-auto">
+        <div className="max-h-72 divide-y divide-gray-100 overflow-y-auto">
           {entries.map((entry) => (
             <div key={entry.key} className="px-3.5 py-2.5">
               <div className="flex flex-wrap items-center gap-2">
@@ -86,13 +86,13 @@ const SupportConversation: React.FC<{
         </div>
       )}
       {canReply && (
-        <div className="flex flex-wrap gap-2 border-t border-orange-100 p-2.5">
+        <div className="flex flex-wrap gap-2 border-t border-gray-100 p-2.5">
           <input
             value={reply}
             onChange={(e) => setReply(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') void send(); }}
             placeholder="Reply to the support…"
-            className="min-w-0 flex-1 rounded-xl border border-orange-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
           <button type="button" onClick={() => void send()} disabled={!reply.trim() || sending} className="rounded-xl bg-primary px-3.5 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {sending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending…</span>) : 'Send'}
@@ -180,7 +180,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant,
       subtitle={group?.name}
       footer={
         <>
-          <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
+          <button type="button" onClick={onClose} className="rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Cancel</button>
           <button
             type="button"
             onClick={() => void handleSubmit()}
@@ -196,7 +196,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant,
         {err && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{err}</p>}
 
         {/* Project content */}
-        <div className="rounded-xl border border-orange-100 bg-white p-3.5">
+        <div className="rounded-xl border border-gray-100 bg-white p-3.5">
           {existing?.title && <p className="mb-1 text-sm font-semibold text-gray-900">{existing.title}</p>}
           {existing?.body ? (
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{existing.body}</p>
@@ -217,7 +217,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant,
                 className={`flex-1 rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95 ${
                   decision === d
                     ? d === 'APPROVED' ? 'border-emerald-300 bg-emerald-100/80 text-emerald-700' : 'border-orange-300 bg-orange-100/80 text-orange-700'
-                    : 'border-orange-100 bg-white text-gray-500 hover:bg-orange-50'
+                    : 'border-gray-100 bg-white text-gray-500 hover:bg-gray-50'
                 }`}
               >
                 {d === 'APPROVED' ? 'Approve' : 'Needs Refinement'}
@@ -237,7 +237,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant,
               onChange={(e) => setNote(e.target.value)}
               rows={3}
               autoFocus
-              className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               placeholder="Tell the support what needs to change…"
             />
           </div>
@@ -311,11 +311,11 @@ const TestimoniesPanel: React.FC<{
   return (
     <>
       {helpRequests.length > 0 && (
-        <div className="mb-6 rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
+        <div className="mb-6 surface-card p-4">
           <p className="text-sm font-bold text-gray-900">Open faith project help requests ({helpRequests.length})</p>
           <div className="mt-2.5 flex flex-col gap-2">
             {helpRequests.map((r) => (
-              <div key={r.id} className="rounded-xl bg-orange-50/60 px-3.5 py-2.5 text-sm">
+              <div key={r.id} className="rounded-xl bg-primary/5 px-3.5 py-2.5 text-sm">
                 <span className="font-semibold text-gray-900">{r.participantName}</span>
                 <span className="text-gray-500"> · {FAITH_HELP_REASON_LABELS[r.reason]} · {formatReviewDate(r.createdAt)}</span>
                 {r.note && <p className="mt-1 text-xs text-gray-600">{r.note}</p>}
@@ -331,7 +331,7 @@ const TestimoniesPanel: React.FC<{
             key={f.value || 'all'}
             type="button"
             onClick={() => setFilter(f.value)}
-            className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${filter === f.value ? 'bg-primary text-white' : 'border border-orange-100 bg-white text-gray-600 hover:bg-orange-50'}`}
+            className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${filter === f.value ? 'bg-primary text-white' : 'border border-gray-100 bg-white text-gray-600 hover:bg-gray-50'}`}
           >
             {f.label} <span className="ml-1 opacity-70">{f.value ? testimonies.filter((t) => t.status === f.value).length : testimonies.length}</span>
           </button>
@@ -339,13 +339,13 @@ const TestimoniesPanel: React.FC<{
       </div>
 
       {displayed.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
+        <div className="rounded-2xl bg-gray-50/80 py-12 text-center">
           <p className="text-sm text-gray-500">No testimonies here.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
           {displayed.map((t) => (
-            <div key={t.id} className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
+            <div key={t.id} className="surface-card p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold text-gray-900">{t.participantName}</span>
                 <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${TESTIMONY_STATUS_CLS[t.status]}`}>
@@ -363,7 +363,7 @@ const TestimoniesPanel: React.FC<{
                       {busyId === t.id ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Approve'}
                     </button>
                   )}
-                  <button type="button" onClick={() => void review(t.id, 'HIDDEN')} disabled={busyId === t.id} className="rounded-xl border border-orange-200 px-3.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-orange-50 disabled:opacity-60">
+                  <button type="button" onClick={() => void review(t.id, 'HIDDEN')} disabled={busyId === t.id} className="rounded-xl bg-gray-100 px-3.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60">
                     Hide
                   </button>
                 </div>
@@ -504,13 +504,13 @@ const AdminFaithProjectsContent: React.FC = () => {
         action={
           !loading && (
             <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setShowSettings(true)} aria-label="Faith Project settings" title="Faith Project settings" className="grid h-11 w-11 place-items-center rounded-2xl border border-orange-200 bg-white text-gray-700 shadow-sm transition hover:bg-orange-50">
+            <button type="button" onClick={() => setShowSettings(true)} aria-label="Faith Project settings" title="Faith Project settings" className="grid h-11 w-11 place-items-center rounded-2xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317a1.5 1.5 0 0 1 2.85 0l.267.879a1.5 1.5 0 0 0 1.81 1.004l.88-.267a1.5 1.5 0 0 1 2.015 2.015l-.267.88a1.5 1.5 0 0 0 1.004 1.81l.879.267a1.5 1.5 0 0 1 0 2.85l-.879.267a1.5 1.5 0 0 0-1.004 1.81l.267.88a1.5 1.5 0 0 1-2.015 2.015l-.88-.267a1.5 1.5 0 0 0-1.81 1.004l-.267.879a1.5 1.5 0 0 1-2.85 0l-.267-.879a1.5 1.5 0 0 0-1.81-1.004l-.88.267a1.5 1.5 0 0 1-2.015-2.015l.267-.88a1.5 1.5 0 0 0-1.004-1.81l-.879-.267a1.5 1.5 0 0 1 0-2.85l.879-.267a1.5 1.5 0 0 0 1.004-1.81l-.267-.88a1.5 1.5 0 0 1 2.015-2.015l.88.267a1.5 1.5 0 0 0 1.81-1.004l.267-.879Z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
             </button>
             {groups.length > 0 && <button
               type="button"
               onClick={() => setShowExportPopup(true)}
-              className="inline-flex items-center gap-1.5 rounded-2xl border border-orange-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-orange-50 hover:border-orange-300 active:scale-95"
+              className="inline-flex items-center gap-1.5 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:border-orange-300 active:scale-95"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -537,7 +537,7 @@ const AdminFaithProjectsContent: React.FC = () => {
                 role="tab"
                 aria-selected={pageTab === t.key}
                 onClick={() => setPageTab(t.key)}
-                className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${pageTab === t.key ? 'bg-primary text-white' : 'border border-orange-100 bg-white text-gray-600 hover:bg-orange-50'}`}
+                className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${pageTab === t.key ? 'bg-primary text-white' : 'border border-gray-100 bg-white text-gray-600 hover:bg-gray-50'}`}
               >
                 {t.label}
               </button>
@@ -561,7 +561,7 @@ const AdminFaithProjectsContent: React.FC = () => {
                   type="button"
                   onClick={() => setFilterStatus((prev) => prev === opt.value ? '' : opt.value)}
                   className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition active:scale-95 ${
-                    filterStatus === opt.value ? opt.cls + ' ring-2 ring-offset-1 ring-primary/30' : 'border border-orange-100 bg-white text-gray-600 hover:bg-orange-50'
+                    filterStatus === opt.value ? opt.cls + ' ring-2 ring-offset-1 ring-primary/30' : 'border border-gray-100 bg-white text-gray-600 hover:bg-gray-50'
                   }`}
                 >
                   {opt.label} <span className="ml-1 opacity-70">{counts[opt.value] ?? 0}</span>
@@ -577,7 +577,7 @@ const AdminFaithProjectsContent: React.FC = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search participant…"
-                className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-md sm:flex-1"
+                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-md sm:flex-1"
               />
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5">
@@ -600,27 +600,27 @@ const AdminFaithProjectsContent: React.FC = () => {
           {loading ? (
             <PageLoader />
           ) : displayed.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
+            <div className="rounded-2xl bg-gray-50/80 py-12 text-center">
               <p className="text-sm text-gray-500">No participants match your filter.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-orange-100 bg-white shadow-sm">
+            <div className="overflow-x-auto surface-card">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="border-b border-orange-100 bg-orange-50/60">
+                  <tr className="border-b border-gray-100 bg-primary/5">
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Participant</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
-                    <th className="sticky right-0 bg-orange-50/60 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
+                    <th className="sticky right-0 bg-primary/5 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-orange-50">
+                <tbody className="divide-y divide-gray-100">
                   {displayed.map((p) => {
                     const fp = projectByParticipant.get(p.id) ?? null;
                     const s: FaithProjectStatus = fp?.status ?? 'NOT_DRAFTED';
                     const newMessages = !!user && unreadTrails(p.id, fp, officeNotes, user.id, threadReads).has('office');
                     return (
-                      <tr key={p.id} className="hover:bg-orange-50/30">
+                      <tr key={p.id} className="hover:bg-gray-50/30">
                         <td className="px-4 py-3 font-medium text-gray-900">{p.fullName}</td>
                         <td className="px-4 py-3 text-gray-500">{p.groupName ?? '—'}</td>
                         <td className="px-4 py-3">
@@ -639,7 +639,7 @@ const AdminFaithProjectsContent: React.FC = () => {
                                 void faithThreadReadsApi.markRead(user.id, p.id, 'office').catch(() => undefined);
                               }
                             }}
-                            className="rounded-xl border border-orange-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-orange-50 active:scale-95"
+                            className="rounded-xl bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-200 active:scale-95"
                           >
                             Review
                           </button>
