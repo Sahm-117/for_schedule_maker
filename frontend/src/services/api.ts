@@ -638,6 +638,7 @@ export const supportHubsApi = USE_SUPABASE ? supabaseSupportHubsApi : {
   async setAssistantPermissions(_hubId: string, _perms: import('../types').AssistantHubPermission[]): Promise<never> { return peopleUnavailable(); },
   async getItSupports(_hubId: string): Promise<{ itSupports: import('../types').HubItSupportEntry[] }> { return { itSupports: [] }; },
   async setItSupports(_hubId: string, _userIds: string[]): Promise<never> { return peopleUnavailable(); },
+  async getMembersWithNotes(_hubId: string): Promise<{ userIds: string[] }> { return { userIds: [] }; },
   async remove(_hubId: string): Promise<never> { return peopleUnavailable(); },
   async getMembershipsForCohort(_cohortId: string): Promise<{ memberships: import('../types').HubMembership[] }> { return { memberships: [] }; },
   async getMembers(_hubId: string): Promise<{ members: import('../types').User[] }> { return { members: [] }; },
@@ -647,6 +648,7 @@ export const supportHubsApi = USE_SUPABASE ? supabaseSupportHubsApi : {
 export const supportNotesApi = USE_SUPABASE ? supabaseSupportNotesApi : {
   async getForSupport(_supportId: string): Promise<{ notes: import('../types').SupportNote[] }> { return { notes: [] }; },
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
+  async getSupportIdsWithNotes(_hubIds: string[]): Promise<{ supportIds: string[] }> { return { supportIds: [] }; },
 };
 
 export const supportSessionsApi = USE_SUPABASE ? supabaseSupportSessionsApi : {

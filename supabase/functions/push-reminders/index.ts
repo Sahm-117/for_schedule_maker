@@ -542,7 +542,7 @@ Deno.serve(async (req) => {
 
         const { data: hubs } = await supabase
           .from('SupportHub')
-          .select('id, name, meetingTime, callLink, leadUserId, assistantLeadUserId, recapLeadUserId, prayerLeadUserId')
+          .select('id, name, meetingTime, callLink, leadUserId, assistantLeadUserId, recapLeadUserIds, prayerLeadUserIds')
           .eq('meetingDay', DAY_NAMES_UPPER[target.dayIndex])
           .not('meetingTime', 'is', null)
           .not('callLink', 'is', null)
@@ -604,8 +604,8 @@ Deno.serve(async (req) => {
             const jobPhrases: string[] = []
             if (hub.leadUserId === userId) jobPhrases.push("leading Announcements")
             if (hub.assistantLeadUserId === userId) jobPhrases.push("making sure everyone is there")
-            if (hub.recapLeadUserId === userId) jobPhrases.push("leading Review & Recap")
-            if (hub.prayerLeadUserId === userId) jobPhrases.push("leading prayer")
+            if ((hub.recapLeadUserIds ?? []).includes(userId)) jobPhrases.push("leading Review & Recap")
+            if ((hub.prayerLeadUserIds ?? []).includes(userId)) jobPhrases.push("leading prayer")
             const personalLine = jobPhrases.length === 0
               ? ''
               : jobPhrases.length === 1

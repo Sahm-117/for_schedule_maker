@@ -52,3 +52,10 @@ export const HUB_JOB_ORDER: HubJob[] = ['HUB_LEAD', 'ASSISTANT_HUB_LEAD', 'RECAP
 
 export const sortHubJobs = (jobs: HubJob[]): HubJob[] =>
   [...jobs].sort((a, b) => HUB_JOB_ORDER.indexOf(a) - HUB_JOB_ORDER.indexOf(b));
+
+/** ★ on a hub member who has notes about them — shown only to admins and the hub lead. */
+export const PERSON_OF_INTEREST_INFO = {
+  label: '★',
+  pill: 'bg-amber-100/80 text-amber-700',
+  description: 'There are notes about this support. Only admins and the hub lead see this.',
+};

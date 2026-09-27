@@ -5259,7 +5259,7 @@ export const attendanceFollowUpTasksApi = {
 // ── Support Hubs (Phase 3) ────────────────────────────────────────────────────
 // Named supportHubsApi (not hubApi) — hubApi below is the Community forum.
 
-const SUPPORT_HUB_SELECT = '*, lead:User!SupportHub_leadUserId_fkey(id, name), assistantLead:User!SupportHub_assistantLeadUserId_fkey(id, name), recapLead:User!SupportHub_recapLeadUserId_fkey(id, name), prayerLead:User!SupportHub_prayerLeadUserId_fkey(id, name)';
+const SUPPORT_HUB_SELECT = '*, lead:User!SupportHub_leadUserId_fkey(id, name), assistantLead:User!SupportHub_assistantLeadUserId_fkey(id, name)';
 
 const mapSupportHub = (row: any): import('../types').SupportHub => ({
   id: row.id,
@@ -5270,10 +5270,8 @@ const mapSupportHub = (row: any): import('../types').SupportHub => ({
   assistantLeadUserId: row.assistantLeadUserId ?? null,
   assistantLeadName: row.assistantLead?.name ?? null,
   assistantPermissions: row.assistantPermissions ?? [],
-  recapLeadUserId: row.recapLeadUserId ?? null,
-  recapLeadName: row.recapLead?.name ?? null,
-  prayerLeadUserId: row.prayerLeadUserId ?? null,
-  prayerLeadName: row.prayerLead?.name ?? null,
+  recapLeadUserIds: row.recapLeadUserIds ?? [],
+  prayerLeadUserIds: row.prayerLeadUserIds ?? [],
   createdAt: row.createdAt,
 });
 
@@ -5298,7 +5296,7 @@ export const supportHubsApi = {
     return { hub: mapSupportHub(data) };
   },
 
-  async update(hubId: string, input: { name?: string; leadUserId?: string | null; assistantLeadUserId?: string | null; recapLeadUserId?: string | null; prayerLeadUserId?: string | null }): Promise<{ hub: import('../types').SupportHub }> {
+  async update(hubId: string, input: { name?: string; leadUserId?: string | null; assistantLeadUserId?: string | null; recapLeadUserIds?: string[]; prayerLeadUserIds?: string[] }): Promise<{ hub: import('../types').SupportHub }> {
     const { data, error } = await supabase
       .from('SupportHub')
       .update(input)
@@ -5350,6 +5348,17 @@ export const supportHubsApi = {
       if (insError) throw new Error(insError.message);
     }
     return { message: 'IT supports updated' };
+  },
+
+  // Members with a note about them in this hub — they get a ★ on the hub card.
+  async getMembersWithNotes(hubId: string): Promise<{ userIds: string[] }> {
+    const { data, error } = await supabase
+      .from('SupportNote')
+      .select('supportId')
+      .eq('hubId', hubId)
+      .eq('noteType', 'NOTE');
+    if (error) throw new Error(error.message);
+    return { userIds: [...new Set(((data as any[]) || []).map((r) => r.supportId as string))] };
   },
 
   async remove(hubId: string): Promise<void> {
@@ -5452,6 +5461,18 @@ export const supportNotesApi = {
       .single();
     if (error || !data) throw new Error(error?.message || 'Failed to save note');
     return { note: mapSupportNote(data) };
+  },
+
+  // Supports with a note in one of these hubs, or a note not tied to any hub — they get a ★.
+  async getSupportIdsWithNotes(hubIds: string[]): Promise<{ supportIds: string[] }> {
+    const { data, error } = await supabase
+      .from('SupportNote')
+      .select('supportId, hubId')
+      .eq('noteType', 'NOTE');
+    if (error) throw new Error(error.message);
+    const inCohort = new Set(hubIds);
+    const ids = ((data as any[]) || []).filter((r) => !r.hubId || inCohort.has(r.hubId)).map((r) => r.supportId as string);
+    return { supportIds: [...new Set(ids)] };
   },
 };
 

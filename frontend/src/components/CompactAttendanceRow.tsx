@@ -15,6 +15,8 @@ interface CompactAttendanceRowProps {
   disabled?: boolean;
   /** Small status line under the name — e.g. SaveStatus, or an error message. */
   status?: React.ReactNode;
+  /** Optional small pill next to the name (e.g. the hub's person-of-interest tag). */
+  tag?: React.ReactNode;
 }
 
 // One compact "name + dropdown" attendance row — shared by the hub meeting
@@ -28,10 +30,12 @@ const CompactAttendanceRow: React.FC<CompactAttendanceRowProps> = ({
   placeholder = 'Not marked',
   disabled,
   status,
+  tag,
 }) => (
   <li className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
     <div className="min-w-0">
       <p className="text-sm font-semibold text-gray-900">{name}</p>
+      {tag && <div className="mt-1 flex">{tag}</div>}
       {status}
     </div>
     <div className="w-40 flex-none">

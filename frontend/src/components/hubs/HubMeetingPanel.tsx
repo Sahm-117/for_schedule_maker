@@ -8,6 +8,8 @@ import { useToast } from '../Toast';
 import { supabase } from '../../lib/supabase';
 import { myHubApi, supportSessionsApi } from '../../services/api';
 import type { HubMessage, HubPrayerFocus, HubPrayerListItem, MyHubMember, SupportAttendanceStatus, SupportRecap, Week } from '../../types';
+import { parseTimeToMinutes } from '../../utils/time';
+import { PERSON_OF_INTEREST_INFO } from './hubJobs';
 
 const STEPS = ['Attendance', 'Prayer', 'Review & Recap', 'Announcements', 'Notes', 'Submit'];
 const DONE_STEP = STEPS.length;
@@ -33,8 +35,9 @@ interface HubMeetingPanelProps {
   /** Weeks whose meeting is already submitted, so the picker can tick them. */
   submittedWeekIds?: number[];
   hubLeadName?: string | null;
-  recapLeadName?: string | null;
-  prayerLeadName?: string | null;
+  /** A hub can have several Recap Leads / Prayer Leads. */
+  recapLeadNames?: string[];
+  prayerLeadNames?: string[];
   prayerItems: HubPrayerListItem[];
   recaps: SupportRecap[];
   messages: HubMessage[];
@@ -47,6 +50,10 @@ interface HubMeetingPanelProps {
   isPrayerLead: boolean;
   onSubmit: (weekId: number, notes: string) => Promise<void>;
   onReopen: (weekId: number) => Promise<void>;
+  /** The hub's meeting slot (e.g. SATURDAY, 19:00, 60) — follow-along only shows prayer around it. */
+  meetingDay?: string | null;
+  meetingTime?: string | null;
+  meetingDurationMins?: number | null;
 }
 
 type HubMeetingSession = { id: string; notes: string | null; submittedAt: string | null };
@@ -86,7 +93,21 @@ const LiveDot: React.FC<{ label: string }> = ({ label }) => (
 // card. Live: set by the lead/assistant or the prayer lead, broadcast to
 // every open Hub meeting tab (see the realtime effect below for why a
 // broadcast channel, not postgres_changes).
-const FollowAlongPrayerCard: React.FC<{ focus: HubPrayerFocus; prayerLeadName?: string | null }> = ({ focus, prayerLeadName }) =>
+// "Ada", "Ada and Bo", "Ada, Bo and Cy".
+const joinNames = (names: string[]) =>
+  names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+
+// True from 15 minutes before the hub's meeting slot until it ends.
+const DAY_NAMES = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+const isInMeetingWindow = (day: string | null | undefined, time: string | null | undefined, durationMins: number | null | undefined, now: Date) => {
+  if (!day || !time || DAY_NAMES[now.getDay()] !== day.toUpperCase()) return false;
+  const start = parseTimeToMinutes(time);
+  if (start === null) return false;
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  return nowMins >= start - 15 && nowMins <= start + (durationMins || 60);
+};
+
+const FollowAlongPrayerCard: React.FC<{ focus: HubPrayerFocus; prayerLeadNames?: string[] }> = ({ focus, prayerLeadNames = [] }) =>
   focus.prayerFinished ? (
     <div className={`${CARD} text-center`}>
       <div className="text-2xl text-emerald-600">✓</div>
@@ -108,7 +129,7 @@ const FollowAlongPrayerCard: React.FC<{ focus: HubPrayerFocus; prayerLeadName?: 
           {focus.projectText && <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-gray-700">{focus.projectText}</p>}
         </>
       ) : (
-        <p className="mt-3 animate-pulse text-sm text-gray-500">Waiting for {prayerLeadName || 'the Prayer Lead'} to pick someone…</p>
+        <p className="mt-3 animate-pulse text-sm text-gray-500">Waiting for {prayerLeadNames.length > 0 ? joinNames(prayerLeadNames) : 'the Prayer Lead'} to pick someone…</p>
       )}
     </div>
   );
@@ -126,8 +147,8 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   onWeekChange,
   submittedWeekIds = [],
   hubLeadName,
-  recapLeadName,
-  prayerLeadName,
+  recapLeadNames = [],
+  prayerLeadNames = [],
   prayerItems,
   recaps,
   messages,
@@ -137,6 +158,9 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   isPrayerLead,
   onSubmit,
   onReopen,
+  meetingDay,
+  meetingTime,
+  meetingDurationMins,
 }) => {
   const toast = useToast();
   const isFullAccess = canAttendance;
@@ -223,6 +247,32 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   }, [hubId, weekId]);
 
   useEffect(() => { void loadPrayerFocus(); }, [loadPrayerFocus]);
+
+  // Follow-along only shows the prayer part once the meeting is actually on:
+  // attendance has been taken for this week, it's the hub's meeting time, or
+  // prayer has already started. Until then, re-check every 10s so it appears
+  // as soon as the lead marks the first person.
+  const [now, setNow] = useState(() => new Date());
+  const attendanceTaken = Object.keys(marks).length > 0;
+  const prayerStarted = !!prayerFocus.faithProjectId || prayerFocus.hubPrayerDone || prayerFocus.prayerFinished;
+  const showFollowAlongPrayer = attendanceTaken || prayerStarted
+    || isInMeetingWindow(meetingDay, meetingTime, meetingDurationMins, now);
+  useEffect(() => {
+    if (!isFollowAlong || !hubId || weekId === null || attendanceTaken) return undefined;
+    const interval = setInterval(() => {
+      setNow(new Date());
+      supportSessionsApi.getForHubWeek(hubId, weekId)
+        .then(({ attendance, session: sessionRow }) => {
+          if (attendance.length === 0) return;
+          const map: Record<string, SupportAttendanceStatus> = {};
+          attendance.forEach((a) => { map[a.userId] = a.status; });
+          setMarks(map);
+          setSession(sessionRow ?? null);
+        })
+        .catch(() => { /* try again next tick */ });
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [isFollowAlong, hubId, weekId, attendanceTaken]);
 
   useEffect(() => {
     if (!hubId || weekId === null) return undefined;
@@ -560,7 +610,9 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
     <section className={CARD}>
       <h3 className="text-[15px] font-bold text-gray-900">Review & Recap</h3>
       <p className="mt-0.5 text-[13px] text-gray-500">
-        {recapLeadName ? `${recapLeadName} leads this part.` : 'No recap lead assigned yet.'}
+        {recapLeadNames.length > 0
+          ? `${joinNames(recapLeadNames)} ${recapLeadNames.length === 1 ? 'leads' : 'lead'} this part.`
+          : 'No recap lead assigned yet.'}
       </p>
       {!recap ? (
         <div className="mt-3 rounded-[14px] border border-dashed border-[#e5e7eb] px-3.5 py-6 text-center text-[13px] text-gray-500">
@@ -640,7 +692,12 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
             ))}
           </div>
         </section>
-        <FollowAlongPrayerCard focus={prayerFocus} prayerLeadName={prayerLeadName} />
+        {!showFollowAlongPrayer ? (
+          <section className={`${CARD} text-center`}>
+            <p className="text-sm text-gray-500">Activities show here once the hub meeting starts.</p>
+          </section>
+        ) : (<>
+        <FollowAlongPrayerCard focus={prayerFocus} prayerLeadNames={prayerLeadNames} />
         <section className={CARD}>
           <p className="text-xs font-bold uppercase tracking-[0.04em] text-gray-500">Prayer list</p>
           {sortedPrayerItems.length === 0 ? (
@@ -662,6 +719,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
             </ul>
           )}
         </section>
+        </>)}
       </div>
     );
   }
@@ -791,6 +849,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
                 <CompactAttendanceRow
                   key={m.userId}
                   name={m.name}
+                  tag={m.isPersonOfInterest ? <span title={PERSON_OF_INTEREST_INFO.description} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span> : undefined}
                   value={marks[m.userId] ?? ''}
                   onChange={(v) => void handleMark(m.userId, v as SupportAttendanceStatus)}
                   options={STATUS_OPTIONS}

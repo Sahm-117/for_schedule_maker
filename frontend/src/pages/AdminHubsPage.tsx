@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { cohortsApi, groupsApi, supportHubsApi, supportKindApi, supportSessionsApi, usersApi } from '../services/api';
 import type { Cohort, Group, HubItSupportEntry, HubJob, HubMembership, SupportAttendanceStatus, SupportHub, SupportKind, SupportSession, SupportSessionType, User, Week } from '../types';
-import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
+import { HUB_JOB_INFO, PERSON_OF_INTEREST_INFO, sortHubJobs } from '../components/hubs/hubJobs';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -198,11 +198,33 @@ const HubFormModal: React.FC<{
 };
 
 // ── Hub Roles Modal ────────────────────────────────────────────────────────────
-// Single picks for the hub's four named jobs (candidates = the hub's own
-// members, same pool the old lead-only picker used), plus a multi-pick for IT
+// Single picks for Hub Lead and Assistant, multi-picks for Recap Leads and
+// Prayer Leads (candidates = the hub's own members), plus a multi-pick for IT
 // support — an operational support who can cover this hub without being a
 // member of it, so its candidate pool is every support in the cohort, not just
 // this hub's members.
+
+const toggleIn = (set: Set<string>, id: string): Set<string> => {
+  const next = new Set(set);
+  if (next.has(id)) next.delete(id); else next.add(id);
+  return next;
+};
+
+// Checkbox list, same look as the IT support picker.
+const RoleCheckList: React.FC<{ users: User[]; selected: Set<string>; onToggle: (id: string) => void }> = ({ users, selected, onToggle }) => (
+  <ul className="max-h-48 overflow-y-auto divide-y divide-orange-50 rounded-xl border border-orange-100">
+    {users.map((u) => (
+      <li
+        key={u.id}
+        onClick={() => onToggle(u.id)}
+        className={`flex cursor-pointer items-center gap-3 px-3 py-2.5 transition ${selected.has(u.id) ? 'bg-orange-50/60' : 'hover:bg-gray-50'}`}
+      >
+        <input type="checkbox" checked={selected.has(u.id)} readOnly tabIndex={-1} className="pointer-events-none h-4 w-4 accent-primary" />
+        <span className="flex-1 text-sm text-gray-800">{u.name}</span>
+      </li>
+    ))}
+  </ul>
+);
 
 const HubRolesModal: React.FC<{
   isOpen: boolean;
@@ -216,8 +238,8 @@ const HubRolesModal: React.FC<{
 }> = ({ isOpen, onClose, onSaved, hub, members, itSupportCandidates, currentItSupportIds, onItSupportsSaved }) => {
   const [leadUserId, setLeadUserId] = useState('');
   const [assistantLeadUserId, setAssistantLeadUserId] = useState('');
-  const [recapLeadUserId, setRecapLeadUserId] = useState('');
-  const [prayerLeadUserId, setPrayerLeadUserId] = useState('');
+  const [recapLeadIds, setRecapLeadIds] = useState<Set<string>>(new Set());
+  const [prayerLeadIds, setPrayerLeadIds] = useState<Set<string>>(new Set());
   const [itSupportIds, setItSupportIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -226,20 +248,14 @@ const HubRolesModal: React.FC<{
     if (isOpen) {
       setLeadUserId(hub.leadUserId ?? '');
       setAssistantLeadUserId(hub.assistantLeadUserId ?? '');
-      setRecapLeadUserId(hub.recapLeadUserId ?? '');
-      setPrayerLeadUserId(hub.prayerLeadUserId ?? '');
+      setRecapLeadIds(new Set(hub.recapLeadUserIds ?? []));
+      setPrayerLeadIds(new Set(hub.prayerLeadUserIds ?? []));
       setItSupportIds(new Set(currentItSupportIds));
       setErr('');
     }
   }, [isOpen, hub, currentItSupportIds]);
 
-  const toggleItSupport = (id: string) => {
-    setItSupportIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
+  const toggleItSupport = (id: string) => setItSupportIds((prev) => toggleIn(prev, id));
 
   const sortedItSupportCandidates = useMemo(
     () => selectedFirst(itSupportCandidates, (u) => itSupportIds.has(u.id)),
@@ -262,8 +278,9 @@ const HubRolesModal: React.FC<{
       const { hub: updated } = await supportHubsApi.update(hub.id, {
         leadUserId: leadUserId || null,
         assistantLeadUserId: assistantLeadUserId || null,
-        recapLeadUserId: recapLeadUserId || null,
-        prayerLeadUserId: prayerLeadUserId || null,
+        // Only current members can hold these, same as the pickers show.
+        recapLeadUserIds: members.filter((u) => recapLeadIds.has(u.id)).map((u) => u.id),
+        prayerLeadUserIds: members.filter((u) => prayerLeadIds.has(u.id)).map((u) => u.id),
       });
       await supportHubsApi.setItSupports(hub.id, [...itSupportIds]);
       onSaved(updated);
@@ -306,12 +323,12 @@ const HubRolesModal: React.FC<{
               <AppSelect value={assistantLeadUserId} onChange={setAssistantLeadUserId} options={assistantOptions} placeholder="— None —" compact />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Recap lead</label>
-              <AppSelect value={recapLeadUserId} onChange={setRecapLeadUserId} options={memberOptions} placeholder="— None —" compact />
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Recap leads</label>
+              <RoleCheckList users={members} selected={recapLeadIds} onToggle={(id) => setRecapLeadIds((prev) => toggleIn(prev, id))} />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Prayer lead</label>
-              <AppSelect value={prayerLeadUserId} onChange={setPrayerLeadUserId} options={memberOptions} placeholder="— None —" compact />
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Prayer leads</label>
+              <RoleCheckList users={members} selected={prayerLeadIds} onToggle={(id) => setPrayerLeadIds((prev) => toggleIn(prev, id))} />
             </div>
           </div>
         )}
@@ -663,6 +680,8 @@ const AdminHubsPage: React.FC = () => {
   const [recapTarget, setRecapTarget] = useState<SupportHub | null>(null);
   const [recapByHub, setRecapByHub] = useState<Record<string, { weekId: number; weekNumber: number; marked: number; total: number; absent: number }>>({});
   const [itSupportsByHub, setItSupportsByHub] = useState<Record<string, HubItSupportEntry[]>>({});
+  // Members with a note about them, per hub — they get a ★ on the hub card.
+  const [notedIdsByHub, setNotedIdsByHub] = useState<Record<string, string[]>>({});
   // A support's kind for this cohort (missing entry = PARTICIPANT_SUPPORT) — used
   // to offer only operational supports as IT-support candidates.
   const [kinds, setKinds] = useState<Record<string, SupportKind>>({});
@@ -728,6 +747,8 @@ const AdminHubsPage: React.FC = () => {
       setKinds(ks);
       const itSupportEntries = await Promise.all(hs.map((h) => supportHubsApi.getItSupports(h.id).then((res) => res.itSupports).catch(() => [] as HubItSupportEntry[])));
       setItSupportsByHub(Object.fromEntries(hs.map((h, i) => [h.id, itSupportEntries[i]])));
+      const notedEntries = await Promise.all(hs.map((h) => supportHubsApi.getMembersWithNotes(h.id).then((res) => res.userIds).catch(() => [] as string[])));
+      setNotedIdsByHub(Object.fromEntries(hs.map((h, i) => [h.id, notedEntries[i]])));
       // Fold recap sessions + marks into "hubId:weekId" -> marks for the
       // summary strip's week-by-week table.
       const sessionHubWeek = new Map(rs.map((s) => [s.id, `${s.hubId}:${s.weekId}`]));
@@ -1031,18 +1052,20 @@ const AdminHubsPage: React.FC = () => {
                       const jobs = sortHubJobs(([
                         u.id === h.leadUserId ? 'HUB_LEAD' : null,
                         u.id === h.assistantLeadUserId ? 'ASSISTANT_HUB_LEAD' : null,
-                        u.id === h.recapLeadUserId ? 'RECAP_LEAD' : null,
-                        u.id === h.prayerLeadUserId ? 'PRAYER_LEAD' : null,
+                        (h.recapLeadUserIds ?? []).includes(u.id) ? 'RECAP_LEAD' : null,
+                        (h.prayerLeadUserIds ?? []).includes(u.id) ? 'PRAYER_LEAD' : null,
                         (itSupportsByHub[h.id] ?? []).some((s) => s.userId === u.id) ? 'IT_SUPPORT' : null,
                       ].filter(Boolean) as HubJob[]));
+                      const isPoi = (notedIdsByHub[h.id] ?? []).includes(u.id);
                       return (
                         <div key={u.id} className="rounded-xl border border-orange-100 bg-white px-3 py-2 shadow-sm">
                           <p className="truncate text-sm font-semibold leading-tight text-gray-900">{u.name}</p>
-                          {jobs.length > 0 && (
+                          {(jobs.length > 0 || isPoi) && (
                             <div className="mt-1 flex flex-wrap gap-1">
                               {jobs.map((job) => (
                                 <span key={job} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${HUB_JOB_INFO[job].pill}`}>{HUB_JOB_INFO[job].label}</span>
                               ))}
+                              {isPoi && <span title={PERSON_OF_INTEREST_INFO.description} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
                             </div>
                           )}
                           {led && <p className="text-xs text-gray-400">Leads {led.name}</p>}

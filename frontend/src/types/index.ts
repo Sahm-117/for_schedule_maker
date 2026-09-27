@@ -1117,10 +1117,11 @@ export interface SupportHub {
   assistantLeadUserId?: string | null;
   assistantLeadName?: string | null;
   assistantPermissions?: AssistantHubPermission[];
-  recapLeadUserId?: string | null;
-  recapLeadName?: string | null;
-  prayerLeadUserId?: string | null;
-  prayerLeadName?: string | null;
+  /** A hub can have several Recap Leads and Prayer Leads. */
+  recapLeadUserIds?: string[];
+  recapLeadNames?: string[];
+  prayerLeadUserIds?: string[];
+  prayerLeadNames?: string[];
   itSupports?: HubItSupportEntry[];
   memberCount?: number;
   createdAt?: string;
@@ -1198,6 +1199,8 @@ export interface MyHubMember {
   isLead: boolean;
   groupName?: string | null;
   jobs?: HubJob[];
+  /** Admin-set tag, only returned to admins and this hub's lead (null for everyone else). */
+  isPersonOfInterest?: boolean | null;
 }
 
 export interface MyHubAttendanceRow {
@@ -1217,8 +1220,8 @@ export interface MyHubPayload {
     id: string; name: string; leadUserId: string | null; leadName: string | null; cohortId: string;
     assistantLeadUserId?: string | null; assistantLeadName?: string | null;
     assistantPermissions?: AssistantHubPermission[];
-    recapLeadUserId?: string | null; recapLeadName?: string | null;
-    prayerLeadUserId?: string | null; prayerLeadName?: string | null;
+    recapLeadUserIds?: string[]; recapLeadNames?: string[];
+    prayerLeadUserIds?: string[]; prayerLeadNames?: string[];
     itSupports?: HubItSupportEntry[];
     meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null;
     callPlatform?: GroupCallPlatform | null; callLink?: string | null;

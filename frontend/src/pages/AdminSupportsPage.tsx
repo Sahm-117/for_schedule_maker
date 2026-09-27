@@ -15,6 +15,7 @@ import { useAppData } from '../context/AppDataContext';
 import { cohortsApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
 import type { HubMembership, ParticipantNote, SupportHub, SupportKind, SupportNote, SupportSession, User } from '../types';
 import AppSelect from '../components/AppSelect';
+import { PERSON_OF_INTEREST_INFO } from '../components/hubs/hubJobs';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
 import {
@@ -81,6 +82,9 @@ const AdminSupportsPage: React.FC = () => {
   const filterParam = searchParams.get('health');
   const filter: Filter = filterParam === 'critical' || filterParam === 'warning' || filterParam === 'good' ? filterParam : 'all';
   const hubFilter = searchParams.get('hub') ?? '';
+  const notesOnly = searchParams.get('notes') === '1';
+  // Supports with a note about them — they get a ★ and the "With notes" filter.
+  const [notedIds, setNotedIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!activeCohort?.id) { setLoading(false); return; }
@@ -105,6 +109,7 @@ const AdminSupportsPage: React.FC = () => {
       setTrainingSessions(ts.sessions);
       setKinds(k);
       setTrainingAttendance(ts.attendance);
+      setNotedIds(new Set(await supportNotesApi.getSupportIdsWithNotes(hb.map((x) => x.id)).then((res) => res.supportIds).catch(() => [] as string[])));
       const groupIds = h.groups.map((g) => g.id);
       setReports(await participantNotesApi.getMeetingReports(groupIds).then((res) => res.notes).catch(() => [] as ParticipantNote[]));
     } catch (err) {
@@ -189,6 +194,12 @@ const AdminSupportsPage: React.FC = () => {
     if (next === 'all') params.delete('health'); else params.set('health', next);
     setSearchParams(params, { replace: true });
   };
+  const setNotesFilter = (next: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (next === '1') params.set('notes', '1'); else params.delete('notes');
+    setSearchParams(params, { replace: true });
+  };
+  const markNoted = (userId: string) => setNotedIds((prev) => (prev.has(userId) ? prev : new Set(prev).add(userId)));
   const setHubFilter = (next: string) => {
     const params = new URLSearchParams(searchParams);
     if (!next) params.delete('hub'); else params.set('hub', next);
@@ -196,7 +207,8 @@ const AdminSupportsPage: React.FC = () => {
   };
 
   const visible = (model?.evaluations.filter((e) => filter === 'all' || e.health === filter) ?? [])
-    .filter((e) => !hubFilter || hubByUserId.get(e.supportId)?.id === hubFilter);
+    .filter((e) => !hubFilter || hubByUserId.get(e.supportId)?.id === hubFilter)
+    .filter((e) => !notesOnly || notedIds.has(e.supportId));
   const userById = new Map(users.map((u) => [u.id, u]));
   const groupById = new Map((health?.groups ?? []).map((g) => [g.id, g]));
 
@@ -211,14 +223,15 @@ const AdminSupportsPage: React.FC = () => {
   // their card too.
   const notLeadingWithHub = (model?.notLeading ?? []).filter((u) => !!hubByUserId.get(u.id) || !isProblemKind(u.id));
   const notLeadingCards = filter === 'all'
-    ? notLeadingWithHub.filter((u) => !hubFilter || hubByUserId.get(u.id)?.id === hubFilter)
+    ? notLeadingWithHub.filter((u) => (!hubFilter || hubByUserId.get(u.id)?.id === hubFilter) && (!notesOnly || notedIds.has(u.id)))
     : [];
   const notLeadingCardIds = new Set(notLeadingCards.map((u) => u.id));
   // Hub leads and operational supports are never flagged as a "no group"
   // problem, regardless of the health filter/tab in view.
   const notLeadingCollapsed = (model?.notLeading ?? [])
     .filter((u) => !notLeadingCardIds.has(u.id))
-    .filter((u) => isProblemKind(u.id));
+    .filter((u) => isProblemKind(u.id))
+    .filter((u) => !notesOnly || notedIds.has(u.id));
 
   return (
     <div>
@@ -270,17 +283,28 @@ const AdminSupportsPage: React.FC = () => {
             </div>
           </section>
 
-          {hubs.length > 0 && (
-            <div className="w-full sm:w-64">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            {hubs.length > 0 && (
+              <div className="min-w-0 sm:w-64">
+                <AppSelect
+                  value={hubFilter}
+                  onChange={setHubFilter}
+                  options={[{ value: '', label: 'All hubs' }, ...hubs.map((h) => ({ value: h.id, label: h.name }))]}
+                  placeholder="All hubs"
+                  compact
+                />
+              </div>
+            )}
+            <div className="min-w-0 sm:w-64">
               <AppSelect
-                value={hubFilter}
-                onChange={setHubFilter}
-                options={[{ value: '', label: 'All hubs' }, ...hubs.map((h) => ({ value: h.id, label: h.name }))]}
-                placeholder="All hubs"
+                value={notesOnly ? '1' : ''}
+                onChange={setNotesFilter}
+                options={[{ value: '', label: 'All supports' }, { value: '1', label: `★ With notes (${notedIds.size})` }]}
+                placeholder="All supports"
                 compact
               />
             </div>
-          )}
+          </div>
 
           {visible.length === 0 && notLeadingCards.length === 0 ? (
             <div className="surface-card p-8 text-center text-sm text-gray-500">No supports here.</div>
@@ -304,6 +328,8 @@ const AdminSupportsPage: React.FC = () => {
                   kind={kinds[evaluation.supportId] ?? 'PARTICIPANT_SUPPORT'}
                   kindSaving={savingKindIds.has(evaluation.supportId)}
                   onKindChange={(kind) => void saveKind(evaluation.supportId, kind)}
+                  hasNotes={notedIds.has(evaluation.supportId)}
+                  onNoteAdded={() => markNoted(evaluation.supportId)}
                 />
               ))}
               {notLeadingCards.map((u) => (
@@ -315,6 +341,8 @@ const AdminSupportsPage: React.FC = () => {
                   kind={kinds[u.id] ?? 'PARTICIPANT_SUPPORT'}
                   kindSaving={savingKindIds.has(u.id)}
                   onKindChange={(kind) => void saveKind(u.id, kind)}
+                  hasNotes={notedIds.has(u.id)}
+                  onNoteAdded={() => markNoted(u.id)}
                 />
               ))}
             </ul>
@@ -337,7 +365,7 @@ const AdminSupportsPage: React.FC = () => {
                   <ul className="mt-2 flex flex-col gap-2">
                     {notLeadingCollapsed.map((u) => (
                       <li key={u.id} className="flex items-center justify-between gap-3 text-sm text-gray-600">
-                        <span className="min-w-0 truncate">{u.name}</span>
+                        <span className="min-w-0 truncate">{u.name}{notedIds.has(u.id) && <span title={PERSON_OF_INTEREST_INFO.description} className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}</span>
                         <div className="w-44 flex-none">
                           <AppSelect
                             value={kindOf(u.id)}
@@ -376,7 +404,9 @@ const SupportCard: React.FC<{
   kind: SupportKind;
   kindSaving: boolean;
   onKindChange: (kind: SupportKind) => void;
-}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange }) => {
+  hasNotes: boolean;
+  onNoteAdded: () => void;
+}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, hasNotes, onNoteAdded }) => {
   const [open, setOpen] = useState(false);
   const [openReport, setOpenReport] = useState<number | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -400,6 +430,7 @@ const SupportCard: React.FC<{
     try {
       const { note } = await supportNotesApi.create({ supportId: evaluation.supportId, hubId: hub?.id ?? null, noteType: 'NOTE', body: noteBody.trim() });
       setNotes((prev) => [note, ...(prev ?? [])]);
+      onNoteAdded();
       setNoteBody('');
     } catch { /* ignore */ }
     finally { setNoteSaving(false); }
@@ -468,6 +499,7 @@ const SupportCard: React.FC<{
         <NavLink to={`/groups?group=${evaluation.groupId}`} className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">Open group</NavLink>
         <button type="button" onClick={toggleNotes} aria-expanded={notesOpen} className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">
           {notesOpen ? 'Hide notes' : 'Notes'}
+          {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
         </button>
       </div>
 
@@ -575,7 +607,9 @@ const NoLeadSupportCard: React.FC<{
   kind: SupportKind;
   kindSaving: boolean;
   onKindChange: (kind: SupportKind) => void;
-}> = ({ user, hub, training, kind, kindSaving, onKindChange }) => {
+  hasNotes: boolean;
+  onNoteAdded: () => void;
+}> = ({ user, hub, training, kind, kindSaving, onKindChange, hasNotes, onNoteAdded }) => {
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState<SupportNote[] | null>(null);
   const [noteBody, setNoteBody] = useState('');
@@ -596,6 +630,7 @@ const NoLeadSupportCard: React.FC<{
     try {
       const { note } = await supportNotesApi.create({ supportId: user.id, hubId: hub?.id ?? null, noteType: 'NOTE', body: noteBody.trim() });
       setNotes((prev) => [note, ...(prev ?? [])]);
+      onNoteAdded();
       setNoteBody('');
     } catch { /* ignore */ }
     finally { setNoteSaving(false); }
@@ -633,6 +668,7 @@ const NoLeadSupportCard: React.FC<{
         )}
         <button type="button" onClick={toggleNotes} aria-expanded={notesOpen} className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">
           {notesOpen ? 'Hide notes' : 'Notes'}
+          {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
         </button>
       </div>
 

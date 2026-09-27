@@ -9,9 +9,10 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { MeetingCallCard, type MeetingSaveInput } from '../components/groups/GroupCallCard';
 import HubMeetingPanel from '../components/hubs/HubMeetingPanel';
-import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
+import { HUB_JOB_INFO, PERSON_OF_INTEREST_INFO, sortHubJobs } from '../components/hubs/hubJobs';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
+import { currentWeekNumber } from '../utils/participantApp';
 import { myHubApi, supportHubsApi, supportNotesApi, supportRecapsApi, supportSessionsApi } from '../services/api';
 import { buildWhatsAppLink } from '../utils/phone';
 import { sortByText } from '../utils/sort';
@@ -175,9 +176,17 @@ const SupportMyHubPage: React.FC = () => {
   const [meetingWeekId, setMeetingWeekId] = useState<number | null>(null);
   const [recaps, setRecaps] = useState<SupportRecap[]>([]);
 
+  // Opens on the week whose meeting is on right now, else this week of the
+  // cohort (Week 1 before it starts, the last week once it's over).
   useEffect(() => {
-    if (sortedWeeks.length > 0 && meetingWeekId == null) setMeetingWeekId(sortedWeeks[0].id);
-  }, [sortedWeeks, meetingWeekId]);
+    if (sortedWeeks.length === 0 || meetingWeekId != null) return;
+    const liveWeekId = myHub?.meetingLive?.weekId;
+    if (liveWeekId && sortedWeeks.some((w) => w.id === liveWeekId)) { setMeetingWeekId(liveWeekId); return; }
+    const thisWeek = Math.max(1, currentWeekNumber(activeCohort?.startDate, new Date()));
+    const match = sortedWeeks.find((w) => w.weekNumber === thisWeek)
+      ?? (thisWeek > sortedWeeks[0].weekNumber ? sortedWeeks[0] : sortedWeeks[sortedWeeks.length - 1]);
+    setMeetingWeekId(match.id);
+  }, [sortedWeeks, meetingWeekId, myHub?.meetingLive?.weekId, activeCohort?.startDate]);
 
   useEffect(() => {
     if (tab !== 'meeting' || !activeCohort?.id) return;
@@ -498,7 +507,7 @@ const SupportMyHubPage: React.FC = () => {
                       <li key={m.userId} className="flex items-center justify-between gap-2 py-2 text-sm">
                         <div className="min-w-0">
                           <p className="text-gray-800">{m.name}</p>
-                          {!!jobs.length && (
+                          {(!!jobs.length || m.isPersonOfInterest) && (
                             <div className="mt-1 flex flex-wrap gap-1">
                               {sortHubJobs(jobs).map((job) => (
                                 <HubJobPillButton
@@ -508,6 +517,7 @@ const SupportMyHubPage: React.FC = () => {
                                   onOwnTap={() => setManualIntroJob(job)}
                                 />
                               ))}
+                              {m.isPersonOfInterest && <span title={PERSON_OF_INTEREST_INFO.description} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
                             </div>
                           )}
                         </div>
@@ -704,8 +714,8 @@ const SupportMyHubPage: React.FC = () => {
               onWeekChange={setMeetingWeekId}
               submittedWeekIds={submittedWeekIds}
               hubLeadName={myHub.hub.leadName}
-              recapLeadName={myHub.hub.recapLeadName}
-              prayerLeadName={myHub.hub.prayerLeadName}
+              recapLeadNames={myHub.hub.recapLeadNames}
+              prayerLeadNames={myHub.hub.prayerLeadNames}
               prayerItems={prayerItems}
               recaps={recaps}
               messages={myHub.messages}
@@ -715,6 +725,9 @@ const SupportMyHubPage: React.FC = () => {
               isPrayerLead={isPrayerLead}
               onSubmit={handleSubmitMeeting}
               onReopen={handleReopenMeeting}
+              meetingDay={myHub.hub.meetingDay}
+              meetingTime={myHub.hub.meetingTime}
+              meetingDurationMins={myHub.hub.meetingDurationMins}
             />
           )}
 
