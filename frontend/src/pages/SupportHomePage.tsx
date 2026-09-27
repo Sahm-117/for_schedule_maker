@@ -324,9 +324,9 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
 
   // Next Group Prayer: computed from the group's locked meeting slot
   const myGroup = myGroups[0] ?? null;
-  // Same resolution as GroupCallCard: the group's own link, falling back to the
-  // support's WhatsApp group link for older groups that never set one.
-  const groupCallLink = normalizeLink(myGroup?.callLink?.trim() || user.whatsappGroupUrl?.trim() || '') || null;
+  // The group's own link only — a support's old personal link must not carry
+  // into a new cohort's group.
+  const groupCallLink = normalizeLink(myGroup?.callLink?.trim() || '') || null;
   const nextGroupPrayerDisplay = (() => {
     if (!myGroup?.meetingDay || !myGroup?.meetingTime) return null;
     const [h, m] = myGroup.meetingTime.split(':').map(Number);

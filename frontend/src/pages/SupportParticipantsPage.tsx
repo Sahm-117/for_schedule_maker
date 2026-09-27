@@ -467,7 +467,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
             </div>
           ) : (
             <div className="space-y-3">
-            <div data-wt="group-call"><GroupCallCard group={selectedGroupData} fallbackLink={user.whatsappGroupUrl ?? null} onGroupUpdated={(updated) => setGroups((prev) => prev.map((g) => g.id === updated.id ? updated : g))} /></div>
+            <div data-wt="group-call"><GroupCallCard group={selectedGroupData} fallbackLink={null} onGroupUpdated={(updated) => setGroups((prev) => prev.map((g) => g.id === updated.id ? updated : g))} /></div>
             <MeetingModePanel
               weeks={cohortWeeks}
               weekId={selectedWeekId}

@@ -12,11 +12,10 @@ const THEME_SWATCHES = [
   { hex: '#64748b', label: 'Slate' },
 ];
 import { Navigate } from 'react-router-dom';
-import LabelChip from '../components/LabelChip';
 import PageHeader from '../components/PageHeader';
 import { useAppData } from '../context/AppDataContext';
-import { usersApi } from '../services/api';
-import type { Label, User } from '../types';
+import { groupsApi, usersApi } from '../services/api';
+import type { User } from '../types';
 import NotificationSettings from '../components/NotificationSettings';
 import { useAuth } from '../hooks/useAuth';
 import Avatar from '../components/Avatar';
@@ -32,15 +31,13 @@ const SupportProfilePage: React.FC = () => {
 };
 
 const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
-  const { userLabelIds, userLabels, refreshUser } = useAuth();
-  const [activityTags, setActivityTags] = useState<Label[]>([]);
+  const { refreshUser } = useAuth();
+  // The group this support leads in the cohort being viewed (not an old cohort's).
+  const [myGroupName, setMyGroupName] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
   const [themeColor, setThemeColor] = useState<string>(user?.themeColor ?? DEFAULT_THEME);
   const [savingTheme, setSavingTheme] = useState(false);
-  const [whatsappGroupUrl, setWhatsappGroupUrl] = useState<string>(user?.whatsappGroupUrl ?? '');
-  const [editingWhatsapp, setEditingWhatsapp] = useState(false);
-  const [savingWhatsapp, setSavingWhatsapp] = useState(false);
   const [gender, setGender] = useState<string>(user?.gender ?? '');
   const [ageRange, setAgeRange] = useState<string>(user?.ageRange ?? '');
   const [detailsError, setDetailsError] = useState('');
@@ -53,20 +50,15 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
   const { liveRevision, activeCohort } = useAppData();
 
   useEffect(() => {
+    if (!activeCohort) { setMyGroupName(null); return; }
     let cancelled = false;
-
-    usersApi.getUserLabels(user.id)
-      .then((response) => {
-        if (!cancelled) setActivityTags(response.labels);
+    groupsApi.getAll({ cohortId: activeCohort.id })
+      .then(({ groups }) => {
+        if (!cancelled) setMyGroupName(groups.find((g) => g.supportId === user.id)?.name ?? null);
       })
-      .catch(() => {
-        if (!cancelled) setActivityTags([]);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [liveRevision, user.id]);
+      .catch(() => { if (!cancelled) setMyGroupName(null); });
+    return () => { cancelled = true; };
+  }, [liveRevision, user.id, activeCohort]);
 
   const handleThemeChange = (hex: string) => {
     setThemeColor(hex);
@@ -81,19 +73,6 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
       refreshUser({ themeColor });
     } catch { /* silent */ } finally {
       setSavingTheme(false);
-    }
-  };
-
-  const handleSaveWhatsapp = async () => {
-    const trimmed = whatsappGroupUrl.trim();
-    setSavingWhatsapp(true);
-    try {
-      await usersApi.saveWhatsappGroupUrl(user.id, trimmed || null);
-      refreshUser({ whatsappGroupUrl: trimmed || null });
-      setWhatsappGroupUrl(trimmed);
-      setEditingWhatsapp(false);
-    } catch { /* silent */ } finally {
-      setSavingWhatsapp(false);
     }
   };
 
@@ -244,58 +223,8 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
           <div>
             <SectionLabel>Programme</SectionLabel>
             <section className={LIST}>
-              <Row label="Group"><span className="truncate text-sm font-semibold text-gray-900">{userLabels[0]?.name || 'Not assigned'}</span></Row>
+              <Row label="Group"><span className={`truncate text-sm font-semibold ${myGroupName ? 'text-gray-900' : 'text-gray-400'}`}>{myGroupName || 'Not assigned yet'}</span></Row>
               <Row label="Cohort"><span className="truncate text-sm font-semibold text-gray-900">{activeCohort?.name || 'No active cohort'}</span></Row>
-              <Row label="Tags">
-                {activityTags.length > 0 ? (
-                  <div className="flex flex-wrap justify-end gap-1.5">
-                    {activityTags.map((tag) => (
-                      <LabelChip key={tag.id} name={tag.name} color={tag.color} size="sm" />
-                    ))}
-                  </div>
-                ) : <span className="text-sm text-gray-400">{userLabelIds.length === 0 ? 'None' : ''}</span>}
-              </Row>
-              {!editingWhatsapp ? (
-                <Row label="WhatsApp group">
-                  {whatsappGroupUrl ? (
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="min-w-0 truncate text-sm font-semibold text-gray-900">{whatsappGroupUrl.replace(/^https?:\/\//, '')}</span>
-                      <EditButton label="Edit WhatsApp group link" onClick={() => setEditingWhatsapp(true)} />
-                    </span>
-                  ) : (
-                    <button type="button" onClick={() => setEditingWhatsapp(true)} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60">Add link</button>
-                  )}
-                </Row>
-              ) : (
-                <div className="space-y-2 px-4 py-3">
-                  <p className="text-sm font-semibold text-gray-900">WhatsApp group link</p>
-                  <p className="text-xs text-gray-500">Paste your group's invite link. It also shows as the group call link on My Group.</p>
-                  <input
-                    type="url"
-                    value={whatsappGroupUrl}
-                    onChange={(e) => setWhatsappGroupUrl(e.target.value)}
-                    placeholder="https://chat.whatsapp.com/..."
-                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                  <div className="flex justify-end gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => { setWhatsappGroupUrl(user?.whatsappGroupUrl ?? ''); setEditingWhatsapp(false); }}
-                      className="rounded-2xl border border-gray-200 px-4 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleSaveWhatsapp()}
-                      disabled={savingWhatsapp}
-                      className="rounded-2xl bg-primary px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
-                    >
-                      {savingWhatsapp ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
-                    </button>
-                  </div>
-                </div>
-              )}
             </section>
           </div>
         </div>
