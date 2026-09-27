@@ -351,7 +351,7 @@ const AdminSupportsPage: React.FC = () => {
           {visible.length === 0 && notLeadingCards.length === 0 ? (
             <div className="surface-card p-8 text-center text-sm text-gray-500">No supports here.</div>
           ) : (
-            <ul data-wt="supports-list" className="space-y-3">
+            <ul data-wt="supports-list" className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 2xl:grid-cols-3">
               {visible.map((evaluation) => (
                 <SupportCard
                   key={evaluation.groupId}

@@ -17,6 +17,7 @@ import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
 import { formatMeetingTime } from '../components/groups/GroupCallCard';
 import Spinner from '../components/Spinner';
 import TrainingLearnedCard from '../components/supports/TrainingLearnedCard';
+import ProfileCompletionStrip from '../components/supports/ProfileCompletionStrip';
 
 type HomeActivity = {
   id: number;
@@ -364,6 +365,8 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
 
       <div className="flex flex-wrap items-start gap-5">
         <div className="flex min-w-0 flex-[1_1_480px] flex-col gap-4">
+          <ProfileCompletionStrip user={user} variant="home" />
+
           <section data-wt="home-metrics" className="rounded-[22px] border border-[#ffdeca] bg-white p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
             <div className="flex flex-wrap items-baseline gap-3">
               <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">Programme progress</p>
