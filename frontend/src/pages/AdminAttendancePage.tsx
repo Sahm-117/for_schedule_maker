@@ -6,6 +6,7 @@ import Spinner from '../components/Spinner';
 import AppSelect from '../components/AppSelect';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ModalShell from '../components/followups/ModalShell';
+import TrainingMarkersModal from '../components/TrainingMarkersModal';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { attendanceApi, attendanceFollowUpTasksApi, groupsApi, participantsApi } from '../services/api';
@@ -93,6 +94,7 @@ const AdminAttendanceContent: React.FC = () => {
   const [excuseSaving, setExcuseSaving] = useState(false);
   const [excuseError, setExcuseError] = useState('');
   const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [markersOpen, setMarkersOpen] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -307,6 +309,7 @@ const AdminAttendanceContent: React.FC = () => {
       <PageHeader
         title="Attendance"
         subtitle={activeCohort ? activeCohort.name : 'No active cohort'}
+        action={<AppOverflowMenu items={[{ label: 'Who can mark trainings', onClick: () => setMarkersOpen(true) }]} />}
       />
 
       {!activeCohort ? (
@@ -498,6 +501,7 @@ const AdminAttendanceContent: React.FC = () => {
           </>}
         </>
       )}
+      <TrainingMarkersModal isOpen={markersOpen} onClose={() => setMarkersOpen(false)} cohortId={activeCohort?.id ?? null} />
       <ModalShell
         isOpen={!!excuseTarget}
         onClose={() => { if (!excuseSaving) setExcuseTarget(null); }}

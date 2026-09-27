@@ -2,12 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { announcementsApi, labelsApi, groupsApi, supportHubsApi, usersApi, participantsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import type { Announcement, Label, Group, SupportHub, User, Participant } from '../types';
+import type { Announcement, Label, Group, SupportHub, User, Participant, HubJob } from '../types';
+import { HUB_JOB_INFO } from './hubs/hubJobs';
 import AppSelect from './AppSelect';
 import type { AnnouncementAudience } from '../types';
 import Spinner from './Spinner';
 
 const EXTERNAL_LINK = '__external';
+const HUB_JOB_ORDER: HubJob[] = ['HUB_LEAD', 'ASSISTANT_HUB_LEAD', 'RECAP_LEAD', 'PRAYER_LEAD', 'IT_SUPPORT'];
 const HOME_LINK_OPTIONS = [
   { value: '', label: 'No link' },
   { value: '/support/participants', label: 'My Group' },
@@ -68,6 +70,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   const [targetLabelId, setTargetLabelId] = useState(''); // '' = everyone in scope
   const [targetGroupId, setTargetGroupId] = useState(''); // '' = everyone; participants-only group filter
   const [targetHubId, setTargetHubId] = useState(''); // '' = everyone; SUPPORTS/EVERYONE hub filter
+  const [targetHubJobs, setTargetHubJobs] = useState<HubJob[]>([]); // [] = everyone; SUPPORTS-only hub role filter
   // '' = no one person picked; 'user:<id>' (support) or 'participant:<id>'.
   // Picking a person overrides audience/tag/group/hub for who actually gets it.
   const [targetPersonKey, setTargetPersonKey] = useState('');
@@ -219,6 +222,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
         targetLabelId: personPicked || audience === 'PARTICIPANTS' ? null : targetLabelId || null,
         targetGroupId: personPicked || audience !== 'PARTICIPANTS' ? null : targetGroupId || null,
         targetHubId: personPicked || audience === 'PARTICIPANTS' ? null : targetHubId || null,
+        targetHubJobs: personPicked || audience !== 'SUPPORTS' ? [] : targetHubJobs,
         targetUserId,
         targetParticipantId,
         audience,
@@ -226,8 +230,12 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
           ? { homeUntil: new Date(`${homeUntil}T23:59:59`).toISOString(), linkUrl: homeLinkUrl || null, linkLabel: linkLabel.trim() || null }
           : null,
       });
+      const jobsPicked = !personPicked && audience === 'SUPPORTS' && targetHubJobs.length > 0;
+      const jobsName = HUB_JOB_ORDER.filter((j) => targetHubJobs.includes(j)).map((j) => `${HUB_JOB_INFO[j].label}s`).join(', ');
       const targetName = personPicked
         ? targetPersonName
+        : jobsPicked
+          ? `${jobsName}${targetHubId ? ` in ${hubNameById.get(targetHubId) || 'the hub'}` : ''}`
         : audience === 'PARTICIPANTS'
           ? (targetGroupId ? groupNameById.get(targetGroupId) : null)
           : (targetHubId ? hubNameById.get(targetHubId) : (targetLabelId ? labels.find((l) => l.id === targetLabelId)?.name : null));
@@ -237,6 +245,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       setTargetLabelId('');
       setTargetGroupId('');
       setTargetHubId('');
+      setTargetHubJobs([]);
       setTargetPersonKey('');
       setAudience('SUPPORTS');
       setShowOnHome(false);
@@ -365,7 +374,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                       key={option.value}
                       type="button"
                       disabled={!!targetPersonKey}
-                      onClick={() => { setAudience(option.value); setLinkTarget(''); setTargetLabelId(''); setTargetGroupId(''); setTargetHubId(''); }}
+                      onClick={() => { setAudience(option.value); setLinkTarget(''); setTargetLabelId(''); setTargetGroupId(''); setTargetHubId(''); setTargetHubJobs([]); }}
                       aria-pressed={audience === option.value}
                       className={`rounded-xl border px-3 py-2 text-sm font-semibold ${audience === option.value ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'} ${targetPersonKey ? 'opacity-40 cursor-not-allowed hover:bg-white' : ''}`}
                     >
@@ -442,6 +451,32 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
               />
               <p className="mt-1 text-[11px] text-gray-500">
                 Pick a hub to send only to its members. Leave as “Everyone” to notify the whole audience.
+              </p>
+            </div>
+            )}
+
+            {audience === 'SUPPORTS' && hubs.length > 0 && (
+            <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Send to hub roles only (optional)</label>
+              <div className="flex flex-wrap gap-2">
+                {HUB_JOB_ORDER.map((job) => {
+                  const on = targetHubJobs.includes(job);
+                  return (
+                    <button
+                      key={job}
+                      type="button"
+                      disabled={!!targetPersonKey}
+                      onClick={() => setTargetHubJobs((prev) => (on ? prev.filter((j) => j !== job) : [...prev, job]))}
+                      aria-pressed={on}
+                      className={`rounded-xl border px-3 py-2 text-sm font-semibold ${on ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      {on ? '✓ ' : ''}{HUB_JOB_INFO[job].label}s
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-[11px] text-gray-500">
+                Tap one or more to send only to people in those roles{targetHubId ? ' in the hub picked above' : ' across all hubs'}. Leave all off to notify the whole audience.
               </p>
             </div>
             )}

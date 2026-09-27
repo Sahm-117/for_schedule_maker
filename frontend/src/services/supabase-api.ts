@@ -1819,6 +1819,78 @@ export const settingsApi = {
     return { url: typeof value === 'string' ? value : '' };
   },
 
+  // Mobilisation target: how many sign-ups a cohort is aiming for, shown on
+  // Follow-ups → Overview. One key per cohort; null when none is set.
+  async getMobilisationTarget(cohortId: string): Promise<{ target: number | null }> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', `mobilisation_target_${cohortId}`)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const value = Number((data as any)?.value);
+    return { target: Number.isFinite(value) && value > 0 ? value : null };
+  },
+
+  async setMobilisationTarget(cohortId: string, target: number): Promise<{ target: number | null }> {
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert(
+        [{
+          settingKey: `mobilisation_target_${cohortId}`,
+          value: target,
+          updatedAt: new Date().toISOString(),
+        }],
+        { onConflict: 'settingKey' }
+      );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { target: target > 0 ? target : null };
+  },
+
+  // Supports allowed to mark trainings & get-togethers attendance (admin
+  // picks them on the Attendance page). mark_support_attendance enforces it.
+  async getTrainingMarkers(): Promise<{ userIds: string[] }> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'training_markers')
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const value = (data as any)?.value;
+    return { userIds: Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [] };
+  },
+
+  async setTrainingMarkers(userIds: string[]): Promise<{ userIds: string[] }> {
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert(
+        [{
+          settingKey: 'training_markers',
+          value: userIds,
+          updatedAt: new Date().toISOString(),
+        }],
+        { onConflict: 'settingKey' }
+      );
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return { userIds };
+  },
+
   // Support contact shown by the floating "Need Support" button. Stored as a
   // { name, phone } object so admins can change who help routes to without a
   // deploy. Falls back to a sensible default so the button always works.
@@ -2599,6 +2671,7 @@ export const announcementsApi = {
       targetLabelId?: string | null;
       targetGroupId?: string | null;
       targetHubId?: string | null;
+      targetHubJobs?: import('../types').HubJob[];
       targetUserId?: string | null;
       targetParticipantId?: string | null;
       home?: { homeUntil: string; linkUrl?: string | null; linkLabel?: string | null } | null;
@@ -2615,6 +2688,7 @@ export const announcementsApi = {
         targetLabelId: options?.targetLabelId || null,
         targetGroupId: options?.targetGroupId || null,
         targetHubId: options?.targetHubId || null,
+        targetHubJobs: options?.targetHubJobs?.length ? options.targetHubJobs : null,
         targetUserId: options?.targetUserId || null,
         targetParticipantId: options?.targetParticipantId || null,
         audience: options?.audience || 'SUPPORTS',

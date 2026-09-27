@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { FollowUpContact, FollowUpStatus } from '../../types';
 import { computeFollowUpFunnel, computeIntroducerBreakdown, computeOwnerBreakdown, type OwnerBreakdownRow } from '../../utils/followUps';
 import { VitalTile } from '../dashboard/DashboardParts';
+import { settingsApi } from '../../services/api';
 
 // One colour per status, matching the tone each status already carries on its
 // pill: slate before contact, amber while waiting, emerald once they reply or
@@ -56,8 +57,108 @@ const SupportBar: React.FC<{ row: OwnerBreakdownRow }> = ({ row }) => {
   );
 };
 
-const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; onShowUnassigned?: () => void }> = ({ contacts, onShowUnassigned }) => {
+// The cohort's sign-up goal, set by the admin, with how far along it is and
+// how many are still to go. Saved per cohort.
+const MobilisationTarget: React.FC<{ cohortId: string; cohortName?: string; signedUp: number }> = ({ cohortId, cohortName, signedUp }) => {
+  const [target, setTarget] = useState<number | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoaded(false);
+    setEditing(false);
+    settingsApi.getMobilisationTarget(cohortId)
+      .then(({ target: t }) => { if (!cancelled) setTarget(t); })
+      .catch(() => { if (!cancelled) setTarget(null); })
+      .finally(() => { if (!cancelled) setLoaded(true); });
+    return () => { cancelled = true; };
+  }, [cohortId]);
+
+  const startEdit = () => { setDraft(target ? String(target) : ''); setError(null); setEditing(true); };
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const value = Math.floor(Number(draft));
+    if (!Number.isFinite(value) || value < 1) { setError('Enter a number above 0'); return; }
+    setSaving(true);
+    setError(null);
+    try {
+      const { target: saved } = await settingsApi.setMobilisationTarget(cohortId, value);
+      setTarget(saved);
+      setEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save the target');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!loaded) return null;
+  const left = target ? Math.max(target - signedUp, 0) : 0;
+  const progress = target ? Math.min(signedUp / target, 1) : 0;
+
+  return (
+    <section className="surface-card p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold text-gray-900">Mobilisation target{cohortName ? ` · ${cohortName}` : ''}</h3>
+          {target ? (
+            <p className="mt-1 text-sm text-gray-600">
+              <span className="text-2xl font-bold tabular-nums text-gray-900">{signedUp}</span> of {target} signed up
+              {' · '}
+              <span className={left > 0 ? 'font-semibold text-amber-700' : 'font-semibold text-emerald-700'}>
+                {left > 0 ? `${left} to go` : 'Target reached'}
+              </span>
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-gray-500">No target set yet. Set how many sign-ups this cohort is aiming for.</p>
+          )}
+        </div>
+        {!editing && (
+          <button type="button" onClick={startEdit} className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+            {target ? 'Edit target' : 'Set target'}
+          </button>
+        )}
+      </div>
+      {editing && (
+        <form onSubmit={save} className="mt-3 flex flex-wrap items-center gap-2">
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="e.g. 40"
+            aria-label="Mobilisation target"
+            autoFocus
+            className="h-10 w-28 rounded-xl border border-gray-200 px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+          <button type="submit" disabled={saving} className="h-10 rounded-xl bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button type="button" onClick={() => setEditing(false)} className="h-10 rounded-xl border border-gray-200 px-4 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+            Cancel
+          </button>
+          {error && <p className="w-full text-xs text-red-600">{error}</p>}
+        </form>
+      )}
+      {target && (
+        <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-gray-100">
+          <span className={`block h-full ${left > 0 ? 'bg-primary' : 'bg-emerald-500'}`} style={{ width: `${progress * 100}%` }} />
+        </div>
+      )}
+    </section>
+  );
+};
+
+const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: string | null; cohortName?: string; onShowUnassigned?: () => void }> = ({ contacts, cohortId, cohortName, onShowUnassigned }) => {
   const funnel = computeFollowUpFunnel(contacts);
+  // "Signed up" counts this cohort only. Prior-cohort people (no cohort yet)
+  // join the total once they're assigned, which tags them to the cohort.
+  const cohortFunnel = computeFollowUpFunnel(contacts.filter((c) => c.cohortId));
   const owners = computeOwnerBreakdown(contacts);
   const introducers = computeIntroducerBreakdown(contacts);
   const totalMet = introducers.reduce((sum, row) => sum + row.met, 0);
@@ -65,6 +166,10 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; onShowUnassigne
   const priorContacts = contacts.filter((c) => !c.cohortId);
   const priorCohort = { total: priorContacts.length, unassigned: priorContacts.filter((c) => !c.ownerId).length };
   const currentCohortCount = contacts.length - priorCohort.total;
+  // Of this cohort's people: who signed themselves up on the form vs. who a
+  // support added to follow up (they haven't filled the form yet).
+  const currentFromForm = contacts.filter((c) => c.cohortId && c.source === 'Google Form').length;
+  const currentAdded = currentCohortCount - currentFromForm;
 
   const totals = owners.reduce(
     (sum, row) => ({
@@ -99,15 +204,17 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; onShowUnassigne
 
   return (
     <div className="space-y-6">
+      {cohortId && <MobilisationTarget cohortId={cohortId} cohortName={cohortName} signedUp={cohortFunnel.signedUp} />}
+
       {/* The four numbers worth acting on. Everything else is detail below. */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <VitalTile
           title="Signed up"
           status="neutral"
-          statusLabel={funnel.conversion === null ? 'No prospects yet' : `${pct(funnel.conversion)}% of ${funnel.total}`}
-          value={funnel.signedUp}
-          unit={funnel.total ? `of ${funnel.total}` : undefined}
-          detail={funnel.nextCohort > 0 ? `${funnel.nextCohort} more waiting for the next cohort` : 'They filled in the registration form'}
+          statusLabel={cohortFunnel.conversion === null ? 'No prospects yet' : `${pct(cohortFunnel.conversion)}% of ${cohortFunnel.total}`}
+          value={cohortFunnel.signedUp}
+          unit={cohortFunnel.total ? `of ${cohortFunnel.total}` : undefined}
+          detail={cohortFunnel.nextCohort > 0 ? `${cohortFunnel.nextCohort} more waiting for the next cohort` : 'They filled in the registration form'}
           to={contactsLink('REGISTERED')}
         />
         <VitalTile
@@ -152,6 +259,9 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; onShowUnassigne
             <div className="rounded-2xl bg-primary/10 px-4 py-3">
               <p className="text-2xl font-bold tabular-nums text-gray-900">{currentCohortCount}</p>
               <p className="text-xs font-semibold text-primary-dark">This cohort</p>
+              <p className="mt-0.5 text-[11px] text-primary-dark/80">
+                {currentFromForm} filled the form · {currentAdded} added for follow-up
+              </p>
             </div>
             <div className="rounded-2xl bg-neutral-100 px-4 py-3">
               <p className="text-2xl font-bold tabular-nums text-gray-900">{priorCohort.total}</p>

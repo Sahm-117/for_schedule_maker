@@ -14,6 +14,7 @@
  *   targetLabelId?: string | null,
  *   targetGroupId?: string | null (PARTICIPANTS audience only: narrows to one group's roster)
  *   targetHubId?: string | null (SUPPORTS/EVERYONE audience: narrows to one hub's members)
+ *   targetHubJobs?: HubJob[] | null (supports only: narrows to people holding these hub roles)
  *   targetUserId?: string | null (send to a single support/admin only)
  *   targetParticipantId?: string | null (send to a single participant only)
  * }
@@ -63,7 +64,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, targetGroupId = null, targetHubId = null, targetUserId = null, targetParticipantId = null, audience = 'SUPPORTS' } = await req.json() as {
+    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, targetGroupId = null, targetHubId = null, targetHubJobs = null, targetUserId = null, targetParticipantId = null, audience = 'SUPPORTS' } = await req.json() as {
       subject: string
       body: string
       sentBy?: string
@@ -72,6 +73,9 @@ Deno.serve(async (req) => {
       targetLabelId?: string | null
       targetGroupId?: string | null
       targetHubId?: string | null
+      // Only people holding one of these hub roles (combined with targetHubId
+      // when both are set). Supports only — participants are skipped.
+      targetHubJobs?: Array<'HUB_LEAD' | 'ASSISTANT_HUB_LEAD' | 'RECAP_LEAD' | 'PRAYER_LEAD' | 'IT_SUPPORT'> | null
       // Send to a single support/admin only. Mutually exclusive with the group/hub/tag filters.
       targetUserId?: string | null
       // Send to a single participant only. Mutually exclusive with the group/hub/tag filters.
@@ -121,7 +125,8 @@ Deno.serve(async (req) => {
     //     announcement shows on their Home when pinned there).
     let participantSent = 0
     // Skip participants entirely when the send is targeted at a single support/admin.
-    if ((audience === 'PARTICIPANTS' || audience === 'EVERYONE') && !targetUserId) {
+    const hubJobs = targetUserId || targetParticipantId ? [] : (targetHubJobs || [])
+    if ((audience === 'PARTICIPANTS' || audience === 'EVERYONE') && !targetUserId && hubJobs.length === 0) {
       let participantIds: string[]
       if (targetParticipantId) {
         participantIds = [targetParticipantId]
@@ -221,7 +226,38 @@ Deno.serve(async (req) => {
         scopedUserIds = scopedUserIds.filter((userId) => labelUserIds.has(userId))
       }
 
-      if (targetHubId) {
+      if (hubJobs.length > 0) {
+        // Leads aren't always hub members, so read the roles straight off the
+        // hubs (this cohort's, or the one picked) instead of HubMembership.
+        let hubQuery = supabase
+          .from('SupportHub')
+          .select('id, "leadUserId", "assistantLeadUserId", "recapLeadUserIds", "prayerLeadUserIds"')
+        if (targetHubId) hubQuery = hubQuery.eq('id', targetHubId)
+        else if (scope === 'ACTIVE_COHORT' && cohortId) hubQuery = hubQuery.eq('cohortId', cohortId)
+        const { data: hubs, error: hubsError } = await hubQuery
+        if (hubsError) {
+          throw new Error(hubsError.message)
+        }
+
+        const roleUserIds = new Set<string>()
+        for (const hub of (hubs || []) as any[]) {
+          if (hubJobs.includes('HUB_LEAD') && hub.leadUserId) roleUserIds.add(hub.leadUserId)
+          if (hubJobs.includes('ASSISTANT_HUB_LEAD') && hub.assistantLeadUserId) roleUserIds.add(hub.assistantLeadUserId)
+          if (hubJobs.includes('RECAP_LEAD')) for (const id of hub.recapLeadUserIds || []) roleUserIds.add(id)
+          if (hubJobs.includes('PRAYER_LEAD')) for (const id of hub.prayerLeadUserIds || []) roleUserIds.add(id)
+        }
+        if (hubJobs.includes('IT_SUPPORT') && (hubs || []).length > 0) {
+          const { data: itRows, error: itError } = await supabase
+            .from('HubItSupport')
+            .select('userId')
+            .in('hubId', (hubs || []).map((hub: any) => hub.id))
+          if (itError) {
+            throw new Error(itError.message)
+          }
+          for (const row of (itRows || []) as any[]) if (row.userId) roleUserIds.add(row.userId)
+        }
+        scopedUserIds = scopedUserIds.filter((userId) => roleUserIds.has(userId))
+      } else if (targetHubId) {
         const { data: hubMembers, error: hubError } = await supabase
           .from('HubMembership')
           .select('userId')

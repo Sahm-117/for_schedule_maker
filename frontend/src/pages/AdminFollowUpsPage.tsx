@@ -486,7 +486,7 @@ const AdminFollowUpsPage: React.FC = () => {
         <p className="flex items-center justify-center gap-1.5 rounded-3xl bg-orange-50/60 px-4 py-12 text-center text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading follow-ups…</p>
       ) : (
         <>
-          {tab === 'overview' && <FollowUpDashboard contacts={dashboardContacts} onShowUnassigned={showUnassigned} />}
+          {tab === 'overview' && <FollowUpDashboard contacts={dashboardContacts} cohortId={cohortFilter || null} cohortName={cohorts.find((c) => c.id === cohortFilter)?.name} onShowUnassigned={showUnassigned} />}
           {tab === 'contacts' && statusParam && (
             <div className="mb-3 flex items-center gap-2">
               <span className="text-xs text-gray-500">Showing</span>

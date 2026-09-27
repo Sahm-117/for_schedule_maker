@@ -507,6 +507,18 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async setRegistrationLink(url: string): Promise<{ url: string }> {
     return { url };
   },
+  async getTrainingMarkers(): Promise<{ userIds: string[] }> {
+    return { userIds: [] };
+  },
+  async setTrainingMarkers(userIds: string[]): Promise<{ userIds: string[] }> {
+    return { userIds };
+  },
+  async getMobilisationTarget(_cohortId: string): Promise<{ target: number | null }> {
+    return { target: null };
+  },
+  async setMobilisationTarget(_cohortId: string, target: number): Promise<{ target: number | null }> {
+    return { target: target > 0 ? target : null };
+  },
   async getSupportContact(): Promise<{ name: string; phone: string }> {
     return { name: 'Adetutu', phone: '2348184742850' };
   },
@@ -539,7 +551,7 @@ export const notificationSettingsApi = USE_SUPABASE ? supabaseNotificationSettin
 };
 
 export const announcementsApi = USE_SUPABASE ? supabaseAnnouncementsApi : {
-  async send(_subject: string, _body: string, _sentBy: string, _options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null; targetLabelId?: string | null; targetGroupId?: string | null; targetHubId?: string | null; targetUserId?: string | null; targetParticipantId?: string | null; home?: { homeUntil: string; linkUrl?: string | null; linkLabel?: string | null } | null }): Promise<{ sent: number }> { return { sent: 0 }; },
+  async send(_subject: string, _body: string, _sentBy: string, _options?: { scope?: 'ACTIVE_COHORT' | 'ALL_USERS'; cohortId?: string | null; targetLabelId?: string | null; targetGroupId?: string | null; targetHubId?: string | null; targetHubJobs?: import('../types').HubJob[]; targetUserId?: string | null; targetParticipantId?: string | null; home?: { homeUntil: string; linkUrl?: string | null; linkLabel?: string | null } | null }): Promise<{ sent: number }> { return { sent: 0 }; },
   async delete(_announcementId: string): Promise<{ message: string }> { return { message: 'Not supported' }; },
   async removeFromHome(_announcementId: string): Promise<void> {},
   async getHistory(_options?: {

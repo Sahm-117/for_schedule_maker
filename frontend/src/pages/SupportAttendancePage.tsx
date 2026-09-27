@@ -6,7 +6,8 @@ import PageLoader from '../components/PageLoader';
 import { useToast } from '../components/Toast';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { attendanceApi, participantsApi } from '../services/api';
+import { attendanceApi, participantsApi, settingsApi } from '../services/api';
+import TrainingAttendancePanel from '../components/TrainingAttendancePanel';
 import type { AttendanceRecord, AttendanceSession, AttendanceStatus, Participant, User, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
@@ -50,11 +51,36 @@ type AttendanceWeekResult = {
 
 const SupportAttendancePage: React.FC = () => {
   const { user } = useAuth();
+  // Supports the admin picked to mark trainings get Participants / Supports tabs.
+  const [canMarkTrainings, setCanMarkTrainings] = useState(false);
+  const [view, setView] = useState<'class' | 'trainings'>('class');
+  useEffect(() => {
+    if (!user) return;
+    settingsApi.getTrainingMarkers()
+      .then(({ userIds }) => setCanMarkTrainings(userIds.includes(user.id)))
+      .catch(() => setCanMarkTrainings(false));
+  }, [user]);
   if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
-  return <SupportAttendanceContent user={user} />;
+  const switcher = canMarkTrainings ? (
+    <div className="mb-4 inline-flex rounded-2xl bg-white p-1 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+      {([['class', 'Participants'], ['trainings', 'Supports (trainings)']] as const).map(([key, label]) => (
+        <button key={key} type="button" onClick={() => setView(key)} aria-pressed={view === key} className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${view === key ? 'bg-primary text-white' : 'text-gray-600 hover:bg-orange-50'}`}>{label}</button>
+      ))}
+    </div>
+  ) : null;
+  if (canMarkTrainings && view === 'trainings') {
+    return (
+      <div className="page-content max-w-4xl">
+        <PageHeader title="Attendance" subtitle="Trainings & get-togethers · every support" />
+        {switcher}
+        <TrainingAttendancePanel />
+      </div>
+    );
+  }
+  return <SupportAttendanceContent user={user} switcher={switcher} />;
 };
 
-const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
+const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNode }> = ({ user, switcher }) => {
   const { activeCohort, weeks } = useAppData();
   const toast = useToast();
   const cohortWeeks: Week[] = useMemo(
@@ -208,6 +234,7 @@ const SupportAttendanceContent: React.FC<{ user: User }> = ({ user }) => {
   return (
     <div className="page-content max-w-4xl">
       <PageHeader title="Attendance" subtitle={allWeeks ? 'Attendance results for this cohort' : selectedWeek ? `Week ${selectedWeek.weekNumber} · everyone in ${activeCohort?.name ?? 'this cohort'}` : 'Everyone in this cohort'} />
+      {switcher}
       {!activeCohort ? <p className="text-sm text-gray-500">Choose a cohort first.</p> : cohortWeeks.length === 0 ? <p className="text-sm text-gray-500">No weeks are set up yet.</p> : (
         <>
           <section className="mb-4 rounded-[20px] border border-[#ffdeca] bg-white p-4 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">

@@ -65,6 +65,9 @@ const PERMISSION_OPTIONS: Array<{ value: AssistantHubPermission; label: string; 
   { value: 'MESSAGE', label: 'Message the hub', hint: 'Send messages to everyone in the hub.', summary: 'message the hub' },
 ];
 
+// Off while trainings are marked from the Attendance page instead.
+const TRAININGS_TAB_ENABLED = false as boolean;
+
 type HubTab = 'overview' | 'meeting' | 'trainings' | 'notes' | 'message';
 
 const SupportMyHubPage: React.FC = () => {
@@ -426,8 +429,9 @@ const SupportMyHubPage: React.FC = () => {
   const tabs = [
     { key: 'overview', label: 'My Hub' },
     { key: 'meeting', label: 'Hub meeting', shortLabel: 'Meeting' },
+    // Trainings tab hidden for now: trainings are marked by the supports an
+    // admin picks, on the Attendance page (see TrainingAttendancePanel).
     ...(isLead ? [
-      { key: 'trainings', label: 'Trainings & get-togethers', shortLabel: 'Trainings' },
       { key: 'notes', label: 'Notes' },
     ] : []),
     ...(canMessage ? [{ key: 'message', label: 'Message hub', shortLabel: 'Message' }] : []),
@@ -742,7 +746,7 @@ const SupportMyHubPage: React.FC = () => {
             />
           )}
 
-          {tab === 'trainings' && isLead && (
+          {tab === 'trainings' && isLead && TRAININGS_TAB_ENABLED && (
             <section className="surface-card p-5">
               {trainingLoading && trainingSessions.length === 0 ? (
                 <p className="flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
