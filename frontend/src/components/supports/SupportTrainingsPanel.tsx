@@ -13,6 +13,7 @@ import TrainingMarkersModal from '../TrainingMarkersModal';
 import LearnedAnswers from './LearnedAnswers';
 import { sortByText } from '../../utils/sort';
 import { cohortMode } from '../dashboard/healthModel';
+import MarkCounter from './MarkCounter';
 
 // Trainings & get-togethers tab on the admin Supports page (moved from Hubs,
 // which now keeps only Sunday recaps). Admins create sessions and mark
@@ -152,6 +153,7 @@ const SessionFormModal: React.FC<{
   );
 };
 
+
 // Marking screen for a training/get-together session — every active support
 // (not just hub members: "new supports may not be in the cohort yet").
 const SessionAttendanceModal: React.FC<{
@@ -164,6 +166,9 @@ const SessionAttendanceModal: React.FC<{
 }> = ({ isOpen, onClose, session, supportUsers, marks, onMarked }) => {
   // Per-person save feedback on the marks, keyed by userId.
   const [saveState, setSaveState] = useState<Record<string, SaveState>>({});
+  const [onlyUnmarked, setOnlyUnmarked] = useState(false);
+  const markedCount = supportUsers.filter((u) => marks[u.id]).length;
+  const shown = onlyUnmarked ? supportUsers.filter((u) => !marks[u.id]) : supportUsers;
 
   const handleMark = async (userId: string, status: SupportAttendanceStatus) => {
     const setState = (state?: SaveState) => setSaveState((prev) => {
@@ -190,11 +195,16 @@ const SessionAttendanceModal: React.FC<{
   return (
     <ModalShell isOpen={isOpen} onClose={onClose} title={`Mark attendance — ${session.title}`} wide>
       <div className="flex flex-col gap-2">
+        {supportUsers.length > 0 && (
+          <MarkCounter marked={markedCount} notMarked={supportUsers.length - markedCount} onlyUnmarked={onlyUnmarked} onToggle={setOnlyUnmarked} />
+        )}
         {supportUsers.length === 0 ? (
           <p className="text-sm text-gray-400">No active supports.</p>
+        ) : shown.length === 0 ? (
+          <p className="text-sm text-gray-400">Everyone is marked.</p>
         ) : (
           <ul className="space-y-2">
-            {supportUsers.map((u) => (
+            {shown.map((u) => (
               <li key={u.id} className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-900">{u.name}</p>

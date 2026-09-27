@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { cohortMode } from './dashboard/healthModel';
 import { sortByText } from '../utils/sort';
 import type { SupportAttendanceStatus, SupportSession, User } from '../types';
+import MarkCounter from './supports/MarkCounter';
 
 // Trainings & get-togethers register, for the supports an admin picked on the
 // Attendance page. Lists every support in the session's cohort, marked the
@@ -22,6 +23,7 @@ const STATUS_BUTTONS: Array<{ status: SupportAttendanceStatus; label: string; ac
 
 const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
 
+
 const TrainingAttendancePanel: React.FC = () => {
   const { cohorts, activeCohort } = useAppData();
   const toast = useToast();
@@ -32,6 +34,7 @@ const TrainingAttendancePanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Map<string, SupportAttendanceStatus>>(new Map());
   const [search, setSearch] = useState('');
+  const [onlyUnmarked, setOnlyUnmarked] = useState(false);
 
   // Pre-cohort trainings happen before their cohort starts: list the active
   // cohort plus any upcoming ones, like the admin Supports page does.
@@ -97,7 +100,9 @@ const TrainingAttendancePanel: React.FC = () => {
   const supports = session ? supportsByCohort[session.cohortId] ?? [] : [];
   const sessionMarks = session ? marks[session.id] ?? {} : {};
   const q = search.trim().toLowerCase();
-  const visible = q ? supports.filter((u) => u.name.toLowerCase().includes(q)) : supports;
+  const visible = supports
+    .filter((u) => !q || u.name.toLowerCase().includes(q))
+    .filter((u) => !onlyUnmarked || !sessionMarks[u.id]);
   const summary = STATUS_BUTTONS.map(({ status, label, activeCls }) => ({
     label, activeCls, value: supports.filter((u) => sessionMarks[u.id] === status).length,
   }));
@@ -138,7 +143,7 @@ const TrainingAttendancePanel: React.FC = () => {
               compact
             />
           </div>
-          {session && <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-bold text-neutral-600">{markedCount} of {supports.length} marked</span>}
+          {session && <MarkCounter marked={markedCount} notMarked={supports.length - markedCount} onlyUnmarked={onlyUnmarked} onToggle={setOnlyUnmarked} />}
         </div>
         {supports.length > 0 && (
           <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name…" className="mt-3 w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
@@ -150,7 +155,7 @@ const TrainingAttendancePanel: React.FC = () => {
       {supports.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">No supports in this cohort yet.</p>
       ) : visible.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">No one matches.</p>
+        <p className="rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">{onlyUnmarked && !q ? 'Everyone is marked.' : 'No one matches.'}</p>
       ) : (
         <section className="rounded-[20px] border border-[#eef0f4] bg-white p-3 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
           <div className="flex flex-col gap-2">

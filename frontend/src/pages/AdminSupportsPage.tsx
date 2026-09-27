@@ -18,6 +18,8 @@ import { useAppData } from '../context/AppDataContext';
 import { cohortsApi, followUpContactsApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
 import type { HubMembership, ParticipantNote, SupportHub, SupportKind, SupportNote, SupportSession, User } from '../types';
 import AppSelect from '../components/AppSelect';
+import AppOverflowMenu from '../components/AppOverflowMenu';
+import SupportsExportPopup from '../components/supports/SupportsExportPopup';
 import { PERSON_OF_INTEREST_INFO } from '../components/hubs/hubJobs';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
@@ -89,6 +91,10 @@ const AdminSupportsPage: React.FC = () => {
   const filter: Filter = filterParam === 'critical' || filterParam === 'warning' || filterParam === 'good' ? filterParam : 'all';
   const hubFilter = searchParams.get('hub') ?? '';
   const notesOnly = searchParams.get('notes') === '1';
+  const incompleteOnly = searchParams.get('profile') === 'incomplete';
+  const kindParam = searchParams.get('kind');
+  const kindFilter: SupportKind | '' = kindParam === 'PARTICIPANT_SUPPORT' || kindParam === 'HUB_LEAD' || kindParam === 'OPERATIONAL' ? kindParam : '';
+  const [exportOpen, setExportOpen] = useState(false);
   const pageTab = searchParams.get('tab') === 'trainings' ? 'trainings' : 'supports';
   const [search, setSearch] = useState('');
   // Supports with a note about them — they get a ★ and the "With notes" filter.
@@ -211,6 +217,11 @@ const AdminSupportsPage: React.FC = () => {
     setSearchParams(params, { replace: true });
   };
   const markNoted = (userId: string) => setNotedIds((prev) => (prev.has(userId) ? prev : new Set(prev).add(userId)));
+  const setParam = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (value) params.set(key, value); else params.delete(key);
+    setSearchParams(params, { replace: true });
+  };
   const setHubFilter = (next: string) => {
     const params = new URLSearchParams(searchParams);
     if (!next) params.delete('hub'); else params.set('hub', next);
@@ -219,7 +230,17 @@ const AdminSupportsPage: React.FC = () => {
 
   const searchTerm = search.trim().toLowerCase();
   const nameById = new Map(users.map((u) => [u.id, u.name.toLowerCase()]));
-  const matchesSearch = (userId: string) => !searchTerm || (nameById.get(userId) ?? '').includes(searchTerm);
+  const usersById = new Map(users.map((u) => [u.id, u]));
+  // Search plus the profile and role filters, applied to every list below.
+  const matchesSearch = (userId: string) => {
+    if (searchTerm && !(nameById.get(userId) ?? '').includes(searchTerm)) return false;
+    if (incompleteOnly) {
+      const u = usersById.get(userId);
+      if (!u || isSupportProfileComplete(u)) return false;
+    }
+    if (kindFilter && (kinds[userId] ?? 'PARTICIPANT_SUPPORT') !== kindFilter) return false;
+    return true;
+  };
 
   const visible = (model?.evaluations.filter((e) => filter === 'all' || e.health === filter) ?? [])
     .filter((e) => !hubFilter || hubByUserId.get(e.supportId)?.id === hubFilter)
@@ -250,9 +271,36 @@ const AdminSupportsPage: React.FC = () => {
     .filter((u) => !notesOnly || notedIds.has(u.id))
     .filter((u) => matchesSearch(u.id));
 
+  // Everyone shown on the page right now, for the WhatsApp export.
+  const shownSupports = (() => {
+    const ids = [...visible.map((e) => e.supportId), ...notLeadingCards.map((u) => u.id), ...notLeadingCollapsed.map((u) => u.id)];
+    const seen = new Set<string>();
+    return ids
+      .filter((id) => (seen.has(id) ? false : (seen.add(id), true)))
+      .map((id) => usersById.get(id))
+      .filter((u): u is User => !!u)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  })();
+  // Supports in this cohort (leading a group or not) whose profile isn't complete.
+  const incompleteCount = new Set([...(model?.evaluations ?? []).map((e) => e.supportId), ...(model?.notLeading ?? []).map((u) => u.id)]
+    .filter((id) => { const u = usersById.get(id); return !!u && !isSupportProfileComplete(u); })).size;
+  const exportSubtitle = [
+    incompleteOnly ? 'Incomplete profile' : '',
+    kindFilter ? KIND_LABEL[kindFilter] : '',
+    hubFilter ? hubs.find((h) => h.id === hubFilter)?.name ?? '' : '',
+    notesOnly ? 'With notes' : '',
+  ].filter(Boolean).join(' · ');
+
   return (
     <div>
-      <PageHeader title="Supports" subtitle="Group meeting records and onboarding for every support." tourId="admin:supports" />
+      <PageHeader
+        title="Supports"
+        subtitle="Group meeting records and onboarding for every support."
+        tourId="admin:supports"
+        action={pageTab === 'supports' && model ? (
+          <AppOverflowMenu align="right" items={[{ label: 'Export for WhatsApp', onClick: () => setExportOpen(true) }]} />
+        ) : undefined}
+      />
 
       <div className="mb-4">
         <SegmentedTabs
@@ -346,6 +394,24 @@ const AdminSupportsPage: React.FC = () => {
                 compact
               />
             </div>
+            <div className="min-w-0 sm:w-64">
+              <AppSelect
+                value={incompleteOnly ? 'incomplete' : ''}
+                onChange={(v) => setParam('profile', v)}
+                options={[{ value: '', label: 'All profiles' }, { value: 'incomplete', label: `Incomplete profile (${incompleteCount})` }]}
+                placeholder="All profiles"
+                compact
+              />
+            </div>
+            <div className="min-w-0 sm:w-64">
+              <AppSelect
+                value={kindFilter}
+                onChange={(v) => setParam('kind', v)}
+                options={[{ value: '', label: 'All roles' }, ...KIND_OPTIONS]}
+                placeholder="All roles"
+                compact
+              />
+            </div>
           </div>
 
           {visible.length === 0 && notLeadingCards.length === 0 ? (
@@ -431,6 +497,15 @@ const AdminSupportsPage: React.FC = () => {
           )}
 
         </div>
+      )}
+      {exportOpen && (
+        <SupportsExportPopup
+          supports={shownSupports}
+          title={`${activeCohort?.name ?? 'Cohort'} Supports`}
+          subtitle={exportSubtitle}
+          showMissing={incompleteOnly}
+          onClose={() => setExportOpen(false)}
+        />
       )}
     </div>
   );

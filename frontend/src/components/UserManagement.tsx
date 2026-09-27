@@ -10,6 +10,7 @@ import { sortByText } from '../utils/sort';
 import { selectedFirst } from '../utils/selectedFirst';
 import { useAuth } from '../hooks/useAuth';
 import Spinner from './Spinner';
+import InviteMessageCard, { type InviteDetails } from './InviteMessageCard';
 
 const ROLE_BADGE: Record<User['role'], string> = {
   ADMIN: 'bg-orange-100/80 text-orange-700',
@@ -43,6 +44,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [invite, setInvite] = useState<InviteDetails | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedUserLabels, setSelectedUserLabels] = useState<Label[]>([]);
   const [labelEditIds, setLabelEditIds] = useState<string[]>([]);
@@ -189,6 +191,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     setLoading(true);
     setError('');
     setSuccess('');
+    setInvite(null);
 
     try {
       // Send only the fields actually provided. Previously this copied the phone
@@ -211,7 +214,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
           (user) => user.name
         ));
       }
-      setSuccess('User created successfully');
+      setInvite({ name: newUser.name, email: newUser.email.trim(), phone: newUser.phone.trim(), password: newUser.password });
       setNewUser({ name: '', email: '', phone: '', password: '', role: 'SUPPORT' });
       setNewUserLabelIds([]);
       setShowPasswordInForm(false);
@@ -527,6 +530,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
         {error && <div className="mb-4 text-red-600 text-sm bg-red-50 p-3 rounded">{error}</div>}
         {success && <div className="mb-4 text-green-600 text-sm bg-green-50 p-3 rounded">{success}</div>}
+        {invite && <InviteMessageCard details={invite} onDismiss={() => setInvite(null)} />}
 
         {showCreateForm && showUserList && !embedded && renderCreateForm()}
         {showCreateForm && !showUserList && renderCreateForm()}

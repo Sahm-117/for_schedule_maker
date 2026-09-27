@@ -1,4 +1,5 @@
-import type { Group, Participant } from '../types';
+import type { Group, Participant, User } from '../types';
+import { supportProfileChecklist } from './people';
 
 // Phone display matches the existing ExportContactsPopup convention: keep a
 // leading 0 / + as-is, otherwise prefix a 0 so the number is dialable.
@@ -77,4 +78,24 @@ export const buildParticipantsHeader = (cohortName: string, participants: Partic
 export const buildAllParticipantsList = (participants: Participant[], header?: string): string => {
   const body = participants.map((p, i) => formatMemberLine(i + 1, p)).join('\n');
   return header ? `${header}\n\n${body}` : body;
+};
+
+// Supports export (Supports page), e.g.
+//   *Cohort 10 Supports*
+//   Incomplete profile · Hub lead
+//   Total: 2
+//
+//   1. Bukola Ayodele - 08031234567 (missing: Photo, Age range)
+// With showMissing, each line lists what's missing and a how-to footer is added.
+export const buildSupportsText = (title: string, subtitle: string, supports: User[], showMissing: boolean): string => {
+  const header = [`*${title}*`, subtitle, `Total: ${supports.length}`].filter(Boolean).join('\n');
+  const lines = supports.map((u, i) => {
+    const phone = normalizePhone(u.phone);
+    const missing = showMissing ? supportProfileChecklist(u).filter((item) => !item.done).map((item) => item.label) : [];
+    return `${i + 1}. ${u.name}${phone ? ` - ${phone}` : ''}${missing.length ? ` (missing: ${missing.join(', ')})` : ''}`;
+  });
+  const footer = showMissing
+    ? ['', 'Please complete your profile today: open the FOF app, go to *Profile* and fill in what is missing. We match new sign-ups to supports by gender and age.', 'https://fof.tcnikorodu.org']
+    : [];
+  return [header, '', ...lines, ...footer].join('\n');
 };

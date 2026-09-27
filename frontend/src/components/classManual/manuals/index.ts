@@ -9,6 +9,7 @@ const MANUALS_BY_TITLE: Record<string, () => Promise<{ default: ManualContent }>
   'new creation realities': () => import('./class1'),
   "integrity of god's word": () => import('./class2'),
   'the holy spirit': () => import('./class3'),
+  'what is faith?': () => import('./class4'),
   'praise & worship': () => import('./class5'),
   'prayer': () => import('./class6'),
   'love': () => import('./class7'),
