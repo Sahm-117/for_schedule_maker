@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { FollowUpContact, FollowUpStatus } from '../../types';
-import { computeFollowUpFunnel, computeIntroducerBreakdown, computeOwnerBreakdown, type OwnerBreakdownRow } from '../../utils/followUps';
+import { computeFollowUpFunnel, computeFollowUpStatus, computeIntroducerBreakdown, computeOwnerBreakdown, type OwnerBreakdownRow } from '../../utils/followUps';
 import { VitalTile } from '../dashboard/DashboardParts';
 import { settingsApi } from '../../services/api';
 
@@ -156,19 +156,24 @@ const MobilisationTarget: React.FC<{ cohortId: string; cohortName?: string; sign
 
 const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: string | null; cohortName?: string; onShowUnassigned?: () => void }> = ({ contacts, cohortId, cohortName, onShowUnassigned }) => {
   const funnel = computeFollowUpFunnel(contacts);
+  // A wrong number was never a prospect we could reach, so it's left out of the
+  // prospect totals below. It still shows in the Dropped tile.
+  const reachable = contacts.filter((c) => computeFollowUpStatus(c) !== 'WRONG_NUMBER');
+  const wrongNumbers = contacts.length - reachable.length;
+  const standing = computeFollowUpFunnel(reachable);
   // "Signed up" counts this cohort only. Prior-cohort people (no cohort yet)
   // join the total once they're assigned, which tags them to the cohort.
-  const cohortFunnel = computeFollowUpFunnel(contacts.filter((c) => c.cohortId));
+  const cohortFunnel = computeFollowUpFunnel(reachable.filter((c) => c.cohortId));
   const owners = computeOwnerBreakdown(contacts);
   const introducers = computeIntroducerBreakdown(contacts);
   const totalMet = introducers.reduce((sum, row) => sum + row.met, 0);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const priorContacts = contacts.filter((c) => !c.cohortId);
+  const priorContacts = reachable.filter((c) => !c.cohortId);
   const priorCohort = { total: priorContacts.length, unassigned: priorContacts.filter((c) => !c.ownerId).length };
-  const currentCohortCount = contacts.length - priorCohort.total;
+  const currentCohortCount = reachable.length - priorCohort.total;
   // Of this cohort's people: who signed themselves up on the form vs. who a
   // support added to follow up (they haven't filled the form yet).
-  const currentFromForm = contacts.filter((c) => c.cohortId && c.source === 'Google Form').length;
+  const currentFromForm = reachable.filter((c) => c.cohortId && c.source === 'Google Form').length;
   const currentAdded = currentCohortCount - currentFromForm;
 
   const totals = owners.reduce(
@@ -199,7 +204,12 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
 
   // One row per status, biggest first, so the list reads as a ranking rather
   // than as a single bar the eye has to take apart.
-  const ranked = [...funnel.buckets].sort((a, b) => b.value - a.value);
+  // Wrong numbers sit last, apart from the ranking, so it's clear what happened
+  // to them without adding them to the total.
+  const ranked = [
+    ...[...standing.buckets].sort((a, b) => b.value - a.value),
+    ...funnel.buckets.filter((b) => b.status === 'WRONG_NUMBER'),
+  ];
   const biggest = ranked.length ? ranked[0].value : 0;
 
   return (
@@ -252,8 +262,8 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
           <h3 className="text-base font-semibold text-gray-900">This cohort vs. prior cohort follow-ups</h3>
           <p className="mb-4 text-xs text-gray-500">Prior-cohort people join this cohort once they’re assigned to a support.</p>
           <div className="mb-4 flex h-2.5 overflow-hidden rounded-full bg-gray-100">
-            <span className="block h-full bg-primary" style={{ width: `${(currentCohortCount / contacts.length) * 100}%` }} />
-            <span className="block h-full bg-neutral-300" style={{ width: `${(priorCohort.total / contacts.length) * 100}%` }} />
+            <span className="block h-full bg-primary" style={{ width: `${(currentCohortCount / reachable.length) * 100}%` }} />
+            <span className="block h-full bg-neutral-300" style={{ width: `${(priorCohort.total / reachable.length) * 100}%` }} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-primary/10 px-4 py-3">
@@ -274,14 +284,17 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
 
       {/* One line per status, so the parts always add up to the whole. */}
       <section className="surface-card p-5 sm:p-6">
-        <h3 className="text-base font-semibold text-gray-900">Where all {funnel.total} stand</h3>
-        <p className="mb-4 text-xs text-gray-500">Each prospect counted once, in one place only.</p>
-        {funnel.total === 0 ? (
+        <h3 className="text-base font-semibold text-gray-900">Where all {standing.total} stand</h3>
+        <p className="mb-4 text-xs text-gray-500">
+          Each prospect counted once, in one place only.
+          {wrongNumbers > 0 && ` Wrong numbers are shown but not counted in the ${standing.total}.`}
+        </p>
+        {ranked.length === 0 ? (
           <p className="rounded-2xl bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">No prospects yet.</p>
         ) : (
           <ul className="space-y-2.5">
             {ranked.map((bucket) => (
-              <li key={bucket.status} className="flex items-center gap-3">
+              <li key={bucket.status} className={`flex items-center gap-3 ${bucket.status === 'WRONG_NUMBER' && standing.total > 0 ? 'border-t border-dashed border-gray-200 pt-2.5' : ''}`}>
                 <span className="w-32 flex-none truncate text-sm text-gray-700 sm:w-44">{bucket.label}</span>
                 <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
                   <span
