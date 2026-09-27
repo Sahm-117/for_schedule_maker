@@ -39,7 +39,7 @@ const TABS: Array<{ key: keyof LandingContent | 'photos'; label: string }> = [
 
 // ---- shared field primitives -----------------------------------------------
 
-const inputCls = 'w-full rounded-2xl border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none';
+const inputCls = 'w-full rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
 
 const Field: React.FC<{ label: string; hint?: string; children: React.ReactNode }> = ({ label, hint, children }) => (
   <label className="block">
@@ -101,7 +101,7 @@ function ListEditor<T>({
   return (
     <div className="space-y-3">
       {items.map((item, i) => (
-        <div key={i} className="rounded-2xl border border-gray-200 p-4">
+        <div key={i} className="rounded-2xl bg-gray-50 p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">#{i + 1}</span>
             <div className="flex items-center gap-1">
@@ -302,7 +302,7 @@ const AdminWebsitePage: React.FC = () => {
                 <Field label="Stats" hint="Always exactly three, to match the page layout.">
                   <div className="grid gap-3 sm:grid-cols-3">
                     {content.about.stats.map((stat, i) => (
-                      <div key={i} className="rounded-2xl border border-gray-200 p-3 space-y-2">
+                      <div key={i} className="rounded-2xl bg-gray-50 p-3 space-y-2">
                         <TextInput value={stat.value} onChange={(value) => {
                           const stats = content.about.stats.map((s, idx) => (idx === i ? { ...s, value } : s));
                           patch('about', { ...content.about, stats });
@@ -476,7 +476,7 @@ const AdminWebsitePage: React.FC = () => {
                 type="button"
                 onClick={handleCancel}
                 disabled={!dirty || saving}
-                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-40"
+                className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-40"
               >
                 Cancel
               </button>

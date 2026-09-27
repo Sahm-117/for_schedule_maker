@@ -642,14 +642,14 @@ const SupportCard: React.FC<{
       </div>
 
       {notesOpen && (
-        <div className="mt-3 rounded-xl border border-orange-100 p-3">
+        <div className="mt-3 rounded-xl bg-gray-50 p-3">
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
               type="text"
               value={noteBody}
               onChange={(e) => setNoteBody(e.target.value)}
               placeholder="Private note — only admin and this support's hub lead can see it."
-              className="flex-1 rounded-xl border border-orange-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
             <button
               type="button"
@@ -810,14 +810,14 @@ const NoLeadSupportCard: React.FC<{
       </div>
 
       {notesOpen && (
-        <div className="mt-3 rounded-xl border border-orange-100 p-3">
+        <div className="mt-3 rounded-xl bg-gray-50 p-3">
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
               type="text"
               value={noteBody}
               onChange={(e) => setNoteBody(e.target.value)}
               placeholder="Private note — only admin and this support's hub lead can see it."
-              className="flex-1 rounded-xl border border-orange-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
             <button
               type="button"

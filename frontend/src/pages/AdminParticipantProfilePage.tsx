@@ -346,13 +346,13 @@ const AdminParticipantProfilePage: React.FC = () => {
           {journey.map((step, index) => (
             <li key={step.stage} className="relative flex gap-3 pb-4 last:pb-0">
               {index < journey.length - 1 && (
-                <span className={`absolute left-[7px] top-4 h-full w-0.5 ${journey[index + 1].reached ? 'bg-orange-200' : 'bg-gray-100'}`} aria-hidden="true" />
+                <span className={`absolute left-[7px] top-4 h-full w-0.5 ${journey[index + 1].reached ? 'bg-primary/40' : 'bg-gray-100'}`} aria-hidden="true" />
               )}
-              <span className={`relative mt-1 h-4 w-4 flex-none rounded-full ${step.reached ? 'bg-primary' : 'bg-gray-200'} ${step.current ? 'ring-4 ring-orange-100' : ''}`} />
+              <span className={`relative mt-1 h-4 w-4 flex-none rounded-full ${step.reached ? 'bg-primary' : 'bg-gray-200'} ${step.current ? 'ring-4 ring-primary/20' : ''}`} />
               <div className="min-w-0">
                 <p className={`text-sm font-semibold ${step.reached ? 'text-gray-900' : 'text-gray-400'}`}>
                   {step.label}
-                  {step.current && <span className="ml-2 rounded-full bg-orange-100/80 px-2 py-0.5 text-[11px] font-semibold text-orange-700">Current stage</span>}
+                  {step.current && <span className="ml-2 rounded-full bg-sky-100/80 px-2 py-0.5 text-[11px] font-semibold text-sky-700">Current stage</span>}
                 </p>
                 <p className={`text-xs ${step.reached ? 'text-gray-500' : 'text-gray-400'}`}>{step.detail}</p>
               </div>
@@ -456,7 +456,7 @@ const AdminParticipantProfilePage: React.FC = () => {
         <h2 className="text-lg font-semibold text-gray-900">Check-ins and history</h2>
         <ul className="mt-3 space-y-2">
           {history.map((item) => (
-            <li key={item.id} className="rounded-2xl border border-gray-100 px-4 py-3">
+            <li key={item.id} className="rounded-2xl bg-gray-50 px-4 py-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="text-sm font-semibold text-gray-900">{item.title}</p>
                 <p className="text-xs text-gray-500">{formatDate(item.at)}</p>
@@ -493,7 +493,7 @@ const AdminParticipantProfilePage: React.FC = () => {
       {/* Completion and department handoff */}
       <section className={CARD}>
         <h2 className="text-lg font-semibold text-gray-900">Completion and department</h2>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-gray-100 px-4 py-3">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-gray-50 px-4 py-3">
           <p className="text-sm font-semibold text-gray-900">Completion</p>
           <CompletionStatus evaluation={evaluation} mode={mode} archived={archived} rules={data.rules} />
         </div>
@@ -578,7 +578,7 @@ const ConcernRow: React.FC<{ flag: ParticipantFlag; canClear: boolean; onClear: 
   const [clearing, setClearing] = useState(false);
   const open = !flag.clearedAt;
   return (
-    <li className={`rounded-2xl px-4 py-3 ${open ? 'bg-amber-50/80' : 'border border-gray-100'}`}>
+    <li className={`rounded-2xl px-4 py-3 ${open ? 'bg-amber-50/80' : 'bg-gray-50'}`}>
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className={`text-sm font-semibold ${open ? 'text-amber-900' : 'text-gray-700'}`}>{flag.reason}</p>
@@ -618,7 +618,7 @@ const useSaving = () => {
 
 const ModalFooter: React.FC<{ onClose: () => void; saving: boolean; disabled: boolean; label: string; onSave: () => void }> = ({ onClose, saving, disabled, label, onSave }) => (
   <>
-    <button type="button" onClick={onClose} disabled={saving} className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+    <button type="button" onClick={onClose} disabled={saving} className="rounded-2xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
     <button type="button" onClick={onSave} disabled={saving || disabled} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60">{saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : label}</button>
   </>
 );
