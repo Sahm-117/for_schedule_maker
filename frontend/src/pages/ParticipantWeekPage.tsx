@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Clarity from '@microsoft/clarity';
 import { Navigate, useParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -8,7 +9,8 @@ import SaveStatus, { type SaveState } from '../components/SaveStatus';
 import { useToast } from '../components/Toast';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { participantAppApi } from '../services/api';
-import { recapHasContent, reflectionEditable, reflectionFor } from '../utils/participantApp';
+import { clearReflectionDraft, loadReflectionDraft, recapHasContent, reflectionEditable, reflectionFor, saveReflectionDraft } from '../utils/participantApp';
+import { useLeaveGuard } from '../hooks/useLeaveGuard';
 import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
 import { useManualContent } from '../components/classManual/manuals';
@@ -123,15 +125,32 @@ const ParticipantWeekPage: React.FC = () => {
   const now = new Date();
   const editable = reflectionEditable(reflection, now);
 
+  // Recap out and nothing written yet: the reflection is what's left to do.
+  const reflectionDue = !!week?.released && !reflection && editable;
+  const participantId = home?.participant.id ?? '';
+  const guard = useLeaveGuard(reflectionDue, '/me/journey');
+  const firstQuestionRef = useRef<HTMLTextAreaElement>(null);
+  const reflectionRef = useRef<HTMLElement>(null);
+
   useEffect(() => {
-    setStoodOut(reflection?.stoodOut ?? '');
-    setGoal(reflection?.goal ?? '');
-    setGoalCheck(reflection?.goalCheck ?? '');
+    // Nothing saved yet: pick up whatever they had typed on this phone.
+    const draft = !reflection && week ? loadReflectionDraft(participantId, week.id) : null;
+    setStoodOut(reflection?.stoodOut ?? draft?.stoodOut ?? '');
+    setGoal(reflection?.goal ?? draft?.goal ?? '');
+    setGoalCheck(reflection?.goalCheck ?? draft?.goalCheck ?? '');
+    // Open the reflection straight away when it's the thing left to do.
+    if (reflectionDue) setReflectionOpen(true);
     setGoalError(false);
     setSaveError('');
     // Reset the form only when a different or newly saved reflection arrives.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reflection?.weekId, reflection?.updatedAt]);
+  }, [week?.id, reflection?.weekId, reflection?.updatedAt, reflectionDue]);
+
+  // Keep unsaved answers as they type.
+  useEffect(() => {
+    if (!week || reflection) return;
+    saveReflectionDraft(participantId, week.id, { stoodOut, goal, goalCheck });
+  }, [week, reflection, participantId, stoodOut, goal, goalCheck]);
 
   useEffect(() => {
     if (week?.manual) Clarity.event('manual_opened');
@@ -202,6 +221,7 @@ const ParticipantWeekPage: React.FC = () => {
     setSaveError('');
     try {
       applyReflection(await participantAppApi.saveReflection(week.id, { stoodOut, goal, goalCheck }));
+      clearReflectionDraft(participantId, week.id);
       toast({ message: reflection ? 'Reflection updated' : 'Reflection saved' });
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Could not save your reflection.');
@@ -273,14 +293,14 @@ const ParticipantWeekPage: React.FC = () => {
         </section>
 
         {week.released && (
-          <section data-wt="pw-reflection" className={`${SURFACE} px-6 py-1.5 sm:px-8`}>
+          <section ref={reflectionRef} data-wt="pw-reflection" className={`${SURFACE} scroll-mt-24 px-6 py-1.5 sm:px-8`}>
             <DisclosureRow label="Your reflection" hint={reflection ? 'Done ✓' : '3 short questions'} open={reflectionOpen} onToggle={() => setReflectionOpen((o) => !o)}>
 
               {editable ? (
                 <>
                   <label className="block">
                     <span className="mb-[7px] block text-[14px] font-semibold text-gray-900">1. What stood out to you?</span>
-                    <textarea value={stoodOut} onChange={(e) => setStoodOut(e.target.value)} placeholder="Anything from the recap that stayed with you." className={`${FIELD} min-h-[88px] resize-y`} />
+                    <textarea ref={firstQuestionRef} value={stoodOut} onChange={(e) => setStoodOut(e.target.value)} placeholder="Anything from the recap that stayed with you." className={`${FIELD} min-h-[88px] resize-y`} />
                   </label>
                   <label className="mt-5 block">
                     <span className="mb-[7px] block text-[14px] font-semibold text-gray-900">2. What is one thing you will do this week because of it?</span>
@@ -327,6 +347,33 @@ const ParticipantWeekPage: React.FC = () => {
           </section>
         )}
       </div>
+
+      {guard.asking && createPortal(
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/30 backdrop-blur-[2px] sm:items-center" role="dialog" aria-modal="true" aria-labelledby="leave-title">
+          <div className="w-full max-w-md rounded-t-[28px] bg-white px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-7 shadow-2xl sm:rounded-[28px] sm:pb-6">
+            <h2 id="leave-title" className="text-[22px] font-bold tracking-[-0.02em] text-gray-900">Before you go</h2>
+            <p className="mt-2 text-[15px] leading-[1.6] text-gray-600">Your Week {week.weekNumber} reflection is still waiting. It takes about 2 minutes, just three short questions.</p>
+            <div className="mt-6 flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  guard.stay();
+                  setReflectionOpen(true);
+                  requestAnimationFrame(() => {
+                    reflectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    firstQuestionRef.current?.focus({ preventScroll: true });
+                  });
+                }}
+                className={PRIMARY}
+              >
+                Write it now
+              </button>
+              <button type="button" onClick={guard.leave} className={SECONDARY}>I was just checking</button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
       <DocumentViewerSheet
         open={docOpen}

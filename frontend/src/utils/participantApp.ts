@@ -78,6 +78,26 @@ export const markReadyStepDone = (step: ReadyStep, participantId: string) => {
   try { localStorage.setItem(readyStepKey(step, participantId), '1'); } catch { /* ignore */ }
 };
 
+// Unsaved reflection answers, kept on this phone so leaving the week page never
+// loses what was typed. Cleared once the reflection is saved.
+export type ReflectionDraft = { stoodOut: string; goal: string; goalCheck: string };
+const reflectionDraftKey = (participantId: string, weekId: number) => `fof_reflection_draft_${participantId}_${weekId}`;
+export const loadReflectionDraft = (participantId: string, weekId: number): ReflectionDraft | null => {
+  try {
+    const raw = localStorage.getItem(reflectionDraftKey(participantId, weekId));
+    return raw ? JSON.parse(raw) as ReflectionDraft : null;
+  } catch { return null; }
+};
+export const saveReflectionDraft = (participantId: string, weekId: number, draft: ReflectionDraft) => {
+  try {
+    if (!draft.stoodOut.trim() && !draft.goal.trim() && !draft.goalCheck.trim()) localStorage.removeItem(reflectionDraftKey(participantId, weekId));
+    else localStorage.setItem(reflectionDraftKey(participantId, weekId), JSON.stringify(draft));
+  } catch { /* ignore */ }
+};
+export const clearReflectionDraft = (participantId: string, weekId: number) => {
+  try { localStorage.removeItem(reflectionDraftKey(participantId, weekId)); } catch { /* ignore */ }
+};
+
 /** Misses so far, counted the same way as the programme rules (recorded misses only). */
 export const participantMisses = (home: ParticipantHome, now: Date) => {
   const week = currentWeekNumber(home.cohort?.startDate, now);

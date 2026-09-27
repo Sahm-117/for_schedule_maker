@@ -22,6 +22,7 @@ const BackLink: React.FC<{ label: string; fallbackTo: string }> = ({ label, fall
   return (
     <button
       type="button"
+      data-back-link
       onClick={() => {
         const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
         if (idx > 0) navigate(-1);

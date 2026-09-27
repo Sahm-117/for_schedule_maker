@@ -444,10 +444,10 @@ const ParticipantHomePage: React.FC = () => {
           </section>
         ) : week?.released && started && !finished ? (
           <section className="rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">This week&apos;s recap is out</p>
-            <p className="mt-2 text-base font-semibold leading-[1.45] text-gray-900">Read. Reflect.</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Your Week {week.weekNumber} reflection is waiting</p>
+            <p className="mt-2 text-base font-semibold leading-[1.45] text-gray-900">The recap is out. Three short questions, about 2 minutes.</p>
             <NavLink to={`/me/week/${week.weekNumber}`} className="mt-3.5 flex min-h-[46px] w-full items-center justify-center rounded-xl bg-primary p-3 text-sm font-semibold text-white">
-              Open this week
+              Write my reflection
             </NavLink>
           </section>
         ) : null}
