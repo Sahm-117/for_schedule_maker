@@ -354,6 +354,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
     return matchesRole && matchesSearch && matchesAlerts;
   }), (user) => user.name);
 
+  // At-a-glance head count beside the list title.
+  const activeUsers = users.filter((u) => u.isActive !== false);
+  const deactivatedCount = users.length - activeUsers.length;
+  const headCount = [
+    `${activeUsers.filter((u) => u.role === 'ADMIN').length} admins`,
+    `${activeUsers.filter((u) => u.role === 'SUPPORT').length} supports`,
+    deactivatedCount > 0 ? `${deactivatedCount} deactivated` : '',
+  ].filter(Boolean).join(' · ');
+
   // WhatsApp-ready list of the supports shown under the "No alerts" filter,
   // with install videos, so an admin can paste it into a group chat.
   const noAlertsSupports = noAlertsOnly ? filteredUsers.filter((user) => user.role === 'SUPPORT') : [];
@@ -529,7 +538,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
           <>
             <div className="mb-4 space-y-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h3 className="text-lg font-medium">Users ({filteredUsers.length})</h3>
+                <div>
+                  <h3 className="text-lg font-medium">Users ({filteredUsers.length})</h3>
+                  <p className="text-xs text-gray-500">{headCount}</p>
+                </div>
                 <input
                   type="search"
                   value={searchQuery}

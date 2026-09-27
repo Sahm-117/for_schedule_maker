@@ -234,7 +234,9 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       };
       map.set(key, row);
     }
-    row.assigned++;
+    // A wrong number isn't a real contact, so it doesn't add to the support's
+    // total; it still shows under Dropped so it's clear what happened.
+    if (computeFollowUpStatus(c) !== 'WRONG_NUMBER') row.assigned++;
     const reason = stoppedReason(c);
     if (reason) reasonsByOwner.set(key, [...(reasonsByOwner.get(key) ?? []), reason]);
     if (c.registrationStatus === 'NOT_A_GOOD_TIME') row.notAGoodTime++;

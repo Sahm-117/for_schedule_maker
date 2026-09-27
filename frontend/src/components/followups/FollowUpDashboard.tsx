@@ -35,7 +35,8 @@ const contactsLink = (status?: FollowUpStatus | 'open') =>
 // Thin stacked bar showing how a support's assigned contacts split out, so the
 // shape of their work is visible at a glance without reading five numbers.
 const SupportBar: React.FC<{ row: OwnerBreakdownRow }> = ({ row }) => {
-  const total = row.assigned || 1;
+  // Wrong numbers aren't in `assigned` but still get their grey sliver.
+  const total = row.assigned + row.wrongNumber || 1;
   const segments: Array<{ value: number; className: string }> = [
     { value: row.loginShared, className: 'bg-emerald-500' },
     { value: row.loginToShare, className: 'bg-sky-500' },

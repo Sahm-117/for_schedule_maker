@@ -242,6 +242,15 @@ const ParticipantWeekPage: React.FC = () => {
                   <span aria-hidden="true">→</span>
                 </button>
               )}
+              {week.manual.documentUrl && manualComic && (
+                <button
+                  type="button"
+                  onClick={() => { setManualDocOpen(true); Clarity.event('manual_pdf_opened'); }}
+                  className="mt-2 w-full py-1.5 text-center text-[13px] font-semibold text-[#9a6a4b] underline-offset-2 hover:underline"
+                >
+                  Prefer the plain PDF? Open the PDF instead
+                </button>
+              )}
             </div>
             <div className="mt-2 px-5 pb-1">
               <DisclosureRow label="My notes" hint={week.manualNote?.trim() ? 'Saved' : undefined} open={notesOpen} onToggle={() => setNotesOpen((o) => !o)}>

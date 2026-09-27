@@ -3,7 +3,7 @@ import AppSelect from './AppSelect';
 import PageLoader from './PageLoader';
 import { useToast } from './Toast';
 import { useAppData } from '../context/AppDataContext';
-import { cohortsApi, supportSessionsApi } from '../services/api';
+import { supportSessionsApi, usersApi } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { cohortMode } from './dashboard/healthModel';
 import { sortByText } from '../utils/sort';
@@ -12,7 +12,8 @@ import MarkCounter from './supports/MarkCounter';
 import MarkRestAbsentButton from './supports/MarkRestAbsentButton';
 
 // Trainings & get-togethers register, for the supports an admin picked on the
-// Attendance page. Lists every support in the session's cohort, marked the
+// Attendance page. Lists every active support (trainings are open to all, not
+// just the session's cohort), marked the
 // same way as the class register.
 
 const STATUS_BUTTONS: Array<{ status: SupportAttendanceStatus; label: string; activeCls: string }> = [
@@ -52,18 +53,16 @@ const TrainingAttendancePanel: React.FC = () => {
     setLoading(true);
     Promise.all([
       supportSessionsApi.getForCohort(cohortIds, ['PRE_COHORT_TRAINING', 'GET_TOGETHER']),
-      Promise.all(cohortIds.map((id) => cohortsApi.getMembers(id).then((res) => res.users).catch(() => [] as User[]))),
+      usersApi.getAll().then((res) => res.users).catch(() => [] as User[]),
     ])
-      .then(([{ sessions: ss, attendance }, members]) => {
+      .then(([{ sessions: ss, attendance }, users]) => {
         if (cancelled) return;
         const byMap: Record<string, Record<string, SupportAttendanceStatus>> = {};
         attendance.forEach((a) => { (byMap[a.sessionId] ??= {})[a.userId] = a.status; });
         setSessions(ss);
         setMarks(byMap);
-        setSupportsByCohort(Object.fromEntries(cohortIds.map((id, i) => [
-          id,
-          sortByText(members[i].filter((u) => u.role === 'SUPPORT' && u.isActive !== false), (u) => u.name),
-        ])));
+        const everyone = sortByText(users.filter((u) => u.role === 'SUPPORT' && u.isActive !== false), (u) => u.name);
+        setSupportsByCohort(Object.fromEntries(cohortIds.map((id) => [id, everyone])));
         setSessionId((prev) => prev || ss[0]?.id || '');
       })
       .catch(() => { if (!cancelled) { setSessions([]); setMarks({}); } })
