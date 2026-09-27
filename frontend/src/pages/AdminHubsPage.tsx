@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { groupsApi, supportHubsApi, supportKindApi, supportSessionsApi, usersApi } from '../services/api';
 import type { Group, HubItSupportEntry, HubJob, HubMembership, SupportAttendanceStatus, SupportHub, SupportKind, User, Week } from '../types';
-import { HUB_JOB_INFO, PERSON_OF_INTEREST_INFO, sortHubJobs } from '../components/hubs/hubJobs';
+import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -18,6 +18,7 @@ import { getIdealWeekForCohort, getIdealWeekNumberForCohort } from '../utils/wee
 import { cohortMode } from '../components/dashboard/healthModel';
 import AttendanceSummaryStrip from '../components/hubs/AttendanceSummaryStrip';
 import Spinner from '../components/Spinner';
+import SupportNotesStar from '../components/hubs/SupportNotesStar';
 
 // ── Recap Attendance Modal ────────────────────────────────────────────────────
 // Same controls and API calls as the hub lead's Recap tab in SupportMyHubPage.
@@ -752,7 +753,7 @@ const AdminHubsPage: React.FC = () => {
                               {jobs.map((job) => (
                                 <span key={job} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${HUB_JOB_INFO[job].pill}`}>{HUB_JOB_INFO[job].label}</span>
                               ))}
-                              {isPoi && <span title={PERSON_OF_INTEREST_INFO.description} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
+                              {isPoi && <SupportNotesStar supportId={u.id} name={u.name} hubId={h.id} />}
                             </div>
                           )}
                           {led && <p className="text-xs text-gray-400">Leads {led.name}</p>}

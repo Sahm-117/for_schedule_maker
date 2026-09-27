@@ -5569,6 +5569,17 @@ export const supportNotesApi = {
     return { note: mapSupportNote(data) };
   },
 
+  async update(noteId: string, body: string): Promise<{ note: import('../types').SupportNote }> {
+    const { data, error } = await supabase
+      .from('SupportNote')
+      .update({ body })
+      .eq('id', noteId)
+      .select('*, author:User!SupportNote_authorId_fkey(id, name)')
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Failed to update note');
+    return { note: mapSupportNote(data) };
+  },
+
   // Supports with a note in one of these hubs, or a note not tied to any hub — they get a ★.
   async getSupportIdsWithNotes(hubIds: string[]): Promise<{ supportIds: string[] }> {
     const { data, error } = await supabase

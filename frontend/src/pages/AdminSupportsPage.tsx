@@ -513,10 +513,10 @@ const SupportCard: React.FC<{
           </p>
           <SupportTagRow tags={[
             user && <ProfileTag key="profile" user={user} />,
+            training.total > 0 && <TrainingPill key="training" name={supportName} userId={evaluation.supportId} sessions={training.sessions} attendance={training.attendance} />,
             hub?.isLead && <span key="lead" className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>,
             KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
             hub && <span key="hub" className="rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>,
-            training.total > 0 && <TrainingPill key="training" name={supportName} userId={evaluation.supportId} sessions={training.sessions} attendance={training.attendance} />,
           ]} />
         </div>
         <div className="flex flex-col items-end gap-1.5">
@@ -700,10 +700,10 @@ const NoLeadSupportCard: React.FC<{
           {genderAgeLine(user) && <p className="text-sm text-gray-500">{genderAgeLine(user)}</p>}
           <SupportTagRow tags={[
             <ProfileTag key="profile" user={user} />,
+            training.total > 0 && <TrainingPill key="training" name={user.name} userId={user.id} sessions={training.sessions} attendance={training.attendance} />,
             hub?.isLead && <span key="lead" className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>,
             KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
             hub && <span key="hub" className="rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>,
-            training.total > 0 && <TrainingPill key="training" name={user.name} userId={user.id} sessions={training.sessions} attendance={training.attendance} />,
           ]} />
         </div>
         <FollowUpLoad value={followUps} max={maxFollowUps} />
@@ -771,6 +771,7 @@ const ProfileTag: React.FC<{ user: User }> = ({ user }) => (
 );
 
 // Long tag rows fold to the first two plus "+N"; tap it to see the rest.
+// Profile and Trainings go first so they're always visible.
 const SupportTagRow: React.FC<{ tags: React.ReactNode[] }> = ({ tags }) => {
   const [open, setOpen] = useState(false);
   const shown = tags.filter(Boolean);

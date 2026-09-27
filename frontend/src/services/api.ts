@@ -662,6 +662,7 @@ export const supportHubsApi = USE_SUPABASE ? supabaseSupportHubsApi : {
 export const supportNotesApi = USE_SUPABASE ? supabaseSupportNotesApi : {
   async getForSupport(_supportId: string): Promise<{ notes: import('../types').SupportNote[] }> { return { notes: [] }; },
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
+  async update(_noteId: string, _body: string): Promise<never> { return peopleUnavailable(); },
   async getSupportIdsWithNotes(_hubIds: string[]): Promise<{ supportIds: string[] }> { return { supportIds: [] }; },
 };
 
