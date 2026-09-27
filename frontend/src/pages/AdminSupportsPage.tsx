@@ -125,7 +125,7 @@ const AdminSupportsPage: React.FC = () => {
       setTrainingSessions(ts.sessions);
       setKinds(k);
       setTrainingAttendance(ts.attendance);
-      followUpContactsApi.getAll().then((res) => setFollowUpLoad(openLoadByOwner(res.contacts))).catch(() => {});
+      followUpContactsApi.getAll().then((res) => setFollowUpLoad(openLoadByOwner(res.contacts, activeCohort.id))).catch(() => {});
       setNotedIds(new Set(await supportNotesApi.getSupportIdsWithNotes(hb.map((x) => x.id)).then((res) => res.supportIds).catch(() => [] as string[])));
       const groupIds = h.groups.map((g) => g.id);
       setReports(await participantNotesApi.getMeetingReports(groupIds).then((res) => res.notes).catch(() => [] as ParticipantNote[]));

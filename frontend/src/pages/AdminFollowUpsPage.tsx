@@ -180,7 +180,7 @@ const AdminFollowUpsPage: React.FC = () => {
   };
 
   // Load ring: open follow-ups per support against the max set in Settings.
-  const ownerLoad = useMemo(() => openLoadByOwner(contacts), [contacts]);
+  const ownerLoad = useMemo(() => openLoadByOwner(contacts, activeCohort?.id), [contacts, activeCohort?.id]);
   const [maxLoad, setMaxLoad] = useState(DEFAULT_PROGRAMME_RULES.maxFollowUpsPerSupport);
   useEffect(() => {
     settingsApi.getProgrammeRules().then((rules) => setMaxLoad(rules.maxFollowUpsPerSupport)).catch(() => {});

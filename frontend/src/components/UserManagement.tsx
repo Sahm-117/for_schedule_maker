@@ -31,6 +31,13 @@ interface UserManagementProps {
   showCreateForm?: boolean;
 }
 
+// 8 characters, no look-alikes (0/O, 1/l/I), so it reads cleanly over WhatsApp.
+const generateFirstTimePassword = () => {
+  const alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = crypto.getRandomValues(new Uint32Array(8));
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+};
+
 const UserManagement: React.FC<UserManagementProps> = ({
   isOpen,
   onClose,
@@ -51,7 +58,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [editingLabels, setEditingLabels] = useState(false);
   const [savingLabels, setSavingLabels] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
-  const [showPasswordInForm, setShowPasswordInForm] = useState(false);
 
   const [newUserLabelIds, setNewUserLabelIds] = useState<string[]>([]);
   const [selectedUserDraft, setSelectedUserDraft] = useState({
@@ -60,7 +66,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
     phone: '',
   });
   const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
-  const [resetPasswordValue, setResetPasswordValue] = useState('');
   const [resetPasswordSaving, setResetPasswordSaving] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
@@ -77,7 +82,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
     name: '',
     email: '',
     phone: '',
-    password: '',
     role: 'SUPPORT' as 'ADMIN' | 'SUPPORT',
   });
 
@@ -186,12 +190,15 @@ const UserManagement: React.FC<UserManagementProps> = ({
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUser.name || (!newUser.email && !newUser.phone) || !newUser.password) return;
+    if (!newUser.name || (!newUser.email && !newUser.phone)) return;
 
     setLoading(true);
     setError('');
     setSuccess('');
     setInvite(null);
+
+    // A first-time password for the invite; they choose their own at first sign-in.
+    const password = generateFirstTimePassword();
 
     try {
       // Send only the fields actually provided. Previously this copied the phone
@@ -199,7 +206,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       // number. register() already omits empty email/phone.
       const userData = {
         name: newUser.name,
-        password: newUser.password,
+        password,
         role: newUser.role,
         ...(newUser.email ? { email: newUser.email } : {}),
         ...(newUser.phone ? { phone: newUser.phone } : {}),
@@ -214,10 +221,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
           (user) => user.name
         ));
       }
-      setInvite({ name: newUser.name, email: newUser.email.trim(), phone: newUser.phone.trim(), password: newUser.password });
-      setNewUser({ name: '', email: '', phone: '', password: '', role: 'SUPPORT' });
+      setInvite({ name: newUser.name, email: newUser.email.trim(), phone: newUser.phone.trim(), password });
+      setNewUser({ name: '', email: '', phone: '', role: 'SUPPORT' });
       setNewUserLabelIds([]);
-      setShowPasswordInForm(false);
     } catch (error: any) {
       // The API layer already returns a friendly message (e.g. phone/email
       // already registered), so surface it directly.
@@ -227,18 +233,17 @@ const UserManagement: React.FC<UserManagementProps> = ({
     }
   };
 
-  const handleResetPassword = async (userId: string) => {
-    if (resetPasswordValue.length < 8) {
-      setError('New password must be at least 8 characters.');
-      return;
-    }
+  const handleResetPassword = async (user: User) => {
+    const password = generateFirstTimePassword();
     setResetPasswordSaving(true);
     setError('');
+    setSuccess('');
+    setInvite(null);
     try {
-      await usersApi.update(userId, { password: resetPasswordValue });
-      setSuccess('Password reset. They will be asked to choose a new one when they next sign in.');
+      // Saving a password from here marks it temporary, so they choose their own at next sign-in.
+      await usersApi.update(user.id, { password });
+      setInvite({ name: user.name, email: user.email ?? '', phone: user.phone ?? '', password, kind: 'reset' });
       setResetPasswordUserId(null);
-      setResetPasswordValue('');
     } catch (err: any) {
       setError(err.message || 'Failed to reset password.');
     } finally {
@@ -391,7 +396,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       <div className="fixed z-[100] w-44 rounded-2xl border border-gray-200 bg-white py-1 shadow-xl" style={menuPosition} role="menu">
         <button onClick={() => { openUserDetails(user); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-gray-50" role="menuitem">Manage</button>
         <button onClick={() => { setRoleChangeTarget(user); setRoleChangeValue(user.role as 'ADMIN' | 'SUPPORT'); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">Change role</button>
-        <button onClick={() => { setResetPasswordUserId(user.id); setResetPasswordValue(''); setError(''); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-orange-500 hover:bg-gray-50" role="menuitem">Reset password</button>
+        <button onClick={() => { setResetPasswordUserId(user.id); setError(''); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-orange-500 hover:bg-gray-50" role="menuitem">Reset password</button>
         <button onClick={() => { void handleActivationChange(user); setOpenMenuId(null); }} disabled={loading || (user.isActive !== false && user.id === currentUser?.id)} className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">{user.isActive === false ? 'Reactivate' : 'Deactivate'}</button>
         <button onClick={() => { void handlePermanentDeleteUser(user); setOpenMenuId(null); }} disabled={loading || user.id === currentUser?.id} className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">Permanent delete</button>
       </div>
@@ -433,29 +438,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-primary"
               placeholder="+1234567890"
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Password *</label>
-            <div className="relative">
-              <input
-                type={showPasswordInForm ? 'text' : 'password'}
-                value={newUser.password}
-                onChange={(e) => setNewUser((prev) => ({ ...prev, password: e.target.value }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 pr-10 focus:border-primary focus:outline-none focus:ring-primary"
-                required
-                minLength={6}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPasswordInForm(!showPasswordInForm)}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              </button>
-            </div>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Role *</label>
@@ -504,7 +486,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
           )}
           <button
             type="submit"
-            disabled={loading || !newUser.name || (!newUser.email && !newUser.phone) || !newUser.password}
+            disabled={loading || !newUser.name || (!newUser.email && !newUser.phone)}
             className="rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
           >
             {loading ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Creating...</span>) : 'Create User'}
@@ -644,23 +626,17 @@ const UserManagement: React.FC<UserManagementProps> = ({
                       </div>
                       {/* Inline reset password */}
                       {resetPasswordUserId === user.id && (
-                        <div className="mt-3 flex items-center gap-2 pt-3 border-t border-gray-100">
-                          <input
-                            type="text"
-                            value={resetPasswordValue}
-                            onChange={(e) => setResetPasswordValue(e.target.value)}
-                            placeholder="New password (min 6)"
-                            className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
-                          />
+                        <div className="mt-3 flex flex-wrap items-center gap-2 pt-3 border-t border-gray-100">
+                          <p className="flex-1 text-xs text-gray-600">Give {user.name.split(' ')[0]} a new first-time password?</p>
                           <button
-                            onClick={() => handleResetPassword(user.id)}
+                            onClick={() => { void handleResetPassword(user); }}
                             disabled={resetPasswordSaving}
                             className="text-xs px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary-dark disabled:opacity-50"
                           >
-                            {resetPasswordSaving ? '...' : 'Save'}
+                            {resetPasswordSaving ? '...' : 'Reset'}
                           </button>
                           <button
-                            onClick={() => { setResetPasswordUserId(null); setResetPasswordValue(''); }}
+                            onClick={() => setResetPasswordUserId(null)}
                             className="text-xs text-gray-400 hover:text-gray-600"
                           >
                             Cancel
@@ -714,22 +690,16 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             </div>
                             {resetPasswordUserId === user.id && (
                               <div className="mt-2 flex items-center gap-2">
-                                <input
-                                  type="text"
-                                  value={resetPasswordValue}
-                                  onChange={(e) => setResetPasswordValue(e.target.value)}
-                                  placeholder="New password (min 6)"
-                                  className="text-sm border border-gray-300 rounded px-2 py-1 w-40 focus:outline-none focus:ring-1 focus:ring-primary"
-                                />
+                                <span className="text-xs text-gray-600">New first-time password?</span>
                                 <button
-                                  onClick={() => handleResetPassword(user.id)}
+                                  onClick={() => { void handleResetPassword(user); }}
                                   disabled={resetPasswordSaving}
                                   className="text-xs px-2 py-1 bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50"
                                 >
-                                  {resetPasswordSaving ? '...' : 'Save'}
+                                  {resetPasswordSaving ? '...' : 'Reset'}
                                 </button>
                                 <button
-                                  onClick={() => { setResetPasswordUserId(null); setResetPasswordValue(''); }}
+                                  onClick={() => setResetPasswordUserId(null)}
                                   className="text-xs text-gray-400 hover:text-gray-600"
                                 >
                                   Cancel

@@ -116,11 +116,15 @@ export const isClosedContact = (c: FollowUpContact): boolean => {
   return status === 'LOGIN_SHARED' || status === 'WRONG_NUMBER' || status === 'NOT_INTERESTED' || status === 'NO_RESPONSE';
 };
 
-/** Open (not closed) follow-ups each support holds — what the load ring counts. */
-export const openLoadByOwner = (contacts: FollowUpContact[]): Map<string, number> => {
+/**
+ * Open (not closed, not archived) follow-ups each support holds in the given
+ * cohort — what the load ring counts. Past cohorts' contacts don't add to the load.
+ */
+export const openLoadByOwner = (contacts: FollowUpContact[], cohortId: string | null | undefined): Map<string, number> => {
   const map = new Map<string, number>();
+  if (!cohortId) return map;
   for (const c of contacts) {
-    if (!c.ownerId || isClosedContact(c)) continue;
+    if (!c.ownerId || c.archivedAt || isClosedContact(c) || !contactInCohortScope(c, cohortId, cohortId)) continue;
     map.set(c.ownerId, (map.get(c.ownerId) ?? 0) + 1);
   }
   return map;

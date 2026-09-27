@@ -1,25 +1,30 @@
 import React, { useState } from 'react';
 import { buildWhatsAppLink } from '../utils/phone';
 
-// Shown after an admin creates an account: a ready-to-send invite with the
-// person's login details, to copy or send straight on WhatsApp. The password is
-// the one the admin just typed; the person picks their own at first sign-in.
+// Shown after an admin creates an account or resets a password: a ready-to-send
+// message with the person's login details, to copy or send straight on WhatsApp.
+// The password is a generated first-time one; they pick their own at sign-in.
 export interface InviteDetails {
   name: string;
   email: string;
   phone: string;
   password: string;
+  /** 'reset' words it as a password reset instead of a welcome. */
+  kind?: 'invite' | 'reset';
 }
 
-export const buildInviteMessage = ({ name, email, phone, password }: InviteDetails): string => {
+export const buildInviteMessage = ({ name, email, phone, password, kind = 'invite' }: InviteDetails): string => {
   const firstName = name.trim().split(/\s+/)[0] || name.trim();
   const login = email && phone ? `${email} (or ${phone})` : email || phone;
-  return `Hello ${firstName}, welcome to the FOF team! You now have an account on the FOF app.\n\n`
+  const opening = kind === 'reset'
+    ? `Hello ${firstName}, your FOF app password has been reset.\n\n`
+    : `Hello ${firstName}, welcome to the FOF team! You now have an account on the FOF app.\n\n`;
+  return opening
     + `Name on the app: ${name.trim()}\n`
     + `Login: ${login}\n`
-    + `Password: ${password}\n`
+    + `${kind === 'reset' ? 'Temporary password' : 'First-time password'}: ${password}\n`
     + `App link: ${window.location.origin}/login\n\n`
-    + 'You will be asked to choose your own password when you first sign in.';
+    + `You will be asked to choose your own password when you ${kind === 'reset' ? 'next' : 'first'} sign in.`;
 };
 
 const InviteMessageCard: React.FC<{ details: InviteDetails; onDismiss: () => void }> = ({ details, onDismiss }) => {
@@ -38,7 +43,7 @@ const InviteMessageCard: React.FC<{ details: InviteDetails; onDismiss: () => voi
   return (
     <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-semibold text-emerald-700">Account created. Send them this invite:</p>
+        <p className="text-sm font-semibold text-emerald-700">{details.kind === 'reset' ? 'Password reset. Send them this message:' : 'Account created. Send them this invite:'}</p>
         <button type="button" onClick={onDismiss} aria-label="Dismiss invite" className="rounded-full p-1 text-gray-400 hover:bg-white hover:text-gray-600">
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
