@@ -56,9 +56,18 @@ const withSessionToken = (init: RequestInit | undefined): RequestInit | undefine
   return { ...init, headers };
 };
 
+// AbortSignal.timeout is missing before iOS 16 / Safari 16; without this
+// fallback every request there throws and sign-in shows "Connection error".
+const timeoutSignalFor = (ms: number): AbortSignal => {
+  if (typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms);
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+};
+
 const fetchWithTimeout: typeof fetch = (input, init) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-  const timeoutSignal = AbortSignal.timeout(url.includes('/functions/v1/ai-assist') ? AI_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
+  const timeoutSignal = timeoutSignalFor(url.includes('/functions/v1/ai-assist') ? AI_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
   const signal = init?.signal
     ? (signalAny ? signalAny([init.signal, timeoutSignal]) : init.signal)
     : timeoutSignal;
