@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import LoadRing from './LoadRing';
 
 type SelectOption = {
   value: string;
@@ -7,6 +8,8 @@ type SelectOption = {
   meta?: string;
   /** Shows a small green tick on the option — e.g. a week already submitted. */
   done?: boolean;
+  /** Load ring on the right, e.g. a support's open follow-ups against the max. */
+  ring?: { value: number; max: number };
 };
 
 interface AppSelectProps {
@@ -177,6 +180,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
           {selectedOption?.meta && (
             <p className="text-xs text-gray-500">{selectedOption.meta}</p>
           )}
+          {selectedOption?.ring && <LoadRing value={selectedOption.ring.value} max={selectedOption.ring.max} className="mt-0.5" />}
         </div>
         <span className={`ml-2 inline-flex flex-shrink-0 items-center justify-center transition-transform ${open ? 'rotate-180' : ''} ${
           compact ? 'h-5 w-5 text-gray-400' : 'h-6 w-6 text-gray-500'
@@ -244,6 +248,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
                       {option.meta && <p className="text-xs leading-tight text-gray-500">{option.meta}</p>}
                     </div>
                   </div>
+                  {option.ring && <LoadRing value={option.ring.value} max={option.ring.max} className="ml-3 self-center" />}
                   {selected && (
                     <span className="ml-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-primary shadow-sm">
                       <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

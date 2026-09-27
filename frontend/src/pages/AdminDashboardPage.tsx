@@ -59,6 +59,7 @@ const AdminDashboardPage: React.FC = () => {
   const [health, setHealth] = useState<CohortHealthPayload | null>(null);
   const [people, setPeople] = useState<CohortPeoplePayload | null>(null);
   const [rules, setRules] = useState<ProgrammeRules>(DEFAULT_PROGRAMME_RULES);
+  const [signUpTarget, setSignUpTarget] = useState<number | null>(null);
   const [healthError, setHealthError] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -77,15 +78,17 @@ const AdminDashboardPage: React.FC = () => {
     }
     try {
       setHealthError('');
-      const [nextHealth, nextPeople, nextRules] = await Promise.all([
+      const [nextHealth, nextPeople, nextRules, nextTarget] = await Promise.all([
         cohortsApi.getHealth(activeCohort.id),
         // Person-level rules are extra; the page still works without them.
         cohortsApi.getPeople(activeCohort.id).catch(() => null),
         settingsApi.getProgrammeRules(),
+        settingsApi.getMobilisationTarget(activeCohort.id).catch(() => ({ target: null })),
       ]);
       setHealth(nextHealth);
       setPeople(nextPeople);
       setRules(nextRules);
+      setSignUpTarget(nextTarget.target);
     } catch (error) {
       setHealthError(error instanceof Error ? error.message : 'Could not load cohort health.');
     } finally {
@@ -192,7 +195,7 @@ const AdminDashboardPage: React.FC = () => {
 
           <div data-wt="dash-vitals">
             {model.mode === 'upcoming' ? (
-              <RegistrationFunnel health={health} />
+              <RegistrationFunnel health={health} target={signUpTarget} />
             ) : (
               <VitalSigns health={health} model={model} />
             )}
@@ -463,13 +466,24 @@ const ParticipantsTile: React.FC<{ health: CohortHealthPayload; model: Dashboard
   );
 };
 
-const RegistrationFunnel: React.FC<{ health: CohortHealthPayload }> = ({ health }) => {
+// "3 days ago" / "5 hours ago" / "20 minutes ago" for the first contact in.
+const sinceLabel = (iso: string): string => {
+  const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+  const unit = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'} ago`;
+  if (mins < 60) return mins < 1 ? 'just now' : unit(mins, 'minute');
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return unit(hours, 'hour');
+  return unit(Math.floor(hours / 24), 'day');
+};
+
+const RegistrationFunnel: React.FC<{ health: CohortHealthPayload; target: number | null }> = ({ health, target }) => {
   const f = health.followUps;
   const steps = [
-    { title: 'Contacts', value: f.total, detail: `${f.open} still open`, base: null as number | null },
+    { title: 'Contacts', value: f.total, detail: f.firstAt ? `${f.open} open · first sign-up ${sinceLabel(f.firstAt)}` : `${f.open} open`, base: null as number | null },
     { title: 'Contacted', value: f.contacted, detail: 'Messaged or called', base: f.total },
     { title: 'Replied', value: f.replied, detail: 'Wrote back', base: f.contacted },
-    { title: 'Registered', value: f.registered, detail: 'Signed up', base: f.total },
+    // Measured against the cohort's sign-up target (set on Follow-ups → Overview).
+    { title: 'Registered', value: f.registered, detail: target ? `of ${target} target` : 'No target set', base: target && target > 0 ? target : null, sep: ' ' },
   ];
   return (
     <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
@@ -478,7 +492,7 @@ const RegistrationFunnel: React.FC<{ health: CohortHealthPayload }> = ({ health 
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{step.title}</p>
           <p className="mt-3 text-3xl font-bold tracking-tight text-gray-900 tabular-nums">{step.value}</p>
           <p className="mt-1 text-sm text-gray-600">
-            {step.base !== null && step.base > 0 ? `${Math.round((step.value / step.base) * 100)}% · ` : ''}{step.detail}
+            {step.base !== null && step.base > 0 ? `${Math.round((step.value / step.base) * 100)}%${'sep' in step ? step.sep : ' · '}` : ''}{step.detail}
           </p>
           {step.base !== null && step.base > 0 && (
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-100">

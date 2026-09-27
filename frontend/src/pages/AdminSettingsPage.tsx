@@ -224,6 +224,7 @@ const RULE_FIELDS: Array<{ section: string; fields: Array<{ key: keyof Programme
       { key: 'supportRedMissedWeeks', label: 'Unrecorded weeks before “Needs attention”', shortLabel: 'Unrecorded → Needs attention', unit: 'weeks', max: 20 },
       { key: 'onboardingMaxDays', label: 'Days a support has to onboard their group', shortLabel: 'Days to onboard group', unit: 'days', max: 60 },
       { key: 'minTrainingsAttended', label: 'Pre-cohort trainings a support must attend to get a group', shortLabel: 'Trainings to get a group', unit: 'trainings', max: 20 },
+      { key: 'maxFollowUpsPerSupport', label: 'Most open follow-ups one support should be given', shortLabel: 'Max follow-ups per support', unit: 'follow-ups', max: 200 },
     ],
   },
   {
@@ -243,8 +244,9 @@ const TILE_UNIT: Record<string, string> = {
   days: 'days',
   trainings: 'trainings',
   minutes: 'min',
+  'follow-ups': 'follow-ups',
 };
-const TILE_UNIT_ONE: Record<string, string> = { misses: 'miss', weeks: 'wk', days: 'day', trainings: 'training' };
+const TILE_UNIT_ONE: Record<string, string> = { misses: 'miss', weeks: 'wk', days: 'day', trainings: 'training', 'follow-ups': 'follow-up' };
 const tileUnit = (unit: string, value?: number) => (value === 1 && TILE_UNIT_ONE[unit]) || (TILE_UNIT[unit] ?? unit);
 
 const RULE_SECTION_DOT: Record<string, string> = {

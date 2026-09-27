@@ -24,6 +24,8 @@ export interface ProgrammeRules {
   attendanceWindowMinutes: number;
   /** Pre-cohort trainings a support must attend to be given a group next cohort. */
   minTrainingsAttended: number;
+  /** Most open follow-ups one support should hold. Past it, assigning warns (it isn't blocked). */
+  maxFollowUpsPerSupport: number;
 }
 
 export const DEFAULT_PROGRAMME_RULES: ProgrammeRules = {
@@ -36,6 +38,7 @@ export const DEFAULT_PROGRAMME_RULES: ProgrammeRules = {
   onboardingMaxDays: 7,
   attendanceWindowMinutes: 15,
   minTrainingsAttended: 1,
+  maxFollowUpsPerSupport: 15,
 };
 
 export const COMPLETION_SCORE_ALL_MEETINGS = 100;

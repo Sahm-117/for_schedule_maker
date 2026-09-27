@@ -12,13 +12,15 @@ import Spinner from '../components/Spinner';
 import Avatar from '../components/Avatar';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { cohortsApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
+import { cohortsApi, followUpContactsApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
 import type { HubMembership, ParticipantNote, SupportHub, SupportKind, SupportNote, SupportSession, User } from '../types';
 import AppSelect from '../components/AppSelect';
 import { PERSON_OF_INTEREST_INFO } from '../components/hubs/hubJobs';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
 import { genderAgeLine, isSupportProfileComplete } from '../utils/people';
+import { openLoadByOwner } from '../utils/followUps';
+import LoadRing from '../components/LoadRing';
 import {
   PERSON_HEALTH_LABEL,
   buildTrainingCounts,
@@ -87,6 +89,8 @@ const AdminSupportsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   // Supports with a note about them — they get a ★ and the "With notes" filter.
   const [notedIds, setNotedIds] = useState<Set<string>>(new Set());
+  // Open follow-ups each support holds (load ring against the Settings max).
+  const [followUpLoad, setFollowUpLoad] = useState<Map<string, number>>(new Map());
 
   const load = useCallback(async () => {
     if (!activeCohort?.id) { setLoading(false); return; }
@@ -111,6 +115,7 @@ const AdminSupportsPage: React.FC = () => {
       setTrainingSessions(ts.sessions);
       setKinds(k);
       setTrainingAttendance(ts.attendance);
+      followUpContactsApi.getAll().then((res) => setFollowUpLoad(openLoadByOwner(res.contacts))).catch(() => {});
       setNotedIds(new Set(await supportNotesApi.getSupportIdsWithNotes(hb.map((x) => x.id)).then((res) => res.supportIds).catch(() => [] as string[])));
       const groupIds = h.groups.map((g) => g.id);
       setReports(await participantNotesApi.getMeetingReports(groupIds).then((res) => res.notes).catch(() => [] as ParticipantNote[]));
@@ -346,6 +351,7 @@ const AdminSupportsPage: React.FC = () => {
                   onKindChange={(kind) => void saveKind(evaluation.supportId, kind)}
                   hasNotes={notedIds.has(evaluation.supportId)}
                   onNoteAdded={() => markNoted(evaluation.supportId)}
+                  followUps={followUpLoad.get(evaluation.supportId) ?? 0}
                 />
               ))}
               {notLeadingCards.map((u) => (
@@ -359,6 +365,8 @@ const AdminSupportsPage: React.FC = () => {
                   onKindChange={(kind) => void saveKind(u.id, kind)}
                   hasNotes={notedIds.has(u.id)}
                   onNoteAdded={() => markNoted(u.id)}
+                  followUps={followUpLoad.get(u.id) ?? 0}
+                  maxFollowUps={rules.maxFollowUpsPerSupport}
                 />
               ))}
             </ul>
@@ -407,6 +415,14 @@ const AdminSupportsPage: React.FC = () => {
   );
 };
 
+// Load ring for a support's open follow-ups against the max in Settings.
+const FollowUpLoad: React.FC<{ value: number; max: number }> = ({ value, max }) => (
+  <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
+    <LoadRing value={value} max={max} />
+    follow-ups
+  </span>
+);
+
 const SupportCard: React.FC<{
   evaluation: SupportEvaluation;
   user: User | null;
@@ -422,7 +438,8 @@ const SupportCard: React.FC<{
   onKindChange: (kind: SupportKind) => void;
   hasNotes: boolean;
   onNoteAdded: () => void;
-}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, hasNotes, onNoteAdded }) => {
+  followUps: number;
+}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps }) => {
   const [open, setOpen] = useState(false);
   const [openReport, setOpenReport] = useState<number | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -485,7 +502,10 @@ const SupportCard: React.FC<{
             ),
           ]} />
         </div>
-        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${HEALTH_PILL[evaluation.health]}`}>{PERSON_HEALTH_LABEL[evaluation.health]}</span>
+        <div className="flex flex-col items-end gap-1.5">
+          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${HEALTH_PILL[evaluation.health]}`}>{PERSON_HEALTH_LABEL[evaluation.health]}</span>
+          <FollowUpLoad value={followUps} max={rules.maxFollowUpsPerSupport} />
+        </div>
       </div>
 
       <div className="mt-3 w-full sm:w-56">
@@ -626,7 +646,9 @@ const NoLeadSupportCard: React.FC<{
   onKindChange: (kind: SupportKind) => void;
   hasNotes: boolean;
   onNoteAdded: () => void;
-}> = ({ user, hub, training, kind, kindSaving, onKindChange, hasNotes, onNoteAdded }) => {
+  followUps: number;
+  maxFollowUps: number;
+}> = ({ user, hub, training, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, maxFollowUps }) => {
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState<SupportNote[] | null>(null);
   const [noteBody, setNoteBody] = useState('');
@@ -671,6 +693,7 @@ const NoLeadSupportCard: React.FC<{
             ),
           ]} />
         </div>
+        <FollowUpLoad value={followUps} max={maxFollowUps} />
       </div>
 
       {kind === 'PARTICIPANT_SUPPORT' && <p className="mt-3 text-sm text-gray-600">Not leading a group yet</p>}

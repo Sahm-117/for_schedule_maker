@@ -18,6 +18,9 @@ interface FollowUpContactModalProps {
   defaultCohortId?: string | null;
   canEditOwner: boolean;
   existingContacts?: FollowUpContact[];
+  /** Open follow-ups each support holds, and the max from Settings (load ring + "full" note). */
+  ownerLoad?: Map<string, number>;
+  maxLoad?: number;
 }
 
 const inputClass =
@@ -33,6 +36,8 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
   defaultCohortId,
   canEditOwner,
   existingContacts,
+  ownerLoad,
+  maxLoad,
 }) => {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -182,9 +187,19 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
             label="Assigned to"
             value={ownerId}
             onChange={setOwnerId}
-            options={[{ value: '', label: 'Unassigned' }, ...sortByText(owners, (o) => o.name).map((o) => ({ value: o.id, label: o.name, meta: genderAgeLine(o) || undefined }))]}
+            options={[{ value: '', label: 'Unassigned' }, ...sortByText(owners, (o) => o.name).map((o) => ({
+              value: o.id,
+              label: o.name,
+              meta: genderAgeLine(o) || undefined,
+              ring: ownerLoad && maxLoad ? { value: ownerLoad.get(o.id) ?? 0, max: maxLoad } : undefined,
+            }))]}
             placeholder="Unassigned"
           />
+        )}
+        {canEditOwner && ownerId && ownerId !== (contact?.ownerId || '') && maxLoad && (ownerLoad?.get(ownerId) ?? 0) >= maxLoad && (
+          <p className="-mt-2 rounded-2xl bg-amber-100/80 px-4 py-2.5 text-xs font-medium text-amber-700">
+            {owners.find((o) => o.id === ownerId)?.name || 'This support'} already has {ownerLoad?.get(ownerId) ?? 0} open follow-ups (max {maxLoad}). You can still save.
+          </p>
         )}
         {canEditOwner ? (
           <AppSelect

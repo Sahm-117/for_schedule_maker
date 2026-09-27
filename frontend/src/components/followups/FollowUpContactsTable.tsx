@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { FollowUpContact, FollowUpNoteEntry, FollowUpStatus, User } from '../../types';
 import AppSelect from '../AppSelect';
+import LoadRing from '../LoadRing';
 import { genderAgeLine } from '../../utils/people';
 import AppOverflowMenu from '../AppOverflowMenu';
 import NotInterestedPopup from './NotInterestedPopup';
@@ -12,6 +13,7 @@ import {
   buildStatusPatch,
 } from '../../utils/followUps';
 import Spinner from '../Spinner';
+import ConfirmationModal from '../ConfirmationModal';
 import { sortByText } from '../../utils/sort';
 import { formatDate, formatDateTime } from '../../utils/time';
 import { followUpContactsApi } from '../../services/api';
@@ -26,6 +28,9 @@ interface FollowUpContactsTableProps {
   onEdit: (contact: FollowUpContact) => void;
   onDelete?: (contact: FollowUpContact) => void;
   onBulkAssign?: (contactIds: string[], ownerId: string, dueDate: string | null) => Promise<void> | void;
+  /** Open follow-ups each support holds, and the max from Settings — drives the load ring and the "full" warning. */
+  ownerLoad?: Map<string, number>;
+  maxLoad?: number;
 }
 
 const dateLabel = (value?: string | null) => {
@@ -56,7 +61,19 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   onEdit,
   onDelete,
   onBulkAssign,
+  ownerLoad,
+  maxLoad,
 }) => {
+  // Assigning past a support's max asks first; it's a warning, not a block.
+  const [overLoad, setOverLoad] = useState<{ name: string; load: number; adding: number; run: () => void } | null>(null);
+  const withLoadCheck = (ownerId: string | null, adding: number, run: () => void) => {
+    const load = ownerId && ownerLoad ? ownerLoad.get(ownerId) ?? 0 : 0;
+    if (ownerId && maxLoad && load + adding > maxLoad) {
+      setOverLoad({ name: owners.find((o) => o.id === ownerId)?.name || 'This support', load, adding, run });
+      return;
+    }
+    run();
+  };
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkOwnerId, setBulkOwnerId] = useState('');
   const [bulkDueDate, setBulkDueDate] = useState('');
@@ -109,7 +126,11 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     setSelected((prev) => (prev.size === contacts.length ? new Set() : new Set(contacts.map((c) => c.id))));
   };
 
-  const handleBulkAssign = async () => {
+  const handleBulkAssign = () => {
+    if (!bulkOwnerId || selected.size === 0 || !onBulkAssign) return;
+    withLoadCheck(bulkOwnerId, selected.size, () => { void runBulkAssign(); });
+  };
+  const runBulkAssign = async () => {
     if (!bulkOwnerId || selected.size === 0 || !onBulkAssign) return;
     setAssigning(true);
     try {
@@ -122,7 +143,12 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     }
   };
 
-  const ownerOptions = [{ value: '', label: 'Unassigned' }, ...sortByText(owners, (o) => o.name).map((o) => ({ value: o.id, label: o.name, meta: genderAgeLine(o) || undefined }))];
+  const ownerOptions: Array<{ value: string; label: string; meta?: string; ring?: { value: number; max: number } }> = [{ value: '', label: 'Unassigned' }, ...sortByText(owners, (o) => o.name).map((o) => ({
+    value: o.id,
+    label: o.name,
+    meta: genderAgeLine(o) || undefined,
+    ring: ownerLoad && maxLoad ? { value: ownerLoad.get(o.id) ?? 0, max: maxLoad } : undefined,
+  }))];
   // The support who added a contact goes first in that contact's picker, so
   // handing it back to them needs no searching.
   const ownerOptionsFor = (contact: FollowUpContact) => {
@@ -131,13 +157,14 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     const adderName = owners.find((o) => o.id === adderId)?.name || contact.registeredByName;
     if (!adderName) return ownerOptions;
     return [
-      { value: adderId, label: `${adderName} · added them`, meta: ownerOptions.find((option) => option.value === adderId)?.meta },
+      { value: adderId, label: `${adderName} · added them`, meta: ownerOptions.find((option) => option.value === adderId)?.meta, ring: ownerOptions.find((option) => option.value === adderId)?.ring },
       ...ownerOptions.filter((option) => option.value !== adderId),
     ];
   };
   const assignToAdder = (contact: FollowUpContact) => {
-    if (!contact.registeredById) return;
-    onFieldChange(contact, { ownerId: contact.registeredById, previousOwnerId: contact.ownerId || null });
+    const adderId = contact.registeredById;
+    if (!adderId) return;
+    withLoadCheck(adderId, 1, () => onFieldChange(contact, { ownerId: adderId, previousOwnerId: contact.ownerId || null }));
   };
   const addedByLine = (contact: FollowUpContact) => (
     <p className="mt-0.5 text-[11px] text-gray-400">
@@ -240,7 +267,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
           />
           <button
             type="button"
-            onClick={() => { void handleBulkAssign(); }}
+            onClick={handleBulkAssign}
             disabled={!bulkOwnerId || assigning}
             className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
           >
@@ -326,7 +353,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                   <td className="px-4 py-3.5">
                     <AppSelect
                       value={contact.ownerId || ''}
-                      onChange={(v) => onFieldChange(contact, { ownerId: v || null, previousOwnerId: contact.ownerId || null })}
+                      onChange={(v) => withLoadCheck(v && v !== contact.ownerId ? v : null, 1, () => onFieldChange(contact, { ownerId: v || null, previousOwnerId: contact.ownerId || null }))}
                       options={ownerOptionsFor(contact)}
                       placeholder="Unassigned"
                       compact
@@ -504,7 +531,8 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                       key={option.value || 'unassigned'}
                       type="button"
                       onClick={() => {
-                        if (!isCurrent) onFieldChange(assigningOwner, { ownerId: option.value || null, previousOwnerId: assigningOwner.ownerId || null });
+                        const target = assigningOwner;
+                        if (!isCurrent) withLoadCheck(option.value || null, 1, () => onFieldChange(target, { ownerId: option.value || null, previousOwnerId: target.ownerId || null }));
                         setAssigningOwner(null);
                       }}
                       className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition hover:bg-orange-50 ${isCurrent ? 'font-semibold text-gray-900' : 'text-gray-700'}`}
@@ -513,6 +541,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                         <span className="block truncate">{option.label}</span>
                         {option.meta && <span className="block truncate text-xs font-normal text-gray-500">{option.meta}</span>}
                       </span>
+                      {option.ring && <LoadRing value={option.ring.value} max={option.ring.max} className="ml-auto mr-2" />}
                       {isCurrent && (
                         <svg className="h-4 w-4 shrink-0 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <path d="M20 6 9 17l-5-5" />
@@ -632,6 +661,15 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         </div>,
         document.body
       )}
+      <ConfirmationModal
+        isOpen={!!overLoad}
+        onClose={() => setOverLoad(null)}
+        onConfirm={() => { overLoad?.run(); setOverLoad(null); }}
+        title="This support is full"
+        message={overLoad ? `${overLoad.name} already has ${overLoad.load} open follow-up${overLoad.load === 1 ? '' : 's'} (max ${maxLoad}). Give them ${overLoad.adding === 1 ? 'this one' : `${overLoad.adding} more`} anyway?` : ''}
+        confirmText="Assign anyway"
+        type="warning"
+      />
     </div>
   );
 };

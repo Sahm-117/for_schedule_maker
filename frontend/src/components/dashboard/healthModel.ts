@@ -24,7 +24,7 @@ export interface CohortHealthPayload {
   attendance: Array<{ weekId: number; groupId: string; marked: number; present: number; late: number; leftEarly?: number; absent: number; attended?: number }>;
   meetings: Array<{ weekId: number; groupId: string }>;
   faithProjects: Record<string, number>;
-  followUps: { total: number; contacted: number; replied: number; registered: number; open: number };
+  followUps: { total: number; contacted: number; replied: number; registered: number; open: number; firstAt?: string | null };
   nextCohortPeople: number;
   openFlags: number;
   pendingCover: number;

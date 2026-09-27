@@ -397,9 +397,16 @@ export const cohortsApi = {
   },
 
   async getHealth(cohortId: string): Promise<import('../components/dashboard/healthModel').CohortHealthPayload> {
-    const { data, error } = await supabase.rpc('cohort_health', { p_cohort_id: cohortId });
+    const [{ data, error }, first] = await Promise.all([
+      supabase.rpc('cohort_health', { p_cohort_id: cohortId }),
+      // When the cohort's first contact came in, for "open since …" on the funnel.
+      supabase.from('FollowUpContact').select('createdAt').eq('cohortId', cohortId)
+        .order('createdAt', { ascending: true }).limit(1).maybeSingle(),
+    ]);
     if (error) throw new Error(error.message);
-    return data as import('../components/dashboard/healthModel').CohortHealthPayload;
+    const health = data as import('../components/dashboard/healthModel').CohortHealthPayload;
+    if (health?.followUps) health.followUps.firstAt = (first.data as { createdAt?: string } | null)?.createdAt ?? null;
+    return health;
   },
 
   async getAll(): Promise<{ cohorts: Cohort[] }> {

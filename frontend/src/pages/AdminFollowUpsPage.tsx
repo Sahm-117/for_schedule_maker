@@ -35,7 +35,9 @@ import {
   contactInCohortScope,
   FOLLOW_UP_STAGE,
   FOLLOW_UP_STATUS_META,
+  openLoadByOwner,
 } from '../utils/followUps';
+import { DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
 import { compareText, sortByText } from '../utils/sort';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 
@@ -176,6 +178,13 @@ const AdminFollowUpsPage: React.FC = () => {
   const replaceContact = (updated: FollowUpContact) => {
     setContacts((prev) => sortByText(prev.map((c) => (c.id === updated.id ? updated : c)), (contact) => contact.fullName));
   };
+
+  // Load ring: open follow-ups per support against the max set in Settings.
+  const ownerLoad = useMemo(() => openLoadByOwner(contacts), [contacts]);
+  const [maxLoad, setMaxLoad] = useState(DEFAULT_PROGRAMME_RULES.maxFollowUpsPerSupport);
+  useEffect(() => {
+    settingsApi.getProgrammeRules().then((rules) => setMaxLoad(rules.maxFollowUpsPerSupport)).catch(() => {});
+  }, [liveRevision]);
 
   const filteredContacts = useMemo(() => {
     const list = contacts.filter((c) => {
@@ -513,6 +522,8 @@ const AdminFollowUpsPage: React.FC = () => {
               onEdit={(c) => { setEditingContact(c); setShowContactModal(true); }}
               onDelete={setDeletingContact}
               onBulkAssign={handleBulkAssign}
+              ownerLoad={ownerLoad}
+              maxLoad={maxLoad}
             />
           )}
           {tab === 'messages' && (
@@ -552,6 +563,8 @@ const AdminFollowUpsPage: React.FC = () => {
         defaultCohortId={activeCohort?.id}
         canEditOwner
         existingContacts={contacts}
+        ownerLoad={ownerLoad}
+        maxLoad={maxLoad}
       />
 
       <ContactImportModal
