@@ -14,6 +14,7 @@ import {
   FAITH_PROJECT_PARTICIPANT_LABEL,
   currentWeekNumber,
   formatTime,
+  hasSeenPeople,
   reflectionFor,
   scriptureDayIndex,
   scriptureForDay,
@@ -106,16 +107,39 @@ const ParticipantHomePage: React.FC = () => {
   const groupCallLink = normalizeLink(group?.callLink?.trim() || '') || null;
   const supportWaLink = buildWhatsAppLink(group?.supportPhone, `Hi ${(group?.supportName || 'there').split(' ')[0]}, it's ${home.participant.name.split(' ')[0]} from FOF.`);
 
-  const quickTiles: Array<{ key: string; label: string; icon: string; to?: string; href?: string; avatarName?: string; avatarUrl?: string | null }> = [
+  const quickTiles: Array<{ key: string; label: string; icon: string; to?: string; href?: string; disabled?: boolean; avatarName?: string; avatarUrl?: string | null }> = [
+    // Nothing to join until the support shares the group's call link.
     groupCallLink
       ? { key: 'call', label: 'Join call', icon: ICON_CALL, href: groupCallLink }
-      : { key: 'call', label: 'Join call', icon: ICON_CALL, to: '/me/group' },
+      : { key: 'call', label: 'Join call', icon: ICON_CALL, disabled: true },
     supportWaLink
       ? { key: 'message-support', label: 'Message support', icon: ICON_MESSAGE, href: supportWaLink, avatarName: group?.supportName ?? 'Support', avatarUrl: group?.supportAvatarUrl }
       : { key: 'message-support', label: 'Message support', icon: ICON_MESSAGE, to: '/me/group', avatarName: group?.supportName ?? 'Support', avatarUrl: group?.supportAvatarUrl },
     { key: 'resources', label: 'Resources', icon: ICON_RESOURCES, to: '/me/resources' },
     { key: 'feedback', label: 'Feedback', icon: ICON_FEEDBACK, to: '/me/feedback' },
   ];
+
+  // Before the first class: a short "Get ready" list that ticks itself off. The
+  // photo step only shows while they have no photo.
+  const preStart = !started && home.cohort?.status !== 'COMPLETED';
+  const faithStarted = !!home.faithProjectStatus && home.faithProjectStatus !== 'NOT_DRAFTED';
+  const readyItems = [
+    ...(!home.profile.avatarUrl ? [{ key: 'photo', label: 'Add a profile photo', to: '/me/profile', done: false }] : []),
+    { key: 'faith', label: 'Start your faith project', to: '/me/faith', done: faithStarted },
+    { key: 'people', label: 'Meet your cohort', to: '/me/people', done: hasSeenPeople(home.participant.id) },
+  ];
+  const readyDone = readyItems.filter((item) => item.done).length;
+
+  // Whole Lagos calendar days until the first class.
+  const firstClassDate = home.cohort?.startDate ? weekDayDate(home.cohort.startDate, 1, 0) : null;
+  const firstClassCountdown = (() => {
+    if (!firstClassDate) return null;
+    const lagosToday = new Date(now.getTime() + 60 * 60 * 1000);
+    const todayUtc = Date.UTC(lagosToday.getUTCFullYear(), lagosToday.getUTCMonth(), lagosToday.getUTCDate());
+    const days = Math.round((firstClassDate.getTime() - todayUtc) / 86400000);
+    if (days < 0) return null;
+    return days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
+  })();
 
   const toggleGoalDone = async () => {
     if (!week || !reflection) return;
@@ -248,18 +272,29 @@ const ParticipantHomePage: React.FC = () => {
           ) : (
             <>
               <p className="mt-1.5 text-[26px] font-extrabold text-gray-900">Starting soon</p>
-              {home.cohort?.startDate && (
-                <p className="mt-0.5 text-[13px] text-gray-500">First class {formatDateLabel(weekDayDate(home.cohort.startDate, 1, 0))}</p>
+              {firstClassDate && (
+                <p className="mt-0.5 text-[13px] text-gray-500">
+                  First class {formatDateLabel(firstClassDate)}
+                  {firstClassCountdown && <span className="font-semibold text-[#c2410c]"> · {firstClassCountdown}</span>}
+                </p>
               )}
             </>
           )}
 
           <div className="mt-4 grid grid-cols-2 gap-2.5">
-            <div className="rounded-2xl border border-[#f1f2f5] bg-white p-3.5">
-              <p className="text-xs font-semibold text-gray-500">This week&apos;s class</p>
-              <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{week?.title || '—'}</p>
-              {week && <p className="mt-0.5 text-xs text-gray-400">Class {week.weekNumber}</p>}
-            </div>
+            {preStart ? (
+              <div className="rounded-2xl border border-[#f1f2f5] bg-white p-3.5">
+                <p className="text-xs font-semibold text-gray-500">Your group</p>
+                <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{group?.name || 'Not assigned yet'}</p>
+                {group?.supportName && <p className="mt-0.5 text-xs text-gray-400">Support: {group.supportName}</p>}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-[#f1f2f5] bg-white p-3.5">
+                <p className="text-xs font-semibold text-gray-500">This week&apos;s class</p>
+                <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{week?.title || '—'}</p>
+                {week && <p className="mt-0.5 text-xs text-gray-400">Class {week.weekNumber}</p>}
+              </div>
+            )}
             <div className="rounded-2xl border border-[#fbe4e8] bg-[#fdf2f4] p-3.5">
               <p className="text-xs font-semibold text-[#9d5b68]">Next session</p>
               <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">
@@ -272,11 +307,19 @@ const ParticipantHomePage: React.FC = () => {
               <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">
                 {callSet ? `${titleCaseDay(group!.meetingDay)}, ${formatTime(group!.meetingTime)}` : 'Not set yet'}
               </p>
+              {preStart && !groupCallLink && <p className="mt-0.5 text-xs text-[#3c6da3]">Your support will share the link</p>}
             </div>
-            <div className="rounded-2xl border border-[#dcefe1] bg-[#f0f9f2] p-3.5">
-              <p className="text-xs font-semibold text-[#3f7a52]">Faith Project</p>
-              <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{FAITH_PROJECT_PARTICIPANT_LABEL[home.faithProjectStatus ?? 'NOT_DRAFTED']}</p>
-            </div>
+            {preStart && !faithStarted ? (
+              <NavLink to="/me/faith" className="rounded-2xl border border-[#dcefe1] bg-[#f0f9f2] p-3.5">
+                <p className="text-xs font-semibold text-[#3f7a52]">Faith Project</p>
+                <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">Start your faith project</p>
+              </NavLink>
+            ) : (
+              <div className="rounded-2xl border border-[#dcefe1] bg-[#f0f9f2] p-3.5">
+                <p className="text-xs font-semibold text-[#3f7a52]">Faith Project</p>
+                <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{FAITH_PROJECT_PARTICIPANT_LABEL[home.faithProjectStatus ?? 'NOT_DRAFTED']}</p>
+              </div>
+            )}
           </div>
         </section>
 
@@ -320,6 +363,13 @@ const ParticipantHomePage: React.FC = () => {
                 <span className="text-center text-[13px] font-semibold leading-snug text-gray-800">{tile.label}</span>
               </>
             );
+            if (tile.disabled) {
+              return (
+                <div key={tile.key} aria-disabled="true" className="relative flex min-h-[44px] flex-col items-center gap-2.5 rounded-2xl border border-[#eef0f4] bg-white px-2 py-4 opacity-50">
+                  {content}
+                </div>
+              );
+            }
             return tile.href ? (
               <a key={tile.key} href={tile.href} target="_blank" rel="noreferrer" className="relative flex min-h-[44px] flex-col items-center gap-2.5 rounded-2xl border border-[#eef0f4] bg-white px-2 py-4 hover:border-[#ffdeca]">
                 {content}
@@ -331,6 +381,27 @@ const ParticipantHomePage: React.FC = () => {
             );
           })}
         </div>
+
+        {preStart && (
+          <section data-wt="ph-get-ready" className={CARD}>
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-lg font-bold text-gray-900">Get ready</h2>
+              <span className="ml-auto text-xs font-semibold text-gray-500">{readyDone} of {readyItems.length} done</span>
+            </div>
+            <div className="mt-3 flex flex-col gap-2">
+              {readyItems.map((item) => (
+                <NavLink key={item.key} to={item.to} className="flex min-h-[48px] items-center gap-3 rounded-[14px] border border-[#f1f2f5] px-3.5 py-3 hover:border-[#ffdeca]">
+                  <span className={`grid h-6 w-6 flex-none place-items-center rounded-full ${item.done ? 'bg-emerald-500 text-white' : 'border-2 border-gray-300'}`} aria-hidden="true">
+                    {item.done && <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 12 5 5L20 7" /></svg>}
+                  </span>
+                  <span className={`text-sm font-semibold ${item.done ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{item.label}</span>
+                  <span className="sr-only">{item.done ? '(done)' : ''}</span>
+                  <span className="ml-auto text-gray-300" aria-hidden="true">&#8250;</span>
+                </NavLink>
+              ))}
+            </div>
+          </section>
+        )}
 
         {week && reflection?.goal ? (
           <section className="rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">

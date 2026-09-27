@@ -67,6 +67,16 @@ export const FAITH_PROJECT_PARTICIPANT_LABEL: Record<FaithProjectStatus, string>
   APPROVED: 'Approved',
 };
 
+// "Meet your cohort" on the pre-start Get ready list ticks once they've opened
+// People. Remembered on this phone only; the read/write can throw in private mode.
+const peopleSeenKey = (participantId: string) => `fof_people_seen_${participantId}`;
+export const hasSeenPeople = (participantId: string) => {
+  try { return localStorage.getItem(peopleSeenKey(participantId)) === '1'; } catch { return false; }
+};
+export const markPeopleSeen = (participantId: string) => {
+  try { localStorage.setItem(peopleSeenKey(participantId), '1'); } catch { /* ignore */ }
+};
+
 /** Misses so far, counted the same way as the programme rules (recorded misses only). */
 export const participantMisses = (home: ParticipantHome, now: Date) => {
   const week = currentWeekNumber(home.cohort?.startDate, now);

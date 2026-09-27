@@ -1014,6 +1014,8 @@ export interface ParticipantPeople {
   supports: Array<{ id: string; name: string; avatarUrl: string | null; role: 'SUPPORT' | 'ADMIN'; isMySupport: boolean }>;
   groupName: string | null;
   members: Array<{ name: string; avatarUrl: string | null }>;
+  /** Every other active participant in the cohort — name and photo only. */
+  cohort: Array<{ name: string; avatarUrl: string | null }>;
 }
 
 export interface ReflectionActivity {

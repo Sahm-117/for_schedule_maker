@@ -5,6 +5,7 @@ import Avatar from '../components/Avatar';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { participantAppApi } from '../services/api';
 import { buildWhatsAppLink } from '../utils/phone';
+import { markPeopleSeen } from '../utils/participantApp';
 import type { ParticipantPeople } from '../types';
 
 // People: every support/admin in the participant's cohort, and their own group
@@ -25,6 +26,11 @@ const ParticipantPeoplePage: React.FC = () => {
       .catch((err) => { if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Could not load people.'); });
     return () => { cancelled = true; };
   }, []);
+
+  const participantId = home?.participant.id;
+  useEffect(() => {
+    if (people && participantId) markPeopleSeen(participantId);
+  }, [people, participantId]);
 
   if (loadError) return <p className="py-16 text-center text-sm text-gray-500">{loadError}</p>;
   if (!people) return <PageLoader />;
@@ -72,6 +78,25 @@ const ParticipantPeoplePage: React.FC = () => {
             ))}
             {people.members.length === 0 && <p className="text-[13px] text-gray-500">You are the first in your group so far.</p>}
           </div>
+        </section>
+
+        <section data-wt="pp-cohort" className={CARD}>
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-base font-bold text-gray-900">Your cohort</h2>
+            {people.cohort.length > 0 && <span className="text-xs text-gray-500">{people.cohort.length} {people.cohort.length === 1 ? 'person' : 'people'} so far</span>}
+          </div>
+          {people.cohort.length > 0 ? (
+            <div className="mt-3.5 grid grid-cols-3 gap-2.5 sm:grid-cols-4">
+              {people.cohort.map((member, index) => (
+                <div key={`${member.name}-${index}`} className="flex min-w-0 flex-col items-center gap-2 rounded-[14px] border border-[#f1f2f5] px-2 py-3">
+                  <Avatar name={member.name} avatarUrl={member.avatarUrl} size="md" enlargeable />
+                  <p className="w-full break-words text-center text-[13px] font-semibold leading-tight text-gray-900">{member.name}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3.5 text-[13px] text-gray-500">You are the first in your cohort so far.</p>
+          )}
         </section>
       </div>
     </div>
