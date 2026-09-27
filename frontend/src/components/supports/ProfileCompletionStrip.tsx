@@ -13,7 +13,6 @@ const ProfileCompletionStrip: React.FC<{
   const doneCount = checklist.filter((item) => item.done).length;
   const missing = checklist.filter((item) => !item.done);
   const percent = Math.round((doneCount / checklist.length) * 100);
-  const phoneOnly = missing.length === 1 && missing[0].key === 'phone';
 
   if (missing.length === 0) {
     if (variant === 'home') return null;
@@ -55,13 +54,10 @@ const ProfileCompletionStrip: React.FC<{
       </p>
       <p className="mt-1 text-xs text-gray-600">
         Still to add: {missing.map((item) => item.label).join(', ')}.
-        {missing.some((item) => item.key === 'phone') && ' Ask an admin to add your phone number.'}
       </p>
-      {!phoneOnly && (
-        <NavLink to="/support/profile" className="mt-3 inline-flex min-h-[38px] items-center rounded-[10px] bg-orange-700 px-3.5 text-[13px] font-semibold text-white">
-          Finish profile
-        </NavLink>
-      )}
+      <NavLink to="/support/profile" className="mt-3 inline-flex min-h-[38px] items-center rounded-[10px] bg-orange-700 px-3.5 text-[13px] font-semibold text-white">
+        Finish profile
+      </NavLink>
     </section>
   );
 };

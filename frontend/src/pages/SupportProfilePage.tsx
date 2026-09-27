@@ -44,6 +44,11 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
   const [gender, setGender] = useState<string>(user?.gender ?? '');
   const [ageRange, setAgeRange] = useState<string>(user?.ageRange ?? '');
   const [detailsError, setDetailsError] = useState('');
+  const [phone, setPhone] = useState<string>(user?.phone?.trim() ?? '');
+  const [phoneDraft, setPhoneDraft] = useState('');
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { liveRevision, activeCohort } = useAppData();
 
@@ -123,7 +128,28 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const photoMissing = !avatarUrl;
-  const phoneValue = user.phone?.trim() || '';
+
+  // Saved the same way sign-up stores it (080…), so it works for WhatsApp and phone sign-in.
+  const handleSavePhone = async () => {
+    const digits = phoneDraft.replace(/\D/g, '');
+    const local = /^234[7-9][01]\d{8}$/.test(digits) ? `0${digits.slice(3)}` : digits;
+    if (!/^0[7-9][01]\d{8}$/.test(local)) {
+      setPhoneError('Enter a valid Nigerian number, e.g. 08012345678.');
+      return;
+    }
+    setSavingPhone(true);
+    setPhoneError('');
+    try {
+      await usersApi.savePhone(user.id, local);
+      setPhone(local);
+      refreshUser({ phone: local });
+      setEditingPhone(false);
+    } catch (err) {
+      setPhoneError(err instanceof Error ? err.message : 'Could not save. Please try again.');
+    } finally {
+      setSavingPhone(false);
+    }
+  };
 
   return (
     <div>
@@ -157,7 +183,7 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
               </div>
             </div>
             <div className="mt-4">
-              <ProfileCompletionStrip user={{ avatarUrl, gender, ageRange, phone: user.phone }} variant="profile" />
+              <ProfileCompletionStrip user={{ avatarUrl, gender, ageRange, phone }} variant="profile" />
             </div>
           </section>
 
@@ -175,11 +201,35 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
               <Row label="Age range" missing={!ageRange}>
                 <div className="w-40"><AppSelect value={ageRange} onChange={(value) => { void saveDetails({ gender, ageRange: value }); }} options={toSelectOptions(AGE_RANGE_OPTIONS)} placeholder="Choose…" compact /></div>
               </Row>
-              <Row label="Phone" missing={!phoneValue}>
-                {phoneValue
-                  ? <span className="truncate text-sm font-semibold text-gray-900">{phoneValue}</span>
-                  : <span className="text-right text-xs text-gray-500">Ask an admin to add it</span>}
-              </Row>
+{!editingPhone ? (
+                <Row label="Phone" missing={!phone}>
+                  {phone
+                    ? <span className="truncate text-sm font-semibold text-gray-900">{phone}</span>
+                    : <button type="button" onClick={() => { setPhoneDraft(''); setPhoneError(''); setEditingPhone(true); }} className="rounded-lg text-sm font-semibold text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">Add number</button>}
+                </Row>
+              ) : (
+                <div className="space-y-2 px-4 py-3">
+                  <p className="text-sm font-semibold text-gray-900">Your WhatsApp number</p>
+                  <p className="text-xs text-gray-500">Participants and admins tap this to message you on WhatsApp.</p>
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    autoFocus
+                    value={phoneDraft}
+                    onChange={(e) => setPhoneDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') void handleSavePhone(); }}
+                    placeholder="08012345678"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  {phoneError && <p className="text-xs font-medium text-red-700">{phoneError}</p>}
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button type="button" onClick={() => setEditingPhone(false)} className="rounded-2xl border border-gray-200 px-4 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+                    <button type="button" onClick={() => void handleSavePhone()} disabled={savingPhone || !phoneDraft.trim()} className="rounded-2xl bg-primary px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60">
+                      {savingPhone ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
             {detailsError && <p className="mt-2 px-1 text-xs font-medium text-red-700">{detailsError}</p>}
           </div>

@@ -2550,6 +2550,15 @@ export const usersApi = {
     if (error) throw new Error(error.message);
   },
 
+  // A support adding their own number (the same number they could have signed up with).
+  async savePhone(userId: string, phone: string): Promise<void> {
+    const { error } = await supabase.from('User').update({ phone, updatedAt: new Date().toISOString() }).eq('id', userId);
+    if (error) {
+      if (error.code === '23505' || error.message.includes('uniq_user_phone')) throw new Error('This number is already used by another account.');
+      throw new Error(error.message);
+    }
+  },
+
   async markHubSeen(userId: string): Promise<void> {
     const { error } = await supabase.from('User').update({ hubLastSeenAt: new Date().toISOString() }).eq('id', userId);
     if (error) throw new Error(error.message);
