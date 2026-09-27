@@ -8,6 +8,7 @@ import { useAppData } from '../context/AppDataContext';
 import { aiApi, feedbackApi, groupsApi, manualQuestionsApi } from '../services/api';
 import type { ClassFeedbackWeekResult, FeedbackAnswers, FeedbackRating, FeedbackResults, Group, ManualQuestion } from '../types';
 import Spinner from '../components/Spinner';
+import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
 import SegmentedTabs from '../components/SegmentedTabs';
 
 // Anonymous feedback participants send from their app, for the active cohort.
@@ -198,7 +199,14 @@ const AdminFeedbackPage: React.FC = () => {
       .catch((err) => setError(err instanceof Error ? err.message : 'Could not load feedback.'));
     aiApi.getFeedbackThemes(activeCohort.id).then(setThemes).catch(() => { /* none saved */ });
     feedbackApi.getClassFeedbackResults(activeCohort.id)
-      .then((rows) => { setClassFeedback(rows); setSelectedWeekId(rows[0] ? String(rows[0].weekId) : ''); })
+      .then((rows) => {
+        setClassFeedback(rows);
+        // Open on this week of the cohort (Week 1 before it starts, the last
+        // week once it's over), not the highest week number.
+        const idealNumber = getIdealWeekNumberForCohort(activeCohort, new Date());
+        const pick = [...rows].sort((a, b) => Math.abs(a.weekNumber - idealNumber) - Math.abs(b.weekNumber - idealNumber))[0];
+        setSelectedWeekId(pick ? String(pick.weekId) : '');
+      })
       .catch((err) => setClassFeedbackError(err instanceof Error ? err.message : 'Could not load after-class feedback.'));
     groupsApi.getAll({ cohortId: activeCohort.id }).then((res) => setGroups(res.groups)).catch(() => setGroups([]));
   }, [activeCohort?.id]); // eslint-disable-line react-hooks/exhaustive-deps

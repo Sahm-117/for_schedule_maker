@@ -57,7 +57,12 @@ const SupportAttendancePage: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     settingsApi.getTrainingMarkers()
-      .then(({ userIds }) => setCanMarkTrainings(userIds.includes(user.id)))
+      .then(({ userIds }) => {
+        const allowed = userIds.includes(user.id);
+        setCanMarkTrainings(allowed);
+        // Markers land on the trainings register, not the class one.
+        if (allowed) setView('trainings');
+      })
       .catch(() => setCanMarkTrainings(false));
   }, [user]);
   if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
@@ -162,6 +167,13 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
   const windowClosed = !!windowClosesAt && new Date(windowClosesAt).getTime() <= now;
   const windowOpen = !!activeSession.startedAt && !finalised && !windowClosed;
   const locked = finalised || windowClosed;
+  // A week's register opens on its class day (cohort start + 7 days per week);
+  // before that there's nothing to mark, so no list and no Start button.
+  const classDay = selectedWeek && activeCohort?.startDate
+    ? (() => { const d = new Date(`${activeCohort.startDate.slice(0, 10)}T00:00:00`); d.setDate(d.getDate() + (selectedWeek.weekNumber - 1) * 7); return d; })()
+    : null;
+  const beforeClassDay = !allWeeks && !!classDay && !activeSession.startedAt && !finalised && now < classDay.getTime();
+  const classDayLabel = classDay ? classDay.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
   const markedCount = participants.filter((participant) => records.has(participant.id)).length;
   const allMarked = participants.length > 0 && markedCount === participants.length;
   const summary = useMemo(() => {
@@ -240,8 +252,9 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
           <section className="mb-4 rounded-[20px] border border-[#ffdeca] bg-white p-4 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
             <div className="flex flex-wrap items-center gap-3">
               <div className="min-w-[10rem] flex-1 sm:max-w-xs"><AppSelect value={selectedWeekId === 'ALL' ? 'ALL' : selectedWeekId ? String(selectedWeekId) : ''} onChange={(value) => setSelectedWeekId(value === 'ALL' ? 'ALL' : Number(value))} options={[{ value: 'ALL', label: 'All weeks' }, ...cohortWeeks.map((week) => ({ value: String(week.id), label: `Week ${week.weekNumber}` }))]} placeholder="Choose week" compact /></div>
-              {!allWeeks && <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${finalised ? 'bg-emerald-100 text-emerald-700' : allMarked ? 'bg-sky-100 text-sky-700' : 'bg-neutral-100 text-neutral-600'}`}>{finalised ? 'Report sent' : `${markedCount} of ${participants.length} marked`}</span>}
-              {!allWeeks && !activeSession.startedAt && !finalised && (
+              {!allWeeks && beforeClassDay && <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-bold text-neutral-600">Opens {classDayLabel}</span>}
+              {!allWeeks && !beforeClassDay && <span className={`rounded-full px-3 py-1.5 text-xs font-bold ${finalised ? 'bg-emerald-100 text-emerald-700' : allMarked ? 'bg-sky-100 text-sky-700' : 'bg-neutral-100 text-neutral-600'}`}>{finalised ? 'Report sent' : `${markedCount} of ${participants.length} marked`}</span>}
+              {!allWeeks && !beforeClassDay && !activeSession.startedAt && !finalised && (
                 <button type="button" onClick={() => void startAttendance()} disabled={starting} className="rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50">{starting ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Starting…</span>) : 'Start attendance'}</button>
               )}
               {!allWeeks && windowOpen && windowClosesAt && (
@@ -251,7 +264,7 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
                 <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-bold text-neutral-600">Register closed</span>
               )}
             </div>
-            {!allWeeks && participants.length > 0 && <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+            {!allWeeks && !beforeClassDay && participants.length > 0 && <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
               <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or phone…" className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:flex-1" />
               {groupOptions.length > 1 && <div className="w-full sm:w-56"><AppSelect value={selectedGroupId} onChange={setSelectedGroupId} options={groupOptions} placeholder="All groups" compact /></div>}
             </div>}
@@ -262,7 +275,9 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
           {allWeeks ? (loading ? <PageLoader /> : <section className="overflow-hidden rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">{weekResults.map((result) => {
             const reportSent = !!result.session?.finalizedAt;
             return <div key={result.week.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[#f1f2f5] px-4 py-3 last:border-b-0"><div className="min-w-20"><p className="text-sm font-bold text-gray-900">Week {result.week.weekNumber}</p><p className="text-xs text-gray-500">{result.marked} of {result.total} marked</p></div><div className="flex flex-wrap gap-1.5 text-xs font-semibold"><span className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">{result.present} present</span><span className="rounded-full bg-amber-100 px-2 py-1 text-amber-700">{result.late} late</span><span className="rounded-full bg-red-100 px-2 py-1 text-red-700">{result.absent} absent</span></div><span className={`ml-auto text-xs font-semibold ${reportSent ? 'text-emerald-700' : result.marked === result.total && result.total > 0 ? 'text-sky-700' : 'text-gray-500'}`}>{reportSent ? 'Report sent' : result.marked === result.total && result.total > 0 ? 'Taken' : 'In progress'}</span></div>;
-          })}</section>) : <>
+          })}</section>) : beforeClassDay ? (
+            <p className="rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">Week {selectedWeek?.weekNumber} attendance opens on {classDayLabel}.</p>
+          ) : <>
           {!loading && <div className="mb-4 grid grid-cols-5 gap-2">{[
             ['Present', summary.present, 'bg-emerald-100 text-emerald-700'], ['Absent', summary.absent, 'bg-red-100 text-red-700'], ['Late', summary.late, 'bg-amber-100 text-amber-700'], ['Left early', summary.leftEarly, 'bg-orange-100 text-orange-700'], ['Excused', summary.excused, 'bg-sky-100 text-sky-700'],
           ].map(([label, value, cls]) => <div key={String(label)} className={`rounded-xl px-2 py-2 text-center ${cls}`}><p className="text-[11px] font-semibold">{label}</p><p className="text-lg font-bold">{value}</p></div>)}</div>}

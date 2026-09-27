@@ -15,7 +15,7 @@ import SaveStatus, { type SaveState } from '../components/SaveStatus';
 import PageLoader from '../components/PageLoader';
 import { sortByText } from '../utils/sort';
 import { selectedFirst } from '../utils/selectedFirst';
-import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
+import { getIdealWeekForCohort, getIdealWeekNumberForCohort } from '../utils/weekFocus';
 import { cohortMode } from '../components/dashboard/healthModel';
 import AttendanceSummaryStrip from '../components/hubs/AttendanceSummaryStrip';
 import Spinner from '../components/Spinner';
@@ -1151,7 +1151,7 @@ const AdminHubsPage: React.FC = () => {
           hub={recapTarget}
           members={(membersByHub.get(recapTarget.id) ?? []).map((id) => userById.get(id)).filter(Boolean) as User[]}
           weeks={weeks}
-          defaultWeekId={summaryWeek?.id ?? null}
+          defaultWeekId={summaryWeek?.id ?? getIdealWeekForCohort(activeCohort, weeks)?.id ?? null}
           onMarked={handleRecapMarked}
         />
       )}
