@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { authApi, setAuthToken, clearAuthToken, usersApi, getSessionToken, SESSION_TOKEN_KEY } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { applyTheme } from '../utils/theme';
+import { setLoginPassword } from '../utils/loginPassword';
 import type { Label, User } from '../types';
 
 interface AuthContextType {
@@ -80,6 +81,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string) => {
     const response = await authApi.login(email, password);
+    setLoginPassword(response.user.mustChangePassword ? password : null);
     setAuthToken(response.accessToken);
     localStorage.setItem('refreshToken', response.refreshToken);
     if (response.sessionToken) localStorage.setItem(SESSION_TOKEN_KEY, response.sessionToken);
@@ -90,6 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const clearSession = useCallback(() => {
+    setLoginPassword(null);
     const sessionToken = getSessionToken();
     if (sessionToken) void authApi.signOut(sessionToken).catch(() => undefined);
     clearAuthToken();

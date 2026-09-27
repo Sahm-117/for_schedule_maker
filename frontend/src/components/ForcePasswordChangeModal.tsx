@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../hooks/useAuth';
+import { getLoginPassword } from '../utils/loginPassword';
 import { usersApi } from '../services/api';
 import Spinner from './Spinner';
 
@@ -16,20 +17,28 @@ const ForcePasswordChangeModal: React.FC = () => {
   const [confirm, setConfirm] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // Only ask for the temporary password if we don't still have it from login.
+  const [askCurrent, setAskCurrent] = useState(() => !getLoginPassword());
 
   if (!user?.mustChangePassword) return null;
 
   const submit = async () => {
     if (next.length < 8) { setError('Your new password must be at least 8 characters.'); return; }
     if (next !== confirm) { setError('The two new passwords do not match.'); return; }
-    if (next === current) { setError('Choose a password different from the temporary one.'); return; }
+    const currentPassword = askCurrent ? current : getLoginPassword() ?? '';
+    if (next === currentPassword) { setError('Choose a password different from the temporary one.'); return; }
     setSaving(true);
     setError('');
     try {
-      await usersApi.changeOwnPassword(user.id, current, next);
+      await usersApi.changeOwnPassword(user.id, currentPassword, next);
       refreshUser({ mustChangePassword: false });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'The password could not be changed.');
+      if (!askCurrent) {
+        setAskCurrent(true);
+        setError('Please also type the temporary password you were given.');
+      } else {
+        setError(err instanceof Error ? err.message : 'The password could not be changed.');
+      }
     } finally {
       setSaving(false);
     }
@@ -44,10 +53,12 @@ const ForcePasswordChangeModal: React.FC = () => {
         </p>
 
         <div className="mt-5 flex flex-col gap-3.5">
-          <label className="block">
-            <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Temporary password</span>
-            <input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} className={INPUT} />
-          </label>
+          {askCurrent && (
+            <label className="block">
+              <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Temporary password</span>
+              <input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} className={INPUT} />
+            </label>
+          )}
           <label className="block">
             <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">New password</span>
             <input type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} className={INPUT} />
@@ -70,7 +81,7 @@ const ForcePasswordChangeModal: React.FC = () => {
           <button
             type="button"
             onClick={() => { void submit(); }}
-            disabled={saving || !current || !next || !confirm}
+            disabled={saving || (askCurrent && !current) || !next || !confirm}
             className="min-h-[48px] rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60"
           >
             {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save new password'}
