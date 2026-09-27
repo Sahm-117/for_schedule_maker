@@ -2,6 +2,7 @@ import axios from 'axios';
 import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label, SupportActivityCompletion, Cohort } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
 import { DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
+import { DEFAULT_GROUPING_RULES } from '../utils/groupingRules';
 import { DEFAULT_RECAP_RELEASE_TIMES } from '../utils/recapReleaseTimes';
 import { DEFAULT_CLASS_FEEDBACK_TIMES } from '../utils/classFeedbackTimes';
 import { DEFAULT_CLASS_START_TIME } from '../utils/classStartTime';
@@ -486,6 +487,8 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async setChurchDepartments(departments: import('../constants/departments').ChurchDepartment[]): Promise<import('../constants/departments').ChurchDepartment[]> { return departments; },
   async getProgrammeRules(): Promise<import('../utils/programmeRules').ProgrammeRules> { return { ...DEFAULT_PROGRAMME_RULES }; },
   async setProgrammeRules(rules: import('../utils/programmeRules').ProgrammeRules): Promise<import('../utils/programmeRules').ProgrammeRules> { return rules; },
+  async getGroupingRules(_cohortId: string): Promise<import('../utils/groupingRules').GroupingRules> { return { ...DEFAULT_GROUPING_RULES }; },
+  async setGroupingRules(_cohortId: string, rules: import('../utils/groupingRules').GroupingRules): Promise<import('../utils/groupingRules').GroupingRules> { return rules; },
   async getRecapReleaseTimes(): Promise<import('../utils/recapReleaseTimes').RecapReleaseTimes> { return { ...DEFAULT_RECAP_RELEASE_TIMES }; },
   async setRecapReleaseTimes(times: import('../utils/recapReleaseTimes').RecapReleaseTimes): Promise<import('../utils/recapReleaseTimes').RecapReleaseTimes> { return times; },
   async getClassFeedbackTimes(): Promise<import('../utils/classFeedbackTimes').ClassFeedbackTimes> { return { ...DEFAULT_CLASS_FEEDBACK_TIMES }; },

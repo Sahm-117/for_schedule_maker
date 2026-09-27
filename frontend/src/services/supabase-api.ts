@@ -1,5 +1,6 @@
 import { supabase, SESSION_TOKEN_KEY } from '../lib/supabase';
 import { normaliseRules } from '../utils/programmeRules';
+import { normaliseGroupingRules } from '../utils/groupingRules';
 import { normaliseRecapReleaseTimes } from '../utils/recapReleaseTimes';
 import { normaliseClassFeedbackTimes } from '../utils/classFeedbackTimes';
 import { normaliseClassStartTime } from '../utils/classStartTime';
@@ -1978,6 +1979,26 @@ export const settingsApi = {
     const { error } = await supabase
       .from('AppSetting')
       .upsert([{ settingKey: 'programme_rules', value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+    if (error) throw new Error(error.message);
+    return value;
+  },
+
+  // Group-building engine rules, one key per cohort (Groups → New group → engine).
+  async getGroupingRules(cohortId: string): Promise<import('../utils/groupingRules').GroupingRules> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', `grouping_rules_${cohortId}`)
+      .maybeSingle();
+    // No row yet (or a read error) means the defaults apply.
+    return normaliseGroupingRules(error ? null : (data as any)?.value);
+  },
+
+  async setGroupingRules(cohortId: string, rules: import('../utils/groupingRules').GroupingRules): Promise<import('../utils/groupingRules').GroupingRules> {
+    const value = normaliseGroupingRules(rules);
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert([{ settingKey: `grouping_rules_${cohortId}`, value, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
     if (error) throw new Error(error.message);
     return value;
   },

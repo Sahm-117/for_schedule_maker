@@ -9,7 +9,10 @@ import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
+import Avatar from '../components/Avatar';
 import GroupsExportPopup from '../components/groups/GroupsExportPopup';
+import GroupEngineWizard from '../components/groups/GroupEngineWizard';
+import NewGroupChooser from '../components/groups/NewGroupChooser';
 import GroupMeetingSlotEditor, { type MeetingSlot } from '../components/GroupMeetingSlotEditor';
 import PageLoader from '../components/PageLoader';
 import { sortByText } from '../utils/sort';
@@ -179,7 +182,7 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
       title={existing ? 'Edit Group' : 'Create Group'}
       footer={
         <>
-          <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
+          <button type="button" onClick={onClose} className="rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Cancel</button>
           <button type="button" onClick={() => void handleSave()} disabled={saving || blocked} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
             {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
           </button>
@@ -194,7 +197,7 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             placeholder="e.g. Group A"
           />
         </div>
@@ -231,7 +234,7 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
               type="url"
               value={callLink}
               onChange={(e) => setCallLink(e.target.value)}
-              className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               placeholder="Paste the group call link"
             />
           </div>
@@ -299,7 +302,7 @@ const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose
       title={`Assign support — ${group.name}`}
       footer={
         <>
-          <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
+          <button type="button" onClick={onClose} className="rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Cancel</button>
           <button type="button" onClick={() => void handleSave()} disabled={saving || blocked} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
             {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
           </button>
@@ -412,7 +415,7 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
       wide
       footer={
         <>
-          <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Cancel</button>
+          <button type="button" onClick={onClose} className="rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Cancel</button>
           <button type="button" onClick={() => void handleSave()} disabled={saving || loading} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
             {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save members'}
           </button>
@@ -427,7 +430,7 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search participants…"
-          className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
         {loading ? (
           <p className="flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
@@ -437,14 +440,14 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, group, all
           // as the user starts scrolling the list, and toggle on pointerdown so
           // the first tap always registers.
           <ul
-            className="max-h-80 touch-pan-y overflow-y-auto divide-y divide-orange-50"
+            className="max-h-80 touch-pan-y overflow-y-auto divide-y divide-gray-100"
             onTouchMove={() => searchRef.current?.blur()}
           >
             {filtered.map((p) => (
               <li
                 key={p.id}
                 onPointerDown={(e) => { e.preventDefault(); searchRef.current?.blur(); toggle(p.id); }}
-                className={`flex cursor-pointer items-center gap-3 rounded-lg py-2.5 transition ${selected.has(p.id) ? 'bg-orange-50/60' : 'hover:bg-gray-50'}`}
+                className={`flex cursor-pointer items-center gap-3 rounded-lg py-2.5 transition ${selected.has(p.id) ? 'bg-primary/5' : 'hover:bg-gray-50'}`}
               >
                 <input
                   type="checkbox"
@@ -497,6 +500,8 @@ const AdminGroupsContent: React.FC = () => {
   const [supportFilter, setSupportFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const [engineOpen, setEngineOpen] = useState(false);
 
   // "Open group" elsewhere (the Supports page) links straight to one group as
   // /groups?group=<id>, so the URL — not local state — decides what's in view.
@@ -608,10 +613,10 @@ const AdminGroupsContent: React.FC = () => {
         action={
           activeCohort && (
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => navigate('/allocation')} className="rounded-2xl border border-orange-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-orange-50 active:scale-95">
+              <button type="button" onClick={() => navigate('/allocation')} className="rounded-2xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">
                 Allocate participants
               </button>
-              <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
+              <button type="button" onClick={() => setChooserOpen(true)} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
                 + New Group
               </button>
               <AppOverflowMenu
@@ -664,11 +669,14 @@ const AdminGroupsContent: React.FC = () => {
       ) : loading ? (
         <PageLoader />
       ) : groups.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
-          <p className="text-sm text-gray-500">No groups yet. Create one and assign a Support member.</p>
+        <div className="rounded-2xl bg-gray-50/80 py-12 text-center">
+          <p className="text-sm text-gray-500">No groups yet.</p>
+          <button type="button" onClick={() => setChooserOpen(true)} className="mt-3 rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
+            Build groups
+          </button>
         </div>
       ) : displayedGroups.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
+        <div className="rounded-2xl bg-gray-50/80 py-12 text-center">
           <p className="text-sm text-gray-500">All groups have a support assigned. 🎉</p>
         </div>
       ) : (
@@ -676,7 +684,7 @@ const AdminGroupsContent: React.FC = () => {
           {displayedGroups.map((g) => {
             const members = membersByGroupId.get(g.id) ?? [];
             return (
-              <div key={g.id} className="flex flex-col gap-3 rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
+              <div key={g.id} className="flex flex-col gap-3 surface-card p-5">
                 {/* Header: name + support subtitle on the left; count badge +
                     overflow menu on the right (mirrors the allocation columns). */}
                 <div className="flex items-start justify-between gap-2">
@@ -707,16 +715,16 @@ const AdminGroupsContent: React.FC = () => {
 
                 {/* Members always visible at a glance — name + phone cards. */}
                 {members.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-orange-200 px-3 py-4 text-center text-xs text-gray-400">No members yet</p>
+                  <p className="rounded-xl bg-gray-50/80 px-3 py-4 text-center text-xs text-gray-400">No members yet</p>
                 ) : (
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col">
                     {members.map((p) => (
-                      <div
-                        key={p.id}
-                        className="rounded-xl border border-orange-100 bg-white px-3 py-2 shadow-sm"
-                      >
-                        <p className="truncate text-sm font-semibold leading-tight text-gray-900">{p.fullName}</p>
-                        {p.phone && <p className="text-xs text-gray-400">{p.phone}</p>}
+                      <div key={p.id} className="flex items-center gap-2.5 rounded-2xl px-1 py-1.5">
+                        <Avatar name={p.fullName} avatarUrl={p.avatarUrl} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold leading-tight text-gray-900">{p.fullName}</p>
+                          <p className="truncate text-xs text-gray-400">{[p.phone, genderAgeLine(p)].filter(Boolean).join(' · ')}</p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -794,6 +802,30 @@ const AdminGroupsContent: React.FC = () => {
         message={`Archive "${archiveTarget?.name}"? Its members and history stay preserved, but it will be hidden from active group and allocation views.`}
         confirmText="Archive"
       />
+
+      <NewGroupChooser
+        isOpen={chooserOpen}
+        onClose={() => setChooserOpen(false)}
+        ungroupedCount={participants.filter((p) => !p.groupId).length}
+        onEngine={() => { setChooserOpen(false); setEngineOpen(true); }}
+        onManual={() => { setChooserOpen(false); setEditing(null); setFormOpen(true); }}
+      />
+
+      {activeCohort && (
+        <GroupEngineWizard
+          isOpen={engineOpen}
+          onClose={() => setEngineOpen(false)}
+          onCreated={() => void load(true)}
+          cohortId={activeCohort.id}
+          cohortName={activeCohort.name}
+          participants={participants}
+          groups={groups}
+          supportUsers={supportUsers}
+          trainingCounts={trainingCounts}
+          trainingsTotal={trainingsTotal}
+          minTrainingsAttended={minTrainingsAttended}
+        />
+      )}
 
       {exportOpen && (
         <GroupsExportPopup

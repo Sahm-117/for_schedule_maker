@@ -1,0 +1,555 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
+import AppSelect from '../AppSelect';
+import Avatar from '../Avatar';
+import Spinner from '../Spinner';
+import { cohortsApi, groupsApi, settingsApi, supportKindApi } from '../../services/api';
+import type { Group, Participant, SupportKind, User } from '../../types';
+import { AGE_RANGE_OPTIONS } from '../../constants/departments';
+import { trainingCountFor } from '../../utils/programmeRules';
+import { DEFAULT_GROUPING_RULES, type GroupingRules, type RuleStrength } from '../../utils/groupingRules';
+import {
+  buildDraft,
+  evaluateGroup,
+  toEnginePerson,
+  type DraftGroup,
+  type EnginePerson,
+  type EngineSupport,
+} from '../../utils/groupingEngine';
+
+// Groups → New group → "Build with engine". Four steps: check who's ready,
+// set this cohort's rules, review/adjust the draft, then create. Nothing is
+// written until step 4 (except saving the rules in step 2).
+
+interface GroupEngineWizardProps {
+  isOpen: boolean;
+  onClose: () => void;
+  /** Called after groups were created, so the page reloads. */
+  onCreated: () => void;
+  cohortId: string;
+  cohortName: string;
+  /** The cohort's ACTIVE participants (grouped or not). */
+  participants: Participant[];
+  /** The cohort's current (non-archived) groups. */
+  groups: Group[];
+  supportUsers: User[];
+  trainingCounts: Map<string, { attended: number; total: number }>;
+  trainingsTotal: number;
+  minTrainingsAttended: number;
+}
+
+type Step = 'people' | 'rules' | 'draft' | 'create';
+const STEPS: Array<{ key: Step; label: string }> = [
+  { key: 'people', label: 'People' },
+  { key: 'rules', label: 'Rules' },
+  { key: 'draft', label: 'Draft' },
+  { key: 'create', label: 'Create' },
+];
+
+const SURFACE = 'rounded-[22px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)]';
+const SECTION_LABEL = 'text-[11px] font-semibold uppercase tracking-wide text-gray-400';
+const LEFT_OUT = '__left_out__';
+
+const shortAge = (range: string | null) => (range ? range.replace(/\s/g, '') : '—');
+
+// ── Small controls ───────────────────────────────────────────────────────────
+
+const Segmented: React.FC<{ value: string; options: Array<{ value: string; label: string }>; onChange: (v: string) => void }> = ({ value, options, onChange }) => (
+  <div className="grid gap-1 rounded-2xl bg-gray-100/80 p-1" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+    {options.map((o) => (
+      <button
+        key={o.value}
+        type="button"
+        onClick={() => onChange(o.value)}
+        className={`truncate rounded-xl px-2 py-2 text-[12.5px] font-semibold transition ${value === o.value ? 'bg-white text-gray-900 shadow-[0_1px_3px_rgba(17,24,39,0.12)]' : 'text-gray-500 hover:text-gray-700'}`}
+      >
+        {o.label}
+      </button>
+    ))}
+  </div>
+);
+
+const StrengthToggle: React.FC<{ value: RuleStrength; onChange: (v: RuleStrength) => void }> = ({ value, onChange }) => (
+  <div className="inline-flex rounded-full bg-gray-100/80 p-0.5 text-[11px] font-semibold">
+    {(['MUST', 'PREFER'] as const).map((s) => (
+      <button
+        key={s}
+        type="button"
+        onClick={() => onChange(s)}
+        className={`rounded-full px-2.5 py-1 transition ${value === s ? (s === 'MUST' ? 'bg-violet-100/80 text-violet-700' : 'bg-sky-100/80 text-sky-700') : 'text-gray-500'}`}
+      >
+        {s === 'MUST' ? 'Must' : 'Prefer'}
+      </button>
+    ))}
+  </div>
+);
+
+const Stepper: React.FC<{ label: string; value: number; min: number; max: number; onChange: (v: number) => void; suffix?: string; step?: number }> = ({ label, value, min, max, onChange, suffix, step = 1 }) => (
+  <div className="flex flex-col items-center gap-1.5 rounded-2xl bg-gray-50 px-2 py-2.5">
+    <span className="text-[11px] font-medium text-gray-500">{label}</span>
+    <div className="flex items-center gap-2">
+      <button type="button" aria-label={`Less ${label}`} onClick={() => onChange(Math.max(min, value - step))} className="h-7 w-7 rounded-full bg-white text-base font-semibold text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.10)] active:scale-95">−</button>
+      <span className="min-w-[2.2ch] text-center text-base font-bold text-gray-900">{value}{suffix}</span>
+      <button type="button" aria-label={`More ${label}`} onClick={() => onChange(Math.min(max, value + step))} className="h-7 w-7 rounded-full bg-white text-base font-semibold text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.10)] active:scale-95">+</button>
+    </div>
+  </div>
+);
+
+const RuleCard: React.FC<{ title: string; hint: string; strength?: RuleStrength; onStrength?: (v: RuleStrength) => void; children: React.ReactNode }> = ({ title, hint, strength, onStrength, children }) => (
+  <div className={`${SURFACE} p-4`}>
+    <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-gray-900">{title}</p>
+        <p className="mt-0.5 text-xs text-gray-500">{hint}</p>
+      </div>
+      {strength && onStrength && <StrengthToggle value={strength} onChange={onStrength} />}
+    </div>
+    {children}
+  </div>
+);
+
+const StatTile: React.FC<{ value: number; label: string; tone?: 'amber' | 'neutral' }> = ({ value, label, tone = 'neutral' }) => (
+  <div className={`${SURFACE} px-4 py-3`}>
+    <p className={`text-2xl font-bold ${tone === 'amber' && value > 0 ? 'text-amber-700' : 'text-gray-900'}`}>{value}</p>
+    <p className="text-xs text-gray-500">{label}</p>
+  </div>
+);
+
+// ── Wizard ───────────────────────────────────────────────────────────────────
+
+type CreateStatus = 'waiting' | 'creating' | 'done' | 'failed';
+
+const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
+  isOpen, onClose, onCreated, cohortId, cohortName, participants, groups, supportUsers, trainingCounts, trainingsTotal, minTrainingsAttended,
+}) => {
+  const navigate = useNavigate();
+  const [step, setStep] = useState<Step>('people');
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+  const [kinds, setKinds] = useState<Record<string, SupportKind>>({});
+  const [memberIds, setMemberIds] = useState<Set<string>>(new Set());
+  const [rules, setRules] = useState<GroupingRules>(DEFAULT_GROUPING_RULES);
+  const [savingRules, setSavingRules] = useState(false);
+  const [draft, setDraft] = useState<DraftGroup[]>([]);
+  const [leftOut, setLeftOut] = useState<string[]>([]);
+  const [picked, setPicked] = useState<string | null>(null);
+  const [statuses, setStatuses] = useState<Record<string, CreateStatus>>({});
+  const [creating, setCreating] = useState(false);
+  const createdAny = useRef(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setStep('people');
+    setErr('');
+    setDraft([]);
+    setLeftOut([]);
+    setPicked(null);
+    setStatuses({});
+    createdAny.current = false;
+    setLoading(true);
+    Promise.all([
+      supportKindApi.getForCohort(cohortId).then((r) => r.kinds).catch(() => ({} as Record<string, SupportKind>)),
+      cohortsApi.getMembers(cohortId).then((r) => new Set(r.users.map((u) => u.id))).catch(() => new Set<string>()),
+      settingsApi.getGroupingRules(cohortId).catch(() => DEFAULT_GROUPING_RULES),
+    ])
+      .then(([k, m, r]) => { setKinds(k); setMemberIds(m); setRules(r); })
+      .catch(() => setErr('Could not load everything. Please retry.'))
+      .finally(() => setLoading(false));
+  }, [isOpen, cohortId]);
+
+  // ── Who can be grouped, and which supports are free ──
+  const ungrouped = useMemo(() => participants.filter((p) => !p.groupId), [participants]);
+  const people = useMemo(
+    () => new Map<string, EnginePerson>(ungrouped.map((p) => [p.id, toEnginePerson({ id: p.id, name: p.fullName, gender: p.gender, ageRange: p.ageRange })])),
+    [ungrouped]
+  );
+  const participantById = useMemo(() => new Map(participants.map((p) => [p.id, p])), [participants]);
+
+  const supportPool = useMemo(() => {
+    const leading = new Set(groups.filter((g) => !g.archivedAt && g.supportId).map((g) => g.supportId as string));
+    const free: EngineSupport[] = [];
+    const reasons: Array<{ user: User; reason: string }> = [];
+    supportUsers.forEach((u) => {
+      if (u.isActive === false || !memberIds.has(u.id)) return; // not in this cohort
+      const kind = kinds[u.id] ?? 'PARTICIPANT_SUPPORT';
+      const c = trainingCountFor(trainingCounts, u.id, trainingsTotal);
+      if (kind !== 'PARTICIPANT_SUPPORT') { reasons.push({ user: u, reason: kind === 'HUB_LEAD' ? 'Hub lead' : 'Operational' }); return; }
+      if (leading.has(u.id)) { reasons.push({ user: u, reason: 'Already has a group' }); return; }
+      if (c.total > 0 && c.attended < minTrainingsAttended) { reasons.push({ user: u, reason: `Trainings ${c.attended}/${c.total}` }); return; }
+      free.push({ ...toEnginePerson(u), trainingsAttended: c.attended });
+    });
+    return { free, reasons };
+  }, [supportUsers, memberIds, kinds, groups, trainingCounts, trainingsTotal, minTrainingsAttended]);
+  const supportById = useMemo(() => new Map(supportPool.free.map((s) => [s.id, s])), [supportPool.free]);
+
+  const readyCount = [...people.values()].filter((p) => p.gender && p.ageRange).length;
+  const needsInfo = ungrouped.filter((p) => { const e = people.get(p.id); return !e?.gender || !e?.ageRange; });
+  const supportsMissingDetails = supportPool.free.filter((s) => !s.gender || !s.ageRange).length;
+  const ageCounts = AGE_RANGE_OPTIONS.map((range) => ({ range, count: [...people.values()].filter((p) => p.ageRange === range).length }));
+  const women = [...people.values()].filter((p) => p.gender === 'Female').length;
+  const men = [...people.values()].filter((p) => p.gender === 'Male').length;
+
+  const rebuild = (r: GroupingRules = rules) => {
+    const result = buildDraft([...people.values()], supportPool.free, r, groups.map((g) => g.name));
+    setDraft(result.groups);
+    setLeftOut([...result.needsInfo, ...result.unplaced]);
+    setPicked(null);
+  };
+
+  const saveRulesAndBuild = async () => {
+    setSavingRules(true);
+    setErr('');
+    try {
+      const saved = await settingsApi.setGroupingRules(cohortId, rules);
+      setRules(saved);
+      rebuild(saved);
+    } catch (e: any) {
+      // Still show a draft — the rules just weren't kept for next time.
+      setErr(e?.message ? `Rules not saved: ${e.message}` : 'Rules not saved.');
+      rebuild(rules);
+    } finally {
+      setSavingRules(false);
+      setStep('draft');
+    }
+  };
+
+  // ── Draft edits ──
+  const moveTo = (targetKey: string) => {
+    if (!picked) return;
+    setDraft((prev) => prev.map((g) => {
+      const without = g.memberIds.filter((id) => id !== picked);
+      return g.key === targetKey ? { ...g, memberIds: [...without, picked] } : { ...g, memberIds: without };
+    }));
+    setLeftOut((prev) => (targetKey === LEFT_OUT ? [...prev.filter((id) => id !== picked), picked] : prev.filter((id) => id !== picked)));
+    setPicked(null);
+  };
+  const setSupport = (key: string, supportId: string) =>
+    setDraft((prev) => prev.map((g) => (g.key === key ? { ...g, supportId: supportId || null } : g)));
+
+  const usedSupports = new Set(draft.map((g) => g.supportId).filter(Boolean) as string[]);
+  const toCreate = draft.filter((g) => g.memberIds.length > 0);
+  const noSupportCount = toCreate.filter((g) => !g.supportId).length;
+
+  // ── Create ──
+  const create = async () => {
+    setCreating(true);
+    setErr('');
+    for (const g of toCreate) {
+      if (statuses[g.key] === 'done') continue; // retry only the ones that failed
+      setStatuses((prev) => ({ ...prev, [g.key]: 'creating' }));
+      try {
+        const { group } = await groupsApi.create({ cohortId, name: g.name, supportId: g.supportId });
+        createdAny.current = true;
+        await groupsApi.bulkAssign(g.memberIds.map((participantId) => ({ participantId, groupId: group.id })));
+        setStatuses((prev) => ({ ...prev, [g.key]: 'done' }));
+      } catch {
+        setStatuses((prev) => ({ ...prev, [g.key]: 'failed' }));
+      }
+    }
+    setCreating(false);
+  };
+  const doneCount = toCreate.filter((g) => statuses[g.key] === 'done').length;
+  const failedCount = toCreate.filter((g) => statuses[g.key] === 'failed').length;
+  const allDone = toCreate.length > 0 && doneCount === toCreate.length;
+
+  const close = () => {
+    if (creating) return;
+    if (createdAny.current) onCreated();
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  const stepIndex = STEPS.findIndex((s) => s.key === step);
+  const set = <K extends keyof GroupingRules>(key: K, value: GroupingRules[K]) => setRules((prev) => ({ ...prev, [key]: value }));
+  const moveAge = (range: string, dir: -1 | 1) => setRules((prev) => {
+    const order = [...prev.supportAgeOrder];
+    const i = order.indexOf(range);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= order.length) return prev;
+    [order[i], order[j]] = [order[j], order[i]];
+    return { ...prev, supportAgeOrder: order };
+  });
+  const toggleMiddle = (range: string) => setRules((prev) => {
+    const has = prev.preferredSupportAges.includes(range);
+    const next = has ? prev.preferredSupportAges.filter((r) => r !== range) : [...prev.preferredSupportAges, range];
+    return next.length === 0 ? prev : { ...prev, preferredSupportAges: next };
+  });
+
+  const personLine = (id: string) => {
+    const e = people.get(id);
+    return [e?.gender, e?.ageRange ? shortAge(e.ageRange) : null].filter(Boolean).join(' · ') || 'Gender/age missing';
+  };
+
+  const personRow = (id: string) => {
+    const p = participantById.get(id);
+    const isPicked = picked === id;
+    return (
+      <button
+        key={id}
+        type="button"
+        data-wt="draft-person"
+        onClick={() => setPicked(isPicked ? null : id)}
+        className={`flex w-full items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left transition ${isPicked ? 'bg-sky-100/80 ring-2 ring-sky-300' : 'hover:bg-gray-50'}`}
+      >
+        <Avatar name={p?.fullName ?? '?'} avatarUrl={p?.avatarUrl} size="sm" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13px] font-medium text-gray-900">{p?.fullName ?? 'Unknown'}</span>
+          <span className="block truncate text-[11px] text-gray-500">{personLine(id)}</span>
+        </span>
+      </button>
+    );
+  };
+
+  const moveHere = (target: string, memberIdsInTarget: string[]) =>
+    picked && !memberIdsInTarget.includes(picked) ? (
+      <button type="button" onClick={() => moveTo(target)} className="rounded-full bg-sky-100/80 px-3 py-1 text-[11px] font-semibold text-sky-700 active:scale-95">
+        Move here
+      </button>
+    ) : null;
+
+  const footer = (() => {
+    const quiet = 'rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 active:scale-95 disabled:opacity-50';
+    const primary = 'rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50';
+    if (step === 'people') return (<><button type="button" onClick={close} className={quiet}>Cancel</button><button type="button" disabled={loading || readyCount === 0} onClick={() => setStep('rules')} className={primary}>Next: rules</button></>);
+    if (step === 'rules') return (<><button type="button" onClick={() => setStep('people')} className={quiet}>Back</button><button type="button" disabled={savingRules} onClick={() => void saveRulesAndBuild()} className={primary}>{savingRules ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span> : 'Save rules & build'}</button></>);
+    if (step === 'draft') return (<><button type="button" onClick={() => setStep('rules')} className={quiet}>Back</button><button type="button" onClick={() => rebuild()} className={quiet}>Rebuild</button><button type="button" disabled={toCreate.length === 0} onClick={() => setStep('create')} className={primary}>Create {toCreate.length}</button></>);
+    if (allDone) return <button type="button" onClick={close} className={primary}>View groups</button>;
+    return (<><button type="button" disabled={creating || doneCount > 0} onClick={() => setStep('draft')} className={quiet}>Back</button><button type="button" disabled={creating} onClick={() => void create()} className={primary}>{creating ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Creating…</span> : failedCount > 0 ? 'Retry failed' : `Create ${toCreate.length} groups`}</button></>);
+  })();
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label="Build groups">
+      <button type="button" className="absolute inset-0 bg-slate-900/45" onClick={close} aria-label="Close" />
+      <div className="relative z-10 flex h-[94vh] w-full flex-col overflow-hidden rounded-t-[28px] bg-[#f6f7f9] shadow-2xl sm:m-4 sm:h-[90vh] sm:max-w-4xl sm:rounded-[28px]">
+        {/* Header */}
+        <div className="bg-white/80 px-5 pb-3 pt-4 backdrop-blur-xl sm:px-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-base font-bold text-gray-900">Build groups</h2>
+              <p className="truncate text-xs text-gray-500">{cohortName}</p>
+            </div>
+            <button type="button" onClick={close} disabled={creating} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-40" aria-label="Close">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18 18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+          <ol className="mt-3 grid grid-cols-4 gap-1.5">
+            {STEPS.map((s, i) => (
+              <li key={s.key} className="flex flex-col gap-1">
+                <span className={`h-1 rounded-full ${i <= stepIndex ? 'bg-primary' : 'bg-gray-200'}`} />
+                <span className={`text-[11px] font-semibold ${i === stepIndex ? 'text-gray-900' : 'text-gray-400'}`}>{i + 1}. {s.label}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+          {err && <p className="mb-3 rounded-2xl bg-red-100/80 px-4 py-2.5 text-sm text-red-700">{err}</p>}
+
+          {loading ? (
+            <div className="flex justify-center py-16"><Spinner className="h-6 w-6" /></div>
+          ) : step === 'people' ? (
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <StatTile value={readyCount} label="Ready to group" />
+                <StatTile value={needsInfo.length} label="Need gender/age" tone="amber" />
+                <StatTile value={supportPool.free.length} label="Supports free" />
+                <StatTile value={supportsMissingDetails} label="Supports missing details" tone="amber" />
+              </div>
+              {ungrouped.length === 0 ? (
+                <div className={`${SURFACE} px-5 py-10 text-center text-sm text-gray-500`}>Everyone in this cohort is already in a group.</div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className={`${SURFACE} p-4`}>
+                    <p className={SECTION_LABEL}>Not in a group yet</p>
+                    <div className="mt-3 flex gap-2">
+                      <span className="rounded-full bg-violet-100/80 px-3 py-1 text-xs font-semibold text-violet-700">{women} women</span>
+                      <span className="rounded-full bg-sky-100/80 px-3 py-1 text-xs font-semibold text-sky-700">{men} men</span>
+                    </div>
+                    <div className="mt-3 flex flex-col gap-1.5">
+                      {ageCounts.map(({ range, count }) => (
+                        <div key={range} className="flex items-center gap-2 text-xs">
+                          <span className="w-24 flex-shrink-0 text-gray-600">{range}</span>
+                          <span className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
+                            <span className="block h-full rounded-full bg-primary/70" style={{ width: `${ungrouped.length ? (count / ungrouped.length) * 100 : 0}%` }} />
+                          </span>
+                          <span className="w-6 text-right font-semibold text-gray-900">{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className={`${SURFACE} p-4`}>
+                    <p className={SECTION_LABEL}>Need gender or age ({needsInfo.length})</p>
+                    {needsInfo.length === 0 ? (
+                      <p className="mt-3 text-sm text-gray-500">Everyone has what the engine needs.</p>
+                    ) : (
+                      <div className="mt-2 flex max-h-56 flex-col gap-0.5 overflow-y-auto">
+                        {needsInfo.map((p) => (
+                          <button key={p.id} type="button" onClick={() => navigate(`/participants/${p.id}`)} className="flex items-center gap-2.5 rounded-2xl px-2 py-1.5 text-left hover:bg-gray-50">
+                            <Avatar name={p.fullName} avatarUrl={p.avatarUrl} size="sm" />
+                            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-gray-900">{p.fullName}</span>
+                            <span className="rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-700">{!people.get(p.id)?.gender ? 'Gender' : 'Age'}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <p className="mt-3 text-[11px] text-gray-400">These people are left out of the draft — nothing is guessed. Tap one to fill in their profile.</p>
+                  </div>
+                </div>
+              )}
+              {supportPool.reasons.length > 0 && (
+                <details className={`${SURFACE} p-4`}>
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-700">Supports the engine won't use ({supportPool.reasons.length})</summary>
+                  <div className="mt-3 flex flex-col gap-1">
+                    {supportPool.reasons.map(({ user, reason }) => (
+                      <div key={user.id} className="flex items-center gap-2.5 px-1 py-1">
+                        <Avatar name={user.name} avatarUrl={user.avatarUrl} size="xs" />
+                        <span className="min-w-0 flex-1 truncate text-[13px] text-gray-800">{user.name}</span>
+                        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">{reason}</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          ) : step === 'rules' ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <RuleCard title="Group size" hint="Smallest, aim and largest number of people." strength={rules.sizeStrength} onStrength={(v) => set('sizeStrength', v)}>
+                <div className="grid grid-cols-3 gap-2">
+                  <Stepper label="Smallest" value={rules.minSize} min={1} max={rules.maxSize} onChange={(v) => setRules((p) => ({ ...p, minSize: v, targetSize: Math.max(v, p.targetSize) }))} />
+                  <Stepper label="Aim" value={rules.targetSize} min={rules.minSize} max={rules.maxSize} onChange={(v) => set('targetSize', v)} />
+                  <Stepper label="Largest" value={rules.maxSize} min={rules.minSize} max={50} onChange={(v) => setRules((p) => ({ ...p, maxSize: v, targetSize: Math.min(v, p.targetSize) }))} />
+                </div>
+              </RuleCard>
+              <RuleCard title="Gender mix" hint="How men and women are placed." strength={rules.genderStrength} onStrength={(v) => set('genderStrength', v)}>
+                <Segmented value={rules.genderMix} onChange={(v) => set('genderMix', v as GroupingRules['genderMix'])} options={[{ value: 'SAME', label: 'Same gender' }, { value: 'MIXED', label: 'Mixed' }, { value: 'RATIO', label: 'Ratio' }]} />
+                {rules.genderMix === 'RATIO' && (
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <Stepper label="Women" value={rules.femalePct} min={0} max={100} suffix="%" step={5} onChange={(v) => set('femalePct', v)} />
+                    <div className="flex items-center justify-center rounded-2xl bg-gray-50 text-xs text-gray-500">Men {100 - rules.femalePct}%</div>
+                  </div>
+                )}
+              </RuleCard>
+              <RuleCard title="Ages in a group" hint="Keep close ages together, or mix every age range." strength={rules.ageStrength} onStrength={(v) => set('ageStrength', v)}>
+                <Segmented value={rules.ageMix} onChange={(v) => set('ageMix', v as GroupingRules['ageMix'])} options={[{ value: 'SIMILAR', label: 'Similar ages' }, { value: 'SPREAD', label: 'All ages mixed' }]} />
+              </RuleCard>
+              <RuleCard title="Support's gender" hint="A one-gender group gets a support of that gender." strength={rules.supportGenderStrength} onStrength={(v) => set('supportGenderStrength', v)}>
+                <Segmented value={rules.supportGender} onChange={(v) => set('supportGender', v as GroupingRules['supportGender'])} options={[{ value: 'SAME_AS_GROUP', label: 'Same as group' }, { value: 'ANY', label: 'Any' }]} />
+              </RuleCard>
+              <div className="sm:col-span-2">
+                <RuleCard title="Support's age" hint="Best first. Tick the ranges that count as middle age — the engine uses those first, then walks down the list." strength={rules.supportAgeStrength} onStrength={(v) => set('supportAgeStrength', v)}>
+                  <div className="flex flex-col gap-1.5">
+                    {rules.supportAgeOrder.map((range, i) => {
+                      const middle = rules.preferredSupportAges.includes(range);
+                      return (
+                        <div key={range} className="flex items-center gap-2 rounded-2xl bg-gray-50 px-3 py-2">
+                          <span className="w-5 text-xs font-semibold text-gray-400">{i + 1}</span>
+                          <span className="flex-1 text-sm font-medium text-gray-900">{range}</span>
+                          <button type="button" onClick={() => toggleMiddle(range)} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${middle ? 'bg-emerald-100/80 text-emerald-700' : 'bg-white text-gray-400'}`}>
+                            {middle ? '✓ Middle age' : 'Middle age'}
+                          </button>
+                          <button type="button" aria-label={`Move ${range} up`} disabled={i === 0} onClick={() => moveAge(range, -1)} className="h-7 w-7 rounded-full bg-white text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.10)] disabled:opacity-30">↑</button>
+                          <button type="button" aria-label={`Move ${range} down`} disabled={i === rules.supportAgeOrder.length - 1} onClick={() => moveAge(range, 1)} className="h-7 w-7 rounded-full bg-white text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.10)] disabled:opacity-30">↓</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </RuleCard>
+              </div>
+              <p className="text-[11px] text-gray-400 sm:col-span-2">
+                <b className="font-semibold text-violet-700">Must</b> is never bent. <b className="font-semibold text-sky-700">Prefer</b> can be relaxed when the ideal runs out — ages widened first, then group size, then the support's age, then the support's gender (mixed groups only). Every relaxation is shown on the group.
+              </p>
+            </div>
+          ) : step === 'draft' ? (
+            <div className="flex flex-col gap-3">
+              <p className="text-xs text-gray-500">
+                {toCreate.length} groups · {toCreate.reduce((n, g) => n + g.memberIds.length, 0)} people
+                {noSupportCount > 0 && <> · <span className="font-semibold text-red-700">{noSupportCount} without a support</span></>}
+                {' · '}Tap a person, then “Move here” on another group.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {draft.map((g) => {
+                  const notes = evaluateGroup(g, people, supportById, rules);
+                  const options = [
+                    { value: '', label: 'No support' },
+                    ...supportPool.free
+                      .filter((s) => s.id === g.supportId || !usedSupports.has(s.id))
+                      .map((s) => ({ value: s.id, label: s.name, meta: [s.gender, s.ageRange ? shortAge(s.ageRange) : null, trainingsTotal ? `${s.trainingsAttended}/${trainingsTotal} trainings` : null].filter(Boolean).join(' · ') || 'Details missing' })),
+                  ];
+                  return (
+                    <div key={g.key} className={`${SURFACE} flex flex-col gap-2.5 p-4`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-bold text-gray-900">{g.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          {moveHere(g.key, g.memberIds)}
+                          <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">{g.memberIds.length}</span>
+                        </div>
+                      </div>
+                      <AppSelect value={g.supportId ?? ''} onChange={(v) => setSupport(g.key, v)} options={options} placeholder="No support" compact />
+                      {notes.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {notes.map((n) => (
+                            <span key={n.text} className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${n.tone === 'broken' ? 'bg-red-100/80 text-red-700' : 'bg-amber-100/80 text-amber-700'}`}>{n.text}</span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex flex-col">
+                        {g.memberIds.length === 0 ? <p className="px-2 py-2 text-xs text-gray-400">Empty — won't be created.</p> : g.memberIds.map(personRow)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className={`${SURFACE} p-4`}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className={SECTION_LABEL}>Not in a group ({leftOut.length})</p>
+                  {moveHere(LEFT_OUT, leftOut)}
+                </div>
+                {leftOut.length === 0 ? (
+                  <p className="mt-2 text-sm text-gray-500">Everyone ready has a group.</p>
+                ) : (
+                  <>
+                    <div className="mt-2 grid gap-0.5 sm:grid-cols-2 lg:grid-cols-3">{leftOut.map(personRow)}</div>
+                    <p className="mt-2 text-[11px] text-gray-400">Missing gender/age, or couldn't be placed without breaking a Must rule. Tap one to place them by hand.</p>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {allDone && <p className="rounded-2xl bg-emerald-100/80 px-4 py-3 text-sm font-semibold text-emerald-700">{doneCount} groups created. Supports can set their meeting time from their hub.</p>}
+              {failedCount > 0 && !creating && <p className="rounded-2xl bg-red-100/80 px-4 py-3 text-sm text-red-700">{failedCount} didn't go through. The rest are saved — tap “Retry failed”.</p>}
+              <div className={`${SURFACE} divide-y divide-gray-100`}>
+                {toCreate.map((g) => {
+                  const s = statuses[g.key] ?? 'waiting';
+                  const support = g.supportId ? supportById.get(g.supportId) : null;
+                  return (
+                    <div key={g.key} className="flex items-center gap-3 px-4 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-gray-900">{g.name} <span className="font-normal text-gray-500">· {g.memberIds.length} people</span></p>
+                        <p className="truncate text-xs text-gray-500">{support ? support.name : 'No support'}</p>
+                      </div>
+                      {s === 'creating' ? <Spinner className="h-4 w-4" /> : (
+                        <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${s === 'done' ? 'bg-emerald-100/80 text-emerald-700' : s === 'failed' ? 'bg-red-100/80 text-red-700' : 'bg-neutral-100 text-neutral-600'}`}>
+                          {s === 'done' ? 'Created' : s === 'failed' ? 'Failed' : 'Ready'}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sticky action bar */}
+        <div className="flex items-center justify-end gap-2 border-t border-gray-200/70 bg-white/80 px-5 py-3.5 backdrop-blur-xl sm:px-6">{footer}</div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+export default GroupEngineWizard;

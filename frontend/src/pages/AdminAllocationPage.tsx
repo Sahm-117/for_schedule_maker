@@ -50,12 +50,12 @@ const ParticipantChip: React.FC<ChipProps> = ({ participant, selected, onToggle,
       className={`group relative flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm transition active:scale-[0.98] ${
         selected
           ? 'border-primary bg-primary/10 text-gray-900'
-          : 'border-orange-100 bg-white text-gray-800 hover:border-orange-200'
+          : 'border-gray-100 bg-white text-gray-800 hover:border-gray-200'
       } ${isDragging ? 'opacity-40' : ''}`}
     >
       <span
         className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-md border text-[10px] ${
-          selected ? 'border-primary bg-primary text-white' : 'border-orange-200 text-transparent'
+          selected ? 'border-primary bg-primary text-white' : 'border-gray-200 text-transparent'
         }`}
       >
         ✓
@@ -93,9 +93,9 @@ const Column: React.FC<ColumnProps> = ({ id, title, subtitle, count, accent, hea
   return (
     <div
       ref={setNodeRef}
-      className={`flex min-h-[8rem] flex-col rounded-2xl border bg-white p-3 shadow-sm transition ${
+      className={`flex min-h-[8rem] flex-col rounded-[22px] border bg-white p-3 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)] transition ${
         autoHeight ? '' : fill ? 'h-full' : 'max-h-[70vh]'
-      } ${isOver ? 'border-primary ring-2 ring-primary/30' : accent ? 'border-orange-200' : 'border-orange-100'}`}
+      } ${isOver ? 'border-primary ring-2 ring-primary/30' : accent ? 'border-gray-200' : 'border-transparent'}`}
     >
       <div className="mb-2 flex items-center justify-between px-1">
         <div className="min-w-0">
@@ -148,7 +148,7 @@ const GroupPickerSheet: React.FC<GroupPickerSheetProps> = ({ participantName, cu
       <div className="absolute inset-0 bg-slate-900/35" />
       <div className="relative mb-0 max-h-[80vh] w-full max-w-md overflow-hidden rounded-t-[28px] bg-white pb-8 shadow-[0_-8px_40px_rgba(15,23,42,0.15)] sm:mb-0 sm:rounded-[28px]" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-gray-200 sm:hidden" />
-        <div className="flex items-center justify-between border-b border-orange-100 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
           <div className="min-w-0">
             <h3 className="truncate text-lg font-bold text-gray-900">Move {participantName}</h3>
             <p className="text-xs text-gray-500">Tap a group to assign</p>
@@ -161,7 +161,7 @@ const GroupPickerSheet: React.FC<GroupPickerSheetProps> = ({ participantName, cu
           <button
             type="button"
             onClick={() => onPick(null)}
-            className={`flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left text-sm font-semibold transition ${currentGroupId === null ? 'bg-orange-50 text-primary' : 'text-gray-700 hover:bg-gray-50'}`}
+            className={`flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left text-sm font-semibold transition ${currentGroupId === null ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-50'}`}
           >
             Unassigned
             {currentGroupId === null && <span className="text-primary">✓</span>}
@@ -171,7 +171,7 @@ const GroupPickerSheet: React.FC<GroupPickerSheetProps> = ({ participantName, cu
               key={g.id}
               type="button"
               onClick={() => onPick(g.id)}
-              className={`flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left text-sm font-semibold transition ${currentGroupId === g.id ? 'bg-orange-50 text-primary' : 'text-gray-700 hover:bg-gray-50'}`}
+              className={`flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left text-sm font-semibold transition ${currentGroupId === g.id ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-50'}`}
             >
               <span className="min-w-0 truncate">{g.name}<span className="ml-2 text-xs font-normal text-gray-400">{g.supportName ?? 'No support'}</span></span>
               {currentGroupId === g.id && <span className="ml-2 shrink-0 text-primary">✓</span>}
@@ -383,7 +383,7 @@ const AdminAllocationContent: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate('/groups')}
-            className="rounded-2xl border border-orange-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-orange-50 active:scale-95"
+            className="rounded-2xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95"
           >
             ← Back to Groups
           </button>
@@ -395,7 +395,7 @@ const AdminAllocationContent: React.FC = () => {
       ) : loading ? (
         <PageLoader />
       ) : groups.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
+        <div className="rounded-2xl bg-gray-50/80 py-12 text-center">
           <p className="text-sm text-gray-500">Create at least one group first, then come back to allocate.</p>
         </div>
       ) : (
@@ -461,10 +461,10 @@ const AdminAllocationContent: React.FC = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search…"
-                className="w-full rounded-xl border border-orange-200 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
               {filteredAll.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-orange-200 py-10 text-center text-sm text-gray-400">
+                <p className="rounded-2xl bg-gray-50/80 py-10 text-center text-sm text-gray-400">
                   {participants.length === 0 ? 'No participants yet.' : 'No matches.'}
                 </p>
               ) : (
@@ -472,13 +472,13 @@ const AdminAllocationContent: React.FC = () => {
                   {filteredAll.map((p) => (
                     <li
                       key={p.id}
-                      className={`flex items-center gap-3 rounded-2xl border bg-white px-3 py-2.5 shadow-sm transition ${selected.has(p.id) ? 'border-primary bg-primary/5' : 'border-orange-100'}`}
+                      className={`flex items-center gap-3 rounded-2xl border bg-white px-3 py-2.5 shadow-sm transition ${selected.has(p.id) ? 'border-primary bg-primary/5' : 'border-gray-100'}`}
                     >
                       <button
                         type="button"
                         onClick={() => toggle(p.id)}
                         aria-label={selected.has(p.id) ? 'Deselect' : 'Select'}
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[11px] ${selected.has(p.id) ? 'border-primary bg-primary text-white' : 'border-orange-200 text-transparent'}`}
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[11px] ${selected.has(p.id) ? 'border-primary bg-primary text-white' : 'border-gray-200 text-transparent'}`}
                       >
                         ✓
                       </button>
@@ -493,7 +493,7 @@ const AdminAllocationContent: React.FC = () => {
                         type="button"
                         onClick={() => setPickerTarget(p)}
                         disabled={saving}
-                        className="shrink-0 rounded-xl border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-orange-50 active:scale-95 disabled:opacity-50"
+                        className="shrink-0 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 active:scale-95 disabled:opacity-50"
                       >
                         Move
                       </button>
@@ -520,7 +520,7 @@ const AdminAllocationContent: React.FC = () => {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search…"
-                  className="w-full rounded-xl border border-orange-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               )}
             >
