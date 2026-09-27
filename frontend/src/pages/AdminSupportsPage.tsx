@@ -73,6 +73,8 @@ const AdminSupportsPage: React.FC = () => {
   const [people, setPeople] = useState<CohortPeoplePayload | null>(null);
   const [rules, setRules] = useState<ProgrammeRules | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  // Supports switched on for this cohort in Cohorts → members; only they are listed.
+  const [cohortMemberIds, setCohortMemberIds] = useState<Set<string>>(new Set());
   // The weekly meeting reports supports write in Meeting Mode. They are stored as
   // MEETING notes keyed by group and week, so they are fetched separately.
   const [reports, setReports] = useState<ParticipantNote[]>([]);
@@ -106,7 +108,7 @@ const AdminSupportsPage: React.FC = () => {
     if (!activeCohort?.id) { setLoading(false); return; }
     try {
       setError('');
-      const [h, p, r, u, hb, ms, ts, k] = await Promise.all([
+      const [h, p, r, u, hb, ms, ts, k, cm] = await Promise.all([
         cohortsApi.getHealth(activeCohort.id),
         cohortsApi.getPeople(activeCohort.id),
         settingsApi.getProgrammeRules(),
@@ -115,11 +117,13 @@ const AdminSupportsPage: React.FC = () => {
         supportHubsApi.getMembershipsForCohort(activeCohort.id).then((res) => res.memberships).catch(() => [] as HubMembership[]),
         supportSessionsApi.getForCohort(activeCohort.id, ['PRE_COHORT_TRAINING']).catch(() => ({ sessions: [] as SupportSession[], attendance: [] as Array<{ sessionId: string; userId: string; status: string }> })),
         supportKindApi.getForCohort(activeCohort.id).then((res) => res.kinds).catch(() => ({} as Record<string, SupportKind>)),
+        cohortsApi.getMembers(activeCohort.id).then((res) => res.users.map((x) => x.id)).catch(() => [] as string[]),
       ]);
       setHealth(h);
       setPeople(p);
       setRules(r);
       setUsers(u);
+      setCohortMemberIds(new Set(cm));
       setHubs(hb);
       setMemberships(ms);
       setTrainingSessions(ts.sessions);
@@ -157,10 +161,10 @@ const AdminSupportsPage: React.FC = () => {
     bySupport.forEach((h) => { counts[h] += 1; });
     const unsupported = health.groups.filter((g) => !g.supportId && g.members > 0);
     const leading = new Set(health.groups.map((g) => g.supportId).filter(Boolean));
-    const notLeading = users.filter((u) => u.role === 'SUPPORT' && !leading.has(u.id));
+    const notLeading = users.filter((u) => u.role === 'SUPPORT' && u.isActive !== false && cohortMemberIds.has(u.id) && !leading.has(u.id));
     const weekIdByNumber = new Map(health.weeks.map((w) => [w.weekNumber, w.id]));
     return { mode, judged, evaluations, counts, total: bySupport.size, unsupported, notLeading, weekIdByNumber };
-  }, [health, people, rules, users, activeCohort]);
+  }, [health, people, rules, users, cohortMemberIds, activeCohort]);
 
   // Newest report per group+week: a support can submit more than once, and the
   // latest one is what the back office should read.
@@ -284,6 +288,11 @@ const AdminSupportsPage: React.FC = () => {
   // Supports in this cohort (leading a group or not) whose profile isn't complete.
   const incompleteCount = new Set([...(model?.evaluations ?? []).map((e) => e.supportId), ...(model?.notLeading ?? []).map((u) => u.id)]
     .filter((id) => { const u = usersById.get(id); return !!u && !isSupportProfileComplete(u); })).size;
+  // Headline count: everyone in this cohort's list, and how many the filters leave.
+  const totalSupports = new Set([...(model?.evaluations ?? []).map((e) => e.supportId), ...(model?.notLeading ?? []).map((u) => u.id)]).size;
+  const countSubtitle = shownSupports.length === totalSupports
+    ? `${totalSupports} supports · ${activeCohort?.name ?? ''}`
+    : `${shownSupports.length} of ${totalSupports} supports shown · ${activeCohort?.name ?? ''}`;
   const exportSubtitle = [
     incompleteOnly ? 'Incomplete profile' : '',
     kindFilter ? KIND_LABEL[kindFilter] : '',
@@ -295,7 +304,7 @@ const AdminSupportsPage: React.FC = () => {
     <div>
       <PageHeader
         title="Supports"
-        subtitle="Group meeting records and onboarding for every support."
+        subtitle={pageTab === 'supports' && model ? countSubtitle : 'Group meeting records and onboarding for every support.'}
         tourId="admin:supports"
         action={pageTab === 'supports' && model ? (
           <AppOverflowMenu align="right" items={[{ label: 'Export for WhatsApp', onClick: () => setExportOpen(true) }]} />

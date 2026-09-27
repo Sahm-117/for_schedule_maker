@@ -693,12 +693,13 @@ const AdminHubsPage: React.FC = () => {
               <p className="text-sm text-gray-500">No hubs match.</p>
             </div>
           ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        // Masonry via CSS columns: each card keeps its own height.
+        <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
           {filteredHubs.map((h) => {
             const memberIds = membersByHub.get(h.id) ?? [];
             const memberUsers = memberIds.map((id) => userById.get(id)).filter(Boolean) as User[];
             return (
-              <div key={h.id} className="flex flex-col gap-3 rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
+              <div key={h.id} className="mb-4 flex break-inside-avoid flex-col gap-3 rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="truncate font-bold text-gray-900">{h.name}</h3>

@@ -406,7 +406,7 @@ const SupportTrainingsPanel: React.FC<{ onChanged?: () => void }> = ({ onChanged
         id,
         new Set(cohortMembers[i].users.filter((u) => u.role === 'SUPPORT').map((u) => u.id)),
       ])));
-      setSupportUsers(sortByText(users.filter((u) => u.role === 'SUPPORT'), (u) => u.name));
+      setSupportUsers(sortByText(users.filter((u) => u.role === 'SUPPORT' && u.isActive !== false), (u) => u.name));
       setSessions(ss);
       setSessionAttendance(sa);
     } catch { /* ignore */ }
@@ -456,7 +456,8 @@ const SupportTrainingsPanel: React.FC<{ onChanged?: () => void }> = ({ onChanged
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {sessions.map((s) => {
             const marks = marksBySession(s.id);
-            const cohortSupportIds = supportIdsByCohort.get(s.cohortId) ?? new Set<string>();
+            // Trainings are open to every active support, not just this cohort's.
+            const cohortSupportIds = new Set(supportUsers.map((u) => u.id));
             const marked = [...cohortSupportIds].filter((id) => marks[id]).length;
             return (
               <div
@@ -551,7 +552,7 @@ const SupportTrainingsPanel: React.FC<{ onChanged?: () => void }> = ({ onChanged
           isOpen={!!resultsTarget}
           onClose={() => setResultsTarget(null)}
           session={resultsTarget}
-          people={supportUsers.filter((u) => (supportIdsByCohort.get(resultsTarget.cohortId) ?? new Set<string>()).has(u.id))}
+          people={supportUsers}
           attendance={sessionAttendance}
           onMark={() => { setMarkSessionTarget(resultsTarget); setResultsTarget(null); }}
         />

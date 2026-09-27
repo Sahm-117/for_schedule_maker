@@ -7,7 +7,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import NextCohortAssignModal from '../components/followups/NextCohortAssignModal';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { cohortsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, manualDocumentsApi, earlierClassDocumentsApi, aiApi, settingsApi } from '../services/api';
+import { cohortsApi, supportHubsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, manualDocumentsApi, earlierClassDocumentsApi, aiApi, settingsApi } from '../services/api';
 import type { Cohort, EarlierClassDocument, FollowUpContact, User, Week } from '../types';
 import { sortByText } from '../utils/sort';
 import { DEFAULT_RECAP_RELEASE_TIMES, formatRecapReleaseAt, recapReleaseAt, type RecapReleaseTimes } from '../utils/recapReleaseTimes';
@@ -203,7 +203,7 @@ const CohortsPage: React.FC = () => {
   useEffect(() => {
     if (!isAdmin) return;
     usersApi.getAll()
-      .then((response) => setSupportUsers(sortByText(response.users.filter((user) => user.role === 'SUPPORT'), (user) => user.name)))
+      .then((response) => setSupportUsers(sortByText(response.users.filter((user) => user.role === 'SUPPORT' && user.isActive !== false), (user) => user.name)))
       .catch(() => {});
   }, [isAdmin]);
 
@@ -212,25 +212,28 @@ const CohortsPage: React.FC = () => {
   }, [activeCohort?.id, cohorts]);
 
   // Summary counts for the active cohort card.
-  const [activeSummary, setActiveSummary] = useState<{ groups: number; supports: number; participants: number } | null>(null);
+  const [activeSummary, setActiveSummary] = useState<{ groups: number; hubs: number; supports: number; participants: number } | null>(null);
   useEffect(() => {
     if (!activeCohort?.id) { setActiveSummary(null); return; }
     let cancelled = false;
     void (async () => {
       try {
-        const [{ groups }, { participants }] = await Promise.all([
+        const [{ groups }, { participants }, { hubs }, { users: members }] = await Promise.all([
           groupsApi.getAll({ cohortId: activeCohort.id }),
           participantsApi.getAll({ cohortId: activeCohort.id }),
+          supportHubsApi.getAll(activeCohort.id),
+          cohortsApi.getMembers(activeCohort.id),
         ]);
         if (cancelled) return;
-        const supports = new Set(groups.map((g) => g.supportId).filter(Boolean)).size;
-        setActiveSummary({ groups: groups.length, supports, participants: participants.length });
+        // Supports = those switched on for this cohort in the members list.
+        const supports = members.filter((u) => u.role === 'SUPPORT' && u.isActive !== false).length;
+        setActiveSummary({ groups: groups.length, hubs: hubs.length, supports, participants: participants.length });
       } catch {
         if (!cancelled) setActiveSummary(null);
       }
     })();
     return () => { cancelled = true; };
-  }, [activeCohort?.id]);
+  }, [activeCohort?.id, savingMembers]);
 
   const selectedCohort = cohorts.find((cohort) => cohort.id === selectedCohortId) || null;
 
@@ -834,6 +837,9 @@ const CohortsPage: React.FC = () => {
                   <>
                     <span className="rounded-full bg-sky-100/80 px-3 py-1.5 text-xs font-semibold text-sky-700">
                       {activeSummary.groups} groups
+                    </span>
+                    <span className="rounded-full bg-indigo-100/80 px-3 py-1.5 text-xs font-semibold text-indigo-700">
+                      {activeSummary.hubs} hubs
                     </span>
                     <span className="rounded-full bg-emerald-100/80 px-3 py-1.5 text-xs font-semibold text-emerald-700">
                       {activeSummary.supports} supports
