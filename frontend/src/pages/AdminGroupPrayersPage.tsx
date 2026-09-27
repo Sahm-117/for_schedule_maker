@@ -118,7 +118,7 @@ const AdminGroupPrayersContent: React.FC = () => {
       ) : loading ? (
         <PageLoader />
       ) : groups.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
+        <div className="rounded-2xl bg-gray-50/80 py-12 text-center">
           <p className="text-sm text-gray-500">No groups in this cohort yet.</p>
           <p className="mt-1 text-xs text-gray-400">Create groups and assign supports to track meeting completion.</p>
         </div>
@@ -158,11 +158,11 @@ const AdminGroupPrayersContent: React.FC = () => {
           </div>
 
           {/* Status grid */}
-          <div className="overflow-x-auto rounded-2xl border border-orange-100 bg-white shadow-sm">
+          <div className="overflow-x-auto surface-card">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b border-orange-100 bg-orange-50/60">
-                  <th className="sticky left-0 z-10 bg-orange-50/60 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
+                <tr className="border-b border-gray-100 bg-primary/5">
+                  <th className="sticky left-0 z-10 bg-primary/5 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
                   {cohortWeeks.map((w) => (
                     <th key={w.id} className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 whitespace-nowrap">
                       Week {w.weekNumber}
@@ -170,9 +170,9 @@ const AdminGroupPrayersContent: React.FC = () => {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-orange-50">
+              <tbody className="divide-y divide-gray-100">
                 {visibleGroups.map((g) => (
-                  <tr key={g.id} className="hover:bg-orange-50/30">
+                  <tr key={g.id} className="hover:bg-gray-50/30">
                     <td className="sticky left-0 z-10 bg-white px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
                       <span>
                         {g.name}
@@ -191,7 +191,7 @@ const AdminGroupPrayersContent: React.FC = () => {
                             type="button"
                             onClick={() => setMarkTarget({ group: g, week: w })}
                             title="Open meeting attendance"
-                            className="flex min-w-[120px] w-full flex-col items-center gap-1 rounded-xl px-1 py-1 transition hover:bg-orange-50"
+                            className="flex min-w-[120px] w-full flex-col items-center gap-1 rounded-xl px-1 py-1 transition hover:bg-gray-50"
                           >
                             <span className="text-xs font-semibold text-gray-800">
                               {focus?.participantName || '—'}
@@ -294,7 +294,7 @@ const MeetingAttendanceModal: React.FC<{
               try { await onSubmittedChange(!submitted); } finally { setReopening(false); }
             }}
             disabled={reopening}
-            className="rounded-2xl border border-orange-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-orange-50 disabled:opacity-60"
+            className="rounded-2xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60"
           >
             {reopening ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : submitted ? 'Reopen for the support' : 'Mark as submitted'}
           </button>
@@ -311,7 +311,7 @@ const MeetingAttendanceModal: React.FC<{
           {participants.map((participant) => {
             const status = statusFor(participant.id);
             return (
-              <div key={participant.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-orange-100 px-3 py-2.5">
+              <div key={participant.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-100 px-3 py-2.5">
                 <p className="min-w-0 flex-1 text-sm font-semibold text-gray-900">{participant.fullName}</p>
                 <div className="flex flex-none gap-1.5">
                   {MARK_OPTIONS.map((option) => (

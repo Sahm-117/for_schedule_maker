@@ -60,7 +60,7 @@ const statusGroups: Array<{ key: keyof FilterState; label: string; options: Arra
 
 const pillBtn = (active: boolean) =>
   `rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95 ${
-    active ? 'bg-primary text-white shadow-sm' : 'border border-orange-100 bg-white text-gray-600 hover:bg-orange-50'
+    active ? 'bg-primary text-white shadow-sm' : 'border border-gray-100 bg-white text-gray-600 hover:bg-gray-50'
   }`;
 
 const FilterIcon = (
@@ -425,7 +425,7 @@ const AdminFollowUpsPage: React.FC = () => {
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
-            className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${tab === t.key ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-orange-50'}`}
+            className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${tab === t.key ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
           >
             {t.label}
           </button>
@@ -476,7 +476,7 @@ const AdminFollowUpsPage: React.FC = () => {
             <button
               type="button"
               onPointerDown={openFilterPanel}
-              className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-orange-200 bg-white text-gray-600 hover:bg-orange-50 sm:ml-auto"
+              className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 sm:ml-auto"
             >
               <span className="h-5 w-5">{FilterIcon}</span>
               {activeFilterCount(filters) > 0 && (
@@ -492,7 +492,7 @@ const AdminFollowUpsPage: React.FC = () => {
       {loadError && <p className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</p>}
 
       {loading ? (
-        <p className="flex items-center justify-center gap-1.5 rounded-3xl bg-orange-50/60 px-4 py-12 text-center text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading follow-ups…</p>
+        <p className="flex items-center justify-center gap-1.5 rounded-3xl bg-primary/5 px-4 py-12 text-center text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading follow-ups…</p>
       ) : (
         <>
           {tab === 'overview' && <FollowUpDashboard contacts={dashboardContacts} cohortId={cohortFilter || null} cohortName={cohorts.find((c) => c.id === cohortFilter)?.name} onShowUnassigned={showUnassigned} />}
@@ -635,7 +635,7 @@ const AdminFollowUpsPage: React.FC = () => {
                 </div>
               ))}
 
-              <div className="flex items-center justify-between rounded-2xl bg-orange-50/60 px-4 py-3">
+              <div className="flex items-center justify-between rounded-2xl bg-primary/5 px-4 py-3">
                 <span className="text-sm font-semibold text-gray-700">Hide archived contacts</span>
                 <button
                   type="button"
@@ -651,7 +651,7 @@ const AdminFollowUpsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); clearFilters(); }}
-                className="flex-1 rounded-2xl border border-orange-200 bg-white py-3 text-sm font-semibold text-gray-600 transition hover:bg-orange-50 active:scale-[0.98]"
+                className="flex-1 rounded-2xl border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 active:scale-[0.98]"
               >
                 Clear filters
               </button>

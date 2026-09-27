@@ -216,7 +216,7 @@ const AdminSchedulePage: React.FC = () => {
         />
         </div>
         {isAdmin && (
-          <div data-wt="sched-filters" className="surface-card relative z-20 rounded-3xl border border-orange-100 p-4">
+          <div data-wt="sched-filters" className="surface-card relative z-20 rounded-3xl border border-gray-100 p-4">
             <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Activity tags</p>
             <p className="mt-1 text-sm font-semibold text-gray-900">Filter assignments fast</p>
             <p className="mt-1 text-xs text-gray-500">Show only activities with this tag.</p>
@@ -315,7 +315,7 @@ const AdminSchedulePage: React.FC = () => {
                     setHeaderAddDayId(day.id);
                     setShowDayAddPicker(false);
                   }}
-                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-orange-50"
+                  className="w-full rounded-2xl bg-gray-50 px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   {day.dayName}
                 </button>
@@ -347,7 +347,7 @@ const AdminSchedulePage: React.FC = () => {
                   onClick={() => {
                     void exportDay(day);
                   }}
-                  className="w-full rounded-2xl border border-orange-100 px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-orange-50"
+                  className="w-full rounded-2xl bg-gray-50 px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   {day.dayName}
                 </button>

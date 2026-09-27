@@ -283,7 +283,7 @@ const AdminFeedbackPage: React.FC = () => {
             </p>
           ) : (
             <>
-              <div className="mt-5 rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
+              <div className="mt-5 rounded-2xl bg-gray-50 p-4">
                 <div className="flex flex-wrap items-center gap-3">
                   <p className="text-sm font-semibold text-gray-900">Themes</p>
                   {themes && <span className="text-xs text-gray-500">Written by AI · {formatDate(themes.createdAt)}</span>}
