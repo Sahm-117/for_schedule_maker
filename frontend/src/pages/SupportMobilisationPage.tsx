@@ -20,6 +20,7 @@ import type { FormRegistration } from '../services/supabase-api';
 import {
   FOLLOW_UP_STATUS_META,
   buildStatusPatch,
+  computeFollowUpFunnel,
   computeFollowUpStatus,
   contactInCohortScope,
   followUpStatusOptions,
@@ -103,8 +104,30 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [showIssues, setShowIssues] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [mobilisationTarget, setMobilisationTarget] = useState<number | null>(null);
+
+  // The cohort's sign-up target (set by the admin on Follow-ups → Overview).
+  useEffect(() => {
+    if (!activeCohort?.id) { setMobilisationTarget(null); return; }
+    let cancelled = false;
+    settingsApi.getMobilisationTarget(activeCohort.id)
+      .then(({ target }) => { if (!cancelled) setMobilisationTarget(target); })
+      .catch(() => { if (!cancelled) setMobilisationTarget(null); });
+    return () => { cancelled = true; };
+  }, [activeCohort?.id, liveRevision]);
 
   const prospectSource = user ? `Added for follow up by ${user.name}` : '';
+
+  // Signed up counts this cohort only (as on the admin Follow-ups overview).
+  // Prospects = people still being followed up who haven't signed up yet,
+  // split into prior-cohort ones (no cohort until assigned) and this cohort's.
+  const mobilisationNumbers = useMemo(() => {
+    if (!activeCohort) return null;
+    const scoped = allContacts.filter((c) => contactInCohortScope(c, activeCohort.id, activeCohort.id));
+    const current = computeFollowUpFunnel(scoped.filter((c) => c.cohortId));
+    const prior = computeFollowUpFunnel(scoped.filter((c) => !c.cohortId));
+    return { signedUp: current.signedUp, currentProspects: current.open, priorProspects: prior.open };
+  }, [allContacts, activeCohort]);
 
   const loadAll = useCallback(async () => {
     if (!user?.id) return;
@@ -401,6 +424,42 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                 </button>
               </div>
             </section>
+
+            {mobilisationNumbers && (
+              <div className="grid grid-cols-2 gap-3">
+                <section className={`${CARD} p-4`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Target</p>
+                    {mobilisationTarget ? (
+                      <InfoTip label="About the target">{mobilisationNumbers.signedUp} people in {activeCohort?.name} have registered on the form, out of a target of {mobilisationTarget}.</InfoTip>
+                    ) : null}
+                  </div>
+                  {mobilisationTarget ? (
+                    <>
+                      <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{mobilisationNumbers.signedUp}</span> of {mobilisationTarget}</p>
+                      <p className={`mt-1 text-xs font-semibold ${mobilisationNumbers.signedUp >= mobilisationTarget ? 'text-emerald-700' : 'text-amber-700'}`}>
+                        {mobilisationNumbers.signedUp >= mobilisationTarget ? 'Target reached' : `${mobilisationTarget - mobilisationNumbers.signedUp} to go`}
+                      </p>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
+                        <span className={`block h-full ${mobilisationNumbers.signedUp >= mobilisationTarget ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${Math.min(mobilisationNumbers.signedUp / mobilisationTarget, 1) * 100}%` }} />
+                      </div>
+                    </>
+                  ) : (
+                    <p className="mt-1 text-xs text-gray-500">No target set yet</p>
+                  )}
+                </section>
+                <section className={`${CARD} p-4`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Prospects</p>
+                    <InfoTip label="About prospects">
+                      Still being followed up and not registered yet: {mobilisationNumbers.priorProspects} from a prior cohort, {mobilisationNumbers.currentProspects} from {activeCohort?.name} (current).
+                    </InfoTip>
+                  </div>
+                  <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{mobilisationNumbers.priorProspects + mobilisationNumbers.currentProspects}</span></p>
+                  <p className="mt-1 text-xs font-semibold text-gray-600">Not registered yet</p>
+                </section>
+              </div>
+            )}
 
             <section className={`${CARD} p-[18px]`}>
               <div className="flex flex-wrap items-center gap-2">
