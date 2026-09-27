@@ -5,6 +5,7 @@ import { tourProgressApi } from '../services/api';
 import { PAGE_TOURS, WELCOME, WELCOME_KEY, pageTourKey, tourAudienceFor, type TourAudience } from '../constants/tours';
 import WelcomeModal from '../components/tour/WelcomeModal';
 import TourSpotlight from '../components/tour/TourSpotlight';
+import WelcomeGuideModal from '../components/participantApp/WelcomeGuideModal';
 
 // V2 welcome + per-page product tours. Loads which tours this person has seen
 // (saved per account), shows the Welcome modal once, and runs a page's tour when
@@ -80,7 +81,11 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <TourContext.Provider value={value}>
       {children}
-      {welcomeOpen && welcome && (
+      {/* Participants get the visual guide instead of the Welcome modal + Home tour. */}
+      {welcomeOpen && audience === 'participant' && (
+        <WelcomeGuideModal onClose={() => markSeen(WELCOME_KEY)} />
+      )}
+      {welcomeOpen && welcome && audience !== 'participant' && (
         <WelcomeModal
           content={welcome}
           onStart={startFromWelcome}

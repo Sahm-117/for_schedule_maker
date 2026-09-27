@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFFAF5">
+<title>Welcome to FOF</title>
+<style>
+body{margin:0;background:#FFFAF5}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:inherit}
+a{color:#C2410C;-webkit-tap-highlight-color:transparent}a:hover{color:#9A3412}
+button:focus-visible,a:focus-visible{outline:3px solid #C2410C;outline-offset:2px}
+.app{display:flex;flex-direction:column;background:#FFFAF5;color:#1F1A17;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;overflow:hidden;position:relative;-webkit-font-smoothing:antialiased}
+.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.ic.s{width:14px;height:14px}.ic.xs{width:12px;height:12px;stroke-width:2.4}.ic.l{width:22px;height:22px}
+.top{height:60px;display:flex;align-items:center;gap:12px;padding:0 16px;flex-shrink:0}
+.iconbtn{width:44px;height:44px;border-radius:16px;background:#fff;box-shadow:0 1px 2px rgba(90,45,10,.06),0 6px 16px -6px rgba(90,45,10,.14);display:grid;place-items:center;color:#1F1A17}
+.dots{flex:1;display:flex;gap:5px;justify-content:center;align-items:center;flex-wrap:wrap}
+.dot{width:6px;height:6px;border-radius:3px;background:#EADFD6;transition:width .35s,background .35s}
+.dot.done{background:#FFC9A6}
+.dot.on{width:20px;background:#FF914D}
+.count{font-size:13px;font-weight:600;color:#6B625C;min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
+.stage{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;scrollbar-width:none}
+.stage::-webkit-scrollbar{display:none}
+.card{padding:2px 20px 16px;display:flex;flex-direction:column;gap:14px}
+.fwd .card{animation:inR .45s cubic-bezier(.2,.8,.2,1) both}
+.bwd .card{animation:inL .45s cubic-bezier(.2,.8,.2,1) both}
+@keyframes inR{from{opacity:0;transform:translateX(44px)}to{opacity:1;transform:none}}
+@keyframes inL{from{opacity:0;transform:translateX(-44px)}to{opacity:1;transform:none}}
+.card .mock,.card .art{animation:rise .55s .05s cubic-bezier(.2,.8,.2,1) both}
+.card .cap{animation:rise .55s .14s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.eyebrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+h1,h2,h3{margin:0}
+h2{font-size:26px;line-height:1.15;letter-spacing:-.02em;font-weight:700}
+.say{font-size:17px;line-height:1.4;color:#6B625C;margin:6px 0 0}
+.cap{padding:0 2px}
+.bottom{padding:10px 16px 22px;display:flex;gap:10px;flex-shrink:0}
+.btn{height:54px;border-radius:27px;font-size:17px;font-weight:650;display:flex;align-items:center;justify-content:center;gap:6px;transition:transform .15s;text-decoration:none}
+.btn:active{transform:scale(.97)}
+.btn.ghost{width:64px;background:#fff;box-shadow:0 1px 2px rgba(90,45,10,.06),0 6px 16px -6px rgba(90,45,10,.14)}
+.btn.pri{flex:1;background:#FF914D;color:#2B1204;box-shadow:0 10px 24px -10px rgba(255,120,40,.7)}
+.restartbtn{display:none}
+.at-end .nextbtn{display:none}
+.at-end .restartbtn{display:flex}
+.on-pick .bottom,.on-pick .dots,.on-pick .count,.on-pick .homebtn{display:none}
+.on-pick .top{height:12px}
+.pill{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 11px;border-radius:13px;font-size:13px;font-weight:650;white-space:nowrap;line-height:1}
+.pill.xs{height:20px;padding:0 8px;font-size:10.5px;border-radius:10px}
+.p-o{background:#FFF1E6;color:#C2410C}.p-ev{background:#F6F1EC;color:#6B625C}.p-g{background:#D1FAE5;color:#047857}.p-s{background:#E0F2FE;color:#0369A1}
+.mock{background:#fff;border-radius:28px;box-shadow:0 2px 6px rgba(90,45,10,.05),0 22px 44px -18px rgba(90,45,10,.22);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.art{background:#fff;border-radius:28px;box-shadow:0 2px 6px rgba(90,45,10,.05),0 22px 44px -18px rgba(90,45,10,.22);padding:14px;position:relative}
+.m-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:16px 16px 10px}
+.m-title{font-size:18px;font-weight:750;letter-spacing:-.01em}
+.m-sub{font-size:11px;color:#8A817A;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.m-body{padding:0 12px 14px;display:flex;flex-direction:column;gap:8px}
+.row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:16px;background:#FBF8F5;min-height:46px}
+.av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:750;flex-shrink:0}
+.a1{background:#FFD8BF;color:#7C2D12}.a2{background:#DDD6FE;color:#4C1D95}.a3{background:#BAE6FD;color:#075985}.a4{background:#C7D2FE;color:#3730A3}.a5{background:#A7F3D0;color:#065F46}.a7{background:#FDE68A;color:#78350F}
+.nm{font-size:13.5px;font-weight:650;flex:1;min-width:0}
+.m-nav{margin-top:auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;padding:6px;margin:6px 10px 10px;border-radius:20px;background:#fff;box-shadow:0 10px 24px -14px rgba(60,30,10,.35),0 0 0 1px #F0E6DD}
+.nv{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;font-weight:650;color:#8A817A;padding:7px 0;border-radius:14px;position:relative}
+.nv.on{color:#2B1204;background:#FF914D}
+.nv .ld{position:absolute;top:5px;right:calc(50% - 14px);width:8px;height:8px;border-radius:50%;background:#10B981;box-shadow:0 0 0 2px #fff}
+.hl{position:relative;z-index:1}
+.hl::after{content:"";position:absolute;inset:-5px;border-radius:inherit;border:2.5px solid #FF914D;animation:ring 1.8s ease-out infinite;pointer-events:none}
+.hl::before{content:"";position:absolute;inset:-3px;border-radius:inherit;box-shadow:0 0 0 3px rgba(255,145,77,.28);pointer-events:none}
+@keyframes ring{0%{opacity:1;transform:scale(.97)}75%{opacity:0;transform:scale(1.12)}100%{opacity:0}}
+.tapme{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#C2410C}
+.tapme::before{content:"";width:8px;height:8px;border-radius:50%;background:#FF914D;animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.25}}
+.live-dot{width:8px;height:8px;border-radius:50%;background:#10B981;animation:live 1.6s infinite;flex-shrink:0}
+@keyframes live{0%{box-shadow:0 0 0 0 rgba(16,185,129,.55)}80%{box-shadow:0 0 0 7px rgba(16,185,129,0)}100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+.field{padding:10px 12px;border-radius:14px;background:#FBF8F5;display:flex;flex-direction:column;gap:4px}
+.flabel{font-size:11px;font-weight:650;color:#8A817A}
+.fval{font-size:14px;font-weight:600;display:flex;align-items:center;gap:7px}
+.mbtn{height:42px;border-radius:21px;background:#FF914D;color:#2B1204;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.card-t{border-radius:20px;background:#FFF1E6;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.card-t .lbl{font-size:11px;font-weight:700;color:#C2410C;text-transform:uppercase;letter-spacing:.06em}
+.card-t .big{font-size:15.5px;font-weight:750}
+.bar{height:8px;border-radius:4px;background:#FFE0CC;overflow:hidden}
+.bar span{display:block;height:100%;width:30%;border-radius:4px;background:#FF914D}
+.skel{height:8px;border-radius:4px;background:#EEE6DF}
+.swrow{display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;background:#FBF8F5;width:100%;min-height:54px}
+.swrow .t{flex:1;display:flex;flex-direction:column;gap:2px}
+.swrow .t b{font-size:14px}
+.swrow .t span{font-size:11.5px;color:#8A817A;font-weight:600;line-height:1.3}
+.sw{width:46px;height:28px;border-radius:14px;background:#E5DDD6;position:relative;transition:background .25s;flex-shrink:0}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.18);transition:transform .25s cubic-bezier(.3,1.4,.5,1)}
+.sw.on,.corp-on .sw-corp,.rg-on .sw-rg,.rr-on .sw-rr{background:#FF914D}
+.sw.on::after,.corp-on .sw-corp::after,.rg-on .sw-rg::after,.rr-on .sw-rr::after{transform:translateX(18px)}
+.sw.fixed{opacity:.55}
+.if-corp{display:none}
+.corp-on .if-corp{display:flex;animation:rise .35s both}
+.corp-on .if-nocorp{display:none}
+.bubble{padding:12px 14px;border-radius:18px 18px 18px 6px;background:#FBF8F5;font-size:13.5px;line-height:1.4}
+.lockrow{display:flex;align-items:center;gap:6px;font-size:12px;color:#6B625C;font-weight:600;line-height:1.35}
+.q{padding:10px 12px;border-radius:14px;background:#FBF8F5;font-size:13px;font-weight:650;display:flex;flex-direction:column;gap:7px}
+.vid{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 10px 16px;border-radius:24px;text-decoration:none;color:#1F1A17;background:#FBF8F5;transition:transform .15s}
+.vid:hover{color:#1F1A17}
+.vid:active{transform:scale(.97)}
+.vid svg.ph{width:92px;height:150px}
+.vid b{font-size:16px}
+.vid span{font-size:12.5px;font-weight:700;color:#C2410C;display:inline-flex;align-items:center;gap:4px}
+.sheet{border-radius:20px;background:#fff;box-shadow:0 18px 40px -18px rgba(60,30,10,.4),0 0 0 1px #F0E6DD;padding:8px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.sheet div{display:flex;align-items:center;gap:8px;padding:10px;border-radius:14px;background:#FBF8F5;font-size:13px;font-weight:650}
+.wk{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:10px 12px;border-radius:16px;background:#FBF8F5}
+.wk .w{font-size:13.5px;font-weight:700}
+.wk .g{font-size:11.5px;color:#8A817A;font-weight:600;grid-column:1/-1;margin-top:-4px}
+.ok,.no,.mid{width:24px;height:24px;border-radius:50%;display:grid;place-items:center}
+.ok{background:#D1FAE5;color:#047857}.mid{background:#F6F1EC;color:#A39A93}
+.dlg{position:absolute;inset:0;background:rgba(31,26,23,.34);display:flex;align-items:center;justify-content:center;padding:26px}
+.dlg-box{background:#F7F4F1;border-radius:22px;width:100%;overflow:hidden;box-shadow:0 30px 60px -20px rgba(0,0,0,.4);animation:pop .6s .25s cubic-bezier(.3,1.4,.5,1) both;text-align:center}
+.dlg-box .b{padding:18px 16px 14px;display:flex;flex-direction:column;gap:6px;align-items:center}
+.dlg-box h3{font-size:15px;line-height:1.3}
+.dlg-box p{margin:0;font-size:12.5px;color:#6B625C;line-height:1.35}
+.dlg-btns{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #E5DDD6}
+.dlg-btns span{padding:13px 0;font-size:15px;color:#6B625C;font-weight:600}
+.dlg-btns span+span{border-left:1px solid #E5DDD6;color:#C2410C;font-weight:800;border-radius:0 0 22px 0}
+@keyframes pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+.icon-app{width:60px;height:60px;border-radius:16px;display:grid;place-items:center;font-size:15px;font-weight:900;letter-spacing:.02em}
+.hs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px 10px;padding:22px 18px}
+.hs .ap{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:10.5px;font-weight:600;color:#fff}
+.addr{margin:12px;height:40px;border-radius:14px;background:#F1EAE3;display:flex;align-items:center;gap:8px;padding:0 12px;font-size:14px;font-weight:650}
+.pick{padding-top:6px;gap:12px}
+.hero{display:flex;justify-content:center}
+.hero svg{width:100%;max-width:320px;height:auto}
+.ttl{font-size:32px;line-height:1.08;letter-spacing:-.025em;font-weight:800;text-align:center}
+.center{text-align:center;margin-top:0}
+.roles{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.role{display:flex;align-items:center;gap:12px;min-height:62px;padding:10px 14px 10px 10px;border-radius:22px;background:#fff;box-shadow:0 1px 2px rgba(90,45,10,.05),0 8px 20px -12px rgba(90,45,10,.2);font-size:16px;font-weight:650;transition:transform .15s}
+.role:active{transform:scale(.98)}
+.role .rl{flex:1;display:flex;flex-direction:column;gap:2px}
+.role .rl small{font-size:12.5px;font-weight:600;color:#8A817A}
+.role .rdot{width:42px;height:42px;border-radius:14px;display:grid;place-items:center}
+.role .chev{color:#C8BDB4}
+.role.all{background:#FF914D;color:#2B1204;justify-content:center;box-shadow:0 10px 24px -10px rgba(255,120,40,.7);min-height:54px}
+.role.all .rl{flex:0 0 auto}
+.float{animation:float 4s ease-in-out infinite}
+.float2{animation:float 4.6s .6s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-4px)}}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tile2{border-radius:20px;background:#FBF8F5;padding:14px;display:flex;flex-direction:column;gap:8px}
+.tile2 .h{display:flex;align-items:center;gap:8px;font-size:14.5px;font-weight:750}
+.tile2 .li{font-size:12.5px;color:#6B625C;font-weight:600;display:flex;align-items:center;gap:6px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+html,body{margin:0;min-height:100%;background:#FFFAF5}
+.app{width:100%;height:100vh;height:100dvh;max-width:520px;margin:0 auto}
+@media (min-width:640px){
+ body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#F6EDE4}
+ .app{width:430px;height:min(900px,calc(100vh - 48px));border-radius:40px;box-shadow:0 40px 90px -40px rgba(90,45,10,.45),0 2px 8px rgba(90,45,10,.06)}
+}
+@media (min-width:1100px) and (min-height:980px){.app{zoom:1.1}}
+@media (max-height:700px){.card{gap:10px}h2{font-size:22px}.say{font-size:15.5px}.ttl{font-size:28px}.role{height:48px}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+<div class="top">
+<button class="iconbtn homebtn" aria-label="Back to start" data-act="home"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>
+<div class="dots" id="dots"></div>
+<span class="count" data-bind="counter"></span>
+</div>
+<div class="stage" id="stage">
+
+<section data-card="pick" hidden>
+<div class="card pick">
+<div class="hero">
+<svg viewBox="0 0 320 170" aria-hidden="true">
+<ellipse cx="160" cy="96" rx="150" ry="66" fill="#FFF1E6"/>
+<g class="float"><circle cx="160" cy="90" r="54" fill="#FFD3B5"/><circle cx="160" cy="90" r="49" fill="#fff"/><clipPath id="logoClip"><circle cx="160" cy="90" r="48"/></clipPath><image href="/logo-mark.png" x="114" y="44" width="92" height="92" preserveAspectRatio="xMidYMid meet" clip-path="url(#logoClip)"/></g>
+<g class="float2"><rect x="228" y="46" width="70" height="38" rx="14" fill="#fff"/><circle cx="246" cy="65" r="8" fill="#FF914D"/><path d="M243 61a3 3 0 0 1 6 0v3l2 2h-10l2-2z" fill="#fff"/><rect x="258" y="58" width="30" height="5" rx="2.5" fill="#EADFD6"/><rect x="258" y="68" width="20" height="5" rx="2.5" fill="#EADFD6"/></g>
+<g class="float"><rect x="24" y="92" width="70" height="38" rx="14" fill="#fff"/><circle cx="42" cy="111" r="8" fill="#10B981"/><path d="M38 111l3 3 5-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/><rect x="54" y="104" width="30" height="5" rx="2.5" fill="#EADFD6"/><rect x="54" y="114" width="20" height="5" rx="2.5" fill="#EADFD6"/></g>
+<path d="M70 38l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" fill="#FFB785"/>
+<path d="M262 18l2 4.5 4.5 2-4.5 2-2 4.5-2-4.5-4.5-2 4.5-2z" fill="#FF914D"/>
+</svg>
+</div>
+<h1 class="ttl">Welcome to FOF</h1>
+<p class="say center">Your Fruit of Faith journey, on your phone.</p>
+<div class="roles">
+<button class="role" data-act="go_install"><span class="rdot p-o"><svg class="ic" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M12 7v7M9 11l3 3 3-3"/></svg></span><span class="rl">Install the app<small>New here? Start with this.</small></span><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+<button class="role" data-act="go_tour"><span class="rdot p-g"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.3 6.8 19l1-5.8-4.2-4.1 5.8-.8z"/></svg></span><span class="rl">What the app can do<small>Already installed? Take the tour.</small></span><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+<button class="role all" data-act="go_all"><span class="rl">Show me everything</span><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+</div>
+</div>
+</section>
+
+<section data-card="i1" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-o">Install · Step 1</span></div>
+<div class="art">
+<div class="tiles">
+<a class="vid" href="https://youtu.be/VaQ8qL11bos" target="_blank" rel="noopener">
+<svg class="ph" viewBox="0 0 92 150" aria-hidden="true"><rect x="2" y="2" width="88" height="146" rx="16" fill="#1F1A17"/><rect x="7" y="10" width="78" height="130" rx="11" fill="#E8F7EE"/><circle cx="46" cy="75" r="20" fill="#fff"/><path d="M40 65v20l17-10z" fill="#16A34A"/><rect x="18" y="112" width="56" height="6" rx="3" fill="#BBE5CB"/><rect x="26" y="124" width="40" height="5" rx="2.5" fill="#BBE5CB"/><path d="M34 24a12 12 0 0 1 24 0z" fill="#3DDC84"/><circle cx="41" cy="20" r="1.4" fill="#fff"/><circle cx="51" cy="20" r="1.4" fill="#fff"/></svg>
+<b>Android</b>
+<span><svg class="ic s" viewBox="0 0 24 24"><path d="M7 5v14l12-7z"/></svg>Watch video</span>
+</a>
+<a class="vid" href="https://youtu.be/wyXzG3JqndY" target="_blank" rel="noopener">
+<svg class="ph" viewBox="0 0 92 150" aria-hidden="true"><rect x="2" y="2" width="88" height="146" rx="18" fill="#1F1A17"/><rect x="7" y="8" width="78" height="134" rx="13" fill="#EEF2FF"/><rect x="34" y="12" width="24" height="6" rx="3" fill="#1F1A17"/><circle cx="46" cy="75" r="20" fill="#fff"/><path d="M40 65v20l17-10z" fill="#4F46E5"/><rect x="18" y="112" width="56" height="6" rx="3" fill="#C7D2FE"/><rect x="26" y="124" width="40" height="5" rx="2.5" fill="#C7D2FE"/><path d="M49 27c-1.6 0-2.6 1-3.4 1s-1.8-1-3.2-1c-2 0-4 1.7-4 5 0 3.6 2.6 7 4 7 .9 0 1.4-.6 3.2-.6s2.2.6 3.2.6c1.5 0 3.2-2.8 3.8-4.4-2-.8-2.5-4.2.2-5.6-.9-1.4-2.4-2-3.8-2z M46.2 26.6c0-1.6 1.2-3 2.8-3.2.2 1.7-1.3 3.3-2.8 3.2z" fill="#4F46E5"/></svg>
+<b>iPhone</b>
+<span><svg class="ic s" viewBox="0 0 24 24"><path d="M7 5v14l12-7z"/></svg>Watch video</span>
+</a>
+</div>
+</div>
+<div class="cap"><h2>Watch the video for your phone</h2><p class="say">Tap your phone above. The short video shows every step to install FOF.</p></div>
+</div>
+</section>
+
+<section data-card="i2" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-o">Install · Step 2</span></div>
+<div class="mock" style="background: #6D5BD0">
+<div class="hs">
+<div class="ap"><span class="icon-app" style="background: rgba(255,255,255,.28)"></span>Photos</div>
+<div class="ap"><span class="icon-app" style="background: rgba(255,255,255,.28)"></span>Camera</div>
+<div class="ap"><span class="icon-app" style="background: rgba(255,255,255,.28)"></span>Messages</div>
+<div class="ap"><span class="icon-app" style="background: rgba(255,255,255,.28)"></span>Bible</div>
+<div class="ap"><span class="icon-app" style="background: rgba(255,255,255,.28)"></span>Maps</div>
+<div class="ap"><span class="icon-app hl" style="background: #FFFAF5; color: #C2410C">FOF</span>FOF</div>
+<div class="ap"><span class="icon-app" style="background: rgba(255,255,255,.28)"></span>Notes</div>
+<div class="ap"><span class="icon-app" style="background: rgba(255,255,255,.28)"></span>Clock</div>
+</div>
+</div>
+<a class="mbtn" href="https://fof.tcnikorodu.org" target="_blank" rel="noopener" style="background: #fff; color: #C2410C; box-shadow: 0 8px 20px -12px rgba(90,45,10,.3)"><svg class="ic s" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>fof.tcnikorodu.org</a>
+<div class="cap"><h2>Open the app</h2><p class="say">Tap the FOF icon on your home screen, or open the link above.</p></div>
+</div>
+</section>
+
+<section data-card="i3" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-o">Install · Step 3</span></div>
+<div class="mock">
+<div class="m-bar" style="flex-direction: column; align-items: center; padding-top: 22px"><span class="icon-app" style="background: #FF914D; color: #2B1204; width: 52px; height: 52px">FOF</span><span class="m-title" style="margin-top: 8px">Sign in</span></div>
+<div class="m-body">
+<div class="field"><span class="flabel">Phone number</span><span class="fval"><svg class="ic s" viewBox="0 0 24 24" style="color: #C2410C"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>080 •••• ••••</span></div>
+<div class="field"><span class="flabel">Password</span><span class="fval"><svg class="ic s" viewBox="0 0 24 24" style="color: #C2410C"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>••••••••</span></div>
+<span class="mbtn hl" style="margin-top: 4px">Sign in</span>
+<div class="lockrow" style="margin: 6px 4px 0"><svg class="ic s" viewBox="0 0 24 24" style="color: #C2410C"><path d="M12 3l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.3 6.8 19l1-5.8-4.2-4.1 5.8-.8z"/></svg>First time? You'll set your own password. Only you know it.</div>
+</div>
+</div>
+<div class="cap"><h2>Sign in</h2><p class="say">Your phone number is your username.</p></div>
+</div>
+</section>
+
+<section data-card="i4" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-o">Install · Step 4</span></div>
+<div class="mock" style="height: 360px">
+<div class="m-bar"><span class="m-title">Hi, Amara</span><span class="av a7">A</span></div>
+<div class="m-body"><div class="card-t"><span class="lbl">This week</span><span class="skel" style="width: 70%; background: #FFD3B5"></span></div><div class="skel" style="width: 80%"></div><div class="skel" style="width: 60%"></div></div>
+<div class="dlg">
+<div class="dlg-box">
+<div class="b"><span class="icon-app" style="background: #FF914D; color: #2B1204; width: 44px; height: 44px; font-size: 12px; border-radius: 12px">FOF</span><h3>FOF would like to send you notifications</h3><p>Reminders for class, your group call and more.</p></div>
+<div class="dlg-btns"><span>Don't Allow</span><span class="hl">Allow</span></div>
+</div>
+</div>
+</div>
+<div class="cap"><h2>Tap Allow</h2><p class="say">So you never miss Sunday class, your group call or the weekly recap.</p></div>
+</div>
+</section>
+
+<section data-card="t1" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-g">The app · Home</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Hi, Amara</span><span class="av a7">A</span></div>
+<div class="m-body">
+<div class="card-t hl"><span class="lbl">This week</span><span class="big">[Week title]</span><div class="bar"><span></span></div><span class="lockrow" style="font-size: 11px">Programme progress</span></div>
+<div class="row"><svg class="ic" viewBox="0 0 24 24" style="color: #C2410C"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span class="nm">Next session<br><span style="font-weight: 600; color: #8A817A; font-size: 12px">Sunday class</span></span></div>
+<div class="row"><svg class="ic" viewBox="0 0 24 24" style="color: #10B981"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg><span class="nm">Your goal this week</span></div>
+<div class="row" style="background: #F5F3FF"><svg class="ic" viewBox="0 0 24 24" style="color: #6D28D9"><path d="M4 5h5a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H4z"/><path d="M20 5h-5a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h6z"/></svg><span class="nm">Scripture for today</span></div>
+</div>
+<div class="m-nav">
+<span class="nv on"><svg class="ic" viewBox="0 0 24 24"><path d="M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-18v7h6V2h-6z"/></svg>Home</span>
+<span class="nv"><svg class="ic" viewBox="0 0 24 24"><path d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-3A3.5 3.5 0 0 0 7 18.5V20m5-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 9v-1a3 3 0 0 0-2.2-2.9M16.5 5.2a3 3 0 0 1 0 5.6"/></svg>My Group</span>
+<span class="nv"><svg class="ic" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Journey</span>
+<span class="nv"><svg class="ic" viewBox="0 0 24 24"><path d="M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 5.65-7 10-7 10Z"/></svg>F. Project</span>
+<span class="nv"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>More</span>
+</div>
+</div>
+<div class="cap"><h2>Your week at a glance</h2><p class="say">Home shows this week, your next session and your goal.</p></div>
+</div>
+</section>
+
+<section data-card="t2" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-g">The app · Menu</span></div>
+<div class="art" style="display: flex; flex-direction: column; gap: 12px; background: #FBF8F5">
+<div class="m-sub" style="margin: 2px 4px 0">Tap More for</div>
+<div class="sheet">
+<div><svg class="ic" viewBox="0 0 24 24" style="color: #C2410C"><path d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-3A3.5 3.5 0 0 0 7 18.5V20m5-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>People</div>
+<div><svg class="ic" viewBox="0 0 24 24" style="color: #C2410C"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>Resources</div>
+<div><svg class="ic" viewBox="0 0 24 24" style="color: #C2410C"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Feedback</div>
+<div><svg class="ic" viewBox="0 0 24 24" style="color: #C2410C"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg>Profile</div>
+</div>
+<div class="m-nav" style="margin: 0">
+<span class="nv"><svg class="ic" viewBox="0 0 24 24"><path d="M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-18v7h6V2h-6z"/></svg>Home</span>
+<span class="nv"><svg class="ic" viewBox="0 0 24 24"><path d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-3A3.5 3.5 0 0 0 7 18.5V20m5-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 9v-1a3 3 0 0 0-2.2-2.9M16.5 5.2a3 3 0 0 1 0 5.6"/></svg>My Group</span>
+<span class="nv"><svg class="ic" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Journey</span>
+<span class="nv"><svg class="ic" viewBox="0 0 24 24"><path d="M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 5.65-7 10-7 10Z"/></svg>F. Project</span>
+<span class="nv on hl"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>More</span>
+</div>
+</div>
+<div class="cap"><h2>Find your way</h2><p class="say">Four tabs at the bottom. Tap More for People, Resources, Feedback and Profile.</p></div>
+</div>
+</section>
+
+<section data-card="t3" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-g">The app · My Group</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">My Group</span></div>
+<div class="m-body">
+<div class="card-t hl" style="background: #ECFDF5"><span class="lbl" style="color: #047857; display: flex; align-items: center; gap: 6px"><span class="live-dot"></span>Group call is on</span><span class="big">Next meeting</span><span class="mbtn" style="height: 36px; font-size: 13px">Join</span></div>
+<div class="m-sub" style="margin: 4px 2px 0">Your support</div>
+<div class="row"><span class="av a2">GO</span><span class="nm">Grace O.</span><span class="pill xs p-o">Contact</span></div>
+<div class="m-sub" style="margin: 4px 2px 0">Group members</div>
+<div style="display: flex; gap: 6px; padding: 0 2px"><span class="av a7">A</span><span class="av a3">T</span><span class="av a5">L</span><span class="av a4">D</span><span class="av a1">+2</span></div>
+</div>
+</div>
+<div class="cap"><h2>Your group</h2><p class="say">See your next call, your support and your group. A green dot means the call is on now.</p></div>
+</div>
+</section>
+
+<section data-card="t4" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-g">The app · Each week</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Your reflection</span><span class="pill xs p-o">Class manual</span></div>
+<div class="m-body">
+<div class="q">1. What stood out to you?<span class="skel" style="width: 80%"></span></div>
+<div class="q">2. What is one thing you will do this week because of it?<span class="skel" style="width: 65%"></span></div>
+<div class="q">3. How will you know you did it?<span class="skel" style="width: 55%"></span></div>
+<div class="lockrow hl" style="padding: 10px 12px; border-radius: 14px; background: #F5F3FF; color: #4C1D95"><svg class="ic s" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Your support sees that you reflected, never what you wrote.</div>
+</div>
+</div>
+<div class="cap"><h2>Reflect on each week</h2><p class="say">Read the week's recap, then answer three short questions.</p></div>
+</div>
+</section>
+
+<section data-card="t5" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-g">The app · My Journey</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">My Journey</span></div>
+<div class="m-body">
+<div style="display: flex; justify-content: flex-end; gap: 8px; padding: 0 12px"><span class="m-sub" style="width: 44px; text-align: center; font-size: 9px">Class</span><span class="m-sub" style="width: 44px; text-align: center; font-size: 9px">Group</span></div>
+<div class="wk"><span class="w">Week 1</span><span style="width: 44px; display: grid; place-items: center"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span style="width: 44px; display: grid; place-items: center"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="g">Your goal · What stood out</span></div>
+<div class="wk"><span class="w">Week 2</span><span style="width: 44px; display: grid; place-items: center"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span style="width: 44px; display: grid; place-items: center"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span class="g">Your goal · What stood out</span></div>
+<div class="wk hl"><span class="w">Week 3</span><span style="width: 44px; display: grid; place-items: center"><span class="ok"><svg class="ic xs" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></svg></span></span><span style="width: 44px; display: grid; place-items: center"><span class="mid"><svg class="ic xs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/></svg></span></span><span class="g">This week</span></div>
+</div>
+</div>
+<div class="cap"><h2>See how far you've come</h2><p class="say">Your attendance, goals and reflections, week by week.</p></div>
+</div>
+</section>
+
+<section data-card="t6" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-g">The app · Faith Project</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Faith Project</span><span class="tapme">Tap the switch</span></div>
+<div class="m-body">
+<div class="field"><span class="flabel">What are you believing God for?</span><span class="skel" style="width: 85%; margin-top: 4px"></span><span class="skel" style="width: 60%"></span></div>
+<div class="m-sub" style="margin: 2px 2px 0">Feedback from your support</div>
+<div class="bubble">[Your support's reply shows here]</div>
+<button class="swrow hl" data-act="corp"><span class="t"><b>Include my Faith Project in the general prayers</b><span>Your name and project will be shown to the church team who pray together each week.</span></span><span class="sw sw-corp"></span></button>
+<div class="lockrow if-corp" style="margin: 0 4px; color: #047857"><svg class="ic s" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Added to the general prayers</div>
+</div>
+</div>
+<div class="cap"><h2>Your Faith Project</h2><p class="say">Share what you're believing God for. Your support can reply to you here.</p></div>
+</div>
+</section>
+
+<section data-card="t7" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-g">The app · More</span></div>
+<div class="art">
+<div class="tiles">
+<div class="tile2"><span class="h"><svg class="ic" viewBox="0 0 24 24" style="color: #C2410C"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>Resources</span><span class="li">Class materials</span><span class="li">General guides</span></div>
+<div class="tile2"><span class="h"><svg class="ic" viewBox="0 0 24 24" style="color: #C2410C"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Feedback</span><span class="li">How is it going for you?</span></div>
+<div class="tile2"><span class="h"><svg class="ic" viewBox="0 0 24 24" style="color: #C2410C"><path d="M17 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-3A3.5 3.5 0 0 0 7 18.5V20m5-9a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>People</span><span class="li">Everyone supporting your journey</span></div>
+<div class="tile2"><span class="h"><svg class="ic" viewBox="0 0 24 24" style="color: #C2410C"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/></svg>Profile</span><span class="li">Your details, photo and reminders</span></div>
+</div>
+</div>
+<div class="cap"><h2>Everything else</h2><p class="say">Find class materials, meet your supports, and tell us how it's going.</p></div>
+</div>
+</section>
+
+<section data-card="t8" hidden>
+<div class="card">
+<div class="eyebrow"><span class="pill p-g">The app · Reminders</span></div>
+<div class="mock">
+<div class="m-bar"><span class="m-title">Reminders</span><span class="tapme">Try them</span></div>
+<div class="m-body">
+<div class="swrow"><span class="t"><b>Sunday class</b><span>Saturday and Sunday morning. Always on.</span></span><span class="sw on fixed"></span></div>
+<button class="swrow" data-act="rg"><span class="t"><b>Group call</b><span>Before your weekly meeting.</span></span><span class="sw sw-rg"></span></button>
+<button class="swrow" data-act="rr"><span class="t"><b>Weekly recap</b><span>When your week's recap is out.</span></span><span class="sw sw-rr"></span></button>
+<div class="lockrow" style="margin: 4px 4px 0"><svg class="ic s" viewBox="0 0 24 24" style="color: #C2410C"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>Find these in Profile</div>
+</div>
+</div>
+<div class="cap"><h2>Never miss a thing</h2><p class="say">Choose your reminders in Profile. Sunday class reminders are always on.</p></div>
+</div>
+</section>
+
+<section data-card="end" hidden>
+<div class="card" style="padding-top: 24px; align-items: center; text-align: center">
+<svg viewBox="0 0 200 150" aria-hidden="true" style="width: 220px; height: auto">
+<circle cx="100" cy="78" r="58" fill="#FFF1E6"/>
+<circle cx="100" cy="78" r="38" fill="#FF914D"/>
+<path d="M82 78l12 12 24-24" fill="none" stroke="#2B1204" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="28" y="30" width="10" height="4" rx="2" fill="#A78BFA" transform="rotate(-30 33 32)"/><rect x="160" y="26" width="10" height="4" rx="2" fill="#38BDF8" transform="rotate(25 165 28)"/><circle cx="40" cy="116" r="4" fill="#10B981"/><circle cx="166" cy="112" r="4" fill="#FBBF24"/><circle cx="22" cy="76" r="3" fill="#FF914D"/><circle cx="180" cy="70" r="3" fill="#818CF8"/>
+</svg>
+<h2 style="font-size: 30px">You're all set!</h2>
+<p class="say" style="margin-top: 0">We're glad you're here. Enjoy the journey.</p>
+<a class="mbtn" href="https://fof.tcnikorodu.org" target="_blank" rel="noopener" style="width: 100%; height: 54px; font-size: 17px; border-radius: 27px">Open the app<svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+<div class="tiles" style="width: 100%">
+<a class="vid" href="https://youtu.be/VaQ8qL11bos" target="_blank" rel="noopener" style="flex-direction: row; justify-content: center; padding: 12px"><span><svg class="ic s" viewBox="0 0 24 24"><path d="M7 5v14l12-7z"/></svg>Android video</span></a>
+<a class="vid" href="https://youtu.be/wyXzG3JqndY" target="_blank" rel="noopener" style="flex-direction: row; justify-content: center; padding: 12px"><span><svg class="ic s" viewBox="0 0 24 24"><path d="M7 5v14l12-7z"/></svg>iPhone video</span></a>
+</div>
+</div>
+</section>
+
+</div>
+<div class="bottom">
+<button class="btn ghost backbtn" aria-label="Back" data-act="back"><svg class="ic l" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
+<button class="btn pri nextbtn" data-act="next">Next<svg class="ic" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+<button class="btn pri restartbtn" data-act="home"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>Start again</button>
+</div>
+</div>
+<script>
+(function(){
+var C={initial: function() {
+    return { path: '', i: 0, dir: 'fwd', corp: false, rg: true, rr: true };
+  },
+  paths: function() {
+    return {
+      install: ['i1', 'i2', 'i3', 'i4', 'end'],
+      tour: ['t1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 'end'],
+      all: ['i1', 'i2', 'i3', 'i4', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 'end']
+    };
+  },
+  reduce: function(s, n) {
+    var list = C.paths()[s.path] || [];
+    if (n === 'next') return s.path && s.i < list.length - 1 ? { i: s.i + 1, dir: 'fwd' } : {};
+    if (n === 'back') return !s.path ? {} : s.i > 0 ? { i: s.i - 1, dir: 'bwd' } : { path: '', i: 0, dir: 'bwd' };
+    if (n === 'home') return { path: '', i: 0, dir: 'bwd', corp: false, rg: true, rr: true };
+    if (n.indexOf('go_') === 0) return { path: n.slice(3), i: 0, dir: 'fwd' };
+    if (n === 'corp' || n === 'rg' || n === 'rr') { var o = {}; o[n] = !s[n]; return o; }
+    return {};
+  },
+  view: function(s) {
+    var list = C.paths()[s.path] || [];
+    var id = s.path ? list[s.i] : 'pick';
+    var cls = ['app', s.dir, s.path ? '' : 'on-pick', s.path && s.i === list.length - 1 ? 'at-end' : '',
+      s.corp ? 'corp-on' : '', s.rg ? 'rg-on' : '', s.rr ? 'rr-on' : ''].filter(Boolean).join(' ');
+    var dots = list.map(function (x, k) { return 'dot' + (k === s.i ? ' on' : k < s.i ? ' done' : ''); });
+    var counter = s.path ? (s.i + 1) + ' / ' + list.length : '';
+    return { id: id, cls: cls, summary: '', dots: dots, counter: counter };
+  }};
+var s=C.initial();
+var app=document.getElementById('app'),stage=document.getElementById('stage'),dotsEl=document.getElementById('dots');
+var cards=[].slice.call(document.querySelectorAll('[data-card]'));
+var last='';
+function render(){
+ var v=C.view(s);
+ app.className=v.cls;
+ cards.forEach(function(c){c.hidden=c.getAttribute('data-card')!==v.id;});
+ dotsEl.innerHTML=v.dots.map(function(c){return '<span class="'+c+'"></span>';}).join('');
+ [].forEach.call(document.querySelectorAll('[data-bind]'),function(el){el.textContent=v[el.getAttribute('data-bind')];});
+ if(v.id!==last){stage.scrollTop=0;last=v.id;}
+}
+function act(n){var p=C.reduce(s,n);for(var k in p)s[k]=p[k];render();}
+document.addEventListener('click',function(e){var b=e.target.closest('[data-act]');if(b){act(b.getAttribute('data-act'));}});
+document.addEventListener('keydown',function(e){if(e.key==='ArrowRight')act('next');else if(e.key==='ArrowLeft')act('back');});
+var x=null,y=0;
+stage.addEventListener('touchstart',function(e){x=e.touches[0].clientX;y=e.touches[0].clientY;},{passive:true});
+stage.addEventListener('touchend',function(e){if(x==null)return;var t=e.changedTouches[0],dx=t.clientX-x,dy=t.clientY-y;x=null;
+ if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.3)act(dx<0?'next':'back');},{passive:true});
+render();
+})();
+</script>
+</body>
+</html>
