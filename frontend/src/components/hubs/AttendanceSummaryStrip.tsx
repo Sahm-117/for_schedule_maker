@@ -2,8 +2,9 @@ import React, { useMemo, useState } from 'react';
 import type { Cohort, SupportAttendanceStatus, SupportHub, SupportSession, SupportSessionType, Week } from '../../types';
 
 // ── Attendance overview strip for the admin Hubs page ─────────────────────────
-// Sits above the Hubs/Trainings tabs. Two headline cards (last recap week,
-// trainings overall) plus a collapsed "week by week" table. All numbers are
+// Sits above the hub list. The last-recap card (plus trainings overall when
+// trainings are passed in) and a collapsed "week by week" table. Trainings
+// moved to the Supports page, so the Hubs page passes none. All numbers are
 // derived from data the page already loads — no extra fetches live here.
 
 interface AttendanceSummaryStripProps {
@@ -13,14 +14,14 @@ interface AttendanceSummaryStripProps {
   summaryWeek: Week | null;
   /** Recap marks keyed "hubId:weekId" -> { userId: status }, kept in step by the page. */
   recapMarksByHubWeek: Record<string, Record<string, SupportAttendanceStatus>>;
-  trainingSessions: SupportSession[];
-  trainingAttendance: Array<{ sessionId: string; userId: string; status: SupportAttendanceStatus }>;
+  trainingSessions?: SupportSession[];
+  trainingAttendance?: Array<{ sessionId: string; userId: string; status: SupportAttendanceStatus }>;
   // Support user ids enrolled in each cohort — a session is judged only
   // against the supports of the cohort it's for.
-  supportIdsByCohort: Map<string, Set<string>>;
-  cohortById: Map<string, Cohort>;
-  sessionTypePill: Record<SupportSessionType, string>;
-  sessionTypeLabel: Record<SupportSessionType, string>;
+  supportIdsByCohort?: Map<string, Set<string>>;
+  cohortById?: Map<string, Cohort>;
+  sessionTypePill?: Record<SupportSessionType, string>;
+  sessionTypeLabel?: Record<SupportSessionType, string>;
 }
 
 const isPresentish = (status?: SupportAttendanceStatus) => status === 'PRESENT' || status === 'LATE';
@@ -53,9 +54,10 @@ const recapCountsForWeek = (
 
 const AttendanceSummaryStrip: React.FC<AttendanceSummaryStripProps> = ({
   hubs, membersByHub, weeks, summaryWeek, recapMarksByHubWeek,
-  trainingSessions, trainingAttendance, supportIdsByCohort, cohortById,
-  sessionTypePill, sessionTypeLabel,
+  trainingSessions, trainingAttendance = [], supportIdsByCohort = new Map(), cohortById = new Map(),
+  sessionTypePill = {} as Record<SupportSessionType, string>, sessionTypeLabel = {} as Record<SupportSessionType, string>,
 }) => {
+  const showTrainings = !!trainingSessions;
   const [open, setOpen] = useState(false);
 
   const recapSummary = useMemo(
@@ -72,7 +74,7 @@ const AttendanceSummaryStrip: React.FC<AttendanceSummaryStripProps> = ({
   }, [weeks, summaryWeek, hubs, membersByHub, recapMarksByHubWeek]);
 
   const trainingRows = useMemo(
-    () => [...trainingSessions]
+    () => [...(trainingSessions ?? [])]
       .sort((a, b) => a.sessionDate.localeCompare(b.sessionDate))
       .map((s) => {
         const cohortSupportIds = supportIdsByCohort.get(s.cohortId) ?? new Set<string>();
@@ -104,7 +106,7 @@ const AttendanceSummaryStrip: React.FC<AttendanceSummaryStripProps> = ({
 
   return (
     <div className="mb-4 flex flex-col gap-3">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={`grid gap-3 ${showTrainings ? 'sm:grid-cols-2' : ''}`}>
         <div className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
             {summaryWeek ? `Last recap · Week ${summaryWeek.weekNumber}` : 'Last recap'}
@@ -122,7 +124,7 @@ const AttendanceSummaryStrip: React.FC<AttendanceSummaryStripProps> = ({
             </>
           )}
         </div>
-        <div className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
+        {showTrainings && <div className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Trainings overall</p>
           {!trainingsOverall ? (
             <p className="mt-1 text-sm text-gray-400">No trainings yet.</p>
@@ -134,7 +136,7 @@ const AttendanceSummaryStrip: React.FC<AttendanceSummaryStripProps> = ({
               </p>
             </>
           )}
-        </div>
+        </div>}
       </div>
 
       <div className="rounded-xl border border-orange-100 bg-white">
@@ -172,7 +174,7 @@ const AttendanceSummaryStrip: React.FC<AttendanceSummaryStripProps> = ({
                 </ul>
               )}
             </div>
-            <div>
+            {showTrainings && <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Trainings &amp; get-togethers</p>
               {trainingRows.length === 0 ? (
                 <p className="text-sm text-gray-400">No trainings yet.</p>
@@ -192,7 +194,7 @@ const AttendanceSummaryStrip: React.FC<AttendanceSummaryStripProps> = ({
                   ))}
                 </ul>
               )}
-            </div>
+            </div>}
           </div>
         )}
       </div>

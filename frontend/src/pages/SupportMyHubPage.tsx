@@ -751,7 +751,7 @@ const SupportMyHubPage: React.FC = () => {
               {trainingLoading && trainingSessions.length === 0 ? (
                 <p className="flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
               ) : trainingSessions.length === 0 ? (
-                <p className="text-sm text-gray-400">No trainings or get-togethers yet — an admin creates these on the Hubs page.</p>
+                <p className="text-sm text-gray-400">No trainings or get-togethers yet — an admin creates these on the Supports page.</p>
               ) : (
                 <>
                   <div className="mb-4 w-full sm:w-72">

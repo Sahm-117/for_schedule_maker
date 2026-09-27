@@ -5631,7 +5631,7 @@ export const supportSessionsApi = {
   // type(s) in a cohort, plus every mark on them in one call, so the admin
   // Trainings tab, the hub lead's My Hub tab, and the "x/y trainings" badges
   // on the Groups/Supports pages can all be built from one fetch.
-  async getForCohort(cohortId: string | string[], types: import('../types').SupportSessionType[]): Promise<{ sessions: import('../types').SupportSession[]; attendance: Array<{ sessionId: string; userId: string; status: import('../types').SupportAttendanceStatus }> }> {
+  async getForCohort(cohortId: string | string[], types: import('../types').SupportSessionType[]): Promise<{ sessions: import('../types').SupportSession[]; attendance: Array<{ sessionId: string; userId: string; status: import('../types').SupportAttendanceStatus; learned?: string | null; willApply?: string | null }> }> {
     let query = supabase
       .from('SupportSession')
       .select('*')
@@ -5645,10 +5645,38 @@ export const supportSessionsApi = {
     if (ids.length === 0) return { sessions: mapped, attendance: [] };
     const { data: attendance, error: attendanceError } = await supabase
       .from('SupportSessionAttendance')
-      .select('sessionId, userId, status')
+      .select('sessionId, userId, status, learned, willApply')
       .in('sessionId', ids);
     if (attendanceError) throw new Error(attendanceError.message);
     return { sessions: mapped, attendance: (attendance as any[]) || [] };
+  },
+
+  // "What I learned": pre-cohort trainings this support was marked present
+  // (or late) at and hasn't written about yet, from 12 noon on the day.
+  async getMyPendingLearned(userId: string): Promise<{ sessions: import('../types').SupportSession[] }> {
+    const { data, error } = await supabase
+      .from('SupportSessionAttendance')
+      .select('status, learned, session:SupportSession!inner(*, cohort:Cohort(status))')
+      .eq('userId', userId)
+      .in('status', ['PRESENT', 'LATE'])
+      .is('learned', null)
+      .eq('session.type', 'PRE_COHORT_TRAINING');
+    if (error) throw new Error(error.message);
+    const now = Date.now();
+    // Noon (local) on the training's day; sessionDate is stored as local midnight.
+    const noonOf = (iso: string) => { const d = new Date(iso); d.setHours(12, 0, 0, 0); return d.getTime(); };
+    return {
+      sessions: ((data as any[]) || [])
+        // Only trainings for a cohort that's still running or upcoming.
+        .filter((row) => !['COMPLETED', 'ARCHIVED'].includes(row.session?.cohort?.status))
+        .map((row) => mapSupportSession(row.session))
+        .filter((s) => noonOf(s.sessionDate) <= now),
+    };
+  },
+
+  async submitLearned(sessionId: string, learned: string, willApply: string): Promise<void> {
+    const { error } = await supabase.rpc('submit_training_learned', { p_session_id: sessionId, p_learned: learned, p_will_apply: willApply });
+    if (error) throw new Error(error.message);
   },
 
   // Admin-only create/edit/delete for trainings and get-togethers (RLS: see

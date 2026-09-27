@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, NavLink, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import SegmentedTabs from '../components/SegmentedTabs';
+import SupportTrainingsPanel from '../components/supports/SupportTrainingsPanel';
+import TrainingPill from '../components/supports/TrainingPill';
 import {
   buildWeekStats,
   cohortMode,
@@ -74,7 +77,7 @@ const AdminSupportsPage: React.FC = () => {
   const [hubs, setHubs] = useState<SupportHub[]>([]);
   const [memberships, setMemberships] = useState<HubMembership[]>([]);
   const [trainingSessions, setTrainingSessions] = useState<SupportSession[]>([]);
-  const [trainingAttendance, setTrainingAttendance] = useState<Array<{ sessionId: string; userId: string; status: string }>>([]);
+  const [trainingAttendance, setTrainingAttendance] = useState<Array<{ sessionId: string; userId: string; status: string; learned?: string | null; willApply?: string | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // A support's kind for this cohort (missing entry = PARTICIPANT_SUPPORT, the default).
@@ -86,6 +89,7 @@ const AdminSupportsPage: React.FC = () => {
   const filter: Filter = filterParam === 'critical' || filterParam === 'warning' || filterParam === 'good' ? filterParam : 'all';
   const hubFilter = searchParams.get('hub') ?? '';
   const notesOnly = searchParams.get('notes') === '1';
+  const pageTab = searchParams.get('tab') === 'trainings' ? 'trainings' : 'supports';
   const [search, setSearch] = useState('');
   // Supports with a note about them — they get a ★ and the "With notes" filter.
   const [notedIds, setNotedIds] = useState<Set<string>>(new Set());
@@ -250,7 +254,24 @@ const AdminSupportsPage: React.FC = () => {
     <div>
       <PageHeader title="Supports" subtitle="Group meeting records and onboarding for every support." tourId="admin:supports" />
 
-      {loading && !model ? (
+      <div className="mb-4">
+        <SegmentedTabs
+          tabs={[
+            { key: 'supports', label: 'Supports' },
+            { key: 'trainings', label: 'Trainings & get-togethers', shortLabel: 'Trainings' },
+          ]}
+          active={pageTab}
+          onChange={(k) => {
+            const params = new URLSearchParams(searchParams);
+            if (k === 'trainings') params.set('tab', 'trainings'); else params.delete('tab');
+            setSearchParams(params, { replace: true });
+          }}
+        />
+      </div>
+
+      {pageTab === 'trainings' ? (
+        <SupportTrainingsPanel onChanged={() => { void load(); }} />
+      ) : loading && !model ? (
         <div className="space-y-3" aria-busy="true">
           {[0, 1, 2].map((i) => <div key={i} className="surface-card h-28 animate-pulse" />)}
         </div>
@@ -341,7 +362,7 @@ const AdminSupportsPage: React.FC = () => {
                   rules={rules}
                   judgedCount={model.judged.length}
                   hub={hubByUserId.get(evaluation.supportId) ?? null}
-                  training={trainingCountFor(trainingCounts, evaluation.supportId, trainingsTotal)}
+                  training={{ ...trainingCountFor(trainingCounts, evaluation.supportId, trainingsTotal), sessions: trainingSessions, attendance: trainingAttendance }}
                   reportFor={(weekNumber) => {
                     const weekId = model.weekIdByNumber.get(weekNumber);
                     return weekId == null ? null : reportByKey.get(`${evaluation.groupId}:${weekId}`) ?? null;
@@ -359,7 +380,7 @@ const AdminSupportsPage: React.FC = () => {
                   key={u.id}
                   user={u}
                   hub={hubByUserId.get(u.id)!}
-                  training={trainingCountFor(trainingCounts, u.id, trainingsTotal)}
+                  training={{ ...trainingCountFor(trainingCounts, u.id, trainingsTotal), sessions: trainingSessions, attendance: trainingAttendance }}
                   kind={kinds[u.id] ?? 'PARTICIPANT_SUPPORT'}
                   kindSaving={savingKindIds.has(u.id)}
                   onKindChange={(kind) => void saveKind(u.id, kind)}
@@ -431,7 +452,7 @@ const SupportCard: React.FC<{
   rules: ProgrammeRules;
   judgedCount: number;
   hub: { id: string; name: string; isLead: boolean } | null;
-  training: { attended: number; total: number };
+  training: { attended: number; total: number; sessions: SupportSession[]; attendance: Array<{ sessionId: string; userId: string; status: string; learned?: string | null; willApply?: string | null }> };
   reportFor: (weekNumber: number) => ParticipantNote | null;
   kind: SupportKind;
   kindSaving: boolean;
@@ -495,11 +516,7 @@ const SupportCard: React.FC<{
             hub?.isLead && <span key="lead" className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>,
             KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
             hub && <span key="hub" className="rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>,
-            training.total > 0 && (
-              <span key="training" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${training.attended >= rules.minTrainingsAttended ? 'bg-emerald-100/80 text-emerald-700' : 'bg-amber-100/80 text-amber-700'}`}>
-                Trainings {training.attended}/{training.total}
-              </span>
-            ),
+            training.total > 0 && <TrainingPill key="training" name={supportName} userId={evaluation.supportId} sessions={training.sessions} attendance={training.attendance} />,
           ]} />
         </div>
         <div className="flex flex-col items-end gap-1.5">
@@ -640,7 +657,7 @@ const SupportCard: React.FC<{
 const NoLeadSupportCard: React.FC<{
   user: User;
   hub: { id: string; name: string; isLead: boolean } | null;
-  training: { attended: number; total: number };
+  training: { attended: number; total: number; sessions: SupportSession[]; attendance: Array<{ sessionId: string; userId: string; status: string; learned?: string | null; willApply?: string | null }> };
   kind: SupportKind;
   kindSaving: boolean;
   onKindChange: (kind: SupportKind) => void;
@@ -686,11 +703,7 @@ const NoLeadSupportCard: React.FC<{
             hub?.isLead && <span key="lead" className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>,
             KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
             hub && <span key="hub" className="rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>,
-            training.total > 0 && (
-              <span key="training" className="rounded-full bg-sky-100/80 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
-                Trainings {training.attended}/{training.total}
-              </span>
-            ),
+            training.total > 0 && <TrainingPill key="training" name={user.name} userId={user.id} sessions={training.sessions} attendance={training.attendance} />,
           ]} />
         </div>
         <FollowUpLoad value={followUps} max={maxFollowUps} />

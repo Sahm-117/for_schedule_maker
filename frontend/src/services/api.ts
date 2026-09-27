@@ -669,6 +669,8 @@ export const supportSessionsApi = USE_SUPABASE ? supabaseSupportSessionsApi : {
   async mark(_input: any): Promise<never> { return peopleUnavailable(); },
   async getForHubWeek(_hubId: string, _weekId: number): Promise<{ attendance: Array<{ userId: string; status: import('../types').SupportAttendanceStatus }> }> { return { attendance: [] }; },
   async getForCohort(_cohortId: string | string[], _types: import('../types').SupportSessionType[]): Promise<{ sessions: import('../types').SupportSession[]; attendance: Array<{ sessionId: string; userId: string; status: import('../types').SupportAttendanceStatus }> }> { return { sessions: [], attendance: [] }; },
+  async getMyPendingLearned(_userId: string): Promise<{ sessions: import('../types').SupportSession[] }> { return { sessions: [] }; },
+  async submitLearned(_sessionId: string, _learned: string, _willApply: string): Promise<void> { return peopleUnavailable(); },
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
   async update(_sessionId: string, _input: any): Promise<never> { return peopleUnavailable(); },
   async remove(_sessionId: string): Promise<never> { return peopleUnavailable(); },

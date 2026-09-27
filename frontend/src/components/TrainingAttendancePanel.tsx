@@ -34,7 +34,7 @@ const TrainingAttendancePanel: React.FC = () => {
   const [search, setSearch] = useState('');
 
   // Pre-cohort trainings happen before their cohort starts: list the active
-  // cohort plus any upcoming ones, like the Hubs page does.
+  // cohort plus any upcoming ones, like the admin Supports page does.
   const cohortIds = useMemo(() => {
     const ids = new Set(cohorts.filter((c) => c.status !== 'ARCHIVED' && cohortMode(c) === 'upcoming').map((c) => c.id));
     if (activeCohort) ids.add(activeCohort.id);
@@ -119,7 +119,7 @@ const TrainingAttendancePanel: React.FC = () => {
 
   if (loading) return <PageLoader />;
   if (sessions.length === 0) {
-    return <p className="rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">No trainings or get-togethers yet — an admin creates these on the Hubs page.</p>;
+    return <p className="rounded-2xl border border-dashed border-orange-200 py-12 text-center text-sm text-gray-500">No trainings or get-togethers yet — an admin creates these on the Supports page.</p>;
   }
 
   return (

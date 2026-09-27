@@ -16,6 +16,7 @@ import { GROUP_MEETING_CHANGED_EVENT } from '../utils/meetingLiveEvents';
 import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
 import { formatMeetingTime } from '../components/groups/GroupCallCard';
 import Spinner from '../components/Spinner';
+import TrainingLearnedCard from '../components/supports/TrainingLearnedCard';
 
 type HomeActivity = {
   id: number;
@@ -397,6 +398,8 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
               <QuickStat title="Next class" value={nextWeek?.title?.trim() || 'Not set'} detail={nextWeek ? "This week's topic" : 'Programme complete'} to="/support/schedule" tone="blue" />
             </div>
           </section>
+
+          <TrainingLearnedCard userId={user.id} />
 
           {(hubMeetingLive || groupMeetingLive) && (
             // The whole banner opens the meeting, not just the button.
