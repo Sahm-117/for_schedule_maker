@@ -300,6 +300,10 @@ const AppShell: React.FC = () => {
   const pendingIntroJob = isSupport && myHub?.hub
     ? (myHub.unseenIntroJobs ?? []).find((job) => !introDoneJobs.includes(job)) ?? null
     : null;
+  // TEMPORARY (Olamide, 27 Sep 2026): for this one roll-out, the first welcome
+  // opens the full visual role guide instead of the short popup. Set back to
+  // false afterwards to return to the popup (which still links to the guide).
+  const OPEN_GUIDE_AS_WELCOME = true;
   const finishIntro = (job: HubJob) => {
     setIntroDoneJobs((prev) => [...prev, job]);
     if (myHub?.hub) void myHubApi.markRoleIntroSeen(myHub.hub.id, job).catch(() => undefined);
@@ -454,7 +458,10 @@ const AppShell: React.FC = () => {
           onDismiss={dismissClassFeedback}
         />
       )}
-      {!tourBusy && !showPrompt && !showBlocked && !classFeedbackDueWeek && pendingIntroJob && (
+      {OPEN_GUIDE_AS_WELCOME && !tourBusy && !showPrompt && !showBlocked && !classFeedbackDueWeek && pendingIntroJob && (
+        <RoleGuideModal job={pendingIntroJob} onClose={() => finishIntro(pendingIntroJob)} />
+      )}
+      {!OPEN_GUIDE_AS_WELCOME && !tourBusy && !showPrompt && !showBlocked && !classFeedbackDueWeek && pendingIntroJob && (
         <HubRoleIntroModal
           job={pendingIntroJob}
           onGotIt={() => finishIntro(pendingIntroJob)}
