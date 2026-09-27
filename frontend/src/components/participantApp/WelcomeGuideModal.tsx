@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 // "Welcome to FOF" is a standalone visual walkthrough (built in Claude Design)
@@ -9,8 +9,17 @@ interface WelcomeGuideModalProps {
   onClose: () => void;
 }
 
-const WelcomeGuideModal: React.FC<WelcomeGuideModalProps> = ({ onClose }) =>
-  createPortal(
+const WelcomeGuideModal: React.FC<WelcomeGuideModalProps> = ({ onClose }) => {
+  // The guide's "Done" button (last screen) posts this message.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin === window.location.origin && e.data === 'fof-guide-done') onClose();
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [onClose]);
+
+  return createPortal(
     <div className="fixed inset-0 z-[130] flex flex-col bg-[#FFFAF5]" role="dialog" aria-modal="true" aria-label="Welcome to FOF">
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-black/5 bg-white/80 px-4 backdrop-blur-xl">
         <span className="text-sm font-semibold text-gray-900">Welcome to FOF</span>
@@ -27,5 +36,6 @@ const WelcomeGuideModal: React.FC<WelcomeGuideModalProps> = ({ onClose }) =>
     </div>,
     document.body
   );
+};
 
 export default WelcomeGuideModal;

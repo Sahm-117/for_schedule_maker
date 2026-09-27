@@ -41,9 +41,9 @@ h2{font-size:26px;line-height:1.15;letter-spacing:-.02em;font-weight:700}
 .btn:active{transform:scale(.97)}
 .btn.ghost{width:64px;background:#fff;box-shadow:0 1px 2px rgba(90,45,10,.06),0 6px 16px -6px rgba(90,45,10,.14)}
 .btn.pri{flex:1;background:#FF914D;color:#2B1204;box-shadow:0 10px 24px -10px rgba(255,120,40,.7)}
-.restartbtn{display:none}
+.restartbtn,.donebtn{display:none}
 .at-end .nextbtn{display:none}
-.at-end .restartbtn{display:flex}
+.at-end .restartbtn,.at-end .donebtn{display:flex}
 .on-pick .bottom,.on-pick .dots,.on-pick .count,.on-pick .homebtn{display:none}
 .on-pick .top{height:12px}
 .pill{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 11px;border-radius:13px;font-size:13px;font-weight:650;white-space:nowrap;line-height:1}
@@ -426,7 +426,8 @@ html,body{margin:0;min-height:100%;background:#FFFAF5}
 <div class="bottom">
 <button class="btn ghost backbtn" aria-label="Back" data-act="back"><svg class="ic l" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
 <button class="btn pri nextbtn" data-act="next">Next<svg class="ic" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
-<button class="btn pri restartbtn" data-act="home"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>Start again</button>
+<button class="btn ghost restartbtn" aria-label="Start again" data-act="home"><svg class="ic l" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></button>
+<button class="btn pri donebtn" data-act="done">Done<svg class="ic" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></button>
 </div>
 </div>
 <script>
@@ -471,7 +472,7 @@ function render(){
  [].forEach.call(document.querySelectorAll('[data-bind]'),function(el){el.textContent=v[el.getAttribute('data-bind')];});
  if(v.id!==last){stage.scrollTop=0;last=v.id;}
 }
-function act(n){var p=C.reduce(s,n);for(var k in p)s[k]=p[k];render();}
+function act(n){if(n==='done'){if(window.parent!==window)window.parent.postMessage('fof-guide-done',location.origin);return;}var p=C.reduce(s,n);for(var k in p)s[k]=p[k];render();}
 document.addEventListener('click',function(e){var b=e.target.closest('[data-act]');if(b){act(b.getAttribute('data-act'));}});
 document.addEventListener('keydown',function(e){if(e.key==='ArrowRight')act('next');else if(e.key==='ArrowLeft')act('back');});
 var x=null,y=0;
