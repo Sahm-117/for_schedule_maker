@@ -6,9 +6,11 @@ import { useAppData } from '../context/AppDataContext';
 import { supportRecapsApi } from '../services/api';
 import type { SupportRecap } from '../types';
 import { formatRecapReleaseAt } from '../utils/recapReleaseTimes';
+import { currentWeekNumber } from '../utils/participantApp';
 
-// This week's recap first, then past weeks. Before a week's support release
-// time, its content is withheld and the card just says when it arrives.
+// Newest week first. Every week starts folded; tap to open. The current
+// week is labelled. Before a week's support release time, the card just
+// says when it arrives.
 
 const CARD = 'rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
 
@@ -18,6 +20,13 @@ const SupportRecapPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [doc, setDoc] = useState<{ url: string; title: string; fileName?: string | null } | null>(null);
+  const [openWeekIds, setOpenWeekIds] = useState<Set<number>>(new Set());
+  const thisWeekNumber = currentWeekNumber(activeCohort?.startDate, new Date());
+  const toggleWeek = (weekId: number) => setOpenWeekIds((prev) => {
+    const next = new Set(prev);
+    if (next.has(weekId)) next.delete(weekId); else next.add(weekId);
+    return next;
+  });
 
   useEffect(() => {
     if (!activeCohort?.id) { setLoading(false); return; }
@@ -46,17 +55,32 @@ const SupportRecapPage: React.FC = () => {
         </section>
       ) : (
         <div className="flex flex-col gap-3.5">
-          {recaps.map((week) => (
+          {recaps.map((week) => {
+            const open = openWeekIds.has(week.weekId);
+            const isThisWeek = week.weekNumber === thisWeekNumber;
+            return (
             <section key={week.weekId} data-wt="support-recap-week" className={`${CARD} overflow-hidden`}>
-              <div className="px-5 pt-5">
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Week {week.weekNumber}</span>
-                  <span className={`ml-auto rounded-full px-[9px] py-[3px] text-[11px] font-bold ${week.released ? 'bg-[#f2fbf5] text-[#15803d]' : 'bg-amber-100/80 text-amber-700'}`}>
-                    {week.released ? 'Released' : 'Not out yet'}
-                  </span>
+              <button type="button" onClick={() => toggleWeek(week.weekId)} aria-expanded={open} className={`flex w-full items-center gap-3 px-5 text-left ${open ? 'pt-5' : 'py-5'}`}>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Week {week.weekNumber}</span>
+                    {isThisWeek && (
+                      <span className="rounded-full bg-sky-100/80 px-[9px] py-[3px] text-[11px] font-bold text-sky-700">This week</span>
+                    )}
+                    <span className={`ml-auto rounded-full px-[9px] py-[3px] text-[11px] font-bold ${week.released ? 'bg-[#f2fbf5] text-[#15803d]' : 'bg-amber-100/80 text-amber-700'}`}>
+                      {week.released ? 'Released' : 'Not out yet'}
+                    </span>
+                  </div>
+                  <h2 className="mt-2 text-xl font-bold tracking-[-0.01em] text-gray-900">{week.title || `Week ${week.weekNumber}`}</h2>
                 </div>
-                <h2 className="mt-2 text-xl font-bold tracking-[-0.01em] text-gray-900">{week.title || `Week ${week.weekNumber}`}</h2>
+                <svg className={`h-5 w-5 flex-none text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
 
+              {open && (
+              <>
+              <div className="px-5">
                 {week.released ? (
                   <>
                     {week.recapSummary?.trim() && (
@@ -73,7 +97,7 @@ const SupportRecapPage: React.FC = () => {
                   <p className="mt-2 text-[14.5px] leading-[1.65] text-gray-500">Arrives {formatRecapReleaseAt(week.releasedAt ? new Date(week.releasedAt) : null)}</p>
                 )}
               </div>
-              {week.released && week.recapDocumentUrl && (
+              {week.released && week.recapDocumentUrl ? (
                 <div className="px-5 pb-5 pt-4">
                   <button
                     type="button"
@@ -87,9 +111,14 @@ const SupportRecapPage: React.FC = () => {
                     <span aria-hidden="true">→</span>
                   </button>
                 </div>
+              ) : (
+                <div className="pb-5" />
+              )}
+              </>
               )}
             </section>
-          ))}
+            );
+          })}
         </div>
       )}
 
