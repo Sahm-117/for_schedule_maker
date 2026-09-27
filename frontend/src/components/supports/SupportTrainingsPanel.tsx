@@ -260,7 +260,8 @@ const SessionResultsModal: React.FC<{
   onMark: () => void;
 }> = ({ isOpen, onClose, session, people, attendance, onMark }) => {
   const [filter, setFilter] = useState<ResultKey>('ALL');
-  const [onlyNotShared, setOnlyNotShared] = useState(false);
+  // Which "what I learned" chip is filtering the list, if any.
+  const [sharedFilter, setSharedFilter] = useState<'ALL' | 'SHARED' | 'NOT_SHARED'>('ALL');
   const byUser = new Map(attendance.filter((a) => a.sessionId === session.id).map((a) => [a.userId, a]));
   const keyFor = (userId: string): ResultKey => byUser.get(userId)?.status ?? 'NOT_MARKED';
   const counts = RESULT_CARDS.map((c) => ({ ...c, count: people.filter((u) => keyFor(u.id) === c.key).length }));
@@ -269,8 +270,9 @@ const SessionResultsModal: React.FC<{
   const attended = people.filter((u) => keyFor(u.id) === 'PRESENT' || keyFor(u.id) === 'LATE');
   const notShared = attended.filter((u) => !byUser.get(u.id)?.learned);
   const notSharedIds = new Set(notShared.map((u) => u.id));
+  const sharedIds = new Set(attended.filter((u) => !notSharedIds.has(u.id)).map((u) => u.id));
   const shown = (filter === 'ALL' ? people : people.filter((u) => keyFor(u.id) === filter))
-    .filter((u) => !onlyNotShared || notSharedIds.has(u.id));
+    .filter((u) => sharedFilter === 'ALL' || (sharedFilter === 'SHARED' ? sharedIds : notSharedIds).has(u.id));
   const toneFor = (key: ResultKey) => RESULT_CARDS.find((c) => c.key === key)?.tone ?? '';
   const labelFor = (key: ResultKey) => RESULT_CARDS.find((c) => c.key === key)?.label ?? '';
 
@@ -314,8 +316,10 @@ const SessionResultsModal: React.FC<{
           <MarkCounter
             marked={attended.length - notShared.length}
             notMarked={notShared.length}
-            onlyUnmarked={onlyNotShared}
-            onToggle={setOnlyNotShared}
+            onlyUnmarked={sharedFilter === 'NOT_SHARED'}
+            onToggle={(only) => setSharedFilter(only ? 'NOT_SHARED' : 'ALL')}
+            onlyDone={sharedFilter === 'SHARED'}
+            onToggleDone={(only) => setSharedFilter(only ? 'SHARED' : 'ALL')}
             doneLabel="shared what they learned"
             todoLabel="haven't shared"
           />
