@@ -1791,6 +1791,52 @@ export const settingsApi = {
     return enabled;
   },
 
+  // Whether anyone still unassigned 2 hours after they were added gets
+  // auto-assigned to a same-gender support. Missing row means on.
+  async getFollowUpAutoAssignEnabled(): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'followup_auto_assign_enabled')
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as any)?.value !== false;
+  },
+
+  async setFollowUpAutoAssignEnabled(enabled: boolean): Promise<boolean> {
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert(
+        [{ settingKey: 'followup_auto_assign_enabled', value: enabled, updatedAt: new Date().toISOString() }],
+        { onConflict: 'settingKey' }
+      );
+    if (error) throw new Error(error.message);
+    return enabled;
+  },
+
+  // Whether admins get a reminder every 2 hours while someone is still
+  // waiting to be assigned. Missing row means on.
+  async getFollowUpAdminAlertsEnabled(): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'followup_admin_alerts_enabled')
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as any)?.value !== false;
+  },
+
+  async setFollowUpAdminAlertsEnabled(enabled: boolean): Promise<boolean> {
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert(
+        [{ settingKey: 'followup_admin_alerts_enabled', value: enabled, updatedAt: new Date().toISOString() }],
+        { onConflict: 'settingKey' }
+      );
+    if (error) throw new Error(error.message);
+    return enabled;
+  },
+
   async getRegistrationLink(): Promise<{ url: string }> {
     const { data, error } = await supabase
       .from('AppSetting')
@@ -3661,6 +3707,29 @@ export const followUpContactsApi = {
     const contacts = ((data as any[]) || []).map(mapFollowUpContact);
     if (ownerId) notifyFollowUpAssignment(ownerId, contacts.map((c) => c.fullName));
     return { contacts };
+  },
+
+  // Runs the same leadership rule the 2-hour scheduled sweep uses (same-gender,
+  // added-by-support first, then fewest open follow-ups), immediately, for
+  // everyone currently waiting. Notifies each newly-assigned support the same
+  // way a manual bulk assign does.
+  async assignPendingNow(): Promise<{ assigned: number; stuckNoGender: number; stuckUnknownGender: number }> {
+    const { data, error } = await supabase.rpc('assign_followups_now', { p_token: getSessionToken() });
+    if (error) throw new Error(error.message);
+    // Not notifyFollowUpAssignment: the RPC only returns up to 3 sample names
+    // per owner, but the real assigned count can be higher, so contactCount
+    // is sent explicitly rather than re-derived from the (capped) name list.
+    const batches = (data?.batches ?? {}) as Record<string, { count: number; names: string[] }>;
+    Object.entries(batches).forEach(([ownerId, batch]) => {
+      void supabase.functions
+        .invoke('notify-followup-assignment', { body: { ownerId, contactCount: batch.count, sample: batch.names ?? [] } })
+        .catch(() => undefined);
+    });
+    return {
+      assigned: data?.assigned ?? 0,
+      stuckNoGender: data?.stuckNoGender ?? 0,
+      stuckUnknownGender: data?.stuckUnknownGender ?? 0,
+    };
   },
 
   async logContact(contactId: string): Promise<{ contact: import('../types').FollowUpContact }> {

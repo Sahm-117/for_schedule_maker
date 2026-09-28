@@ -222,6 +222,7 @@ export const followUpContactsApi = USE_SUPABASE ? supabaseFollowUpContactsApi : 
   async createMany(_rows: any[]): Promise<never> { return followUpsUnavailable(); },
   async update(_id: string, _input: any): Promise<never> { return followUpsUnavailable(); },
   async assignMany(_ids: string[], _ownerId: string | null, _dueDate?: string | null): Promise<never> { return followUpsUnavailable(); },
+  async assignPendingNow(): Promise<{ assigned: number; stuckNoGender: number; stuckUnknownGender: number }> { return { assigned: 0, stuckNoGender: 0, stuckUnknownGender: 0 }; },
   async logContact(_id: string): Promise<never> { return followUpsUnavailable(); },
   async delete(_id: string): Promise<never> { return followUpsUnavailable(); },
   async getNextCohortContacts(_cohortId: string): Promise<{ contacts: import('../types').FollowUpContact[] }> { return { contacts: [] }; },
@@ -509,6 +510,10 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async setScripturesEnabled(enabled: boolean): Promise<boolean> {
     return enabled;
   },
+  async getFollowUpAutoAssignEnabled(): Promise<boolean> { return true; },
+  async setFollowUpAutoAssignEnabled(enabled: boolean): Promise<boolean> { return enabled; },
+  async getFollowUpAdminAlertsEnabled(): Promise<boolean> { return true; },
+  async setFollowUpAdminAlertsEnabled(enabled: boolean): Promise<boolean> { return enabled; },
   async getRegistrationLink(): Promise<{ url: string }> {
     return { url: '' };
   },

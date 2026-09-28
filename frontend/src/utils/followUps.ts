@@ -77,11 +77,22 @@ export const FOLLOW_UP_STATUS_META: Record<FollowUpStatus, StatusMeta> = {
 export const statusOptions = <T extends string>(meta: Record<T, StatusMeta>) =>
   (Object.keys(meta) as T[]).map((value) => ({ value, label: meta[value].label }));
 
-export const followUpStatusOptions = (Object.keys(FOLLOW_UP_STATUS_META) as FollowUpStatus[]).map((value) => ({
-  value,
-  label: FOLLOW_UP_STATUS_META[value].label,
-  meta: FOLLOW_UP_STATUS_META[value].description,
-}));
+// Dropdown order and headings, so supports can see which statuses still count as
+// open (see isClosedContact) and which close the follow-up.
+const FOLLOW_UP_STATUS_GROUPS: Array<{ group: string; statuses: FollowUpStatus[] }> = [
+  { group: 'Still open', statuses: ['TO_CONTACT', 'WAITING', 'NEEDS_REMINDER', 'REPLIED', 'CALL_BACK_LATER', 'REGISTERED'] },
+  { group: 'Moved to next cohort', statuses: ['NEXT_COHORT'] },
+  { group: 'Closed', statuses: ['LOGIN_SHARED', 'WRONG_NUMBER', 'NOT_INTERESTED', 'NO_RESPONSE'] },
+];
+
+export const followUpStatusOptions = FOLLOW_UP_STATUS_GROUPS.flatMap(({ group, statuses }) =>
+  statuses.map((value) => ({
+    value,
+    label: FOLLOW_UP_STATUS_META[value].label,
+    meta: FOLLOW_UP_STATUS_META[value].description,
+    group,
+  }))
+);
 
 /**
  * Follow-ups that were finished and filed away before the participant app
@@ -116,6 +127,10 @@ export const isClosedContact = (c: FollowUpContact): boolean => {
   return status === 'LOGIN_SHARED' || status === 'WRONG_NUMBER' || status === 'NOT_INTERESTED' || status === 'NO_RESPONSE';
 };
 
+/** Unassigned and still open, i.e. what run_followup_assignment would hand out. */
+export const isWaitingForAssignment = (c: FollowUpContact): boolean =>
+  !c.ownerId && !c.archivedAt && !isClosedContact(c) && c.registrationStatus !== 'NEXT_COHORT';
+
 /**
  * Open (not closed, not archived) follow-ups each support holds in the given
  * cohort — what the load ring counts. Past cohorts' contacts don't add to the load.
@@ -128,6 +143,75 @@ export const openLoadByOwner = (contacts: FollowUpContact[], cohortId: string | 
     map.set(c.ownerId, (map.get(c.ownerId) ?? 0) + 1);
   }
   return map;
+};
+
+export interface UnassignedFollowUpTag {
+  label: string;
+  tone: string;
+}
+
+/**
+ * Why an unassigned contact is still waiting, for the Contacts page tag only.
+ * Mirrors the eligibility check inside run_followup_assignment (supabase/
+ * migrations/20260928160000_followup_auto_assignment.sql) -- same gender,
+ * same-cohort open load under the limit -- but isn't itself authoritative:
+ * the actual assignment only runs 2 hours after they were added, or via
+ * "Assign now", server-side.
+ */
+export const unassignedFollowUpTag = (
+  contact: FollowUpContact,
+  owners: User[],
+  ownerLoad: Map<string, number> | undefined,
+  maxLoad: number | undefined,
+): UnassignedFollowUpTag | null => {
+  if (contact.ownerId) return null;
+  if (contact.gender !== 'Male' && contact.gender !== 'Female') {
+    return { label: 'Gender not known', tone: 'bg-neutral-100 text-neutral-600' };
+  }
+  const limit = maxLoad ?? Infinity;
+  const hasRoom = owners.some((o) => o.gender === contact.gender && (ownerLoad?.get(o.id) ?? 0) < limit);
+  if (!hasRoom) return { label: 'No same gender to follow up', tone: 'bg-orange-100/80 text-orange-700' };
+  return { label: 'Waiting to be assigned', tone: 'bg-amber-100/80 text-amber-700' };
+};
+
+export interface GenderCapacityOutlook {
+  gender: 'Male' | 'Female';
+  waiting: number;
+  spare: number;
+  shortfall: number;
+  /** Smallest new limit that would make spare cover waiting (null if raising the limit alone can never work, e.g. no same-gender supports at all). */
+  limitNeeded: number | null;
+  /** How many more same-gender supports (at the current limit) would close the gap. */
+  supportsNeeded: number;
+}
+
+/**
+ * Waiting same-gender contacts vs spare same-gender capacity, for the
+ * Contacts page's capacity outlook cards.
+ */
+export const genderCapacityOutlook = (
+  gender: 'Male' | 'Female',
+  waitingContacts: FollowUpContact[],
+  owners: User[],
+  ownerLoad: Map<string, number> | undefined,
+  maxLoad: number,
+): GenderCapacityOutlook => {
+  const waiting = waitingContacts.filter((c) => !c.ownerId && c.gender === gender).length;
+  const sameGenderOwners = owners.filter((o) => o.gender === gender);
+  const loads = sameGenderOwners.map((o) => ownerLoad?.get(o.id) ?? 0);
+  const spare = loads.reduce((sum, load) => sum + Math.max(0, maxLoad - load), 0);
+  const shortfall = Math.max(0, waiting - spare);
+
+  let limitNeeded: number | null = null;
+  if (shortfall > 0 && sameGenderOwners.length > 0) {
+    for (let n = maxLoad + 1; n <= maxLoad + 200; n++) {
+      const spareAtN = loads.reduce((sum, load) => sum + Math.max(0, n - load), 0);
+      if (spareAtN >= waiting) { limitNeeded = n; break; }
+    }
+  }
+  const supportsNeeded = shortfall > 0 ? Math.ceil(shortfall / maxLoad) : 0;
+
+  return { gender, waiting, spare, shortfall, limitNeeded, supportsNeeded };
 };
 
 export const isClosedRegistrationStatus = (status: FollowUpRegistrationStatus): boolean =>

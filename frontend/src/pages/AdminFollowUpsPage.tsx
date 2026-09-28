@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import Spinner from '../components/Spinner';
 import AppSelect from '../components/AppSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
+import FollowUpAssignmentSettings from '../components/followups/FollowUpAssignmentSettings';
 import FollowUpDashboard from '../components/followups/FollowUpDashboard';
 import FollowUpContactsTable from '../components/followups/FollowUpContactsTable';
 import FollowUpContactModal from '../components/followups/FollowUpContactModal';
@@ -30,12 +31,15 @@ import {
   REGISTRATION_STATUS_META,
   NEXT_ACTION_META,
   isClosedContact,
+  isWaitingForAssignment,
   isClosedRegistrationStatus,
   computeFollowUpStatus,
   contactInCohortScope,
   FOLLOW_UP_STAGE,
   FOLLOW_UP_STATUS_META,
   openLoadByOwner,
+  unassignedFollowUpTag,
+  genderCapacityOutlook,
 } from '../utils/followUps';
 import { DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
 import { compareText, sortByText } from '../utils/sort';
@@ -49,13 +53,29 @@ interface FilterState {
   reg: string;
   next: string;
   archived: boolean;
+  gender: string;
+  assignment: string;
 }
+
+const EMPTY_FILTERS: FilterState = { reply: '', call: '', reg: '', next: '', archived: false, gender: '', assignment: '' };
+
+const ASSIGNMENT_TAG_KEY: Record<string, string> = {
+  'Waiting to be assigned': 'waiting',
+  'No same gender to follow up': 'no_gender',
+  'Gender not known': 'unknown_gender',
+};
 
 const statusGroups: Array<{ key: keyof FilterState; label: string; options: Array<{ value: string; label: string }> }> = [
   { key: 'reply', label: 'Reply', options: Object.entries(REPLY_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
   { key: 'call', label: 'Call', options: Object.entries(CALL_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
   { key: 'reg', label: 'Registration', options: Object.entries(REGISTRATION_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
   { key: 'next', label: 'Next action', options: Object.entries(NEXT_ACTION_META).map(([v, m]) => ({ value: v, label: m.label })) },
+  { key: 'gender', label: 'Gender', options: [{ value: 'Male', label: 'Male' }, { value: 'Female', label: 'Female' }] },
+  { key: 'assignment', label: 'Assignment', options: [
+    { value: 'waiting', label: 'Waiting to be assigned' },
+    { value: 'no_gender', label: 'No same gender to follow up' },
+    { value: 'unknown_gender', label: 'Gender not known' },
+  ] },
 ];
 
 const pillBtn = (active: boolean) =>
@@ -76,6 +96,8 @@ function activeFilterCount(f: FilterState): number {
   if (f.reg) n++;
   if (f.next) n++;
   if (f.archived) n++;
+  if (f.gender) n++;
+  if (f.assignment) n++;
   return n;
 }
 
@@ -123,8 +145,12 @@ const AdminFollowUpsPage: React.FC = () => {
   const [loadError, setLoadError] = useState('');
   const initialLoadRef = useRef(true);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [filters, setFilters] = useState<FilterState>({ reply: '', call: '', reg: '', next: '', archived: false });
-  const [draft, setDraft] = useState<FilterState>({ reply: '', call: '', reg: '', next: '', archived: false });
+  const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
+  const [draft, setDraft] = useState<FilterState>(EMPTY_FILTERS);
+  const [assignStatus, setAssignStatus] = useState('');
+  const [showAssignSettings, setShowAssignSettings] = useState(false);
+  const [confirmAssignNow, setConfirmAssignNow] = useState(false);
+  const [assigning, setAssigning] = useState(false);
 
   const [showContactModal, setShowContactModal] = useState(false);
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
@@ -196,6 +222,11 @@ const AdminFollowUpsPage: React.FC = () => {
       if (filters.call && c.callStatus !== filters.call) return false;
       if (filters.reg && c.registrationStatus !== filters.reg) return false;
       if (filters.next && c.nextAction !== filters.next) return false;
+      if (filters.gender && c.gender !== filters.gender) return false;
+      if (filters.assignment) {
+        const tag = unassignedFollowUpTag(c, owners, ownerLoad, maxLoad);
+        if (ASSIGNMENT_TAG_KEY[tag?.label ?? ''] !== filters.assignment) return false;
+      }
       // Arrived from an Overview tile: a single derived status, or every status
       // that still counts as open work.
       if (statusParam) {
@@ -213,7 +244,7 @@ const AdminFollowUpsPage: React.FC = () => {
       return (aClosed - bClosed) || compareText(a.fullName, b.fullName);
     });
     return list;
-  }, [contacts, cohortFilter, ownerFilter, filters, statusParam, contactSort, activeCohort?.id]);
+  }, [contacts, cohortFilter, ownerFilter, filters, statusParam, contactSort, activeCohort?.id, owners, ownerLoad, maxLoad]);
 
   const ownerOptionCounts = useMemo(() => {
     const scoped = cohortFilter
@@ -232,6 +263,8 @@ const AdminFollowUpsPage: React.FC = () => {
     () => (cohortFilter ? contacts.filter((c) => contactInCohortScope(c, cohortFilter, activeCohort?.id)) : contacts),
     [contacts, cohortFilter, activeCohort?.id]
   );
+
+  const waitingCount = useMemo(() => contacts.filter(isWaitingForAssignment).length, [contacts]);
 
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
@@ -330,13 +363,34 @@ const AdminFollowUpsPage: React.FC = () => {
   };
 
   const clearFilters = () => {
-    setDraft({ reply: '', call: '', reg: '', next: '', archived: false });
-    setFilters({ reply: '', call: '', reg: '', next: '', archived: false });
+    setDraft(EMPTY_FILTERS);
+    setFilters(EMPTY_FILTERS);
     setShowFilterPanel(false);
   };
 
   const togglePill = (group: keyof FilterState, value: string) => {
     setDraft((prev) => ({ ...prev, [group]: prev[group] === value ? '' : value }));
+  };
+
+  // Runs the same rule the 2-hour scheduled sweep uses, right now, for
+  // everyone currently waiting -- see followUpContactsApi.assignPendingNow.
+  const handleAssignNow = async () => {
+    setAssigning(true);
+    setAssignStatus('');
+    try {
+      const { assigned, stuckNoGender, stuckUnknownGender } = await followUpContactsApi.assignPendingNow();
+      const stuck = stuckNoGender + stuckUnknownGender;
+      const parts = [`Assigned ${assigned}.`];
+      if (stuckNoGender > 0) parts.push(`${stuckNoGender} ${stuckNoGender === 1 ? 'has' : 'have'} no same-gender support with space.`);
+      if (stuckUnknownGender > 0) parts.push(`${stuckUnknownGender} ${stuckUnknownGender === 1 ? "has no gender" : "have no gender"} on file.`);
+      if (assigned === 0 && stuck === 0) parts.push('Nobody was waiting.');
+      setAssignStatus(parts.join(' '));
+      void loadAll();
+    } catch (err) {
+      setAssignStatus(err instanceof Error ? err.message : 'Could not run assignment.');
+    } finally {
+      setAssigning(false);
+    }
   };
 
   const tabs: Array<{ key: Tab; label: string }> = [
@@ -361,20 +415,40 @@ const AdminFollowUpsPage: React.FC = () => {
             >
               Add Contact
             </button>
-            {tab === 'contacts' && (
-              <AppOverflowMenu
-                align="right"
-                items={[
+            <button
+              type="button"
+              onClick={() => setShowAssignSettings(true)}
+              aria-label="Assignment settings"
+              title="Assignment settings"
+              className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.06)] hover:text-gray-900"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M10.3 4.3c.4-1.7 3-1.7 3.4 0a1.7 1.7 0 0 0 2.6 1.1c1.5-.9 3.3.8 2.4 2.4a1.7 1.7 0 0 0 1 2.5c1.8.4 1.8 3 0 3.4a1.7 1.7 0 0 0-1 2.6c.9 1.5-.9 3.3-2.4 2.4a1.7 1.7 0 0 0-2.6 1c-.4 1.8-3 1.8-3.4 0a1.7 1.7 0 0 0-2.6-1c-1.5.9-3.3-.9-2.4-2.4a1.7 1.7 0 0 0-1-2.6c-1.8-.4-1.8-3 0-3.4a1.7 1.7 0 0 0 1-2.5c-.9-1.6.9-3.3 2.4-2.4a1.7 1.7 0 0 0 2.6-1.1Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+              </svg>
+            </button>
+            <AppOverflowMenu
+              align="right"
+              items={[
+                { label: assigning ? 'Assigning…' : 'Assign follow-ups now', onClick: () => { if (!assigning) setConfirmAssignNow(true); } },
+                ...(tab === 'contacts' ? [
                   { label: 'Import contacts', onClick: () => setShowImport(true) },
                   { label: 'Export contacts', onClick: () => setShowExport(true) },
-                ]}
-              />
-            )}
+                ] : []),
+              ]}
+            />
           </div>
         )}
       />
 
       <SheetSyncBanner contacts={contacts} onRetried={() => { void loadAll(); }} />
+
+      {assignStatus && (
+        <div className="mb-5 flex items-center justify-between gap-3 rounded-3xl bg-primary/5 px-4 py-3 text-sm text-gray-700">
+          <span>{assignStatus}</span>
+          <button type="button" onClick={() => setAssignStatus('')} className="text-xs font-semibold text-gray-400 hover:text-gray-600">Dismiss</button>
+        </div>
+      )}
 
       {registrationLink && (
         <div data-wt="fu-link" className="mb-5 flex flex-wrap items-center gap-3 rounded-3xl border border-sky-100 bg-sky-50/60 px-4 py-3">
@@ -496,6 +570,15 @@ const AdminFollowUpsPage: React.FC = () => {
       ) : (
         <>
           {tab === 'overview' && <FollowUpDashboard contacts={dashboardContacts} cohortId={cohortFilter || null} cohortName={cohorts.find((c) => c.id === cohortFilter)?.name} onShowUnassigned={showUnassigned} />}
+          {tab === 'contacts' && (
+            <FollowUpAssignmentSummary
+              contacts={dashboardContacts}
+              owners={owners}
+              ownerLoad={ownerLoad}
+              maxLoad={maxLoad}
+              onSetAssignmentFilter={(value) => setFilters((f) => ({ ...f, assignment: f.assignment === value ? '' : value }))}
+            />
+          )}
           {tab === 'contacts' && statusParam && (
             <div className="mb-3 flex items-center gap-2">
               <span className="text-xs text-gray-500">Showing</span>
@@ -667,6 +750,80 @@ const AdminFollowUpsPage: React.FC = () => {
         </div>,
         document.body
       )}
+      {showAssignSettings && createPortal(
+        <div className="fixed inset-0 z-[120] grid place-items-center bg-black/30 p-4 backdrop-blur-sm" onClick={() => setShowAssignSettings(false)}>
+          <div className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <FollowUpAssignmentSettings waitingCount={waitingCount} onClose={() => setShowAssignSettings(false)} />
+          </div>
+        </div>,
+        document.body
+      )}
+      <ConfirmationModal
+        isOpen={confirmAssignNow}
+        onClose={() => setConfirmAssignNow(false)}
+        onConfirm={() => { setConfirmAssignNow(false); void handleAssignNow(); }}
+        title="Assign follow-ups now?"
+        message={`${waitingCount} ${waitingCount === 1 ? 'person is' : 'people are'} waiting. Each goes to a same-gender support with room, and that support gets the usual new follow-up alert. Anyone with no same-gender support or no gender stays waiting.`}
+        confirmText="Assign now"
+        type="warning"
+      />
+    </div>
+  );
+};
+
+// Contacts tab summary cards: per-gender capacity outlook, supports at the
+// limit, and how many are waiting / stuck. Tapping a number filters the list
+// below via the same Assignment filter the drawer uses.
+const FollowUpAssignmentSummary: React.FC<{
+  contacts: FollowUpContact[];
+  owners: User[];
+  ownerLoad: Map<string, number>;
+  maxLoad: number;
+  onSetAssignmentFilter: (value: string) => void;
+}> = ({ contacts, owners, ownerLoad, maxLoad, onSetAssignmentFilter }) => {
+  const [showAtLimit, setShowAtLimit] = useState(false);
+  const waitingContacts = useMemo(() => contacts.filter(isWaitingForAssignment), [contacts]);
+  const tagCounts = useMemo(() => {
+    const counts = { waiting: 0, no_gender: 0, unknown_gender: 0 };
+    waitingContacts.forEach((c) => {
+      const key = ASSIGNMENT_TAG_KEY[unassignedFollowUpTag(c, owners, ownerLoad, maxLoad)?.label ?? ''];
+      if (key) counts[key as keyof typeof counts]++;
+    });
+    return counts;
+  }, [waitingContacts, owners, ownerLoad, maxLoad]);
+  const atLimitOwners = useMemo(() => owners.filter((o) => (ownerLoad.get(o.id) ?? 0) >= maxLoad), [owners, ownerLoad, maxLoad]);
+  const outlooks = useMemo(
+    () => (['Male', 'Female'] as const).map((g) => genderCapacityOutlook(g, waitingContacts, owners, ownerLoad, maxLoad)),
+    [waitingContacts, owners, ownerLoad, maxLoad]
+  );
+
+  return (
+    <div data-wt="fu-assignment-summary" className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {outlooks.map((o) => (
+        <div key={o.gender} className="surface-card p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{o.gender} capacity</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{o.waiting} waiting</p>
+          <p className="mt-0.5 text-xs text-gray-500">{o.spare} spare place{o.spare === 1 ? '' : 's'} among {o.gender.toLowerCase()} supports</p>
+          {o.shortfall > 0 && (
+            <p className="mt-1.5 text-xs font-semibold text-orange-700">
+              Short {o.shortfall}: raise the limit to {o.limitNeeded ?? '—'}, or add {o.supportsNeeded} more support{o.supportsNeeded === 1 ? '' : 's'}.
+            </p>
+          )}
+        </div>
+      ))}
+      <button type="button" onClick={() => setShowAtLimit((v) => !v)} className="surface-card p-4 text-left">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Supports at the limit</p>
+        <p className="mt-1 text-2xl font-bold text-gray-900">{atLimitOwners.length}</p>
+        {showAtLimit && <p className="mt-1 text-xs text-gray-500">{atLimitOwners.map((o) => o.name).join(', ') || 'None right now.'}</p>}
+      </button>
+      <div className="surface-card p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Waiting to be assigned</p>
+        <button type="button" onClick={() => onSetAssignmentFilter('waiting')} className="mt-1 block text-2xl font-bold text-gray-900 hover:underline">{tagCounts.waiting}</button>
+        <button type="button" onClick={() => onSetAssignmentFilter('no_gender')} className="mt-1.5 block text-xs font-semibold text-orange-700 hover:underline">{tagCounts.no_gender} no same gender to follow up</button>
+        {tagCounts.unknown_gender > 0 && (
+          <button type="button" onClick={() => onSetAssignmentFilter('unknown_gender')} className="mt-0.5 block text-xs font-semibold text-neutral-600 hover:underline">{tagCounts.unknown_gender} gender not known</button>
+        )}
+      </div>
     </div>
   );
 };

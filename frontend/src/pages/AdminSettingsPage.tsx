@@ -12,6 +12,7 @@ import type { ChurchDepartment } from '../constants/departments';
 import { setChurchDepartmentsCache } from '../hooks/useChurchDepartments';
 import { useAppData } from '../context/AppDataContext';
 import Spinner from '../components/Spinner';
+import FollowUpAssignmentSettings from '../components/followups/FollowUpAssignmentSettings';
 
 // Every section on this page reads the same way: a compact summary of what is
 // currently set, and nothing editable until you press Edit. Save writes and
@@ -864,6 +865,7 @@ const AdminSettingsPage: React.FC = () => {
         <div className="flex flex-col gap-4">
           <div data-wt="settings-departments"><ChurchDepartmentsCard /></div>
           <div data-wt="settings-contact"><SupportContactCard /></div>
+          <div data-wt="settings-followup-assignment"><FollowUpAssignmentSettings /></div>
         </div>
       </div>
 

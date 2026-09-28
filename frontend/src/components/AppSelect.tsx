@@ -10,6 +10,8 @@ type SelectOption = {
   done?: boolean;
   /** Load ring on the right, e.g. a support's open follow-ups against the max. */
   ring?: { value: number; max: number };
+  /** Small heading shown above the first option of each run of the same group. */
+  group?: string;
 };
 
 interface AppSelectProps {
@@ -220,9 +222,14 @@ const AppSelect: React.FC<AppSelectProps> = ({
           <div className="min-h-0 flex-1 overflow-y-auto">
             {filteredOptions.length === 0 ? (
               <p className="px-3 py-4 text-center text-sm font-semibold text-gray-400">No options found</p>
-            ) : filteredOptions.map((option) => {
+            ) : filteredOptions.map((option, index) => {
               const selected = option.value === value;
+              const groupHeading = option.group && option.group !== filteredOptions[index - 1]?.group ? option.group : null;
               return (
+                <React.Fragment key={option.value}>
+                {groupHeading && (
+                  <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400 first:pt-1">{groupHeading}</p>
+                )}
                 <button
                   key={option.value}
                   type="button"
@@ -257,6 +264,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
                     </span>
                   )}
                 </button>
+                </React.Fragment>
               );
             })}
           </div>

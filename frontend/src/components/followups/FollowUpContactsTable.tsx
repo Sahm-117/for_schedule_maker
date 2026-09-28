@@ -11,6 +11,7 @@ import {
   followUpStatusOptions,
   isOverdue,
   buildStatusPatch,
+  unassignedFollowUpTag,
 } from '../../utils/followUps';
 import Spinner from '../Spinner';
 import ConfirmationModal from '../ConfirmationModal';
@@ -345,7 +346,10 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                       {!contact.cohortId && (
                         <span title="Not tied to any cohort yet. Joins this cohort once assigned." className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-1 text-[11px] font-semibold text-neutral-600">From prior cohort</span>
                       )}
-
+                      {(() => {
+                        const tag = unassignedFollowUpTag(contact, owners, ownerLoad, maxLoad);
+                        return tag && <span className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-semibold ${tag.tone}`}>{tag.label}</span>;
+                      })()}
                     </div>
                   </div>
                 </td>
@@ -424,6 +428,10 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                 {!contact.cohortId && (
                   <div className="mt-1"><span title="Not tied to any cohort yet. Joins this cohort once assigned." className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-1 text-[11px] font-semibold text-neutral-600">From prior cohort</span></div>
                 )}
+                {(() => {
+                  const tag = unassignedFollowUpTag(contact, owners, ownerLoad, maxLoad);
+                  return tag && <div className="mt-1"><span className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-semibold ${tag.tone}`}>{tag.label}</span></div>;
+                })()}
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
                 <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold ${isOverdue(contact) ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-500'}`}>

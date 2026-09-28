@@ -12,6 +12,7 @@ import {
   type CohortHealthPayload,
 } from '../components/dashboard/healthModel';
 import Spinner from '../components/Spinner';
+import InfoTip from '../components/InfoTip';
 import Avatar from '../components/Avatar';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
@@ -344,14 +345,21 @@ const AdminSupportsPage: React.FC = () => {
       ) : (
         <div className="space-y-5">
           <section data-wt="supports-rules" className="surface-card p-4 sm:p-5">
-            <p className="text-sm text-gray-600">
-              Each week a support submits the group meeting report and records meeting attendance for everyone.
-              {' '}{rules.supportAmberMissedWeeks} unrecorded week{rules.supportAmberMissedWeeks === 1 ? '' : 's'} = keep an eye on, {rules.supportRedMissedWeeks} = needs attention.
-              {' '}Groups should be fully onboarded within {rules.onboardingMaxDays} days.
-              {' '}<NavLink to="/settings" className="font-semibold text-primary">Change rules</NavLink>
-            </p>
-            {model.mode === 'upcoming' && <p className="mt-2 text-sm font-medium text-gray-800">The cohort hasn't started, so only onboarding is judged for now.</p>}
-            {model.mode === 'running' && model.judged.length === 0 && <p className="mt-2 text-sm font-medium text-gray-800">Weekly records are judged once Week 1 is over.</p>}
+            <div className="flex items-center gap-1.5 text-sm font-medium text-gray-800">
+              <span>
+                {model.mode === 'upcoming'
+                  ? "The cohort hasn't started, so only onboarding is judged for now."
+                  : model.mode === 'running' && model.judged.length === 0
+                    ? 'Weekly records are judged once Week 1 is over.'
+                    : 'How supports are judged'}
+              </span>
+              <InfoTip label="How supports are judged">
+                Each week a support submits the group meeting report and records meeting attendance for everyone.
+                {' '}{rules.supportAmberMissedWeeks} unrecorded week{rules.supportAmberMissedWeeks === 1 ? '' : 's'} = keep an eye on, {rules.supportRedMissedWeeks} = needs attention.
+                {' '}Groups should be fully onboarded within {rules.onboardingMaxDays} days.
+                {' '}<NavLink to="/settings" className="font-semibold text-primary">Change rules</NavLink>
+              </InfoTip>
+            </div>
             <div className="mt-4">
               {/* Same look as SegmentedTabs, but wraps to two rows on phones so counts stay readable. */}
               <div role="tablist" className="grid grid-cols-2 gap-1.5 rounded-2xl border border-[#eef0f4] bg-white p-[5px] sm:grid-cols-4">
@@ -534,11 +542,20 @@ const AdminSupportsPage: React.FC = () => {
   );
 };
 
-// Load ring for a support's open follow-ups against the max in Settings.
+// Load ring for a support's open follow-ups against the max in Settings, plus
+// a plain pill once they've reached or gone past it.
 const FollowUpLoad: React.FC<{ value: number; max: number }> = ({ value, max }) => (
-  <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
-    <LoadRing value={value} max={max} />
-    follow-ups
+  <span className="flex flex-col items-end gap-1">
+    <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
+      <LoadRing value={value} max={max} />
+      follow-ups
+    </span>
+    {max > 0 && value > max && (
+      <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[10px] font-semibold text-red-700">Over limit</span>
+    )}
+    {max > 0 && value === max && (
+      <span className="rounded-full bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold text-amber-700">At limit</span>
+    )}
   </span>
 );
 

@@ -470,6 +470,15 @@ const AdminHubsPage: React.FC = () => {
   const { activeCohort, liveRevision, weeks } = useAppData();
 
   const [hubs, setHubs] = useState<SupportHub[]>([]);
+  // Card columns follow the sm/lg breakpoints. Hubs are dealt across them in
+  // turn so they read 1, 2, 3 along each row (CSS columns filled downwards).
+  const columnCountFor = (width: number) => (width >= 1024 ? 3 : width >= 640 ? 2 : 1);
+  const [columnCount, setColumnCount] = useState(() => columnCountFor(window.innerWidth));
+  useEffect(() => {
+    const onResize = () => setColumnCount(columnCountFor(window.innerWidth));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const [memberships, setMemberships] = useState<HubMembership[]>([]);
   const [supportUsers, setSupportUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -697,11 +706,26 @@ const AdminHubsPage: React.FC = () => {
               <p className="text-[15px] text-gray-500">No hubs match.</p>
             </div>
           ) : (
-        // Masonry via CSS columns: each card keeps its own height.
-        <div className="columns-1 gap-5 sm:columns-2 lg:columns-3">
-          {filteredHubs.map((h) => {
+        // Masonry: each card keeps its own height, hubs dealt across columns in order.
+        <div className="flex items-start gap-5">
+          {Array.from({ length: columnCount }, (_, col) => filteredHubs.filter((_h, i) => i % columnCount === col)).map((columnHubs, col) => (
+          <div key={col} className="flex min-w-0 flex-1 flex-col">
+          {columnHubs.map((h) => {
             const memberIds = membersByHub.get(h.id) ?? [];
-            const memberUsers = memberIds.map((id) => userById.get(id)).filter(Boolean) as User[];
+            // Hub lead, assistant, prayer leads, recap leads, other members, then
+            // anyone whose only job here is IT support (IT-only non-members follow).
+            const itIds = new Set((itSupportsByHub[h.id] ?? []).map((s) => s.userId));
+            const memberRank = (id: string) =>
+              id === h.leadUserId ? 0
+              : id === h.assistantLeadUserId ? 1
+              : (h.prayerLeadUserIds ?? []).includes(id) ? 2
+              : (h.recapLeadUserIds ?? []).includes(id) ? 3
+              : itIds.has(id) ? 5
+              : 4;
+            const memberUsers = (memberIds.map((id) => userById.get(id)).filter(Boolean) as User[])
+              .map((u, i) => ({ u, i }))
+              .sort((a, b) => memberRank(a.u.id) - memberRank(b.u.id) || a.i - b.i)
+              .map(({ u }) => u);
             return (
               <div key={h.id} className="mb-5 flex break-inside-avoid flex-col gap-3 rounded-[28px] bg-white px-6 pb-4 pt-6 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]">
                 <div className="flex items-start justify-between gap-2">
@@ -782,8 +806,12 @@ const AdminHubsPage: React.FC = () => {
                           </button>
                           <div className="min-w-0 flex-1">
                             <button type="button" onClick={() => setProfileUserId(s.userId)} className="block max-w-full truncate text-left text-[15px] font-medium leading-tight text-gray-900 hover:underline">{s.name}</button>
-                            <div className="mt-1 flex flex-wrap gap-1">
+                            <div className="mt-1 flex flex-wrap items-center gap-1">
                               <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${HUB_JOB_INFO.IT_SUPPORT.pill}`}>{HUB_JOB_INFO.IT_SUPPORT.label}</span>
+                              {(() => {
+                                const homeHubs = hubs.filter((x) => (membersByHub.get(x.id) ?? []).includes(s.userId)).map((x) => x.name);
+                                return <span className="text-[12.5px] text-gray-400">{homeHubs.length ? `Member of ${homeHubs.join(', ')}` : 'Not in a hub'}</span>;
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -793,6 +821,8 @@ const AdminHubsPage: React.FC = () => {
               </div>
             );
           })}
+          </div>
+          ))}
         </div>
           )}
         </>
