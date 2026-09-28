@@ -29,6 +29,7 @@ import {
   formRegistrationsApi as supabaseFormRegistrationsApi,
   messageTemplatesApi as supabaseMessageTemplatesApi,
   followUpIssuesApi as supabaseFollowUpIssuesApi,
+  followUpLoginIssuesApi as supabaseFollowUpLoginIssuesApi,
   participantsApi as supabaseParticipantsApi,
   groupsApi as supabaseGroupsApi,
   attendanceApi as supabaseAttendanceApi,
@@ -243,6 +244,12 @@ export const followUpIssuesApi = USE_SUPABASE ? supabaseFollowUpIssuesApi : {
   async create(_input: any): Promise<never> { return followUpsUnavailable(); },
   async update(_id: string, _input: any): Promise<never> { return followUpsUnavailable(); },
   async delete(_id: string): Promise<never> { return followUpsUnavailable(); },
+};
+
+export const followUpLoginIssuesApi = USE_SUPABASE ? supabaseFollowUpLoginIssuesApi : {
+  async report(_contactId: string, _description: string): Promise<never> { return followUpsUnavailable(); },
+  async getForItSupport(_cohortId: string): Promise<{ isItSupport: boolean; issues: import('../types').ItLoginIssue[] }> { return { isItSupport: false, issues: [] }; },
+  async resolve(_issueId: string, _note?: string | null): Promise<never> { return followUpsUnavailable(); },
 };
 
 // Activities API
@@ -534,6 +541,9 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   },
   async getSupportContact(): Promise<{ name: string; phone: string }> {
     return { name: 'Adetutu', phone: '2348184742850' };
+  },
+  async getMyHelpContact(_cohortId?: string | null): Promise<{ name: string; phone: string } | null> {
+    return null;
   },
   async setSupportContact(contact: { name: string; phone: string }): Promise<{ name: string; phone: string }> {
     return contact;

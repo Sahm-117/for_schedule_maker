@@ -11,12 +11,13 @@ import FollowUpContactModal from '../components/followups/FollowUpContactModal';
 import FollowUpIssuesPanel from '../components/followups/FollowUpIssuesPanel';
 import MessageTemplatePicker from '../components/followups/MessageTemplatePicker';
 import NotInterestedPopup from '../components/followups/NotInterestedPopup';
+import LoginIssuePopup from '../components/followups/LoginIssuePopup';
 import FollowUpStatusFlow from '../components/followups/FollowUpStatusFlow';
 import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { followUpContactsApi, followUpIssuesApi, formRegistrationsApi, messageTemplatesApi, settingsApi } from '../services/api';
-import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, FollowUpStatus, MessageTemplate, User } from '../types';
+import { followUpContactsApi, followUpIssuesApi, followUpLoginIssuesApi, formRegistrationsApi, messageTemplatesApi, settingsApi } from '../services/api';
+import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, FollowUpStatus, ItLoginIssue, MessageTemplate, User } from '../types';
 import type { FormRegistration } from '../services/supabase-api';
 import {
   FOLLOW_UP_STATUS_META,
@@ -33,7 +34,7 @@ import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
 import { compareText, sortByText } from '../utils/sort';
 import LoginDetailsCard from '../components/participants/LoginDetailsCard';
 
-type MobTab = 'register' | 'follow';
+type MobTab = 'register' | 'follow' | 'it';
 
 // A support meets someone and takes their name and number, nothing more. The
 // person fills in the Google Form themselves once they know what FOF is about,
@@ -42,6 +43,12 @@ const EMPTY_PROSPECT = { fullName: '', phone: '' };
 
 const CARD = 'rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
 const INPUT = 'min-h-[48px] w-full rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
+
+// IT issues tab: same soft surface, pill buttons and field as My Hub.
+const IT_SURFACE = 'rounded-[28px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]';
+const IT_PRIMARY = 'flex h-[48px] w-full items-center justify-center gap-2 rounded-full bg-primary px-5 text-[15px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60';
+const IT_SECONDARY = 'flex h-[44px] w-full items-center justify-center gap-2 rounded-full bg-[#f2f2f4] px-4 text-[14px] font-semibold text-gray-900 transition active:scale-[0.98]';
+const IT_FIELD = 'w-full rounded-2xl border-0 bg-[#f5f5f7] px-4 py-3.5 text-[15px] placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30';
 
 const READ_KEY = 'fof_issue_read';
 const unreadIssueCount = (issues: FollowUpIssue[]) => {
@@ -72,6 +79,18 @@ const shortDateTime = (value?: string | null) => {
   return `${shortDate(value)}, ${time}`;
 };
 
+// "5m ago" / "3h ago" today, then the date and time ("27 Sept, 9:38 am").
+const reportedWhen = (value?: string | null) => {
+  if (!value) return '';
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return '';
+  const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  if (mins < 24 * 60) return `${Math.round(mins / 60)}h ago`;
+  return shortDateTime(value);
+};
+
 
 const SupportMobilisationPage: React.FC = () => {
   const { user } = useAuth();
@@ -82,7 +101,8 @@ const SupportMobilisationPage: React.FC = () => {
 const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const { cohorts, activeCohort, liveRevision } = useAppData();
   const [searchParams] = useSearchParams();
-  const [tab, setTab] = useState<MobTab>(searchParams.get('tab') === 'follow' ? 'follow' : 'register');
+  const initialTab = searchParams.get('tab');
+  const [tab, setTab] = useState<MobTab>(initialTab === 'follow' ? 'follow' : initialTab === 'it' ? 'it' : 'register');
 
   const [contacts, setContacts] = useState<FollowUpContact[]>([]);
   const [myProspects, setMyProspects] = useState<FollowUpContact[]>([]);
@@ -115,6 +135,31 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [showExport, setShowExport] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [mobilisationTarget, setMobilisationTarget] = useState<number | null>(null);
+  const [loginIssueContact, setLoginIssueContact] = useState<FollowUpContact | null>(null);
+
+  // IT issues tab: only for IT Support (a HubItSupport row in this cohort).
+  const [isItSupport, setIsItSupport] = useState(false);
+  const [itLoaded, setItLoaded] = useState(false);
+  const [itIssues, setItIssues] = useState<ItLoginIssue[]>([]);
+  const [itShowResolved, setItShowResolved] = useState(false);
+  const [resolvingIssue, setResolvingIssue] = useState<ItLoginIssue | null>(null);
+  const [resolveNote, setResolveNote] = useState('');
+  const [resolveSaving, setResolveSaving] = useState(false);
+
+  const loadItIssues = useCallback(async () => {
+    // No cohort yet (still loading): don't settle "not IT Support", or ?tab=it
+    // would bounce to Registration before the real answer arrives.
+    if (!activeCohort?.id) { setIsItSupport(false); setItIssues([]); return; }
+    try {
+      const res = await followUpLoginIssuesApi.getForItSupport(activeCohort.id);
+      setIsItSupport(res.isItSupport);
+      setItIssues(res.isItSupport ? res.issues : []);
+    } catch (err) {
+      console.warn('Failed to load login issues:', err);
+    } finally {
+      setItLoaded(true);
+    }
+  }, [activeCohort?.id]);
 
   // The cohort's sign-up target (set by the admin on Follow-ups → Overview).
   useEffect(() => {
@@ -187,6 +232,46 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     const interval = setInterval(() => void loadAll(), 30000);
     return () => clearInterval(interval);
   }, [loadAll]);
+  useEffect(() => { void loadItIssues(); }, [liveRevision, loadItIssues]);
+  useEffect(() => {
+    const interval = setInterval(() => void loadItIssues(), 30000);
+    return () => clearInterval(interval);
+  }, [loadItIssues]);
+
+  // ?tab=it for someone who isn't IT Support lands on Registration instead.
+  useEffect(() => {
+    if (tab === 'it' && itLoaded && !isItSupport) setTab('register');
+  }, [tab, itLoaded, isItSupport]);
+
+  const openItIssues = useMemo(() => itIssues.filter((issue) => issue.status === 'OPEN'), [itIssues]);
+  const resolvedItIssues = useMemo(() => itIssues.filter((issue) => issue.status !== 'OPEN'), [itIssues]);
+  const visibleItIssues = itShowResolved ? resolvedItIssues : openItIssues;
+
+  useEffect(() => {
+    if (itShowResolved && resolvedItIssues.length === 0) setItShowResolved(false);
+  }, [itShowResolved, resolvedItIssues.length]);
+
+  const submitResolve = async () => {
+    if (!resolvingIssue || resolveSaving) return;
+    setResolveSaving(true);
+    try {
+      const { registrationStatus } = await followUpLoginIssuesApi.resolve(resolvingIssue.id, resolveNote);
+      const firstName = resolvingIssue.contactName.split(' ')[0];
+      toast({
+        tone: 'success',
+        message: registrationStatus === 'ACCESS_CONFIRMED'
+          ? `${firstName} is in the app. Moved to Participant confirmed access.`
+          : `${firstName} moved back to Login shared until they sign in.`,
+      });
+      setResolvingIssue(null);
+      setResolveNote('');
+      void loadItIssues();
+    } catch (err) {
+      toast({ tone: 'error', message: err instanceof Error && err.message ? err.message : "That didn't save. Please try again." });
+    } finally {
+      setResolveSaving(false);
+    }
+  };
 
   // Default view stays on the active cohort (plus contacts with no cohort at
   // all, which count as belonging to it); "Show past cohorts" reveals the rest.
@@ -284,6 +369,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
 
   const handleStatusChange = (contact: FollowUpContact, status: FollowUpStatus) => {
     if (status === 'NOT_INTERESTED') { setNotInterestedContact(contact); return; }
+    if (status === 'LOGIN_ISSUE') { setLoginIssueContact(contact); return; }
     void handleFieldChange(contact, buildStatusPatch(status) as FollowUpContactUpdate);
   };
 
@@ -391,9 +477,11 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               tabs={[
                 { key: 'register', label: 'Registration' },
                 { key: 'follow', label: `Follow-ups (${openContacts.length})` },
+                ...(isItSupport ? [{ key: 'it', label: `IT issues (${openItIssues.length})` }] : []),
               ]}
               active={tab}
               onChange={(key) => setTab(key as MobTab)}
+              scrollable
             />
           </div>
           <div data-wt="mob-more"><AppOverflowMenu items={overflowItems} /></div>
@@ -684,7 +772,144 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
 
           </>
         )}
+
+        {tab === 'it' && isItSupport && (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[13px] font-semibold text-gray-700">{itShowResolved ? 'Resolved login issues' : 'Login issues in your hub'}</span>
+              <InfoTip label="About IT issues">
+                <span className="block">When a support picks Issue with login, it shows here with what they wrote.</span>
+                <span className="mt-2 block">Reach the person or their support, send a new login code if needed, then mark it resolved. If they have signed in, they move to Participant confirmed access. If not yet, back to Login shared.</span>
+              </InfoTip>
+              <div className="ml-auto grid grid-cols-2 gap-0.5 rounded-full bg-[#f2f2f4] p-1 text-xs font-semibold">
+                <button type="button" onClick={() => setItShowResolved(false)} aria-pressed={!itShowResolved} className={`rounded-full px-3.5 py-1.5 transition ${!itShowResolved ? 'bg-white text-gray-900 shadow-[0_1px_3px_rgba(17,24,39,0.12)]' : 'text-gray-600'}`}>
+                  Open ({openItIssues.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setItShowResolved(true)}
+                  disabled={resolvedItIssues.length === 0}
+                  aria-pressed={itShowResolved}
+                  className={`rounded-full px-3.5 py-1.5 transition disabled:cursor-default disabled:opacity-40 ${itShowResolved ? 'bg-white text-gray-900 shadow-[0_1px_3px_rgba(17,24,39,0.12)]' : 'text-gray-600'}`}
+                >
+                  Resolved ({resolvedItIssues.length})
+                </button>
+              </div>
+            </div>
+
+            {visibleItIssues.length === 0 ? (
+              <section className={`${IT_SURFACE} px-6 py-10 text-center`}>
+                <p className="text-[17px] font-semibold text-gray-900">No login issues</p>
+                <p className="mt-1 text-[13px] leading-normal text-gray-500">When a support in your hub reports someone who can't get into the app, they appear here.</p>
+              </section>
+            ) : visibleItIssues.map((issue) => {
+              const open = issue.status === 'OPEN';
+              const waLink = issue.contactPhone ? buildWhatsAppLink(issue.contactPhone, '') : null;
+              const supportWaLink = issue.ownerPhone ? buildWhatsAppLink(issue.ownerPhone, `Hello ${issue.ownerName?.split(' ')[0] ?? ''}, about ${issue.contactName}'s login: `) : null;
+              return (
+                <section key={issue.id} className={`${IT_SURFACE} p-5`}>
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[17px] font-semibold text-gray-900">{issue.contactName}</p>
+                      <p className="mt-0.5 text-[13px] text-gray-500">{issue.contactPhone || 'No phone'}{issue.cohortName ? ` · ${issue.cohortName}` : ''}</p>
+                    </div>
+                    <span className={`flex-none whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${open ? 'bg-orange-100/80 text-orange-700' : 'bg-emerald-100/80 text-emerald-700'}`}>{open ? 'Open' : 'Resolved'}</span>
+                  </div>
+
+                  <blockquote className="mt-3.5 whitespace-pre-wrap rounded-2xl bg-[#f5f5f7] px-4 py-3 text-[14px] leading-normal text-gray-800">{issue.description}</blockquote>
+                  <p className="mt-2 px-1 text-[12px] text-gray-500">Reported by {issue.reportedByName || 'a support'} · {reportedWhen(issue.updatedAt || issue.createdAt)}</p>
+                  {issue.signedIn && open && (
+                    <span className="mt-2 inline-flex rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">They have signed in</span>
+                  )}
+
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    {waLink ? (
+                      <a href={waLink} target="_blank" rel="noreferrer" className={IT_SECONDARY}>WhatsApp</a>
+                    ) : (
+                      <span className={`${IT_SECONDARY} opacity-50`}>WhatsApp</span>
+                    )}
+                    {issue.contactPhone ? (
+                      <a href={`tel:${issue.contactPhone.replace(/[^\d+]/g, '')}`} className={IT_SECONDARY}>Call</a>
+                    ) : (
+                      <span className={`${IT_SECONDARY} opacity-50`}>Call</span>
+                    )}
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-3 border-t border-[#f0f0f2] pt-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-400">Their support</p>
+                      <p className="truncate text-[14px] font-semibold text-gray-900">{issue.ownerName || 'Not assigned'}</p>
+                    </div>
+                    {supportWaLink && (
+                      <a href={supportWaLink} target="_blank" rel="noreferrer" className="flex-none rounded-full bg-emerald-100/80 px-3 py-1.5 text-xs font-semibold text-emerald-700">WhatsApp {issue.ownerName?.split(' ')[0]}</a>
+                    )}
+                  </div>
+
+                  {open && <LoginDetailsCard followUpContactId={issue.contactId} startDate={issue.cohortStartDate} className="mt-3" />}
+                  {open ? (
+                    <button
+                      type="button"
+                      onClick={() => { setResolvingIssue(issue); setResolveNote(''); }}
+                      className={`${IT_PRIMARY} mt-4`}
+                    >
+                      Mark resolved
+                    </button>
+                  ) : (
+                    <p className="mt-3 border-t border-[#f0f0f2] pt-3 text-[12.5px] text-gray-500">
+                      Resolved{issue.resolvedByName ? ` by ${issue.resolvedByName}` : ''}{issue.resolvedAt ? ` · ${reportedWhen(issue.resolvedAt)}` : ''}{issue.resolution ? `: ${issue.resolution}` : ''}
+                    </p>
+                  )}
+                </section>
+              );
+            })}
+          </>
+        )}
       </div>
+
+      {loginIssueContact && (
+        <LoginIssuePopup
+          contactName={loginIssueContact.fullName}
+          onCancel={() => setLoginIssueContact(null)}
+          onSubmit={async (description) => {
+            // Saved first so the alert that the status change sends can quote it.
+            await followUpLoginIssuesApi.report(loginIssueContact.id, description);
+            const contact = loginIssueContact;
+            setLoginIssueContact(null);
+            await handleFieldChange(contact, buildStatusPatch('LOGIN_ISSUE') as FollowUpContactUpdate);
+            void loadItIssues();
+          }}
+        />
+      )}
+
+      <ModalShell
+        isOpen={!!resolvingIssue}
+        onClose={() => { if (!resolveSaving) setResolvingIssue(null); }}
+        title="Mark resolved"
+        subtitle={resolvingIssue ? resolvingIssue.contactName : undefined}
+        footer={(
+          <>
+            <button type="button" onClick={() => setResolvingIssue(null)} disabled={resolveSaving} className="rounded-full bg-[#f2f2f4] px-5 py-2.5 text-sm font-semibold text-gray-700 disabled:opacity-50">Cancel</button>
+            <button type="button" onClick={() => { void submitResolve(); }} disabled={resolveSaving} className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60">
+              {resolveSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Mark resolved'}
+            </button>
+          </>
+        )}
+      >
+        <p className="text-[13px] leading-normal text-gray-600">
+          {resolvingIssue?.signedIn
+            ? 'They have signed in, so they will move to Participant confirmed access and their support is told.'
+            : "They haven't signed in yet, so they will go back to Login shared and their support is told."}
+        </p>
+        <label className="mt-4 block">
+          <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">What fixed it? (optional)</span>
+          <textarea
+            value={resolveNote}
+            onChange={(e) => setResolveNote(e.target.value)}
+            placeholder="e.g. Sent a new login code"
+            className={`${IT_FIELD} min-h-[96px] resize-y`}
+          />
+        </label>
+      </ModalShell>
 
       <FollowUpContactModal
         isOpen={!!editingContact}

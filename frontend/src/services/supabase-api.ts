@@ -1969,6 +1969,20 @@ export const settingsApi = {
     return fallback;
   },
 
+  // Who the ? button's "Message ..." goes to instead of the support contact:
+  // the IT Support of the caller's hub (participants: their support's hub).
+  // null = none applies, so the caller falls back to getSupportContact().
+  // See my_help_contact in 20260928190000_followup_login_issues.sql.
+  async getMyHelpContact(cohortId?: string | null): Promise<{ name: string; phone: string } | null> {
+    const token = getSessionToken();
+    if (!token) return null;
+    const { data, error } = await supabase.rpc('my_help_contact', { p_token: token, p_cohort_id: cohortId ?? null });
+    if (error || !data) return null;
+    const value = data as { name?: string | null; phone?: string | null };
+    if (typeof value.phone !== 'string' || !value.phone.trim()) return null;
+    return { name: value.name?.trim() || 'IT Support', phone: value.phone };
+  },
+
   async setSupportContact(contact: { name: string; phone: string }): Promise<{ name: string; phone: string }> {
     const payload = { name: contact.name.trim(), phone: contact.phone.trim() };
     const { error } = await supabase
@@ -3973,6 +3987,33 @@ export const followUpIssuesApi = {
 
     if (error) throw new Error(error.message);
     return { message: 'Issue deleted' };
+  },
+};
+
+// "Issue with login" reports and the IT issues tab. Writes go through RPCs
+// only (20260928190000_followup_login_issues.sql).
+export const followUpLoginIssuesApi = {
+  // Opens the contact's login issue, or updates its description if one is open.
+  async report(contactId: string, description: string): Promise<{ id: string }> {
+    const { data, error } = await supabase.rpc('report_followup_login_issue', { p_contact_id: contactId, p_description: description });
+    if (error || !data) throw new Error(error?.message || 'Could not save the login problem');
+    return { id: (data as { id: string }).id };
+  },
+
+  // The issues the caller covers as IT Support in this cohort (all, for an admin).
+  async getForItSupport(cohortId: string): Promise<{ isItSupport: boolean; issues: import('../types').ItLoginIssue[] }> {
+    const { data, error } = await supabase.rpc('it_login_issues', { p_cohort_id: cohortId });
+    if (error) throw new Error(error.message);
+    const value = (data as { isItSupport?: boolean; issues?: import('../types').ItLoginIssue[] } | null) ?? {};
+    return { isItSupport: !!value.isItSupport, issues: value.issues ?? [] };
+  },
+
+  // Marks it sorted; the contact moves to Participant confirmed access if they
+  // have signed in, otherwise back to Login shared.
+  async resolve(issueId: string, note?: string | null): Promise<{ registrationStatus: import('../types').FollowUpRegistrationStatus }> {
+    const { data, error } = await supabase.rpc('resolve_followup_login_issue', { p_issue_id: issueId, p_note: note?.trim() || null });
+    if (error || !data) throw new Error(error?.message || 'Could not mark this resolved');
+    return { registrationStatus: (data as { registrationStatus: import('../types').FollowUpRegistrationStatus }).registrationStatus };
   },
 };
 

@@ -14,7 +14,7 @@ const THEME_SWATCHES = [
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAppData } from '../context/AppDataContext';
-import { groupsApi, usersApi } from '../services/api';
+import { followUpLoginIssuesApi, groupsApi, usersApi } from '../services/api';
 import type { User } from '../types';
 import NotificationSettings from '../components/NotificationSettings';
 import { useAuth } from '../hooks/useAuth';
@@ -59,6 +59,18 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
       .catch(() => { if (!cancelled) setMyGroupName(null); });
     return () => { cancelled = true; };
   }, [liveRevision, user.id, activeCohort]);
+
+  // IT Support (same signal as the Mobilisation IT issues tab): people who tap
+  // ? for help are sent to them on WhatsApp, so a missing number matters more.
+  const [isItSupport, setIsItSupport] = useState(false);
+  useEffect(() => {
+    if (!activeCohort?.id) { setIsItSupport(false); return; }
+    let cancelled = false;
+    followUpLoginIssuesApi.getForItSupport(activeCohort.id)
+      .then((res) => { if (!cancelled) setIsItSupport(res.isItSupport); })
+      .catch(() => { if (!cancelled) setIsItSupport(false); });
+    return () => { cancelled = true; };
+  }, [activeCohort?.id]);
 
   const handleThemeChange = (hex: string) => {
     setThemeColor(hex);
@@ -173,6 +185,13 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
             </div>
           </section>
 
+          {isItSupport && !phone && !editingPhone && (
+            <section className="flex items-start gap-3 rounded-2xl bg-amber-100/80 px-4 py-3.5 text-amber-700">
+              <p className="min-w-0 flex-1 text-[13px] font-semibold leading-snug">You're IT Support. People who tap ? for help are sent to you on WhatsApp, so please add your number.</p>
+              <button type="button" onClick={() => { setPhoneDraft(''); setPhoneError(''); setEditingPhone(true); }} className="flex-none rounded-full bg-white/80 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-white">Add number</button>
+            </section>
+          )}
+
           <div>
             <SectionLabel>Your details</SectionLabel>
             <section className={LIST}>
@@ -183,6 +202,7 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
                 <div className="w-40"><AppSelect value={ageRange} onChange={(value) => { void saveDetails({ gender, ageRange: value }); }} options={toSelectOptions(AGE_RANGE_OPTIONS)} placeholder="Choose…" compact /></div>
               </Row>
 {!editingPhone ? (
+                <div>
                 <Row label="Phone" missing={!phone}>
                   {phone
                     ? (
@@ -193,6 +213,8 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
                     )
                     : <button type="button" onClick={() => { setPhoneDraft(''); setPhoneError(''); setEditingPhone(true); }} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60">Add number</button>}
                 </Row>
+                <p className="-mt-1 px-4 pb-3 text-xs text-gray-500">Your WhatsApp number lets your participants, your hub and IT Support reach you.</p>
+                </div>
               ) : (
                 <div className="space-y-2 px-4 py-3">
                   <p className="text-sm font-semibold text-gray-900">Your WhatsApp number</p>

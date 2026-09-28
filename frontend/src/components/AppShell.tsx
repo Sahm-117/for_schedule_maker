@@ -655,7 +655,7 @@ const AppShell: React.FC = () => {
             {/* Bell is visible at every width — Support users are mobile-heavy
                 and rely on this in-app feed when push doesn't reach them. */}
             <NotificationBell />
-            <NeedSupportButton inline className="hidden lg:grid" />
+            <NeedSupportButton inline className="hidden lg:grid" cohortId={activeCohort?.id ?? null} />
 
             <div className="hidden items-center gap-3 sm:flex">
               {cohortOptions.length > 0 && (
@@ -774,7 +774,7 @@ const AppShell: React.FC = () => {
       )}
 
       <PWAInstallBanner />
-      <NeedSupportButton className="lg:hidden" />
+      <NeedSupportButton className="lg:hidden" cohortId={activeCohort?.id ?? null} />
     </div>
   );
 };

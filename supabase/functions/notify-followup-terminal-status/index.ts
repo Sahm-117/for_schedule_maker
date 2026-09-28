@@ -6,8 +6,10 @@
  *
  * LOGIN_ISSUE ("Issue with login") is the one exception: it doesn't end the
  * follow-up, it asks for help. It is sent whoever reports it (admins too), to
- * every active admin plus the IT Support people (HubItSupport) of the
- * contact's cohort's hubs, never back to the person who reported it.
+ * every active admin plus the IT Support of the contact's owner support's hub
+ * (followup_contact_it_support_ids), never back to the person who reported
+ * it. The body carries the support's description (FollowUpLoginIssue), and IT
+ * Support are pointed at /support/mobilisation?tab=it.
  *
  * POST body:
  * {
@@ -121,58 +123,45 @@ Deno.serve(async (req) => {
       throw new Error(adminsError.message)
     }
 
-    let recipientIds: string[] = (admins || []).map((admin: { id: string }) => admin.id)
+    const adminRecipientIds: string[] = (admins || []).map((admin: { id: string }) => admin.id)
+    let itRecipientIds: string[] = []
+    let description = ''
 
     if (loginIssue) {
-      // IT Support is a hub job, stored as HubItSupport rows (same source
-      // send-announcement reads for its IT_SUPPORT audience). Scoped to the
-      // contact's cohort's hubs; a contact with no cohort goes to all of them.
-      let itIds: string[] = []
-      if (contact.cohortId) {
-        const { data: hubs, error: hubsError } = await supabase
-          .from('SupportHub')
-          .select('id')
-          .eq('cohortId', contact.cohortId)
-        if (hubsError) {
-          throw new Error(hubsError.message)
-        }
-        const hubIds = (hubs || []).map((hub: { id: string }) => hub.id)
-        if (hubIds.length > 0) {
-          const { data: itRows, error: itError } = await supabase
-            .from('HubItSupport')
-            .select('userId')
-            .in('hubId', hubIds)
-          if (itError) {
-            throw new Error(itError.message)
-          }
-          itIds = (itRows || []).map((row: { userId: string }) => row.userId)
-        }
-      } else {
-        const { data: itRows, error: itError } = await supabase
-          .from('HubItSupport')
-          .select('userId')
-        if (itError) {
-          throw new Error(itError.message)
-        }
-        itIds = (itRows || []).map((row: { userId: string }) => row.userId)
+      // IT Support is a hub job, stored as HubItSupport rows. Only the IT
+      // Support of the owner support's hub (in the contact's cohort) hear about
+      // it; if the owner has no hub, every IT Support of that cohort. The rule
+      // lives in followup_contact_it_support_ids
+      // (20260928190000_followup_login_issues.sql) so the IT issues tab and
+      // these alerts always agree.
+      const { data: itIds, error: itError } = await supabase
+        .rpc('followup_contact_it_support_ids', { p_contact_id: contactId, p_cohort_id: null })
+      if (itError) {
+        throw new Error(itError.message)
       }
-      if (itIds.length > 0) {
-        const { data: activeIt, error: activeItError } = await supabase
-          .from('User')
-          .select('id')
-          .in('id', itIds)
-          .neq('isActive', false)
-        if (activeItError) {
-          throw new Error(activeItError.message)
-        }
-        recipientIds = recipientIds.concat((activeIt || []).map((row: { id: string }) => row.id))
-      }
-      recipientIds = recipientIds.filter((id) => id !== actorId)
+      const adminSet = new Set(adminRecipientIds)
+      itRecipientIds = ((itIds as string[] | null) || []).filter((id) => id && id !== actorId && !adminSet.has(id))
+
+      // What the support wrote in "What's the problem?".
+      const { data: openIssue } = await supabase
+        .from('FollowUpLoginIssue')
+        .select('description')
+        .eq('contactId', contactId)
+        .eq('status', 'OPEN')
+        .order('updatedAt', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      description = (openIssue?.description || '').trim()
     }
 
-    // Admins, plus IT Support for a login problem.
-    const adminIds = Array.from(new Set(recipientIds.filter(Boolean)))
-    if (adminIds.length === 0) {
+    // Admins, plus IT Support for a login problem. Never back to the reporter
+    // for a login problem.
+    const adminIds = Array.from(new Set(
+      (loginIssue ? adminRecipientIds.filter((id) => id !== actorId) : adminRecipientIds).filter(Boolean),
+    ))
+    const itIds = Array.from(new Set(itRecipientIds))
+    const allIds = adminIds.concat(itIds)
+    if (allIds.length === 0) {
       return new Response(JSON.stringify({ ok: true, sent: 0 }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -181,19 +170,24 @@ Deno.serve(async (req) => {
     // Who it is about leads; the one-word outcome is what an admin scans for.
     const title = `${contact.fullName}: ${TERMINAL_LABELS[terminalState] || 'Updated'}`
     const body = loginIssue
-      ? `${actor.name} reported a login problem for ${contact.fullName}. They may need a new login code.`
+      ? description
+        ? `${actor.name} reported a login problem for ${contact.fullName}: "${description}"`
+        : `${actor.name} reported a login problem for ${contact.fullName}. They may need a new login code.`
       : `Follow up update from ${actor.name}`
+    const IT_PATH = '/support/mobilisation?tab=it'
 
-    // In-app feed for every admin, regardless of push subscription.
+    // In-app feed for every recipient, regardless of push subscription. Admins
+    // open Follow-ups; IT Support open their IT issues tab.
     await insertNotifications(
       supabase,
-      adminIds.map((userId) => ({ userId, title, body, path: '/follow-ups', type: 'FOLLOWUP_TERMINAL' })),
+      adminIds.map((userId) => ({ userId, title, body, path: '/follow-ups', type: 'FOLLOWUP_TERMINAL' }))
+        .concat(itIds.map((userId) => ({ userId, title, body, path: IT_PATH, type: 'FOLLOWUP_TERMINAL' }))),
     )
 
     const { data: subs, error: subsError } = await supabase
       .from('PushSubscription')
       .select('userId, endpoint, p256dh, auth')
-      .in('userId', adminIds)
+      .in('userId', allIds)
 
     if (subsError) {
       throw new Error(subsError.message)
@@ -205,11 +199,30 @@ Deno.serve(async (req) => {
       })
     }
 
+    const tag = `fof-followup-terminal-${contactId}-${terminalState}`
+
+    if (itIds.length > 0) {
+      const itSet = new Set(itIds)
+      const itSubs = (subs as any[]).filter((sub) => itSet.has(sub.userId))
+      const adminSubs = (subs as any[]).filter((sub) => !itSet.has(sub.userId))
+      let sentTotal = 0
+      for (const [group, path] of [[adminSubs, '/follow-ups'], [itSubs, IT_PATH]] as const) {
+        if (group.length === 0) continue
+        const groupPayload = JSON.stringify({ title, body, icon: '/icon-192.png', tag, data: { path } })
+        const result = await sendToSubscriptions(webPush, supabase, group, groupPayload)
+        sentTotal += result.sent
+        if (result.failed > 0) console.error(`notify-followup-terminal-status: ${result.sent} sent, ${result.failed} failed, ${result.removed} removed`, JSON.stringify(result.errors))
+      }
+      return new Response(JSON.stringify({ ok: true, sent: sentTotal }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const payload = JSON.stringify({
       title,
       body,
       icon: '/icon-192.png',
-      tag: `fof-followup-terminal-${contactId}-${terminalState}`,
+      tag,
     })
 
     const { sent, failed, removed, errors } = await sendToSubscriptions(webPush, supabase, subs as any[], payload)

@@ -6,6 +6,7 @@ import LoadRing from '../LoadRing';
 import { genderAgeLine } from '../../utils/people';
 import AppOverflowMenu from '../AppOverflowMenu';
 import NotInterestedPopup from './NotInterestedPopup';
+import LoginIssuePopup from './LoginIssuePopup';
 import {
   computeFollowUpStatus,
   followUpStatusOptions,
@@ -17,7 +18,7 @@ import Spinner from '../Spinner';
 import ConfirmationModal from '../ConfirmationModal';
 import { sortByText } from '../../utils/sort';
 import { formatDate, formatDateTime } from '../../utils/time';
-import { followUpContactsApi } from '../../services/api';
+import { followUpContactsApi, followUpLoginIssuesApi } from '../../services/api';
 
 interface FollowUpContactsTableProps {
   contacts: FollowUpContact[];
@@ -97,6 +98,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const [viewingInfo, setViewingInfo] = useState<string | null>(null);
   const [savingFields, setSavingFields] = useState<Set<string>>(new Set());
   const [notInterestedContact, setNotInterestedContact] = useState<FollowUpContact | null>(null);
+  const [loginIssueContact, setLoginIssueContact] = useState<FollowUpContact | null>(null);
   const [pendingClose, setPendingClose] = useState<{ contact: FollowUpContact; status: 'REGISTERED' | 'WRONG_NUMBER' } | null>(null);
   const [closeNotes, setCloseNotes] = useState('');
   const [copiedPhoneId, setCopiedPhoneId] = useState<string | null>(null);
@@ -193,6 +195,10 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
           const status = v as FollowUpStatus;
           if (status === 'NOT_INTERESTED') {
             setNotInterestedContact(contact);
+            return;
+          }
+          if (status === 'LOGIN_ISSUE') {
+            setLoginIssueContact(contact);
             return;
           }
           if (status === 'REGISTERED' || status === 'WRONG_NUMBER') {
@@ -587,6 +593,21 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
             setNotInterestedContact(null);
           }}
           onCancel={() => setNotInterestedContact(null)}
+        />
+      )}
+
+      {loginIssueContact && (
+        <LoginIssuePopup
+          contactName={loginIssueContact.fullName}
+          onCancel={() => setLoginIssueContact(null)}
+          onSubmit={async (description) => {
+            // Saved first so the alert that the status change sends can quote it.
+            await followUpLoginIssuesApi.report(loginIssueContact.id, description);
+            const patch = buildStatusPatch('LOGIN_ISSUE');
+            patch.followUpCount = loginIssueContact.followUpCount;
+            onFieldChange(loginIssueContact, patch);
+            setLoginIssueContact(null);
+          }}
         />
       )}
 

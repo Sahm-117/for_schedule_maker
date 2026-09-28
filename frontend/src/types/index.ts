@@ -390,6 +390,34 @@ export interface FollowUpIssue {
   updatedAt?: string;
 }
 
+/** A reported "Issue with login", as the IT issues tab lists it (it_login_issues). */
+export type LoginIssueStatus = 'OPEN' | 'RESOLVED';
+
+export interface ItLoginIssue {
+  id: string;
+  contactId: string;
+  description: string;
+  status: LoginIssueStatus;
+  resolution?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string | null;
+  reportedById?: string | null;
+  reportedByName?: string | null;
+  resolvedByName?: string | null;
+  contactName: string;
+  contactPhone?: string | null;
+  registrationStatus: FollowUpRegistrationStatus;
+  cohortId?: string | null;
+  cohortName?: string | null;
+  cohortStartDate?: string | null;
+  ownerId?: string | null;
+  ownerName?: string | null;
+  ownerPhone?: string | null;
+  /** They have chosen a password or signed in at least once. */
+  signedIn: boolean;
+}
+
 // ── Participants ──────────────────────────────────────────────────────────────
 
 export type ParticipantStatus = 'ACTIVE' | 'ARCHIVED';

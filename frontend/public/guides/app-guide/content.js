@@ -2276,10 +2276,13 @@ window.GUIDE_CONTENT = {
         "Open their card. Once they're **Registered**, a **Their login details** box appears.",
         "Tap it to see the details and send them.",
         "Once you've sent them, set **Where do they stand?** to **Login shared**.",
-        "If they can't get in, choose **Issue with login**. The admin and IT team are alerted, and the login details box stays on the card so you can send a new code."
+        "If they can't get in, choose **Issue with login**. A box asks **What's the problem?** Describe it (for example, the code isn't working or they changed phone) and tap **Submit**. The admins and your hub's IT Support are told, with what you wrote, and the login details box stays on the card so you can send a new code."
        ],
        "result": "When they sign in and set their password, the card closes by itself as **Participant confirmed access** and you get a notification. Your job for this person is done.",
-       "shot": "support-follow-ups.jpg"
+       "shot": "support-follow-ups.jpg",
+       "tips": [
+        "When IT Support mark the problem sorted, you get a notification. If the person has signed in by then, the card closes as **Participant confirmed access**. If not, it goes back to **Login shared**."
+       ]
       },
       {
        "id": "s-edit-contact",
@@ -2294,6 +2297,86 @@ window.GUIDE_CONTENT = {
         "On their card, tap the pencil at the top right.",
         "Correct the details.",
         "Save."
+       ]
+      }
+     ]
+    },
+    {
+     "id": "it-issues",
+     "title": "IT issues (for IT Support)",
+     "where": "More → Mobilisation → IT issues",
+     "summary": "If you are IT Support for a hub, this tab lists the people in your hub who can't get into the app, with what their support wrote.",
+     "tasks": [
+      {
+       "id": "s-it-see-issues",
+       "q": "Where do I see login problems I need to sort?",
+       "keywords": [
+        "it support",
+        "it issues",
+        "login issue",
+        "can't log in",
+        "login problem"
+       ],
+       "steps": [
+        "Open **Mobilisation** and tap the **IT issues** tab. It only shows if you are IT Support for a hub. The number shows how many are open.",
+        "**Open** lists the problems still waiting. **Resolved** lists the ones already sorted.",
+        "Each card shows the person, their number, who reported it and when, and what the support wrote."
+       ],
+       "result": "You see every login problem for the supports in your hub, newest first.",
+       "tips": [
+        "You also get an alert on the bell when a support in your hub reports a new one. Tapping it opens this tab."
+       ]
+      },
+      {
+       "id": "s-it-reach",
+       "q": "How do I reach the person or their support?",
+       "keywords": [
+        "whatsapp",
+        "call",
+        "contact support",
+        "reach"
+       ],
+       "steps": [
+        "On the card, tap **WhatsApp** or **Call** to reach the person.",
+        "Under **Support**, tap the green **WhatsApp** button to message the support who is following them up."
+       ],
+       "result": "WhatsApp or your phone opens straight away."
+      },
+      {
+       "id": "s-it-new-code",
+       "q": "How do I send them a new login code?",
+       "keywords": [
+        "new code",
+        "login code",
+        "reset",
+        "password",
+        "login details"
+       ],
+       "steps": [
+        "On the card, tap **Their login details**.",
+        "Issue a new code, then send it to them on WhatsApp from there.",
+        "A new code signs them out of the app until they use it."
+       ],
+       "result": "They can sign in with the new code and choose their own password."
+      },
+      {
+       "id": "s-it-resolve",
+       "q": "How do I mark a login problem as sorted?",
+       "keywords": [
+        "resolve",
+        "resolved",
+        "sorted",
+        "done",
+        "fixed"
+       ],
+       "steps": [
+        "On the card, tap **Mark resolved**.",
+        "Add a short note on what fixed it if you like.",
+        "Tap **Mark resolved** again to save."
+       ],
+       "result": "If they have signed in, they move to **Participant confirmed access** and their follow-up closes. If not yet, they go back to **Login shared** until they sign in. Either way their support gets a notification.",
+       "tips": [
+        "When they choose their password later, the card closes by itself as **Participant confirmed access**."
        ]
       }
      ]
@@ -2966,7 +3049,7 @@ window.GUIDE_CONTENT = {
        "steps": [
         "Tap the orange **?** button at the bottom right (on a computer it's at the top).",
         "Tap **Open the app guide** to search for an answer here.",
-        "Or tap **Message…** to open WhatsApp to the FOF team with a greeting already typed."
+        "Or tap **Message…** to open WhatsApp with a greeting already typed. It goes to your hub's IT Support person, or to the FOF team if your hub doesn't have one."
        ],
        "shot": "support-help-menu.jpg"
       }
@@ -3800,7 +3883,7 @@ window.GUIDE_CONTENT = {
        "steps": [
         "Tap the orange **?** button at the bottom right.",
         "Tap **Open the app guide** to search for an answer here.",
-        "Or tap **Message…** to open WhatsApp to the FOF team."
+        "Or tap **Message…** to open WhatsApp with a greeting already typed. It goes to the IT Support person for your support's hub, or to the FOF team if there isn't one."
        ],
        "tips": [
         "For anything about your group, your faith project or your password, your own support is the best person to ask. Tap **Message support** on Home."

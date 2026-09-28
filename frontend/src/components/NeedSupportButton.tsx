@@ -9,10 +9,14 @@ import { buildWhatsAppLink } from '../utils/phone';
 // a small "How can we help?" sheet: the app guide (opens on the viewer's role), or
 // WhatsApp to the support contact with a prefilled message. The contact (name + number)
 // is admin-editable via the support_contact AppSetting; without one only the guide shows.
+// Supports and participants message their hub's IT Support person instead when there is
+// one (my_help_contact: a support's own hub, a participant's support's hub); `cohortId`
+// is the staff app's active cohort. Admins always get the support_contact.
 // `inline` renders a header-sized button (desktop top bar) instead of the floating one,
 // so it never covers table content.
-const NeedSupportButton: React.FC<{ inline?: boolean; className?: string }> = ({ inline = false, className = '' }) => {
+const NeedSupportButton: React.FC<{ inline?: boolean; className?: string; cohortId?: string | null }> = ({ inline = false, className = '', cohortId = null }) => {
   const [contact, setContact] = useState<{ name: string; phone: string } | null>(null);
+  const [isItContact, setIsItContact] = useState(false);
   const [open, setOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const { user } = useAuth();
@@ -20,12 +24,21 @@ const NeedSupportButton: React.FC<{ inline?: boolean; className?: string }> = ({
 
   useEffect(() => {
     let cancelled = false;
-    settingsApi
-      .getSupportContact()
-      .then((c) => { if (!cancelled) setContact(c); })
-      .catch(() => { /* keep button hidden if we can't resolve a contact */ });
+    const load = async () => {
+      if (user?.role && user.role !== 'ADMIN') {
+        const itContact = await settingsApi.getMyHelpContact(cohortId).catch(() => null);
+        if (cancelled) return;
+        if (itContact) { setContact(itContact); setIsItContact(true); return; }
+      }
+      const fallback = await settingsApi.getSupportContact();
+      if (!cancelled) { setContact(fallback); setIsItContact(false); }
+    };
+    load().catch(() => { /* keep button hidden if we can't resolve a contact */ });
     return () => { cancelled = true; };
-  }, []);
+  }, [user?.id, user?.role, cohortId]);
+
+  const contactFirstName = contact ? (contact.name.trim().split(/\s+/)[0] || contact.name) : '';
+  const contactLabel = isItContact ? `${contactFirstName} (IT Support)` : contact?.name ?? '';
 
   const waLink = contact ? buildWhatsAppLink(contact.phone, `Hello ${contact.name}, I need help with `) : null;
 
@@ -120,7 +133,7 @@ const NeedSupportButton: React.FC<{ inline?: boolean; className?: string }> = ({
                     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>
                   </span>
                   <span>
-                    <span className="block text-[15px] font-semibold text-gray-900">Message {contact.name}</span>
+                    <span className="block text-[15px] font-semibold text-gray-900">Message {contactLabel}</span>
                     <span className="block text-sm text-gray-500">Opens WhatsApp with “Hello {contact.name}, I need help with …”</span>
                   </span>
                 </button>

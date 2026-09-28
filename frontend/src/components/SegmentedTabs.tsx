@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 type SegmentedTab = {
   key: string;
@@ -10,17 +10,38 @@ interface SegmentedTabsProps {
   tabs: SegmentedTab[];
   active: string;
   onChange: (key: string) => void;
+  /** Keep every tab at its natural width and let the row swipe sideways on phones. */
+  scrollable?: boolean;
 }
 
 // Full-width segmented tab bar; `shortLabel` is shown on small screens.
 // More than four tabs wrap onto a second row on phones instead of being cut off.
-const SegmentedTabs: React.FC<SegmentedTabsProps> = ({ tabs, active, onChange }) => {
-  const wraps = tabs.length > 4;
+// `scrollable` instead keeps one row that scrolls sideways (no visible bar),
+// with the active tab brought into view.
+const SegmentedTabs: React.FC<SegmentedTabsProps> = ({ tabs, active, onChange, scrollable = false }) => {
+  const wraps = !scrollable && tabs.length > 4;
+  const rowRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!scrollable) return;
+    const row = rowRef.current;
+    const button = row?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!row || !button) return;
+    // Scroll only the row, never the page.
+    const left = button.offsetLeft; // the row is `relative`, so this is within it
+    const right = left + button.offsetWidth;
+    if (left < row.scrollLeft) row.scrollTo({ left: Math.max(left - 8, 0), behavior: 'smooth' });
+    else if (right > row.scrollLeft + row.clientWidth) row.scrollTo({ left: right - row.clientWidth + 8, behavior: 'smooth' });
+  }, [active, scrollable, tabs.length]);
+
   return (
   <div
+    ref={rowRef}
     role="tablist"
-    className={`${wraps ? 'flex flex-wrap sm:grid' : 'grid'} gap-1.5 rounded-2xl border border-[#eef0f4] bg-white p-[5px]`}
-    style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
+    className={`${scrollable
+      ? 'relative flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+      : wraps ? 'flex flex-wrap sm:grid' : 'grid'} gap-1.5 rounded-2xl border border-[#eef0f4] bg-white p-[5px]`}
+    style={scrollable ? undefined : { gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
   >
     {tabs.map((tab) => {
       const isActive = tab.key === active;
@@ -31,7 +52,7 @@ const SegmentedTabs: React.FC<SegmentedTabsProps> = ({ tabs, active, onChange })
           role="tab"
           aria-selected={isActive}
           onClick={() => onChange(tab.key)}
-          className={`min-w-0 truncate rounded-xl px-1.5 py-[9px] text-[12.5px] font-semibold transition ${wraps ? 'flex-1 basis-[30%]' : ''} ${isActive ? 'bg-[#3f4757] text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+          className={`${scrollable ? 'flex-none snap-start whitespace-nowrap px-3.5 sm:flex-auto' : 'min-w-0 truncate px-1.5'} rounded-xl py-[9px] text-[12.5px] font-semibold transition ${wraps ? 'flex-1 basis-[30%]' : ''} ${isActive ? 'bg-[#3f4757] text-white' : 'text-gray-600 hover:bg-gray-50'}`}
         >
           {tab.shortLabel ? (
             <>
