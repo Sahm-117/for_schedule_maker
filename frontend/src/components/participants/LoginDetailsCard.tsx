@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { participantAccountsApi, participantsApi } from '../../services/api';
 import { buildWhatsAppLink } from '../../utils/phone';
+import { useAuth } from '../../hooks/useAuth';
 import type { ParticipantLoginDetails } from '../../types';
 
 // "Their login details" card from the V2 design. Shown to a support once they mark
@@ -36,6 +37,7 @@ const errorText = (err: unknown) => {
 };
 
 const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, followUpContactId, defaultOpen = false, className = '', startDate }) => {
+  const { user } = useAuth();
   const [details, setDetails] = useState<ParticipantLoginDetails | null>(null);
   const [open, setOpen] = useState(defaultOpen);
   const [loading, setLoading] = useState(false);
@@ -85,7 +87,9 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
 
   const firstName = (details?.name || '').split(' ')[0];
   const message = details?.setupCode
-    ? `Hello ${firstName}, well done on registering for FOF! Please find your login details below.\n\n`
+    ? `Hello ${firstName}, well done on registering for Foundation Of Faith!\n\n`
+      + (user?.name ? `My name is ${user.name}, from TCN Ikorodu, here to get you onboarded on to the FOF App.\n\n` : '')
+      + 'Please find your login details below.\n\n'
       + `App link: ${window.location.origin}/login\n`
       + `Username: ${details.phone}\n`
       + `First-time password: ${details.setupCode}\n\n`
