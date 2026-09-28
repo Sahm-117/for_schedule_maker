@@ -3454,13 +3454,18 @@ const notifyFollowUpAssignment = (ownerId: string, contactNames: string[]) => {
     .catch(() => undefined);
 };
 
+type FollowUpTerminalReason = 'CLOSE' | 'ACCESS_CONFIRMED' | 'LOGIN_ISSUE' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE';
+
 const getTerminalFollowUpReason = (contact: {
   nextAction?: string | null;
   registrationStatus?: string | null;
   replyStatus?: string | null;
   callStatus?: string | null;
-}): 'CLOSE' | 'LOGIN_SHARED' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE' | null => {
-  if (contact.registrationStatus === 'LOGIN_SHARED') return 'LOGIN_SHARED';
+}): FollowUpTerminalReason | null => {
+  // A login problem isn't an ending, but the admins and IT Support still need
+  // to hear about it. Login shared no longer closes anything, so it isn't here.
+  if (contact.registrationStatus === 'LOGIN_ISSUE') return 'LOGIN_ISSUE';
+  if (contact.registrationStatus === 'ACCESS_CONFIRMED') return 'ACCESS_CONFIRMED';
   if (contact.nextAction === 'CLOSE') return 'CLOSE';
   if (contact.registrationStatus === 'NOT_INTERESTED') return 'NOT_INTERESTED';
   if (contact.registrationStatus === 'NOT_A_TCN_MEMBER') return 'NOT_A_TCN_MEMBER';
@@ -3473,7 +3478,7 @@ const getTerminalFollowUpReason = (contact: {
 const notifyFollowUpTerminalStatus = (
   contactId: string,
   actorId: string,
-  terminalState: 'CLOSE' | 'LOGIN_SHARED' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE'
+  terminalState: FollowUpTerminalReason
 ) => {
   void supabase.functions
     .invoke('notify-followup-terminal-status', {
@@ -3670,7 +3675,8 @@ export const followUpContactsApi = {
     const nextTerminalReason = getTerminalFollowUpReason(contact);
     if (
       actor?.id &&
-      actor.role !== 'ADMIN' &&
+      // A login problem goes to IT Support too, so it is sent whoever reports it.
+      (actor.role !== 'ADMIN' || nextTerminalReason === 'LOGIN_ISSUE') &&
       nextTerminalReason &&
       nextTerminalReason !== previousTerminalReason
     ) {

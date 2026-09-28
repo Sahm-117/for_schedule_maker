@@ -45,7 +45,9 @@ export const REGISTRATION_STATUS_META: Record<FollowUpRegistrationStatus, Status
   STILL_THINKING: { label: 'Still Thinking', tone: 'bg-violet-100/80 text-violet-700' },
   NO_RESPONSE: { label: 'No Response', tone: 'bg-neutral-100 text-neutral-600' },
   NEXT_COHORT: { label: 'Will Join Next Cohort', tone: 'bg-sky-100/80 text-sky-700' },
-  LOGIN_SHARED: { label: 'Login Shared', tone: 'bg-emerald-100/80 text-emerald-700' },
+  LOGIN_SHARED: { label: 'Login Shared', tone: 'bg-sky-100/80 text-sky-700' },
+  LOGIN_ISSUE: { label: 'Login Issue', tone: 'bg-orange-100/80 text-orange-700' },
+  ACCESS_CONFIRMED: { label: 'Access Confirmed', tone: 'bg-emerald-100/80 text-emerald-700' },
 };
 
 export const NEXT_ACTION_META: Record<FollowUpNextAction, StatusMeta> = {
@@ -67,7 +69,9 @@ export const FOLLOW_UP_STATUS_META: Record<FollowUpStatus, StatusMeta> = {
   REPLIED: { label: 'Replied', description: 'They replied. Still working on getting them registered.', tone: 'bg-emerald-100/80 text-emerald-700' },
   CALL_BACK_LATER: { label: 'Call back later', description: 'They asked you to call another time.', tone: 'bg-violet-100/80 text-violet-700' },
   REGISTERED: { label: 'Registered', description: 'They signed up. Still to hand them their app login.', tone: 'bg-emerald-100/80 text-emerald-700' },
-  LOGIN_SHARED: { label: 'Login shared', description: 'They have their login. All done.', tone: 'bg-emerald-100/80 text-emerald-700' },
+  LOGIN_SHARED: { label: 'Login shared', description: 'Login sent. Waiting for them to sign in.', tone: 'bg-sky-100/80 text-sky-700' },
+  LOGIN_ISSUE: { label: 'Issue with login', description: 'They cannot get into the app. The admin and IT team are told.', tone: 'bg-orange-100/80 text-orange-700' },
+  ACCESS_CONFIRMED: { label: 'Participant confirmed access', description: 'They signed in to the app. All done.', tone: 'bg-emerald-100/80 text-emerald-700' },
   WRONG_NUMBER: { label: 'Wrong number', description: 'The number does not work.', tone: 'bg-rose-100/80 text-rose-700' },
   NOT_INTERESTED: { label: 'Not interested', description: 'They said no, not available, or not a TCN member.', tone: 'bg-rose-100/80 text-rose-700' },
   NO_RESPONSE: { label: 'No response', description: 'They did not reply after multiple follow-ups.', tone: 'bg-neutral-100 text-neutral-600' },
@@ -80,9 +84,9 @@ export const statusOptions = <T extends string>(meta: Record<T, StatusMeta>) =>
 // Dropdown order and headings, so supports can see which statuses still count as
 // open (see isClosedContact) and which close the follow-up.
 const FOLLOW_UP_STATUS_GROUPS: Array<{ group: string; statuses: FollowUpStatus[] }> = [
-  { group: 'Still open', statuses: ['TO_CONTACT', 'WAITING', 'NEEDS_REMINDER', 'REPLIED', 'CALL_BACK_LATER', 'REGISTERED'] },
+  { group: 'Still open', statuses: ['TO_CONTACT', 'WAITING', 'NEEDS_REMINDER', 'REPLIED', 'CALL_BACK_LATER', 'REGISTERED', 'LOGIN_SHARED', 'LOGIN_ISSUE'] },
   { group: 'Moved to next cohort', statuses: ['NEXT_COHORT'] },
-  { group: 'Closed', statuses: ['LOGIN_SHARED', 'WRONG_NUMBER', 'NOT_INTERESTED', 'NO_RESPONSE'] },
+  { group: 'Closed', statuses: ['ACCESS_CONFIRMED', 'WRONG_NUMBER', 'NOT_INTERESTED', 'NO_RESPONSE'] },
 ];
 
 export const followUpStatusOptions = FOLLOW_UP_STATUS_GROUPS.flatMap(({ group, statuses }) =>
@@ -94,6 +98,27 @@ export const followUpStatusOptions = FOLLOW_UP_STATUS_GROUPS.flatMap(({ group, s
   }))
 );
 
+/** Where a signed-up contact can be, from registering to getting into the app. */
+export const AFTER_SIGN_UP_STATUSES: FollowUpStatus[] = ['REGISTERED', 'LOGIN_SHARED', 'LOGIN_ISSUE', 'ACCESS_CONFIRMED'];
+
+// Once someone has signed up, a support only moves them forward: their login,
+// whether it worked, or the next cohort. Admins keep the full list.
+const SUPPORT_AFTER_SIGN_UP_OPTIONS: FollowUpStatus[] = ['LOGIN_SHARED', 'ACCESS_CONFIRMED', 'LOGIN_ISSUE', 'NEXT_COHORT'];
+
+/**
+ * The support's "Where do they stand?" options. Before sign-up it is the usual
+ * list, without the two steps that only make sense once a login exists; after
+ * sign-up only the steps forward, with Registered kept while it is the current
+ * value so the select can show it.
+ */
+export const supportStatusOptions = (current: FollowUpStatus) => {
+  if (!AFTER_SIGN_UP_STATUSES.includes(current)) {
+    return followUpStatusOptions.filter((option) => option.value !== 'LOGIN_ISSUE' && option.value !== 'ACCESS_CONFIRMED');
+  }
+  const values: FollowUpStatus[] = current === 'REGISTERED' ? ['REGISTERED', ...SUPPORT_AFTER_SIGN_UP_OPTIONS] : SUPPORT_AFTER_SIGN_UP_OPTIONS;
+  return values.map((value) => ({ value, label: FOLLOW_UP_STATUS_META[value].label, meta: FOLLOW_UP_STATUS_META[value].description }));
+};
+
 /**
  * Follow-ups that were finished and filed away before the participant app
  * existed. They sit at REGISTERED with no login to hand over, because there was
@@ -104,7 +129,18 @@ export const followUpStatusOptions = FOLLOW_UP_STATUS_GROUPS.flatMap(({ group, s
 export const isPreAppRegistered = (c: FollowUpContact): boolean =>
   !!c.archivedAt && c.registrationStatus === 'REGISTERED';
 
+/**
+ * Login shared used to close a follow-up. Past cohorts' ones were left filed
+ * away when it stopped closing (20260928180000_followup_access_confirmed.sql),
+ * so, like isPreAppRegistered, they are read as finished rather than as work
+ * still to do.
+ */
+export const isFiledLoginShared = (c: FollowUpContact): boolean =>
+  !!c.archivedAt && c.registrationStatus === 'LOGIN_SHARED';
+
 export const computeFollowUpStatus = (c: FollowUpContact): FollowUpStatus => {
+  if (c.registrationStatus === 'ACCESS_CONFIRMED') return 'ACCESS_CONFIRMED';
+  if (c.registrationStatus === 'LOGIN_ISSUE') return 'LOGIN_ISSUE';
   if (c.registrationStatus === 'LOGIN_SHARED') return 'LOGIN_SHARED';
   if (c.registrationStatus === 'REGISTERED') return 'REGISTERED';
   if (c.registrationStatus === 'NEXT_COHORT') return 'NEXT_COHORT';
@@ -119,12 +155,13 @@ export const computeFollowUpStatus = (c: FollowUpContact): FollowUpStatus => {
 };
 
 /**
- * Registering is not the end of a follow-up — the prospect still needs their app
- * login handed over. Only 'LOGIN_SHARED' closes a successful one.
+ * Registering is not the end of a follow-up, and neither is sending the login —
+ * the prospect still has to get into the app. Only 'ACCESS_CONFIRMED' closes a
+ * successful one (set by hand, or automatically when they choose a password).
  */
 export const isClosedContact = (c: FollowUpContact): boolean => {
   const status = computeFollowUpStatus(c);
-  return status === 'LOGIN_SHARED' || status === 'WRONG_NUMBER' || status === 'NOT_INTERESTED' || status === 'NO_RESPONSE';
+  return status === 'ACCESS_CONFIRMED' || status === 'WRONG_NUMBER' || status === 'NOT_INTERESTED' || status === 'NO_RESPONSE';
 };
 
 /** Unassigned and still open, i.e. what run_followup_assignment would hand out. */
@@ -215,7 +252,7 @@ export const genderCapacityOutlook = (
 };
 
 export const isClosedRegistrationStatus = (status: FollowUpRegistrationStatus): boolean =>
-  status === 'LOGIN_SHARED' || status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME' || status === 'NO_RESPONSE';
+  status === 'ACCESS_CONFIRMED' || status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME' || status === 'NO_RESPONSE';
 
 /**
  * Whether a contact belongs to `cohortId` for filtering purposes. Contacts
@@ -240,7 +277,10 @@ export interface FollowUpMetrics {
   replied: number;
   callBackLater: number;
   registered: number;
+  /** Has their login: shared, having trouble, or confirmed in the app. */
   loginShared: number;
+  /** Signed in to the app, so the follow-up is done. */
+  accessConfirmed: number;
   wrongNumber: number;
   notInterested: number;
   total: number;
@@ -251,7 +291,7 @@ export interface FollowUpMetrics {
 }
 
 export const computeFollowUpMetrics = (contacts: FollowUpContact[]): FollowUpMetrics => {
-  const m: FollowUpMetrics = { toContact: 0, waiting: 0, needsReminder: 0, replied: 0, callBackLater: 0, registered: 0, loginShared: 0, wrongNumber: 0, notInterested: 0, total: 0, contacted: 0, notContacted: 0, noResponse: 0, closed: 0 };
+  const m: FollowUpMetrics = { toContact: 0, waiting: 0, needsReminder: 0, replied: 0, callBackLater: 0, registered: 0, loginShared: 0, accessConfirmed: 0, wrongNumber: 0, notInterested: 0, total: 0, contacted: 0, notContacted: 0, noResponse: 0, closed: 0 };
   for (const c of contacts) {
     m.total++;
     const status = computeFollowUpStatus(c);
@@ -264,7 +304,11 @@ export const computeFollowUpMetrics = (contacts: FollowUpContact[]): FollowUpMet
       m.contacted++;
       if (isPreAppRegistered(c)) { m.loginShared++; m.closed++; } else { m.registered++; }
     }
-    else if (status === 'LOGIN_SHARED') { m.loginShared++; m.contacted++; m.closed++; }
+    else if (status === 'LOGIN_SHARED' || status === 'LOGIN_ISSUE') {
+      m.loginShared++; m.contacted++;
+      if (isFiledLoginShared(c)) m.closed++;
+    }
+    else if (status === 'ACCESS_CONFIRMED') { m.loginShared++; m.accessConfirmed++; m.contacted++; m.closed++; }
     else if (status === 'WRONG_NUMBER') { m.wrongNumber++; m.contacted++; m.closed++; }
     else if (status === 'NOT_INTERESTED') { m.notInterested++; m.contacted++; m.closed++; }
     else if (status === 'NO_RESPONSE') { m.closed++; }
@@ -283,7 +327,12 @@ export interface OwnerBreakdownRow {
   replied: number;
   callBackLater: number;
   registered: number;
+  /** Has their login: shared, having trouble, or confirmed in the app. */
   loginShared: number;
+  /** Signed in to the app, so the follow-up is done. */
+  accessConfirmed: number;
+  /** Login sent (or not working) and still open, waiting for them to get in. */
+  awaitingAccess: number;
   /** Signed up but still waiting for their app login. */
   loginToShare: number;
   /** Everyone who signed up, whether or not they have their login yet. */
@@ -312,7 +361,7 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       row = {
         ownerId: c.ownerId || null,
         ownerName: c.ownerName || (c.ownerId ? 'Unknown' : 'Unassigned'),
-        assigned: 0, toContact: 0, waiting: 0, needsReminder: 0, replied: 0, callBackLater: 0, registered: 0, loginShared: 0, loginToShare: 0, signedUp: 0, nextCohort: 0, wrongNumber: 0, notInterested: 0, noResponse: 0,
+        assigned: 0, toContact: 0, waiting: 0, needsReminder: 0, replied: 0, callBackLater: 0, registered: 0, loginShared: 0, accessConfirmed: 0, awaitingAccess: 0, loginToShare: 0, signedUp: 0, nextCohort: 0, wrongNumber: 0, notInterested: 0, noResponse: 0,
         uncontacted: 0, contacted: 0, stillOpen: 0, notAGoodTime: 0, notATcnMember: 0,
         stopped: 0, stoppedReasons: [],
       };
@@ -333,7 +382,12 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       case 'REPLIED': row.replied++; break;
       case 'CALL_BACK_LATER': row.callBackLater++; break;
       case 'REGISTERED': if (isPreAppRegistered(c)) row.loginShared++; else row.registered++; break;
-      case 'LOGIN_SHARED': row.loginShared++; break;
+      case 'LOGIN_SHARED':
+      case 'LOGIN_ISSUE':
+        row.loginShared++;
+        if (!c.archivedAt) row.awaitingAccess++;
+        break;
+      case 'ACCESS_CONFIRMED': row.loginShared++; row.accessConfirmed++; break;
       case 'WRONG_NUMBER': row.wrongNumber++; break;
       case 'NOT_INTERESTED': row.notInterested++; break;
       case 'NO_RESPONSE': row.noResponse++; break;
@@ -351,8 +405,9 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
     row.loginToShare = row.registered;
     row.signedUp = row.registered + row.loginShared;
   }
-  // Busiest first: chasing still to do, plus logins still to hand over.
-  return Array.from(map.values()).sort((a, b) => (b.stillOpen + b.loginToShare) - (a.stillOpen + a.loginToShare));
+  // Busiest first: chasing still to do, plus logins still to hand over or
+  // waiting for them to get in.
+  return Array.from(map.values()).sort((a, b) => (b.stillOpen + b.loginToShare + b.awaitingAccess) - (a.stillOpen + a.loginToShare + a.awaitingAccess));
 };
 
 /**
@@ -389,8 +444,8 @@ export const computeIntroducerBreakdown = (contacts: FollowUpContact[]): Introdu
     }
     row.met++;
     const status = computeFollowUpStatus(c);
-    if (status === 'REGISTERED' || status === 'LOGIN_SHARED') row.signedUp++;
-    if (status === 'LOGIN_SHARED' || isPreAppRegistered(c)) row.loginShared++;
+    if (AFTER_SIGN_UP_STATUSES.includes(status)) row.signedUp++;
+    if (status === 'LOGIN_SHARED' || status === 'LOGIN_ISSUE' || status === 'ACCESS_CONFIRMED' || isPreAppRegistered(c)) row.loginShared++;
     if (FOLLOW_UP_STAGE[status] === 'open') row.stillOpen++;
   }
   return Array.from(map.values()).sort((a, b) => b.met - a.met || a.supportName.localeCompare(b.supportName));
@@ -424,14 +479,27 @@ export const buildStatusPatch = (status: FollowUpStatus, subReason?: string): Re
       break;
     case 'REGISTERED':
       // Signing up does not end the follow-up: their app login is still owed,
-      // so the contact stays active until the owner marks LOGIN_SHARED.
+      // so the contact stays active until they get into the app (ACCESS_CONFIRMED).
       base.replyStatus = 'REPLIED';
       base.registrationStatus = 'REGISTERED';
       base.nextAction = 'SEND_MESSAGE';
       break;
     case 'LOGIN_SHARED':
+      // Login sent, but it stays open until they actually sign in.
       base.replyStatus = 'REPLIED';
       base.registrationStatus = 'LOGIN_SHARED';
+      base.nextAction = 'SEND_MESSAGE';
+      break;
+    case 'LOGIN_ISSUE':
+      base.replyStatus = 'REPLIED';
+      base.registrationStatus = 'LOGIN_ISSUE';
+      base.nextAction = 'SEND_MESSAGE';
+      break;
+    case 'ACCESS_CONFIRMED':
+      // The same close columns the ParticipantAccount trigger in
+      // 20260928180000_followup_access_confirmed.sql sets when they choose a password.
+      base.replyStatus = 'REPLIED';
+      base.registrationStatus = 'ACCESS_CONFIRMED';
       base.nextAction = 'CLOSE';
       base.archivedAt = now;
       break;
@@ -514,7 +582,7 @@ export const isOverdue = (contact: FollowUpContact): boolean =>
 // contacted + No response falls short of the total. The funnel puts every
 // contact in exactly one bucket, so the Overview always adds up.
 
-export type FollowUpStage = 'open' | 'registered' | 'done' | 'nextCohort' | 'stopped';
+export type FollowUpStage = 'open' | 'registered' | 'loginShared' | 'done' | 'nextCohort' | 'stopped';
 
 export const FOLLOW_UP_STAGE: Record<FollowUpStatus, FollowUpStage> = {
   TO_CONTACT: 'open',
@@ -523,7 +591,9 @@ export const FOLLOW_UP_STAGE: Record<FollowUpStatus, FollowUpStage> = {
   REPLIED: 'open',
   CALL_BACK_LATER: 'open',
   REGISTERED: 'registered',
-  LOGIN_SHARED: 'done',
+  LOGIN_SHARED: 'loginShared',
+  LOGIN_ISSUE: 'loginShared',
+  ACCESS_CONFIRMED: 'done',
   NEXT_COHORT: 'nextCohort',
   WRONG_NUMBER: 'stopped',
   NOT_INTERESTED: 'stopped',
@@ -558,9 +628,11 @@ export interface FollowUpFunnel {
   open: number;
   /** Signed up, but their app login has not been handed over yet. */
   registered: number;
-  /** Signed up and given their login — the follow-up is finished. */
+  /** Login sent (or not working), waiting for them to get into the app. */
+  loginShared: number;
+  /** Signed up and in the app — the follow-up is finished. */
   done: number;
-  /** Everyone who signed up, whichever side of the login handover they are on. */
+  /** Everyone who signed up, wherever they are on the way into the app. */
   signedUp: number;
   nextCohort: number;
   stopped: number;
@@ -573,13 +645,13 @@ export interface FollowUpFunnel {
 
 const FUNNEL_ORDER: FollowUpStatus[] = [
   'TO_CONTACT', 'WAITING', 'NEEDS_REMINDER', 'REPLIED', 'CALL_BACK_LATER',
-  'REGISTERED', 'LOGIN_SHARED', 'NEXT_COHORT', 'WRONG_NUMBER', 'NOT_INTERESTED', 'NO_RESPONSE',
+  'REGISTERED', 'LOGIN_SHARED', 'LOGIN_ISSUE', 'ACCESS_CONFIRMED', 'NEXT_COHORT', 'WRONG_NUMBER', 'NOT_INTERESTED', 'NO_RESPONSE',
 ];
 
 export const computeFollowUpFunnel = (contacts: FollowUpContact[]): FollowUpFunnel => {
   const counts = new Map<FollowUpStatus, number>();
   const reasons: string[] = [];
-  const stageTotals: Record<FollowUpStage, number> = { open: 0, registered: 0, done: 0, nextCohort: 0, stopped: 0 };
+  const stageTotals: Record<FollowUpStage, number> = { open: 0, registered: 0, loginShared: 0, done: 0, nextCohort: 0, stopped: 0 };
 
   for (const c of contacts) {
     // The ranked list names what each prospect IS. A pre-app one is registered;
@@ -587,7 +659,7 @@ export const computeFollowUpFunnel = (contacts: FollowUpContact[]): FollowUpFunn
     // tiles and the per-rep columns treat them as finished work.
     const status = computeFollowUpStatus(c);
     counts.set(status, (counts.get(status) ?? 0) + 1);
-    stageTotals[isPreAppRegistered(c) ? 'done' : FOLLOW_UP_STAGE[status]]++;
+    stageTotals[isPreAppRegistered(c) || isFiledLoginShared(c) ? 'done' : FOLLOW_UP_STAGE[status]]++;
     const reason = stoppedReason(c);
     if (reason) reasons.push(reason);
   }
@@ -596,11 +668,12 @@ export const computeFollowUpFunnel = (contacts: FollowUpContact[]): FollowUpFunn
     total: contacts.length,
     open: stageTotals.open,
     registered: stageTotals.registered,
+    loginShared: stageTotals.loginShared,
     done: stageTotals.done,
-    signedUp: stageTotals.registered + stageTotals.done,
+    signedUp: stageTotals.registered + stageTotals.loginShared + stageTotals.done,
     nextCohort: stageTotals.nextCohort,
     stopped: stageTotals.stopped,
-    conversion: contacts.length ? (stageTotals.registered + stageTotals.done) / contacts.length : null,
+    conversion: contacts.length ? (stageTotals.registered + stageTotals.loginShared + stageTotals.done) / contacts.length : null,
     buckets: FUNNEL_ORDER
       .map((status) => ({ status, label: FOLLOW_UP_STATUS_META[status].label, value: counts.get(status) ?? 0, stage: FOLLOW_UP_STAGE[status] }))
       .filter((b) => b.value > 0),

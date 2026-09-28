@@ -1135,13 +1135,15 @@ window.GUIDE_CONTENT = {
         "registration status",
         "still open",
         "closed",
-        "login shared"
+        "login shared",
+        "confirmed access",
+        "issue with login"
        ],
        "steps": [
         "Open the contact's status dropdown.",
-        "Choose from three groups: **Still open** (To contact, Waiting, Needs reminder, Replied, Call back later, Registered), **Moved to next cohort**, or **Closed** (Login shared, Wrong number, Not interested, No response)."
+        "Choose from three groups: **Still open** (To contact, Waiting, Needs reminder, Replied, Call back later, Registered, Login shared, Issue with login), **Moved to next cohort**, or **Closed** (Participant confirmed access, Wrong number, Not interested, No response)."
        ],
-       "result": "Only setting the status to **Login shared** actually closes/completes the follow-up — every other \"open\" status keeps them active on your list.",
+       "result": "Only **Participant confirmed access** completes a follow-up — it's set by itself when the person signs in and chooses their password. **Login shared** keeps them open until then, and **Issue with login** alerts the admin and IT team.",
        "shot": "admin-follow-ups-contacts.jpg"
       },
       {
@@ -2251,6 +2253,7 @@ window.GUIDE_CONTENT = {
        "result": "The card updates straight away. If this closes or reopens them, a message appears with **Undo** in case you tapped the wrong thing.",
        "tips": [
         "**Registered** doesn't close the follow-up. They still need their app login.",
+        "Once someone is registered, the box only offers the next steps: **Login shared**, **Participant confirmed access**, **Issue with login** and **Will join next cohort**.",
         "Use **Will join next cohort** for people who want to come later.",
         "**Wrong number**, **Not interested** and **No response** close the card."
        ]
@@ -2264,14 +2267,18 @@ window.GUIDE_CONTENT = {
         "username",
         "password",
         "registered",
-        "send login"
+        "send login",
+        "confirmed access",
+        "issue with login",
+        "can't log in"
        ],
        "steps": [
         "Open their card. Once they're **Registered**, a **Their login details** box appears.",
         "Tap it to see the details and send them.",
-        "Once you've sent them, set **Where do they stand?** to **Login shared**."
+        "Once you've sent them, set **Where do they stand?** to **Login shared**.",
+        "If they can't get in, choose **Issue with login**. The admin and IT team are alerted, and the login details box stays on the card so you can send a new code."
        ],
-       "result": "**Login shared** closes the follow-up. Your job for this person is done.",
+       "result": "When they sign in and set their password, the card closes by itself as **Participant confirmed access** and you get a notification. Your job for this person is done.",
        "shot": "support-follow-ups.jpg"
       },
       {

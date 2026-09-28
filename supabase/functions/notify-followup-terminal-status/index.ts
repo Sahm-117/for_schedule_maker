@@ -4,12 +4,17 @@
  * Sends a push notification to all admins when a non-admin user newly marks
  * a follow-up prospect with an end-of-the-road status.
  *
+ * LOGIN_ISSUE ("Issue with login") is the one exception: it doesn't end the
+ * follow-up, it asks for help. It is sent whoever reports it (admins too), to
+ * every active admin plus the IT Support people (HubItSupport) of the
+ * contact's cohort's hubs, never back to the person who reported it.
+ *
  * POST body:
  * {
  *   contactId: string,
  *   actorId: string,
- *   terminalState: 'CLOSE' | 'LOGIN_SHARED' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER'
- *                 | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE'
+ *   terminalState: 'CLOSE' | 'ACCESS_CONFIRMED' | 'LOGIN_ISSUE' | 'NOT_INTERESTED'
+ *                 | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE'
  * }
  */
 
@@ -40,6 +45,10 @@ webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 // word "closed", so three different outcomes all read as "Closed" to admins.
 const TERMINAL_LABELS: Record<string, string> = {
   CLOSE: 'Closed',
+  ACCESS_CONFIRMED: 'Confirmed access',
+  LOGIN_ISSUE: 'Issue with login',
+  // No longer sent (Login shared stopped closing a follow-up); kept so an app
+  // version still cached on someone's phone doesn't read as "Updated".
   LOGIN_SHARED: 'Login shared',
   NOT_INTERESTED: 'Not interested',
   NOT_A_TCN_MEMBER: 'Not a TCN member',
@@ -64,8 +73,9 @@ Deno.serve(async (req) => {
     const { contactId, actorId, terminalState } = await req.json() as {
       contactId: string
       actorId: string
-      terminalState: 'CLOSE' | 'LOGIN_SHARED' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE'
+      terminalState: 'CLOSE' | 'ACCESS_CONFIRMED' | 'LOGIN_ISSUE' | 'LOGIN_SHARED' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'INCORRECT_NUMBER' | 'NO_RESPONSE'
     }
+    const loginIssue = terminalState === 'LOGIN_ISSUE'
 
     if (!contactId || !actorId || !terminalState) {
       return new Response(JSON.stringify({ ok: false, error: 'contactId, actorId, and terminalState are required' }), {
@@ -84,7 +94,7 @@ Deno.serve(async (req) => {
       throw new Error(actorError?.message || 'Actor not found')
     }
 
-    if (actor.role === 'ADMIN') {
+    if (actor.role === 'ADMIN' && !loginIssue) {
       return new Response(JSON.stringify({ ok: true, sent: 0, skipped: 'actor_is_admin' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -92,7 +102,7 @@ Deno.serve(async (req) => {
 
     const { data: contact, error: contactError } = await supabase
       .from('FollowUpContact')
-      .select('fullName')
+      .select('fullName, cohortId')
       .eq('id', contactId)
       .single()
 
@@ -100,16 +110,68 @@ Deno.serve(async (req) => {
       throw new Error(contactError?.message || 'Contact not found')
     }
 
-    const { data: admins, error: adminsError } = await supabase
+    let adminQuery = supabase
       .from('User')
       .select('id')
       .eq('role', 'ADMIN')
+    if (loginIssue) adminQuery = adminQuery.neq('isActive', false)
+    const { data: admins, error: adminsError } = await adminQuery
 
     if (adminsError) {
       throw new Error(adminsError.message)
     }
 
-    const adminIds = Array.from(new Set((admins || []).map((admin: { id: string }) => admin.id).filter(Boolean)))
+    let recipientIds: string[] = (admins || []).map((admin: { id: string }) => admin.id)
+
+    if (loginIssue) {
+      // IT Support is a hub job, stored as HubItSupport rows (same source
+      // send-announcement reads for its IT_SUPPORT audience). Scoped to the
+      // contact's cohort's hubs; a contact with no cohort goes to all of them.
+      let itIds: string[] = []
+      if (contact.cohortId) {
+        const { data: hubs, error: hubsError } = await supabase
+          .from('SupportHub')
+          .select('id')
+          .eq('cohortId', contact.cohortId)
+        if (hubsError) {
+          throw new Error(hubsError.message)
+        }
+        const hubIds = (hubs || []).map((hub: { id: string }) => hub.id)
+        if (hubIds.length > 0) {
+          const { data: itRows, error: itError } = await supabase
+            .from('HubItSupport')
+            .select('userId')
+            .in('hubId', hubIds)
+          if (itError) {
+            throw new Error(itError.message)
+          }
+          itIds = (itRows || []).map((row: { userId: string }) => row.userId)
+        }
+      } else {
+        const { data: itRows, error: itError } = await supabase
+          .from('HubItSupport')
+          .select('userId')
+        if (itError) {
+          throw new Error(itError.message)
+        }
+        itIds = (itRows || []).map((row: { userId: string }) => row.userId)
+      }
+      if (itIds.length > 0) {
+        const { data: activeIt, error: activeItError } = await supabase
+          .from('User')
+          .select('id')
+          .in('id', itIds)
+          .neq('isActive', false)
+        if (activeItError) {
+          throw new Error(activeItError.message)
+        }
+        recipientIds = recipientIds.concat((activeIt || []).map((row: { id: string }) => row.id))
+      }
+      recipientIds = recipientIds.filter((id) => id !== actorId)
+    }
+
+    // Admins, plus IT Support for a login problem.
+    const adminIds = Array.from(new Set(recipientIds.filter(Boolean)))
     if (adminIds.length === 0) {
       return new Response(JSON.stringify({ ok: true, sent: 0 }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -118,7 +180,9 @@ Deno.serve(async (req) => {
 
     // Who it is about leads; the one-word outcome is what an admin scans for.
     const title = `${contact.fullName}: ${TERMINAL_LABELS[terminalState] || 'Updated'}`
-    const body = `Follow up update from ${actor.name}`
+    const body = loginIssue
+      ? `${actor.name} reported a login problem for ${contact.fullName}. They may need a new login code.`
+      : `Follow up update from ${actor.name}`
 
     // In-app feed for every admin, regardless of push subscription.
     await insertNotifications(

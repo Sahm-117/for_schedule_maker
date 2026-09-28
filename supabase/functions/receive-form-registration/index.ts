@@ -47,6 +47,11 @@ const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@fof.com'
 
 webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 
+// Already signed up. Login shared / Issue with login stay open now (they no
+// longer file the contact away), so a repeat form must not knock them back to
+// Registered.
+const SIGNED_UP_STATUSES = new Set(['REGISTERED', 'LOGIN_SHARED', 'LOGIN_ISSUE', 'ACCESS_CONFIRMED'])
+
 /**
  * Same rules as the app's normalizeToIntlPhone (frontend/src/utils/phone.ts):
  * Nigerian local numbers become 234..., other international numbers are kept,
@@ -170,7 +175,7 @@ Deno.serve(async (req) => {
       ok: true,
       outcome: match ? 'MATCHED' : 'CREATED',
       wouldDo: match
-        ? (match.registrationStatus === 'REGISTERED'
+        ? (SIGNED_UP_STATUSES.has(match.registrationStatus)
             ? `${match.fullName} is already registered; only the sign-up would be recorded.`
             : `Mark ${match.fullName} registered and add them as a participant.`)
         : `Add ${fullName} as a new prospect waiting to be assigned.`,
@@ -239,7 +244,7 @@ Deno.serve(async (req) => {
     }
 
     if (contact) {
-      if (contact.registrationStatus !== 'REGISTERED') {
+      if (!SIGNED_UP_STATUSES.has(String(contact.registrationStatus))) {
         await supabase
           .from('FollowUpContact')
           .update({ registrationStatus: 'REGISTERED', updatedAt: new Date().toISOString() })

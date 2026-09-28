@@ -11,6 +11,7 @@ import FollowUpContactModal from '../components/followups/FollowUpContactModal';
 import FollowUpIssuesPanel from '../components/followups/FollowUpIssuesPanel';
 import MessageTemplatePicker from '../components/followups/MessageTemplatePicker';
 import NotInterestedPopup from '../components/followups/NotInterestedPopup';
+import FollowUpStatusFlow from '../components/followups/FollowUpStatusFlow';
 import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
@@ -23,9 +24,9 @@ import {
   computeFollowUpFunnel,
   computeFollowUpStatus,
   contactInCohortScope,
-  followUpStatusOptions,
   isClosedContact,
   isClosedRegistrationStatus,
+  supportStatusOptions,
 } from '../utils/followUps';
 import Spinner from '../components/Spinner';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
@@ -228,7 +229,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
       if (patch.registrationStatus) {
         if (patch.registrationStatus === 'REGISTERED') {
           // Signing up no longer closes the follow-up -- their app login is still
-          // owed. LOGIN_SHARED is what closes it, and it is covered below.
+          // owed. ACCESS_CONFIRMED is what closes it, and it is covered below.
           patch.replyStatus = 'REPLIED';
           patch.nextAction = 'SEND_MESSAGE';
           patch.archivedAt = null;
@@ -325,7 +326,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
       const owner = duplicate.ownerName
         ? `being followed up by ${duplicate.ownerName}`
         : 'waiting to be assigned';
-      const signedUp = duplicate.registrationStatus === 'REGISTERED' || duplicate.registrationStatus === 'LOGIN_SHARED';
+      const signedUp = ['REGISTERED', 'LOGIN_SHARED', 'LOGIN_ISSUE', 'ACCESS_CONFIRMED'].includes(duplicate.registrationStatus);
       setProspectError(
         `${duplicate.fullName} is already in the app${signedUp ? ' and has signed up' : ''} — ${owner}. No need to save them again.`,
       );
@@ -560,7 +561,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                           <span className="ml-auto rounded-full bg-[#fff8f3] px-2.5 py-0.5 text-[11px] font-bold text-[#c2410c]">{statusLabel}</span>
                         </div>
                         <p className="mt-1 text-xs text-gray-500">{contact.phone}</p>
-                        {contact.registrationStatus === 'REGISTERED' && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} className="mt-2.5" />}
+                        {(contact.registrationStatus === 'REGISTERED' || contact.registrationStatus === 'LOGIN_SHARED' || contact.registrationStatus === 'LOGIN_ISSUE') && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} className="mt-2.5" />}
                       </div>
                     );
                   })}
@@ -666,16 +667,17 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       <span className="inline-flex min-h-[40px] items-center justify-center rounded-[10px] border border-gray-100 bg-gray-50 px-2 py-2 text-[12.5px] font-semibold text-gray-400">Call</span>
                     )}
                   </div>
+                  <FollowUpStatusFlow status={status} className="mt-3.5" />
                   <div className="mt-3">
                     <AppSelect
                       label="Where do they stand?"
                       value={status}
                       onChange={(value) => handleStatusChange(contact, value as FollowUpStatus)}
-                      options={followUpStatusOptions}
+                      options={supportStatusOptions(status)}
                       placeholder="Choose status"
                     />
                   </div>
-                  {status === 'REGISTERED' && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} className="mt-3" />}
+                  {(status === 'REGISTERED' || status === 'LOGIN_SHARED' || status === 'LOGIN_ISSUE') && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} className="mt-3" />}
                 </section>
               );
             })}

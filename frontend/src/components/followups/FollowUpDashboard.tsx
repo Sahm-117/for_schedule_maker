@@ -6,7 +6,8 @@ import { settingsApi } from '../../services/api';
 
 // One colour per status, matching the tone each status already carries on its
 // pill: slate before contact, amber while waiting, emerald once they reply or
-// register, sky for next cohort, rose/neutral once they stop.
+// register, sky for a shared login and next cohort, orange for a login
+// problem, rose/neutral once they stop.
 const STATUS_COLOR: Record<FollowUpStatus, string> = {
   TO_CONTACT: '#cbd5e1',
   WAITING: '#fcd34d',
@@ -14,7 +15,9 @@ const STATUS_COLOR: Record<FollowUpStatus, string> = {
   REPLIED: '#6ee7b7',
   CALL_BACK_LATER: '#c4b5fd',
   REGISTERED: '#6ee7b7',
-  LOGIN_SHARED: '#10b981',
+  LOGIN_SHARED: '#7dd3fc',
+  LOGIN_ISSUE: '#fb923c',
+  ACCESS_CONFIRMED: '#10b981',
   NEXT_COHORT: '#38bdf8',
   WRONG_NUMBER: '#fb7185',
   NOT_INTERESTED: '#f43f5e',

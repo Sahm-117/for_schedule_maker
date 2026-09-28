@@ -278,7 +278,7 @@ const AdminFollowUpsPage: React.FC = () => {
       if (patch.registrationStatus) {
         if (patch.registrationStatus === 'REGISTERED') {
           // Signing up no longer closes the follow-up -- their app login is still
-          // owed. LOGIN_SHARED is what closes it, and isClosedRegistrationStatus
+          // owed. ACCESS_CONFIRMED is what closes it, and isClosedRegistrationStatus
           // covers that below.
           patch.replyStatus = 'REPLIED';
           patch.nextAction = 'SEND_MESSAGE';
