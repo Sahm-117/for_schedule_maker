@@ -12,6 +12,7 @@ import type { Cohort, EarlierClassDocument, FollowUpContact, User, Week } from '
 import { sortByText } from '../utils/sort';
 import { DEFAULT_RECAP_RELEASE_TIMES, formatRecapReleaseAt, recapReleaseAt, type RecapReleaseTimes } from '../utils/recapReleaseTimes';
 import Spinner from '../components/Spinner';
+import InfoTip from '../components/InfoTip';
 
 type CohortFormState = {
   name: string;
@@ -31,17 +32,17 @@ const emptyForm = (): CohortFormState => ({
   weekCount: 10,
 });
 
-// "Thu 6:00 PM", read straight off a RecapReleaseTimes day/time pair -- no
+// "Thursday at 6:00 PM", read straight off a RecapReleaseTimes day/time pair -- no
 // cohort start date needed, unlike formatRecapReleaseAt (which needs a real
 // calendar date). Used in the week editor's compact "Goes out ..." labels.
-const DAY_SHORT_LABEL: Record<string, string> = {
-  SUNDAY: 'Sun', MONDAY: 'Mon', TUESDAY: 'Tue', WEDNESDAY: 'Wed', THURSDAY: 'Thu', FRIDAY: 'Fri', SATURDAY: 'Sat',
+const DAY_LABEL: Record<string, string> = {
+  SUNDAY: 'Sunday', MONDAY: 'Monday', TUESDAY: 'Tuesday', WEDNESDAY: 'Wednesday', THURSDAY: 'Thursday', FRIDAY: 'Friday', SATURDAY: 'Saturday',
 };
 const formatDayTime = (day: string, time: string) => {
   const [h, m] = time.split(':').map(Number);
   const hour12 = ((h + 11) % 12) + 1;
   const ampm = h >= 12 ? 'PM' : 'AM';
-  return `${DAY_SHORT_LABEL[day] || day} ${hour12}:${String(m).padStart(2, '0')} ${ampm}`;
+  return `${DAY_LABEL[day] || day} at ${hour12}:${String(m).padStart(2, '0')} ${ampm}`;
 };
 
 // "Choose an earlier file" picker, shared by the manual and recap steps of
@@ -1414,8 +1415,9 @@ const CohortsPage: React.FC = () => {
           const week = weekEditTarget?.week;
           const manualDone = !!week?.manualDocumentUrl;
           const recapDone = !!(week?.recapDocumentUrl || recapSummaryDraft.trim());
+          const manualReleaseLabel = `${formatDayTime(recapReleaseTimes.manualDay, recapReleaseTimes.manualTime)} in Week ${week?.weekNumber ?? ''} of the cohort`;
           const nextLine = !manualDone
-            ? `Next: upload the manual · goes out ${formatDayTime(recapReleaseTimes.manualDay, recapReleaseTimes.manualTime)}`
+            ? `Next: upload the manual · goes out ${manualReleaseLabel}`
             : !recapDone
             ? 'Next: add the recap'
             : 'All set';
@@ -1440,7 +1442,7 @@ const CohortsPage: React.FC = () => {
                     {manualDone ? '✓' : '1'}
                   </span>
                   <p className="text-sm font-bold text-gray-900">Class manual</p>
-                  <span className="ml-auto text-[11px] font-semibold text-gray-500">Goes out {formatDayTime(recapReleaseTimes.manualDay, recapReleaseTimes.manualTime)}</span>
+                  <span className="ml-auto text-right text-[11px] font-semibold text-gray-500">Goes out {manualReleaseLabel}</span>
                 </div>
                 <p className="ml-[34px] mt-0.5 text-xs text-gray-500">{manualDone ? 'Document attached' : 'No document yet'}</p>
 
@@ -1615,8 +1617,11 @@ const CohortsPage: React.FC = () => {
                 <div className="flex items-center gap-2.5">
                   <span className="grid h-6 w-6 flex-none place-items-center rounded-full bg-neutral-100 text-xs font-bold text-neutral-600">3</span>
                   <p className="text-sm font-bold text-gray-900">Participants</p>
+                  <InfoTip label="Where participants see these details">
+                    The lines below appear in “What&apos;s expected” on the participant Home page, in the “This week” card after the cohort starts. The recap is shared separately using the switch below.
+                  </InfoTip>
                 </div>
-                <p className="ml-[34px] mt-0.5 text-xs text-gray-500">{shareWithParticipantsDraft ? 'Participants will see this' : 'Kept staff-only'}</p>
+                <p className="ml-[34px] mt-0.5 text-xs text-gray-500">Shown on participant Home</p>
 
                 <div className="mt-3">
                   <textarea
@@ -1647,7 +1652,7 @@ const CohortsPage: React.FC = () => {
                   <div className="mt-3 rounded-2xl bg-gray-50 px-4 py-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">When manual + recap go out</p>
                     <p className="mt-1.5 text-sm text-gray-700">
-                      Manual: {week.manualReleasedEarlyAt ? 'sent early' : formatDayTime(recapReleaseTimes.manualDay, recapReleaseTimes.manualTime)}
+                      Manual: {week.manualReleasedEarlyAt ? 'sent early' : manualReleaseLabel}
                       {' · '}
                       Recap (supports): {formatRecapReleaseAt(recapReleaseAt(cohorts.find((c) => c.id === weekEditTarget?.cohortId)?.startDate, week.weekNumber, recapReleaseTimes.supportDay, recapReleaseTimes.supportTime))}
                       {' · '}

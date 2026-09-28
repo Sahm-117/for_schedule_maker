@@ -484,10 +484,13 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               scrollable
             />
           </div>
+          <InfoTip label="About Mobilisation tabs">
+            Registration is for saving people you meet and sharing the sign-up form. Follow-ups shows people assigned to you.{isItSupport && ' IT issues shows login problems reported in your hub.'}
+          </InfoTip>
           <div data-wt="mob-more"><AppOverflowMenu items={overflowItems} /></div>
         </div>
 
-        {registrationLink && (
+        {tab === 'register' && registrationLink && (
           <div data-wt="mob-link" className="inline-flex self-start items-center gap-1.5 text-xs font-semibold text-gray-600">
             <span className="px-1">Registration link</span>
             <a href={registrationLink} target="_blank" rel="noopener noreferrer" aria-label="Open registration form" title="Open registration form" className="grid h-10 w-10 place-items-center rounded-full bg-[#f6f7f9] hover:bg-gray-100 hover:text-gray-800">

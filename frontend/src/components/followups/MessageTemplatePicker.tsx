@@ -95,8 +95,16 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
           No message templates yet. Ask an admin to add them in the Message Bank.
         </p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
+        <div className="flex h-[min(60vh,520px)] min-h-0 flex-col gap-4">
+          <div className="max-h-[40%] shrink-0 overflow-y-auto rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Preview</p>
+            {filled ? (
+              <p className="whitespace-pre-wrap text-sm text-gray-800">{filled}</p>
+            ) : (
+              <p className="text-sm text-gray-400">Select a template to preview the personalised message.</p>
+            )}
+          </div>
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1" aria-label="Message templates">
             {templates.map((t) => (
               <button
                 key={t.id}
@@ -108,14 +116,6 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
                 {t.whenToUse && <p className="mt-0.5 text-xs text-gray-500">{t.whenToUse}</p>}
               </button>
             ))}
-          </div>
-          <div className="rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Preview</p>
-            {filled ? (
-              <p className="whitespace-pre-wrap text-sm text-gray-800">{filled}</p>
-            ) : (
-              <p className="text-sm text-gray-400">Select a template to preview the personalised message.</p>
-            )}
           </div>
         </div>
       )}
