@@ -135,6 +135,14 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [showExport, setShowExport] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [mobilisationTarget, setMobilisationTarget] = useState<number | null>(null);
+  // Phone-only: the number cards scroll sideways; the arrow hints at more and
+  // hides once the row is scrolled to the end.
+  const numbersRowRef = useRef<HTMLDivElement | null>(null);
+  const [numbersAtEnd, setNumbersAtEnd] = useState(false);
+  const updateNumbersAtEnd = () => {
+    const el = numbersRowRef.current;
+    if (el) setNumbersAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4);
+  };
   const [loginIssueContact, setLoginIssueContact] = useState<FollowUpContact | null>(null);
 
   // IT issues tab: only for IT Support (a HubItSupport row in this cohort).
@@ -176,12 +184,15 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   // Signed up counts this cohort only (as on the admin Follow-ups overview).
   // Prospects = people still being followed up who haven't signed up yet,
   // split into prior-cohort ones (no cohort until assigned) and this cohort's.
+  // Onboarded = this cohort's people whose follow-up closed as Participant
+  // confirmed access (they chose their password / signed in to the app).
   const mobilisationNumbers = useMemo(() => {
     if (!activeCohort) return null;
     const scoped = allContacts.filter((c) => contactInCohortScope(c, activeCohort.id, activeCohort.id));
     const current = computeFollowUpFunnel(scoped.filter((c) => c.cohortId));
     const prior = computeFollowUpFunnel(scoped.filter((c) => !c.cohortId));
-    return { signedUp: current.signedUp, currentProspects: current.open, priorProspects: prior.open };
+    const onboarded = scoped.filter((c) => c.cohortId && computeFollowUpStatus(c) === 'ACCESS_CONFIRMED').length;
+    return { signedUp: current.signedUp, currentProspects: current.open, priorProspects: prior.open, onboarded };
   }, [allContacts, activeCohort]);
 
   const loadAll = useCallback(async () => {
@@ -533,8 +544,9 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
             </section>
 
             {mobilisationNumbers && (
-              <div className="grid grid-cols-2 gap-3">
-                <section className={`${CARD} p-4`}>
+              <div className="relative">
+              <div ref={numbersRowRef} onScroll={updateNumbersAtEnd} className="-mb-1 flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:none] sm:mb-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
+                <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Target</p>
                     {mobilisationTarget ? (
@@ -555,7 +567,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                     <p className="mt-1 text-xs text-gray-500">No target set yet</p>
                   )}
                 </section>
-                <section className={`${CARD} p-4`}>
+                <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Prospects</p>
                     <InfoTip label="About prospects">
@@ -565,6 +577,31 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{mobilisationNumbers.priorProspects + mobilisationNumbers.currentProspects}</span></p>
                   <p className="mt-1 text-xs font-semibold text-gray-600">Not registered yet</p>
                 </section>
+                <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Onboarded</p>
+                    <InfoTip label="About onboarded">
+                      {mobilisationNumbers.onboarded} of the {mobilisationNumbers.signedUp} people registered for {activeCohort?.name} have confirmed their login: they chose their password and got into the app.
+                    </InfoTip>
+                  </div>
+                  <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{mobilisationNumbers.onboarded}</span>{mobilisationNumbers.signedUp > 0 ? ` of ${mobilisationNumbers.signedUp}` : ''}</p>
+                  <p className="mt-1 text-xs font-semibold text-emerald-700">Confirmed login</p>
+                  {mobilisationNumbers.signedUp > 0 && (
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
+                      <span className="block h-full bg-emerald-500" style={{ width: `${Math.min(mobilisationNumbers.onboarded / mobilisationNumbers.signedUp, 1) * 100}%` }} />
+                    </div>
+                  )}
+                </section>
+              </div>
+              <button
+                type="button"
+                onClick={() => numbersRowRef.current?.scrollBy({ left: 160, behavior: 'smooth' })}
+                aria-label="Show more numbers"
+                tabIndex={numbersAtEnd ? -1 : 0}
+                className={`absolute right-1 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-gray-500 shadow-[0_4px_14px_-4px_rgba(17,24,39,0.25)] transition-opacity duration-300 sm:hidden ${numbersAtEnd ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="m9 6 6 6-6 6" /></svg>
+              </button>
               </div>
             )}
 
