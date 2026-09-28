@@ -23,7 +23,7 @@ export const buildInviteMessage = ({ name, email, phone, password, kind = 'invit
     + `Name on the app: ${name.trim()}\n`
     + `Login: ${login}\n`
     + `${kind === 'reset' ? 'Temporary password' : 'First-time password'}: ${password}\n`
-    + `App link: ${window.location.origin}/login\n\n`
+    + `App link: https://fof.tcnikorodu.org/login\n\n`
     + `You will be asked to choose your own password when you ${kind === 'reset' ? 'next' : 'first'} sign in.`;
 };
 

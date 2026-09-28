@@ -90,7 +90,7 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
     ? `Hello ${firstName}, well done on registering for Foundation Of Faith!\n\n`
       + (user?.name ? `My name is ${user.name}, from TCN Ikorodu, here to get you onboarded on to the FOF App.\n\n` : '')
       + 'Please find your login details below.\n\n'
-      + `App link: ${window.location.origin}/login\n`
+      + `App link: https://fof.tcnikorodu.org/login\n`
       + `Username: ${details.phone}\n`
       + `First-time password: ${details.setupCode}\n\n`
       + `You will be asked to set your own password when you first sign in. If you have any questions, just ask me. See you on ${firstClassText(startDate)}.`
