@@ -334,7 +334,7 @@ const AdminParticipantProfilePage: React.FC = () => {
       <section data-wt="pp-app" className={CARD}>
         <h2 className="text-lg font-semibold text-gray-900">Participant app</h2>
         <p className="mt-1 text-sm text-gray-500">Send {participant.fullName.split(' ')[0]} their login, and see what they have done in the app.</p>
-        <LoginDetailsCard participantId={participant.id} className="mt-4 max-w-xl" />
+        <LoginDetailsCard participantId={participant.id} startDate={cohorts.find((c) => c.id === participant.cohortId)?.startDate} className="mt-4 max-w-xl" />
         <ParticipantAppActivity participantId={participant.id} cohortId={participant.cohortId} weeks={weeks} />
       </section>
 

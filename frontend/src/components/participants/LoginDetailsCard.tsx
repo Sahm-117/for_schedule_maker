@@ -14,10 +14,20 @@ interface LoginDetailsCardProps {
   followUpContactId?: string | null;
   defaultOpen?: boolean;
   className?: string;
+  /** Their cohort's first class (YYYY-MM-DD…), for "See you on October 11". */
+  startDate?: string | null;
 }
 
 const formatDay = (value: string | null) =>
   value ? new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+
+// "October 11" while the first class is still ahead; otherwise just "Sunday".
+const firstClassText = (startDate?: string | null) => {
+  if (!startDate) return 'Sunday';
+  const date = new Date(`${startDate.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(date.getTime()) || date.getTime() < Date.now() - 12 * 60 * 60 * 1000) return 'Sunday';
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+};
 
 const errorText = (err: unknown) => {
   const message = err instanceof Error ? err.message : '';
@@ -25,7 +35,7 @@ const errorText = (err: unknown) => {
   return message || 'Could not load the login details. Please try again.';
 };
 
-const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, followUpContactId, defaultOpen = false, className = '' }) => {
+const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, followUpContactId, defaultOpen = false, className = '', startDate }) => {
   const [details, setDetails] = useState<ParticipantLoginDetails | null>(null);
   const [open, setOpen] = useState(defaultOpen);
   const [loading, setLoading] = useState(false);
@@ -75,11 +85,11 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
 
   const firstName = (details?.name || '').split(' ')[0];
   const message = details?.setupCode
-    ? `Hello ${firstName}, please find your login details below.\n\n`
+    ? `Hello ${firstName}, well done on registering for FOF! Please find your login details below.\n\n`
       + `App link: ${window.location.origin}/login\n`
       + `Username: ${details.phone}\n`
       + `First-time password: ${details.setupCode}\n\n`
-      + 'You will be asked to set your own password when you first sign in. See you Sunday.'
+      + `You will be asked to set your own password when you first sign in. If you have any questions, just ask me. See you on ${firstClassText(startDate)}.`
     : '';
   const waLink = message ? buildWhatsAppLink(details?.phone, message) : null;
 

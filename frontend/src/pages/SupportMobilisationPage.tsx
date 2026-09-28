@@ -560,7 +560,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                           <span className="ml-auto rounded-full bg-[#fff8f3] px-2.5 py-0.5 text-[11px] font-bold text-[#c2410c]">{statusLabel}</span>
                         </div>
                         <p className="mt-1 text-xs text-gray-500">{contact.phone}</p>
-                        {contact.registrationStatus === 'REGISTERED' && <LoginDetailsCard followUpContactId={contact.id} className="mt-2.5" />}
+                        {contact.registrationStatus === 'REGISTERED' && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} className="mt-2.5" />}
                       </div>
                     );
                   })}
@@ -675,7 +675,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       placeholder="Choose status"
                     />
                   </div>
-                  {status === 'REGISTERED' && <LoginDetailsCard followUpContactId={contact.id} className="mt-3" />}
+                  {status === 'REGISTERED' && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} className="mt-3" />}
                 </section>
               );
             })}

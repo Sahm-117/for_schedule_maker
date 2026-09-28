@@ -742,7 +742,7 @@ const AdminParticipantsPage: React.FC = () => {
 };
 
 const AdminParticipantsContent: React.FC = () => {
-  const { activeCohort, liveRevision } = useAppData();
+  const { activeCohort, cohorts, liveRevision } = useAppData();
 
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -1242,7 +1242,7 @@ const AdminParticipantsContent: React.FC = () => {
         title="Login details"
         subtitle={loginFor ? `${loginFor.fullName} was added. Send them their login for the app.` : undefined}
       >
-        {loginFor && <LoginDetailsCard participantId={loginFor.id} defaultOpen />}
+        {loginFor && <LoginDetailsCard participantId={loginFor.id} startDate={cohorts.find((c) => c.id === loginFor.cohortId)?.startDate} defaultOpen />}
       </ModalShell>
 
       <RequestInfoModal isOpen={requestInfoOpen} onClose={() => setRequestInfoOpen(false)} />
