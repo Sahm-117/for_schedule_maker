@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FOF Ops Guide</title>
+<style>
+  :root {
+    --primary: #FF914D;
+    --primary-deep: #C2410C;
+    --primary-soft: rgba(255,145,77,.13);
+    --ink: #1F1A17;
+    --ink-2: #6B625C;
+    --ink-3: #8A817A;
+    --cream: #FFFAF5;
+    --card: #FFFFFF;
+    --soft: #FBF6F1;
+    --line: rgba(43,18,4,.07);
+    --shadow: 0 1px 2px rgba(43,18,4,.04), 0 8px 24px rgba(43,18,4,.06);
+    --shadow-lift: 0 2px 4px rgba(43,18,4,.05), 0 18px 40px rgba(43,18,4,.11);
+    --radius: 22px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  img { max-width: 100%; display: block; }
+  a { color: inherit; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 16px 96px; }
+  .hidden { display: none !important; }
+
+  /* ---------- Top bar: brand, the always-on "How can I…?" box, role switch ---------- */
+  .top {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(255,250,245,.84);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    backdrop-filter: saturate(180%) blur(18px);
+    border-bottom: 1px solid var(--line);
+  }
+  .top-inner { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 10px; align-items: center; }
+  .brand { font-weight: 700; font-size: 15px; white-space: nowrap; display: flex; align-items: center; gap: 9px; border: 0; background: none; padding: 0; }
+  .brand-dot { width: 32px; height: 32px; border-radius: 11px; background: linear-gradient(145deg, #FFA66B, #FF7F3A); display: grid; place-items: center; color: #fff; font-size: 16px; font-weight: 800; box-shadow: 0 4px 12px rgba(255,127,58,.35); }
+  .search { flex: 1; position: relative; min-width: 0; }
+  .search input {
+    width: 100%; height: 44px; border-radius: 14px; border: 0;
+    background: var(--card); box-shadow: var(--shadow);
+    padding: 0 38px 0 40px; font-size: 16px; color: var(--ink); outline: none; -webkit-appearance: none; appearance: none;
+  }
+  .search input::-webkit-search-cancel-button { display: none; }
+  .search input:focus { box-shadow: 0 0 0 3px rgba(255,145,77,.35), var(--shadow); }
+  .search .mag { position: absolute; left: 13px; top: 13px; width: 18px; height: 18px; color: var(--ink-3); pointer-events: none; }
+  .search .clear { position: absolute; right: 7px; top: 7px; width: 30px; height: 30px; border: 0; border-radius: 50%; background: var(--soft); color: var(--ink-2); display: none; place-items: center; }
+  .search.has .clear { display: grid; }
+  .role-chip {
+    height: 44px; border: 0; border-radius: 14px; background: var(--card); box-shadow: var(--shadow);
+    padding: 0 14px; font-weight: 600; font-size: 14px; white-space: nowrap; display: flex; align-items: center; gap: 6px;
+  }
+  @media (max-width: 600px) { .brand-text { display: none; } .role-chip .long { display: none; } .role-chip { padding: 0 12px; } }
+
+  /* ---------- Role picker ---------- */
+  .picker { padding: 44px 0 20px; text-align: center; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--primary-deep); background: var(--primary-soft); border-radius: 999px; padding: 4px 12px; margin-bottom: 14px; }
+  .picker h1 { font-size: clamp(30px, 7vw, 46px); line-height: 1.08; margin: 0 0 12px; letter-spacing: -.025em; }
+  .picker > p { color: var(--ink-2); margin: 0 auto 30px; max-width: 520px; font-size: 17px; }
+  .roles { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); text-align: left; max-width: 980px; margin: 0 auto; }
+  .role-card {
+    border: 0; background: var(--card); border-radius: 26px; padding: 22px; box-shadow: var(--shadow);
+    text-align: left; transition: transform .18s ease, box-shadow .18s ease; display: flex; flex-direction: column; gap: 4px;
+  }
+  .role-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); }
+  .role-card:active { transform: scale(.99); }
+  .role-card .tile { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; font-size: 28px; margin-bottom: 12px; }
+  .role-card h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
+  .role-card p { margin: 2px 0 14px; color: var(--ink-2); font-size: 15px; }
+  .role-card .go { margin-top: auto; font-size: 14px; font-weight: 600; color: var(--primary-deep); display: flex; align-items: center; gap: 4px; }
+  .role-card .count { font-weight: 500; color: var(--ink-3); }
+
+  /* ---------- Role home ---------- */
+  .hero {
+    margin-top: 22px; border-radius: 28px; padding: 26px 24px; color: #fff; position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #FF9A57 0%, #FF7F3A 55%, #F2672A 100%);
+    box-shadow: 0 16px 40px rgba(242,103,42,.25);
+  }
+  .hero::after { content: ""; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px; border-radius: 50%; background: rgba(255,255,255,.12); }
+  .hero::before { content: ""; position: absolute; right: 60px; bottom: -90px; width: 180px; height: 180px; border-radius: 50%; background: rgba(255,255,255,.08); }
+  .hero .hello { font-size: 14px; font-weight: 600; opacity: .9; }
+  .hero h1 { margin: 4px 0 6px; font-size: clamp(26px, 5.5vw, 36px); line-height: 1.12; letter-spacing: -.02em; position: relative; z-index: 1; }
+  .hero p { margin: 0; max-width: 560px; opacity: .95; position: relative; z-index: 1; }
+  .hero .ask { margin-top: 18px; position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; width: 100%; max-width: 520px; height: 50px; border: 0; border-radius: 16px; background: #fff; color: var(--ink-3); padding: 0 16px; text-align: left; box-shadow: 0 8px 24px rgba(120,40,0,.18); }
+  .hero .ask svg { width: 18px; height: 18px; flex: none; }
+
+  .block-title { display: flex; align-items: baseline; justify-content: space-between; margin: 34px 0 12px; }
+  .block-title h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
+  .block-title span { font-size: 14px; color: var(--ink-3); }
+
+  .popular { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .pop {
+    border: 0; background: var(--card); border-radius: 18px; box-shadow: var(--shadow); padding: 14px 16px;
+    display: flex; gap: 12px; align-items: center; text-align: left; transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .pop:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+  .pop .pe { flex: none; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-size: 19px; }
+  .pop .pq, .pop .ps { display: block; }
+  .pop .pq { font-weight: 600; font-size: 15px; line-height: 1.35; }
+  .pop .ps { font-size: 13px; color: var(--ink-3); margin-top: 1px; }
+
+  .topics { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+  .topic {
+    border: 0; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px;
+    text-align: left; display: flex; flex-direction: column; gap: 2px; transition: transform .15s ease, box-shadow .15s ease; text-decoration: none;
+  }
+  .topic:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+  .topic .te { width: 46px; height: 46px; border-radius: 15px; display: grid; place-items: center; font-size: 23px; margin-bottom: 10px; }
+  .topic h3 { margin: 0; font-size: 17px; letter-spacing: -.01em; }
+  .topic p { margin: 3px 0 10px; font-size: 14px; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .topic .n { margin-top: auto; font-size: 13px; font-weight: 600; color: var(--primary-deep); }
+
+  .helpcard { margin-top: 34px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px; display: flex; gap: 14px; align-items: center; }
+  .helpcard .he { flex: none; width: 46px; height: 46px; border-radius: 15px; background: rgba(16,185,129,.12); display: grid; place-items: center; font-size: 22px; }
+  .helpcard .ht { display: block; font-weight: 700; }
+  .helpcard span { font-size: 14px; color: var(--ink-2); }
+
+  /* ---------- Topic (section) page ---------- */
+  .layout { display: grid; gap: 28px; grid-template-columns: 250px minmax(0, 1fr); padding-top: 22px; }
+  .layout > * { min-width: 0; }
+  @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } .side { display: none; } }
+  .side { position: sticky; top: 80px; align-self: start; max-height: calc(100vh - 96px); overflow: auto; padding: 2px 4px 12px 2px; }
+  .side .home-link { display: flex; align-items: center; gap: 8px; padding: 9px 12px; margin-bottom: 6px; border-radius: 12px; font-size: 14px; font-weight: 600; text-decoration: none; color: var(--primary-deep); }
+  .side .home-link:hover { background: var(--primary-soft); }
+  .side a.s {
+    display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 12px; color: var(--ink-2); text-decoration: none; font-size: 14px;
+  }
+  .side a.s .mini { width: 26px; height: 26px; border-radius: 9px; display: grid; place-items: center; font-size: 14px; flex: none; }
+  .side a.s:hover { background: rgba(255,255,255,.7); color: var(--ink); }
+  .side a.s.on { background: #fff; color: var(--ink); font-weight: 600; box-shadow: var(--shadow); }
+
+  .back { display: inline-flex; align-items: center; gap: 6px; border: 0; background: #fff; box-shadow: var(--shadow); border-radius: 999px; padding: 7px 14px 7px 10px; font-size: 14px; font-weight: 600; color: var(--ink-2); text-decoration: none; }
+  .back svg { width: 16px; height: 16px; }
+  .sec-head { display: flex; gap: 16px; align-items: center; margin: 18px 0 6px; }
+  .sec-head .te { flex: none; width: 58px; height: 58px; border-radius: 18px; display: grid; place-items: center; font-size: 29px; }
+  .sec-head h1 { margin: 0; font-size: clamp(24px, 5vw, 32px); line-height: 1.15; letter-spacing: -.02em; }
+  .where { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 13px; color: var(--primary-deep); background: var(--primary-soft); border-radius: 999px; padding: 4px 12px; line-height: 1.4; }
+  .where svg { width: 13px; height: 13px; flex: none; }
+  .summary { color: var(--ink-2); margin: 12px 0 18px; font-size: 16.5px; max-width: 680px; }
+
+  /* Screenshots: wide ones sit in a soft card; tall (phone) ones get a phone frame. */
+  figure { margin: 16px 0 0; }
+  figure img { border-radius: 16px; box-shadow: var(--shadow); cursor: zoom-in; background: var(--soft); max-height: 540px; width: auto; max-width: 100%; }
+  figure.tall img { width: 270px; max-width: 78vw; max-height: none; border-radius: 30px; border: 7px solid #fff; box-shadow: 0 0 0 1px rgba(43,18,4,.06), var(--shadow-lift); }
+  figure figcaption { font-size: 12.5px; color: var(--ink-3); margin-top: 8px; }
+  .sec-shot { margin: 0 0 22px; }
+
+  .qlabel { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); margin: 26px 0 10px; }
+  .task { background: var(--card); border-radius: 20px; box-shadow: var(--shadow); margin-bottom: 10px; scroll-margin-top: 84px; overflow: hidden; transition: box-shadow .25s; }
+  .task summary {
+    list-style: none; padding: 16px 18px; font-weight: 600; display: flex; gap: 12px; align-items: center; cursor: pointer; line-height: 1.35;
+  }
+  .task summary::-webkit-details-marker { display: none; }
+  .task summary:hover { background: rgba(255,145,77,.04); }
+  .task summary .chev { margin-left: auto; flex: none; width: 28px; height: 28px; padding: 5px; border-radius: 50%; background: var(--soft); color: var(--ink-3); transition: transform .2s, background .2s; }
+  .task[open] summary .chev { transform: rotate(90deg); background: var(--primary-soft); color: var(--primary-deep); }
+  .task .q-icon { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--primary-soft); color: var(--primary-deep); display: grid; place-items: center; font-size: 14px; font-weight: 800; }
+  .task-body { padding: 2px 20px 20px 60px; }
+  @media (max-width: 600px) { .task-body { padding: 2px 16px 18px; } }
+  .steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+  .steps li { counter-increment: step; position: relative; padding: 3px 0 3px 40px; margin: 8px 0; }
+  .steps li::before {
+    content: counter(step); position: absolute; left: 0; top: 2px; width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(145deg, #FFA66B, #FF7F3A); color: #fff; font-size: 13px; font-weight: 800; display: grid; place-items: center;
+  }
+  .steps li:not(:last-child)::after { content: ""; position: absolute; left: 13.5px; top: 32px; bottom: -12px; width: 1px; background: rgba(255,127,58,.25); }
+  .note { margin-top: 12px; border-radius: 14px; padding: 12px 14px 12px 44px; font-size: 15px; position: relative; }
+  .note::before { position: absolute; left: 14px; top: 11px; font-size: 17px; }
+  .note b.lead { display: block; font-size: 13px; letter-spacing: .02em; margin-bottom: 1px; }
+  .note.result { background: rgba(16,185,129,.09); }
+  .note.result::before { content: "✅"; }
+  .note.result b.lead { color: #047857; }
+  .note.tips { background: rgba(245,158,11,.10); }
+  .note.tips::before { content: "💡"; }
+  .note.tips b.lead { color: #B45309; }
+  .note ul { margin: 2px 0 0; padding-left: 18px; }
+  .note li { margin: 3px 0; }
+  .task.flash { box-shadow: 0 0 0 3px rgba(255,145,77,.55), var(--shadow); }
+
+  .pager { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 30px; }
+  .pager a { background: var(--card); border-radius: 18px; box-shadow: var(--shadow); padding: 12px 16px; text-decoration: none; display: block; min-width: 0; }
+  .pager a:hover { box-shadow: var(--shadow-lift); }
+  .pager small { display: block; font-size: 12px; color: var(--ink-3); font-weight: 600; }
+  .pager span { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pager .next { text-align: right; grid-column: 2; }
+
+  /* ---------- Search results ---------- */
+  .results { margin-top: 22px; }
+  .results h2 { font-size: 14px; color: var(--ink-3); font-weight: 600; margin: 0 0 12px; }
+  .hit {
+    width: 100%; border: 0; text-align: left; background: #fff; border-radius: 18px; box-shadow: var(--shadow);
+    padding: 13px 16px; margin-bottom: 8px; display: flex; gap: 12px; align-items: center; transition: box-shadow .15s;
+  }
+  .hit:hover { box-shadow: var(--shadow-lift); }
+  .hit .pe { flex: none; width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; font-size: 18px; }
+  .hit .hq { font-weight: 600; line-height: 1.35; }
+  .hit .hs { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+  .hit mark { background: rgba(255,145,77,.28); color: inherit; border-radius: 3px; }
+  .none { background: #fff; border-radius: 20px; padding: 22px; box-shadow: var(--shadow); color: var(--ink-2); text-align: center; }
+  .none .big { font-size: 34px; }
+  .none b { color: var(--ink); display: block; font-size: 17px; margin: 6px 0 4px; }
+  .suggest { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; justify-content: center; }
+  .suggest button { border: 0; background: #fff; box-shadow: var(--shadow); border-radius: 999px; padding: 8px 14px; font-size: 14px; color: var(--ink-2); }
+
+  .lightbox { position: fixed; inset: 0; background: rgba(20,12,8,.88); display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px; cursor: zoom-out; }
+  .lightbox.on { display: flex; }
+  .lightbox img { max-height: 100%; max-width: 100%; border-radius: 14px; }
+  .foot { margin-top: 48px; font-size: 13px; color: var(--ink-3); text-align: center; }
+
+  /* Colour tiles for topic icons */
+  .c0 { background: #FFEDD5; } .c1 { background: #E0F2FE; } .c2 { background: #DCFCE7; } .c3 { background: #EDE9FE; }
+  .c4 { background: #FCE7F3; } .c5 { background: #FEF3C7; } .c6 { background: #CFFAFE; } .c7 { background: #E0E7FF; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button class="brand" id="brand" type="button" aria-label="Guide home"><span class="brand-dot">?</span><span class="brand-text">FOF Ops guide</span></button>
+    <label class="search" id="searchBox" aria-label="How can I…?">
+      <svg class="mag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="How can I…?" autocomplete="off" enterkeyhint="search">
+      <button class="clear" id="clear" type="button" aria-label="Clear search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </label>
+    <button id="roleBtn" class="role-chip hidden" type="button"></button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="picker" class="picker hidden">
+    <div class="eyebrow">👋 Welcome to the FOF Ops guide</div>
+    <h1>Who are you?</h1>
+    <p>Pick your role and the guide shows only what you can do. You can switch at any time with the button at the top.</p>
+    <div class="roles" id="roles"></div>
+  </section>
+
+  <section id="results" class="results hidden"></section>
+
+  <section id="home" class="hidden"></section>
+
+  <div id="topic" class="layout hidden">
+    <nav class="side" id="side" aria-label="Topics"></nav>
+    <article id="topicBody"></article>
+  </div>
+</main>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-label="Screenshot"><img alt=""></div>
+
+<!-- The words live in content.js so they can be updated without touching this page. -->
+<script src="content.js"></script>
+<script>
+(function () {
+  var G = window.GUIDE_CONTENT || { roles: {} };
+  var SHOTS = window.GUIDE_SHOTS || null; // filled in only in the single-file download copy
+  var ROLE_META = {
+    admin: { emoji: '🗂️', tile: 'c0', label: 'Admin', blurb: 'You run the back office: cohorts, participants, supports, groups, follow-ups and settings.' },
+    support: { emoji: '🤝', tile: 'c1', label: 'Support', blurb: 'You lead a group, follow people up, mark attendance and serve in your hub.' },
+    participant: { emoji: '🌱', tile: 'c2', label: 'Participant', blurb: 'You are taking the Foundation of Faith course and want to find your way around.' }
+  };
+  // Topic icons: a section can set its own "icon"; otherwise these defaults (by id, then by word) apply.
+  var ICONS = {
+    'getting-started': '🚀', dashboard: '📊', home: '🏠', schedule: '🗓️', approvals: '✅', rota: '🔁', 'activity-overview': '🔭',
+    participants: '👥', attendance: '📋', 'faith-projects': '🙏', 'faith-project': '🙏', onboarding: '🎒', onboard: '🎒', groups: '🫂', 'my-group': '🫂', group: '🫂',
+    allocation: '🧩', 'group-meetings': '📹', supports: '🤝', hubs: '🏘️', 'my-hub': '🏘️', cohorts: '🎓', 'follow-ups': '📞', mobilisation: '📣', registration: '📝',
+    feedback: '💬', community: '🌍', users: '🔑', announcements: '📢', resources: '📚', scriptures: '📖', website: '🌐', settings: '⚙️',
+    troubleshooting: '🛟', help: '🛟', profile: '👤', recaps: '📝', recap: '📝', journey: '🧭', 'this-week': '📅', week: '📅', people: '👋', 'wrapping-up': '🎉', notifications: '🔔', 'class-check-in': '✍️'
+  };
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { role: null, rendered: null };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+  }
+  // **bold** stays readable in the plain-text content file.
+  function fmt(s) { return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>'); }
+  function shotSrc(name) { return SHOTS && SHOTS[name] ? SHOTS[name] : 'shots/' + name; }
+  function readHash() {
+    var h = {}; location.hash.replace(/^#/, '').split('&').forEach(function (p) { var kv = p.split('='); if (kv[0]) h[kv[0]] = decodeURIComponent(kv[1] || ''); });
+    return h;
+  }
+  function roleData(r) { return G.roles[r] || { sections: [] }; }
+  function iconFor(s) { return s.icon || ICONS[s.id] || ICONS[(s.id || '').split('-')[0]] || '📘'; }
+  function tileFor(i) { return 'c' + (i % 8); }
+  function countTasks(r) { return roleData(r).sections.reduce(function (a, s) { return a + (s.tasks || []).length; }, 0); }
+  function findTask(r, id) {
+    var out = null;
+    roleData(r).sections.forEach(function (s, i) { (s.tasks || []).forEach(function (t) { if (t.id === id) out = { s: s, i: i, t: t }; }); });
+    return out;
+  }
+  function secHref(r, id) { return '#role=' + r + '&section=' + id; }
+  var ARROW = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>';
+  var PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
+
+  // ---------- Views ----------
+  function show(view) {
+    ['picker', 'results', 'home', 'topic'].forEach(function (v) { $(v).classList.toggle('hidden', v !== view); });
+    $('roleBtn').classList.toggle('hidden', !state.role);
+  }
+
+  function renderPicker() {
+    $('roles').innerHTML = Object.keys(ROLE_META).map(function (r) {
+      var m = ROLE_META[r], n = countTasks(r);
+      return '<button class="role-card" type="button" data-role="' + r + '"><div class="tile ' + m.tile + '">' + m.emoji + '</div><h2>I\'m ' + (r === 'admin' ? 'an ' : 'a ') + m.label.toLowerCase() + '</h2><p>' + m.blurb + '</p>' +
+        '<span class="go">Open my guide ' + ARROW + (n ? '<span class="count">· ' + n + ' answers</span>' : '') + '</span></button>';
+    }).join('');
+    $('roles').onclick = function (e) { var b = e.target.closest('[data-role]'); if (b) location.hash = 'role=' + b.getAttribute('data-role'); };
+  }
+
+  function popularTasks(r) {
+    var d = roleData(r), picked = [];
+    d.sections.forEach(function (s, i) { (s.tasks || []).forEach(function (t) { if (t.popular) picked.push({ s: s, i: i, t: t }); }); });
+    if (!picked.length) d.sections.slice(0, 6).forEach(function (s, i) { if (s.tasks && s.tasks[0]) picked.push({ s: s, i: i, t: s.tasks[0] }); });
+    return picked.slice(0, 6);
+  }
+
+  function renderHome() {
+    var r = state.role, d = roleData(r), m = ROLE_META[r];
+    var pops = popularTasks(r);
+    $('home').innerHTML =
+      '<div class="hero"><div class="hello">' + m.emoji + ' ' + m.label + ' guide</div><h1>Hi! What do you need help with?</h1><p>' + esc(m.blurb) + ' Every answer has simple steps and a picture of the screen.</p>' +
+      '<button class="ask" type="button" id="heroAsk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Type a question, e.g. “' + esc(r === 'participant' ? 'join my group call' : r === 'support' ? 'mark attendance' : 'assign follow-ups') + '”</button></div>' +
+      (d.sections.length ? '' : '<div class="none" style="margin-top:24px"><div class="big">🛠️</div><b>This part of the guide is still being written.</b>Check back soon.</div>') +
+      (pops.length ? '<div class="block-title"><h2>Popular questions</h2></div><div class="popular">' + pops.map(function (p) {
+        return '<button class="pop" type="button" data-task="' + p.t.id + '"><span class="pe ' + tileFor(p.i) + '">' + iconFor(p.s) + '</span><span><span class="pq">' + esc(p.t.q) + '</span><span class="ps">' + esc(p.s.title) + '</span></span></button>';
+      }).join('') + '</div>' : '') +
+      (d.sections.length ? '<div class="block-title"><h2>Browse by topic</h2><span>' + d.sections.length + ' topics</span></div><div class="topics">' + d.sections.map(function (s, i) {
+        var n = (s.tasks || []).length;
+        return '<a class="topic" href="' + secHref(r, s.id) + '"><span class="te ' + tileFor(i) + '">' + iconFor(s) + '</span><h3>' + esc(s.title) + '</h3><p>' + fmt(s.summary || '') + '</p><span class="n">' + n + ' question' + (n === 1 ? '' : 's') + ' →</span></a>';
+      }).join('') + '</div>' : '') +
+      '<div class="helpcard"><span class="he">💬</span><div><span class="ht">Still stuck?</span><span>Close this guide, tap the <b>?</b> button in the app and choose WhatsApp to message a real person.</span></div></div>' +
+      (G.updated ? '<p class="foot">Guide last updated ' + esc(G.updated) + '.</p>' : '');
+    $('heroAsk').onclick = function () { $('q').focus(); };
+    $('home').querySelectorAll('[data-task]').forEach(function (b) { b.onclick = function () { location.hash = 'role=' + r + '&task=' + b.getAttribute('data-task'); }; });
+  }
+
+  function renderTopic(secId) {
+    var r = state.role, d = roleData(r), i = 0;
+    d.sections.forEach(function (s, k) { if (s.id === secId) i = k; });
+    var s = d.sections[i]; if (!s) return;
+    $('side').innerHTML = '<a class="home-link" href="#role=' + r + '"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>All topics</a>' +
+      d.sections.map(function (x, k) { return '<a class="s' + (k === i ? ' on' : '') + '" href="' + secHref(r, x.id) + '"><span class="mini ' + tileFor(k) + '">' + iconFor(x) + '</span>' + esc(x.title) + '</a>'; }).join('');
+    var prev = d.sections[i - 1], next = d.sections[i + 1];
+    $('topicBody').innerHTML =
+      '<a class="back" href="#role=' + r + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>All topics</a>' +
+      '<div class="sec-head"><span class="te ' + tileFor(i) + '">' + iconFor(s) + '</span><h1>' + esc(s.title) + '</h1></div>' +
+      (s.where ? '<span class="where">' + PIN + '<span>' + fmt(s.where) + '</span></span>' : '') +
+      (s.summary ? '<p class="summary">' + fmt(s.summary) + '</p>' : '') +
+      (s.shot ? figureHtml(s.shot, s.title + ' screen', 'sec-shot') : '') +
+      ((s.tasks || []).length ? '<div class="qlabel">' + s.tasks.length + ' question' + (s.tasks.length === 1 ? '' : 's') + ' · tap one to open it</div>' : '') +
+      (s.tasks || []).map(taskHtml).join('') +
+      '<div class="pager">' + (prev ? '<a href="' + secHref(r, prev.id) + '"><small>← Previous</small><span>' + esc(prev.title) + '</span></a>' : '') +
+      (next ? '<a class="next" href="' + secHref(r, next.id) + '"><small>Next →</small><span>' + esc(next.title) + '</span></a>' : '') + '</div>';
+    wireImages($('topicBody'));
+    var on = $('side').querySelector('.on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
+  }
+
+  function figureHtml(name, alt, cls) {
+    return '<figure class="' + (cls || '') + '"><img loading="lazy" src="' + shotSrc(name) + '" alt="' + esc(alt) + '"></figure>';
+  }
+
+  function taskHtml(t) {
+    return '<details class="task" id="task-' + t.id + '"><summary><span class="q-icon">?</span><span>' + esc(t.q) + '</span>' +
+      '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg></summary>' +
+      '<div class="task-body">' +
+      (t.steps && t.steps.length ? '<ol class="steps">' + t.steps.map(function (s) { return '<li>' + fmt(s) + '</li>'; }).join('') + '</ol>' : '') +
+      (t.result ? '<div class="note result"><b class="lead">What happens next</b>' + fmt(t.result) + '</div>' : '') +
+      (t.tips && t.tips.length ? '<div class="note tips"><b class="lead">Good to know</b><ul>' + t.tips.map(function (s) { return '<li>' + fmt(s) + '</li>'; }).join('') + '</ul></div>' : '') +
+      (t.shot ? figureHtml(t.shot, 'Screenshot for: ' + t.q) : '') +
+      '</div></details>';
+  }
+
+  function wireImages(root) {
+    root.querySelectorAll('figure img').forEach(function (img) {
+      var mark = function () { if (img.naturalHeight > img.naturalWidth * 1.25) img.closest('figure').classList.add('tall'); };
+      if (img.complete && img.naturalWidth) mark(); else img.addEventListener('load', mark);
+      img.onerror = function () { img.closest('figure').remove(); };
+      img.onclick = function () { var lb = $('lightbox'); lb.querySelector('img').src = img.src; lb.classList.add('on'); };
+    });
+  }
+  $('lightbox').onclick = function () { this.classList.remove('on'); };
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') $('lightbox').classList.remove('on'); });
+
+  // ---------- "How can I…?" search: scores every task by question, keywords, steps and section ----------
+  var STOP = { how: 1, can: 1, i: 1, do: 1, the: 1, a: 1, an: 1, to: 1, my: 1, is: 1, of: 1, in: 1, on: 1, for: 1, where: 1, what: 1, why: 1, me: 1, see: 1, get: 1, and: 1, or: 1, it: 1, you: 1 };
+  function words(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/).filter(function (w) { return w && !STOP[w]; }); }
+  function search(qs) {
+    var terms = words(qs); if (!terms.length) return [];
+    var hits = [];
+    var roles = state.role ? [state.role].concat(Object.keys(G.roles).filter(function (r) { return r !== state.role; })) : Object.keys(G.roles);
+    roles.forEach(function (r) {
+      roleData(r).sections.forEach(function (s, i) {
+        (s.tasks || []).forEach(function (t) {
+          var q = t.q.toLowerCase(), kw = (t.keywords || []).join(' ').toLowerCase(), body = (t.steps || []).concat([t.result || ''], t.tips || []).join(' ').toLowerCase(), st = (s.title + ' ' + (s.summary || '')).toLowerCase();
+          var score = 0, matched = 0;
+          terms.forEach(function (w) {
+            var stem = w.length > 4 ? w.replace(/(ing|ed|es|s)$/, '') : w, got = 0;
+            if (q.indexOf(stem) > -1) got += 6;
+            if (kw.indexOf(stem) > -1) got += 5;
+            if (st.indexOf(stem) > -1) got += 2;
+            if (body.indexOf(stem) > -1) got += 1;
+            if (got) matched++; score += got;
+          });
+          if (!matched) return;
+          score *= matched / terms.length;
+          if (r !== state.role) score *= 0.35; // your own role's answers first
+          hits.push({ r: r, s: s, i: i, t: t, score: score });
+        });
+      });
+    });
+    return hits.sort(function (a, b) { return b.score - a.score; }).slice(0, 12);
+  }
+  function highlight(text, qs) {
+    var out = esc(text);
+    words(qs).forEach(function (w) { if (w.length > 2) out = out.replace(new RegExp('(' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig'), '<mark>$1</mark>'); });
+    return out;
+  }
+  function renderResults() {
+    var qs = $('q').value.trim(), box = $('results');
+    $('searchBox').classList.toggle('has', !!qs);
+    if (!qs) { route(true); return; }
+    show('results');
+    var hits = search(qs);
+    if (!hits.length) {
+      var sug = popularTasks(state.role || 'support').slice(0, 4);
+      box.innerHTML = '<div class="none"><div class="big">🔎</div><b>No answer found for “' + esc(qs) + '”</b>Try fewer or different words, for example “attendance”, “follow-up” or “password”. Or tap the <b>?</b> button in the app and choose WhatsApp to ask a person.' +
+        (sug.length ? '<div class="suggest">' + sug.map(function (p) { return '<button type="button" data-q="' + esc(p.t.q) + '">' + esc(p.t.q) + '</button>'; }).join('') + '</div>' : '') + '</div>';
+      box.querySelectorAll('[data-q]').forEach(function (b) { b.onclick = function () { $('q').value = b.getAttribute('data-q'); renderResults(); }; });
+      return;
+    }
+    box.innerHTML = '<h2>' + hits.length + ' answer' + (hits.length > 1 ? 's' : '') + ' for “' + esc(qs) + '”</h2>' + hits.map(function (h, i) {
+      return '<button class="hit" type="button" data-i="' + i + '"><span class="pe ' + tileFor(h.i) + '">' + iconFor(h.s) + '</span><span><div class="hq">' + highlight(h.t.q, qs) + '</div><div class="hs">' + ROLE_META[h.r].label + ' · ' + esc(h.s.title) + '</div></span></button>';
+    }).join('');
+    box.querySelectorAll('.hit').forEach(function (b) {
+      b.onclick = function () { var h = hits[+b.getAttribute('data-i')]; $('q').value = ''; $('searchBox').classList.remove('has'); location.hash = 'role=' + h.r + '&task=' + h.t.id; };
+    });
+  }
+  var timer; $('q').addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(renderResults, 120); });
+  $('q').addEventListener('keydown', function (e) { if (e.key === 'Enter') { var f = document.querySelector('.hit'); if (f) f.click(); } });
+  $('clear').onclick = function (e) { e.preventDefault(); $('q').value = ''; renderResults(); $('q').focus(); };
+
+  $('roleBtn').onclick = function () { state.role = null; history.replaceState(null, '', location.pathname + location.search); route(); };
+  $('brand').onclick = function () { $('q').value = ''; $('searchBox').classList.remove('has'); location.hash = state.role ? 'role=' + state.role : ''; if (!state.role) route(); };
+
+  // ---------- Router: #role=…  [&section=…]  [&task=…] ----------
+  function route(keepScroll) {
+    var h = readHash();
+    var r = ROLE_META[h.role] ? h.role : null;
+    state.role = r;
+    if (!keepScroll) { $('q').value = ''; $('searchBox').classList.remove('has'); }
+    if (!r) { show('picker'); window.scrollTo(0, 0); return; }
+    var m = ROLE_META[r];
+    $('roleBtn').innerHTML = m.emoji + ' <span class="long">' + m.label + ' · </span>Switch';
+    var hit = h.task ? findTask(r, h.task) : null;
+    var secId = hit ? hit.s.id : h.section;
+    if (!secId || !roleData(r).sections.some(function (s) { return s.id === secId; })) {
+      if (state.rendered !== r + '|home') { renderHome(); state.rendered = r + '|home'; }
+      show('home'); if (!keepScroll) window.scrollTo(0, 0); return;
+    }
+    if (state.rendered !== r + '|' + secId) { renderTopic(secId); state.rendered = r + '|' + secId; if (!hit) window.scrollTo(0, 0); }
+    show('topic');
+    if (hit) {
+      var target = $('task-' + hit.t.id);
+      target.open = true; target.classList.add('flash'); setTimeout(function () { target.classList.remove('flash'); }, 1600);
+      setTimeout(function () { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 40);
+    } else if (!keepScroll && h.section) window.scrollTo(0, 0);
+  }
+  window.addEventListener('hashchange', function () { route(); });
+  renderPicker(); route();
+})();
+</script>
+</body>
+</html>

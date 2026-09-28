@@ -16,6 +16,7 @@ import NotificationBlockedModal from '../NotificationBlockedModal';
 import ParticipantNotificationBell from './ParticipantNotificationBell';
 import LiveNavDot from '../LiveNavDot';
 import ProfileMenu from '../ProfileMenu';
+import NeedSupportButton from '../NeedSupportButton';
 
 // Layout for the participant app: sidebar on desktop, floating bar on mobile, the
 // same look as the support app. Also asks "are you okay?" when their attendance
@@ -180,6 +181,7 @@ const ShellLayout: React.FC = () => {
               </div>
             </div>
             <ParticipantNotificationBell />
+            <NeedSupportButton inline className="hidden lg:grid" />
             <button type="button" onClick={logout} className="hidden rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-orange-50 sm:block lg:hidden">
               Logout
             </button>
@@ -264,6 +266,7 @@ const ShellLayout: React.FC = () => {
       )}
       {notifReady && showPrompt && <NotificationPromptModal onEnable={enable} onDismiss={dismiss} />}
       {notifReady && showBlocked && <NotificationBlockedModal onDismiss={dismissBlocked} />}
+      <NeedSupportButton className="lg:hidden" />
     </div>
   );
 };
