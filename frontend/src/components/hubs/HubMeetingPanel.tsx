@@ -16,8 +16,9 @@ const DONE_STEP = STEPS.length;
 const PRAYER_STEP = 1;
 const RECAP_STEP = 2;
 
-const CARD = 'rounded-[20px] border border-[#eef0f4] bg-white p-[18px] shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]';
-const TEXTAREA = 'w-full resize-y rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
+// Same card and field style as My Hub and the participant week page.
+const CARD = 'rounded-[28px] bg-white p-6 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]';
+const TEXTAREA = 'w-full resize-y rounded-2xl border-0 bg-[#f5f5f7] px-4 py-3.5 text-[15px] placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30';
 
 const STATUS_OPTIONS: Array<{ value: SupportAttendanceStatus; label: string }> = [
   { value: 'PRESENT', label: 'Present' },
@@ -480,7 +481,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   const prayerStepContent = (
     <div className="flex flex-col gap-3">
       <section className={CARD}>
-        <h3 className="text-[15px] font-bold text-gray-900">You’re leading prayer</h3>
+        <h3 className="text-[17px] font-semibold text-gray-900">You’re leading prayer</h3>
         <p className="mt-0.5 text-[13px] text-gray-500">Tap a person to show their Faith Project on everyone’s screen.</p>
         <div className="mt-2.5"><LiveDot label="Live · everyone in the meeting sees your pick" /></div>
       </section>
@@ -513,7 +514,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
       {prayerFinished ? (
         <section className={`${CARD} text-center`}>
           <div className="text-2xl text-emerald-600">✓</div>
-          <h3 className="mt-1.5 text-[15px] font-bold text-gray-900">Prayer finished ✓</h3>
+          <h3 className="mt-1.5 text-[17px] font-semibold text-gray-900">Prayer finished ✓</h3>
           <p className="mt-1 text-[13px] text-gray-500">2 · Pray for Faith Projects is done for this week.</p>
           <button
             type="button"
@@ -562,7 +563,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
                           <p className="mt-0.5 text-[11px] font-semibold text-gray-400">{prayerTallyLabel(item)}</p>
                           <p className="mt-1.5 whitespace-pre-line text-sm text-gray-700">{item.body}</p>
                         </div>
-                        <span className={`flex-none rounded-xl border px-3 py-1.5 text-xs font-semibold ${isShowing ? 'border-primary bg-primary text-white' : 'border-primary/40 text-primary'}`}>
+                        <span className={`flex-none rounded-full border px-3 py-1.5 text-xs font-semibold ${isShowing ? 'border-primary bg-primary text-white' : 'border-primary/40 text-primary'}`}>
                           {isShowing ? 'Showing' : 'Show'}
                         </span>
                       </div>
@@ -578,7 +579,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
               type="button"
               onClick={() => void handleSetPrayerFocus(null)}
               disabled={focusSaving || !prayerFocus.faithProjectId}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 disabled:opacity-50"
+              className="rounded-full bg-[#f2f2f4] px-4 py-2.5 text-sm font-semibold text-gray-700 disabled:opacity-50"
             >
               Clear screen
             </button>
@@ -587,7 +588,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
                 type="button"
                 onClick={handleNextFocus}
                 disabled={focusSaving || allPrayedFor}
-                className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-50 ${allPrayedFor ? 'border border-gray-200 bg-white text-gray-500' : 'bg-primary text-white'}`}
+                className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold disabled:opacity-50 ${allPrayedFor ? 'border border-gray-200 bg-white text-gray-500' : 'bg-primary text-white'}`}
               >
                 {focusSaving ? (<span className="inline-flex items-center justify-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Next person →'}
               </button>
@@ -596,7 +597,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
               type="button"
               onClick={() => void handleFinishPrayer()}
               disabled={stateSaving}
-              className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-60 ${allPrayedFor || sortedPrayerItems.length === 0 ? 'bg-primary text-white' : 'border border-emerald-200 bg-emerald-50 text-emerald-700'}`}
+              className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold disabled:opacity-60 ${allPrayedFor || sortedPrayerItems.length === 0 ? 'bg-primary text-white' : 'border border-emerald-200 bg-emerald-50 text-emerald-700'}`}
             >
               {stateSaving ? (<span className="inline-flex items-center justify-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Finish prayer ✓'}
             </button>
@@ -608,7 +609,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
 
   const recapStepContent = (
     <section className={CARD}>
-      <h3 className="text-[15px] font-bold text-gray-900">Review & Recap</h3>
+      <h3 className="text-[17px] font-semibold text-gray-900">Review & Recap</h3>
       <p className="mt-0.5 text-[13px] text-gray-500">
         {recapLeadNames.length > 0
           ? `${joinNames(recapLeadNames)} ${recapLeadNames.length === 1 ? 'leads' : 'lead'} this part.`
@@ -627,7 +628,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
                 <p className="truncate text-sm font-semibold text-gray-900">{recap.recapDocumentName || `${weekLabel} recap`}</p>
                 <p className="text-xs text-gray-500">Recap document</p>
               </div>
-              <button type="button" onClick={() => setDocOpen(true)} className="flex-none rounded-xl bg-primary px-4 py-2 text-[13px] font-semibold text-white">
+              <button type="button" onClick={() => setDocOpen(true)} className="flex-none rounded-full bg-primary px-4 py-2 text-[13px] font-semibold text-white">
                 View
               </button>
             </div>
@@ -665,9 +666,9 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   if (isFollowAlong) {
     return (
       <div className="flex flex-col gap-3">
-        <section className={`${CARD} border-[#ffdeca]`}>
+        <section className={`${CARD}`}>
           <div className="flex items-start justify-between gap-3">
-            <h2 className="min-w-0 text-base font-bold leading-snug text-gray-900">{weekLabel} hub meeting</h2>
+            <h2 className="min-w-0 text-[24px] font-bold leading-tight tracking-[-0.02em] text-gray-900">{weekLabel} hub meeting</h2>
             <span className={`mt-0.5 flex-none whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${status.cls}`}>{status.label}</span>
           </div>
           {weeks.length > 0 && (
@@ -707,7 +708,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
               {sortedPrayerItems.map((item) => {
                 const prayed = prayerFocus.prayedForIds.includes(item.faithProjectId);
                 return (
-                  <li key={item.participantId} className="flex items-center justify-between gap-2 rounded-xl border border-[#f1f2f5] px-3 py-2 text-sm">
+                  <li key={item.participantId} className="flex items-center justify-between gap-2 rounded-2xl bg-[#f5f5f7] px-3.5 py-2.5 text-sm">
                     <span className="min-w-0 flex-1">
                       <span className={`block truncate ${prayed ? 'text-gray-400' : 'text-gray-800'}`}>{item.fullName}</span>
                       <span className="block truncate text-[11px] text-gray-400">{prayerTallyLabel(item)}</span>
@@ -730,9 +731,9 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   if (!isFullAccess) {
     return (
       <div className="flex flex-col gap-3">
-        <section className={`${CARD} border-[#ffdeca]`}>
+        <section className={`${CARD}`}>
           <div className="flex items-start justify-between gap-3">
-            <h2 className="min-w-0 text-base font-bold leading-snug text-gray-900">{weekLabel} hub meeting</h2>
+            <h2 className="min-w-0 text-[24px] font-bold leading-tight tracking-[-0.02em] text-gray-900">{weekLabel} hub meeting</h2>
             <span className={`mt-0.5 flex-none whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${status.cls}`}>{status.label}</span>
           </div>
           {weeks.length > 0 && (
@@ -786,9 +787,9 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   // ── Full walk-through: hub lead, or assistant with ATTENDANCE permission. ──
   return (
     <div className="flex flex-col gap-3">
-      <section className="rounded-[20px] border border-[#ffdeca] bg-white p-[18px] shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+      <section className={CARD}>
         <div className="flex items-start justify-between gap-3">
-          <h2 className="min-w-0 text-base font-bold leading-snug text-gray-900">{weekLabel} hub meeting</h2>
+          <h2 className="min-w-0 text-[24px] font-bold leading-tight tracking-[-0.02em] text-gray-900">{weekLabel} hub meeting</h2>
           <span className={`mt-0.5 flex-none whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${status.cls}`}>{status.label}</span>
         </div>
 
@@ -838,15 +839,16 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
 
       {step === 0 && (
         <section className={CARD}>
-          <h3 className="text-[15px] font-bold text-gray-900">Who's here?</h3>
+          <h3 className="text-[17px] font-semibold text-gray-900">Who's here?</h3>
           {marksLoading ? (
             <p className="mt-3 flex items-center gap-1.5 text-sm text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
           ) : members.length === 0 ? (
-            <div className="mt-3.5 rounded-2xl border border-dashed border-orange-200 py-10 text-center text-sm text-gray-500">No members in this hub yet.</div>
+            <div className="mt-3.5 rounded-2xl bg-[#f5f5f7] py-10 text-center text-[14px] text-gray-500">No members in this hub yet.</div>
           ) : (
-            <ul className="mt-3.5 space-y-2">
+            <ul className="mt-2">
               {members.map((m) => (
                 <CompactAttendanceRow
+                  quiet
                   key={m.userId}
                   name={m.name}
                   tag={m.isPersonOfInterest ? <span title={PERSON_OF_INTEREST_INFO.description} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span> : undefined}
@@ -869,7 +871,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
 
       {step === 3 && (
         <section className={CARD}>
-          <h3 className="text-[15px] font-bold text-gray-900">Announcements</h3>
+          <h3 className="text-[17px] font-semibold text-gray-900">Announcements</h3>
           <p className="mt-0.5 text-[13px] text-gray-500">
             {hubLeadName ? `${hubLeadName} shares announcements.` : 'No hub lead assigned yet.'}
           </p>
@@ -889,7 +891,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
 
       {step === 4 && (
         <section className={CARD}>
-          <h3 className="text-[15px] font-bold text-gray-900">Notes</h3>
+          <h3 className="text-[17px] font-semibold text-gray-900">Notes</h3>
           <p className="mt-0.5 text-[13px] text-gray-500">Anything worth keeping a record of from this meeting.</p>
           <label className="mt-3.5 block">
             <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Meeting notes</span>
@@ -900,7 +902,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
 
       {step === 5 && (
         <section className={CARD}>
-          <h3 className="text-[15px] font-bold text-gray-900">Submit</h3>
+          <h3 className="text-[17px] font-semibold text-gray-900">Submit</h3>
           <p className="mt-0.5 text-[13px] text-gray-500">Check the summary, then submit the report for {weekLabel}.</p>
           <p className="mt-3 rounded-[14px] bg-neutral-50 p-3.5 text-sm leading-normal text-gray-700">{doneSummary}</p>
           {blockedByMarks && (
@@ -910,7 +912,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
                   ? `${unmarkedMembers[0].name} still needs a mark.`
                   : `${unmarkedMembers.length} people still need a mark.`}
               </span>
-              <button type="button" onClick={() => setStep(0)} className="flex-none rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-amber-800">
+              <button type="button" onClick={() => setStep(0)} className="flex-none rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-amber-800">
                 Mark attendance
               </button>
             </div>
@@ -925,7 +927,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
           <p className="mt-1.5 text-sm leading-normal text-gray-500">{submitted ? doneSummary : 'This meeting has not been submitted yet.'}</p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
             {!submitted && (
-              <button type="button" onClick={() => setStep(0)} className="rounded-xl border border-gray-200 bg-white px-[18px] py-[11px] text-sm font-semibold text-gray-800">
+              <button type="button" onClick={() => setStep(0)} className="rounded-full bg-[#f2f2f4] px-[18px] py-[11px] text-sm font-semibold text-gray-900">
                 Back to steps
               </button>
             )}
@@ -934,7 +936,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
                 type="button"
                 onClick={() => void handleReopen()}
                 disabled={reopening}
-                className="rounded-xl border border-gray-200 bg-white px-[18px] py-[11px] text-sm font-semibold text-gray-800 disabled:opacity-60"
+                className="rounded-full bg-[#f2f2f4] px-[18px] py-[11px] text-sm font-semibold text-gray-900 disabled:opacity-60"
               >
                 {reopening ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Reopening…</span>) : 'Reopen'}
               </button>
@@ -952,7 +954,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
             type="button"
             onClick={() => setStep(Math.max(0, step - 1))}
             disabled={step === 0}
-            className="min-h-[46px] rounded-xl border border-gray-200 bg-white px-[18px] py-3 text-sm font-semibold text-gray-800 disabled:opacity-50"
+            className="min-h-[52px] rounded-full bg-[#f2f2f4] px-5 text-[15px] font-semibold text-gray-900 transition active:scale-[0.98] disabled:opacity-50"
           >
             Back
           </button>
@@ -960,7 +962,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
             type="button"
             onClick={() => { void handleNext(); }}
             disabled={busy || (step >= STEPS.length - 1 && blockedByMarks)}
-            className="min-h-[46px] flex-1 rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60"
+            className="min-h-[52px] flex-1 rounded-full bg-primary px-5 text-[15px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60"
           >
             {busy ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Submitting…</span>) : step >= STEPS.length - 1 ? 'Submit report' : 'Next'}
           </button>

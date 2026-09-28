@@ -17,6 +17,8 @@ interface CompactAttendanceRowProps {
   status?: React.ReactNode;
   /** Optional small pill next to the name (e.g. the hub's person-of-interest tag). */
   tag?: React.ReactNode;
+  /** Divider-line row instead of a bordered box (the redesigned hub meeting tab). */
+  quiet?: boolean;
 }
 
 // One compact "name + dropdown" attendance row — shared by the hub meeting
@@ -31,8 +33,9 @@ const CompactAttendanceRow: React.FC<CompactAttendanceRowProps> = ({
   disabled,
   status,
   tag,
+  quiet = false,
 }) => (
-  <li className="flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3">
+  <li className={quiet ? 'flex items-center justify-between gap-3 border-t border-[#f0f0f2] py-3 first:border-t-0' : 'flex items-center justify-between gap-3 rounded-xl border border-orange-100 p-3'}>
     <div className="min-w-0">
       <p className="text-sm font-semibold text-gray-900">{name}</p>
       {tag && <div className="mt-1 flex">{tag}</div>}

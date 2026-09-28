@@ -664,8 +664,8 @@ const AdminHubsPage: React.FC = () => {
       ) : loading ? (
         <PageLoader />
       ) : hubs.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
-          <p className="text-sm text-gray-500">No hubs yet. Create one and add supports.</p>
+        <div className="rounded-[28px] bg-white py-12 text-center shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]">
+          <p className="text-[15px] text-gray-500">No hubs yet. Create one and add supports.</p>
         </div>
       ) : (
         <>
@@ -675,7 +675,7 @@ const AdminHubsPage: React.FC = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search hub, lead or member…"
-              className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-xs"
+              className="w-full rounded-2xl border-0 bg-white px-4 py-3 text-[15px] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-16px_rgba(17,24,39,0.18)] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 sm:max-w-xs"
             />
             <div className="w-full sm:w-56">
               <AppSelect
@@ -693,26 +693,29 @@ const AdminHubsPage: React.FC = () => {
           </div>
 
           {filteredHubs.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-orange-200 py-12 text-center">
-              <p className="text-sm text-gray-500">No hubs match.</p>
+            <div className="rounded-[28px] bg-white py-12 text-center shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]">
+              <p className="text-[15px] text-gray-500">No hubs match.</p>
             </div>
           ) : (
         // Masonry via CSS columns: each card keeps its own height.
-        <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
+        <div className="columns-1 gap-5 sm:columns-2 lg:columns-3">
           {filteredHubs.map((h) => {
             const memberIds = membersByHub.get(h.id) ?? [];
             const memberUsers = memberIds.map((id) => userById.get(id)).filter(Boolean) as User[];
             return (
-              <div key={h.id} className="mb-4 flex break-inside-avoid flex-col gap-3 rounded-2xl border border-orange-100 bg-white p-5 shadow-sm">
+              <div key={h.id} className="mb-5 flex break-inside-avoid flex-col gap-3 rounded-[28px] bg-white px-6 pb-4 pt-6 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h3 className="truncate font-bold text-gray-900">{h.name}</h3>
-                    <p className={`truncate text-xs ${h.leadName ? 'text-gray-500' : 'text-neutral-400'}`}>
-                      {h.leadName ? `Lead: ${h.leadName}` : 'No lead assigned'}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-gray-500">
+                      <span className={`h-1.5 w-1.5 flex-none rounded-full ${h.leadName ? 'bg-emerald-500' : 'bg-gray-300'}`} aria-hidden="true" />
+                      <span className="truncate">{h.leadName ? `Led by ${h.leadName}` : 'No lead yet'}</span>
+                    </span>
+                    <h3 className="mt-1 flex items-baseline gap-2 text-[24px] font-bold leading-tight tracking-[-0.02em] text-gray-900">
+                      <span className="truncate">{h.name}</span>
+                      <span className="flex-none text-[14px] font-normal tracking-normal text-gray-400">{memberUsers.length} {memberUsers.length === 1 ? 'support' : 'supports'}</span>
+                    </h3>
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-1">
-                    <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">{memberUsers.length}</span>
                     <AppOverflowMenu
                       align="right"
                       items={[
@@ -737,9 +740,9 @@ const AdminHubsPage: React.FC = () => {
                 })()}
 
                 {memberUsers.length === 0 && (itSupportsByHub[h.id] ?? []).length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-orange-200 px-3 py-4 text-center text-xs text-gray-400">No supports yet</p>
+                  <p className="rounded-2xl bg-[#f5f5f7] px-3 py-4 text-center text-[13px] text-gray-500">No supports yet</p>
                 ) : (
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col">
                     {memberUsers.map((u) => {
                       const led = groupBySupportId.get(u.id);
                       const jobs = sortHubJobs(([
@@ -751,12 +754,12 @@ const AdminHubsPage: React.FC = () => {
                       ].filter(Boolean) as HubJob[]));
                       const isPoi = (notedIdsByHub[h.id] ?? []).includes(u.id);
                       return (
-                        <div key={u.id} className="flex items-start gap-2.5 rounded-xl border border-orange-100 bg-white px-3 py-2 shadow-sm">
-                          <button type="button" onClick={() => setProfileUserId(u.id)} aria-label={`View ${u.name}'s profile`} className="mt-0.5 flex-none rounded-full">
-                            <Avatar name={u.name} avatarUrl={u.avatarUrl} size="sm" />
+                        <div key={u.id} className="flex items-center gap-3 border-t border-[#f0f0f2] py-2.5 first:border-t-0">
+                          <button type="button" onClick={() => setProfileUserId(u.id)} aria-label={`View ${u.name}'s profile`} className="flex-none rounded-full">
+                            <Avatar name={u.name} avatarUrl={u.avatarUrl} size="md" />
                           </button>
                           <div className="min-w-0 flex-1">
-                          <button type="button" onClick={() => setProfileUserId(u.id)} className="block max-w-full truncate text-left text-sm font-semibold leading-tight text-gray-900 hover:underline">{u.name}</button>
+                          <button type="button" onClick={() => setProfileUserId(u.id)} className="block max-w-full truncate text-left text-[15px] font-medium leading-tight text-gray-900 hover:underline">{u.name}</button>
                           {(jobs.length > 0 || isPoi) && (
                             <div className="mt-1 flex flex-wrap gap-1">
                               {jobs.map((job) => (
@@ -765,7 +768,7 @@ const AdminHubsPage: React.FC = () => {
                               {isPoi && <SupportNotesStar supportId={u.id} name={u.name} hubId={h.id} />}
                             </div>
                           )}
-                          {led && <p className="text-xs text-gray-400">Leads {led.name}</p>}
+                          {led && <p className="mt-0.5 text-[12.5px] text-gray-400">Leads {led.name}</p>}
                           </div>
                         </div>
                       );
@@ -773,12 +776,12 @@ const AdminHubsPage: React.FC = () => {
                     {(itSupportsByHub[h.id] ?? [])
                       .filter((s) => !memberUsers.some((u) => u.id === s.userId))
                       .map((s) => (
-                        <div key={`it-${s.userId}`} className="flex items-start gap-2.5 rounded-xl border border-orange-100 bg-white px-3 py-2 shadow-sm">
-                          <button type="button" onClick={() => setProfileUserId(s.userId)} aria-label={`View ${s.name}'s profile`} className="mt-0.5 flex-none rounded-full">
-                            <Avatar name={s.name} avatarUrl={userById.get(s.userId)?.avatarUrl} size="sm" />
+                        <div key={`it-${s.userId}`} className="flex items-center gap-3 border-t border-[#f0f0f2] py-2.5 first:border-t-0">
+                          <button type="button" onClick={() => setProfileUserId(s.userId)} aria-label={`View ${s.name}'s profile`} className="flex-none rounded-full">
+                            <Avatar name={s.name} avatarUrl={userById.get(s.userId)?.avatarUrl} size="md" />
                           </button>
                           <div className="min-w-0 flex-1">
-                            <button type="button" onClick={() => setProfileUserId(s.userId)} className="block max-w-full truncate text-left text-sm font-semibold leading-tight text-gray-900 hover:underline">{s.name}</button>
+                            <button type="button" onClick={() => setProfileUserId(s.userId)} className="block max-w-full truncate text-left text-[15px] font-medium leading-tight text-gray-900 hover:underline">{s.name}</button>
                             <div className="mt-1 flex flex-wrap gap-1">
                               <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${HUB_JOB_INFO.IT_SUPPORT.pill}`}>{HUB_JOB_INFO.IT_SUPPORT.label}</span>
                             </div>
