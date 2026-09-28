@@ -26,6 +26,7 @@ import { buildWhatsAppLink } from '../utils/phone';
 import { genderAgeLine, isSupportProfileComplete } from '../utils/people';
 import { openLoadByOwner } from '../utils/followUps';
 import LoadRing from '../components/LoadRing';
+import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import {
   PERSON_HEALTH_LABEL,
   buildTrainingCounts,
@@ -73,6 +74,7 @@ const AdminSupportsPage: React.FC = () => {
   const [people, setPeople] = useState<CohortPeoplePayload | null>(null);
   const [rules, setRules] = useState<ProgrammeRules | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   // Supports switched on for this cohort in Cohorts → members; only they are listed.
   const [cohortMemberIds, setCohortMemberIds] = useState<Set<string>>(new Set());
   // The weekly meeting reports supports write in Meeting Mode. They are stored as
@@ -448,6 +450,7 @@ const AdminSupportsPage: React.FC = () => {
                   hasNotes={notedIds.has(evaluation.supportId)}
                   onNoteAdded={() => markNoted(evaluation.supportId)}
                   followUps={followUpLoad.get(evaluation.supportId) ?? 0}
+                  onViewProfile={() => setProfileUserId(evaluation.supportId)}
                 />
               ))}
               {notLeadingCards.map((u) => (
@@ -463,6 +466,7 @@ const AdminSupportsPage: React.FC = () => {
                   onNoteAdded={() => markNoted(u.id)}
                   followUps={followUpLoad.get(u.id) ?? 0}
                   maxFollowUps={rules.maxFollowUpsPerSupport}
+                  onViewProfile={() => setProfileUserId(u.id)}
                 />
               ))}
             </ul>
@@ -485,7 +489,11 @@ const AdminSupportsPage: React.FC = () => {
                   <ul className="mt-2 flex flex-col gap-2">
                     {notLeadingCollapsed.map((u) => (
                       <li key={u.id} className="flex items-center justify-between gap-3 text-sm text-gray-600">
-                        <span className="min-w-0 truncate">{u.name}{notedIds.has(u.id) && <span title={PERSON_OF_INTEREST_INFO.description} className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}</span>
+                        <button type="button" onClick={() => setProfileUserId(u.id)} className="flex min-w-0 items-center gap-2.5 text-left">
+                          <Avatar name={u.name} avatarUrl={u.avatarUrl} size="xs" />
+                          <span className="min-w-0 truncate hover:underline">{u.name}</span>
+                        </button>
+                        <span className="min-w-0 flex-1 truncate">{notedIds.has(u.id) && <span title={PERSON_OF_INTEREST_INFO.description} className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}</span>
                         <div className="w-44 flex-none">
                           <AppSelect
                             value={kindOf(u.id)}
@@ -507,6 +515,12 @@ const AdminSupportsPage: React.FC = () => {
 
         </div>
       )}
+      <HubAuthorProfileModal
+        userId={profileUserId}
+        isOpen={!!profileUserId}
+        onClose={() => setProfileUserId(null)}
+        onUserUpdated={(id, changes) => setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...changes } : u)))}
+      />
       {exportOpen && (
         <SupportsExportPopup
           supports={shownSupports}
@@ -544,7 +558,8 @@ const SupportCard: React.FC<{
   hasNotes: boolean;
   onNoteAdded: () => void;
   followUps: number;
-}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps }) => {
+  onViewProfile: () => void;
+}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, onViewProfile }) => {
   const [open, setOpen] = useState(false);
   const [openReport, setOpenReport] = useState<number | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -589,9 +604,11 @@ const SupportCard: React.FC<{
   return (
     <li className="surface-card p-4 sm:p-5">
       <div className="flex flex-wrap items-start gap-3">
-        <Avatar name={supportName} avatarUrl={user?.avatarUrl} size="sm" enlargeable className="mt-0.5" />
+        <button type="button" onClick={onViewProfile} aria-label={`View ${supportName}'s profile`} className="mt-0.5 flex-none rounded-full">
+          <Avatar name={supportName} avatarUrl={user?.avatarUrl} size="sm" />
+        </button>
         <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold text-gray-900">{supportName}</p>
+          <button type="button" onClick={onViewProfile} className="block max-w-full truncate text-left text-base font-semibold text-gray-900 hover:underline">{supportName}</button>
           <p className="text-sm text-gray-500">
             {[groupName, `${evaluation.members} participant${evaluation.members === 1 ? '' : 's'}`, user ? genderAgeLine(user) : ''].filter(Boolean).join(' · ')}
           </p>
@@ -607,6 +624,7 @@ const SupportCard: React.FC<{
           <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${HEALTH_PILL[evaluation.health]}`}>{PERSON_HEALTH_LABEL[evaluation.health]}</span>
           <FollowUpLoad value={followUps} max={rules.maxFollowUpsPerSupport} />
         </div>
+        <AppOverflowMenu items={[{ label: 'View profile', onClick: onViewProfile }]} />
       </div>
 
       <div className="mt-3 w-full sm:w-56">
@@ -749,7 +767,8 @@ const NoLeadSupportCard: React.FC<{
   onNoteAdded: () => void;
   followUps: number;
   maxFollowUps: number;
-}> = ({ user, hub, training, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, maxFollowUps }) => {
+  onViewProfile: () => void;
+}> = ({ user, hub, training, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, maxFollowUps, onViewProfile }) => {
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState<SupportNote[] | null>(null);
   const [noteBody, setNoteBody] = useState('');
@@ -779,8 +798,11 @@ const NoLeadSupportCard: React.FC<{
   return (
     <li className="surface-card p-4 sm:p-5">
       <div className="flex flex-wrap items-start gap-3">
+        <button type="button" onClick={onViewProfile} aria-label={`View ${user.name}'s profile`} className="mt-0.5 flex-none rounded-full">
+          <Avatar name={user.name} avatarUrl={user.avatarUrl} size="sm" />
+        </button>
         <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold text-gray-900">{user.name}</p>
+          <button type="button" onClick={onViewProfile} className="block max-w-full truncate text-left text-base font-semibold text-gray-900 hover:underline">{user.name}</button>
           {genderAgeLine(user) && <p className="text-sm text-gray-500">{genderAgeLine(user)}</p>}
           <SupportTagRow tags={[
             <ProfileTag key="profile" user={user} />,
@@ -791,6 +813,7 @@ const NoLeadSupportCard: React.FC<{
           ]} />
         </div>
         <FollowUpLoad value={followUps} max={maxFollowUps} />
+        <AppOverflowMenu items={[{ label: 'View profile', onClick: onViewProfile }]} />
       </div>
 
       {kind === 'PARTICIPANT_SUPPORT' && <p className="mt-3 text-sm text-gray-600">Not leading a group yet</p>}

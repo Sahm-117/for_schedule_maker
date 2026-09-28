@@ -463,6 +463,8 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
   },
   async saveWhatsappGroupUrl(_userId: string, _url: string | null): Promise<void> { return; },
   async saveProfileDetails(_userId: string, _details: { gender: string | null; ageRange: string | null }): Promise<void> { return; },
+  async getLastActive(_userId: string): Promise<string | null> { return null; },
+  async saveBirthday(_userId: string, _birthday: string | null): Promise<void> { return; },
   async savePhone(_userId: string, _phone: string): Promise<void> { return; },
   async markHubSeen(_userId: string): Promise<void> { return; },
 };
