@@ -136,6 +136,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const [picked, setPicked] = useState<string | null>(null);
   const [statuses, setStatuses] = useState<Record<string, CreateStatus>>({});
   const [creating, setCreating] = useState(false);
+  // Off each time the builder opens, so nobody who missed training is used by accident.
+  const [includeMissedTraining, setIncludeMissedTraining] = useState(false);
   const createdAny = useRef(false);
 
   useEffect(() => {
@@ -146,6 +148,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setLeftOut([]);
     setPicked(null);
     setStatuses({});
+    setIncludeMissedTraining(false);
     createdAny.current = false;
     setLoading(true);
     Promise.all([
@@ -170,17 +173,21 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     const leading = new Set(groups.filter((g) => !g.archivedAt && g.supportId).map((g) => g.supportId as string));
     const free: EngineSupport[] = [];
     const reasons: Array<{ user: User; reason: string }> = [];
+    const missedTraining = new Set<string>();
     supportUsers.forEach((u) => {
       if (u.isActive === false || !memberIds.has(u.id)) return; // not in this cohort
       const kind = kinds[u.id] ?? 'PARTICIPANT_SUPPORT';
       const c = trainingCountFor(trainingCounts, u.id, trainingsTotal);
       if (kind !== 'PARTICIPANT_SUPPORT') { reasons.push({ user: u, reason: kind === 'HUB_LEAD' ? 'Hub lead' : 'Operational' }); return; }
       if (leading.has(u.id)) { reasons.push({ user: u, reason: 'Already has a group' }); return; }
-      if (c.total > 0 && c.attended < minTrainingsAttended) { reasons.push({ user: u, reason: `Trainings ${c.attended}/${c.total}` }); return; }
+      if (c.total > 0 && c.attended < minTrainingsAttended) {
+        missedTraining.add(u.id);
+        if (!includeMissedTraining) { reasons.push({ user: u, reason: `Trainings ${c.attended}/${c.total}` }); return; }
+      }
       free.push({ ...toEnginePerson(u), trainingsAttended: c.attended });
     });
-    return { free, reasons };
-  }, [supportUsers, memberIds, kinds, groups, trainingCounts, trainingsTotal, minTrainingsAttended]);
+    return { free, reasons, missedTraining };
+  }, [supportUsers, memberIds, kinds, groups, trainingCounts, trainingsTotal, minTrainingsAttended, includeMissedTraining]);
   const supportById = useMemo(() => new Map(supportPool.free.map((s) => [s.id, s])), [supportPool.free]);
 
   const readyCount = [...people.values()].filter((p) => p.gender && p.ageRange).length;
@@ -399,6 +406,28 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   </div>
                 </div>
               )}
+              {supportPool.missedTraining.size > 0 && (
+                <div className={`${SURFACE} flex items-center justify-between gap-3 p-4`}>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">Also use supports who missed pre-cohort training</p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {includeMissedTraining
+                        ? `${supportPool.missedTraining.size} added to the engine. They show “Missed training” on the draft.`
+                        : `${supportPool.missedTraining.size} ${supportPool.missedTraining.size === 1 ? 'support is' : 'supports are'} left out for missing training.`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={includeMissedTraining}
+                    aria-label="Also use supports who missed pre-cohort training"
+                    onClick={() => setIncludeMissedTraining((v) => !v)}
+                    className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition ${includeMissedTraining ? 'bg-primary' : 'bg-slate-200'}`}
+                  >
+                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${includeMissedTraining ? 'translate-x-7' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+              )}
               {supportPool.reasons.length > 0 && (
                 <details className={`${SURFACE} p-4`}>
                   <summary className="cursor-pointer text-sm font-semibold text-gray-700">Supports the engine won't use ({supportPool.reasons.length})</summary>
@@ -488,8 +517,11 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                         </div>
                       </div>
                       <AppSelect value={g.supportId ?? ''} onChange={(v) => setSupport(g.key, v)} options={options} placeholder="No support" compact />
-                      {notes.length > 0 && (
+                      {(notes.length > 0 || (g.supportId && supportPool.missedTraining.has(g.supportId))) && (
                         <div className="flex flex-wrap gap-1.5">
+                          {g.supportId && supportPool.missedTraining.has(g.supportId) && (
+                            <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">Missed training</span>
+                          )}
                           {notes.map((n) => (
                             <span key={n.text} className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${n.tone === 'broken' ? 'bg-red-100/80 text-red-700' : 'bg-amber-100/80 text-amber-700'}`}>{n.text}</span>
                           ))}
