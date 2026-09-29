@@ -745,6 +745,8 @@ const AdminParticipantsContent: React.FC = () => {
   const { activeCohort, cohorts, liveRevision } = useAppData();
 
   const [participants, setParticipants] = useState<Participant[]>([]);
+  // Test participants (e.g. a demo login) are listed but left out of every count.
+  const counted = useMemo(() => participants.filter((p) => !p.isTest), [participants]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
@@ -778,7 +780,7 @@ const AdminParticipantsContent: React.FC = () => {
   const [noAlertsIds, setNoAlertsIds] = useState<Set<string>>(new Set());
   const [noAlertsOnly, setNoAlertsOnly] = useState(false);
   // noAlertsIds spans every cohort; the count shows only this cohort's active participants.
-  const noAlertsCount = participants.filter((p) => p.status === 'ACTIVE' && noAlertsIds.has(p.id)).length;
+  const noAlertsCount = counted.filter((p) => p.status === 'ACTIVE' && noAlertsIds.has(p.id)).length;
   // Departments each participant wants to join, for the "Wants to join" filter
   // (and the Export, which uses the same filtered list): their own answer in
   // the app plus any department a support/admin logged for them (the
@@ -881,8 +883,8 @@ const AdminParticipantsContent: React.FC = () => {
     return map;
   }, [flags]);
   const flaggedCount = useMemo(
-    () => participants.filter((p) => p.status === 'ACTIVE' && flagsByParticipant.has(p.id)).length,
-    [participants, flagsByParticipant]
+    () => counted.filter((p) => p.status === 'ACTIVE' && flagsByParticipant.has(p.id)).length,
+    [counted, flagsByParticipant]
   );
 
   const healthById = useMemo(() => {
@@ -909,12 +911,12 @@ const AdminParticipantsContent: React.FC = () => {
   // named each one.
   const departmentCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    participants.forEach((p) => {
+    counted.forEach((p) => {
       if (p.status !== 'ACTIVE') return;
       wrapUpDeptById.get(p.id)?.forEach((dept) => counts.set(dept, (counts.get(dept) ?? 0) + 1));
     });
     return counts;
-  }, [participants, wrapUpDeptById]);
+  }, [counted, wrapUpDeptById]);
   const departmentFilterOptions = useMemo(
     () => [
       { value: '', label: 'Wants to join: any' },
@@ -947,8 +949,8 @@ const AdminParticipantsContent: React.FC = () => {
   }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant, healthFilter, healthById, incompleteOnly, completionById, noAlertsOnly, noAlertsIds, departmentFilter, wrapUpDeptById]);
 
   const unassignedCount = useMemo(
-    () => participants.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
-    [participants]
+    () => counted.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
+    [counted]
   );
 
   const handleArchive = async () => {
@@ -968,6 +970,13 @@ const AdminParticipantsContent: React.FC = () => {
     } catch { /* ignore */ }
   };
 
+  const handleSetTest = async (p: Participant, isTest: boolean) => {
+    try {
+      await participantsApi.update(p.id, { isTest });
+      setParticipants((prev) => prev.map((x) => x.id === p.id ? { ...x, isTest } : x));
+    } catch { /* ignore */ }
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const p = deleteTarget;
@@ -978,7 +987,7 @@ const AdminParticipantsContent: React.FC = () => {
     finally { setDeleteTarget(null); }
   };
 
-  const activeCount = participants.filter((p) => p.status === 'ACTIVE').length;
+  const activeCount = counted.filter((p) => p.status === 'ACTIVE').length;
 
   return (
     <div className="page-content">
@@ -1036,7 +1045,7 @@ const AdminParticipantsContent: React.FC = () => {
                     aria-pressed={incompleteOnly}
                     className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${incompleteOnly ? 'bg-sky-600 text-white' : 'bg-sky-100/80 text-sky-700'}`}
                   >
-                    Incomplete profiles ({participants.filter((p) => p.status === 'ACTIVE' && (completionById.get(p.id)?.percent ?? 0) < 100).length})
+                    Incomplete profiles ({counted.filter((p) => p.status === 'ACTIVE' && (completionById.get(p.id)?.percent ?? 0) < 100).length})
                   </button>
                 )}
                 <label className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-600">
@@ -1157,6 +1166,14 @@ const AdminParticipantsContent: React.FC = () => {
                             </span>
                           );
                         })()}
+                        {p.isTest && (
+                          <span
+                            title="Test participant: works as normal but is left out of counts."
+                            className="ml-2 inline-flex items-center whitespace-nowrap rounded-full border border-dashed border-gray-300 bg-gray-50 px-2 py-0.5 text-[11px] font-semibold text-gray-500"
+                          >
+                            Test · not counted
+                          </span>
+                        )}
                         {noAlertsIds.has(p.id) && (
                           <span
                             title="They have an app login but can't receive push notifications on any device."
@@ -1198,6 +1215,7 @@ const AdminParticipantsContent: React.FC = () => {
                                 { label: 'View profile', onClick: () => navigate(`/participants/${p.id}`) },
                                 { label: 'Edit', onClick: () => { setEditing(p); setAddOpen(true); } },
                                 { label: 'Assign to group', onClick: () => setAssigning(p) },
+                                { label: p.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => void handleSetTest(p, !p.isTest) },
                                 { label: 'Archive', onClick: () => setArchiveTarget(p), tone: 'danger' },
                               ]}
                             />
@@ -1206,6 +1224,7 @@ const AdminParticipantsContent: React.FC = () => {
                               align="right"
                               items={[
                                 { label: 'Unarchive', onClick: () => void handleUnarchive(p) },
+                                { label: p.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => void handleSetTest(p, !p.isTest) },
                                 { label: 'Delete permanently', onClick: () => setDeleteTarget(p), tone: 'danger' },
                               ]}
                             />

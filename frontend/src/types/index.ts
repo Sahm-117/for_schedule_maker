@@ -449,6 +449,8 @@ export interface Participant {
   dateOfBirth?: string | null;
   occupation?: string | null;
   avatarUrl?: string | null;
+  /** Test participant (e.g. a demo login): works as normal, left out of counts. */
+  isTest?: boolean;
   groupId?: string | null;
   groupName?: string | null;
   createdAt?: string;
@@ -457,7 +459,7 @@ export interface Participant {
 
 export type ParticipantUpdate = Partial<Pick<Participant,
   'fullName' | 'phone' | 'cohortId' | 'notes' | 'status' |
-  'email' | 'gender' | 'ageRange' | 'departments' | 'registrationDate' | 'smartRequest'
+  'email' | 'gender' | 'ageRange' | 'departments' | 'registrationDate' | 'smartRequest' | 'isTest'
 >>;
 
 export type ParticipantNoteType = 'HANDOVER' | 'MEETING' | 'FAITH_COACH' | 'FAITH_OFFICE' | 'CHECK_IN';

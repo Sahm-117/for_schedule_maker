@@ -466,6 +466,26 @@ window.GUIDE_CONTENT = {
        "result": "Opens their profile: attendance, group, health status, notes, flagged concerns and their Faith Project."
       },
       {
+       "id": "participants-test",
+       "q": "How do I mark a participant as a test, so they aren't counted?",
+       "keywords": [
+        "test participant",
+        "mark as test",
+        "demo login",
+        "not counted",
+        "ignore"
+       ],
+       "steps": [
+        "On **Participants**, tap **⋮** on their row.",
+        "Tap **Mark as test**."
+       ],
+       "result": "They get a **Test · not counted** tag. They can still sign in and use the app, but they're left out of the numbers on Participants, Groups, Allocation, the Dashboard and the Supports page. Auto-distribute skips them.",
+       "tips": [
+        "Use it for demo or trial logins.",
+        "To undo, tap **⋮** → **Unmark as test**."
+       ]
+      },
+      {
        "id": "participants-flag-concern",
        "q": "How do I flag a concern about a participant?",
        "keywords": [

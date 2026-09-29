@@ -61,7 +61,7 @@ const ParticipantChip: React.FC<ChipProps> = ({ participant, selected, onToggle,
         ✓
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="font-medium leading-tight">{participant.fullName}</span>
+        <span className="font-medium leading-tight">{participant.fullName}{participant.isTest ? ' (test)' : ''}</span>
         {participant.phone && <span className="text-xs text-gray-400">{participant.phone}</span>}
       </span>
       {selected && dragCount > 1 && (
@@ -246,6 +246,9 @@ const AdminAllocationContent: React.FC = () => {
   }, [groups, participants]);
 
   const unassigned = useMemo(() => byGroup.get(UNASSIGNED) ?? [], [byGroup]);
+  // Test participants (e.g. a demo login) aren't counted and aren't auto-placed
+  // into a real group; an admin can still move one by hand.
+  const unassignedReal = useMemo(() => unassigned.filter((p) => !p.isTest), [unassigned]);
   const filteredUnassigned = useMemo(() => {
     if (!search.trim()) return unassigned;
     const q = search.toLowerCase();
@@ -333,19 +336,19 @@ const AdminAllocationContent: React.FC = () => {
   const autoDistributeRef = useRef<HTMLButtonElement>(null);
   // Build the greedy even-distribution plan and open the confirm modal.
   const handleAutoDistribute = () => {
-    if (groups.length === 0 || unassigned.length === 0) return;
+    if (groups.length === 0 || unassignedReal.length === 0) return;
     const base = groups.map((g) => byGroup.get(g.id)?.length ?? 0);
     // Greedy: always drop the next person into the currently-smallest group.
     const counts = [...base];
     const assignments: Array<{ participantId: string; groupId: string }> = [];
-    unassigned.forEach((p) => {
+    unassignedReal.forEach((p) => {
       let min = 0;
       for (let i = 1; i < counts.length; i++) if (counts[i] < counts[min]) min = i;
       counts[min] += 1;
       assignments.push({ participantId: p.id, groupId: groups[min].id });
     });
     const summary = groups.map((g, i) => `${g.name}: ${counts[i]}`).join(' · ');
-    setDistributePlan({ assignments, summary, count: unassigned.length });
+    setDistributePlan({ assignments, summary, count: unassignedReal.length });
   };
 
   const applyAutoDistribute = async () => {
@@ -378,7 +381,7 @@ const AdminAllocationContent: React.FC = () => {
     <div className="page-content">
       <PageHeader
         title="Allocate Participants"
-        subtitle={activeCohort ? `${unassigned.length} unassigned · ${activeCohort.name}` : 'No active cohort'}
+        subtitle={activeCohort ? `${unassignedReal.length} unassigned · ${activeCohort.name}` : 'No active cohort'}
         action={
           <button
             type="button"
@@ -412,7 +415,7 @@ const AdminAllocationContent: React.FC = () => {
               ref={autoDistributeRef}
               type="button"
               onClick={() => void handleAutoDistribute()}
-              disabled={unassigned.length === 0 || saving}
+              disabled={unassignedReal.length === 0 || saving}
               className="self-start rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
             >
               Auto-distribute evenly
@@ -483,7 +486,7 @@ const AdminAllocationContent: React.FC = () => {
                         ✓
                       </button>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-gray-900">{p.fullName}</p>
+                        <p className="truncate text-sm font-semibold text-gray-900">{p.fullName}{p.isTest ? ' (test)' : ''}</p>
                         <p className="truncate text-xs text-gray-400">
                           {p.phone ? `${p.phone} · ` : ''}
                           <span className={p.groupName ? 'text-gray-500' : 'text-amber-600'}>{p.groupName ?? 'Unassigned'}</span>
@@ -511,7 +514,7 @@ const AdminAllocationContent: React.FC = () => {
             <Column
               id={UNASSIGNED}
               title="Unassigned"
-              count={unassigned.length}
+              count={unassignedReal.length}
               accent
               fill
               header={(

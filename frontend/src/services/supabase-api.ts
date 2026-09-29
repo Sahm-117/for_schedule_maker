@@ -4107,6 +4107,7 @@ const mapParticipant = (row: any): import('../types').Participant => {
     avatarUrl: row.avatarUrl ?? null,
     groupId: gp?.group?.id ?? null,
     groupName: gp?.group?.name ?? null,
+    isTest: !!row.isTest,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

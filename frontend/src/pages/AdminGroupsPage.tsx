@@ -609,7 +609,7 @@ const AdminGroupsContent: React.FC = () => {
       <PageHeader
         title="Groups"
         tourId="admin:groups"
-        subtitle={activeCohort ? `${groups.length} groups · ${participants.length} participants · ${activeCohort.name}` : 'No active cohort'}
+        subtitle={activeCohort ? `${groups.length} groups · ${participants.filter((p) => !p.isTest).length} participants · ${activeCohort.name}` : 'No active cohort'}
         action={
           activeCohort && (
             <div className="flex items-center gap-2">
