@@ -14,6 +14,6 @@ Working style the user wants: share understanding first; UI mock-ups always as r
 - Direct `psql` to `SUPABASE_DB_URL` hangs from the cloud container; use the Management API (`api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/database/query`) instead.
 
 ## Open items
-- Pre-existing bug on main: the mobile "+ N" follow-up count button in `FollowUpContactsTable.tsx` calls `setAdjustingCount`, which is not defined (TS2304), so tapping it probably throws a runtime error. Not fixed; flagged to the user.
+- Removed at the user's request: the mobile "+ N" follow-up count button in `FollowUpContactsTable.tsx`, which called the undefined `setAdjustingCount`. The `followUpCount` data is untouched.
 - Not verified against the deployed backend with a real admin login (no app credentials in the container). The UI was verified with the real components and sample data in Chromium.
 - Carried over: rotate the DB password and access token pasted in chat; Biodun Bello's number; stale remote branches; SupportHomePage lint errors.

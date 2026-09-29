@@ -504,14 +504,6 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                     )}
                   </button>
                 </div>
-                <button
-                  type="button"
-                  onPointerDown={() => setAdjustingCount(contact)}
-                  className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-orange-50 active:scale-95"
-                >
-                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
-                  {contact.followUpCount}
-                </button>
               </div>
             </div>
           </div>
