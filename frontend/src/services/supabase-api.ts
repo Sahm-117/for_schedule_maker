@@ -3733,7 +3733,7 @@ export const followUpContactsApi = {
   // added-by-support first, then fewest open follow-ups), immediately, for
   // everyone currently waiting. Notifies each newly-assigned support the same
   // way a manual bulk assign does.
-  async assignPendingNow(): Promise<{ assigned: number; stuckNoGender: number; stuckUnknownGender: number }> {
+  async assignPendingNow(): Promise<{ assigned: number; stuckNoGender: number; stuckUnknownGender: number; stuckInvalidPhone: number }> {
     const { data, error } = await supabase.rpc('assign_followups_now', { p_token: getSessionToken() });
     if (error) throw new Error(error.message);
     // Not notifyFollowUpAssignment: the RPC only returns up to 3 sample names
@@ -3749,6 +3749,7 @@ export const followUpContactsApi = {
       assigned: data?.assigned ?? 0,
       stuckNoGender: data?.stuckNoGender ?? 0,
       stuckUnknownGender: data?.stuckUnknownGender ?? 0,
+      stuckInvalidPhone: data?.stuckInvalidPhone ?? 0,
     };
   },
 

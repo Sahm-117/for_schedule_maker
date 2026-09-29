@@ -294,7 +294,12 @@ Deno.serve(async (req) => {
 
     // An import of old sign-ups would otherwise raise one alert per row.
     if (!backfill) {
-      await tellAdmins('New sign-up from the form', `${fullName} signed up on the registration form. They're waiting to be assigned their login.`)
+      if (normalised) {
+        await tellAdmins('New sign-up from the form', `${fullName} signed up on the registration form. They're waiting to be assigned their login.`)
+      } else {
+        // run_followup_assignment holds these back until the number is fixed.
+        await tellAdmins('Sign-up needs a valid number', `${fullName} wrote "${phone}" as their WhatsApp number. Fix it on Follow-ups so they can be assigned.`)
+      }
     }
     return await finish('CREATED', 'Registered them and created a prospect waiting to be assigned.', created.id)
   } catch (error) {
