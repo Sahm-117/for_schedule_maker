@@ -466,6 +466,30 @@ window.GUIDE_CONTENT = {
        "result": "Opens their profile: attendance, group, health status, notes, flagged concerns and their Faith Project."
       },
       {
+       "id": "participants-retaking",
+       "q": "What does the Retaking or Shared number tag mean?",
+       "keywords": [
+        "retaking",
+        "retake",
+        "shared number",
+        "same number",
+        "previous cohort",
+        "did not graduate",
+        "repeat"
+       ],
+       "steps": [
+        "Tap the tag next to their name to see why they're flagged.",
+        "**Retaking** means another cohort has a record on the same phone number with the same first name.",
+        "**Shared number** means the number matches but the name doesn't, so it may be a family phone or a typo. Tap **Same person** or **Different person**.",
+        "For someone the app can't find (for example a cohort from before the app), tap **⋮** → **Mark as retaking** and give the reason."
+       ],
+       "result": "The tag shows who is retaking FOF, and tapping it always says why.",
+       "tips": [
+        "Their old record stays with the old cohort, so every count stays with its own cohort.",
+        "Supports can answer too, from the participant's card."
+       ]
+      },
+      {
        "id": "participants-test",
        "q": "How do I mark a participant as a test, so they aren't counted?",
        "keywords": [
@@ -1214,6 +1238,27 @@ window.GUIDE_CONTENT = {
        "tips": [
         "Picked the wrong cohort? Tap **Attended [cohort]** and choose another, or **Undo**.",
         "Only admins can do this. Supports just see the tag."
+       ]
+      },
+      {
+       "id": "follow-ups-form-questions",
+       "q": "Where do I see questions people asked on the sign-up form?",
+       "keywords": [
+        "question",
+        "concerns",
+        "sign up form",
+        "asked a question",
+        "questions to answer"
+       ],
+       "steps": [
+        "On **Contacts**, tap **Questions to answer** to see who still needs an answer.",
+        "Tap **Asked a question** on a contact to read it.",
+        "Once someone has answered them, tap **Mark as answered**."
+       ],
+       "result": "Every real question from the form's \"Any other questions or concerns?\" shows on the contact. Answers like None, Nil or No are left out.",
+       "tips": [
+        "The support sees the same question on their follow-up card and can mark it answered too.",
+        "It also shows on the participant's profile."
        ]
       },
       {
@@ -2344,6 +2389,27 @@ window.GUIDE_CONTENT = {
         "No WhatsApp? Tap **⋮** on their card, then **Send email** (or tap their email under the **i**). Pick a template the same way and tap **Open email**. Your email app opens with the message ready to send. Once they've registered, Send email opens their login details instead."
        ],
        "shot": "support-follow-up-templates.jpg"
+      },
+      {
+       "id": "s-form-question",
+       "q": "Someone asked a question on the sign-up form. Where do I see it?",
+       "keywords": [
+        "question",
+        "asked",
+        "concern",
+        "sign up form",
+        "mark as answered"
+       ],
+       "steps": [
+        "Open **Mobilisation** → **Follow-ups**.",
+        "Their card shows **They asked on the sign-up form** with their words.",
+        "Answer them when you reach out, then tap **Mark as answered**."
+       ],
+       "result": "The box turns grey and shows when it was answered.",
+       "tips": [
+        "Tapped it by mistake? Tap **Not answered yet**.",
+        "If they fill the form again with a new question, it shows up as unanswered again."
+       ]
       },
       {
        "id": "s-email-contact",
