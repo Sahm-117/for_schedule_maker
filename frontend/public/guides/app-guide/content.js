@@ -193,11 +193,11 @@ window.GUIDE_CONTENT = {
         "target"
        ],
        "steps": [
-        "Look at the row of four numbers: Contacts, Contacted, Replied, Registered.",
-        "Each one shows what share of the one before it reached that stage.",
-        "Tap any of the four to open Follow-ups for the details."
+        "Before the cohort starts, look at the four numbers: **Signed up**, **Needs login**, **Not done yet** and **Logged in**.",
+        "Signed up shows how far you are to the sign-up target. Logged in shows how many of those signed up are in the app.",
+        "Tap any of the four to open that list on Follow-ups."
        ],
-       "result": "Shows how many interested people are moving through to full registration, against the sign-up target set on Follow-ups."
+       "result": "They're the same four numbers as Follow-ups → Overview, so the two pages always agree."
       },
       {
        "id": "dashboard-operations",

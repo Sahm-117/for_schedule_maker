@@ -456,6 +456,8 @@ export interface IntroducerRow {
   signedUp: number;
   /** How many of them have their app login. */
   loginShared: number;
+  /** How many of them have logged in (confirmed). */
+  loggedIn: number;
   /** Still being worked — neither signed up nor written off. */
   stillOpen: number;
 }
@@ -466,13 +468,14 @@ export const computeIntroducerBreakdown = (contacts: FollowUpContact[]): Introdu
     if (!c.registeredById) continue;
     let row = map.get(c.registeredById);
     if (!row) {
-      row = { supportId: c.registeredById, supportName: c.registeredByName || 'Unknown', met: 0, signedUp: 0, loginShared: 0, stillOpen: 0 };
+      row = { supportId: c.registeredById, supportName: c.registeredByName || 'Unknown', met: 0, signedUp: 0, loginShared: 0, loggedIn: 0, stillOpen: 0 };
       map.set(c.registeredById, row);
     }
     row.met++;
     const status = computeFollowUpStatus(c);
     if (AFTER_SIGN_UP_STATUSES.includes(status)) row.signedUp++;
     if (status === 'LOGIN_SHARED' || status === 'LOGIN_ISSUE' || status === 'ACCESS_CONFIRMED' || isPreAppRegistered(c)) row.loginShared++;
+    if (status === 'ACCESS_CONFIRMED') row.loggedIn++;
     if (FOLLOW_UP_STAGE[status] === 'open') row.stillOpen++;
   }
   return Array.from(map.values()).sort((a, b) => b.met - a.met || a.supportName.localeCompare(b.supportName));

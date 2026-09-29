@@ -42,7 +42,8 @@ const SupportBar: React.FC<{ row: OwnerBreakdownRow }> = ({ row }) => {
   // Wrong numbers aren't in `assigned` but still get their grey sliver.
   const total = row.assigned + row.wrongNumber || 1;
   const segments: Array<{ value: number; className: string }> = [
-    { value: row.loginShared, className: 'bg-emerald-500' },
+    { value: row.accessConfirmed, className: 'bg-emerald-500' },
+    { value: row.loginShared - row.accessConfirmed, className: 'bg-emerald-200' },
     { value: row.loginToShare, className: 'bg-sky-500' },
     { value: row.stillOpen, className: 'bg-amber-500' },
     { value: row.nextCohort, className: 'bg-violet-500' },
@@ -57,7 +58,7 @@ const SupportBar: React.FC<{ row: OwnerBreakdownRow }> = ({ row }) => {
           <span key={i} className={`h-full ${seg.className}`} style={{ width: `${(seg.value / total) * 100}%` }} />
         ))}
       </span>
-      <span className="mt-1 block truncate text-[11px] text-gray-500">{row.loginShared} of {row.assigned} joined</span>
+      <span className="mt-1 block truncate text-[11px] text-gray-500">{row.accessConfirmed} of {row.assigned} logged in</span>
     </div>
   );
 };
@@ -185,11 +186,11 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
       assigned: sum.assigned + row.assigned,
       stillOpen: sum.stillOpen + row.stillOpen,
       loginToShare: sum.loginToShare + row.loginToShare,
-      loginShared: sum.loginShared + row.loginShared,
+      accessConfirmed: sum.accessConfirmed + row.accessConfirmed,
       nextCohort: sum.nextCohort + row.nextCohort,
       stopped: sum.stopped + row.stopped,
     }),
-    { assigned: 0, stillOpen: 0, loginToShare: 0, loginShared: 0, nextCohort: 0, stopped: 0 },
+    { assigned: 0, stillOpen: 0, loginToShare: 0, accessConfirmed: 0, nextCohort: 0, stopped: 0 },
   );
 
   // Unassigned prospects are nobody's work yet, so they don't belong in a table
@@ -330,7 +331,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
               <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Contacts</th>
               <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Not done yet</th>
               <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Needs login</th>
-              <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Joined the app</th>
+              <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Logged in</th>
               <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Next cohort</th>
               <th scope="col" className="hidden px-5 py-3 text-right sm:table-cell">Dropped</th>
             </tr>
@@ -362,7 +363,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
                       <td className="hidden px-3 py-3 text-right font-semibold tabular-nums sm:table-cell">{row.assigned}</td>
                       <td className="hidden px-3 py-3 text-right font-bold tabular-nums text-amber-700 sm:table-cell">{row.stillOpen}</td>
                       <td className={`hidden px-3 py-3 text-right font-bold tabular-nums sm:table-cell ${row.loginToShare > 0 ? 'text-sky-700' : 'text-gray-400'}`}>{row.loginToShare}</td>
-                      <td className="hidden px-3 py-3 text-right font-semibold tabular-nums text-emerald-700 sm:table-cell">{row.loginShared}</td>
+                      <td className="hidden px-3 py-3 text-right font-semibold tabular-nums text-emerald-700 sm:table-cell">{row.accessConfirmed}</td>
                       <td className={`hidden px-3 py-3 text-right font-semibold tabular-nums sm:table-cell ${row.nextCohort > 0 ? 'text-violet-700' : 'text-gray-400'}`}>{row.nextCohort}</td>
                       <td className="hidden px-5 py-3 text-right font-semibold tabular-nums text-neutral-600 sm:table-cell">{row.stopped}</td>
                     </tr>
@@ -373,7 +374,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
                             <span className="text-gray-500">Contacts <span className="font-semibold tabular-nums text-gray-900">{row.assigned}</span></span>
                             <span className="text-gray-500">Not done yet <span className="font-semibold tabular-nums text-amber-700">{row.stillOpen}</span></span>
                             <span className="text-gray-500">Needs login <span className="font-semibold tabular-nums text-sky-700">{row.loginToShare}</span></span>
-                            <span className="text-gray-500">Joined the app <span className="font-semibold tabular-nums text-emerald-700">{row.loginShared}</span></span>
+                            <span className="text-gray-500">Logged in <span className="font-semibold tabular-nums text-emerald-700">{row.accessConfirmed}</span></span>
                             <span className="text-gray-500">Next cohort <span className="font-semibold tabular-nums text-violet-700">{row.nextCohort}</span></span>
                             <span className="text-gray-500">Dropped <span className="font-semibold tabular-nums text-neutral-600">{row.stopped}</span></span>
                           </div>
@@ -407,7 +408,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
                 <td className="hidden px-3 py-3 text-right font-bold tabular-nums sm:table-cell">{totals.assigned}</td>
                 <td className="hidden px-3 py-3 text-right font-bold tabular-nums text-amber-700 sm:table-cell">{totals.stillOpen}</td>
                 <td className="hidden px-3 py-3 text-right font-bold tabular-nums text-sky-700 sm:table-cell">{totals.loginToShare}</td>
-                <td className="hidden px-3 py-3 text-right font-bold tabular-nums text-emerald-700 sm:table-cell">{totals.loginShared}</td>
+                <td className="hidden px-3 py-3 text-right font-bold tabular-nums text-emerald-700 sm:table-cell">{totals.accessConfirmed}</td>
                 <td className="hidden px-3 py-3 text-right font-bold tabular-nums text-violet-700 sm:table-cell">{totals.nextCohort}</td>
                 <td className="hidden px-5 py-3 text-right font-bold tabular-nums text-neutral-600 sm:table-cell">{totals.stopped}</td>
               </tr>
@@ -442,8 +443,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
                 </th>
                 <th scope="col" className="w-[22%] px-1.5 py-3 text-right sm:w-auto sm:px-3">Signed up</th>
                 <th scope="col" className="w-[22%] px-2 py-3 text-right sm:w-auto sm:px-5">
-                  <span className="sm:hidden">Joined</span>
-                  <span className="hidden sm:inline">Joined the app</span>
+                  Logged in
                 </th>
               </tr>
             </thead>
@@ -453,7 +453,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
                   <td className="truncate px-2 py-3 font-semibold text-gray-900 sm:px-5">{row.supportName}</td>
                   <td className="px-1.5 py-3 text-right font-bold tabular-nums text-gray-900 sm:px-3">{row.met}</td>
                   <td className="px-1.5 py-3 text-right font-semibold tabular-nums text-emerald-700 sm:px-3">{row.signedUp}</td>
-                  <td className="px-2 py-3 text-right font-semibold tabular-nums text-emerald-700 sm:px-5">{row.loginShared}</td>
+                  <td className="px-2 py-3 text-right font-semibold tabular-nums text-emerald-700 sm:px-5">{row.loggedIn}</td>
                 </tr>
               ))}
             </tbody>
@@ -463,7 +463,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
                   <td className="px-2 py-3 font-bold text-gray-900 sm:px-5">Everyone</td>
                   <td className="px-1.5 py-3 text-right font-bold tabular-nums text-gray-900 sm:px-3">{totalMet}</td>
                   <td className="px-1.5 py-3 text-right font-bold tabular-nums text-emerald-700 sm:px-3">{introducers.reduce((n, r) => n + r.signedUp, 0)}</td>
-                  <td className="px-2 py-3 text-right font-bold tabular-nums text-emerald-700 sm:px-5">{introducers.reduce((n, r) => n + r.loginShared, 0)}</td>
+                  <td className="px-2 py-3 text-right font-bold tabular-nums text-emerald-700 sm:px-5">{introducers.reduce((n, r) => n + r.loggedIn, 0)}</td>
                 </tr>
               </tfoot>
             )}
