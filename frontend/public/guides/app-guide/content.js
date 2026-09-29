@@ -1048,7 +1048,31 @@ window.GUIDE_CONTENT = {
         "Open Follow-ups (it opens on the **Overview** tab, or switch to **Contacts**).",
         "The cards at the top show, per gender, how many are waiting versus how many spare places supports have, and which supports are at their limit."
        ],
-       "result": "Tapping a number filters the contact list below to match."
+       "result": "Tapping a number filters the contact list below to match.",
+       "tips": [
+        "The cards follow the cohort picked at the top. Test contacts are never counted."
+       ]
+      },
+      {
+       "id": "follow-ups-search",
+       "q": "How do I find a contact by name, number or email?",
+       "keywords": [
+        "search",
+        "find contact",
+        "name",
+        "number",
+        "email",
+        "all supports"
+       ],
+       "steps": [
+        "On the **Contacts** tab, type in the search box under the filters.",
+        "Matches come from every cohort, not just the one you've picked, so you don't need to change the cohort filter."
+       ],
+       "result": "The line under the box says how many match. Clear the box to go back to the full list.",
+       "tips": [
+        "Numbers work with 3 or more digits, typed as 0803… or +234 803….",
+        "Use **All Supports** to see one support's contacts, or **Unassigned** for the ones nobody has yet."
+       ]
       },
       {
        "id": "follow-ups-add-contact",
@@ -1097,7 +1121,7 @@ window.GUIDE_CONTENT = {
         "Tap the gear icon.",
         "Switch on **Alert admins when someone's stuck**."
        ],
-       "result": "While anyone is waiting unassigned, admins get one reminder every 2 hours (not one per person)."
+       "result": "While anyone in the current cohort is waiting to be assigned, admins get one reminder every 2 hours (not one per person). Test contacts, closed ones and wrong numbers are never counted."
       },
       {
        "id": "follow-ups-assign-now",
@@ -1112,7 +1136,10 @@ window.GUIDE_CONTENT = {
         "Confirm **Assign now**."
        ],
        "result": "Each waiting person goes to a same-gender support with room, and that support gets the usual new-follow-up alert. Anyone with no matching same-gender support, or no gender on file, stays waiting and is called out separately.",
-       "shot": "admin-follow-ups-assign-now-confirm.jpg"
+       "shot": "admin-follow-ups-assign-now-confirm.jpg",
+       "tips": [
+        "The number in the confirmation covers every cohort, so it can be higher than the cards, which follow the cohort you've picked. Test contacts are never counted or assigned."
+       ]
       },
       {
        "id": "follow-ups-gender-tags",
@@ -1144,7 +1171,49 @@ window.GUIDE_CONTENT = {
         "Choose from three groups: **Still open** (To contact, Waiting, Needs reminder, Replied, Call back later, Registered, Login shared, Issue with login), **Moved to next cohort**, or **Closed** (Participant confirmed access, Wrong number, Not interested, No response)."
        ],
        "result": "Only **Participant confirmed access** completes a follow-up — it's set by itself when the person signs in and chooses their password. **Login shared** keeps them open until then, and **Issue with login** alerts the admin and IT team.",
-       "shot": "admin-follow-ups-contacts.jpg"
+       "shot": "admin-follow-ups-contacts.jpg",
+       "tips": [
+        "**Attended** isn't in this list. It's set from the **From prior cohort** tag (see \"Someone from a prior cohort already attended\")."
+       ]
+      },
+      {
+       "id": "follow-ups-prior-cohort-attended",
+       "q": "Someone from a prior cohort already attended. How do I record that?",
+       "keywords": [
+        "from prior cohort",
+        "attended",
+        "prior cohort",
+        "previous cohort",
+        "already attended"
+       ],
+       "steps": [
+        "On the **Contacts** tab, find them. They have a grey **From prior cohort** tag.",
+        "Tap the tag and pick the cohort they attended."
+       ],
+       "result": "They're marked **Attended** and filed under that cohort, so they leave the current list and are never auto-assigned. You'll find them when you pick that cohort at the top.",
+       "tips": [
+        "Picked the wrong cohort? Tap **Attended [cohort]** and choose another, or **Undo**.",
+        "Only admins can do this. Supports just see the tag."
+       ]
+      },
+      {
+       "id": "follow-ups-test-contacts",
+       "q": "How do I mark a contact as a test, so it isn't counted?",
+       "keywords": [
+        "test contact",
+        "mark as test",
+        "demo",
+        "ignore",
+        "not counted"
+       ],
+       "steps": [
+        "On the **Contacts** tab, tap **⋮** on the contact.",
+        "Tap **Mark as test**."
+       ],
+       "result": "They get a **Test · ignored** tag. They stay in the list, but they're never auto-assigned and aren't counted in the cards, Overview, alerts or exports. Supports never see them.",
+       "tips": [
+        "To undo, tap **⋮** → **Unmark as test**."
+       ]
       },
       {
        "id": "follow-ups-import-export",
@@ -1173,7 +1242,10 @@ window.GUIDE_CONTENT = {
         "Send via WhatsApp."
        ],
        "result": "The message opens in WhatsApp with the template text and the current registration link filled in.",
-       "shot": "admin-follow-ups-message-bank.jpg"
+       "shot": "admin-follow-ups-message-bank.jpg",
+       "tips": [
+        "If the contact has an email, **Send email** in their **⋮** menu (or tapping their email under the **i**) sends the same template by email."
+       ]
       },
       {
        "id": "follow-ups-issues",
@@ -1314,19 +1386,24 @@ window.GUIDE_CONTENT = {
       },
       {
        "id": "users-row-menu",
-       "q": "How do I reset someone's password, change their role, or remove them?",
+       "q": "How do I reset someone's password, change their role, mark them as test, or remove them?",
        "keywords": [
         "reset password",
         "change role",
         "deactivate",
-        "delete user"
+        "delete user",
+        "mark as test",
+        "test account"
        ],
        "steps": [
         "Tap the **≡** icon on their row.",
-        "Choose **Manage** (edit their details), **Change role**, **Reset password**, **Deactivate** (blocks login, keeps their records) or **Permanent delete** (cannot be undone)."
+        "Choose **Manage** (edit their details), **Change role**, **Mark as test**, **Reset password**, **Deactivate** (blocks login, keeps their records) or **Permanent delete** (cannot be undone)."
        ],
        "result": "Reset password gives them a new temporary one to share; Deactivate is the safer option if you just need to stop someone logging in.",
-       "shot": "admin-users-row-menu.jpg"
+       "shot": "admin-users-row-menu.jpg",
+       "tips": [
+        "**Mark as test** is for demo or trial accounts. They work normally but are never picked for follow-up assignment or counted as spare places. They get a **Test** tag."
+       ]
       },
       {
        "id": "users-filters",
@@ -2137,11 +2214,14 @@ window.GUIDE_CONTENT = {
         "form",
         "check",
         "sign-ups",
-        "search"
+        "search",
+        "clear search"
        ],
        "steps": [
         "Open **Mobilisation** and scroll to **Signed up on the form**.",
-        "Type a name or number in the search box.",
+        "Tap the search box. It moves up to the top of the screen so you can see the names under it.",
+        "Type a name or number. The list narrows as you type.",
+        "Tap the **X** in the box to clear it and search again.",
         "Tap the refresh button to fetch the newest sign-ups."
        ],
        "result": "You see when each person signed up and who is following them up. Check here before asking the back office.",
@@ -2195,14 +2275,17 @@ window.GUIDE_CONTENT = {
         "follow-ups",
         "assigned to me",
         "my contacts",
-        "who to call"
+        "who to call",
+        "email",
+        "i button",
+        "three dots"
        ],
        "steps": [
         "Open **Mobilisation** and tap the **Follow-ups** tab. The number shows how many you have.",
         "**Open** shows the people you're still working on. **Closed** shows the ones you've finished.",
         "Turn on **Show past cohorts** to see people from earlier cohorts too."
        ],
-       "result": "Each person has a card with their number and buttons to message or call them.",
+       "result": "Each person has a card with their number and buttons to message or call them. Tap the **i** next to their name to see their number and email, and the **⋮** at the top right of the card for more: **Copy number**, **Send message**, **Send email** and **Edit contact**.",
        "tips": [
         "When the team gives you someone new, you also get an alert on the bell."
        ],
@@ -2218,7 +2301,9 @@ window.GUIDE_CONTENT = {
         "whatsapp",
         "first message",
         "reminder",
-        "copy text"
+        "copy text",
+        "email",
+        "send email"
        ],
        "steps": [
         "On the person's card, tap **Templates**.",
@@ -2228,9 +2313,36 @@ window.GUIDE_CONTENT = {
        ],
        "result": "WhatsApp opens with the message ready to send, and the app notes that you've contacted them.",
        "tips": [
-        "You can also tap **WhatsApp** or **Call** on the card to reach them without a template."
+        "You can also tap **WhatsApp** or **Call** on the card to reach them without a template.",
+        "No WhatsApp? Tap **⋮** on their card, then **Send email** (or tap their email under the **i**). Pick a template the same way and tap **Open email**. Your email app opens with the message ready to send."
        ],
        "shot": "support-follow-up-templates.jpg"
+      },
+      {
+       "id": "s-email-contact",
+       "popular": true,
+       "q": "Their number doesn't work. How do I reach them by email?",
+       "keywords": [
+        "email",
+        "wrong number",
+        "not reachable",
+        "not on whatsapp",
+        "can't reach",
+        "copy email",
+        "send email"
+       ],
+       "steps": [
+        "On their card, tap the **i** next to their name. Their number and email show.",
+        "Tap the email to write to them, or tap **Copy** to paste it somewhere else.",
+        "Or tap **⋮** at the top right of the card, then **Send email**."
+       ],
+       "result": "You pick a ready-made message, check the preview and tap **Open email**. Your email app opens with it ready to send.",
+       "tips": [
+        "If they've registered, use **Send by email** in **Their login details** instead, so they get their login too.",
+        "If there's no email, they didn't give one on the form. Let the admin know.",
+        "Don't see the **i**? Close the app completely and open it again to get the latest version."
+       ],
+       "shot": "support-follow-ups.jpg"
       },
       {
        "id": "s-update-stage",
@@ -2270,18 +2382,21 @@ window.GUIDE_CONTENT = {
         "send login",
         "confirmed access",
         "issue with login",
-        "can't log in"
+        "can't log in",
+        "email",
+        "send by email"
        ],
        "steps": [
         "Open their card. Once they're **Registered**, a **Their login details** box appears.",
-        "Tap it to see the details and send them.",
+        "Tap it to see the details. Tap **Send in WhatsApp**, **Send by email** or **Copy message**.",
         "Once you've sent them, set **Where do they stand?** to **Login shared**.",
         "If they can't get in, choose **Issue with login**. A box asks **What's the problem?** Describe it (for example, the code isn't working or they changed phone) and tap **Submit**. The admins and your hub's IT Support are told, with what you wrote, and the login details box stays on the card so you can send a new code."
        ],
        "result": "When they sign in and set their password, the card closes by itself as **Participant confirmed access** and you get a notification. Your job for this person is done.",
        "shot": "support-follow-ups.jpg",
        "tips": [
-        "When IT Support mark the problem sorted, you get a notification. If the person has signed in by then, the card closes as **Participant confirmed access**. If not, it goes back to **Login shared**."
+        "When IT Support mark the problem sorted, you get a notification. If the person has signed in by then, the card closes as **Participant confirmed access**. If not, it goes back to **Login shared**.",
+        "Couldn't reach them by phone? **Send by email** opens your email app with a message that says you couldn't get through, introduces you, and gives their login. It only shows if they gave an email."
        ]
       },
       {
@@ -2291,13 +2406,15 @@ window.GUIDE_CONTENT = {
         "edit contact",
         "wrong name",
         "change number",
-        "pencil"
+        "three dots",
+        "⋮"
        ],
        "steps": [
-        "On their card, tap the pencil at the top right.",
-        "Correct the details.",
-        "Save."
-       ]
+        "On their card, tap **⋮** at the top right.",
+        "Tap **Edit contact**.",
+        "Correct the details and tap **Save**."
+       ],
+       "shot": "support-follow-up-menu.jpg"
       }
      ]
     },
