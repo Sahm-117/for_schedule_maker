@@ -10,8 +10,9 @@
  *   1. calls it (contacts unassigned for 2+ hours get an owner),
  *   2. tells each newly-assigned owner, reusing notify-followup-assignment
  *      exactly the way a manual bulk-assign already does (same payload shape),
- *   3. tells admins, at most once every 2 hours, while anyone is still
- *      waiting unassigned past 2 hours (regardless of why).
+ *   3. tells admins, at most once every 2 hours, while anyone in the current
+ *      cohort is still waiting to be assigned past 2 hours (the same people
+ *      the Follow-ups page counts; test contacts and closed ones never count).
  *
  * The admin "Assign now" button runs the same Postgres function directly
  * (via the assign_followups_now RPC) and notifies owners itself from the
@@ -97,12 +98,28 @@ Deno.serve(async (req) => {
     const alertsEnabled = alertsEnabledRow?.value !== false
 
     if (alertsEnabled) {
-      const { count } = await supabase
+      // Same people the Follow-ups page shows as "Waiting to be assigned"
+      // (isWaitingForAssignment), in the current cohort only: the running
+      // ACTIVE cohort with the latest start, plus contacts with no cohort yet,
+      // which the app treats as belonging to it. Test contacts, closed
+      // outcomes and wrong numbers are never waiting.
+      const { data: currentCohort } = await supabase
+        .from('Cohort').select('id').eq('status', 'ACTIVE')
+        .order('startDate', { ascending: false, nullsFirst: false }).limit(1).maybeSingle()
+      let waitingQuery = supabase
         .from('FollowUpContact')
         .select('id', { count: 'exact', head: true })
         .is('ownerId', null)
         .is('archivedAt', null)
+        .eq('isTest', false)
+        .not('registrationStatus', 'in', '(ACCESS_CONFIRMED,ATTENDED,NEXT_COHORT,NOT_INTERESTED,NOT_A_GOOD_TIME,NOT_A_TCN_MEMBER,NO_RESPONSE)')
+        .neq('replyStatus', 'INCORRECT_NUMBER')
+        .neq('callStatus', 'INCORRECT_NUMBER')
         .lte('createdAt', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString())
+      waitingQuery = currentCohort?.id
+        ? waitingQuery.or(`cohortId.eq.${currentCohort.id},cohortId.is.null`)
+        : waitingQuery.is('cohortId', null)
+      const { count } = await waitingQuery
       waitingCount = count ?? 0
 
       if (waitingCount > 0) {
