@@ -24,6 +24,7 @@ import {
   isClosedContact,
   isClosedRegistrationStatus,
   contactInCohortScope,
+  contactMatchesSearch,
 } from '../utils/followUps';
 import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { compareText, sortByText } from '../utils/sort';
@@ -168,6 +169,17 @@ const SupportFollowUpsPage: React.FC = () => {
     },
     [cohortScopedContacts, filters]
   );
+
+  // The search box looks across all of this support's cohorts; the Issues tab
+  // keeps using visibleContacts.
+  const [contactSearch, setContactSearch] = useState('');
+  const searching = contactSearch.trim().length > 0;
+  const searchedContacts = useMemo(() => {
+    if (!searching) return visibleContacts;
+    return contacts
+      .filter((c) => contactMatchesSearch(c, contactSearch))
+      .sort((a, b) => ((isClosedContact(a) ? 1 : 0) - (isClosedContact(b) ? 1 : 0)) || compareText(a.fullName, b.fullName));
+  }, [searching, visibleContacts, contacts, contactSearch]);
 
   const visibleIssues = useMemo(() => {
     const contactIds = new Set(contacts.map((contact) => contact.id));
@@ -381,8 +393,23 @@ const SupportFollowUpsPage: React.FC = () => {
         <>
           {tab === 'contacts' && (
             <div data-wt="fu-contacts">
+              <div className="mb-3">
+                <input
+                  type="search"
+                  value={contactSearch}
+                  onChange={(e) => setContactSearch(e.target.value)}
+                  placeholder="Search by name, number or email"
+                  aria-label="Search your contacts"
+                  className="w-full rounded-2xl border border-orange-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                {searching && (
+                  <p className="mt-1.5 px-1 text-xs text-gray-500">
+                    {searchedContacts.length} match{searchedContacts.length === 1 ? '' : 'es'} across all your cohorts
+                  </p>
+                )}
+              </div>
               <FollowUpContactsTable
-                contacts={visibleContacts}
+                contacts={searchedContacts}
                 owners={[]}
                 canAssign={false}
                 onFieldChange={(c, patch) => handleFieldChange(c, patch)}

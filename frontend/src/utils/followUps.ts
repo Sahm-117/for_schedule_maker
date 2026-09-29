@@ -167,6 +167,23 @@ export const isClosedContact = (c: FollowUpContact): boolean => {
   return status === 'ACCESS_CONFIRMED' || status === 'ATTENDED' || status === 'WRONG_NUMBER' || status === 'NOT_INTERESTED' || status === 'NO_RESPONSE';
 };
 
+/**
+ * Search box match on the Follow-ups pages: name or email containing the text,
+ * or the number containing its digits (3 or more, so "080" works).
+ */
+export const contactMatchesSearch = (c: FollowUpContact, query: string): boolean => {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  const digits = needle.replace(/\D/g, '');
+  // "+234 803…" and "0803…" are the same Nigerian number.
+  const local = (value: string) => (value.startsWith('234') ? `0${value.slice(3)}` : value);
+  const phone = local((c.phone || '').replace(/\D/g, ''));
+  return c.fullName.toLowerCase().includes(needle)
+    || (c.email || '').toLowerCase().includes(needle)
+    || (digits.length >= 3 && phone.includes(digits))
+    || (local(digits).length >= 3 && phone.includes(local(digits)));
+};
+
 /** Unassigned and still open, i.e. what run_followup_assignment would hand out. */
 export const isWaitingForAssignment = (c: FollowUpContact): boolean =>
   !c.ownerId && !c.isTest && !c.archivedAt && !isClosedContact(c) && c.registrationStatus !== 'NEXT_COHORT';

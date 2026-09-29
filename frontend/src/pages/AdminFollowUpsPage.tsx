@@ -40,6 +40,7 @@ import {
   openLoadByOwner,
   unassignedFollowUpTag,
   genderCapacityOutlook,
+  contactMatchesSearch,
 } from '../utils/followUps';
 import { DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
 import { compareText, sortByText } from '../utils/sort';
@@ -217,9 +218,15 @@ const AdminFollowUpsPage: React.FC = () => {
     settingsApi.getProgrammeRules().then((rules) => setMaxLoad(rules.maxFollowUpsPerSupport)).catch(() => {});
   }, [liveRevision]);
 
+  const [contactSearch, setContactSearch] = useState('');
+  const searching = contactSearch.trim().length > 0;
+
   const filteredContacts = useMemo(() => {
     const list = contacts.filter((c) => {
-      if (cohortFilter && !contactInCohortScope(c, cohortFilter, activeCohort?.id)) return false;
+      // A search looks across every cohort, so anyone can be found by name or number.
+      if (searching) {
+        if (!contactMatchesSearch(c, contactSearch)) return false;
+      } else if (cohortFilter && !contactInCohortScope(c, cohortFilter, activeCohort?.id)) return false;
       if (ownerFilter === '__unassigned__' && c.ownerId) return false;
       if (ownerFilter && ownerFilter !== '__unassigned__' && c.ownerId !== ownerFilter) return false;
       if (filters.archived && c.archivedAt) return false;
@@ -249,7 +256,7 @@ const AdminFollowUpsPage: React.FC = () => {
       return (aClosed - bClosed) || compareText(a.fullName, b.fullName);
     });
     return list;
-  }, [contacts, cohortFilter, ownerFilter, filters, statusParam, contactSort, activeCohort?.id, owners, ownerLoad, maxLoad]);
+  }, [contacts, cohortFilter, ownerFilter, filters, statusParam, contactSort, activeCohort?.id, owners, ownerLoad, maxLoad, searching, contactSearch]);
 
   const ownerOptionCounts = useMemo(() => {
     const scoped = cohortFilter
@@ -575,6 +582,23 @@ const AdminFollowUpsPage: React.FC = () => {
                 </span>
               )}
             </button>
+          </div>
+        )}
+        {tab === 'contacts' && (
+          <div>
+            <input
+              type="search"
+              value={contactSearch}
+              onChange={(e) => setContactSearch(e.target.value)}
+              placeholder="Search by name, number or email"
+              aria-label="Search contacts"
+              className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            {searching && (
+              <p className="mt-1.5 px-1 text-xs text-gray-500">
+                {filteredContacts.length} match{filteredContacts.length === 1 ? '' : 'es'} across all cohorts
+              </p>
+            )}
           </div>
         )}
       </div>
