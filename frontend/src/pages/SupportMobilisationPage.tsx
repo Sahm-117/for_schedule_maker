@@ -146,6 +146,14 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [loginIssueContact, setLoginIssueContact] = useState<FollowUpContact | null>(null);
   // Follow-up cards whose "Number needs checking" strip is open.
   const [numberHelpOpen, setNumberHelpOpen] = useState<Record<string, boolean>>({});
+  const [copiedEmailId, setCopiedEmailId] = useState<string | null>(null);
+  const copyEmail = async (contactId: string, email: string) => {
+    try {
+      await navigator.clipboard.writeText(email);
+      setCopiedEmailId(contactId);
+      setTimeout(() => setCopiedEmailId(null), 2000);
+    } catch { /* ignore */ }
+  };
 
   // IT issues tab: only for IT Support (a HubItSupport row in this cohort).
   const [isItSupport, setIsItSupport] = useState(false);
@@ -780,6 +788,20 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                     </button>
                   </div>
                   <p className="mt-1 text-[12.5px] text-gray-500">{contact.phone || 'No phone'}{assigned ? ` · assigned ${assigned}` : ''}</p>
+                  {/* Their email, for when the number doesn't get through. A number that
+                      isn't a phone number shows it in the "Number needs checking" box instead. */}
+                  {phoneOk && contact.email?.trim() && (
+                    <div className="mt-1 flex items-center gap-2">
+                      <a href={`mailto:${contact.email.trim()}`} className="min-w-0 truncate text-[12.5px] text-sky-700 underline">{contact.email.trim()}</a>
+                      <button
+                        type="button"
+                        onClick={() => { void copyEmail(contact.id, contact.email!.trim()); }}
+                        className="flex-none rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[11.5px] font-semibold text-gray-600 hover:bg-gray-50"
+                      >
+                        {copiedEmailId === contact.id ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                  )}
                   {!phoneOk && (
                     <div className="mt-2.5 rounded-[12px] bg-amber-50 text-amber-800">
                       <button
