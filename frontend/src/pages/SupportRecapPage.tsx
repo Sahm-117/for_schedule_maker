@@ -156,9 +156,9 @@ const WeekBody: React.FC<{
       {questions.length > 0 && (
         <div className="mt-5 border-t border-[#f0f0f2] pt-1">
           <button type="button" onClick={() => setQuestionsOpen((o) => !o)} aria-expanded={questionsOpen} className="flex min-h-[52px] w-full items-center gap-2 text-left">
-            <span className="text-[15px] font-semibold text-gray-900">Questions from participants</span>
+            <span className="min-w-0 text-[15px] font-semibold text-gray-900">Questions from participants</span>
             {week.unreadQuestionCount > 0 && (
-              <span className="rounded-full bg-orange-100/80 px-2 py-0.5 text-[12px] font-bold text-orange-700">{week.unreadQuestionCount} new</span>
+              <span className="flex-none whitespace-nowrap rounded-full bg-orange-100/80 px-2 py-0.5 text-[12px] font-bold text-orange-700">{week.unreadQuestionCount} new</span>
             )}
             <span className="ml-auto text-[14px] tabular-nums text-gray-400">{questions.length}</span>
             <Chevron open={questionsOpen} />
@@ -257,7 +257,7 @@ const SupportRecapPage: React.FC = () => {
                   <WeekState week={week} />
                 </span>
                 {week.unreadQuestionCount > 0 && (
-                  <span className="rounded-full bg-orange-100/80 px-2 py-0.5 text-[12px] font-bold text-orange-700">{week.unreadQuestionCount} new</span>
+                  <span className="flex-none whitespace-nowrap rounded-full bg-orange-100/80 px-2 py-0.5 text-[12px] font-bold text-orange-700">{week.unreadQuestionCount} new</span>
                 )}
                 {available && <Chevron open={open} />}
               </button>
