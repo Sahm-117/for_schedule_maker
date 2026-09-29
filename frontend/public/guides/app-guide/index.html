@@ -50,15 +50,28 @@
   .brand-dot { width: 32px; height: 32px; border-radius: 11px; background: linear-gradient(145deg, #FFA66B, #FF7F3A); display: grid; place-items: center; color: #fff; font-size: 16px; font-weight: 800; box-shadow: 0 4px 12px rgba(255,127,58,.35); }
   .search { flex: 1; position: relative; min-width: 0; }
   .search input {
-    width: 100%; height: 44px; border-radius: 14px; border: 0;
-    background: var(--card); box-shadow: var(--shadow);
-    padding: 0 38px 0 40px; font-size: 16px; color: var(--ink); outline: none; -webkit-appearance: none; appearance: none;
+    width: 100%; height: 42px; border-radius: 12px; border: 0;
+    background: rgba(118,118,128,.12); box-shadow: none;
+    padding: 0 40px 0 36px; font-size: 17px; letter-spacing: -.01em; color: var(--ink); outline: none;
+    -webkit-appearance: none; appearance: none; transition: background .2s ease;
   }
+  .search input::placeholder { color: #8E8E93; }
   .search input::-webkit-search-cancel-button { display: none; }
-  .search input:focus { box-shadow: 0 0 0 3px rgba(255,145,77,.35), var(--shadow); }
-  .search .mag { position: absolute; left: 13px; top: 13px; width: 18px; height: 18px; color: var(--ink-3); pointer-events: none; }
-  .search .clear { position: absolute; right: 7px; top: 7px; width: 30px; height: 30px; border: 0; border-radius: 50%; background: var(--soft); color: var(--ink-2); display: none; place-items: center; }
+  .search input:focus { background: rgba(118,118,128,.16); }
+  .search .mag { position: absolute; left: 11px; top: 12px; width: 18px; height: 18px; color: #8E8E93; pointer-events: none; }
+  .search .clear {
+    position: absolute; right: 4px; top: 3px; width: 36px; height: 36px; border: 0; border-radius: 50%;
+    background: none; display: none; place-items: center; padding: 0;
+  }
+  .search .clear span { width: 18px; height: 18px; border-radius: 50%; background: #AEAEB2; color: #fff; display: grid; place-items: center; }
   .search.has .clear { display: grid; }
+  .cancel {
+    border: 0; background: none; color: var(--primary-deep); font-size: 17px; padding: 0 2px; height: 42px;
+    white-space: nowrap; display: none;
+  }
+  .top.searching .cancel { display: block; animation: fadeIn .18s ease; }
+  @media (max-width: 600px) { .top.searching .brand, .top.searching .role-chip { display: none; } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateX(6px); } to { opacity: 1; transform: none; } }
   .role-chip {
     height: 44px; border: 0; border-radius: 14px; background: var(--card); box-shadow: var(--shadow);
     padding: 0 14px; font-weight: 600; font-size: 14px; white-space: nowrap; display: flex; align-items: center; gap: 6px;
@@ -197,23 +210,42 @@
   .pager span { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pager .next { text-align: right; grid-column: 2; }
 
-  /* ---------- Search results ---------- */
-  .results { margin-top: 22px; }
-  .results h2 { font-size: 14px; color: var(--ink-3); font-weight: 600; margin: 0 0 12px; }
-  .hit {
-    width: 100%; border: 0; text-align: left; background: #fff; border-radius: 18px; box-shadow: var(--shadow);
-    padding: 13px 16px; margin-bottom: 8px; display: flex; gap: 12px; align-items: center; transition: box-shadow .15s;
+  /* ---------- Search results (Apple-style inset grouped lists) ---------- */
+  .results { margin: 14px auto 0; max-width: 720px; }
+  .results .meta { font-size: 13px; color: #6E6E73; margin: 4px 4px 14px; }
+  .results .meta b { color: var(--ink); font-weight: 600; }
+  .results .meta button { border: 0; background: none; padding: 0; color: var(--primary-deep); font-size: 13px; }
+  .grp { margin-bottom: 22px; }
+  .grp-h { font-size: 13px; font-weight: 400; color: #6E6E73; text-transform: uppercase; letter-spacing: .02em; margin: 0 16px 7px; display: flex; justify-content: space-between; align-items: baseline; }
+  .grp-h button { border: 0; background: none; padding: 0; color: var(--primary-deep); font-size: 15px; text-transform: none; letter-spacing: 0; }
+  .list { background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(43,18,4,.04); }
+  .row {
+    width: 100%; border: 0; background: none; text-align: left; display: flex; align-items: center; gap: 12px;
+    padding: 11px 14px 11px 16px; min-height: 52px; position: relative;
   }
-  .hit:hover { box-shadow: var(--shadow-lift); }
-  .hit .pe { flex: none; width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; font-size: 18px; }
-  .hit .hq { font-weight: 600; line-height: 1.35; }
-  .hit .hs { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
-  .hit mark { background: rgba(255,145,77,.28); color: inherit; border-radius: 3px; }
-  .none { background: #fff; border-radius: 20px; padding: 22px; box-shadow: var(--shadow); color: var(--ink-2); text-align: center; }
-  .none .big { font-size: 34px; }
-  .none b { color: var(--ink); display: block; font-size: 17px; margin: 6px 0 4px; }
-  .suggest { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; justify-content: center; }
-  .suggest button { border: 0; background: #fff; box-shadow: var(--shadow); border-radius: 999px; padding: 8px 14px; font-size: 14px; color: var(--ink-2); }
+  .row + .row::before { content: ''; position: absolute; top: 0; right: 0; left: 64px; border-top: .5px solid rgba(60,60,67,.18); }
+  .row.plain + .row.plain::before { left: 16px; }
+  .row:active, .row.active { background: rgba(118,118,128,.12); }
+  @media (hover: hover) { .row:hover { background: rgba(118,118,128,.07); } }
+  .row .ico { flex: none; width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; font-size: 18px; }
+  .row .ico.g { background: none; color: #8E8E93; width: 20px; }
+  .row .txt { flex: 1; min-width: 0; }
+  .row .t1 { font-size: 17px; line-height: 1.3; letter-spacing: -.01em; color: #3A3A3C; font-weight: 400; }
+  .row .t2 { font-size: 15px; line-height: 1.35; color: #6E6E73; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .row .t3 { font-size: 13px; color: #8E8E93; margin-top: 3px; }
+  .row .chev { flex: none; color: #C4C4C7; }
+  .row mark { background: none; color: var(--ink); font-weight: 600; }
+  .top-hit .row { padding: 16px; align-items: flex-start; }
+  .top-hit .row .ico { width: 44px; height: 44px; border-radius: 11px; font-size: 22px; }
+  .top-hit .row .t1 { font-size: 19px; font-weight: 600; color: var(--ink); line-height: 1.25; }
+  .top-hit .row .t1 mark { font-weight: 700; }
+  .top-hit .row .t2 { -webkit-line-clamp: 3; margin-top: 5px; }
+  .top-hit .row .chev { margin-top: 12px; }
+  .empty { text-align: center; padding: 48px 20px 26px; color: #6E6E73; }
+  .empty svg { color: #AEAEB2; }
+  .empty h3 { font-size: 22px; font-weight: 700; color: var(--ink); margin: 12px 0 6px; letter-spacing: -.02em; }
+  .empty p { margin: 0 auto; max-width: 340px; font-size: 15px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
   .lightbox { position: fixed; inset: 0; background: rgba(20,12,8,.88); display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px; cursor: zoom-out; }
   .lightbox.on { display: flex; }
@@ -233,9 +265,10 @@
     <button class="brand" id="brand" type="button" aria-label="Guide home"><span class="brand-dot">?</span><span class="brand-text">FOF Ops guide</span></button>
     <label class="search" id="searchBox" aria-label="How can I…?">
       <svg class="mag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="q" type="search" placeholder="How can I…?" autocomplete="off" enterkeyhint="search">
-      <button class="clear" id="clear" type="button" aria-label="Clear search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      <input id="q" type="search" placeholder="How can I…?" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" role="combobox" aria-expanded="false" aria-controls="results" aria-autocomplete="list">
+      <button class="clear" id="clear" type="button" aria-label="Clear search"><span><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span></button>
     </label>
+    <button class="cancel" id="cancel" type="button">Cancel</button>
     <button id="roleBtn" class="role-chip hidden" type="button"></button>
   </div>
 </header>
@@ -248,7 +281,8 @@
     <div class="roles" id="roles"></div>
   </section>
 
-  <section id="results" class="results hidden"></section>
+  <section id="results" class="results hidden" aria-label="Search results"></section>
+  <p id="liveCount" class="sr-only" aria-live="polite"></p>
 
   <section id="home" class="hidden"></section>
 
@@ -394,63 +428,327 @@
   $('lightbox').onclick = function () { this.classList.remove('on'); };
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') $('lightbox').classList.remove('on'); });
 
-  // ---------- "How can I…?" search: scores every task by question, keywords, steps and section ----------
-  var STOP = { how: 1, can: 1, i: 1, do: 1, the: 1, a: 1, an: 1, to: 1, my: 1, is: 1, of: 1, in: 1, on: 1, for: 1, where: 1, what: 1, why: 1, me: 1, see: 1, get: 1, and: 1, or: 1, it: 1, you: 1 };
-  function words(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/).filter(function (w) { return w && !STOP[w]; }); }
-  function search(qs) {
-    var terms = words(qs); if (!terms.length) return [];
-    var hits = [];
-    var roles = state.role ? [state.role].concat(Object.keys(G.roles).filter(function (r) { return r !== state.role; })) : Object.keys(G.roles);
-    roles.forEach(function (r) {
-      roleData(r).sections.forEach(function (s, i) {
-        (s.tasks || []).forEach(function (t) {
-          var q = t.q.toLowerCase(), kw = (t.keywords || []).join(' ').toLowerCase(), body = (t.steps || []).concat([t.result || ''], t.tips || []).join(' ').toLowerCase(), st = (s.title + ' ' + (s.summary || '')).toLowerCase();
-          var score = 0, matched = 0;
-          terms.forEach(function (w) {
-            var stem = w.length > 4 ? w.replace(/(ing|ed|es|s)$/, '') : w, got = 0;
-            if (q.indexOf(stem) > -1) got += 6;
-            if (kw.indexOf(stem) > -1) got += 5;
-            if (st.indexOf(stem) > -1) got += 2;
-            if (body.indexOf(stem) > -1) got += 1;
-            if (got) matched++; score += got;
+  // ---------- Search engine: forgiving of typos, knows everyday words, ranks questions first ----------
+  // Built once from the guide content. Every question, its keywords, its topic and
+  // its steps are split into words, normalised the same way as what people type:
+  // lower case, no accents or apostrophes, common phrases joined ("log in" → login),
+  // and simple word endings trimmed ("messages" → message).
+  var SearchEngine = (function () {
+    var STOP = {};
+    ('a an and are as at be by can could do does for from get go got have how i if in into is it its me my of on or our please should so that the their them then there they this to too up us was we what when where which who why will with would you your want need im ive id').split(' ').forEach(function (w) { STOP[w] = 1; });
+    // Phrases that mean one thing, joined before splitting into words.
+    var PHRASES = [
+      [/\b(log|sign)\s*(in|on)\b/g, 'login'], [/\b(log|sign)\s*out\b/g, 'logout'], [/\bsign\s*up\b|\bsigned\s*up\b/g, 'signup'],
+      [/\bfollow\s*ups?\b/g, 'followup'], [/\bwhats\s*app\b/g, 'whatsapp'], [/\be\s*mail\b/g, 'email'], [/\bcheck\s*in\b/g, 'checkin'],
+      [/\bready\s*made\b/g, 'template'], [/\bnot\s+working\b|\bdoesnt\s+work\b|\bdont\s+work\b|\bwont\s+work\b/g, 'problem'],
+      [/\bcan\s*not\b|\bcant\b|\bunable\b/g, 'cant'], [/\bphone\s*numbers?\b/g, 'number'], [/\bprofile\s*(pic|picture|photo)\b/g, 'photo']
+    ];
+    // Words people use for the same thing. The first word is the one the guide uses.
+    var GROUPS = [
+      'login signin logon access', 'logout signout', 'password passcode',
+      'number phone mobile', 'email mail gmail', 'delete remove erase', 'edit change update fix correct modify rename',
+      'add create new save make', 'message text msg chat dm', 'photo picture pic avatar image selfie',
+      'notification alert reminder push bell', 'signup register registration registered', 'attendance present absent',
+      'participant member student attendee', 'support leader rep volunteer', 'cohort batch intake',
+      'schedule timetable calendar programme plan week', 'meeting call zoom meet gmeet', 'link url',
+      'colour color theme accent', 'download export pdf print', 'find search look locate', 'problem issue error trouble stuck broken',
+      'followup contact prospect lead', 'concern worry flag', 'announcement notice broadcast', 'template ready', 'hub team',
+      'recap summary', 'question ask', 'group cell', 'assign allocate give hand', 'status stage stand', 'invite invited bring',
+      'person someone somebody people', 'havent hasnt hadnt didnt', 'turn enable switch activate set'
+    ];
+    function norm(s) {
+      s = String(s || '').toLowerCase();
+      if (s.normalize) s = s.normalize('NFKD').replace(/[̀-ͯ]/g, '');
+      s = s.replace(/[’'`]/g, '').replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ');
+      PHRASES.forEach(function (p) { s = s.replace(p[0], p[1]); });
+      return s.trim();
+    }
+    function stem(w) {
+      if (w.length > 4 && /ies$/.test(w)) return w.slice(0, -3) + 'y';
+      if (w.length > 5 && /ing$/.test(w)) return w.slice(0, -3);
+      if (w.length > 4 && /ed$/.test(w)) return w.slice(0, -2);
+      if (w.length > 4 && /(ss|x|ch|sh)es$/.test(w)) return w.slice(0, -2);
+      if (w.length > 3 && /s$/.test(w) && !/ss$/.test(w)) return w.slice(0, -1);
+      return w;
+    }
+    function tokens(s, keepStop) {
+      return norm(s).split(' ').filter(function (w) { return w && (keepStop || !STOP[w]); }).map(stem);
+    }
+    var SYN = {};
+    GROUPS.forEach(function (g) {
+      var ws = g.split(' ').map(stem);
+      ws.forEach(function (w) { SYN[w] = (SYN[w] || []).concat(ws.filter(function (x) { return x !== w; })); });
+    });
+    // Damerau–Levenshtein distance, stopping early once it's over the limit.
+    function dist(a, b, max) {
+      if (Math.abs(a.length - b.length) > max) return max + 1;
+      var d = [], i, j;
+      for (i = 0; i <= a.length; i++) { d[i] = [i]; }
+      for (j = 0; j <= b.length; j++) { d[0][j] = j; }
+      for (i = 1; i <= a.length; i++) {
+        var rowMin = Infinity;
+        for (j = 1; j <= b.length; j++) {
+          var c = a[i - 1] === b[j - 1] ? 0 : 1;
+          d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + c);
+          if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+          if (d[i][j] < rowMin) rowMin = d[i][j];
+        }
+        if (rowMin > max) return max + 1;
+      }
+      return d[a.length][b.length];
+    }
+    var FIELDS = { q: 10, kw: 7, topic: 3.5, body: 1.4 };
+
+    function build(G) {
+      var docs = [], vocab = {}, df = {};
+      Object.keys(G.roles).forEach(function (r) {
+        (G.roles[r].sections || []).forEach(function (s, si) {
+          (s.tasks || []).forEach(function (t) {
+            var lines = (t.steps || []).concat([t.result || ''], t.tips || []).filter(Boolean);
+            var f = {
+              q: tokens(t.q), kw: tokens((t.keywords || []).join(' ')),
+              topic: tokens(s.title + ' ' + (s.where || '') + ' ' + (s.summary || '')), body: tokens(lines.join(' '))
+            };
+            var sets = {}, seen = {};
+            Object.keys(f).forEach(function (k) {
+              sets[k] = {};
+              f[k].forEach(function (w) { sets[k][w] = (sets[k][w] || 0) + 1; vocab[w] = 1; if (!seen[w]) { seen[w] = 1; df[w] = (df[w] || 0) + 1; } });
+            });
+            docs.push({ r: r, s: s, i: si, t: t, sets: sets, qNorm: ' ' + tokens(t.q, true).join(' ') + ' ', kwNorm: (t.keywords || []).map(function (k) { return ' ' + tokens(k, true).join(' ') + ' '; }), qLen: f.q.length || 1, lines: lines, popular: !!t.popular });
           });
-          if (!matched) return;
-          score *= matched / terms.length;
-          if (r !== state.role) score *= 0.35; // your own role's answers first
-          hits.push({ r: r, s: s, i: i, t: t, score: score });
         });
       });
-    });
-    return hits.sort(function (a, b) { return b.score - a.score; }).slice(0, 12);
+      var words = Object.keys(vocab), N = docs.length;
+      function idf(w) { return Math.log(1 + N / (df[w] || 1)); }
+      var maxIdf = Math.log(1 + N);
+
+      // Every way a typed word could be meant: itself, its synonyms, close spellings,
+      // and (for the word still being typed) longer words that start with it.
+      function variants(w, isLast) {
+        var out = {}; out[w] = 1;
+        (SYN[w] || []).forEach(function (x) { if (!out[x]) out[x] = 0.8; });
+        if (!vocab[w] || isLast) {
+          var max = w.length >= 7 ? 2 : w.length >= 4 ? 1 : 0;
+          words.forEach(function (v) {
+            if (out[v]) return;
+            if (isLast && w.length >= 2 && v.length > w.length && v.indexOf(w) === 0) { out[v] = Math.max(out[v] || 0, 0.72); return; }
+            if (max && dist(w, v, max) <= max) out[v] = Math.max(out[v] || 0, v[0] === w[0] ? 0.7 : 0.55);
+          });
+          // A typo of a synonym still counts ("avatr" → avatar → photo).
+          Object.keys(out).forEach(function (v) { if (out[v] < 1) (SYN[v] || []).forEach(function (x) { if (!out[x]) out[x] = out[v] * 0.8; }); });
+        }
+        return out;
+      }
+
+      function search(qs, role) {
+        var raw = tokens(qs);
+        if (!raw.length) return { hits: [], corrected: null };
+        var terms = raw.map(function (w, i) { return { w: w, v: variants(w, i === raw.length - 1 && !/\s$/.test(qs)) }; });
+        var qPhrase = ' ' + tokens(qs, true).join(' ') + ' ';
+        var hits = [];
+        docs.forEach(function (d) {
+          var score = 0, matched = 0, used = [], inQ = 0;
+          terms.forEach(function (term) {
+            var best = 0, bestWord = null;
+            Object.keys(term.v).forEach(function (v) {
+              var got = 0;
+              Object.keys(FIELDS).forEach(function (k) { if (d.sets[k][v]) got += FIELDS[k] * (k === 'body' ? Math.min(1.6, 1 + (d.sets[k][v] - 1) * 0.3) : 1); });
+              got *= term.v[v] * (0.55 + 0.45 * idf(v) / maxIdf);
+              if (got > best) { best = got; bestWord = v; }
+            });
+            if (best > 0) { matched++; score += best; used.push(bestWord); if (d.sets.q[bestWord]) inQ++; }
+          });
+          if (!matched) return;
+          score *= Math.pow(matched / terms.length, 1.6);
+          if (raw.length > 1 && qPhrase.trim()) {
+            if (d.qNorm.indexOf(qPhrase) > -1) score += 12;
+            else if (d.kwNorm.some(function (k) { return k.indexOf(qPhrase) > -1; })) score += 8;
+          }
+          // Of two questions that match equally, the shorter, more focused one wins.
+          score += 6 * inQ / d.qLen;
+          if (d.popular) score *= 1.06;
+          if (role && d.r !== role) score *= 0.2;
+          hits.push({ r: d.r, s: d.s, i: d.i, t: d.t, score: score, used: used, lines: d.lines });
+        });
+        hits.sort(function (a, b) { return b.score - a.score; });
+        // Keep it focused: drop weak matches far below the best one.
+        if (hits.length) { var floor = hits[0].score * 0.25; hits = hits.filter(function (h) { return h.score >= floor; }); }
+        // "Showing results for …" when a typed word was a clear misspelling.
+        var corrected = null;
+        if (hits.length) {
+          var fixes = terms.map(function (term) {
+            if (vocab[term.w] || SYN[term.w]) return term.w;
+            var best = null, bw = 0;
+            hits[0].used.forEach(function (u) { if (term.v[u] && term.v[u] > bw && term.v[u] < 1 && term.v[u] >= 0.55 && !(u.indexOf(term.w) === 0)) { bw = term.v[u]; best = u; } });
+            return best || term.w;
+          });
+          if (fixes.join(' ') !== raw.join(' ')) corrected = fixes.join(' ');
+        }
+        return { hits: hits.slice(0, 12), corrected: corrected };
+      }
+
+      // The step or tip that best matches, shown under the question.
+      function snippet(hit) {
+        var want = {}; hit.used.forEach(function (u) { want[u] = 1; });
+        var best = null, bs = 0;
+        hit.lines.forEach(function (line) {
+          var n = 0; tokens(line).forEach(function (w) { if (want[w]) n++; });
+          if (n > bs) { bs = n; best = line; }
+        });
+        return best;
+      }
+      return { search: search, snippet: snippet, tokens: tokens, stem: stem, norm: norm };
+    }
+    return { build: build };
+  })();
+
+  var engine = SearchEngine.build(G);
+  var CHEV = '<svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>';
+  var MAG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
+  var CLOCK = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+
+  // Recent searches stay on this device only.
+  var RECENT_KEY = 'fofGuideRecent';
+  function recent() { try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch (e) { return []; } }
+  function remember(q) {
+    q = String(q || '').trim(); if (q.length < 2) return;
+    var list = recent().filter(function (x) { return x.toLowerCase() !== q.toLowerCase(); });
+    list.unshift(q);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 5))); } catch (e) { /* private mode */ }
   }
-  function highlight(text, qs) {
-    var out = esc(text);
-    words(qs).forEach(function (w) { if (w.length > 2) out = out.replace(new RegExp('(' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig'), '<mark>$1</mark>'); });
-    return out;
+
+  // Words that matched are shown in bold, the way Spotlight does.
+  function plain(text) { return String(text || '').replace(/\*\*(.+?)\*\*/g, '$1'); }
+  function marked(text, used) {
+    var want = {}; (used || []).forEach(function (u) { want[u] = 1; });
+    return String(plain(text)).split(/([A-Za-z0-9’']+)/).map(function (part, i) {
+      if (i % 2 === 0) return esc(part);
+      var tk = engine.tokens(part)[0];
+      return tk && want[tk] ? '<mark>' + esc(part) + '</mark>' : esc(part);
+    }).join('');
   }
+
+  var current = [], active = -1;
+  function rowHtml(h, idx, big) {
+    var snip = engine.snippet(h);
+    return '<button class="row" type="button" role="option" id="opt-' + idx + '" data-i="' + idx + '">' +
+      '<span class="ico ' + tileFor(h.i) + '">' + iconFor(h.s) + '</span>' +
+      '<span class="txt"><div class="t1">' + marked(h.t.q, h.used) + '</div>' +
+      (snip ? '<div class="t2">' + marked(snip, h.used) + '</div>' : '') +
+      (big ? '<div class="t3">' + esc(ROLE_META[h.r].label) + ' · ' + esc(h.s.title) + '</div>' : '') +
+      '</span>' + CHEV + '</button>';
+  }
+  function openHit(h) {
+    remember($('q').value);
+    closeSearch(true);
+    location.hash = 'role=' + h.r + '&task=' + h.t.id;
+  }
+  function setActive(i) {
+    var rows = $('results').querySelectorAll('.row[data-i]');
+    if (!rows.length) return;
+    active = (i + rows.length) % rows.length;
+    rows.forEach(function (b, n) { b.classList.toggle('active', n === active); });
+    rows[active].scrollIntoView({ block: 'nearest' });
+    $('q').setAttribute('aria-activedescendant', rows[active].id);
+  }
+
+  // Focused but empty: recent searches, then suggestions for your role.
+  function renderSuggestions() {
+    var box = $('results'), r = state.role || 'support', rec = recent();
+    current = popularTasks(r).map(function (p) { return { r: r, s: p.s, i: p.i, t: p.t, used: [], lines: [] }; });
+    var html = '';
+    if (rec.length) {
+      html += '<div class="grp"><div class="grp-h">Recent<button type="button" id="clearRecent">Clear</button></div><div class="list">' +
+        rec.map(function (q) { return '<button class="row plain" type="button" data-q="' + esc(q) + '"><span class="ico g">' + CLOCK + '</span><span class="txt"><div class="t1">' + esc(q) + '</div></span></button>'; }).join('') + '</div></div>';
+    }
+    html += '<div class="grp"><div class="grp-h">Suggested</div><div class="list" role="listbox">' + current.map(function (h, i) {
+      return '<button class="row" type="button" role="option" id="opt-' + i + '" data-i="' + i + '"><span class="ico ' + tileFor(h.i) + '">' + iconFor(h.s) + '</span><span class="txt"><div class="t1">' + esc(h.t.q) + '</div></span>' + CHEV + '</button>';
+    }).join('') + '</div></div>';
+    box.innerHTML = html;
+    wire(box);
+    var cr = $('clearRecent'); if (cr) cr.onclick = function () { try { localStorage.removeItem(RECENT_KEY); } catch (e) { /* ignore */ } renderSuggestions(); $('q').focus(); };
+  }
+
   function renderResults() {
-    var qs = $('q').value.trim(), box = $('results');
+    var qs = $('q').value, box = $('results');
     $('searchBox').classList.toggle('has', !!qs);
-    if (!qs) { route(true); return; }
+    active = -1; $('q').removeAttribute('aria-activedescendant');
+    if (!qs.trim()) { if (document.activeElement === $('q')) { show('results'); renderSuggestions(); } else route(true); return; }
     show('results');
-    var hits = search(qs);
+    var res = engine.search(qs, state.role), hits = res.hits;
+    current = hits;
+    $('liveCount').textContent = hits.length ? hits.length + ' result' + (hits.length > 1 ? 's' : '') : 'No results';
     if (!hits.length) {
       var sug = popularTasks(state.role || 'support').slice(0, 4);
-      box.innerHTML = '<div class="none"><div class="big">🔎</div><b>No answer found for “' + esc(qs) + '”</b>Try fewer or different words, for example “attendance”, “follow-up” or “password”. Or tap the <b>?</b> button in the app and choose WhatsApp to ask a person.' +
-        (sug.length ? '<div class="suggest">' + sug.map(function (p) { return '<button type="button" data-q="' + esc(p.t.q) + '">' + esc(p.t.q) + '</button>'; }).join('') + '</div>' : '') + '</div>';
-      box.querySelectorAll('[data-q]').forEach(function (b) { b.onclick = function () { $('q').value = b.getAttribute('data-q'); renderResults(); }; });
-      return;
+      current = sug.map(function (p) { return { r: state.role || 'support', s: p.s, i: p.i, t: p.t, used: [], lines: [] }; });
+      box.innerHTML = '<div class="empty">' + MAG.replace('width="18" height="18"', 'width="46" height="46"') +
+        '<h3>No results for “' + esc(qs.trim()) + '”</h3><p>Check the spelling or try other words, like “attendance”, “login” or “message”. Or tap the <b>?</b> button in the app to ask a person.</p></div>' +
+        (current.length ? '<div class="grp"><div class="grp-h">You might be looking for</div><div class="list" role="listbox">' + current.map(function (h, i) {
+          return '<button class="row" type="button" role="option" id="opt-' + i + '" data-i="' + i + '"><span class="ico ' + tileFor(h.i) + '">' + iconFor(h.s) + '</span><span class="txt"><div class="t1">' + esc(h.t.q) + '</div></span>' + CHEV + '</button>';
+        }).join('') + '</div></div>' : '');
+      wire(box); return;
     }
-    box.innerHTML = '<h2>' + hits.length + ' answer' + (hits.length > 1 ? 's' : '') + ' for “' + esc(qs) + '”</h2>' + hits.map(function (h, i) {
-      return '<button class="hit" type="button" data-i="' + i + '"><span class="pe ' + tileFor(h.i) + '">' + iconFor(h.s) + '</span><span><div class="hq">' + highlight(h.t.q, qs) + '</div><div class="hs">' + ROLE_META[h.r].label + ' · ' + esc(h.s.title) + '</div></span></button>';
-    }).join('');
-    box.querySelectorAll('.hit').forEach(function (b) {
-      b.onclick = function () { var h = hits[+b.getAttribute('data-i')]; $('q').value = ''; $('searchBox').classList.remove('has'); location.hash = 'role=' + h.r + '&task=' + h.t.id; };
+    var mine = hits.filter(function (h) { return !state.role || h.r === state.role; });
+    var others = hits.filter(function (h) { return state.role && h.r !== state.role; });
+    var top = mine[0] || others[0];
+    var html = '<p class="meta">' + hits.length + ' result' + (hits.length > 1 ? 's' : '') +
+      (res.corrected ? ' · Showing results for <b>' + esc(res.corrected) + '</b>' : '') + '</p>';
+    html += '<div class="grp top-hit"><div class="grp-h">Top hit</div><div class="list" role="listbox">' + rowHtml(top, hits.indexOf(top), true) + '</div></div>';
+    // The rest, grouped by topic, your own role first.
+    var groups = [], byKey = {};
+    mine.concat(others).forEach(function (h) {
+      if (h === top) return;
+      var key = h.r + '|' + h.s.id;
+      if (!byKey[key]) { byKey[key] = { r: h.r, s: h.s, items: [] }; groups.push(byKey[key]); }
+      byKey[key].items.push(h);
+    });
+    groups.forEach(function (g) {
+      var label = (state.role && g.r !== state.role ? ROLE_META[g.r].label + ' guide · ' : '') + g.s.title;
+      html += '<div class="grp"><div class="grp-h">' + esc(label) + '</div><div class="list" role="listbox">' +
+        g.items.map(function (h) { return rowHtml(h, hits.indexOf(h), false); }).join('') + '</div></div>';
+    });
+    box.innerHTML = html;
+    wire(box);
+  }
+  function wire(box) {
+    box.querySelectorAll('.row[data-i]').forEach(function (b) {
+      b.onmousedown = function (e) { e.preventDefault(); }; // keep the keyboard up until the tap lands
+      b.onclick = function () { openHit(current[+b.getAttribute('data-i')]); };
+    });
+    box.querySelectorAll('.row[data-q]').forEach(function (b) {
+      b.onmousedown = function (e) { e.preventDefault(); };
+      b.onclick = function () { $('q').value = b.getAttribute('data-q'); renderResults(); $('q').focus(); };
     });
   }
-  var timer; $('q').addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(renderResults, 120); });
-  $('q').addEventListener('keydown', function (e) { if (e.key === 'Enter') { var f = document.querySelector('.hit'); if (f) f.click(); } });
+  function openSearch() {
+    document.querySelector('.top').classList.add('searching');
+    $('q').setAttribute('aria-expanded', 'true');
+    if (!$('q').value.trim()) { show('results'); renderSuggestions(); }
+  }
+  function closeSearch(keepView) {
+    document.querySelector('.top').classList.remove('searching');
+    $('q').setAttribute('aria-expanded', 'false');
+    $('q').value = ''; $('searchBox').classList.remove('has');
+    $('q').blur();
+    if (!keepView) route(true);
+  }
+
+  var timer;
+  $('q').addEventListener('focus', openSearch);
+  $('q').addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(renderResults, 60); });
+  $('q').addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(active + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(active - 1); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      var rows = $('results').querySelectorAll('.row[data-i]');
+      var pick = active >= 0 ? rows[active] : rows[0];
+      if (pick) pick.click();
+    } else if (e.key === 'Escape') { closeSearch(); }
+  });
+  $('clear').onmousedown = function (e) { e.preventDefault(); };
   $('clear').onclick = function (e) { e.preventDefault(); $('q').value = ''; renderResults(); $('q').focus(); };
+  $('cancel').onclick = function () { closeSearch(); };
 
   $('roleBtn').onclick = function () { state.role = null; history.replaceState(null, '', location.pathname + location.search); route(); };
   $('brand').onclick = function () { $('q').value = ''; $('searchBox').classList.remove('has'); location.hash = state.role ? 'role=' + state.role : ''; if (!state.role) route(); };
@@ -460,7 +758,7 @@
     var h = readHash();
     var r = ROLE_META[h.role] ? h.role : null;
     state.role = r;
-    if (!keepScroll) { $('q').value = ''; $('searchBox').classList.remove('has'); }
+    if (!keepScroll) { $('q').value = ''; $('searchBox').classList.remove('has'); document.querySelector('.top').classList.remove('searching'); }
     if (!r) { show('picker'); window.scrollTo(0, 0); return; }
     var m = ROLE_META[r];
     $('roleBtn').innerHTML = m.emoji + ' <span class="long">' + m.label + ' · </span>Switch';

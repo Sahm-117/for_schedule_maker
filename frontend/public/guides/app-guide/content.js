@@ -1783,7 +1783,9 @@ window.GUIDE_CONTENT = {
         "login",
         "password",
         "email",
-        "can't get in"
+        "can't get in",
+        "can't log in",
+        "can't sign in"
        ],
        "steps": [
         "Open the FOF Ops web address on your phone or computer.",
@@ -2171,7 +2173,9 @@ window.GUIDE_CONTENT = {
         "invite",
         "add person",
         "new contact",
-        "whatsapp number"
+        "whatsapp number",
+        "add someone",
+        "new person"
        ],
        "steps": [
         "Open **Mobilisation**. Make sure the **Registration** tab is selected.",
@@ -2278,7 +2282,10 @@ window.GUIDE_CONTENT = {
         "who to call",
         "email",
         "i button",
-        "three dots"
+        "three dots",
+        "my list",
+        "follow up list",
+        "who do i follow up"
        ],
        "steps": [
         "Open **Mobilisation** and tap the **Follow-ups** tab. The number shows how many you have.",
@@ -2807,7 +2814,9 @@ window.GUIDE_CONTENT = {
         "messages",
         "got it",
         "acknowledge",
-        "hub lead message"
+        "hub lead message",
+        "hub messages",
+        "messages from hub lead"
        ],
        "steps": [
         "Open **My Hub** and tap **Your messages**.",
@@ -3097,7 +3106,10 @@ window.GUIDE_CONTENT = {
         "gender",
         "age range",
         "phone",
-        "profile"
+        "profile",
+        "change photo",
+        "update photo",
+        "profile picture"
        ],
        "steps": [
         "Open **More** → **Profile**.",
@@ -3489,7 +3501,8 @@ window.GUIDE_CONTENT = {
         "notes",
         "my notes",
         "private notes",
-        "write notes"
+        "write notes",
+        "class notes"
        ],
        "steps": [
         "Open the week and tap **My notes**.",
