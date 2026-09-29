@@ -95,13 +95,15 @@ const NotificationBell: React.FC = () => {
     };
   }, [open]);
 
-  const handleToggle = () => {
-    const next = !open;
-    setOpen(next);
-  };
-
   const announcementItems = notifications.filter((n) => n.type === 'ANNOUNCEMENT');
   const activityItems = notifications.filter((n) => n.type !== 'ANNOUNCEMENT');
+
+  // Opens on Announcements while one is unread, so new ones aren't missed.
+  const handleToggle = () => {
+    const next = !open;
+    if (next) setTab(announcementItems.some((n) => !n.isRead) ? 'announcements' : 'activity');
+    setOpen(next);
+  };
   const visibleItems = tab === 'announcements' ? announcementItems : activityItems;
   const unreadIn = (items: Notification[]) => items.filter((n) => !n.isRead).length;
 
@@ -158,8 +160,8 @@ const NotificationBell: React.FC = () => {
                   onClick={() => setTab(key)}
                   className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold transition ${tab === key ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}
                 >
-                  {label}
-                  {unreadIn(items) > 0 && <span className={`h-1.5 w-1.5 rounded-full ${tab === key ? 'bg-white' : 'bg-primary'}`} />}
+                  {key === 'announcements' && unreadIn(items) > 0 ? `${label} (${unreadIn(items)})` : label}
+                  {key === 'activity' && unreadIn(items) > 0 && <span className={`h-1.5 w-1.5 rounded-full ${tab === key ? 'bg-white' : 'bg-primary'}`} />}
                 </button>
               ))}
             </div>
