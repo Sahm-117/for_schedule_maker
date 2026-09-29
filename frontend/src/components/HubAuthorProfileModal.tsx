@@ -47,7 +47,7 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
         const { user } = await usersApi.getById(userId);
         if (cancelled) return;
         setProfileUser(user);
-        if (isAdmin) usersApi.getLastActive(userId).then((at) => { if (!cancelled) setLastActive(at); }).catch(() => {});
+        usersApi.getLastActive(userId).then((at) => { if (!cancelled) setLastActive(at); }).catch(() => {});
 
         if (user.role === 'SUPPORT') {
           const { group: assignedGroup } = await groupsApi.getForSupport(userId, cohortId);
@@ -250,10 +250,10 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
             </div>
           )}
 
-          {/* Admins see when they last used the app at all; others keep the Community one. */}
+          {/* When they last used the app at all (sign-in activity or Community). */}
           <div className="surface-muted flex items-center justify-between px-4 py-3">
-            <span className="text-sm text-gray-500">{isAdmin ? 'Last active' : 'Last active in Community'}</span>
-            <span className="text-sm font-semibold text-gray-900">{formatLastActive(isAdmin ? lastActive : profileUser.hubLastSeenAt)}</span>
+            <span className="text-sm text-gray-500">Last active</span>
+            <span className="text-sm font-semibold text-gray-900">{formatLastActive(lastActive ?? profileUser.hubLastSeenAt)}</span>
           </div>
 
           {profileUser.role === 'SUPPORT' && (

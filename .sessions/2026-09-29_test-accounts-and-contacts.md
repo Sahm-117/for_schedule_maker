@@ -15,3 +15,9 @@ Came from: the Assign now dialog said 5 waiting while the card said 4. The card 
 - Test accounts are only ignored in follow-up assignment and counts, not elsewhere (e.g. the rota, attendance, dashboards). Extend if the user asks.
 - The Users page flow was checked by build and types only. The contacts-table flow was checked in Chromium with sample data.
 - "Test Admin" (active) is not marked as test yet; the user can do it from Users.
+
+## Later the same day
+- Renamed the admin Follow-ups "All reps" filter to "All Supports" (25a1dd5).
+- Search box on admin Follow-ups → Contacts and on the support Follow-ups page (name, email, number; 3+ digits; 0803… and +234… forms). While typing it searches across every cohort (57b33fb).
+- Data fix (prod): Shola Fakolujo had two support accounts. The old "Mr. Shola" (59bb4d34…, no email, created 16 May) held 09097214447, which blocked saving it on "Akinsola Fakolujo" (949b4d28…). Cleared the phone on the old account and deactivated it. Its duplicate training attendance record was left in place, because the real account already has the same session marked Present.
+- Support profiles (HubAuthorProfileModal) show "Last active" to everyone, not "Last active in Community" for non-admins. `20260929140000_user_last_active_for_staff.sql` (applied to prod): `user_last_active` now uses app_is_staff() instead of app_is_admin().
