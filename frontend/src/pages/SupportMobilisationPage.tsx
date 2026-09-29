@@ -651,14 +651,28 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               <p className="mt-1 text-[13px] leading-normal text-gray-500">Everyone who filled in the registration form. Check here before asking the back office.</p>
 
               {signUps.length > 0 && (
-                <input
-                  ref={signUpSearchRef}
-                  value={signUpSearch}
-                  onChange={(e) => setSignUpSearch(e.target.value)}
-                  onFocus={bringSignUpSearchUp}
-                  placeholder="Search by name or number"
-                  className={`${INPUT} mt-3 scroll-mt-28`}
-                />
+                <div className="relative mt-3 scroll-mt-28">
+                  <input
+                    ref={signUpSearchRef}
+                    value={signUpSearch}
+                    onChange={(e) => setSignUpSearch(e.target.value)}
+                    onFocus={bringSignUpSearchUp}
+                    placeholder="Search by name or number"
+                    className={`${INPUT} scroll-mt-28 pr-11`}
+                  />
+                  {signUpSearch && (
+                    <button
+                      type="button"
+                      // Keep the keyboard up: clear without taking focus off the box.
+                      onPointerDown={(e) => e.preventDefault()}
+                      onClick={() => { setSignUpSearch(''); signUpSearchRef.current?.focus(); }}
+                      aria-label="Clear search"
+                      className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6 6 18" /></svg>
+                    </button>
+                  )}
+                </div>
               )}
 
               {/* While searching, hold this area's height so the page doesn't shrink
