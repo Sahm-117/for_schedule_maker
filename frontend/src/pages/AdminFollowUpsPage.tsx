@@ -43,6 +43,7 @@ import {
 } from '../utils/followUps';
 import { DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
 import { compareText, sortByText } from '../utils/sort';
+import { normalizeToIntlPhone } from '../utils/phone';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 
 type Tab = 'overview' | 'contacts' | 'messages' | 'issues';
@@ -259,6 +260,13 @@ const AdminFollowUpsPage: React.FC = () => {
     return { total, unassigned, perOwner };
   }, [contacts, owners, cohortFilter, activeCohort?.id]);
 
+  // Waiting to be assigned but their number isn't a phone number (e.g. "00"
+  // on the form). Auto-assignment holds these back until the number is fixed.
+  const invalidNumberContacts = useMemo(
+    () => contacts.filter((c) => !c.ownerId && !c.archivedAt && !normalizeToIntlPhone(c.phone)),
+    [contacts],
+  );
+
   const dashboardContacts = useMemo(
     () => (cohortFilter ? contacts.filter((c) => contactInCohortScope(c, cohortFilter, activeCohort?.id)) : contacts),
     [contacts, cohortFilter, activeCohort?.id]
@@ -378,11 +386,12 @@ const AdminFollowUpsPage: React.FC = () => {
     setAssigning(true);
     setAssignStatus('');
     try {
-      const { assigned, stuckNoGender, stuckUnknownGender } = await followUpContactsApi.assignPendingNow();
-      const stuck = stuckNoGender + stuckUnknownGender;
+      const { assigned, stuckNoGender, stuckUnknownGender, stuckInvalidPhone } = await followUpContactsApi.assignPendingNow();
+      const stuck = stuckNoGender + stuckUnknownGender + stuckInvalidPhone;
       const parts = [`Assigned ${assigned}.`];
       if (stuckNoGender > 0) parts.push(`${stuckNoGender} ${stuckNoGender === 1 ? 'has' : 'have'} no same-gender support with space.`);
       if (stuckUnknownGender > 0) parts.push(`${stuckUnknownGender} ${stuckUnknownGender === 1 ? "has no gender" : "have no gender"} on file.`);
+      if (stuckInvalidPhone > 0) parts.push(`${stuckInvalidPhone} ${stuckInvalidPhone === 1 ? 'needs' : 'need'} a valid number first.`);
       if (assigned === 0 && stuck === 0) parts.push('Nobody was waiting.');
       setAssignStatus(parts.join(' '));
       void loadAll();
@@ -569,6 +578,32 @@ const AdminFollowUpsPage: React.FC = () => {
         <p className="flex items-center justify-center gap-1.5 rounded-3xl bg-primary/5 px-4 py-12 text-center text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading follow-ups…</p>
       ) : (
         <>
+          {tab === 'overview' && invalidNumberContacts.length > 0 && (
+            <section className="mb-4 rounded-[20px] border border-amber-100 bg-white p-4 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+              <div className="flex items-center gap-2">
+                <span className="grid h-8 w-8 flex-none place-items-center rounded-full bg-amber-100 text-amber-700" aria-hidden="true">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01" /><circle cx="12" cy="12" r="9" /></svg>
+                </span>
+                <h2 className="flex-1 text-[14px] font-bold text-gray-900">
+                  {invalidNumberContacts.length} sign-up{invalidNumberContacts.length === 1 ? ' needs' : 's need'} a valid number
+                </h2>
+              </div>
+              <p className="mt-1.5 text-[12.5px] leading-normal text-gray-500">Held back from auto-assignment until the number is fixed, so no support gets someone they can&apos;t reach.</p>
+              <ul className="mt-3 space-y-2">
+                {invalidNumberContacts.map((c) => (
+                  <li key={c.id} className="flex items-center gap-2 rounded-[12px] bg-[#f6f7f9] px-3 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13.5px] font-semibold text-gray-900">{c.fullName}</p>
+                      <p className="truncate text-[12px] text-gray-500">WhatsApp: {c.phone ? `“${c.phone}”` : 'none'}{c.email ? ` · ${c.email}` : ''}</p>
+                    </div>
+                    <button type="button" onClick={() => { setEditingContact(c); setShowContactModal(true); }} className="flex-none rounded-full bg-primary px-3 py-1.5 text-[12px] font-semibold text-white">
+                      Fix number
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {tab === 'overview' && <FollowUpDashboard contacts={dashboardContacts} cohortId={cohortFilter || null} cohortName={cohorts.find((c) => c.id === cohortFilter)?.name} onShowUnassigned={showUnassigned} />}
           {tab === 'contacts' && (
             <FollowUpAssignmentSummary

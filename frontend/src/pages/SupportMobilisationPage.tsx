@@ -144,6 +144,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     if (el) setNumbersAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4);
   };
   const [loginIssueContact, setLoginIssueContact] = useState<FollowUpContact | null>(null);
+  // Follow-up cards whose "Number needs checking" strip is open.
+  const [numberHelpOpen, setNumberHelpOpen] = useState<Record<string, boolean>>({});
 
   // IT issues tab: only for IT Support (a HubItSupport row in this cohort).
   const [isItSupport, setIsItSupport] = useState(false);
@@ -756,7 +758,10 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
             ) : visibleContacts.map((contact) => {
               const status = computeFollowUpStatus(contact);
               const meta = FOLLOW_UP_STATUS_META[status];
-              const waLink = buildWhatsAppLink(contact.phone, '');
+              // "00" and the like came in from the form: WhatsApp and Call can't work.
+              const phoneOk = !!normalizeToIntlPhone(contact.phone);
+              const waLink = phoneOk ? buildWhatsAppLink(contact.phone, '') : null;
+              const helpOpen = !!numberHelpOpen[contact.id];
               const assigned = shortDate(contact.createdAt);
               return (
                 <section key={contact.id} className={`${CARD} p-4`}>
@@ -774,6 +779,40 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                     </button>
                   </div>
                   <p className="mt-1 text-[12.5px] text-gray-500">{contact.phone || 'No phone'}{assigned ? ` · assigned ${assigned}` : ''}</p>
+                  {!phoneOk && (
+                    <div className="mt-2.5 rounded-[12px] bg-amber-50 text-amber-800">
+                      <button
+                        type="button"
+                        onClick={() => setNumberHelpOpen((prev) => ({ ...prev, [contact.id]: !helpOpen }))}
+                        aria-expanded={helpOpen}
+                        className="flex min-h-[40px] w-full items-center gap-2 px-3 py-2.5 text-left"
+                      >
+                        <svg className="h-4 w-4 flex-none" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></svg>
+                        <span className="min-w-0 flex-1 whitespace-nowrap text-[12.5px] font-bold">Number needs checking</span>
+                        <span className="whitespace-nowrap text-[12px] font-semibold text-amber-700/80">{helpOpen ? 'Hide' : 'Details'}</span>
+                        <svg className={`h-4 w-4 flex-none transition-transform ${helpOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" /></svg>
+                      </button>
+                      {helpOpen && (
+                        <div className="px-3 pb-3">
+                          <p className="text-[12.5px] leading-normal text-amber-900/80">
+                            {contact.phone?.trim() ? `They wrote “${contact.phone.trim()}” as their WhatsApp number, which isn't a phone number.` : 'They have no phone number on file.'}
+                          </p>
+                          {contact.email?.trim() && (
+                            <div className="mt-2.5 flex items-center gap-2 rounded-[10px] bg-white px-3 py-2.5">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[11px] font-semibold text-gray-500">Email (from form)</p>
+                                <p className="truncate text-[13.5px] font-semibold text-gray-900">{contact.email.trim()}</p>
+                              </div>
+                              <a href={`mailto:${contact.email.trim()}`} className="flex-none rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-700">Email</a>
+                            </div>
+                          )}
+                          <button type="button" onClick={() => setEditingContact(contact)} className="mt-2.5 flex min-h-[38px] w-full items-center justify-center rounded-[10px] border border-amber-200 bg-white text-[12.5px] font-semibold text-amber-800">
+                            Add a working number
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {contact.notes?.trim() && (
                     <p className="mt-2.5 whitespace-pre-wrap rounded-[10px] bg-[#f6f7f9] px-3 py-2.5 text-[13px] leading-normal text-gray-700">{contact.notes}</p>
                   )}
@@ -786,7 +825,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                     ) : (
                       <span className="inline-flex min-h-[40px] items-center justify-center rounded-[10px] border border-gray-100 bg-gray-50 px-2 py-2 text-[12.5px] font-semibold text-gray-400">WhatsApp</span>
                     )}
-                    {contact.phone ? (
+                    {contact.phone && phoneOk ? (
                       <a href={`tel:${contact.phone.replace(/[^\d+]/g, '')}`} className="inline-flex min-h-[40px] items-center justify-center rounded-[10px] border border-gray-200 bg-white px-2 py-2 text-[12.5px] font-semibold text-gray-700">Call</a>
                     ) : (
                       <span className="inline-flex min-h-[40px] items-center justify-center rounded-[10px] border border-gray-100 bg-gray-50 px-2 py-2 text-[12.5px] font-semibold text-gray-400">Call</span>
