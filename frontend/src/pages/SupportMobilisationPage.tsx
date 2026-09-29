@@ -120,6 +120,12 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [prospect, setProspect] = useState(EMPTY_PROSPECT);
   const [signUps, setSignUps] = useState<FormRegistration[]>([]);
   const [signUpSearch, setSignUpSearch] = useState('');
+  // On a phone the keyboard covers the list under the search box. When it's
+  // tapped, bring the box up under the header so the names show as they filter.
+  const signUpSearchRef = useRef<HTMLInputElement | null>(null);
+  const bringSignUpSearchUp = () => {
+    window.setTimeout(() => signUpSearchRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 300);
+  };
   const [prospectTouched, setProspectTouched] = useState(false);
   const [prospectSaving, setProspectSaving] = useState(false);
   const [prospectError, setProspectError] = useState('');
@@ -646,13 +652,18 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
 
               {signUps.length > 0 && (
                 <input
+                  ref={signUpSearchRef}
                   value={signUpSearch}
                   onChange={(e) => setSignUpSearch(e.target.value)}
+                  onFocus={bringSignUpSearchUp}
                   placeholder="Search by name or number"
-                  className={`${INPUT} mt-3`}
+                  className={`${INPUT} mt-3 scroll-mt-28`}
                 />
               )}
 
+              {/* While searching, hold this area's height so the page doesn't shrink
+                  (and jump) as fewer names match. */}
+              <div className={signUpSearch.trim() ? 'min-h-[min(60vh,32rem)]' : ''}>
               {signUps.length === 0 ? (
                 <p className="mt-3 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">Nobody has signed up on the form yet.</p>
               ) : visibleSignUps.length === 0 ? (
@@ -693,6 +704,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   )}
                 </div>
               )}
+              </div>
             </section>
 
             {cohortScopedProspects.length > 0 && (
