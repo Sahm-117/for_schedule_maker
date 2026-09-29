@@ -7,7 +7,7 @@ import ClassManualReader from '../components/classManual/ClassManualReader';
 import { loadManualForWeek } from '../components/classManual/manuals';
 import type { ManualContent } from '../components/classManual/types';
 import { useAppData } from '../context/AppDataContext';
-import { supportRecapsApi, manualQuestionsApi } from '../services/api';
+import { supportRecapsApi, manualQuestionsApi, participantPushApi } from '../services/api';
 import type { ManualQuestion, SupportRecap } from '../types';
 import { formatRecapReleaseAt } from '../utils/recapReleaseTimes';
 import { currentWeekNumber, daysIntoCohort, weekDayDate } from '../utils/participantApp';
@@ -80,6 +80,9 @@ const QuestionRow: React.FC<{ question: ManualQuestion; onChanged: () => void }>
     setError('');
     try {
       await manualQuestionsApi.reply(question.id, reply.trim());
+      // Tell the participant (push + their bell); opens that week's page.
+      const asked = question.body.length > 80 ? `${question.body.slice(0, 77).trimEnd()}…` : question.body;
+      void participantPushApi.notify([question.participantId], 'Your support replied', `Week ${question.weekNumber}: ${asked}`, `/me/week/${question.weekNumber}`);
       setReplying(false);
       setReply('');
       onChanged();
