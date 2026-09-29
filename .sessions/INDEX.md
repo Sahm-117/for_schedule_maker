@@ -1,5 +1,6 @@
 | Date | Summary | Branch | Files Changed |
 | --- | --- | --- | --- |
+| 2026-09-29 | [HANDOFF: Planner + Group Discussion](2026-09-29_HANDOFF-planner-and-discussion.md): full brief for a new session, covering the agreed specs, mock-ups, the class-date refactor prerequisite, architecture primer, environment gotchas, build order and acceptance checks. | — | — |
 | 2026-09-29 | [Leadership asks](2026-09-29_planner-discussion-onboarding-brief.md): FOF year Planner (17-week cycles, 3 a year, dates ripple, Sunday clashes absorbed by the buffer) and a participant + support Discussion with reports, pins, hub-lead moderation and auto rules. Mock-ups made, awaiting go. Onboarding parked. | — | — |
 | 2026-09-29 | [Jitsi calls brief](2026-09-29_jitsi-calls-brief.md): PARKED, not started. Free public meet.jit.si only; Join must open outside the app (not in the PWA). A JITSI call option with auto-generated room links for groups and hubs. | — | — |
 | 2026-09-29 | [Survey builder brief](2026-09-29_survey-builder-brief.md): ON HOLD, not started. Survey module with list/"surveyed" tab, results and edit; fields: text, text area, number, rating (labelled ends), image/file upload. Open questions listed. | — | — |
