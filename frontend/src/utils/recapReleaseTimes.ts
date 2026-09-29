@@ -57,21 +57,25 @@ export const normaliseRecapReleaseTimes = (value: unknown): RecapReleaseTimes =>
 
 /**
  * The moment (as a real Date/instant) a week's recap releases for one
- * audience, given the cohort's class-Sunday start date. Returns null when the
- * cohort has no start date, matching recap_release_at()'s NULL handling.
+ * audience, from the week's class Sunday: its own classDate once the Planner
+ * has moved it, otherwise the cohort start + (weekNumber - 1) weeks. Returns
+ * null when the cohort has no start date, matching recap_release_at()'s NULL
+ * handling.
  */
 export const recapReleaseAt = (
   cohortStartDate: string | null | undefined,
-  weekNumber: number,
+  week: number | { weekNumber: number; classDate?: string | null },
   day: string,
   time: string,
 ): Date | null => {
   if (!cohortStartDate) return null;
-  const startIso = cohortStartDate.slice(0, 10);
+  const { weekNumber, classDate } = typeof week === 'number' ? { weekNumber: week, classDate: null } : week;
+  const startIso = classDate ? classDate.slice(0, 10) : cohortStartDate.slice(0, 10);
   const start = new Date(`${startIso}T00:00:00Z`);
   if (Number.isNaN(start.getTime())) return null;
   const offset = Math.max(0, DAY_ORDER.indexOf(day.toUpperCase()));
-  const targetDate = new Date(start.getTime() + ((weekNumber - 1) * 7 + offset) * 86400000);
+  const weeksOn = classDate ? 0 : weekNumber - 1;
+  const targetDate = new Date(start.getTime() + (weeksOn * 7 + offset) * 86400000);
   const targetIso = targetDate.toISOString().slice(0, 10);
   const safeTime = TIME_RE.test(time) ? time : '00:00';
   return new Date(`${targetIso}T${safeTime}:00+01:00`);

@@ -29,7 +29,7 @@ export const useSupportClassFeedbackPrompt = (activeCohort: Cohort | null, weeks
       const now = new Date();
       const due = [...weeks]
         .filter((w) => {
-          const at = classFeedbackReleaseAt(activeCohort.startDate, w.weekNumber, times.supportDay, times.supportTime);
+          const at = classFeedbackReleaseAt(activeCohort.startDate, w, times.supportDay, times.supportTime);
           return at !== null && at <= now;
         })
         .sort((a, b) => b.weekNumber - a.weekNumber)[0];

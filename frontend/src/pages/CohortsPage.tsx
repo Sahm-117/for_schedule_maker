@@ -1654,9 +1654,9 @@ const CohortsPage: React.FC = () => {
                     <p className="mt-1.5 text-sm text-gray-700">
                       Manual: {week.manualReleasedEarlyAt ? 'sent early' : manualReleaseLabel}
                       {' · '}
-                      Recap (supports): {formatRecapReleaseAt(recapReleaseAt(cohorts.find((c) => c.id === weekEditTarget?.cohortId)?.startDate, week.weekNumber, recapReleaseTimes.supportDay, recapReleaseTimes.supportTime))}
+                      Recap (supports): {formatRecapReleaseAt(recapReleaseAt(cohorts.find((c) => c.id === weekEditTarget?.cohortId)?.startDate, week, recapReleaseTimes.supportDay, recapReleaseTimes.supportTime))}
                       {' · '}
-                      Recap (participants): {week.participantReleasedEarlyAt ? 'sent early' : formatRecapReleaseAt(recapReleaseAt(cohorts.find((c) => c.id === weekEditTarget?.cohortId)?.startDate, week.weekNumber, recapReleaseTimes.participantDay, recapReleaseTimes.participantTime))}
+                      Recap (participants): {week.participantReleasedEarlyAt ? 'sent early' : formatRecapReleaseAt(recapReleaseAt(cohorts.find((c) => c.id === weekEditTarget?.cohortId)?.startDate, week, recapReleaseTimes.participantDay, recapReleaseTimes.participantTime))}
                     </p>
                     <div className="mt-2.5 flex flex-wrap gap-4">
                       {week.manualReleasedEarlyAt ? (

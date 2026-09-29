@@ -18,7 +18,7 @@ import {
 
 export interface CohortHealthPayload {
   cohort: { id: string; name: string; startDate: string | null; endDate: string | null; status: string | null; schedulePublished: boolean | null } | null;
-  weeks: Array<{ id: number; weekNumber: number; recapUploaded: boolean }>;
+  weeks: Array<{ id: number; weekNumber: number; classDate?: string | null; recapUploaded: boolean }>;
   participants: { active: number; archived: number; inGroups: number };
   groups: Array<{ id: string; name: string; supportId: string | null; supportName: string | null; members: number }>;
   attendance: Array<{ weekId: number; groupId: string; marked: number; present: number; late: number; leftEarly?: number; absent: number; attended?: number }>;
@@ -72,6 +72,7 @@ export const cohortMode = (cohort: Pick<Cohort, 'startDate' | 'endDate' | 'statu
 export interface WeekStat {
   weekId: number;
   weekNumber: number;
+  classDate?: string | null;
   groupsWithMembers: number;
   recordedGroups: number;
   recordingRate: number | null;
@@ -105,6 +106,7 @@ export const buildWeekStats = (data: CohortHealthPayload, people: CohortPeoplePa
       return {
         weekId: week.id,
         weekNumber: week.weekNumber,
+        classDate: week.classDate ?? null,
         groupsWithMembers: groupCount,
         recordedGroups,
         recordingRate: people && expected ? marked / expected : null,
@@ -122,7 +124,7 @@ export const buildWeekStats = (data: CohortHealthPayload, people: CohortPeoplePa
 /** The week the cohort is in right now, clamped to the weeks that exist. */
 export const currentWeekNumber = (cohort: Pick<Cohort, 'startDate'>, stats: WeekStat[], now = new Date()) => {
   if (stats.length === 0) return 0;
-  const ideal = getIdealWeekNumberForCohort(cohort, now);
+  const ideal = getIdealWeekNumberForCohort(cohort, now, stats);
   return Math.min(Math.max(ideal, 1), stats[stats.length - 1].weekNumber);
 };
 

@@ -69,6 +69,7 @@ const mapWeekRow = (week: any): Week => {
     id: week.id,
     cohortId: week.cohortId,
     weekNumber: week.weekNumber,
+    classDate: week.classDate ?? null,
     title: week.title ?? null,
     recapSummary: week.recapSummary ?? null,
     discussionPrompt: week.discussionPrompt ?? null,
@@ -6060,6 +6061,36 @@ export const supportRecapsApi = {
     const { data, error } = await supabase.rpc('support_recaps', { p_cohort_id: cohortId });
     if (error) throw new Error(error.message);
     return { recaps: (data as import('../types').SupportRecap[]) ?? [] };
+  },
+};
+
+export const plannerApi = {
+  /** Every week's number and class date, across all cohorts, for the Planner. */
+  async getClassWeeks(): Promise<{ weeks: Array<{ id: number; cohortId: string; weekNumber: number; classDate: string | null }> }> {
+    const { data, error } = await supabase.from('Week').select('*').order('weekNumber');
+    if (error) throw new Error(error.message);
+    return {
+      weeks: ((data ?? []) as any[]).map((w) => ({ id: w.id, cohortId: w.cohortId, weekNumber: w.weekNumber, classDate: w.classDate ?? null })),
+    };
+  },
+
+  /** Nigerian public holidays between two dates (YYYY-MM-DD), for the timeline. */
+  async getHolidays(from: string, to: string): Promise<{ holidays: import('../types').PublicHoliday[] }> {
+    const { data, error } = await supabase
+      .from('PublicHoliday')
+      .select('id, date, name, isEstimate, fetchedAt')
+      .gte('date', from)
+      .lte('date', to)
+      .order('date');
+    if (error) throw new Error(error.message);
+    return { holidays: (data ?? []) as import('../types').PublicHoliday[] };
+  },
+
+  /** Admin "Refresh now": re-reads the holiday calendar straight away. */
+  async refreshHolidays(): Promise<{ holidays: number }> {
+    const { data, error } = await supabase.functions.invoke('refresh-public-holidays', { body: {} });
+    if (error || !(data as any)?.ok) throw new Error('Could not refresh the holidays. Please try again.');
+    return { holidays: (data as any).holidays ?? 0 };
   },
 };
 

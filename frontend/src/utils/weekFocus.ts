@@ -22,17 +22,41 @@ const lastSunday10am = (now: Date): Date => {
   return d;
 };
 
+// A week's class Sunday as a local Date: its own classDate once the Planner
+// has moved it, otherwise the cohort start + (weekNumber - 1) weeks.
+const classDateOf = (start: Date, week: Pick<Week, 'weekNumber' | 'classDate'>) => {
+  const moved = parseLocalDate(week.classDate?.slice(0, 10));
+  if (moved) return moved;
+  const d = new Date(start);
+  d.setDate(d.getDate() + (week.weekNumber - 1) * 7);
+  return d;
+};
+
 // Computes the ideal week number for a cohort at a given point in time,
-// treating each program week as unlocking at Sunday 10am local.
+// treating each program week as unlocking at Sunday 10am local. With the
+// cohort's weeks, it follows classes the Planner has moved: the latest week
+// whose class Sunday has reached 10am (counting on past the last week).
 export const getIdealWeekNumberForCohort = (
   cohort: Pick<Cohort, 'startDate'> | null | undefined,
   now: Date,
+  weeks?: Array<Pick<Week, 'weekNumber' | 'classDate'>>,
 ): number => {
   const start = parseLocalDate(cohort?.startDate);
   if (!start) return 1;
   const anchor = lastSunday10am(now);
-  const diffDays = Math.floor((anchor.getTime() - start.getTime()) / MS_PER_DAY);
-  return Math.max(1, Math.floor(diffDays / 7) + 1);
+  if (!weeks || weeks.length === 0) {
+    const diffDays = Math.floor((anchor.getTime() - start.getTime()) / MS_PER_DAY);
+    return Math.max(1, Math.floor(diffDays / 7) + 1);
+  }
+  let latest: { weekNumber: number; date: Date } | null = null;
+  for (const week of weeks) {
+    const date = classDateOf(start, week);
+    if (date.getTime() <= anchor.getTime() && (!latest || date.getTime() > latest.date.getTime())) latest = { weekNumber: week.weekNumber, date };
+  }
+  if (!latest) return 1;
+  const lastNumber = Math.max(...weeks.map((w) => w.weekNumber));
+  if (latest.weekNumber !== lastNumber) return latest.weekNumber;
+  return latest.weekNumber + Math.floor(Math.floor((anchor.getTime() - latest.date.getTime()) / MS_PER_DAY) / 7);
 };
 
 export const getIdealWeekForCohort = (cohort: Pick<Cohort, 'startDate'> | null | undefined, weeks: Week[]) => {
@@ -42,7 +66,7 @@ export const getIdealWeekForCohort = (cohort: Pick<Cohort, 'startDate'> | null |
   const start = parseLocalDate(cohort?.startDate);
   if (!start) return sortedWeeks[0];
 
-  const idealWeekNumber = getIdealWeekNumberForCohort(cohort, new Date());
+  const idealWeekNumber = getIdealWeekNumberForCohort(cohort, new Date(), weeks);
 
   const exact = sortedWeeks.find((week) => week.weekNumber === idealWeekNumber);
   if (exact) return exact;

@@ -171,7 +171,7 @@ const ParticipantProfilePage: React.FC = () => {
   };
 
   const group = home.group;
-  const weekNumber = currentWeekNumber(home.cohort?.startDate, new Date());
+  const weekNumber = currentWeekNumber(home.cohort?.startDate, new Date(), home.weeks);
   const programmeRows: Array<[string, string]> = [
     ['Group', group?.name || 'Not in a group yet'],
     ['Your support', group?.supportName || ''],

@@ -96,6 +96,8 @@ export interface Week {
   id: number;
   cohortId: string;
   weekNumber: number;
+  /** Set only when the Planner moves this week's class; otherwise start date + (weekNumber - 1) weeks. */
+  classDate?: string | null;
   title?: string | null;
   recapSummary?: string | null;
   discussionPrompt?: string | null;
@@ -117,6 +119,16 @@ export interface Week {
   days: Day[];
 }
 
+/** A Nigerian public holiday on the Planner (information only; never a clash). */
+export interface PublicHoliday {
+  id: string;
+  date: string;
+  name: string;
+  /** Moon-sighted dates (Eid and so on) until the government announces them. */
+  isEstimate: boolean;
+  fetchedAt: string;
+}
+
 /** The class manual's content once released, same shape everywhere it appears. */
 export interface ManualContent {
   documentUrl: string | null;
@@ -129,6 +141,8 @@ export interface ManualContent {
 export interface SupportRecap {
   weekId: number;
   weekNumber: number;
+  /** The week's class Sunday, YYYY-MM-DD. */
+  classDate?: string | null;
   title: string | null;
   released: boolean;
   releasedAt: string | null;
@@ -848,6 +862,8 @@ export interface ParticipantReflection {
 export interface ParticipantHomeWeek {
   id: number;
   weekNumber: number;
+  /** The week's class Sunday, YYYY-MM-DD. */
+  classDate?: string | null;
   title: string | null;
   /** Sunday class start, "HH:MM", from the schedule. */
   classTime: string | null;

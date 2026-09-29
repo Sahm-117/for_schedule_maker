@@ -41,6 +41,7 @@ import {
   myHubApi as supabaseMyHubApi,
   supportKindApi as supabaseSupportKindApi,
   supportRecapsApi as supabaseSupportRecapsApi,
+  plannerApi as supabasePlannerApi,
   faithProjectsApi as supabaseFaithProjectsApi,
   faithProjectSettingsApi as supabaseFaithProjectSettingsApi,
   faithProjectCategoriesApi as supabaseFaithProjectCategoriesApi,
@@ -726,6 +727,12 @@ export const supportKindApi = USE_SUPABASE ? supabaseSupportKindApi : {
 
 export const supportRecapsApi = USE_SUPABASE ? supabaseSupportRecapsApi : {
   async getForCohort(_cohortId: string): Promise<{ recaps: import('../types').SupportRecap[] }> { return { recaps: [] }; },
+};
+
+export const plannerApi = USE_SUPABASE ? supabasePlannerApi : {
+  async getClassWeeks(): Promise<{ weeks: Array<{ id: number; cohortId: string; weekNumber: number; classDate: string | null }> }> { return { weeks: [] }; },
+  async getHolidays(_from: string, _to: string): Promise<{ holidays: import('../types').PublicHoliday[] }> { return { holidays: [] }; },
+  async refreshHolidays(): Promise<{ holidays: number }> { throw new Error('Holidays are only available in Supabase mode.'); },
 };
 
 export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {

@@ -87,6 +87,13 @@ const addLagosDays = (isoDate: string, days: number): string => {
   return d.toISOString().slice(0, 10)
 }
 
+// A week's class date: its own classDate once the Planner has moved it,
+// otherwise the cohort's first class Sunday + (weekNumber - 1) weeks.
+// Mirrors week_class_date() in the database.
+type ClassWeek = { weekNumber: number; classDate?: string | null }
+const classIsoFor = (startIso: string, week: ClassWeek): string =>
+  week.classDate ? String(week.classDate).slice(0, 10) : addLagosDays(startIso, (week.weekNumber - 1) * 7)
+
 const daysBetweenIso = (fromIso: string, toIso: string) =>
   Math.floor(
     (new Date(`${toIso}T00:00:00Z`).getTime() - new Date(`${fromIso}T00:00:00Z`).getTime()) / 86400000
@@ -161,25 +168,25 @@ const DEFAULT_CLASS_START_TIME = '09:30'
 
 /**
  * Mirrors recap_release_at() in
- * supabase/migrations/20260925060000_recap_release_times.sql: the class
- * Sunday (cohort startIso + (weekNumber-1)*7 days) plus the configured day
+ * supabase/migrations/20260929200000_week_class_date.sql: the week's class
+ * Sunday (classIsoFor) plus the configured day
  * offset, as a Lagos isoDate + minute-of-day pair -- computed here in TS
  * (rather than an RPC round trip) using the same addLagosDays/parseTime
  * helpers the rest of this file already uses for Lagos time, so it stays
  * consistent with how every other reminder in this function is computed.
  */
-const recapReleaseTarget = (startIso: string, weekNumber: number, day: string, time: string) => {
+const recapReleaseTarget = (startIso: string, week: ClassWeek, day: string, time: string) => {
   const offset = Math.max(0, DAY_NAMES_UPPER.indexOf(String(day || '').toUpperCase()))
-  const isoDate = addLagosDays(startIso, (weekNumber - 1) * 7 + offset)
+  const isoDate = addLagosDays(classIsoFor(startIso, week), offset)
   const minutes = parseTime(time) ?? 0
   return { isoDate, minutes }
 }
 
 // The manual goes out before class: the chosen weekday on or before that
 // week's class Sunday (Thursday = 3 days before). Mirrors recap_release_at('manual').
-const manualReleaseTarget = (startIso: string, weekNumber: number, day: string, time: string) => {
+const manualReleaseTarget = (startIso: string, week: ClassWeek, day: string, time: string) => {
   const offset = Math.max(0, DAY_NAMES_UPPER.indexOf(String(day || '').toUpperCase()))
-  const isoDate = addLagosDays(startIso, (weekNumber - 1) * 7 - ((7 - offset) % 7))
+  const isoDate = addLagosDays(classIsoFor(startIso, week), -((7 - offset) % 7))
   const minutes = parseTime(time) ?? 0
   return { isoDate, minutes }
 }
@@ -224,24 +231,18 @@ const resolveLiveWeeks = async (todayIso: string, hour: number): Promise<LiveWee
     const startIso = String(cohort.startDate).slice(0, 10)
     if (cohort.endDate && todayIso > String(cohort.endDate).slice(0, 10)) continue
 
-    const idealWeekNumber = Math.max(1, Math.floor(daysBetweenIso(startIso, anchorIso) / 7) + 1)
-
     const { data: weeks } = await supabase
       .from('Week')
-      .select('id, weekNumber')
+      .select('id, weekNumber, classDate')
       .eq('cohortId', cohort.id)
       .order('weekNumber', { ascending: true })
 
     const sorted = (weeks || []) as any[]
     if (sorted.length === 0) continue
 
-    // Clamp to the cohort's real range, exactly as getIdealWeekForCohort does.
-    const exact = sorted.find((w: any) => w.weekNumber === idealWeekNumber)
-    const chosen = exact
-      ? exact
-      : idealWeekNumber <= sorted[0].weekNumber
-      ? sorted[0]
-      : sorted[sorted.length - 1]
+    // The latest week whose class Sunday is on or before the anchor; before
+    // the first class, the first week (as getIdealWeekForCohort does).
+    const chosen = [...sorted].reverse().find((w: any) => classIsoFor(startIso, w) <= anchorIso) ?? sorted[0]
 
     live.push({ weekId: chosen.id, weekNumber: chosen.weekNumber, cohortId: cohort.id })
   }
@@ -699,7 +700,7 @@ Deno.serve(async (req) => {
 
         const [{ data: accounts }, { data: pWeeks }, { data: pGroups }, { data: settings }] = await Promise.all([
           supabase.from('ParticipantAccount').select('participantId, participant:Participant!inner(id, cohortId, status)').eq('isActive', true).eq('participant.cohortId', cohort.id).eq('participant.status', 'ACTIVE'),
-          supabase.from('Week').select('id, weekNumber, title, shareWithParticipants, recapSummary, recapDocumentUrl, participantReleasedEarlyAt, manualDocumentUrl, manualReleasedEarlyAt').eq('cohortId', cohort.id),
+          supabase.from('Week').select('id, weekNumber, classDate, title, shareWithParticipants, recapSummary, recapDocumentUrl, participantReleasedEarlyAt, manualDocumentUrl, manualReleasedEarlyAt').eq('cohortId', cohort.id),
           supabase.from('Group').select('id, name, meetingDay, meetingTime, members:GroupParticipant(participantId)').eq('cohortId', cohort.id),
           supabase.from('ParticipantReminderSetting').select('participantId, meetingRemindMinutes, recapReleased'),
         ])
@@ -722,9 +723,7 @@ Deno.serve(async (req) => {
         for (const nudge of NUDGES) {
           if (pDayIndex !== nudge.day || pNowMinutes < nudge.minutes || pNowMinutes >= nudge.minutes + 10) continue
           const sundayIso = nudge.day === 6 ? addLagosDays(pToday, 1) : pToday
-          const sinceStart = daysBetweenIso(startIso, sundayIso)
-          if (sinceStart < 0 || sinceStart % 7 !== 0) continue
-          const week = weeks.find((w) => w.weekNumber === sinceStart / 7 + 1)
+          const week = weeks.find((w) => classIsoFor(startIso, w) === sundayIso)
           if (!week) continue
           const { data: days } = await supabase.from('Day').select('Activity(time, description)').eq('weekId', week.id).eq('dayName', 'Sunday')
           const classActivity = ((days ?? []) as any[]).flatMap((d) => d.Activity ?? []).find((a: any) => /^\s*class\s*\d|introductory class/i.test(String(a.description || '')))
@@ -775,7 +774,7 @@ Deno.serve(async (req) => {
           if (w.shareWithParticipants === false) return false
           if (!(String(w.recapSummary || '').trim() || w.recapDocumentUrl)) return false
           if (w.participantReleasedEarlyAt) return true
-          const target = recapReleaseTarget(startIso, w.weekNumber, recapTimes.participantDay, recapTimes.participantTime)
+          const target = recapReleaseTarget(startIso, w, recapTimes.participantDay, recapTimes.participantTime)
           return recapReleaseHasPassed(target, pToday, pNowMinutes)
         })
         for (const week of sharedWeeks) {
@@ -799,7 +798,7 @@ Deno.serve(async (req) => {
         //    batch of recaps uploaded late) never arrive as a pile of alerts.
         const supportWeeks = weeks.filter((w) => {
           if (!(String(w.recapSummary || '').trim() || w.recapDocumentUrl)) return false
-          const target = recapReleaseTarget(startIso, w.weekNumber, recapTimes.supportDay, recapTimes.supportTime)
+          const target = recapReleaseTarget(startIso, w, recapTimes.supportDay, recapTimes.supportTime)
           return recapReleaseHasPassed(target, pToday, pNowMinutes)
         }).sort((a, b) => b.weekNumber - a.weekNumber).slice(0, 1)
         if (supportWeeks.length > 0) {
@@ -809,7 +808,7 @@ Deno.serve(async (req) => {
 
           for (const week of supportWeeks) {
             if (dryRun) { debug.push({ wouldSend: 'RECAP_SUPPORT', weekId: week.id, supports: supportIds.length }); continue }
-            const releaseDateIso = recapReleaseTarget(startIso, week.weekNumber, recapTimes.supportDay, recapTimes.supportTime).isoDate
+            const releaseDateIso = recapReleaseTarget(startIso, week, recapTimes.supportDay, recapTimes.supportTime).isoDate
             const claimed: string[] = []
             for (const userId of supportIds) {
               if (await claimReminder('RECAP_SUPPORT', String(week.id), userId, releaseDateIso, 0)) claimed.push(userId)
@@ -838,7 +837,7 @@ Deno.serve(async (req) => {
         const manualWeeks = weeks.filter((w) => {
           if (!w.manualDocumentUrl) return false
           if (w.manualReleasedEarlyAt) return true
-          const target = manualReleaseTarget(startIso, w.weekNumber, recapTimes.manualDay, recapTimes.manualTime)
+          const target = manualReleaseTarget(startIso, w, recapTimes.manualDay, recapTimes.manualTime)
           return recapReleaseHasPassed(target, pToday, pNowMinutes)
         }).sort((a, b) => b.weekNumber - a.weekNumber).slice(0, 1)
 
@@ -858,7 +857,7 @@ Deno.serve(async (req) => {
             const supportIds = [...new Set(((cohortGroups ?? []) as any[]).map((g) => g.supportId).filter(Boolean))] as string[]
             const releaseDateIso = week.manualReleasedEarlyAt
               ? pToday
-              : manualReleaseTarget(startIso, week.weekNumber, recapTimes.manualDay, recapTimes.manualTime).isoDate
+              : manualReleaseTarget(startIso, week, recapTimes.manualDay, recapTimes.manualTime).isoDate
             const claimed: string[] = []
             for (const userId of supportIds) {
               if (await claimReminder('MANUAL_SUPPORT', String(week.id), userId, releaseDateIso, 0)) claimed.push(userId)

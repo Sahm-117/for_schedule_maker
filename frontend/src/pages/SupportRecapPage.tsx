@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
@@ -10,7 +10,7 @@ import { useAppData } from '../context/AppDataContext';
 import { supportRecapsApi, manualQuestionsApi, participantPushApi } from '../services/api';
 import type { ManualQuestion, SupportRecap } from '../types';
 import { formatRecapReleaseAt } from '../utils/recapReleaseTimes';
-import { currentWeekNumber, daysIntoCohort, weekDayDate } from '../utils/participantApp';
+import { classDateIso, lagosTodayIso, nextClassWeek, weekDayDate, type ClassWeek } from '../utils/participantApp';
 
 // One big card for this week (or the newest week before the cohort starts),
 // then every other week as a quiet list that opens in place. Each week shows
@@ -51,8 +51,8 @@ const WeekState: React.FC<{ week: SupportRecap }> = ({ week }) => {
 };
 
 // "Sun 11 Oct" for a week's Sunday class.
-const classDateLabel = (startDate: string | null | undefined, weekNumber: number) => (
-  startDate ? weekDayDate(startDate, weekNumber, 0).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }) : null
+const classDateLabel = (startDate: string | null | undefined, week: ClassWeek) => (
+  startDate ? weekDayDate(startDate, week, 0).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }) : null
 );
 
 const QuestionRow: React.FC<{ question: ManualQuestion; onChanged: () => void }> = ({ question, onChanged }) => {
@@ -178,7 +178,9 @@ const WeekBody: React.FC<{
 };
 
 const SupportRecapPage: React.FC = () => {
-  const { activeCohort } = useAppData();
+  const { activeCohort, weeks } = useAppData();
+  // Every week of the cohort (the list below only has weeks with content), to find the next class.
+  const cohortWeeks = useMemo(() => weeks.filter((week) => week.cohortId === activeCohort?.id), [weeks, activeCohort?.id]);
   const [recaps, setRecaps] = useState<SupportRecap[]>([]);
   const [questions, setQuestions] = useState<ManualQuestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -187,7 +189,6 @@ const SupportRecapPage: React.FC = () => {
   // Comic reader for weeks that have one; its "original PDF" button hands over to the doc viewer.
   const [reader, setReader] = useState<{ content: ManualContent; pdf: { url: string; title: string; fileName?: string | null } } | null>(null);
   const [openWeekId, setOpenWeekId] = useState<number | null>(null);
-  const thisWeekNumber = currentWeekNumber(activeCohort?.startDate, new Date());
 
   const load = () => {
     if (!activeCohort?.id) { setLoading(false); return; }
@@ -230,8 +231,9 @@ const SupportRecapPage: React.FC = () => {
   // The big card is the next class: Week 1 before the cohort starts, today's
   // class on a Sunday, otherwise the coming Sunday's. After the last class it
   // stays on the final week.
-  const daysIn = daysIntoCohort(activeCohort?.startDate, new Date());
-  const nextClassNumber = thisWeekNumber === 0 ? 1 : daysIn !== null && daysIn % 7 === 0 ? thisWeekNumber : thisWeekNumber + 1;
+  const now = new Date();
+  const nextWeek = nextClassWeek<ClassWeek>(activeCohort?.startDate, cohortWeeks.length ? cohortWeeks : recaps, now);
+  const nextClassNumber = nextWeek ? nextWeek.weekNumber : Infinity;
   const lastWeek = recaps.reduce<SupportRecap | null>((last, w) => (!last || w.weekNumber > last.weekNumber ? w : last), null);
   const featured = recaps.find((w) => w.weekNumber === nextClassNumber)
     ?? (lastWeek && nextClassNumber > lastWeek.weekNumber ? lastWeek : null)
@@ -241,8 +243,9 @@ const SupportRecapPage: React.FC = () => {
   const pastWeeks = featured ? byNumber.filter((w) => w.weekNumber < featured.weekNumber) : [];
   const upcomingWeeks = featured ? byNumber.filter((w) => w.weekNumber > featured.weekNumber) : [];
   const featuredIsNext = featured?.weekNumber === nextClassNumber;
-  const featuredIsToday = featuredIsNext && daysIn !== null && daysIn >= 0 && daysIn % 7 === 0;
-  const featuredDate = featured ? classDateLabel(activeCohort?.startDate, featured.weekNumber) : null;
+  const featuredIsToday = featuredIsNext && !!nextWeek && !!activeCohort?.startDate
+    && classDateIso(activeCohort.startDate, nextWeek) === lagosTodayIso(now);
+  const featuredDate = featured ? classDateLabel(activeCohort?.startDate, featured) : null;
 
   const weekList = (title: string, weeks: SupportRecap[]) => weeks.length > 0 && (
     <section>

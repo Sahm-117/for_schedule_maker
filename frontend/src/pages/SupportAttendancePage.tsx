@@ -10,6 +10,7 @@ import { attendanceApi, participantsApi, settingsApi } from '../services/api';
 import TrainingAttendancePanel from '../components/TrainingAttendancePanel';
 import type { AttendanceRecord, AttendanceSession, AttendanceStatus, Participant, User, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
+import { classDateIso } from '../utils/participantApp';
 import { sortByText } from '../utils/sort';
 import Spinner from '../components/Spinner';
 
@@ -167,10 +168,10 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
   const windowClosed = !!windowClosesAt && new Date(windowClosesAt).getTime() <= now;
   const windowOpen = !!activeSession.startedAt && !finalised && !windowClosed;
   const locked = finalised || windowClosed;
-  // A week's register opens on its class day (cohort start + 7 days per week);
-  // before that there's nothing to mark, so no list and no Start button.
+  // A week's register opens on its class day; before that there's nothing to
+  // mark, so no list and no Start button.
   const classDay = selectedWeek && activeCohort?.startDate
-    ? (() => { const d = new Date(`${activeCohort.startDate.slice(0, 10)}T00:00:00`); d.setDate(d.getDate() + (selectedWeek.weekNumber - 1) * 7); return d; })()
+    ? new Date(`${classDateIso(activeCohort.startDate, selectedWeek)}T00:00:00`)
     : null;
   const beforeClassDay = !allWeeks && !!classDay && !activeSession.startedAt && !finalised && now < classDay.getTime();
   const classDayLabel = classDay ? classDay.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '';

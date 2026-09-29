@@ -50,6 +50,40 @@ const MS_PER_DAY = 86_400_000
 const LAGOS_OFFSET_MS = 60 * 60 * 1000
 const dayKey = (d: Date) => d.toISOString().slice(0, 10)
 
+type ClassWeek = { id: number; weekNumber: number; classDate?: string | null }
+
+// A week's class date: its own classDate once the Planner has moved it,
+// otherwise the cohort's first class Sunday + (weekNumber - 1) weeks.
+// Mirrors week_class_date() in the database.
+const classDateKey = (startDate: string, week: ClassWeek) =>
+  week.classDate
+    ? String(week.classDate).slice(0, 10)
+    : dayKey(new Date(Date.parse(`${String(startDate).slice(0, 10)}T00:00:00Z`) + (week.weekNumber - 1) * 7 * MS_PER_DAY))
+
+// The week whose class most recently happened on or before `today`, and how
+// many days ago that was. Null before the first class.
+const latestClassWeek = (startDate: string, weeks: ClassWeek[], today: string) => {
+  let best: { week: ClassWeek; key: string } | null = null
+  for (const week of weeks) {
+    const key = classDateKey(startDate, week)
+    if (key <= today && (!best || key > best.key)) best = { week, key }
+  }
+  if (!best) return null
+  const days = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${best.key}T00:00:00Z`)) / MS_PER_DAY)
+  return { week: best.week, days }
+}
+
+// The week number the cohort is in: 0 before the first class, and past the
+// last week it keeps counting on (week 11, 12...) as it always has.
+const currentWeekFor = (startDate: string, weeks: ClassWeek[], today: string) => {
+  const latest = latestClassWeek(startDate, weeks, today)
+  if (!latest) return 0
+  const lastNumber = Math.max(...weeks.map((w) => w.weekNumber))
+  return latest.week.weekNumber === lastNumber
+    ? latest.week.weekNumber + Math.floor(latest.days / 7)
+    : latest.week.weekNumber
+}
+
 interface Planned { userId: string; title: string; body: string; path: string; type: string }
 
 Deno.serve(async (req) => {
@@ -77,7 +111,7 @@ Deno.serve(async (req) => {
     const planned: Planned[] = []
     const add = (n: Planned) => { if (!planned.some((p) => p.userId === n.userId && p.title === n.title)) planned.push(n) }
 
-    // ── Cohort week maths: week N starts (N-1) weeks after the cohort start ──
+    // ── Cohort week maths: each week runs from its class date for 7 days ──
     const cohortQuery = supabase.from('Cohort').select('id, name, startDate')
     const { data: cohorts } = replayCohortId ? await cohortQuery.eq('id', replayCohortId) : await cohortQuery.eq('status', 'ACTIVE')
     const admins = ((await supabase.from('User').select('id').eq('role', 'ADMIN')).data ?? []).map((a: any) => a.id)
@@ -85,15 +119,13 @@ Deno.serve(async (req) => {
 
     for (const cohort of (cohorts ?? []) as any[]) {
       if (!cohort.startDate) continue
-      const start = new Date(`${cohort.startDate}T00:00:00Z`)
-      const dayInCohort = Math.floor((now.getTime() - start.getTime()) / MS_PER_DAY)
-      if (dayInCohort < 0) continue
-      const weekNumber = Math.floor(dayInCohort / 7) + 1
-      const dayOfWeek = dayInCohort % 7 // 0 = the cohort's start weekday
-
-      const { data: weekRow } = await supabase
-        .from('Week').select('id, weekNumber').eq('cohortId', cohort.id).eq('weekNumber', weekNumber).maybeSingle()
-      if (!weekRow) continue
+      const { data: cohortWeeks } = await supabase
+        .from('Week').select('id, weekNumber, classDate').eq('cohortId', cohort.id)
+      const latest = latestClassWeek(cohort.startDate, (cohortWeeks ?? []) as ClassWeek[], today)
+      // Before the first class, or a week or more after the latest one.
+      if (!latest || latest.days >= 7) continue
+      const weekRow = latest.week
+      const dayOfWeek = latest.days // 0 = the class day
 
       const { data: groups } = await supabase
         .from('Group').select('id, name, supportId, members:GroupParticipant(participantId)').eq('cohortId', cohort.id)
@@ -172,7 +204,6 @@ Deno.serve(async (req) => {
       if (!cohort.startDate) continue
       const start = new Date(`${cohort.startDate}T00:00:00Z`)
       const dayInCohort = Math.floor((now.getTime() - start.getTime()) / MS_PER_DAY)
-      const currentWeek = dayInCohort < 0 ? 0 : Math.floor(dayInCohort / 7) + 1
 
       // Day 5 of the cohort: My Hub takes Mobilisation's spot on the bottom
       // bar for every support in a hub. Sent once per person (EscalationNotice
@@ -191,12 +222,13 @@ Deno.serve(async (req) => {
       }
 
       const [{ data: weeks }, { data: groups }, { data: people }] = await Promise.all([
-        supabase.from('Week').select('id, weekNumber').eq('cohortId', cohort.id),
+        supabase.from('Week').select('id, weekNumber, classDate').eq('cohortId', cohort.id),
         supabase.from('Group').select('id, name, supportId, support:User!Group_supportId_fkey(name), members:GroupParticipant(participantId)').eq('cohortId', cohort.id),
         supabase.from('Participant').select('id, fullName, status').eq('cohortId', cohort.id).eq('status', 'ACTIVE'),
       ])
       const weekById = new Map(((weeks ?? []) as any[]).map((w) => [w.id, w.weekNumber]))
       const weekIds = [...weekById.keys()]
+      const currentWeek = currentWeekFor(cohort.startDate, (weeks ?? []) as ClassWeek[], today)
       const personById = new Map(((people ?? []) as any[]).map((p) => [p.id, p]))
       const groupOf = new Map<string, any>()
       for (const g of (groups ?? []) as any[]) for (const m of g.members ?? []) groupOf.set(m.participantId, g)

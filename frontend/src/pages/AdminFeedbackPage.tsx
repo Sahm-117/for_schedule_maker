@@ -203,7 +203,7 @@ const AdminFeedbackPage: React.FC = () => {
         setClassFeedback(rows);
         // Open on this week of the cohort (Week 1 before it starts, the last
         // week once it's over), not the highest week number.
-        const idealNumber = getIdealWeekNumberForCohort(activeCohort, new Date());
+        const idealNumber = getIdealWeekNumberForCohort(activeCohort, new Date(), weeks.filter((w) => w.cohortId === activeCohort.id));
         const pick = [...rows].sort((a, b) => Math.abs(a.weekNumber - idealNumber) - Math.abs(b.weekNumber - idealNumber))[0];
         setSelectedWeekId(pick ? String(pick.weekId) : '');
       })

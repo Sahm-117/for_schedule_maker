@@ -57,7 +57,7 @@ const ParticipantJourneyPage: React.FC = () => {
   if (loading || !home) return <PageLoader />;
 
   const totalWeeks = home.weeks.length;
-  const weekNumber = currentWeekNumber(home.cohort?.startDate, now);
+  const weekNumber = currentWeekNumber(home.cohort?.startDate, now, home.weeks);
   const weeksIn = Math.min(Math.max(weekNumber, 0), totalWeeks);
   const goalsKept = home.reflections.filter((r) => r.goalDoneAt).length;
   const callback = pickCallback(home, weekNumber, now);

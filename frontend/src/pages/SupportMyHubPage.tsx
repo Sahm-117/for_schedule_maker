@@ -189,7 +189,7 @@ const SupportMyHubPage: React.FC = () => {
     if (sortedWeeks.length === 0 || meetingWeekId != null) return;
     const liveWeekId = myHub?.meetingLive?.weekId;
     if (liveWeekId && sortedWeeks.some((w) => w.id === liveWeekId)) { setMeetingWeekId(liveWeekId); return; }
-    const thisWeek = Math.max(1, currentWeekNumber(activeCohort?.startDate, new Date()));
+    const thisWeek = Math.max(1, currentWeekNumber(activeCohort?.startDate, new Date(), sortedWeeks));
     const match = sortedWeeks.find((w) => w.weekNumber === thisWeek)
       ?? (thisWeek > sortedWeeks[0].weekNumber ? sortedWeeks[0] : sortedWeeks[sortedWeeks.length - 1]);
     setMeetingWeekId(match.id);

@@ -552,7 +552,7 @@ const AdminHubsPage: React.FC = () => {
     const mode = cohortMode(activeCohort);
     if (mode === 'upcoming') return null;
     if (mode === 'completed') return sorted[sorted.length - 1];
-    const idealNumber = getIdealWeekNumberForCohort(activeCohort, new Date());
+    const idealNumber = getIdealWeekNumberForCohort(activeCohort, new Date(), weeks);
     const judged = sorted.filter((w) => w.weekNumber < idealNumber);
     return judged.length > 0 ? judged[judged.length - 1] : null;
   }, [activeCohort, weeks]);

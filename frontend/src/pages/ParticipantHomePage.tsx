@@ -15,10 +15,10 @@ import { normalizeLink } from '../utils/links';
 import {
   FAITH_PROJECT_PARTICIPANT_LABEL,
   currentWeekNumber,
-  daysIntoCohort,
   formatTime,
   hasDoneReadyStep,
   markReadyStepDone,
+  nextClassWeek,
   reflectionFor,
   scriptureDayIndex,
   scriptureForDay,
@@ -87,7 +87,7 @@ const ParticipantHomePage: React.FC = () => {
   }
 
   const totalWeeks = home.weeks.length;
-  const weekNumber = currentWeekNumber(home.cohort?.startDate, now);
+  const weekNumber = currentWeekNumber(home.cohort?.startDate, now, home.weeks);
   const started = weekNumber >= 1;
   const finished = totalWeeks > 0 && weekNumber > totalWeeks;
   const shownWeekNumber = Math.min(Math.max(weekNumber, 1), Math.max(totalWeeks, 1));
@@ -102,7 +102,7 @@ const ParticipantHomePage: React.FC = () => {
     const clockHour = new Date(now.getTime() + 60 * 60 * 1000);
     const candidates = home.weeks.filter((w) => w.weekNumber >= Math.max(weekNumber, 1));
     for (const w of candidates) {
-      const date = weekDayDate(home.cohort.startDate, w.weekNumber, 0);
+      const date = weekDayDate(home.cohort.startDate, w, 0);
       const [h, m] = (w.classTime || '23:59').split(':').map(Number);
       const startsAt = date.getTime() + h * 3600000 + m * 60000;
       if (startsAt > clockHour.getTime()) return { week: w, date };
@@ -115,10 +115,8 @@ const ParticipantHomePage: React.FC = () => {
   // Sunday's. Null after the last class.
   const upcomingClass = (() => {
     if (!home.cohort?.startDate || !started) return null;
-    const day = daysIntoCohort(home.cohort.startDate, now);
-    const number = day !== null && day % 7 === 0 ? weekNumber : weekNumber + 1;
-    const w = home.weeks.find((x) => x.weekNumber === number);
-    return w ? { week: w, date: weekDayDate(home.cohort.startDate, number, 0) } : null;
+    const w = nextClassWeek(home.cohort.startDate, home.weeks, now);
+    return w ? { week: w, date: weekDayDate(home.cohort.startDate, w, 0) } : null;
   })();
 
   const group = home.group;
@@ -155,7 +153,9 @@ const ParticipantHomePage: React.FC = () => {
   const readyDone = readyItems.filter((item) => item.done).length;
 
   // Whole Lagos calendar days until the first class.
-  const firstClassDate = home.cohort?.startDate ? weekDayDate(home.cohort.startDate, 1, 0) : null;
+  const firstClassDate = home.cohort?.startDate
+    ? weekDayDate(home.cohort.startDate, home.weeks.find((w) => w.weekNumber === 1) ?? 1, 0)
+    : null;
   const firstClassCountdown = (() => {
     if (!firstClassDate) return null;
     const lagosToday = new Date(now.getTime() + 60 * 60 * 1000);

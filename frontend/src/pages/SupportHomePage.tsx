@@ -8,7 +8,7 @@ import { announcementsApi, faithProjectsApi, groupsApi, meetingAttendanceApi, my
 import type { Announcement, FaithProject, Group, HubJob, MyHubPayload, Participant, ParticipantCheckIn, SupportActivityCompletion, SupportChecklistItem, SupportKind, User } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
-import { currentWeekNumber, daysIntoCohort, weekDayDate } from '../utils/participantApp';
+import { nextClassWeek, weekDayDate } from '../utils/participantApp';
 import { normalizeLink } from '../utils/links';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
@@ -344,12 +344,9 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   }, [faithProjects, participants]);
   // Next class (same rule as the Classes page): Week 1 before the cohort
   // starts, today's class on a Sunday, otherwise the coming Sunday's.
-  const cohortDay = daysIntoCohort(activeCohort?.startDate, now);
-  const cohortWeekNumber = currentWeekNumber(activeCohort?.startDate, now);
-  const nextClassNumber = cohortWeekNumber === 0 ? 1 : cohortDay !== null && cohortDay % 7 === 0 ? cohortWeekNumber : cohortWeekNumber + 1;
-  const nextWeek = cohortWeeks.find((w) => w.weekNumber === nextClassNumber) ?? null;
+  const nextWeek = nextClassWeek(activeCohort?.startDate, cohortWeeks, now);
   const nextClassDate = nextWeek && activeCohort?.startDate
-    ? weekDayDate(activeCohort.startDate, nextWeek.weekNumber, 0).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+    ? weekDayDate(activeCohort.startDate, nextWeek, 0).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
     : null;
 
   const checkedCount = checklist.filter((item) => item.done).length;

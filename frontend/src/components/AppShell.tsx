@@ -62,6 +62,7 @@ const BrandMark: React.FC<{ className?: string }> = ({ className = '' }) => (
 const ICONS = {
   dashboard: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-18v7h6V2h-6z" /></svg></IconBox>,
   schedule: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></IconBox>,
+  planner: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 6h9M4 12h16M4 18h6M15 4v4M20 10v4M12 16v4" /></svg></IconBox>,
   approvals: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 12l2 2 4-4m5 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></IconBox>,
   overview: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 19h16M6 16V8m6 8V5m6 11v-6" /></svg></IconBox>,
   cohorts: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5 5.15 5 3.067 5.865 2 7.2v11.547C3.067 17.412 5.15 16.547 7.5 16.547c1.746 0 3.332.477 4.5 1.253m0-11.547C13.168 5.477 14.754 5 16.5 5c2.35 0 4.433.865 5.5 2.2v11.547c-1.067-1.335-3.15-2.2-5.5-2.2-1.746 0-3.332.477-4.5 1.253" /></svg></IconBox>,
@@ -91,6 +92,7 @@ const ICONS = {
 const adminNav: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: ICONS.dashboard },
   { to: '/schedule', label: 'Schedule', icon: ICONS.schedule },
+  { to: '/planner', label: 'Planner', icon: ICONS.planner, adminOnly: true },
   { to: '/participants', label: 'Participants', icon: ICONS.participants, adminOnly: true },
   { to: '/groups', label: 'Groups', icon: ICONS.groups, adminOnly: true },
   { to: '/supports', label: 'Supports', icon: ICONS.attendance, adminOnly: true },
@@ -117,6 +119,7 @@ const adminNavGroups: NavGroup[] = [
     label: 'Programme',
     items: [
       { to: '/schedule', label: 'Schedule', icon: ICONS.schedule },
+      { to: '/planner', label: 'Planner', icon: ICONS.planner, adminOnly: true },
     ],
   },
   {

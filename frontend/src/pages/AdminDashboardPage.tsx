@@ -4,6 +4,7 @@ import ActivityText from '../components/ActivityText';
 import PageHeader from '../components/PageHeader';
 import { useToast } from '../components/Toast';
 import CohortTrendChart from '../components/dashboard/CohortTrendChart';
+import PlannerNowLine from '../components/dashboard/PlannerNowLine';
 import {
   AttentionList,
   ChecklistRow,
@@ -199,6 +200,7 @@ const AdminDashboardPage: React.FC = () => {
         </div>
       ) : health && model ? (
         <div className="space-y-5">
+          {isAdmin && <PlannerNowLine />}
           <div data-wt="dash-strip"><CohortStrip health={health} model={model} cohortName={activeCohort.name} /></div>
 
           <div data-wt="dash-vitals">

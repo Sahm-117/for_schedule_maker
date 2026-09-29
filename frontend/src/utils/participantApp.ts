@@ -20,17 +20,60 @@ export const daysIntoCohort = (startDate: string | null | undefined, now: Date):
   return Math.floor((today - start) / DAY_MS);
 };
 
-/** 0 before the cohort starts; week 1 is the first seven days. Matches daily-checks. */
-export const currentWeekNumber = (startDate: string | null | undefined, now: Date): number => {
-  const days = daysIntoCohort(startDate, now);
-  if (days === null || days < 0) return 0;
-  return Math.floor(days / 7) + 1;
+/** A week, as far as its class Sunday is concerned. */
+export type ClassWeek = { weekNumber: number; classDate?: string | null };
+
+/**
+ * A week's class Sunday as YYYY-MM-DD: its own classDate once the Planner has
+ * moved it, otherwise the cohort's first class Sunday + (weekNumber - 1)
+ * weeks. Mirrors week_class_date() in the database.
+ */
+export const classDateIso = (startDate: string, week: ClassWeek): string => {
+  if (week.classDate) return week.classDate.slice(0, 10);
+  const start = Date.UTC(Number(startDate.slice(0, 4)), Number(startDate.slice(5, 7)) - 1, Number(startDate.slice(8, 10)));
+  return new Date(start + (week.weekNumber - 1) * 7 * DAY_MS).toISOString().slice(0, 10);
 };
 
-/** The date (Lagos) of a given day of a week, 0 = the week's Sunday. */
-export const weekDayDate = (startDate: string, weekNumber: number, dayOffset: number) => {
-  const start = Date.UTC(Number(startDate.slice(0, 4)), Number(startDate.slice(5, 7)) - 1, Number(startDate.slice(8, 10)));
-  return new Date(start + ((weekNumber - 1) * 7 + dayOffset) * DAY_MS);
+/** Today's date in Lagos, YYYY-MM-DD. */
+export const lagosTodayIso = (now: Date) => lagosClock(now).toISOString().slice(0, 10);
+
+/**
+ * 0 before the cohort starts; otherwise the week whose class most recently
+ * happened. Past the last week it keeps counting (11, 12...). Without the
+ * weeks, week 1 is the first seven days. Matches daily-checks.
+ */
+export const currentWeekNumber = (startDate: string | null | undefined, now: Date, weeks?: ClassWeek[]): number => {
+  const days = daysIntoCohort(startDate, now);
+  if (!startDate || days === null || days < 0) return 0;
+  if (!weeks || weeks.length === 0) return Math.floor(days / 7) + 1;
+  const today = lagosTodayIso(now);
+  let latest: { weekNumber: number; iso: string } | null = null;
+  for (const week of weeks) {
+    const iso = classDateIso(startDate, week);
+    if (iso <= today && (!latest || iso > latest.iso)) latest = { weekNumber: week.weekNumber, iso };
+  }
+  if (!latest) return 0;
+  const lastNumber = Math.max(...weeks.map((w) => w.weekNumber));
+  if (latest.weekNumber !== lastNumber) return latest.weekNumber;
+  return latest.weekNumber + Math.floor((Date.parse(today) - Date.parse(latest.iso)) / (7 * DAY_MS));
+};
+
+/** The next class: today's if there's one today, otherwise the coming one. Null after the last class. */
+export const nextClassWeek = <W extends ClassWeek>(startDate: string | null | undefined, weeks: W[], now: Date): W | null => {
+  if (!startDate) return null;
+  const today = lagosTodayIso(now);
+  let next: { week: W; iso: string } | null = null;
+  for (const week of weeks) {
+    const iso = classDateIso(startDate, week);
+    if (iso >= today && (!next || iso < next.iso)) next = { week, iso };
+  }
+  return next?.week ?? null;
+};
+
+/** The date (Lagos) of a given day of a week, 0 = the week's class Sunday. */
+export const weekDayDate = (startDate: string, week: number | ClassWeek, dayOffset: number) => {
+  const iso = classDateIso(startDate, typeof week === 'number' ? { weekNumber: week } : week);
+  return new Date(Date.parse(`${iso}T00:00:00Z`) + dayOffset * DAY_MS);
 };
 
 export const formatTime = (hhmm: string | null | undefined) => {
@@ -100,7 +143,7 @@ export const clearReflectionDraft = (participantId: string, weekId: number) => {
 
 /** Misses so far, counted the same way as the programme rules (recorded misses only). */
 export const participantMisses = (home: ParticipantHome, now: Date) => {
-  const week = currentWeekNumber(home.cohort?.startDate, now);
+  const week = currentWeekNumber(home.cohort?.startDate, now, home.weeks);
   const judged = new Set(home.weeks.filter((w) => w.weekNumber < week).map((w) => w.id));
   const rules = normaliseRules(home.rules);
   const sunday = home.sunday.filter((r) => judged.has(r.weekId) && !sundayMarkAttended(r)).length;

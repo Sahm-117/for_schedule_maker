@@ -46,7 +46,7 @@ export const normaliseClassFeedbackTimes = (value: unknown): ClassFeedbackTimes 
 /** The moment (as a real Date/instant) a week's class feedback opens for one audience. */
 export const classFeedbackReleaseAt = (
   cohortStartDate: string | null | undefined,
-  weekNumber: number,
+  week: number | { weekNumber: number; classDate?: string | null },
   day: string,
   time: string,
-): Date | null => recapReleaseAt(cohortStartDate, weekNumber, day, time);
+): Date | null => recapReleaseAt(cohortStartDate, week, day, time);

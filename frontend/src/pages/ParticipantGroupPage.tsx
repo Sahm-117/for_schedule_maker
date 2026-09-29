@@ -23,7 +23,7 @@ const ParticipantGroupPage: React.FC = () => {
 
   const group = home.group;
   const scheduled = !!(group?.meetingDay && group.meetingTime);
-  const weekNumber = currentWeekNumber(home.cohort?.startDate, new Date());
+  const weekNumber = currentWeekNumber(home.cohort?.startDate, new Date(), home.weeks);
   const supportName = group?.supportName || 'your support';
   const liveWeek = home.groupMeetingLive ? home.weeks.find((w) => w.id === home.groupMeetingLive!.weekId) ?? null : null;
   const prayerFocus = home.groupMeetingLive && home.groupPrayerFocus?.weekId === home.groupMeetingLive.weekId ? home.groupPrayerFocus : null;
