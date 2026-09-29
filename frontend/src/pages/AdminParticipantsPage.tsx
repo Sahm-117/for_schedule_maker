@@ -1242,7 +1242,7 @@ const AdminParticipantsContent: React.FC = () => {
         title="Login details"
         subtitle={loginFor ? `${loginFor.fullName} was added. Send them their login for the app.` : undefined}
       >
-        {loginFor && <LoginDetailsCard participantId={loginFor.id} startDate={cohorts.find((c) => c.id === loginFor.cohortId)?.startDate} defaultOpen />}
+        {loginFor && <LoginDetailsCard participantId={loginFor.id} email={loginFor.email} startDate={cohorts.find((c) => c.id === loginFor.cohortId)?.startDate} defaultOpen />}
       </ModalShell>
 
       <RequestInfoModal isOpen={requestInfoOpen} onClose={() => setRequestInfoOpen(false)} />

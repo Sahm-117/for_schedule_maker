@@ -17,7 +17,11 @@ interface LoginDetailsCardProps {
   className?: string;
   /** Their cohort's first class (YYYY-MM-DD…), for "See you on October 11". */
   startDate?: string | null;
+  /** Their email, for sending the login by email when the phone doesn't get through. */
+  email?: string | null;
 }
+
+const EMAIL_SUBJECT = 'Your Foundation of Faith app login';
 
 const formatDay = (value: string | null) =>
   value ? new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
@@ -36,7 +40,7 @@ const errorText = (err: unknown) => {
   return message || 'Could not load the login details. Please try again.';
 };
 
-const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, followUpContactId, defaultOpen = false, className = '', startDate }) => {
+const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, followUpContactId, defaultOpen = false, className = '', startDate, email }) => {
   const { user } = useAuth();
   const [details, setDetails] = useState<ParticipantLoginDetails | null>(null);
   const [open, setOpen] = useState(defaultOpen);
@@ -97,6 +101,30 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
     : '';
   const waLink = message ? buildWhatsAppLink(details?.phone, message) : null;
 
+  // The same details by email, for when calls and WhatsApp don't get through:
+  // says why they're getting an email, who is writing, and how to reply.
+  const emailTo = email?.trim() || '';
+  const supportPhone = user?.phone?.trim() || '';
+  const emailBody = details?.setupCode
+    ? `Hello ${firstName},\n\n`
+      + 'We tried to reach you by phone and on WhatsApp, but couldn\'t get through, so we\'re sending your details by email instead.\n\n'
+      + (user?.name ? `My name is ${user.name}, from TCN Ikorodu. ` : '')
+      + 'Well done on registering for Foundation Of Faith! Here are your login details for the FOF App:\n\n'
+      + `App link: https://fof.tcnikorodu.org/login\n`
+      + `Username: ${details.phone}\n`
+      + `First-time password: ${details.setupCode}\n\n`
+      + 'You will be asked to set your own password when you first sign in.\n\n'
+      + (supportPhone
+        ? `If you have any questions, reply to this email or reach me on ${supportPhone}. `
+        : 'If you have any questions, just reply to this email. ')
+      + 'If the phone number we have for you isn\'t right, please reply with a number we can reach you on.\n\n'
+      + `See you on ${firstClassText(startDate)}.`
+      + (user?.name ? `\n\n${user.name}\nFoundation of Faith, TCN Ikorodu` : '')
+    : '';
+  const mailLink = emailTo && emailBody
+    ? `mailto:${emailTo}?subject=${encodeURIComponent(EMAIL_SUBJECT)}&body=${encodeURIComponent(emailBody)}`
+    : null;
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(message);
@@ -145,6 +173,11 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
                 {waLink && (
                   <a href={waLink} target="_blank" rel="noreferrer" className="inline-flex min-h-[44px] flex-[1_1_150px] items-center justify-center rounded-[10px] bg-[#25d366] px-3.5 py-2.5 text-[13px] font-semibold text-white">
                     Send in WhatsApp
+                  </a>
+                )}
+                {mailLink && (
+                  <a href={mailLink} className="inline-flex min-h-[44px] flex-[1_1_150px] items-center justify-center rounded-[10px] bg-sky-600 px-3.5 py-2.5 text-[13px] font-semibold text-white">
+                    Send by email
                   </a>
                 )}
               </div>

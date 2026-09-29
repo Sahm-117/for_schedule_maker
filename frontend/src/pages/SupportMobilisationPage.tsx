@@ -708,7 +708,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                           <span className="ml-auto rounded-full bg-[#fff8f3] px-2.5 py-0.5 text-[11px] font-bold text-[#c2410c]">{statusLabel}</span>
                         </div>
                         <p className="mt-1 text-xs text-gray-500">{contact.phone}</p>
-                        {(contact.registrationStatus === 'REGISTERED' || contact.registrationStatus === 'LOGIN_SHARED' || contact.registrationStatus === 'LOGIN_ISSUE') && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} className="mt-2.5" />}
+                        {(contact.registrationStatus === 'REGISTERED' || contact.registrationStatus === 'LOGIN_SHARED' || contact.registrationStatus === 'LOGIN_ISSUE') && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} email={contact.email} className="mt-2.5" />}
                       </div>
                     );
                   })}
@@ -888,7 +888,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       placeholder="Choose status"
                     />
                   </div>
-                  {(status === 'REGISTERED' || status === 'LOGIN_SHARED' || status === 'LOGIN_ISSUE') && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} className="mt-3" />}
+                  {(status === 'REGISTERED' || status === 'LOGIN_SHARED' || status === 'LOGIN_ISSUE') && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} email={contact.email} className="mt-3" />}
                 </section>
               );
             })}
@@ -967,7 +967,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                     )}
                   </div>
 
-                  {open && <LoginDetailsCard followUpContactId={issue.contactId} startDate={issue.cohortStartDate} className="mt-3" />}
+                  {open && <LoginDetailsCard followUpContactId={issue.contactId} startDate={issue.cohortStartDate} email={allContacts.find((c) => c.id === issue.contactId)?.email} className="mt-3" />}
                   {open ? (
                     <button
                       type="button"
