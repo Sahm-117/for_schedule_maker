@@ -539,11 +539,11 @@ const AdminFollowUpsPage: React.FC = () => {
                     value={ownerFilter}
                     onChange={setOwnerFilter}
                     options={[
-                      { value: '', label: `All reps (${ownerOptionCounts.total})` },
+                      { value: '', label: `All Supports (${ownerOptionCounts.total})` },
                       { value: '__unassigned__', label: `Unassigned (${ownerOptionCounts.unassigned})` },
                       ...owners.map((o) => ({ value: o.id, label: `${o.name} (${ownerOptionCounts.perOwner[o.id] || 0})` })),
                     ]}
-                    placeholder="All reps"
+                    placeholder="All Supports"
                     compact
                   />
                 </div>
