@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { FollowUpContact, FollowUpStatus } from '../../types';
-import { computeFollowUpFunnel, computeFollowUpStatus, computeIntroducerBreakdown, computeOwnerBreakdown, type OwnerBreakdownRow } from '../../utils/followUps';
+import { computeFollowUpFunnel, computeFollowUpHeadline, computeFollowUpStatus, computeIntroducerBreakdown, computeOwnerBreakdown, type OwnerBreakdownRow } from '../../utils/followUps';
 import { VitalTile } from '../dashboard/DashboardParts';
 import { settingsApi } from '../../services/api';
 
@@ -166,9 +166,8 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
   const reachable = contacts.filter((c) => computeFollowUpStatus(c) !== 'WRONG_NUMBER');
   const wrongNumbers = contacts.length - reachable.length;
   const standing = computeFollowUpFunnel(reachable);
-  // "Signed up" counts this cohort only. Prior-cohort people (no cohort yet)
-  // join the total once they're assigned, which tags them to the cohort.
-  const cohortFunnel = computeFollowUpFunnel(reachable.filter((c) => c.cohortId));
+  // The four tiles, worked out the same way as on the admin Dashboard.
+  const headline = computeFollowUpHeadline(contacts);
   const owners = computeOwnerBreakdown(contacts);
   const introducers = computeIntroducerBreakdown(contacts);
   const totalMet = introducers.reduce((sum, row) => sum + row.met, 0);
@@ -198,15 +197,6 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
   const unassignedRow = owners.find((row) => !row.ownerId);
   const namedOwners = owners.filter((row) => row.ownerId);
 
-  // Only name a top reason when one actually leads; otherwise say how many
-  // reasons the drop-outs are spread across, rather than picking a tied winner.
-  const [topReason, runnerUp] = funnel.stoppedReasons;
-  const stoppedDetail = !topReason
-    ? 'Nobody has dropped out'
-    : runnerUp && runnerUp.value === topReason.value
-      ? `Spread across ${funnel.stoppedReasons.length} reasons`
-      : `Most common: ${topReason.label.toLowerCase()} (${topReason.value})`;
-
   // One row per status, biggest first, so the list reads as a ranking rather
   // than as a single bar the eye has to take apart.
   // Wrong numbers sit last, apart from the ranking, so it's clear what happened
@@ -219,44 +209,45 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
 
   return (
     <div className="space-y-6">
-      {cohortId && <MobilisationTarget cohortId={cohortId} cohortName={cohortName} signedUp={cohortFunnel.signedUp} />}
+      {cohortId && <MobilisationTarget cohortId={cohortId} cohortName={cohortName} signedUp={headline.signedUp} />}
 
       {/* The four numbers worth acting on. Everything else is detail below. */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <VitalTile
           title="Signed up"
           status="neutral"
-          statusLabel={cohortFunnel.conversion === null ? 'No prospects yet' : `${pct(cohortFunnel.conversion)}% of ${cohortFunnel.total}`}
-          value={cohortFunnel.signedUp}
-          unit={cohortFunnel.total ? `of ${cohortFunnel.total}` : undefined}
-          detail={cohortFunnel.nextCohort > 0 ? `${cohortFunnel.nextCohort} more waiting for the next cohort` : 'They filled in the registration form'}
+          statusLabel={headline.conversion === null ? 'No prospects yet' : `${pct(headline.conversion)}% of ${headline.contacts}`}
+          value={headline.signedUp}
+          unit={headline.contacts ? `of ${headline.contacts}` : undefined}
+          detail={headline.nextCohort > 0 ? `${headline.nextCohort} more waiting for the next cohort` : 'They filled in the registration form'}
           to={contactsLink('REGISTERED')}
         />
         <VitalTile
           title="Needs login"
-          status={funnel.registered > 0 ? 'warning' : 'good'}
-          statusLabel={funnel.registered > 0 ? 'Waiting on us' : 'All handed over'}
-          value={funnel.registered}
-          unit={funnel.registered === 1 ? 'prospect' : 'prospects'}
-          detail={funnel.registered > 0 ? 'Signed up, but still cannot get into the app' : 'Nobody is waiting on a login'}
+          status={headline.needsLogin > 0 ? 'warning' : 'good'}
+          statusLabel={headline.needsLogin > 0 ? 'Waiting on us' : 'All handed over'}
+          value={headline.needsLogin}
+          unit={headline.needsLogin === 1 ? 'prospect' : 'prospects'}
+          detail={headline.needsLogin > 0 ? 'Signed up, but still cannot get into the app' : 'Nobody is waiting on a login'}
           to={contactsLink('REGISTERED')}
         />
         <VitalTile
           title="Not done yet"
-          status={funnel.open > 0 ? 'warning' : 'good'}
-          statusLabel={funnel.open > 0 ? 'Needs work' : 'All handled'}
-          value={funnel.open}
-          unit={funnel.open === 1 ? 'prospect' : 'prospects'}
-          detail={funnel.open > 0 ? 'Someone still has to message, call or chase them' : 'Nobody is waiting on a follow-up'}
+          status={headline.notDone > 0 ? 'warning' : 'good'}
+          statusLabel={headline.notDone > 0 ? 'Needs work' : 'All handled'}
+          value={headline.notDone}
+          unit={headline.notDone === 1 ? 'prospect' : 'prospects'}
+          detail={headline.notDone > 0 ? 'Someone still has to message, call or chase them' : 'Nobody is waiting on a follow-up'}
           to={contactsLink('open')}
         />
         <VitalTile
-          title="Dropped"
-          status="neutral"
-          statusLabel="Follow-up is over"
-          value={funnel.stopped}
-          unit={funnel.stopped === 1 ? 'prospect' : 'prospects'}
-          detail={stoppedDetail}
+          title="Logged in"
+          status={headline.loggedIn > 0 ? 'good' : 'neutral'}
+          statusLabel="Confirmed"
+          value={headline.loggedIn}
+          unit={headline.loggedIn === 1 ? 'person' : 'people'}
+          detail={headline.signedUp > 0 ? `${pct(headline.loggedIn / headline.signedUp)}% of those signed up are in the app` : 'Nobody has signed in yet'}
+          to={contactsLink('ACCESS_CONFIRMED')}
         />
       </div>
 

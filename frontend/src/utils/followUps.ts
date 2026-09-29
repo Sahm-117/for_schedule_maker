@@ -664,6 +664,8 @@ export interface FollowUpFunnel {
   signedUp: number;
   nextCohort: number;
   stopped: number;
+  /** Signed in to the app (Logged in, confirmed). */
+  accessConfirmed: number;
   /** Everyone who signed up, as a share of every contact. Null when there are none. */
   conversion: number | null;
   /** One entry per status, in funnel order, zeros dropped. Always sums to total. */
@@ -701,10 +703,42 @@ export const computeFollowUpFunnel = (contacts: FollowUpContact[]): FollowUpFunn
     signedUp: stageTotals.registered + stageTotals.loginShared + stageTotals.done,
     nextCohort: stageTotals.nextCohort,
     stopped: stageTotals.stopped,
+    accessConfirmed: counts.get('ACCESS_CONFIRMED') ?? 0,
     conversion: contacts.length ? (stageTotals.registered + stageTotals.loginShared + stageTotals.done) / contacts.length : null,
     buckets: FUNNEL_ORDER
       .map((status) => ({ status, label: FOLLOW_UP_STATUS_META[status].label, value: counts.get(status) ?? 0, stage: FOLLOW_UP_STAGE[status] }))
       .filter((b) => b.value > 0),
     stoppedReasons: countReasons(reasons),
+  };
+};
+
+// The four headline numbers on Follow-ups → Overview, also shown on the admin
+// Dashboard before a cohort starts. Both read them from here so they always
+// agree. `contacts` is the cohort's contacts in scope, test contacts left out.
+export interface FollowUpHeadline {
+  /** This cohort's reachable contacts (wrong numbers and prior-cohort people left out). */
+  contacts: number;
+  signedUp: number;
+  /** Signed up, as a share of `contacts`. Null when there are none. */
+  conversion: number | null;
+  nextCohort: number;
+  needsLogin: number;
+  notDone: number;
+  loggedIn: number;
+}
+
+export const computeFollowUpHeadline = (contacts: FollowUpContact[]): FollowUpHeadline => {
+  const all = computeFollowUpFunnel(contacts);
+  // A wrong number was never a prospect we could reach. "Signed up" counts this
+  // cohort only; prior-cohort people (no cohort yet) join once they're assigned.
+  const cohort = computeFollowUpFunnel(contacts.filter((c) => c.cohortId && computeFollowUpStatus(c) !== 'WRONG_NUMBER'));
+  return {
+    contacts: cohort.total,
+    signedUp: cohort.signedUp,
+    conversion: cohort.conversion,
+    nextCohort: cohort.nextCohort,
+    needsLogin: all.registered,
+    notDone: all.open,
+    loggedIn: all.accessConfirmed,
   };
 };

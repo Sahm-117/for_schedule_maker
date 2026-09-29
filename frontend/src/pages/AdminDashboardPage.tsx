@@ -30,6 +30,7 @@ import { announcementsApi, cohortsApi, followUpContactsApi, settingsApi, support
 import { DEFAULT_PROGRAMME_RULES, type CohortPeoplePayload, type ProgrammeRules } from '../utils/programmeRules';
 import type { Announcement, FollowUpContact, SupportActivityCompletion, User } from '../types';
 import { sortByText } from '../utils/sort';
+import { computeFollowUpHeadline, contactInCohortScope, type FollowUpHeadline } from '../utils/followUps';
 
 // Admin home: where the cohort is, whether it's healthy, what needs attention
 // and which groups need help. Switches to a registration view before a cohort
@@ -60,6 +61,8 @@ const AdminDashboardPage: React.FC = () => {
   const [people, setPeople] = useState<CohortPeoplePayload | null>(null);
   const [rules, setRules] = useState<ProgrammeRules>(DEFAULT_PROGRAMME_RULES);
   const [signUpTarget, setSignUpTarget] = useState<number | null>(null);
+  // Sign-up numbers, worked out the same way as Follow-ups → Overview.
+  const [followUpHeadline, setFollowUpHeadline] = useState<FollowUpHeadline | null>(null);
   const [healthError, setHealthError] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -78,17 +81,22 @@ const AdminDashboardPage: React.FC = () => {
     }
     try {
       setHealthError('');
-      const [nextHealth, nextPeople, nextRules, nextTarget] = await Promise.all([
+      const cohortId = activeCohort.id;
+      const [nextHealth, nextPeople, nextRules, nextTarget, nextContacts] = await Promise.all([
         cohortsApi.getHealth(activeCohort.id),
         // Person-level rules are extra; the page still works without them.
         cohortsApi.getPeople(activeCohort.id).catch(() => null),
         settingsApi.getProgrammeRules(),
         settingsApi.getMobilisationTarget(activeCohort.id).catch(() => ({ target: null })),
+        followUpContactsApi.getAll().catch(() => null),
       ]);
       setHealth(nextHealth);
       setPeople(nextPeople);
       setRules(nextRules);
       setSignUpTarget(nextTarget.target);
+      setFollowUpHeadline(nextContacts
+        ? computeFollowUpHeadline(nextContacts.contacts.filter((c) => !c.isTest && contactInCohortScope(c, cohortId, cohortId)))
+        : null);
     } catch (error) {
       setHealthError(error instanceof Error ? error.message : 'Could not load cohort health.');
     } finally {
@@ -195,7 +203,7 @@ const AdminDashboardPage: React.FC = () => {
 
           <div data-wt="dash-vitals">
             {model.mode === 'upcoming' ? (
-              <RegistrationFunnel health={health} target={signUpTarget} />
+              <RegistrationFunnel headline={followUpHeadline} target={signUpTarget} />
             ) : (
               <VitalSigns health={health} model={model} />
             )}
@@ -466,33 +474,30 @@ const ParticipantsTile: React.FC<{ health: CohortHealthPayload; model: Dashboard
   );
 };
 
-// "3 days ago" / "5 hours ago" / "20 minutes ago" for the first contact in.
-const sinceLabel = (iso: string): string => {
-  const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
-  const unit = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'} ago`;
-  if (mins < 60) return mins < 1 ? 'just now' : unit(mins, 'minute');
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return unit(hours, 'hour');
-  return unit(Math.floor(hours / 24), 'day');
-};
-
-const RegistrationFunnel: React.FC<{ health: CohortHealthPayload; target: number | null }> = ({ health, target }) => {
-  const f = health.followUps;
+// Before the cohort starts: the same four numbers as Follow-ups → Overview.
+const RegistrationFunnel: React.FC<{ headline: FollowUpHeadline | null; target: number | null }> = ({ headline, target }) => {
+  if (!headline) return null;
   const steps = [
-    { title: 'Contacts', value: f.total, detail: f.firstAt ? `${f.open} open · first sign-up ${sinceLabel(f.firstAt)}` : `${f.open} open`, base: null as number | null },
-    { title: 'Contacted', value: f.contacted, detail: 'Messaged or called', base: f.total },
-    { title: 'Replied', value: f.replied, detail: 'Wrote back', base: f.contacted },
     // Measured against the cohort's sign-up target (set on Follow-ups → Overview).
-    { title: 'Registered', value: f.registered, detail: target ? `of ${target} target` : 'No target set', base: target && target > 0 ? target : null, sep: ' ' },
+    {
+      title: 'Signed up',
+      value: headline.signedUp,
+      detail: target ? `of ${target} target · ${headline.contacts} contacts` : `of ${headline.contacts} contacts`,
+      base: target && target > 0 ? target : headline.contacts,
+      to: '/follow-ups?tab=contacts&status=REGISTERED',
+    },
+    { title: 'Needs login', value: headline.needsLogin, detail: 'Signed up, no login yet', base: null as number | null, to: '/follow-ups?tab=contacts&status=REGISTERED' },
+    { title: 'Not done yet', value: headline.notDone, detail: 'Still to message, call or chase', base: null as number | null, to: '/follow-ups?tab=contacts&status=open' },
+    { title: 'Logged in', value: headline.loggedIn, detail: 'of those signed up', base: headline.signedUp, to: '/follow-ups?tab=contacts&status=ACCESS_CONFIRMED' },
   ];
   return (
     <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
       {steps.map((step) => (
-        <NavLink key={step.title} to="/follow-ups" className="surface-card block p-5 transition hover:-translate-y-0.5">
+        <NavLink key={step.title} to={step.to} className="surface-card block p-5 transition hover:-translate-y-0.5">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{step.title}</p>
           <p className="mt-3 text-3xl font-bold tracking-tight text-gray-900 tabular-nums">{step.value}</p>
           <p className="mt-1 text-sm text-gray-600">
-            {step.base !== null && step.base > 0 ? `${Math.round((step.value / step.base) * 100)}%${'sep' in step ? step.sep : ' · '}` : ''}{step.detail}
+            {step.base !== null && step.base > 0 ? `${Math.round((step.value / step.base) * 100)}% ` : ''}{step.detail}
           </p>
           {step.base !== null && step.base > 0 && (
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-100">
