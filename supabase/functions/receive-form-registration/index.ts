@@ -97,6 +97,42 @@ const upsertParticipant = async (contact: Record<string, unknown>) => {
   return created?.id ?? null
 }
 
+/**
+ * The contact this number belongs to. Looks at everyone still being followed up,
+ * plus anyone in the current cohort whose follow-up has closed (logged in,
+ * say), so a second form from someone already signed up -- often to correct
+ * their name -- finds their record instead of creating a duplicate. A match in
+ * the current cohort wins over an older one.
+ */
+const findContact = async (normalised: string | null, activeCohortId: string | null) => {
+  if (!normalised) return null
+  // Numbers are stored as typed, so this compares in code rather than SQL;
+  // with tens of active contacts that is cheaper than it looks, but it is the
+  // thing to revisit if the table ever grows into the thousands.
+  let query = supabase
+    .from('FollowUpContact')
+    .select('id, fullName, phone, email, cohortId, registrationStatus')
+    .limit(5000)
+  query = activeCohortId
+    ? query.or(`archivedAt.is.null,cohortId.eq.${activeCohortId}`)
+    : query.is('archivedAt', null)
+  const { data: candidates } = await query
+  const matches = ((candidates ?? []) as Array<Record<string, unknown>>)
+    .filter((c) => normalisePhone(String(c.phone ?? '')) === normalised)
+  return matches.find((c) => activeCohortId && c.cohortId === activeCohortId) ?? matches[0] ?? null
+}
+
+const activeCohortId = async () => {
+  const { data } = await supabase
+    .from('Cohort')
+    .select('id')
+    .eq('status', 'ACTIVE')
+    .order('startDate', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return (data?.id as string | undefined) ?? null
+}
+
 const tellAdmins = async (title: string, body: string) => {
   const { data: admins } = await supabase.from('User').select('id').eq('role', 'ADMIN').neq('isActive', false)
   if (!admins?.length) return
@@ -165,18 +201,15 @@ Deno.serve(async (req) => {
       if (already) return json({ ok: true, outcome: 'DUPLICATE', wouldDo: 'Already imported; nothing would change.' })
     }
 
-    let match: { fullName: string; registrationStatus: string } | null = null
-    if (normalised) {
-      const { data: candidates } = await supabase
-        .from('FollowUpContact').select('fullName, phone, registrationStatus').is('archivedAt', null).limit(5000)
-      match = (candidates ?? []).find((c: { phone: string }) => normalisePhone(c.phone) === normalised) ?? null
-    }
+    const match = await findContact(normalised, await activeCohortId())
     return json({
       ok: true,
       outcome: match ? 'MATCHED' : 'CREATED',
       wouldDo: match
-        ? (SIGNED_UP_STATUSES.has(match.registrationStatus)
-            ? `${match.fullName} is already registered; only the sign-up would be recorded.`
+        ? (SIGNED_UP_STATUSES.has(String(match.registrationStatus))
+            ? (match.fullName !== fullName
+                ? `${match.fullName} is already registered; their name would be corrected to ${fullName}.`
+                : `${match.fullName} is already registered; only the sign-up would be recorded.`)
             : `Mark ${match.fullName} registered and add them as a participant.`)
         : `Add ${fullName} as a new prospect waiting to be assigned.`,
     })
@@ -220,28 +253,11 @@ Deno.serve(async (req) => {
 
   try {
     // Which cohort a new prospect belongs to.
-    const { data: activeCohort } = await supabase
-      .from('Cohort')
-      .select('id')
-      .eq('status', 'ACTIVE')
-      .order('startDate', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    const cohortId = await activeCohortId()
 
-    let contact: Record<string, unknown> | null = null
-    if (normalised) {
-      // Match on the normalised number rather than the raw text, so formatting
-      // differences between the form and the app don't hide an existing prospect.
-      // Numbers are stored as typed, so this compares in code rather than SQL;
-      // with tens of active contacts that is cheaper than it looks, but it is
-      // the thing to revisit if the table ever grows into the thousands.
-      const { data: candidates } = await supabase
-        .from('FollowUpContact')
-        .select('id, fullName, phone, cohortId, registrationStatus')
-        .is('archivedAt', null)
-        .limit(5000)
-      contact = (candidates ?? []).find((c: { phone: string }) => normalisePhone(c.phone) === normalised) ?? null
-    }
+    // Match on the normalised number rather than the raw text, so formatting
+    // differences between the form and the app don't hide an existing prospect.
+    const contact = await findContact(normalised, cohortId)
 
     if (contact) {
       if (!SIGNED_UP_STATUSES.has(String(contact.registrationStatus))) {
@@ -250,8 +266,22 @@ Deno.serve(async (req) => {
           .update({ registrationStatus: 'REGISTERED', updatedAt: new Date().toISOString() })
           .eq('id', contact.id)
         await upsertParticipant(contact)
+        return await finish('MATCHED', `Matched ${contact.fullName} and marked them registered.`, String(contact.id))
       }
-      return await finish('MATCHED', `Matched ${contact.fullName} and marked them registered.`, String(contact.id))
+      // Already signed up and filling the form again, usually to correct their
+      // name or email: update their record rather than keeping the old details.
+      const email = payload.email ? String(payload.email).trim() : ''
+      const changes: Record<string, unknown> = {}
+      if (contact.fullName !== fullName) changes.fullName = fullName
+      if (email && contact.email !== email) changes.email = email
+      if (Object.keys(changes).length) {
+        const updatedAt = new Date().toISOString()
+        await supabase.from('FollowUpContact').update({ ...changes, updatedAt }).eq('id', contact.id)
+        await supabase.from('Participant').update({ ...changes, updatedAt }).eq('followUpContactId', contact.id)
+        const what = [changes.fullName ? `name to ${fullName}` : null, changes.email ? `email to ${email}` : null].filter(Boolean).join(' and ')
+        return await finish('MATCHED', `${contact.fullName} filled the form again; updated their ${what}.`, String(contact.id))
+      }
+      return await finish('MATCHED', `${contact.fullName} is already signed up; recorded the sign-up.`, String(contact.id))
     }
 
     // Nobody in the app knows this person yet: make them a prospect waiting to be
@@ -268,7 +298,7 @@ Deno.serve(async (req) => {
         fullName,
         phone,
         source: 'Google Form',
-        cohortId: activeCohort?.id ?? null,
+        cohortId: cohortId,
         followUpCount: 0,
         registrationStatus: 'REGISTERED',
         replyStatus: 'REPLIED',
@@ -289,7 +319,7 @@ Deno.serve(async (req) => {
       id: created.id,
       fullName,
       phone,
-      cohortId: activeCohort?.id ?? null,
+      cohortId: cohortId,
     })
 
     // An import of old sign-ups would otherwise raise one alert per row.
