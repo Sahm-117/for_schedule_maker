@@ -53,6 +53,13 @@ const WhatsAppIcon = (
   </svg>
 );
 
+const EmailIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-full w-full" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="m3 7 9 6 9-6" />
+  </svg>
+);
+
 const PhoneIcon = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="h-full w-full" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -262,6 +269,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
       items={[
         { label: 'Copy number', onClick: () => { void copyNumber(contact); }, icon: PhoneIcon },
         { label: 'Send message', onClick: () => onMessage(contact), icon: WhatsAppIcon },
+        ...(contact.email ? [{ label: 'Send email', onClick: () => { window.location.href = `mailto:${contact.email}`; }, icon: EmailIcon }] : []),
         ...(canAssign ? [{ label: 'Assign a support', onClick: () => { setOwnerSearch(''); setAssigningOwner(contact); } }] : []),
         { label: 'Edit contact', onClick: () => onEdit(contact) },
         { label: `Due date: ${contact.dueDate ? dateLabel(contact.dueDate) : 'none'}`, onClick: () => { setDueDateValue(contact.dueDate || ''); setEditingDueDate(contact); } },
@@ -367,6 +375,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                     {viewingInfo === contact.id && (
                       <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
                         <p>{contact.phone || 'No phone'}</p>
+                        {contact.email && <a href={`mailto:${contact.email}`} className="mt-0.5 block break-all text-sky-200 underline">{contact.email}</a>}
                         {contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
                     {contact.createdAt && <p className="mt-0.5 text-gray-300">Added {formatDateTime(contact.createdAt)}</p>}
                       </div>
@@ -451,6 +460,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                 {viewingInfo === contact.id && (
                   <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
                     <p>{contact.phone || 'No phone'}</p>
+                    {contact.email && <a href={`mailto:${contact.email}`} className="mt-0.5 block break-all text-sky-200 underline">{contact.email}</a>}
                     {contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
                     {contact.createdAt && <p className="mt-0.5 text-gray-300">Added {formatDateTime(contact.createdAt)}</p>}
                   </div>
