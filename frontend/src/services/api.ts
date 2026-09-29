@@ -466,6 +466,7 @@ export const usersApi = USE_SUPABASE ? supabaseUsersApi : {
   },
 
   async saveThemeColor(_userId: string, _color: string | null): Promise<void> { return; },
+  async setTest(_userId: string, _isTest: boolean): Promise<void> { return; },
   async uploadAvatar(_userId: string, _file: File): Promise<{ avatarUrl: string }> {
     throw new Error('Avatar upload is not available in REST mode');
   },

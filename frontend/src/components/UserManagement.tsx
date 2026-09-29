@@ -320,6 +320,27 @@ const UserManagement: React.FC<UserManagementProps> = ({
     }
   };
 
+  // A test account keeps working, but follow-up assignment and counts skip it.
+  const handleTestChange = async (targetUser: User) => {
+    const nextIsTest = !targetUser.isTest;
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await usersApi.setTest(targetUser.id, nextIsTest);
+      const updated = { ...targetUser, isTest: nextIsTest };
+      setUsers((prev) => prev.map((entry) => (entry.id === targetUser.id ? updated : entry)));
+      if (selectedUser?.id === targetUser.id) setSelectedUser(updated);
+      setSuccess(nextIsTest
+        ? `${targetUser.name} is now a test account. Follow-up assignment and counts will ignore them.`
+        : `${targetUser.name} is no longer a test account.`);
+    } catch (error: any) {
+      setError(getErrorMessage(error, 'Failed to update the account.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handlePermanentDeleteUser = async (targetUser: User) => {
     if (targetUser.id === currentUser?.id) {
       setError('You cannot permanently delete your own account.');
@@ -410,9 +431,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const renderStatusBadge = (user: User) => (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${user.isActive === false ? 'bg-slate-100 text-slate-600' : 'bg-emerald-100 text-emerald-700'}`}>
-      {user.isActive === false ? 'Inactive' : 'Active'}
-    </span>
+    <>
+      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${user.isActive === false ? 'bg-slate-100 text-slate-600' : 'bg-emerald-100 text-emerald-700'}`}>
+        {user.isActive === false ? 'Inactive' : 'Active'}
+      </span>
+      {user.isTest && (
+        <span title="Test account: works normally, but follow-up assignment and counts ignore it." className="ml-1 inline-flex rounded-full border border-dashed border-gray-300 bg-gray-50 px-2 py-0.5 text-xs font-semibold text-gray-500">Test</span>
+      )}
+    </>
   );
 
   const toggleUserMenu = (userId: string, anchor: HTMLElement) => {
@@ -434,6 +460,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       <div className="fixed z-[100] w-44 rounded-2xl border border-gray-200 bg-white py-1 shadow-xl" style={menuPosition} role="menu">
         <button onClick={() => { openUserDetails(user); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-gray-50" role="menuitem">Manage</button>
         <button onClick={() => { setRoleChangeTarget(user); setRoleChangeValue(user.role as 'ADMIN' | 'SUPPORT'); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">Change role</button>
+        <button onClick={() => { void handleTestChange(user); setOpenMenuId(null); }} disabled={loading} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">{user.isTest ? 'Unmark as test' : 'Mark as test'}</button>
         <button onClick={() => { setResetPasswordUserId(user.id); setError(''); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-orange-500 hover:bg-gray-50" role="menuitem">Reset password</button>
         <button onClick={() => { void handleActivationChange(user); setOpenMenuId(null); }} disabled={loading || (user.isActive !== false && user.id === currentUser?.id)} className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">{user.isActive === false ? 'Reactivate' : 'Deactivate'}</button>
         <button onClick={() => { void handlePermanentDeleteUser(user); setOpenMenuId(null); }} disabled={loading || user.id === currentUser?.id} className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">Permanent delete</button>

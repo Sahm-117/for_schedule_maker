@@ -155,7 +155,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
 
   const ownerOptions: Array<{ value: string; label: string; meta?: string; ring?: { value: number; max: number } }> = [{ value: '', label: 'Unassigned' }, ...sortByText(owners, (o) => o.name).map((o) => ({
     value: o.id,
-    label: o.name,
+    label: o.isTest ? `${o.name} (test)` : o.name,
     meta: genderAgeLine(o) || undefined,
     ring: ownerLoad && maxLoad ? { value: ownerLoad.get(o.id) ?? 0, max: maxLoad } : undefined,
   }))];
@@ -199,6 +199,11 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
       activeCohortId={activeCohortId}
       onChange={canAssign && cohorts ? (patch) => onFieldChange(contact, patch) : undefined}
     />
+  );
+
+  // Test contacts stay listed so they can be found, but every count skips them.
+  const testChip = (contact: FollowUpContact) => contact.isTest && (
+    <span title="Test contact: never auto-assigned and left out of counts and exports." className="inline-flex items-center rounded-full border border-dashed border-gray-300 bg-gray-50 px-2 py-1 text-[11px] font-semibold text-gray-500">Test · ignored</span>
   );
 
   const statusDropdown = (contact: FollowUpContact) => {
@@ -261,6 +266,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         { label: 'Edit contact', onClick: () => onEdit(contact) },
         { label: `Due date: ${contact.dueDate ? dateLabel(contact.dueDate) : 'none'}`, onClick: () => { setDueDateValue(contact.dueDate || ''); setEditingDueDate(contact); } },
         { label: contact.notes ? `View note` : `Add note`, onClick: () => { setNotesValue(contact.notes || ''); setEditingNotes(contact); } },
+        ...(canAssign ? [{ label: contact.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => onFieldChange(contact, { isTest: !contact.isTest }) }] : []),
         ...(canAssign && onDelete ? [{ label: 'Delete contact', onClick: () => onDelete(contact), tone: 'danger' as const }] : []),
       ]}
     />
@@ -374,6 +380,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                           {contact.ownerName}
                         </span>
                       )}
+                      {testChip(contact)}
                       {priorCohortChip(contact)}
                       {(() => {
                         const tag = unassignedFollowUpTag(contact, owners, ownerLoad, maxLoad);
@@ -454,6 +461,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                 {canAssign && contact.ownerName && (
                   <p className="mt-0.5 text-xs text-gray-500">{contact.ownerName}</p>
                 )}
+                {contact.isTest && <div className="mt-1">{testChip(contact)}</div>}
                 {showPriorCohortChip(contact) && <div className="mt-1">{priorCohortChip(contact)}</div>}
                 {(() => {
                   const tag = unassignedFollowUpTag(contact, owners, ownerLoad, maxLoad);

@@ -190,7 +190,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   // confirmed access (they chose their password / signed in to the app).
   const mobilisationNumbers = useMemo(() => {
     if (!activeCohort) return null;
-    const scoped = allContacts.filter((c) => contactInCohortScope(c, activeCohort.id, activeCohort.id));
+    // Test contacts never count towards the numbers.
+    const scoped = allContacts.filter((c) => !c.isTest && contactInCohortScope(c, activeCohort.id, activeCohort.id));
     const current = computeFollowUpFunnel(scoped.filter((c) => c.cohortId));
     const prior = computeFollowUpFunnel(scoped.filter((c) => !c.cohortId));
     const onboarded = scoped.filter((c) => c.cohortId && computeFollowUpStatus(c) === 'ACCESS_CONFIRMED').length;

@@ -206,8 +206,12 @@ const AdminFollowUpsPage: React.FC = () => {
     setContacts((prev) => sortByText(prev.map((c) => (c.id === updated.id ? updated : c)), (contact) => contact.fullName));
   };
 
+  // Test contacts stay listed (tagged) but are left out of every count.
+  const realContacts = useMemo(() => contacts.filter((c) => !c.isTest), [contacts]);
+  const realOwners = useMemo(() => owners.filter((o) => !o.isTest), [owners]);
+
   // Load ring: open follow-ups per support against the max set in Settings.
-  const ownerLoad = useMemo(() => openLoadByOwner(contacts, activeCohort?.id), [contacts, activeCohort?.id]);
+  const ownerLoad = useMemo(() => openLoadByOwner(realContacts, activeCohort?.id), [realContacts, activeCohort?.id]);
   const [maxLoad, setMaxLoad] = useState(DEFAULT_PROGRAMME_RULES.maxFollowUpsPerSupport);
   useEffect(() => {
     settingsApi.getProgrammeRules().then((rules) => setMaxLoad(rules.maxFollowUpsPerSupport)).catch(() => {});
@@ -249,8 +253,8 @@ const AdminFollowUpsPage: React.FC = () => {
 
   const ownerOptionCounts = useMemo(() => {
     const scoped = cohortFilter
-      ? contacts.filter((c) => contactInCohortScope(c, cohortFilter, activeCohort?.id) && !c.archivedAt)
-      : contacts.filter((c) => !c.archivedAt);
+      ? realContacts.filter((c) => contactInCohortScope(c, cohortFilter, activeCohort?.id) && !c.archivedAt)
+      : realContacts.filter((c) => !c.archivedAt);
     const total = scoped.length;
     const unassigned = scoped.filter((c) => !c.ownerId).length;
     const perOwner: Record<string, number> = {};
@@ -258,21 +262,21 @@ const AdminFollowUpsPage: React.FC = () => {
       perOwner[o.id] = scoped.filter((c) => c.ownerId === o.id).length;
     });
     return { total, unassigned, perOwner };
-  }, [contacts, owners, cohortFilter, activeCohort?.id]);
+  }, [realContacts, owners, cohortFilter, activeCohort?.id]);
 
   // Waiting to be assigned but their number isn't a phone number (e.g. "00"
   // on the form). Auto-assignment holds these back until the number is fixed.
   const invalidNumberContacts = useMemo(
-    () => contacts.filter((c) => !c.ownerId && !c.archivedAt && !normalizeToIntlPhone(c.phone)),
-    [contacts],
+    () => realContacts.filter((c) => !c.ownerId && !c.archivedAt && !normalizeToIntlPhone(c.phone)),
+    [realContacts],
   );
 
   const dashboardContacts = useMemo(
-    () => (cohortFilter ? contacts.filter((c) => contactInCohortScope(c, cohortFilter, activeCohort?.id)) : contacts),
-    [contacts, cohortFilter, activeCohort?.id]
+    () => (cohortFilter ? realContacts.filter((c) => contactInCohortScope(c, cohortFilter, activeCohort?.id)) : realContacts),
+    [realContacts, cohortFilter, activeCohort?.id]
   );
 
-  const waitingCount = useMemo(() => contacts.filter(isWaitingForAssignment).length, [contacts]);
+  const waitingCount = useMemo(() => realContacts.filter(isWaitingForAssignment).length, [realContacts]);
 
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
@@ -611,7 +615,7 @@ const AdminFollowUpsPage: React.FC = () => {
           {tab === 'contacts' && (
             <FollowUpAssignmentSummary
               contacts={dashboardContacts}
-              owners={owners}
+              owners={realOwners}
               ownerLoad={ownerLoad}
               maxLoad={maxLoad}
               onSetAssignmentFilter={(value) => setFilters((f) => ({ ...f, assignment: f.assignment === value ? '' : value }))}
@@ -711,7 +715,7 @@ const AdminFollowUpsPage: React.FC = () => {
 
       {showExport && (
         <ExportContactsPopup
-          contacts={contacts}
+          contacts={realContacts}
           onClose={() => setShowExport(false)}
         />
       )}

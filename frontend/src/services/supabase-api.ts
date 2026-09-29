@@ -143,7 +143,7 @@ const friendlyUserError = (rawMessage: string | undefined, fallback: string): st
 // Auth API using Supabase Auth
 // Every column of "User" the app uses. password_hash is deliberately absent so a
 // stolen anon key (or DevTools) can never read password material.
-const USER_SELECT = 'id, email, phone, name, role, "isActive", "deactivatedAt", "isCoordinator", "avatarUrl", "themeColor", "hubLastSeenAt", "whatsappGroupUrl", gender, "ageRange", birthday, "onboardingCompleted", "onboardingReplayCount", "onboardingLastReplayAt", "mustChangePassword", "createdAt", "updatedAt"';
+const USER_SELECT = 'id, email, phone, name, role, "isActive", "isTest", "deactivatedAt", "isCoordinator", "avatarUrl", "themeColor", "hubLastSeenAt", "whatsappGroupUrl", gender, "ageRange", birthday, "onboardingCompleted", "onboardingReplayCount", "onboardingLastReplayAt", "mustChangePassword", "createdAt", "updatedAt"';
 
 export const authApi = {
   async login(identifier: string, password: string): Promise<AuthResponse> {
@@ -2570,6 +2570,20 @@ export const usersApi = {
     return { user: data as unknown as User };
   },
 
+  // Test accounts work normally but follow-up assignment and counts skip them.
+  // Admins only, checked in the database (set_user_test).
+  async setTest(userId: string, isTest: boolean): Promise<void> {
+    const { error } = await supabase.rpc('set_user_test', {
+      p_token: getSessionToken(),
+      target_user: userId,
+      p_is_test: isTest,
+    });
+    if (error) {
+      if (error.message.includes('NOT_AUTHORISED')) throw new Error('Only an admin can mark a test account.');
+      throw new Error(friendlyUserError(error.message, 'Could not save the change. Please try again.'));
+    }
+  },
+
   // Admin-issued reset: the person must set their own password at next login.
   async resetPassword(userId: string, temporaryPassword: string): Promise<void> {
     const { error } = await supabase.rpc('set_user_password', {
@@ -3451,6 +3465,7 @@ const mapFollowUpContact = (row: any): import('../types').FollowUpContact => ({
   cohortStartDate: row.Cohort?.startDate || null,
   dueDate: row.dueDate,
   archivedAt: row.archivedAt,
+  isTest: row.isTest ?? false,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });

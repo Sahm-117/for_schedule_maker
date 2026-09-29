@@ -29,6 +29,8 @@ export interface User {
   name: string;
   role: 'ADMIN' | 'SUPPORT' | 'PARTICIPANT';
   isActive?: boolean;
+  /** Test account: works normally, but follow-up assignment and counts ignore it. */
+  isTest?: boolean;
   deactivatedAt?: string | null;
   isCoordinator?: boolean;
   avatarUrl?: string | null;
@@ -330,6 +332,8 @@ export interface FollowUpContact {
   cohortStartDate?: string | null;
   dueDate?: string | null;
   archivedAt?: string | null;
+  /** Test contact: left out of assignment, counts and exports. */
+  isTest?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -356,6 +360,7 @@ export type FollowUpContactUpdate = Partial<Pick<
   | 'cohortId'
   | 'dueDate'
   | 'archivedAt'
+  | 'isTest'
 >> & {
   previousOwnerId?: string | null;
 };

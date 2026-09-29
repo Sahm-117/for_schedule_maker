@@ -169,7 +169,7 @@ export const isClosedContact = (c: FollowUpContact): boolean => {
 
 /** Unassigned and still open, i.e. what run_followup_assignment would hand out. */
 export const isWaitingForAssignment = (c: FollowUpContact): boolean =>
-  !c.ownerId && !c.archivedAt && !isClosedContact(c) && c.registrationStatus !== 'NEXT_COHORT';
+  !c.ownerId && !c.isTest && !c.archivedAt && !isClosedContact(c) && c.registrationStatus !== 'NEXT_COHORT';
 
 /**
  * Open (not closed, not archived) follow-ups each support holds in the given
@@ -179,7 +179,7 @@ export const openLoadByOwner = (contacts: FollowUpContact[], cohortId: string | 
   const map = new Map<string, number>();
   if (!cohortId) return map;
   for (const c of contacts) {
-    if (!c.ownerId || c.archivedAt || isClosedContact(c) || !contactInCohortScope(c, cohortId, cohortId)) continue;
+    if (!c.ownerId || c.isTest || c.archivedAt || isClosedContact(c) || !contactInCohortScope(c, cohortId, cohortId)) continue;
     map.set(c.ownerId, (map.get(c.ownerId) ?? 0) + 1);
   }
   return map;
@@ -204,13 +204,15 @@ export const unassignedFollowUpTag = (
   ownerLoad: Map<string, number> | undefined,
   maxLoad: number | undefined,
 ): UnassignedFollowUpTag | null => {
-  // Attended people were filed away, not waiting for anyone.
-  if (contact.ownerId || contact.registrationStatus === 'ATTENDED') return null;
+  // Attended people were filed away, and test contacts are never handed out,
+  // so neither is waiting for anyone.
+  if (contact.ownerId || contact.isTest || contact.registrationStatus === 'ATTENDED') return null;
   if (contact.gender !== 'Male' && contact.gender !== 'Female') {
     return { label: 'Gender not known', tone: 'bg-neutral-100 text-neutral-600' };
   }
   const limit = maxLoad ?? Infinity;
-  const hasRoom = owners.some((o) => o.gender === contact.gender && (ownerLoad?.get(o.id) ?? 0) < limit);
+  // Test accounts never get auto-assigned, so they don't count as room.
+  const hasRoom = owners.some((o) => !o.isTest && o.gender === contact.gender && (ownerLoad?.get(o.id) ?? 0) < limit);
   if (!hasRoom) return { label: 'No same gender to follow up', tone: 'bg-orange-100/80 text-orange-700' };
   return { label: 'Waiting to be assigned', tone: 'bg-amber-100/80 text-amber-700' };
 };
@@ -237,8 +239,8 @@ export const genderCapacityOutlook = (
   ownerLoad: Map<string, number> | undefined,
   maxLoad: number,
 ): GenderCapacityOutlook => {
-  const waiting = waitingContacts.filter((c) => !c.ownerId && c.gender === gender).length;
-  const sameGenderOwners = owners.filter((o) => o.gender === gender);
+  const waiting = waitingContacts.filter((c) => !c.ownerId && !c.isTest && c.gender === gender).length;
+  const sameGenderOwners = owners.filter((o) => !o.isTest && o.gender === gender);
   const loads = sameGenderOwners.map((o) => ownerLoad?.get(o.id) ?? 0);
   const spare = loads.reduce((sum, load) => sum + Math.max(0, maxLoad - load), 0);
   const shortfall = Math.max(0, waiting - spare);
