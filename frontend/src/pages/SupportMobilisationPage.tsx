@@ -495,9 +495,6 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               scrollable
             />
           </div>
-          <InfoTip label="About Mobilisation tabs">
-            Registration is for saving people you meet and sharing the sign-up form. Follow-ups shows people assigned to you.{isItSupport && ' IT issues shows login problems reported in your hub.'}
-          </InfoTip>
           <div data-wt="mob-more"><AppOverflowMenu items={overflowItems} /></div>
         </div>
 
