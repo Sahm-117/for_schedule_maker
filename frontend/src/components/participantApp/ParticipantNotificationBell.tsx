@@ -131,7 +131,11 @@ const ParticipantNotificationBell: React.FC = () => {
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          // Opens on Announcements while one is unread, so new ones aren't missed.
+          if (!open) setTab(announcementItems.some((n) => !n.readAt) ? 'announcements' : 'activity');
+          setOpen((v) => !v);
+        }}
         aria-label="Notifications"
         className="relative grid h-10 w-10 flex-none place-items-center rounded-2xl border border-orange-100 bg-white text-gray-500 transition hover:bg-orange-50"
       >
@@ -166,8 +170,8 @@ const ParticipantNotificationBell: React.FC = () => {
                   onClick={() => setTab(key)}
                   className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold transition ${tab === key ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}
                 >
-                  {label}
-                  {unreadIn(list) > 0 && <span className={`h-1.5 w-1.5 rounded-full ${tab === key ? 'bg-white' : 'bg-primary'}`} />}
+                  {key === 'announcements' && unreadIn(list) > 0 ? `${label} (${unreadIn(list)})` : label}
+                  {key === 'activity' && unreadIn(list) > 0 && <span className={`h-1.5 w-1.5 rounded-full ${tab === key ? 'bg-white' : 'bg-primary'}`} />}
                 </button>
               ))}
             </div>
