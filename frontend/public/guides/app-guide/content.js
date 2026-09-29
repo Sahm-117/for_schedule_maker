@@ -1862,7 +1862,7 @@ window.GUIDE_CONTENT = {
        "steps": [
         "**Programme progress** shows which week the cohort is on. Tap **Open schedule** to see the whole week.",
         "The small tiles show today's activities, your next group meeting, how many faith projects your group has drafted, and next week's class topic.",
-        "Below that are quick buttons such as **Mark attendance**, **My Hub**, **My Tasks**, **Resources** and **Recap**.",
+        "Below that are quick buttons such as **Mark attendance**, **My Hub**, **My Tasks**, **Resources** and **Classes**.",
         "Scroll down for **Today**, your **Weekly checklist** and **Recent announcements**."
        ],
        "result": "You can see what needs doing without opening any other page."
@@ -2817,9 +2817,9 @@ window.GUIDE_CONTENT = {
     },
     {
      "id": "recaps",
-     "title": "Recaps & participant questions",
-     "where": "Home → Recap",
-     "summary": "What each class covered, to take to your group, plus questions participants have asked.",
+     "title": "Classes & participant questions",
+     "where": "Home → Classes",
+     "summary": "Each class's manual before it and recap after, plus questions participants have asked.",
      "shot": "support-recaps.jpg",
      "tasks": [
       {
@@ -2833,11 +2833,11 @@ window.GUIDE_CONTENT = {
         "what was taught"
        ],
        "steps": [
-        "On Home, tap **Recap**.",
-        "The top card is this week. Tap **Read the recap**, or **Open the manual** for the class booklet.",
-        "Scroll down to **Other weeks** for earlier classes."
+        "On Home, tap **Classes**.",
+        "The top card is the next class. Tap **Open the manual** for the class booklet, or **Read the recap** once it's out.",
+        "Scroll down to **Other weeks**. A week with a lock opens when its manual arrives."
        ],
-       "result": "**Recap out** means it's ready to read. \"Recap arrives…\" tells you when it will appear.",
+       "result": "**Recap out** means it's ready to read. \"Manual arrives…\" and \"Recap arrives…\" tell you when each will appear.",
        "shot": "support-recaps.jpg"
       },
       {
@@ -2851,7 +2851,7 @@ window.GUIDE_CONTENT = {
         "to be answered in class"
        ],
        "steps": [
-        "Open **Recap**. A week with new questions shows a number, for example \"1 new\".",
+        "Open **Classes**. A week with new questions shows a number, for example \"1 new\".",
         "Open that week and find the question.",
         "Tap **Reply**, type your answer and tap **Send reply**.",
         "Or tap **To be answered in class** if it will be covered on Sunday."

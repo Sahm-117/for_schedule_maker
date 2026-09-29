@@ -10,7 +10,7 @@ import { useAppData } from '../context/AppDataContext';
 import { supportRecapsApi, manualQuestionsApi } from '../services/api';
 import type { ManualQuestion, SupportRecap } from '../types';
 import { formatRecapReleaseAt } from '../utils/recapReleaseTimes';
-import { currentWeekNumber } from '../utils/participantApp';
+import { currentWeekNumber, daysIntoCohort, weekDayDate } from '../utils/participantApp';
 
 // One big card for this week (or the newest week before the cohort starts),
 // then every other week as a quiet list that opens in place. Each week shows
@@ -27,12 +27,32 @@ const Chevron: React.FC<{ open?: boolean; className?: string }> = ({ open, class
   </svg>
 );
 
-// "Out now" / "Arrives Sun, 6pm" — a dot and a few words, nothing louder.
-const WeekState: React.FC<{ week: SupportRecap }> = ({ week }) => (
-  <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500">
-    <span className={`h-1.5 w-1.5 rounded-full ${week.released ? 'bg-emerald-500' : 'bg-amber-400'}`} aria-hidden="true" />
-    {week.released ? 'Recap out' : `Recap arrives ${formatRecapReleaseAt(week.releasedAt ? new Date(week.releasedAt) : null)}`}
-  </span>
+// A week opens once its manual is out (on its drop day, or earlier if an admin
+// sends it ahead). Until then it shows when the manual arrives.
+const isWeekOpen = (week: SupportRecap) => week.manualReleased || week.released;
+
+// "Manual arrives …" / "Manual out · Recap arrives …" / "Recap out" — a dot and a few words.
+const WeekState: React.FC<{ week: SupportRecap }> = ({ week }) => {
+  const at = (iso: string | null) => formatRecapReleaseAt(iso ? new Date(iso) : null);
+  if (!isWeekOpen(week)) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-400">
+        <svg className="h-3.5 w-3.5 flex-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2.5" /><path strokeLinecap="round" d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+        {`Manual arrives ${at(week.manualReleasedAt)}`}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500">
+      <span className={`h-1.5 w-1.5 rounded-full ${week.released ? 'bg-emerald-500' : 'bg-amber-400'}`} aria-hidden="true" />
+      {week.released ? 'Recap out' : `Manual out · Recap arrives ${at(week.releasedAt)}`}
+    </span>
+  );
+};
+
+// "Sun 11 Oct" for a week's Sunday class.
+const classDateLabel = (startDate: string | null | undefined, weekNumber: number) => (
+  startDate ? weekDayDate(startDate, weekNumber, 0).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }) : null
 );
 
 const QuestionRow: React.FC<{ question: ManualQuestion; onChanged: () => void }> = ({ question, onChanged }) => {
@@ -174,7 +194,7 @@ const SupportRecapPage: React.FC = () => {
       manualQuestionsApi.listForCohort(activeCohort.id),
     ])
       .then(([recapRes, questionRes]) => { setRecaps(recapRes.recaps); setQuestions(questionRes.questions); })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Could not load recaps.'))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Could not load classes.'))
       .finally(() => setLoading(false));
   };
 
@@ -204,15 +224,23 @@ const SupportRecapPage: React.FC = () => {
     />
   );
 
-  // Recaps arrive newest first. The big card is this week, or the newest one
-  // before the cohort has started.
-  const featured = recaps.find((w) => w.weekNumber === thisWeekNumber) ?? recaps[0] ?? null;
+  // The big card is the next class: Week 1 before the cohort starts, today's
+  // class on a Sunday, otherwise the coming Sunday's. After the last class it
+  // stays on the final week.
+  const daysIn = daysIntoCohort(activeCohort?.startDate, new Date());
+  const nextClassNumber = thisWeekNumber === 0 ? 1 : daysIn !== null && daysIn % 7 === 0 ? thisWeekNumber : thisWeekNumber + 1;
+  const lastWeek = recaps.reduce<SupportRecap | null>((last, w) => (!last || w.weekNumber > last.weekNumber ? w : last), null);
+  const featured = recaps.find((w) => w.weekNumber === nextClassNumber)
+    ?? (lastWeek && nextClassNumber > lastWeek.weekNumber ? lastWeek : null)
+    ?? recaps[0] ?? null;
   const others = recaps.filter((w) => w !== featured);
-  const isThisWeek = featured?.weekNumber === thisWeekNumber;
+  const featuredIsNext = featured?.weekNumber === nextClassNumber;
+  const featuredIsToday = featuredIsNext && daysIn !== null && daysIn >= 0 && daysIn % 7 === 0;
+  const featuredDate = featured ? classDateLabel(activeCohort?.startDate, featured.weekNumber) : null;
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="Recaps" subtitle="What each class covered, to bring to your group." back={{ label: 'Home', fallbackTo: '/support' }} />
+      <PageHeader title="Classes" subtitle="The manual before each class, the recap after." back={{ label: 'Home', fallbackTo: '/support' }} />
 
       {loading ? (
         <PageLoader />
@@ -220,16 +248,18 @@ const SupportRecapPage: React.FC = () => {
         <p className="py-16 text-center text-sm text-red-600">{error}</p>
       ) : !featured ? (
         <section className={`${SURFACE} px-8 py-14 text-center`}>
-          <p className="text-[19px] font-semibold tracking-[-0.01em] text-gray-900">No recaps yet</p>
-          <p className="mx-auto mt-2 max-w-[34ch] text-[15px] leading-[1.55] text-gray-500">When a class recap is added, it will be here.</p>
+          <p className="text-[19px] font-semibold tracking-[-0.01em] text-gray-900">No classes yet</p>
+          <p className="mx-auto mt-2 max-w-[34ch] text-[15px] leading-[1.55] text-gray-500">When a class is added, it will be here.</p>
         </section>
       ) : (
         <div className="flex flex-col gap-8">
           <section data-wt="support-recap-week" className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
-            <p className="text-[13px] font-semibold text-primary">{isThisWeek ? `This week · Week ${featured.weekNumber}` : `Week ${featured.weekNumber}`}</p>
+            <p className="text-[13px] font-semibold text-primary">
+              {featuredIsToday ? 'Today' : featuredIsNext ? 'Next class' : 'Last class'} · Week {featured.weekNumber}{featuredDate ? ` · ${featuredDate}` : ''}
+            </p>
             <h2 className="mt-1.5 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">{featured.title || `Week ${featured.weekNumber}`}</h2>
-            <div className="mb-5 mt-3"><WeekState week={featured} /></div>
-            {bodyFor(featured)}
+            <div className={isWeekOpen(featured) ? 'mb-5 mt-3' : 'mt-3'}><WeekState week={featured} /></div>
+            {isWeekOpen(featured) && bodyFor(featured)}
           </section>
 
           {others.length > 0 && (
@@ -237,19 +267,20 @@ const SupportRecapPage: React.FC = () => {
               <h3 className="mb-2.5 px-1 text-[13px] font-semibold text-gray-500">Other weeks</h3>
               <ul className={`${SURFACE} divide-y divide-[#f0f0f2] overflow-hidden`}>
                 {others.map((week) => {
-                  const open = openWeekId === week.weekId;
+                  const available = isWeekOpen(week);
+                  const open = available && openWeekId === week.weekId;
                   return (
                     <li key={week.weekId}>
-                      <button type="button" onClick={() => setOpenWeekId(open ? null : week.weekId)} aria-expanded={open} className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-[#fafafa]">
+                      <button type="button" onClick={() => setOpenWeekId(open ? null : week.weekId)} disabled={!available} aria-expanded={available ? open : undefined} className={`flex w-full items-center gap-4 px-5 py-4 text-left transition ${available ? 'hover:bg-[#fafafa]' : 'cursor-default'}`}>
                         <span className="flex h-10 w-10 flex-none items-center justify-center rounded-[14px] bg-[#f2f2f4] text-[15px] font-bold tabular-nums text-gray-900">{week.weekNumber}</span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[16px] font-semibold text-gray-900">{week.title || `Week ${week.weekNumber}`}</span>
+                          <span className={`block truncate text-[16px] font-semibold ${available ? 'text-gray-900' : 'text-gray-400'}`}>{week.title || `Week ${week.weekNumber}`}</span>
                           <WeekState week={week} />
                         </span>
                         {week.unreadQuestionCount > 0 && (
                           <span className="rounded-full bg-orange-100/80 px-2 py-0.5 text-[12px] font-bold text-orange-700">{week.unreadQuestionCount} new</span>
                         )}
-                        <Chevron open={open} />
+                        {available && <Chevron open={open} />}
                       </button>
                       {open && <div className="px-5 pb-6 pt-1">{bodyFor(week)}</div>}
                     </li>
