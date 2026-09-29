@@ -11,7 +11,7 @@ import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
 import { faithProjectsApi, faithProjectCategoriesApi, faithHelpRequestsApi, testimoniesApi, groupOnboardingStatusApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, participantPushApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
-import type { FaithHelpRequest, FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, Testimony, User } from '../types';
+import type { FaithHelpRequest, FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, RetakeMatch, Testimony, User } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 import Spinner from '../components/Spinner';
@@ -76,6 +76,13 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
     () => (weeks ?? []).filter((week) => week.cohortId === activeCohort?.id).sort((a, b) => a.weekNumber - b.weekNumber),
     [weeks, activeCohort]
   );
+
+  // Records in other cohorts on the same number, for the Retaking chip.
+  const [retakeMatches, setRetakeMatches] = useState<Map<string, RetakeMatch[]>>(new Map());
+  useEffect(() => {
+    if (!activeCohortId) return;
+    participantsApi.getRetakeMatches(activeCohortId).then(setRetakeMatches).catch(() => { /* no chips */ });
+  }, [activeCohortId, liveRevision]);
 
   const load = useCallback(async () => {
     if (!activeCohortId || !user.id) {
@@ -423,6 +430,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
               <ParticipantCard
                 key={participant.id}
                 participant={participant}
+                retakeMatches={retakeMatches.get(participant.id)}
                 groupName={selectedGroup?.groupName ?? participant.groupName ?? null}
                 project={faithProjects.find((entry) => entry.participantId === participant.id) ?? null}
                 notes={participantNotes.filter((entry) => entry.participantId === participant.id)}

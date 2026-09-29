@@ -20,6 +20,7 @@ import {
   cohortsApi,
   departmentReferralsApi,
   faithProjectsApi,
+  followUpContactsApi,
   meetingAttendanceApi,
   participantFlagsApi,
   participantHandoversApi,
@@ -35,6 +36,7 @@ import type {
   AttendanceRecord,
   DepartmentReferral,
   FaithProject,
+  FollowUpContact,
   JourneyStage,
   MeetingAttendance,
   Participant,
@@ -43,11 +45,15 @@ import type {
   ParticipantNote,
   ParticipantOnboardingStatus,
   ParticipantStageChange,
+  ParticipantUpdate,
+  RetakeMatch,
 } from '../types';
 import DepartmentHandoff from '../components/participants/DepartmentHandoff';
 import LoginDetailsCard from '../components/participants/LoginDetailsCard';
 import ParticipantAppActivity from '../components/participants/ParticipantAppActivity';
 import ProfileOverview from '../components/participants/ProfileOverview';
+import RetakingChip from '../components/participants/RetakingChip';
+import FormQuestionBox from '../components/followups/FormQuestionBox';
 import { JOURNEY_STAGES, buildJourney } from '../utils/participantJourney';
 import TourHelpButton from '../components/tour/TourHelpButton';
 import {
@@ -121,6 +127,9 @@ interface ProfileData {
   referrals: DepartmentReferral[];
   changes: ParticipantStageChange[];
   wantsToJoin: string | null;
+  /** Their follow-up contact, for the sign-up form question. */
+  contact: FollowUpContact | null;
+  retakeMatches: RetakeMatch[];
 }
 
 const AdminParticipantProfilePage: React.FC = () => {
@@ -143,7 +152,7 @@ const AdminParticipantProfilePage: React.FC = () => {
         return;
       }
       const cohortId = participant.cohortId;
-      const [health, rules, notes, handovers, flags, referrals, changes, faith, onboarding, wantsToJoin] = await Promise.all([
+      const [health, rules, notes, handovers, flags, referrals, changes, faith, onboarding, wantsToJoin, contact, retakeMatches] = await Promise.all([
         cohortId ? cohortsApi.getHealth(cohortId).catch(() => null) : Promise.resolve(null),
         settingsApi.getProgrammeRules(),
         participantNotesApi.getForParticipants([participant.id]).then((r) => r.notes).catch(() => []),
@@ -156,6 +165,8 @@ const AdminParticipantProfilePage: React.FC = () => {
           ? participantOnboardingStatusApi.getForGroup(participant.groupId).then((r) => r.statuses.find((s) => s.participantId === participant.id) ?? null).catch(() => null)
           : Promise.resolve(null),
         cohortId ? wrapUpApi.getDepartmentsForCohort(cohortId).then((m) => m.get(participant.id) ?? null).catch(() => null) : Promise.resolve(null),
+        participant.followUpContactId ? followUpContactsApi.getById(participant.followUpContactId).then((r) => r.contact).catch(() => null) : Promise.resolve(null),
+        cohortId ? participantsApi.getRetakeMatches(cohortId).then((m) => m.get(participant.id) ?? []).catch(() => [] as RetakeMatch[]) : Promise.resolve([] as RetakeMatch[]),
       ]);
       const weekIds = health?.weeks.map((w) => w.id) ?? [];
       const [sunday, meeting] = weekIds.length
@@ -168,7 +179,7 @@ const AdminParticipantProfilePage: React.FC = () => {
       const excusals = excusableIds.length
         ? await attendanceExcusalsApi.getForRecords(excusableIds).then((r) => r.excusals).catch(() => [])
         : [];
-      setData({ participant, health, rules, sunday, excusals, meeting, onboarding, faithProject: faith, notes, handovers, flags, referrals, changes, wantsToJoin });
+      setData({ participant, health, rules, sunday, excusals, meeting, onboarding, faithProject: faith, notes, handovers, flags, referrals, changes, wantsToJoin, contact, retakeMatches });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load this participant.');
     } finally {
@@ -244,6 +255,10 @@ const AdminParticipantProfilePage: React.FC = () => {
   }
 
   const { participant } = data;
+  const updateRetake = async (patch: ParticipantUpdate) => {
+    const { participant: saved } = await participantsApi.update(participant.id, patch);
+    setData((prev) => (prev ? { ...prev, participant: { ...prev.participant, ...saved, groupId: prev.participant.groupId, groupName: prev.participant.groupName } } : prev));
+  };
   const { evaluation, group, journey, weeks, judged, mode, cohort } = derived;
   const archived = participant.status !== 'ACTIVE';
   const headerPill = archived
@@ -284,6 +299,7 @@ const AdminParticipantProfilePage: React.FC = () => {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">{participant.fullName}</h1>
+              <RetakingChip participant={participant} matches={data.retakeMatches} onUpdate={updateRetake} />
               <TourHelpButton tourId="admin:participant-profile" />
             </div>
             <p className="mt-1 text-sm text-gray-500">
@@ -324,6 +340,13 @@ const AdminParticipantProfilePage: React.FC = () => {
         </dl>
         {participant.notes && (
           <p className="mt-4 whitespace-pre-wrap rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-700">{participant.notes}</p>
+        )}
+        {data.contact && (
+          <FormQuestionBox
+            contact={data.contact}
+            onChange={(contact) => setData((prev) => (prev ? { ...prev, contact } : prev))}
+            className="mt-4 max-w-xl"
+          />
         )}
         <div className="mt-4 max-w-xl">
           <ProfileOverview participant={participant} />

@@ -3467,6 +3467,9 @@ const mapFollowUpContact = (row: any): import('../types').FollowUpContact => ({
   dueDate: row.dueDate,
   archivedAt: row.archivedAt,
   isTest: row.isTest ?? false,
+  formQuestion: row.formQuestion ?? null,
+  formQuestionAnsweredAt: row.formQuestionAnsweredAt ?? null,
+  formQuestionAnsweredById: row.formQuestionAnsweredById ?? null,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
@@ -3561,6 +3564,12 @@ export const formRegistrationsApi = {
 };
 
 export const followUpContactsApi = {
+  async getById(contactId: string): Promise<{ contact: import('../types').FollowUpContact | null }> {
+    const { data, error } = await supabase.from('FollowUpContact').select(FOLLOW_UP_SELECT).eq('id', contactId).maybeSingle();
+    if (error) throw new Error(error.message);
+    return { contact: data ? mapFollowUpContact(data) : null };
+  },
+
   async getAll(options?: {
     cohortId?: string | null;
     ownerId?: string;
@@ -4109,6 +4118,9 @@ const mapParticipant = (row: any): import('../types').Participant => {
     groupId: gp?.group?.id ?? null,
     groupName: gp?.group?.name ?? null,
     isTest: !!row.isTest,
+    retakeStatus: row.retakeStatus ?? null,
+    retakeNote: row.retakeNote ?? null,
+    retakeCheckedAt: row.retakeCheckedAt ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -4296,6 +4308,20 @@ export const participantsApi = {
     const { error } = await supabase.from('Participant').delete().eq('id', participantId);
     if (error) throw new Error(error.message);
     return { message: 'Participant deleted' };
+  },
+
+  // For the Retaking chip: records in other cohorts on the same phone number,
+  // keyed by this cohort's participant id.
+  async getRetakeMatches(cohortId: string): Promise<Map<string, import('../types').RetakeMatch[]>> {
+    const { data, error } = await supabase.rpc('participant_retake_matches', { p_cohort_id: cohortId });
+    if (error) throw new Error(error.message);
+    const map = new Map<string, import('../types').RetakeMatch[]>();
+    for (const row of (data as any[]) || []) {
+      const list = map.get(row.participantId) ?? [];
+      list.push({ otherName: row.otherName, otherCohort: row.otherCohort, otherCohortStart: row.otherCohortStart ?? null, sameFirstName: !!row.sameFirstName });
+      map.set(row.participantId, list);
+    }
+    return map;
   },
 
   async upsertFromFollowUpContact(contact: import('../types').FollowUpContact): Promise<{ participant: import('../types').Participant }> {

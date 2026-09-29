@@ -33,6 +33,7 @@ import Spinner from '../components/Spinner';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
 import { compareText, sortByText } from '../utils/sort';
 import LoginDetailsCard from '../components/participants/LoginDetailsCard';
+import FormQuestionBox from '../components/followups/FormQuestionBox';
 import { emailLoginDetails, hasLoginToSend } from '../utils/loginEmail';
 
 type MobTab = 'register' | 'follow' | 'it';
@@ -901,6 +902,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       )}
                     </div>
                   )}
+                  <FormQuestionBox contact={contact} onChange={replaceContact} className="mt-2.5" />
                   {contact.notes?.trim() && (
                     <p className="mt-2.5 whitespace-pre-wrap rounded-[10px] bg-[#f6f7f9] px-3 py-2.5 text-[13px] leading-normal text-gray-700">{contact.notes}</p>
                   )}

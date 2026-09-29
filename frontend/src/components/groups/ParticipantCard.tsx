@@ -5,13 +5,14 @@ import InfoTip from '../InfoTip';
 import AppSelect from '../AppSelect';
 import DepartmentHandoff from '../participants/DepartmentHandoff';
 import ProfileOverview from '../participants/ProfileOverview';
+import RetakingChip, { RetakeMarkModal } from '../participants/RetakingChip';
 import { useToast } from '../Toast';
 import { departmentReferralsApi, faithHelpRequestsApi, faithProjectsApi, participantCheckInsApi, participantPushApi, participantFlagsApi, participantNotesApi, participantsApi } from '../../services/api';
 import { buildWhatsAppLink } from '../../utils/phone';
 import { shortMoment } from '../../utils/participantApp';
 import { unreadTrails, type FaithTrail, type ThreadReads } from '../../utils/faithThread';
 import { FAITH_HELP_REASON_LABELS } from '../../types';
-import type { DepartmentReferral, FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectStatus, Participant, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote, Testimony } from '../../types';
+import type { DepartmentReferral, FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectStatus, Participant, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote, ParticipantUpdate, RetakeMatch, Testimony } from '../../types';
 import Spinner from '../Spinner';
 
 const TESTIMONY_STATUS_CHIP: Record<Testimony['status'], { label: string; cls: string }> = {
@@ -297,6 +298,8 @@ interface ParticipantCardProps {
   testimonies?: Testimony[];
   /** Marks these testimony ids as viewed by this support (clears the "New testimony" pill). */
   onTestimonyViewed?: (ids: string[]) => void;
+  /** Records in other cohorts on the same number, for the Retaking chip. */
+  retakeMatches?: RetakeMatch[];
 }
 
 const ParticipantCard: React.FC<ParticipantCardProps> = ({
@@ -326,7 +329,13 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   onFaithHelpResolved,
   testimonies,
   onTestimonyViewed,
+  retakeMatches,
 }) => {
+  const [retakeMarkOpen, setRetakeMarkOpen] = useState(false);
+  const updateRetake = async (patch: ParticipantUpdate) => {
+    const { participant: saved } = await participantsApi.update(participant.id, patch);
+    onParticipantUpdated({ ...participant, ...saved, groupId: participant.groupId, groupName: participant.groupName });
+  };
   const [handlingHelp, setHandlingHelp] = useState(false);
   const markHelpHandled = async () => {
     if (!helpRequest) return;
@@ -501,6 +510,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${participant.status === 'ARCHIVED' ? 'bg-neutral-100 text-neutral-600' : 'bg-[#f2fbf5] text-[#15803d]'}`}>
           {participant.status === 'ARCHIVED' ? 'Archived' : 'Active'}
         </span>
+        <RetakingChip participant={participant} matches={retakeMatches} onUpdate={updateRetake} />
         {noAlerts && (
           <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600" title="They have an app login but can't receive push notifications on any device.">
             No alerts
@@ -589,6 +599,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
             <>
               <button type="button" className={menuItemCls} onClick={() => { setMenu('closed'); setViewOpen(true); }}>View</button>
               <button type="button" className={menuItemCls} onClick={() => setMenu('concern')}>{flag ? 'Attention flagged' : 'Flag concern'}</button>
+              <button type="button" className={menuItemCls} onClick={() => { setMenu('closed'); setRetakeMarkOpen(true); }}>Mark as retaking</button>
             </>
           ) : (
             <>
@@ -640,6 +651,11 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         {concernError && <p className="mt-3 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{concernError}</p>}
       </Sheet>
 
+      <RetakeMarkModal
+        participant={retakeMarkOpen ? participant : null}
+        onClose={() => setRetakeMarkOpen(false)}
+        onSave={(note) => updateRetake({ retakeStatus: 'CONFIRMED', retakeNote: note, retakeCheckedById: userId, retakeCheckedAt: new Date().toISOString() })}
+      />
       <Sheet open={viewOpen} onClose={() => setViewOpen(false)} title={participant.fullName} subtitle="Participant details">
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">

@@ -21,6 +21,7 @@ import ConfirmationModal from '../ConfirmationModal';
 import { sortByText } from '../../utils/sort';
 import { formatDate, formatDateTime } from '../../utils/time';
 import { followUpContactsApi, followUpLoginIssuesApi } from '../../services/api';
+import FormQuestionBox from './FormQuestionBox';
 
 interface FollowUpContactsTableProps {
   contacts: FollowUpContact[];
@@ -240,6 +241,22 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   );
 
   // Test contacts stay listed so they can be found, but every count skips them.
+  // The sign-up form question: a chip that opens the question box below the name.
+  const [openQuestionId, setOpenQuestionId] = useState<string | null>(null);
+  const questionChip = (contact: FollowUpContact) => !!contact.formQuestion?.trim() && (
+    <button
+      type="button"
+      onClick={() => setOpenQuestionId(openQuestionId === contact.id ? null : contact.id)}
+      aria-expanded={openQuestionId === contact.id}
+      className={`inline-flex items-center gap-0.5 whitespace-nowrap rounded-full py-1 pl-2 pr-1.5 text-[11px] font-semibold ${contact.formQuestionAnsweredAt ? 'bg-gray-100 text-gray-500' : 'bg-sky-100 text-sky-800'}`}
+    >
+      {contact.formQuestionAnsweredAt ? 'Question answered' : 'Asked a question'}
+      <svg className={`h-3 w-3 transition-transform ${openQuestionId === contact.id ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" /></svg>
+    </button>
+  );
+  const questionBox = (contact: FollowUpContact) => openQuestionId === contact.id && (
+    <FormQuestionBox contact={contact} onPatch={(patch) => onFieldChange(contact, patch)} className="mt-2 max-w-md" />
+  );
   const testChip = (contact: FollowUpContact) => contact.isTest && (
     <span title="Test contact: never auto-assigned and left out of counts and exports." className="inline-flex items-center rounded-full border border-dashed border-gray-300 bg-gray-50 px-2 py-1 text-[11px] font-semibold text-gray-500">Test · ignored</span>
   );
@@ -420,6 +437,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                           {contact.ownerName}
                         </span>
                       )}
+                      {questionChip(contact)}
                       {testChip(contact)}
                       {priorCohortChip(contact)}
                       {(() => {
@@ -427,6 +445,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                         return tag && <span className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-semibold ${tag.tone}`}>{tag.label}</span>;
                       })()}
                     </div>
+                    {questionBox(contact)}
                   </div>
                 </td>
                 {canAssign && (
@@ -503,6 +522,8 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                 {canAssign && contact.ownerName && (
                   <p className="mt-0.5 text-xs text-gray-500">{contact.ownerName}</p>
                 )}
+                {contact.formQuestion?.trim() && <div className="mt-1">{questionChip(contact)}</div>}
+                {questionBox(contact)}
                 {contact.isTest && <div className="mt-1">{testChip(contact)}</div>}
                 {showPriorCohortChip(contact) && <div className="mt-1">{priorCohortChip(contact)}</div>}
                 {(() => {

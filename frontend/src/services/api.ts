@@ -219,6 +219,7 @@ const followUpsUnavailable = () => {
 export const followUpContactsApi = USE_SUPABASE ? supabaseFollowUpContactsApi : {
   async retrySheetSync(): Promise<{ attempted: number; sent: number }> { return { attempted: 0, sent: 0 }; },
   async getNoteHistory(_contactId: string): Promise<{ entries: import('../types').FollowUpNoteEntry[] }> { return { entries: [] }; },
+  async getById(_contactId: string): Promise<{ contact: import('../types').FollowUpContact | null }> { return { contact: null }; },
   async getAll(_options?: any): Promise<{ contacts: import('../types').FollowUpContact[] }> { return { contacts: [] }; },
   async create(_input: any): Promise<never> { return followUpsUnavailable(); },
   async createMany(_rows: any[]): Promise<never> { return followUpsUnavailable(); },
@@ -611,6 +612,7 @@ export const participantsApi = USE_SUPABASE ? supabaseParticipantsApi : {
   async archive(_id: string): Promise<never> { return peopleUnavailable(); },
   async unarchive(_id: string): Promise<never> { return peopleUnavailable(); },
   async delete(_id: string): Promise<never> { return peopleUnavailable(); },
+  async getRetakeMatches(_cohortId: string): Promise<Map<string, import('../types').RetakeMatch[]>> { return new Map(); },
   async upsertFromFollowUpContact(_contact: any): Promise<never> { return peopleUnavailable(); },
   async ensureFromFollowUpContact(_contactId: string): Promise<never> { return peopleUnavailable(); },
 };

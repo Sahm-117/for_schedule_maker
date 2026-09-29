@@ -7,7 +7,8 @@ import { useAppData } from '../context/AppDataContext';
 import { participantsApi, groupsApi, participantFlagsApi, participantPushApi, cohortsApi, settingsApi, profileFieldsApi, wrapUpApi, departmentReferralsApi } from '../services/api';
 import { buildDashboardModel, type PeopleSummary } from '../components/dashboard/healthModel';
 import { PERSON_HEALTH_LABEL, type PersonHealth } from '../utils/programmeRules';
-import type { Participant, Group, ParticipantFlag } from '../types';
+import type { Participant, Group, ParticipantFlag, ParticipantUpdate, RetakeMatch } from '../types';
+import RetakingChip, { RetakeMarkModal } from '../components/participants/RetakingChip';
 import ModalShell from '../components/followups/ModalShell';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
@@ -736,7 +737,7 @@ const AssignGroupModal: React.FC<AssignGroupModalProps> = ({ participant, groups
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const AdminParticipantsPage: React.FC = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
   return <AdminParticipantsContent />;
 };
@@ -747,6 +748,9 @@ const AdminParticipantsContent: React.FC = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
   // Test participants (e.g. a demo login) are listed but left out of every count.
   const counted = useMemo(() => participants.filter((p) => !p.isTest), [participants]);
+  // Records in other cohorts on the same number, for the Retaking chip.
+  const [retakeMatches, setRetakeMatches] = useState<Map<string, RetakeMatch[]>>(new Map());
+  const [retakeMarking, setRetakeMarking] = useState<Participant | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
@@ -795,6 +799,7 @@ const AdminParticipantsContent: React.FC = () => {
     if (!silent) setLoading(true);
     try {
       profileFieldsApi.getCohortCompletion(activeCohort.id).then(setCompletionById).catch(() => { /* column stays empty */ });
+      participantsApi.getRetakeMatches(activeCohort.id).then(setRetakeMatches).catch(() => { /* no chips */ });
       const [{ participants: ps }, { groups: gs }, { flags: fs }, health, peopleData, rules, unreachableIds, wrapUpDepts] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true }),
         groupsApi.getAll({ cohortId: activeCohort.id }),
@@ -977,6 +982,11 @@ const AdminParticipantsContent: React.FC = () => {
     } catch { /* ignore */ }
   };
 
+  const handleRetakeUpdate = async (p: Participant, patch: ParticipantUpdate) => {
+    const { participant } = await participantsApi.update(p.id, patch);
+    setParticipants((prev) => prev.map((x) => x.id === p.id ? { ...x, ...participant, groupId: x.groupId, groupName: x.groupName } : x));
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const p = deleteTarget;
@@ -1144,6 +1154,7 @@ const AdminParticipantsContent: React.FC = () => {
                     <tr key={p.id} className="hover:bg-gray-50/30">
                       <td className="px-4 py-3 font-medium text-gray-900">
                         <NavLink to={`/participants/${p.id}`} className="hover:text-primary hover:underline">{p.fullName}</NavLink>
+                        <RetakingChip participant={p} matches={retakeMatches.get(p.id)} onUpdate={(patch) => handleRetakeUpdate(p, patch)} className="ml-2" />
                         {flagsByParticipant.has(p.id) && (
                           <button
                             type="button"
@@ -1215,6 +1226,7 @@ const AdminParticipantsContent: React.FC = () => {
                                 { label: 'View profile', onClick: () => navigate(`/participants/${p.id}`) },
                                 { label: 'Edit', onClick: () => { setEditing(p); setAddOpen(true); } },
                                 { label: 'Assign to group', onClick: () => setAssigning(p) },
+                                { label: 'Mark as retaking', onClick: () => setRetakeMarking(p) },
                                 { label: p.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => void handleSetTest(p, !p.isTest) },
                                 { label: 'Archive', onClick: () => setArchiveTarget(p), tone: 'danger' },
                               ]}
@@ -1295,6 +1307,17 @@ const AdminParticipantsContent: React.FC = () => {
         title="Delete permanently"
         message={`Permanently delete ${deleteTarget?.fullName}? This cannot be undone — all their attendance records will also be removed.`}
         confirmText="Delete permanently"
+      />
+
+      <RetakeMarkModal
+        participant={retakeMarking}
+        onClose={() => setRetakeMarking(null)}
+        onSave={(note) => retakeMarking && handleRetakeUpdate(retakeMarking, {
+          retakeStatus: 'CONFIRMED',
+          retakeNote: note,
+          retakeCheckedById: user?.id ?? null,
+          retakeCheckedAt: new Date().toISOString(),
+        })}
       />
 
       {exportOpen && (

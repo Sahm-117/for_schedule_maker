@@ -348,6 +348,10 @@ export interface FollowUpContact {
   archivedAt?: string | null;
   /** Test contact: left out of assignment, counts and exports. */
   isTest?: boolean;
+  /** What they wrote under "Any other questions or concerns?" on the sign-up form. */
+  formQuestion?: string | null;
+  formQuestionAnsweredAt?: string | null;
+  formQuestionAnsweredById?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -375,6 +379,8 @@ export type FollowUpContactUpdate = Partial<Pick<
   | 'dueDate'
   | 'archivedAt'
   | 'isTest'
+  | 'formQuestionAnsweredAt'
+  | 'formQuestionAnsweredById'
 >> & {
   previousOwnerId?: string | null;
 };
@@ -465,6 +471,11 @@ export interface Participant {
   avatarUrl?: string | null;
   /** Test participant (e.g. a demo login): works as normal, left out of counts. */
   isTest?: boolean;
+  /** A support/admin's answer to the Retaking chip: same person, or not. */
+  retakeStatus?: 'CONFIRMED' | 'NOT_SAME' | null;
+  /** Why they were marked as retaking by hand (e.g. "Was in FOF 8"). */
+  retakeNote?: string | null;
+  retakeCheckedAt?: string | null;
   groupId?: string | null;
   groupName?: string | null;
   createdAt?: string;
@@ -473,8 +484,17 @@ export interface Participant {
 
 export type ParticipantUpdate = Partial<Pick<Participant,
   'fullName' | 'phone' | 'cohortId' | 'notes' | 'status' |
-  'email' | 'gender' | 'ageRange' | 'departments' | 'registrationDate' | 'smartRequest' | 'isTest'
->>;
+  'email' | 'gender' | 'ageRange' | 'departments' | 'registrationDate' | 'smartRequest' | 'isTest' |
+  'retakeStatus' | 'retakeNote'
+>> & { retakeCheckedById?: string | null; retakeCheckedAt?: string | null };
+
+/** Another cohort's record on the same phone number (for the Retaking chip). */
+export interface RetakeMatch {
+  otherName: string;
+  otherCohort: string;
+  otherCohortStart: string | null;
+  sameFirstName: boolean;
+}
 
 export type ParticipantNoteType = 'HANDOVER' | 'MEETING' | 'FAITH_COACH' | 'FAITH_OFFICE' | 'CHECK_IN';
 

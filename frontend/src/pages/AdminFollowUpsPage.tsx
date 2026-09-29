@@ -8,6 +8,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import FollowUpAssignmentSettings from '../components/followups/FollowUpAssignmentSettings';
 import FollowUpDashboard from '../components/followups/FollowUpDashboard';
 import FollowUpContactsTable from '../components/followups/FollowUpContactsTable';
+import { hasOpenFormQuestion } from '../components/followups/FormQuestionBox';
 import FollowUpContactModal from '../components/followups/FollowUpContactModal';
 import ContactImportModal from '../components/followups/ContactImportModal';
 import MessageTemplatePicker from '../components/followups/MessageTemplatePicker';
@@ -220,6 +221,8 @@ const AdminFollowUpsPage: React.FC = () => {
   }, [liveRevision]);
 
   const [contactSearch, setContactSearch] = useState('');
+  // "Questions to answer": contacts whose sign-up form question isn't answered yet.
+  const [questionsOnly, setQuestionsOnly] = useState(false);
   const searching = contactSearch.trim().length > 0;
 
   const filteredContacts = useMemo(() => {
@@ -228,6 +231,7 @@ const AdminFollowUpsPage: React.FC = () => {
       if (searching) {
         if (!contactMatchesSearch(c, contactSearch)) return false;
       } else if (cohortFilter && !contactInCohortScope(c, cohortFilter, activeCohort?.id)) return false;
+      if (questionsOnly && !hasOpenFormQuestion(c)) return false;
       if (ownerFilter === '__unassigned__' && c.ownerId) return false;
       if (ownerFilter && ownerFilter !== '__unassigned__' && c.ownerId !== ownerFilter) return false;
       if (filters.archived && c.archivedAt) return false;
@@ -257,7 +261,7 @@ const AdminFollowUpsPage: React.FC = () => {
       return (aClosed - bClosed) || compareText(a.fullName, b.fullName);
     });
     return list;
-  }, [contacts, cohortFilter, ownerFilter, filters, statusParam, contactSort, activeCohort?.id, owners, ownerLoad, maxLoad, searching, contactSearch]);
+  }, [contacts, cohortFilter, ownerFilter, filters, statusParam, contactSort, activeCohort?.id, owners, ownerLoad, maxLoad, searching, contactSearch, questionsOnly]);
 
   const ownerOptionCounts = useMemo(() => {
     const scoped = cohortFilter
@@ -283,6 +287,8 @@ const AdminFollowUpsPage: React.FC = () => {
     () => (cohortFilter ? realContacts.filter((c) => contactInCohortScope(c, cohortFilter, activeCohort?.id)) : realContacts),
     [realContacts, cohortFilter, activeCohort?.id]
   );
+
+  const openQuestionCount = useMemo(() => dashboardContacts.filter(hasOpenFormQuestion).length, [dashboardContacts]);
 
   const waitingCount = useMemo(() => realContacts.filter(isWaitingForAssignment).length, [realContacts]);
 
@@ -599,6 +605,16 @@ const AdminFollowUpsPage: React.FC = () => {
               <p className="mt-1.5 px-1 text-xs text-gray-500">
                 {filteredContacts.length} match{filteredContacts.length === 1 ? '' : 'es'} across all cohorts
               </p>
+            )}
+            {(openQuestionCount > 0 || questionsOnly) && (
+              <button
+                type="button"
+                onClick={() => setQuestionsOnly((value) => !value)}
+                aria-pressed={questionsOnly}
+                className={`mt-2 inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold ${questionsOnly ? 'bg-sky-600 text-white' : 'bg-sky-100/80 text-sky-800'}`}
+              >
+                Questions to answer ({openQuestionCount})
+              </button>
             )}
           </div>
         )}
