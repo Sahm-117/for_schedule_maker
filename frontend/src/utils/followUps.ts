@@ -48,6 +48,7 @@ export const REGISTRATION_STATUS_META: Record<FollowUpRegistrationStatus, Status
   LOGIN_SHARED: { label: 'Login Shared', tone: 'bg-sky-100/80 text-sky-700' },
   LOGIN_ISSUE: { label: 'Login Issue', tone: 'bg-orange-100/80 text-orange-700' },
   ACCESS_CONFIRMED: { label: 'Access Confirmed', tone: 'bg-emerald-100/80 text-emerald-700' },
+  ATTENDED: { label: 'Attended', tone: 'bg-teal-100/80 text-teal-700' },
 };
 
 export const NEXT_ACTION_META: Record<FollowUpNextAction, StatusMeta> = {
@@ -76,6 +77,7 @@ export const FOLLOW_UP_STATUS_META: Record<FollowUpStatus, StatusMeta> = {
   NOT_INTERESTED: { label: 'Not interested', description: 'They said no, not available, or not a TCN member.', tone: 'bg-rose-100/80 text-rose-700' },
   NO_RESPONSE: { label: 'No response', description: 'They did not reply after multiple follow-ups.', tone: 'bg-neutral-100 text-neutral-600' },
   NEXT_COHORT: { label: 'Will join next cohort', description: 'They are interested but will join the next cohort.', tone: 'bg-sky-100/80 text-sky-700' },
+  ATTENDED: { label: 'Attended', description: 'From a prior cohort and already attended one. Filed under that cohort.', tone: 'bg-teal-100/80 text-teal-700' },
 };
 
 export const statusOptions = <T extends string>(meta: Record<T, StatusMeta>) =>
@@ -140,6 +142,7 @@ export const isFiledLoginShared = (c: FollowUpContact): boolean =>
 
 export const computeFollowUpStatus = (c: FollowUpContact): FollowUpStatus => {
   if (c.registrationStatus === 'ACCESS_CONFIRMED') return 'ACCESS_CONFIRMED';
+  if (c.registrationStatus === 'ATTENDED') return 'ATTENDED';
   if (c.registrationStatus === 'LOGIN_ISSUE') return 'LOGIN_ISSUE';
   if (c.registrationStatus === 'LOGIN_SHARED') return 'LOGIN_SHARED';
   if (c.registrationStatus === 'REGISTERED') return 'REGISTERED';
@@ -161,7 +164,7 @@ export const computeFollowUpStatus = (c: FollowUpContact): FollowUpStatus => {
  */
 export const isClosedContact = (c: FollowUpContact): boolean => {
   const status = computeFollowUpStatus(c);
-  return status === 'ACCESS_CONFIRMED' || status === 'WRONG_NUMBER' || status === 'NOT_INTERESTED' || status === 'NO_RESPONSE';
+  return status === 'ACCESS_CONFIRMED' || status === 'ATTENDED' || status === 'WRONG_NUMBER' || status === 'NOT_INTERESTED' || status === 'NO_RESPONSE';
 };
 
 /** Unassigned and still open, i.e. what run_followup_assignment would hand out. */
@@ -201,7 +204,8 @@ export const unassignedFollowUpTag = (
   ownerLoad: Map<string, number> | undefined,
   maxLoad: number | undefined,
 ): UnassignedFollowUpTag | null => {
-  if (contact.ownerId) return null;
+  // Attended people were filed away, not waiting for anyone.
+  if (contact.ownerId || contact.registrationStatus === 'ATTENDED') return null;
   if (contact.gender !== 'Male' && contact.gender !== 'Female') {
     return { label: 'Gender not known', tone: 'bg-neutral-100 text-neutral-600' };
   }
@@ -252,7 +256,7 @@ export const genderCapacityOutlook = (
 };
 
 export const isClosedRegistrationStatus = (status: FollowUpRegistrationStatus): boolean =>
-  status === 'ACCESS_CONFIRMED' || status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME' || status === 'NO_RESPONSE';
+  status === 'ACCESS_CONFIRMED' || status === 'ATTENDED' || status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME' || status === 'NO_RESPONSE';
 
 /**
  * Whether a contact belongs to `cohortId` for filtering purposes. Contacts
@@ -309,6 +313,7 @@ export const computeFollowUpMetrics = (contacts: FollowUpContact[]): FollowUpMet
       if (isFiledLoginShared(c)) m.closed++;
     }
     else if (status === 'ACCESS_CONFIRMED') { m.loginShared++; m.accessConfirmed++; m.contacted++; m.closed++; }
+    else if (status === 'ATTENDED') { m.contacted++; m.closed++; }
     else if (status === 'WRONG_NUMBER') { m.wrongNumber++; m.contacted++; m.closed++; }
     else if (status === 'NOT_INTERESTED') { m.notInterested++; m.contacted++; m.closed++; }
     else if (status === 'NO_RESPONSE') { m.closed++; }
@@ -369,7 +374,9 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
     }
     // A wrong number isn't a real contact, so it doesn't add to the support's
     // total; it still shows under Dropped so it's clear what happened.
-    if (computeFollowUpStatus(c) !== 'WRONG_NUMBER') row.assigned++;
+    // Attended people came from a prior cohort and were only filed away, so
+    // they aren't follow-up work for the support either.
+    if (computeFollowUpStatus(c) !== 'WRONG_NUMBER' && computeFollowUpStatus(c) !== 'ATTENDED') row.assigned++;
     const reason = stoppedReason(c);
     if (reason) reasonsByOwner.set(key, [...(reasonsByOwner.get(key) ?? []), reason]);
     if (c.registrationStatus === 'NOT_A_GOOD_TIME') row.notAGoodTime++;
@@ -392,6 +399,7 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       case 'NOT_INTERESTED': row.notInterested++; break;
       case 'NO_RESPONSE': row.noResponse++; break;
       case 'NEXT_COHORT': row.nextCohort++; break;
+      case 'ATTENDED': break;
     }
   }
   for (const [key, row] of map) {
@@ -594,6 +602,7 @@ export const FOLLOW_UP_STAGE: Record<FollowUpStatus, FollowUpStage> = {
   LOGIN_SHARED: 'loginShared',
   LOGIN_ISSUE: 'loginShared',
   ACCESS_CONFIRMED: 'done',
+  ATTENDED: 'done',
   NEXT_COHORT: 'nextCohort',
   WRONG_NUMBER: 'stopped',
   NOT_INTERESTED: 'stopped',
@@ -645,7 +654,7 @@ export interface FollowUpFunnel {
 
 const FUNNEL_ORDER: FollowUpStatus[] = [
   'TO_CONTACT', 'WAITING', 'NEEDS_REMINDER', 'REPLIED', 'CALL_BACK_LATER',
-  'REGISTERED', 'LOGIN_SHARED', 'LOGIN_ISSUE', 'ACCESS_CONFIRMED', 'NEXT_COHORT', 'WRONG_NUMBER', 'NOT_INTERESTED', 'NO_RESPONSE',
+  'REGISTERED', 'LOGIN_SHARED', 'LOGIN_ISSUE', 'ACCESS_CONFIRMED', 'ATTENDED', 'NEXT_COHORT', 'WRONG_NUMBER', 'NOT_INTERESTED', 'NO_RESPONSE',
 ];
 
 export const computeFollowUpFunnel = (contacts: FollowUpContact[]): FollowUpFunnel => {

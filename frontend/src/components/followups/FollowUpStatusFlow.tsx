@@ -5,7 +5,7 @@ import { FOLLOW_UP_STATUS_META } from '../../utils/followUps';
 const STEPS = ['Contacting', 'Registered', 'Login shared', 'Confirmed'];
 
 // Which step each status sits on. Null means the follow-up left the path
-// (next cohort, or closed without signing up) and shows as one end chip instead.
+// (next cohort, attended a prior cohort, or closed without signing up) and shows as one end chip instead.
 const STEP_INDEX: Record<FollowUpStatus, number | null> = {
   TO_CONTACT: 0,
   WAITING: 0,
@@ -16,6 +16,7 @@ const STEP_INDEX: Record<FollowUpStatus, number | null> = {
   LOGIN_SHARED: 2,
   LOGIN_ISSUE: 2,
   ACCESS_CONFIRMED: 3,
+  ATTENDED: null,
   NEXT_COHORT: null,
   WRONG_NUMBER: null,
   NOT_INTERESTED: null,

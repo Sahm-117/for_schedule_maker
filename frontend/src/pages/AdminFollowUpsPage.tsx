@@ -284,7 +284,10 @@ const AdminFollowUpsPage: React.FC = () => {
       // once it's handed to a support.
       if (patch.ownerId && !contact.cohortId && activeCohort?.id) patch.cohortId = activeCohort.id;
       if (patch.registrationStatus) {
-        if (patch.registrationStatus === 'REGISTERED') {
+        if (patch.registrationStatus === 'ATTENDED') {
+          // Filed away from the prior-cohort chip, which sets the cohort and the
+          // close columns itself. Their contact history is left as it was.
+        } else if (patch.registrationStatus === 'REGISTERED') {
           // Signing up no longer closes the follow-up -- their app login is still
           // owed. ACCESS_CONFIRMED is what closes it, and isClosedRegistrationStatus
           // covers that below.
@@ -642,6 +645,8 @@ const AdminFollowUpsPage: React.FC = () => {
               onBulkAssign={handleBulkAssign}
               ownerLoad={ownerLoad}
               maxLoad={maxLoad}
+              cohorts={cohorts}
+              activeCohortId={activeCohort?.id}
             />
           )}
           {tab === 'messages' && (

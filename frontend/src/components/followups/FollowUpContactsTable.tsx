@@ -1,13 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { FollowUpContact, FollowUpNoteEntry, FollowUpStatus, User } from '../../types';
+import type { Cohort, FollowUpContact, FollowUpNoteEntry, FollowUpStatus, User } from '../../types';
 import AppSelect from '../AppSelect';
 import LoadRing from '../LoadRing';
 import { genderAgeLine } from '../../utils/people';
 import AppOverflowMenu from '../AppOverflowMenu';
 import NotInterestedPopup from './NotInterestedPopup';
 import LoginIssuePopup from './LoginIssuePopup';
+import PriorCohortChip from './PriorCohortChip';
 import {
+  FOLLOW_UP_STATUS_META,
   computeFollowUpStatus,
   followUpStatusOptions,
   isOverdue,
@@ -33,6 +35,9 @@ interface FollowUpContactsTableProps {
   /** Open follow-ups each support holds, and the max from Settings — drives the load ring and the "full" warning. */
   ownerLoad?: Map<string, number>;
   maxLoad?: number;
+  /** With these, admins can file a "From prior cohort" contact as Attended a past cohort. */
+  cohorts?: Cohort[];
+  activeCohortId?: string | null;
 }
 
 const dateLabel = (value?: string | null) => {
@@ -65,6 +70,8 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   onBulkAssign,
   ownerLoad,
   maxLoad,
+  cohorts,
+  activeCohortId,
 }) => {
   // Assigning past a support's max asks first; it's a warning, not a block.
   const [overLoad, setOverLoad] = useState<{ name: string; load: number; adding: number; run: () => void } | null>(null);
@@ -184,9 +191,27 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     </p>
   );
 
+  const showPriorCohortChip = (contact: FollowUpContact) => !contact.cohortId || contact.registrationStatus === 'ATTENDED';
+  const priorCohortChip = (contact: FollowUpContact) => showPriorCohortChip(contact) && (
+    <PriorCohortChip
+      contact={contact}
+      cohorts={cohorts ?? []}
+      activeCohortId={activeCohortId}
+      onChange={canAssign && cohorts ? (patch) => onFieldChange(contact, patch) : undefined}
+    />
+  );
+
   const statusDropdown = (contact: FollowUpContact) => {
     const key = `${contact.id}:followUpStatus`;
     const currentStatus = computeFollowUpStatus(contact);
+    // Attended is only set (and undone) from the prior-cohort chip.
+    if (currentStatus === 'ATTENDED') {
+      return (
+        <span className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${FOLLOW_UP_STATUS_META.ATTENDED.tone}`}>
+          {FOLLOW_UP_STATUS_META.ATTENDED.label}
+        </span>
+      );
+    }
     return (
       <AppSelect
         value={currentStatus}
@@ -349,9 +374,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                           {contact.ownerName}
                         </span>
                       )}
-                      {!contact.cohortId && (
-                        <span title="Not tied to any cohort yet. Joins this cohort once assigned." className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-1 text-[11px] font-semibold text-neutral-600">From prior cohort</span>
-                      )}
+                      {priorCohortChip(contact)}
                       {(() => {
                         const tag = unassignedFollowUpTag(contact, owners, ownerLoad, maxLoad);
                         return tag && <span className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-semibold ${tag.tone}`}>{tag.label}</span>;
@@ -431,9 +454,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                 {canAssign && contact.ownerName && (
                   <p className="mt-0.5 text-xs text-gray-500">{contact.ownerName}</p>
                 )}
-                {!contact.cohortId && (
-                  <div className="mt-1"><span title="Not tied to any cohort yet. Joins this cohort once assigned." className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-1 text-[11px] font-semibold text-neutral-600">From prior cohort</span></div>
-                )}
+                {showPriorCohortChip(contact) && <div className="mt-1">{priorCohortChip(contact)}</div>}
                 {(() => {
                   const tag = unassignedFollowUpTag(contact, owners, ownerLoad, maxLoad);
                   return tag && <div className="mt-1"><span className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-semibold ${tag.tone}`}>{tag.label}</span></div>;
