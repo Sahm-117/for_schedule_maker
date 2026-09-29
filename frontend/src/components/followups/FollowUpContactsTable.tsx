@@ -132,8 +132,8 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
 
   // Email in the i pop-up: tap it to email them, or Copy it.
   const emailLine = (contact: FollowUpContact) => contact.email && (
-    <div className="mt-0.5 flex items-center gap-2">
-      <a href={`mailto:${contact.email}`} className="min-w-0 break-all text-sky-200 underline">{contact.email}</a>
+    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+      <a href={`mailto:${contact.email}`} className="max-w-full break-words text-sky-200 underline">{contact.email}</a>
       <button
         type="button"
         onClick={() => { void copyEmail(contact); }}
@@ -400,8 +400,8 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                       <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
                         <p>{contact.phone || 'No phone'}</p>
                         {emailLine(contact)}
-                        {contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
-                    {contact.createdAt && <p className="mt-0.5 text-gray-300">Added {formatDateTime(contact.createdAt)}</p>}
+                        {canAssign && contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
+                        {canAssign && contact.createdAt && <p className="mt-0.5 text-gray-300">Added {formatDateTime(contact.createdAt)}</p>}
                       </div>
                     )}
                     {contact.registeredByName && (
@@ -485,8 +485,9 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                   <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
                     <p>{contact.phone || 'No phone'}</p>
                     {emailLine(contact)}
-                    {contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
-                    {contact.createdAt && <p className="mt-0.5 text-gray-300">Added {formatDateTime(contact.createdAt)}</p>}
+                    {/* Supports only need the number and email; admins also see where they came from. */}
+                    {canAssign && contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
+                    {canAssign && contact.createdAt && <p className="mt-0.5 text-gray-300">Added {formatDateTime(contact.createdAt)}</p>}
                   </div>
                 )}
                 {contact.registeredByName && (
