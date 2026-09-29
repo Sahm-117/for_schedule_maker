@@ -233,10 +233,41 @@ const SupportRecapPage: React.FC = () => {
   const featured = recaps.find((w) => w.weekNumber === nextClassNumber)
     ?? (lastWeek && nextClassNumber > lastWeek.weekNumber ? lastWeek : null)
     ?? recaps[0] ?? null;
-  const others = recaps.filter((w) => w !== featured);
+  // Classes run in order: ones already held above the big card, the rest below.
+  const byNumber = [...recaps].sort((a, b) => a.weekNumber - b.weekNumber);
+  const pastWeeks = featured ? byNumber.filter((w) => w.weekNumber < featured.weekNumber) : [];
+  const upcomingWeeks = featured ? byNumber.filter((w) => w.weekNumber > featured.weekNumber) : [];
   const featuredIsNext = featured?.weekNumber === nextClassNumber;
   const featuredIsToday = featuredIsNext && daysIn !== null && daysIn >= 0 && daysIn % 7 === 0;
   const featuredDate = featured ? classDateLabel(activeCohort?.startDate, featured.weekNumber) : null;
+
+  const weekList = (title: string, weeks: SupportRecap[]) => weeks.length > 0 && (
+    <section>
+      <h3 className="mb-2.5 px-1 text-[13px] font-semibold text-gray-500">{title}</h3>
+      <ul className={`${SURFACE} divide-y divide-[#f0f0f2] overflow-hidden`}>
+        {weeks.map((week) => {
+          const available = isWeekOpen(week);
+          const open = available && openWeekId === week.weekId;
+          return (
+            <li key={week.weekId}>
+              <button type="button" onClick={() => setOpenWeekId(open ? null : week.weekId)} disabled={!available} aria-expanded={available ? open : undefined} className={`flex w-full items-center gap-4 px-5 py-4 text-left transition ${available ? 'hover:bg-[#fafafa]' : 'cursor-default'}`}>
+                <span className="flex h-10 w-10 flex-none items-center justify-center rounded-[14px] bg-[#f2f2f4] text-[15px] font-bold tabular-nums text-gray-900">{week.weekNumber}</span>
+                <span className="min-w-0 flex-1">
+                  <span className={`block truncate text-[16px] font-semibold ${available ? 'text-gray-900' : 'text-gray-400'}`}>{week.title || `Week ${week.weekNumber}`}</span>
+                  <WeekState week={week} />
+                </span>
+                {week.unreadQuestionCount > 0 && (
+                  <span className="rounded-full bg-orange-100/80 px-2 py-0.5 text-[12px] font-bold text-orange-700">{week.unreadQuestionCount} new</span>
+                )}
+                {available && <Chevron open={open} />}
+              </button>
+              {open && <div className="px-5 pb-6 pt-1">{bodyFor(week)}</div>}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
 
   return (
     <div className="max-w-2xl">
@@ -253,6 +284,7 @@ const SupportRecapPage: React.FC = () => {
         </section>
       ) : (
         <div className="flex flex-col gap-8">
+          {weekList('Past classes', pastWeeks)}
           <section data-wt="support-recap-week" className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
             <p className="text-[13px] font-semibold text-primary">
               {featuredIsToday ? 'Today' : featuredIsNext ? 'Next class' : 'Last class'} · Week {featured.weekNumber}{featuredDate ? ` · ${featuredDate}` : ''}
@@ -262,33 +294,7 @@ const SupportRecapPage: React.FC = () => {
             {isWeekOpen(featured) && bodyFor(featured)}
           </section>
 
-          {others.length > 0 && (
-            <section>
-              <h3 className="mb-2.5 px-1 text-[13px] font-semibold text-gray-500">Other weeks</h3>
-              <ul className={`${SURFACE} divide-y divide-[#f0f0f2] overflow-hidden`}>
-                {others.map((week) => {
-                  const available = isWeekOpen(week);
-                  const open = available && openWeekId === week.weekId;
-                  return (
-                    <li key={week.weekId}>
-                      <button type="button" onClick={() => setOpenWeekId(open ? null : week.weekId)} disabled={!available} aria-expanded={available ? open : undefined} className={`flex w-full items-center gap-4 px-5 py-4 text-left transition ${available ? 'hover:bg-[#fafafa]' : 'cursor-default'}`}>
-                        <span className="flex h-10 w-10 flex-none items-center justify-center rounded-[14px] bg-[#f2f2f4] text-[15px] font-bold tabular-nums text-gray-900">{week.weekNumber}</span>
-                        <span className="min-w-0 flex-1">
-                          <span className={`block truncate text-[16px] font-semibold ${available ? 'text-gray-900' : 'text-gray-400'}`}>{week.title || `Week ${week.weekNumber}`}</span>
-                          <WeekState week={week} />
-                        </span>
-                        {week.unreadQuestionCount > 0 && (
-                          <span className="rounded-full bg-orange-100/80 px-2 py-0.5 text-[12px] font-bold text-orange-700">{week.unreadQuestionCount} new</span>
-                        )}
-                        {available && <Chevron open={open} />}
-                      </button>
-                      {open && <div className="px-5 pb-6 pt-1">{bodyFor(week)}</div>}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
+          {weekList('Coming up', upcomingWeeks)}
         </div>
       )}
 
