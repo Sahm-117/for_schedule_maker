@@ -147,6 +147,11 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   // Follow-up cards whose "Number needs checking" strip is open.
   const [numberHelpOpen, setNumberHelpOpen] = useState<Record<string, boolean>>({});
   const [copiedEmailId, setCopiedEmailId] = useState<string | null>(null);
+  // The i pop-up by a follow-up's name: their number and email.
+  const [infoOpenId, setInfoOpenId] = useState<string | null>(null);
+  const copyText = async (text: string) => {
+    try { await navigator.clipboard.writeText(text); toast({ message: 'Number copied' }); } catch { /* ignore */ }
+  };
   const copyEmail = async (contactId: string, email: string) => {
     try {
       await navigator.clipboard.writeText(email);
@@ -775,33 +780,46 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               return (
                 <section key={contact.id} className={`${CARD} p-4`}>
                   <div className="flex items-center gap-2">
-                    <p className="min-w-0 flex-1 truncate text-[15px] font-bold text-gray-900">{contact.fullName}</p>
-                    <span className={`flex-none whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.tone}`}>{meta.label}</span>
-                    <button
-                      type="button"
-                      onClick={() => setEditingContact(contact)}
-                      aria-label={`Edit ${contact.fullName}`}
-                      title="Edit details"
-                      className="grid h-8 w-8 flex-none place-items-center rounded-[10px] border border-gray-200 bg-white text-gray-500 hover:text-gray-700"
-                    >
-                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Z" /></svg>
-                    </button>
-                  </div>
-                  <p className="mt-1 text-[12.5px] text-gray-500">{contact.phone || 'No phone'}{assigned ? ` · assigned ${assigned}` : ''}</p>
-                  {/* Their email, for when the number doesn't get through. A number that
-                      isn't a phone number shows it in the "Number needs checking" box instead. */}
-                  {phoneOk && contact.email?.trim() && (
-                    <div className="mt-1 flex items-center gap-2">
-                      <a href={`mailto:${contact.email.trim()}`} className="min-w-0 truncate text-[12.5px] text-sky-700 underline">{contact.email.trim()}</a>
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                      <p className="min-w-0 truncate text-[15px] font-bold text-gray-900">{contact.fullName}</p>
                       <button
                         type="button"
-                        onClick={() => { void copyEmail(contact.id, contact.email!.trim()); }}
-                        className="flex-none rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-[11.5px] font-semibold text-gray-600 hover:bg-gray-50"
+                        onClick={() => setInfoOpenId(infoOpenId === contact.id ? null : contact.id)}
+                        aria-label={`${contact.fullName}'s number and email`}
+                        aria-expanded={infoOpenId === contact.id}
+                        className="inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-gray-200 text-[11px] font-bold text-gray-600 transition hover:bg-gray-300"
                       >
-                        {copiedEmailId === contact.id ? 'Copied!' : 'Copy'}
+                        i
                       </button>
                     </div>
+                    <span className={`flex-none whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.tone}`}>{meta.label}</span>
+                    <AppOverflowMenu
+                      items={[
+                        ...(contact.phone?.trim() ? [{ label: 'Copy number', onClick: () => { void copyText(contact.phone!.trim()); } }] : []),
+                        ...(waLink ? [{ label: 'Send message', onClick: () => { window.open(waLink, '_blank', 'noopener,noreferrer'); } }] : []),
+                        ...(contact.email?.trim() ? [{ label: 'Send email', onClick: () => { window.location.href = `mailto:${contact.email!.trim()}`; } }] : []),
+                        { label: 'Edit contact', onClick: () => setEditingContact(contact) },
+                      ]}
+                    />
+                  </div>
+                  {infoOpenId === contact.id && (
+                    <div className="mt-1.5 inline-block max-w-full rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
+                      <p>{contact.phone || 'No phone'}</p>
+                      {contact.email?.trim() && (
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <a href={`mailto:${contact.email.trim()}`} className="max-w-full break-words text-sky-200 underline">{contact.email.trim()}</a>
+                          <button
+                            type="button"
+                            onClick={() => { void copyEmail(contact.id, contact.email!.trim()); }}
+                            className="shrink-0 rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-white/25"
+                          >
+                            {copiedEmailId === contact.id ? 'Copied!' : 'Copy'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
+                  <p className="mt-1 text-[12.5px] text-gray-500">{contact.phone || 'No phone'}{assigned ? ` · assigned ${assigned}` : ''}</p>
                   {!phoneOk && (
                     <div className="mt-2.5 rounded-[12px] bg-amber-50 text-amber-800">
                       <button
