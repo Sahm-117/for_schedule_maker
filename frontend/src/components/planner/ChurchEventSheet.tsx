@@ -77,8 +77,9 @@ const ChurchEventSheet: React.FC<ChurchEventSheetProps> = ({ isOpen, onClose, ev
 
   return (
     <>
+      {/* Hidden while "Delete this event?" is up: that box isn't portalled, so the sheet would cover it. */}
       <ModalShell
-        isOpen={isOpen}
+        isOpen={isOpen && !confirmDelete}
         onClose={onClose}
         title={event ? 'Edit church event' : 'Add a church event'}
         footer={
