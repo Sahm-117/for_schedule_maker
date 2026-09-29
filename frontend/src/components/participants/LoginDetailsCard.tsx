@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { participantAccountsApi, participantsApi } from '../../services/api';
 import { buildWhatsAppLink } from '../../utils/phone';
+import { buildLoginEmailBody, buildLoginMailLink, fetchLoginDetails, firstClassText } from '../../utils/loginEmail';
 import { useAuth } from '../../hooks/useAuth';
 import type { ParticipantLoginDetails } from '../../types';
 
@@ -21,18 +21,8 @@ interface LoginDetailsCardProps {
   email?: string | null;
 }
 
-const EMAIL_SUBJECT = 'Your Foundation of Faith app login';
-
 const formatDay = (value: string | null) =>
   value ? new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
-
-// "October 11" while the first class is still ahead; otherwise just "Sunday".
-const firstClassText = (startDate?: string | null) => {
-  if (!startDate) return 'Sunday';
-  const date = new Date(`${startDate.slice(0, 10)}T12:00:00`);
-  if (Number.isNaN(date.getTime()) || date.getTime() < Date.now() - 12 * 60 * 60 * 1000) return 'Sunday';
-  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-};
 
 const errorText = (err: unknown) => {
   const message = err instanceof Error ? err.message : '';
@@ -55,21 +45,7 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
     setLoading(true);
     setError('');
     try {
-      let result = await participantAccountsApi.getLoginDetails(target, options);
-      // A prospect just marked Registered gets its participant record a moment later,
-      // so when sending, wait briefly before calling it missing.
-      for (let attempt = 0; options.issue && result.status === 'NO_PARTICIPANT' && attempt < 3; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1200));
-        result = await participantAccountsApi.getLoginDetails(target, options);
-      }
-      // Registered always means Participant. Older registrations may predate that
-      // hand-off, so repair the record automatically rather than asking support to
-      // decide or perform a back-office task.
-      if (options.issue && result.status === 'NO_PARTICIPANT' && followUpContactId) {
-        await participantsApi.ensureFromFollowUpContact(followUpContactId);
-        result = await participantAccountsApi.getLoginDetails(target, options);
-      }
-      setDetails(result);
+      setDetails(await fetchLoginDetails(target, options));
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -101,29 +77,8 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
     : '';
   const waLink = message ? buildWhatsAppLink(details?.phone, message) : null;
 
-  // The same details by email, for when calls and WhatsApp don't get through:
-  // says why they're getting an email, who is writing, and how to reply.
-  const emailTo = email?.trim() || '';
-  const supportPhone = user?.phone?.trim() || '';
-  const emailBody = details?.setupCode
-    ? `Hello ${firstName},\n\n`
-      + 'We tried to reach you by phone and on WhatsApp, but couldn\'t get through, so we\'re sending your details by email instead.\n\n'
-      + (user?.name ? `My name is ${user.name}, from TCN Ikorodu. ` : '')
-      + 'Well done on registering for Foundation Of Faith! Here are your login details for the FOF App:\n\n'
-      + `App link: https://fof.tcnikorodu.org/login\n`
-      + `Username: ${details.phone}\n`
-      + `First-time password: ${details.setupCode}\n\n`
-      + 'You will be asked to set your own password when you first sign in.\n\n'
-      + (supportPhone
-        ? `If you have any questions, reply to this email or reach me on ${supportPhone}. `
-        : 'If you have any questions, just reply to this email. ')
-      + 'If the phone number we have for you isn\'t right, please reply with a number we can reach you on.\n\n'
-      + `See you on ${firstClassText(startDate)}.`
-      + (user?.name ? `\n\n${user.name}\nFoundation of Faith, TCN Ikorodu` : '')
-    : '';
-  const mailLink = emailTo && emailBody
-    ? `mailto:${emailTo}?subject=${encodeURIComponent(EMAIL_SUBJECT)}&body=${encodeURIComponent(emailBody)}`
-    : null;
+  // The same details by email, for when calls and WhatsApp don't get through.
+  const mailLink = details?.setupCode ? buildLoginMailLink(email, buildLoginEmailBody(details, user, startDate)) : null;
 
   const copy = async () => {
     try {

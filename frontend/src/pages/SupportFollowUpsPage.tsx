@@ -28,6 +28,8 @@ import {
 } from '../utils/followUps';
 import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { compareText, sortByText } from '../utils/sort';
+import { useToast } from '../components/Toast';
+import { emailLoginDetails, hasLoginToSend } from '../utils/loginEmail';
 
 type Tab = 'contacts' | 'issues';
 
@@ -109,6 +111,21 @@ const SupportFollowUpsPage: React.FC = () => {
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
   const [messagingContact, setMessagingContact] = useState<FollowUpContact | null>(null);
   const [messageChannel, setMessageChannel] = useState<'whatsapp' | 'email'>('whatsapp');
+  const toast = useToast();
+  // Send email: once they're registered it opens the email app with their login
+  // details; before that (or if there's no login to send), the templates.
+  const sendEmail = async (contact: FollowUpContact) => {
+    const openTemplates = () => { setMessageChannel('email'); setMessagingContact(contact); };
+    if (!hasLoginToSend(contact)) { openTemplates(); return; }
+    try {
+      const result = await emailLoginDetails(contact, user);
+      if (result === 'password-set') toast({ message: `${contact.fullName.split(' ')[0]} has set their own password, so there's no login to send.` });
+      if (result !== 'opened') openTemplates();
+    } catch {
+      toast({ message: 'Could not load their login details. Choose a message instead.' });
+      openTemplates();
+    }
+  };
   const [showExport, setShowExport] = useState(false);
 
 
@@ -415,7 +432,7 @@ const SupportFollowUpsPage: React.FC = () => {
                 canAssign={false}
                 onFieldChange={(c, patch) => handleFieldChange(c, patch)}
                 onMessage={(c) => { setMessageChannel('whatsapp'); setMessagingContact(c); }}
-                onEmail={(c) => { setMessageChannel('email'); setMessagingContact(c); }}
+                onEmail={(c) => { void sendEmail(c); }}
                 onLogContact={(c) => { void handleLogContact(c); }}
                 onEdit={setEditingContact}
               />

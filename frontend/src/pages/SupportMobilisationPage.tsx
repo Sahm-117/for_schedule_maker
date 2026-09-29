@@ -33,6 +33,7 @@ import Spinner from '../components/Spinner';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
 import { compareText, sortByText } from '../utils/sort';
 import LoginDetailsCard from '../components/participants/LoginDetailsCard';
+import { emailLoginDetails, hasLoginToSend } from '../utils/loginEmail';
 
 type MobTab = 'register' | 'follow' | 'it';
 
@@ -141,6 +142,20 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const openTemplates = (contact: FollowUpContact, channel: 'whatsapp' | 'email') => {
     setMessageChannel(channel);
     setMessagingContact(contact);
+  };
+  // Send email: once they're registered it opens the email app with their login
+  // details; before that, the templates. Falls back to the templates if there's no
+  // login to send (they've set their own password, or it isn't ready yet).
+  const sendEmail = async (contact: FollowUpContact) => {
+    if (!hasLoginToSend(contact)) { openTemplates(contact, 'email'); return; }
+    try {
+      const result = await emailLoginDetails(contact, user);
+      if (result === 'password-set') toast({ message: `${contact.fullName.split(' ')[0]} has set their own password, so there's no login to send.` });
+      if (result !== 'opened') openTemplates(contact, 'email');
+    } catch {
+      toast({ message: 'Could not load their login details. Choose a message instead.' });
+      openTemplates(contact, 'email');
+    }
   };
   const [notInterestedContact, setNotInterestedContact] = useState<FollowUpContact | null>(null);
   const [showIssues, setShowIssues] = useState(false);
@@ -829,7 +844,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       items={[
                         ...(contact.phone?.trim() ? [{ label: 'Copy number', onClick: () => { void copyText(contact.phone!.trim()); } }] : []),
                         ...(waLink ? [{ label: 'Send message', onClick: () => { window.open(waLink, '_blank', 'noopener,noreferrer'); } }] : []),
-                        ...(contact.email?.trim() ? [{ label: 'Send email', onClick: () => openTemplates(contact, 'email') }] : []),
+                        ...(contact.email?.trim() ? [{ label: 'Send email', onClick: () => { void sendEmail(contact); } }] : []),
                         { label: 'Edit contact', onClick: () => setEditingContact(contact) },
                       ]}
                     />
@@ -839,7 +854,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       <p>{contact.phone || 'No phone'}</p>
                       {contact.email?.trim() && (
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <button type="button" onClick={() => openTemplates(contact, 'email')} className="max-w-full break-words text-left text-sky-200 underline">{contact.email.trim()}</button>
+                          <button type="button" onClick={() => { void sendEmail(contact); }} className="max-w-full break-words text-left text-sky-200 underline">{contact.email.trim()}</button>
                           <button
                             type="button"
                             onClick={() => { void copyEmail(contact.id, contact.email!.trim()); }}
@@ -876,7 +891,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                                 <p className="text-[11px] font-semibold text-gray-500">Email (from form)</p>
                                 <p className="truncate text-[13.5px] font-semibold text-gray-900">{contact.email.trim()}</p>
                               </div>
-                              <button type="button" onClick={() => openTemplates(contact, 'email')} className="flex-none rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-700">Email</button>
+                              <button type="button" onClick={() => { void sendEmail(contact); }} className="flex-none rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-700">Email</button>
                             </div>
                           )}
                           <button type="button" onClick={() => setEditingContact(contact)} className="mt-2.5 flex min-h-[38px] w-full items-center justify-center rounded-[10px] border border-amber-200 bg-white text-[12.5px] font-semibold text-amber-800">

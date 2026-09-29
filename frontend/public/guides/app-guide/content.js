@@ -2321,7 +2321,7 @@ window.GUIDE_CONTENT = {
        "result": "WhatsApp opens with the message ready to send, and the app notes that you've contacted them.",
        "tips": [
         "You can also tap **WhatsApp** or **Call** on the card to reach them without a template.",
-        "No WhatsApp? Tap **⋮** on their card, then **Send email** (or tap their email under the **i**). Pick a template the same way and tap **Open email**. Your email app opens with the message ready to send."
+        "No WhatsApp? Tap **⋮** on their card, then **Send email** (or tap their email under the **i**). Pick a template the same way and tap **Open email**. Your email app opens with the message ready to send. Once they've registered, Send email opens their login details instead."
        ],
        "shot": "support-follow-up-templates.jpg"
       },
@@ -2336,16 +2336,17 @@ window.GUIDE_CONTENT = {
         "not on whatsapp",
         "can't reach",
         "copy email",
-        "send email"
+        "send email",
+        "email login"
        ],
        "steps": [
         "On their card, tap the **i** next to their name. Their number and email show.",
         "Tap the email to write to them, or tap **Copy** to paste it somewhere else.",
         "Or tap **⋮** at the top right of the card, then **Send email**."
        ],
-       "result": "You pick a ready-made message, check the preview and tap **Open email**. Your email app opens with it ready to send.",
+       "result": "Before they register, you pick a ready-made message, check the preview and tap **Open email**. Once they've registered, your email app opens straight away with their login details: it says you couldn't reach them by phone, introduces you, and gives their username and first-time password. Either way, check it and tap send.",
        "tips": [
-        "If they've registered, use **Send by email** in **Their login details** instead, so they get their login too.",
+        "If they've already set their own password, there's no login to send, so you pick a message instead.",
         "If there's no email, they didn't give one on the form. Let the admin know.",
         "Don't see the **i**? Close the app completely and open it again to get the latest version."
        ],
