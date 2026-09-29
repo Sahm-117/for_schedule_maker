@@ -5,9 +5,14 @@ import type { FollowUpContact } from '../../types';
 interface ExportContactsPopupProps {
   contacts: FollowUpContact[];
   onClose: () => void;
+  /** Adds an "Include closed" switch (off by default) that brings archived contacts into the list. */
+  closedToggle?: boolean;
 }
 
-const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts, onClose }) => {
+const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: allContacts, onClose, closedToggle = false }) => {
+  const [includeClosed, setIncludeClosed] = useState(false);
+  const closedCount = closedToggle ? allContacts.filter((c) => !!c.archivedAt).length : 0;
+  const contacts = closedToggle && !includeClosed ? allContacts.filter((c) => !c.archivedAt) : allContacts;
   const [copiedAll, setCopiedAll] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -46,6 +51,22 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts, onC
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
+
+        {closedToggle && (
+          <label className="flex items-center justify-between gap-3 px-5 pt-3 text-[13px] font-semibold text-gray-700">
+            <span>Include closed ({closedCount})</span>
+            <button
+              type="button"
+              onClick={() => setIncludeClosed((v) => !v)}
+              aria-pressed={includeClosed}
+              aria-label="Include closed follow-ups"
+              disabled={closedCount === 0}
+              className={`relative h-6 w-11 rounded-full transition disabled:opacity-40 ${includeClosed ? 'bg-primary' : 'bg-gray-300'}`}
+            >
+              <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${includeClosed ? 'translate-x-5' : ''}`} />
+            </button>
+          </label>
+        )}
 
         <div className="px-5 py-3">
           <button

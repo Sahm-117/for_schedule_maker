@@ -495,9 +495,6 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               scrollable
             />
           </div>
-          <InfoTip label="About Mobilisation tabs">
-            Registration is for saving people you meet and sharing the sign-up form. Follow-ups shows people assigned to you.{isItSupport && ' IT issues shows login problems reported in your hub.'}
-          </InfoTip>
           <div data-wt="mob-more"><AppOverflowMenu items={overflowItems} /></div>
         </div>
 
@@ -815,13 +812,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
 
         {tab === 'it' && isItSupport && (
           <>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[13px] font-semibold text-gray-700">{itShowResolved ? 'Resolved login issues' : 'Login issues in your hub'}</span>
-              <InfoTip label="About IT issues">
-                <span className="block">When a support picks Issue with login, it shows here with what they wrote.</span>
-                <span className="mt-2 block">Reach the person or their support, send a new login code if needed, then mark it resolved. If they have signed in, they move to Participant confirmed access. If not yet, back to Login shared.</span>
-              </InfoTip>
-              <div className="ml-auto grid grid-cols-2 gap-0.5 rounded-full bg-[#f2f2f4] p-1 text-xs font-semibold">
+            <div className="flex items-center justify-end gap-2">
+              <div className="grid grid-cols-2 gap-0.5 rounded-full bg-[#f2f2f4] p-1 text-xs font-semibold">
                 <button type="button" onClick={() => setItShowResolved(false)} aria-pressed={!itShowResolved} className={`rounded-full px-3.5 py-1.5 transition ${!itShowResolved ? 'bg-white text-gray-900 shadow-[0_1px_3px_rgba(17,24,39,0.12)]' : 'text-gray-600'}`}>
                   Open ({openItIssues.length})
                 </button>
@@ -835,6 +827,10 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   Resolved ({resolvedItIssues.length})
                 </button>
               </div>
+              <InfoTip label="About IT issues">
+                <span className="block">When a support picks Issue with login, it shows here with what they wrote.</span>
+                <span className="mt-2 block">Reach the person or their support, send a new login code if needed, then mark it resolved. If they have signed in, they move to Participant confirmed access. If not yet, back to Login shared.</span>
+              </InfoTip>
             </div>
 
             {visibleItIssues.length === 0 ? (
@@ -1000,7 +996,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
         />
       </ModalShell>
 
-      {showExport && <ExportContactsPopup contacts={contacts} onClose={() => setShowExport(false)} />}
+      {showExport && <ExportContactsPopup contacts={cohortScopedContacts} closedToggle onClose={() => setShowExport(false)} />}
     </div>
   );
 };

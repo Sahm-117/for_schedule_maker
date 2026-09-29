@@ -8,7 +8,7 @@ import { announcementsApi, faithProjectsApi, groupsApi, meetingAttendanceApi, my
 import type { Announcement, FaithProject, Group, HubJob, MyHubPayload, Participant, ParticipantCheckIn, SupportActivityCompletion, SupportChecklistItem, SupportKind, User } from '../types';
 import { getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { sortByText } from '../utils/sort';
-import { getIdealWeekNumberForCohort } from '../utils/weekFocus';
+import { currentWeekNumber, daysIntoCohort, weekDayDate } from '../utils/participantApp';
 import { normalizeLink } from '../utils/links';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
@@ -342,10 +342,15 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
       (project) => participantIds.has(project.participantId) && ['UNDER_REFINEMENT', 'NEEDS_REFINEMENT', 'APPROVED'].includes(project.status)
     ).length;
   }, [faithProjects, participants]);
-  // Next class: the week after the current program week (rolls Sunday 10am)
-  const currentIdealWeekNumber = getIdealWeekNumberForCohort(activeCohort, now);
-  const currentIdealIndex = cohortWeeks.findIndex((w) => w.weekNumber === currentIdealWeekNumber);
-  const nextWeek = currentIdealIndex >= 0 ? cohortWeeks[currentIdealIndex + 1] ?? null : null;
+  // Next class (same rule as the Classes page): Week 1 before the cohort
+  // starts, today's class on a Sunday, otherwise the coming Sunday's.
+  const cohortDay = daysIntoCohort(activeCohort?.startDate, now);
+  const cohortWeekNumber = currentWeekNumber(activeCohort?.startDate, now);
+  const nextClassNumber = cohortWeekNumber === 0 ? 1 : cohortDay !== null && cohortDay % 7 === 0 ? cohortWeekNumber : cohortWeekNumber + 1;
+  const nextWeek = cohortWeeks.find((w) => w.weekNumber === nextClassNumber) ?? null;
+  const nextClassDate = nextWeek && activeCohort?.startDate
+    ? weekDayDate(activeCohort.startDate, nextWeek.weekNumber, 0).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+    : null;
 
   const checkedCount = checklist.filter((item) => item.done).length;
   const checklistPct = checklist.length > 0 ? Math.round((checkedCount / checklist.length) * 100) : 0;
@@ -398,7 +403,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
               ) : (
                 <QuickStat title="Faith Projects" value={`${draftedProjectCount}/${participants.length}`} detail={participants.length > 0 ? 'Participants drafted' : 'No participants yet'} to="/support/participants" tone="green" />
               )}
-              <QuickStat title="Next class" value={nextWeek?.title?.trim() || 'Not set'} detail={nextWeek ? "This week's topic" : 'Programme complete'} to="/support/schedule" tone="blue" />
+              <QuickStat title="Next class" value={nextWeek ? nextWeek.title?.trim() || `Week ${nextWeek.weekNumber}` : 'Not set'} detail={nextWeek ? nextClassDate ?? `Week ${nextWeek.weekNumber}` : 'Programme complete'} to="/support/recap" tone="blue" />
             </div>
           </section>
 
@@ -546,7 +551,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
             )}
             <QuickLink to="/support/schedule?tab=checklist" label="My Tasks" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 11l3 3L22 4M2 12a10 10 0 1 0 5-8.66" />} />
             <QuickLink to="/support/resources" label="Resources" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Zm0 17A2.5 2.5 0 0 1 6.5 19H20" />} />
-            <QuickLink to="/support/recap" label="Recap" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M7 3h7l5 5v13H7zM14 3v5h5M9 13h6M9 17h6" />} />
+            <QuickLink to="/support/recap" label="Classes" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M7 3h7l5 5v13H7zM14 3v5h5M9 13h6M9 17h6" />} />
           </div>
 
           <section data-wt="home-schedule" className="overflow-hidden rounded-[22px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">

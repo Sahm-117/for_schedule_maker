@@ -15,6 +15,7 @@ import { normalizeLink } from '../utils/links';
 import {
   FAITH_PROJECT_PARTICIPANT_LABEL,
   currentWeekNumber,
+  daysIntoCohort,
   formatTime,
   hasDoneReadyStep,
   markReadyStepDone,
@@ -107,6 +108,17 @@ const ParticipantHomePage: React.FC = () => {
       if (startsAt > clockHour.getTime()) return { week: w, date };
     }
     return null;
+  })();
+
+  // Once the cohort has started: the next class (same rule as the support
+  // Home and Classes page) — today's class on a Sunday, otherwise the coming
+  // Sunday's. Null after the last class.
+  const upcomingClass = (() => {
+    if (!home.cohort?.startDate || !started) return null;
+    const day = daysIntoCohort(home.cohort.startDate, now);
+    const number = day !== null && day % 7 === 0 ? weekNumber : weekNumber + 1;
+    const w = home.weeks.find((x) => x.weekNumber === number);
+    return w ? { week: w, date: weekDayDate(home.cohort.startDate, number, 0) } : null;
   })();
 
   const group = home.group;
@@ -295,25 +307,37 @@ const ParticipantHomePage: React.FC = () => {
 
           <div className="mt-4 grid grid-cols-2 gap-2.5">
             {preStart ? (
-              <div className="rounded-2xl border border-[#f1f2f5] bg-white p-3.5">
-                <p className="text-xs font-semibold text-gray-500">Your group</p>
-                <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{group?.name || 'Not assigned yet'}</p>
-                {group?.supportName && <p className="mt-0.5 text-xs text-gray-400">Support: {group.supportName}</p>}
-              </div>
+              <>
+                <div className="rounded-2xl border border-[#f1f2f5] bg-white p-3.5">
+                  <p className="text-xs font-semibold text-gray-500">Your group</p>
+                  <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{group?.name || 'Not assigned yet'}</p>
+                  {group?.supportName && <p className="mt-0.5 text-xs text-gray-400">Support: {group.supportName}</p>}
+                </div>
+                <div className="rounded-2xl border border-[#fbe4e8] bg-[#fdf2f4] p-3.5">
+                  <p className="text-xs font-semibold text-[#9d5b68]">Next session</p>
+                  <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">
+                    {nextClass ? `${formatDateLabel(nextClass.date).split(',')[0]}${nextClass.week.classTime ? `, ${formatTime(nextClass.week.classTime)}` : ''}` : '—'}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[#9d5b68]">{nextClass ? `Class ${nextClass.week.weekNumber}` : 'No more classes'}</p>
+                </div>
+              </>
+            ) : upcomingClass ? (
+              <NavLink to={`/me/week/${upcomingClass.week.weekNumber}`} className="col-span-2 flex items-center gap-3 rounded-2xl border border-[#fbe4e8] bg-[#fdf2f4] p-3.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-[#9d5b68]">Next class · Class {upcomingClass.week.weekNumber}</p>
+                  <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{upcomingClass.week.title?.trim() || `Class ${upcomingClass.week.weekNumber}`}</p>
+                  <p className="mt-0.5 text-xs text-[#9d5b68]">
+                    {formatDateLabel(upcomingClass.date).split(',')[0]}{upcomingClass.week.classTime ? `, ${formatTime(upcomingClass.week.classTime)}` : ''}
+                  </p>
+                </div>
+                <svg className="h-4 w-4 flex-none text-[#9d5b68]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" /></svg>
+              </NavLink>
             ) : (
-              <div className="rounded-2xl border border-[#f1f2f5] bg-white p-3.5">
-                <p className="text-xs font-semibold text-gray-500">This week&apos;s class</p>
-                <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{week?.title || '—'}</p>
-                {week && <p className="mt-0.5 text-xs text-gray-400">Class {week.weekNumber}</p>}
+              <div className="col-span-2 rounded-2xl border border-[#fbe4e8] bg-[#fdf2f4] p-3.5">
+                <p className="text-xs font-semibold text-[#9d5b68]">Next class</p>
+                <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">Programme complete</p>
               </div>
             )}
-            <div className="rounded-2xl border border-[#fbe4e8] bg-[#fdf2f4] p-3.5">
-              <p className="text-xs font-semibold text-[#9d5b68]">Next session</p>
-              <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">
-                {nextClass ? `${formatDateLabel(nextClass.date).split(',')[0]}${nextClass.week.classTime ? `, ${formatTime(nextClass.week.classTime)}` : ''}` : '—'}
-              </p>
-              <p className="mt-0.5 text-xs text-[#9d5b68]">{nextClass ? `Class ${nextClass.week.weekNumber}` : 'No more classes'}</p>
-            </div>
             <div className="rounded-2xl border border-[#dbe7f6] bg-[#eef4fb] p-3.5">
               <p className="text-xs font-semibold text-[#3c6da3]">Group call</p>
               <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">
