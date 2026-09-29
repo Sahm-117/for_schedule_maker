@@ -130,6 +130,12 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const toast = useToast();
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
   const [messagingContact, setMessagingContact] = useState<FollowUpContact | null>(null);
+  // Templates go out by WhatsApp, or by email from Send email / the email in the i pop-up.
+  const [messageChannel, setMessageChannel] = useState<'whatsapp' | 'email'>('whatsapp');
+  const openTemplates = (contact: FollowUpContact, channel: 'whatsapp' | 'email') => {
+    setMessageChannel(channel);
+    setMessagingContact(contact);
+  };
   const [notInterestedContact, setNotInterestedContact] = useState<FollowUpContact | null>(null);
   const [showIssues, setShowIssues] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -797,7 +803,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       items={[
                         ...(contact.phone?.trim() ? [{ label: 'Copy number', onClick: () => { void copyText(contact.phone!.trim()); } }] : []),
                         ...(waLink ? [{ label: 'Send message', onClick: () => { window.open(waLink, '_blank', 'noopener,noreferrer'); } }] : []),
-                        ...(contact.email?.trim() ? [{ label: 'Send email', onClick: () => { window.location.href = `mailto:${contact.email!.trim()}`; } }] : []),
+                        ...(contact.email?.trim() ? [{ label: 'Send email', onClick: () => openTemplates(contact, 'email') }] : []),
                         { label: 'Edit contact', onClick: () => setEditingContact(contact) },
                       ]}
                     />
@@ -807,7 +813,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       <p>{contact.phone || 'No phone'}</p>
                       {contact.email?.trim() && (
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <a href={`mailto:${contact.email.trim()}`} className="max-w-full break-words text-sky-200 underline">{contact.email.trim()}</a>
+                          <button type="button" onClick={() => openTemplates(contact, 'email')} className="max-w-full break-words text-left text-sky-200 underline">{contact.email.trim()}</button>
                           <button
                             type="button"
                             onClick={() => { void copyEmail(contact.id, contact.email!.trim()); }}
@@ -844,7 +850,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                                 <p className="text-[11px] font-semibold text-gray-500">Email (from form)</p>
                                 <p className="truncate text-[13.5px] font-semibold text-gray-900">{contact.email.trim()}</p>
                               </div>
-                              <a href={`mailto:${contact.email.trim()}`} className="flex-none rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-700">Email</a>
+                              <button type="button" onClick={() => openTemplates(contact, 'email')} className="flex-none rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-700">Email</button>
                             </div>
                           )}
                           <button type="button" onClick={() => setEditingContact(contact)} className="mt-2.5 flex min-h-[38px] w-full items-center justify-center rounded-[10px] border border-amber-200 bg-white text-[12.5px] font-semibold text-amber-800">
@@ -858,7 +864,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                     <p className="mt-2.5 whitespace-pre-wrap rounded-[10px] bg-[#f6f7f9] px-3 py-2.5 text-[13px] leading-normal text-gray-700">{contact.notes}</p>
                   )}
                   <div className="mt-3 grid grid-cols-3 gap-2">
-                    <button type="button" onClick={() => setMessagingContact(contact)} className="min-h-[40px] rounded-[10px] border border-[#ffdeca] bg-[#fff8f3] px-2 py-2 text-[12.5px] font-semibold text-[#c2410c]">
+                    <button type="button" onClick={() => openTemplates(contact, 'whatsapp')} className="min-h-[40px] rounded-[10px] border border-[#ffdeca] bg-[#fff8f3] px-2 py-2 text-[12.5px] font-semibold text-[#c2410c]">
                       Templates
                     </button>
                     {waLink ? (
@@ -1046,6 +1052,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
         registrationLink={registrationLink}
         currentUserName={user?.name}
         onMessageSent={handleMessageSent}
+        channel={messageChannel}
       />
 
       {notInterestedContact && (

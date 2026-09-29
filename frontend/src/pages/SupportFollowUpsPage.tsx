@@ -108,6 +108,7 @@ const SupportFollowUpsPage: React.FC = () => {
 
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
   const [messagingContact, setMessagingContact] = useState<FollowUpContact | null>(null);
+  const [messageChannel, setMessageChannel] = useState<'whatsapp' | 'email'>('whatsapp');
   const [showExport, setShowExport] = useState(false);
 
 
@@ -413,7 +414,8 @@ const SupportFollowUpsPage: React.FC = () => {
                 owners={[]}
                 canAssign={false}
                 onFieldChange={(c, patch) => handleFieldChange(c, patch)}
-                onMessage={setMessagingContact}
+                onMessage={(c) => { setMessageChannel('whatsapp'); setMessagingContact(c); }}
+                onEmail={(c) => { setMessageChannel('email'); setMessagingContact(c); }}
                 onLogContact={(c) => { void handleLogContact(c); }}
                 onEdit={setEditingContact}
               />
@@ -455,6 +457,7 @@ const SupportFollowUpsPage: React.FC = () => {
         registrationLink={registrationLink}
         currentUserName={user?.name}
         onMessageSent={handleMessageSent}
+        channel={messageChannel}
       />
 
       {showFilterPanel && createPortal(

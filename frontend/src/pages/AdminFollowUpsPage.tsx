@@ -158,6 +158,7 @@ const AdminFollowUpsPage: React.FC = () => {
   const [editingContact, setEditingContact] = useState<FollowUpContact | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [messagingContact, setMessagingContact] = useState<FollowUpContact | null>(null);
+  const [messageChannel, setMessageChannel] = useState<'whatsapp' | 'email'>('whatsapp');
   const [deletingContact, setDeletingContact] = useState<FollowUpContact | null>(null);
   const [showExport, setShowExport] = useState(false);
 
@@ -666,7 +667,8 @@ const AdminFollowUpsPage: React.FC = () => {
               owners={owners}
               canAssign
               onFieldChange={(c, patch) => handleFieldChange(c, patch)}
-              onMessage={setMessagingContact}
+              onMessage={(c) => { setMessageChannel('whatsapp'); setMessagingContact(c); }}
+              onEmail={(c) => { setMessageChannel('email'); setMessagingContact(c); }}
               onLogContact={(c) => { void handleLogContact(c); }}
               onEdit={(c) => { setEditingContact(c); setShowContactModal(true); }}
               onDelete={setDeletingContact}
@@ -735,6 +737,7 @@ const AdminFollowUpsPage: React.FC = () => {
         registrationLink={registrationLink}
         currentUserName={user?.name}
         onMessageSent={handleMessageSent}
+        channel={messageChannel}
       />
 
       {showExport && (

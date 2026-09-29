@@ -13,7 +13,12 @@ interface MessageTemplatePickerProps {
   registrationLink: string;
   currentUserName?: string | null;
   onMessageSent: (contact: FollowUpContact) => Promise<void> | void;
+  /** 'email' sends the same personalised message through their email app instead of WhatsApp. */
+  channel?: 'whatsapp' | 'email';
 }
+
+// Subject line for follow-up emails opened from a template.
+const EMAIL_SUBJECT = 'Foundation of Faith';
 
 const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
   isOpen,
@@ -23,6 +28,7 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
   registrationLink,
   currentUserName,
   onMessageSent,
+  channel = 'whatsapp',
 }) => {
   const [selectedId, setSelectedId] = useState('');
   const [marking, setMarking] = useState(false);
@@ -34,10 +40,15 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
     [selected, contact, registrationLink, currentUserName]
   );
   const waLink = contact && filled ? buildWhatsAppLink(contact.phone, filled) : null;
+  const email = contact?.email?.trim() || '';
+  const mailLink = email && filled
+    ? `mailto:${email}?subject=${encodeURIComponent(EMAIL_SUBJECT)}&body=${encodeURIComponent(filled)}`
+    : null;
+  const byEmail = channel === 'email';
 
   if (!contact) return null;
 
-  const handleOpenWhatsApp = async () => {
+  const handleOpened = async () => {
     setMarking(true);
     try {
       await onMessageSent(contact);
@@ -50,7 +61,7 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
     <ModalShell
       isOpen={isOpen}
       onClose={() => { setSelectedId(''); onClose(); }}
-      title={`Message ${contact.fullName.split(' ')[0]}`}
+      title={`${byEmail ? 'Email' : 'Message'} ${contact.fullName.split(' ')[0]}`}
       subtitle="Pick a template — placeholders fill automatically."
       wide
       footer={(
@@ -71,12 +82,26 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
               {copied ? 'Copied!' : 'Copy text'}
             </button>
           )}
-          {waLink ? (
+          {byEmail ? (
+            mailLink ? (
+              <a
+                href={mailLink}
+                onClick={() => { void handleOpened(); }}
+                className="rounded-2xl bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-700"
+              >
+                {marking ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Opening…</span>) : 'Open email'}
+              </a>
+            ) : (
+              <span className="rounded-2xl bg-slate-100 px-5 py-2.5 text-sm font-semibold text-slate-400">
+                {email ? 'Open email' : 'No email on file'}
+              </span>
+            )
+          ) : waLink ? (
             <a
               href={waLink}
               target="_blank"
               rel="noreferrer"
-              onClick={() => { void handleOpenWhatsApp(); }}
+              onClick={() => { void handleOpened(); }}
               className="rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
               data-testid="whatsapp-link"
             >

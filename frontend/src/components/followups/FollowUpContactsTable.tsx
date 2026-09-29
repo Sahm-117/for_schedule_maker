@@ -28,6 +28,8 @@ interface FollowUpContactsTableProps {
   canAssign: boolean; // admins: owner editing + bulk assign + delete
   onFieldChange: (contact: FollowUpContact, patch: Record<string, unknown>) => void;
   onMessage: (contact: FollowUpContact) => void;
+  /** Opens the message templates to send by email. Without it, Send email opens a blank email. */
+  onEmail?: (contact: FollowUpContact) => void;
   onLogContact: (contact: FollowUpContact) => void;
   onEdit: (contact: FollowUpContact) => void;
   onDelete?: (contact: FollowUpContact) => void;
@@ -72,6 +74,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   canAssign,
   onFieldChange,
   onMessage,
+  onEmail,
   onEdit,
   onDelete,
   onBulkAssign,
@@ -133,7 +136,11 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   // Email in the i pop-up: tap it to email them, or Copy it.
   const emailLine = (contact: FollowUpContact) => contact.email && (
     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-      <a href={`mailto:${contact.email}`} className="max-w-full break-words text-sky-200 underline">{contact.email}</a>
+      {onEmail ? (
+        <button type="button" onClick={() => onEmail(contact)} className="max-w-full break-words text-left text-sky-200 underline">{contact.email}</button>
+      ) : (
+        <a href={`mailto:${contact.email}`} className="max-w-full break-words text-sky-200 underline">{contact.email}</a>
+      )}
       <button
         type="button"
         onClick={() => { void copyEmail(contact); }}
@@ -293,7 +300,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
       items={[
         { label: 'Copy number', onClick: () => { void copyNumber(contact); }, icon: PhoneIcon },
         { label: 'Send message', onClick: () => onMessage(contact), icon: WhatsAppIcon },
-        ...(contact.email ? [{ label: 'Send email', onClick: () => { window.location.href = `mailto:${contact.email}`; }, icon: EmailIcon }] : []),
+        ...(contact.email ? [{ label: 'Send email', onClick: () => { if (onEmail) onEmail(contact); else window.location.href = `mailto:${contact.email}`; }, icon: EmailIcon }] : []),
         ...(canAssign ? [{ label: 'Assign a support', onClick: () => { setOwnerSearch(''); setAssigningOwner(contact); } }] : []),
         { label: 'Edit contact', onClick: () => onEdit(contact) },
         { label: `Due date: ${contact.dueDate ? dateLabel(contact.dueDate) : 'none'}`, onClick: () => { setDueDateValue(contact.dueDate || ''); setEditingDueDate(contact); } },
