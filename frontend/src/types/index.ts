@@ -119,6 +119,39 @@ export interface Week {
   days: Day[];
 }
 
+/** A church event on the Planner. Only Stops-FOF ones can clash with a class. */
+export interface ChurchEvent {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  stopsFof: boolean;
+}
+
+/** "What moves" from planner_push_back (a preview, or what was applied). */
+export interface PushBackResult {
+  cohortId: string;
+  cohortName: string;
+  weekNumber: number;
+  classDate: string;
+  moves: Array<{ weekNumber: number; from: string; to: string }>;
+  endBefore: string;
+  endAfter: string;
+  spareWeeksBefore: number;
+  spareWeeksAfter: number;
+  laterCohorts: Array<{ cohortId: string; name: string; shiftDays: number; firstClassBefore: string; firstClassAfter: string }>;
+  applied: boolean;
+  changeId: string | null;
+}
+
+/** A logged Planner change (Push back), newest first. */
+export interface PlannerChange {
+  id: string;
+  summary: string;
+  createdAt: string;
+  undoneAt: string | null;
+}
+
 /** A Nigerian public holiday on the Planner (information only; never a clash). */
 export interface PublicHoliday {
   id: string;

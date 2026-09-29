@@ -27,6 +27,13 @@ export interface PlannerPhase {
   end: string;
 }
 
+export interface PlannerClass {
+  /** The Week row's id; null for a planned (not yet created) cohort. */
+  weekId: number | null;
+  weekNumber: number;
+  date: string;
+}
+
 export interface PlannerCohort {
   /** The cohort's id, or a made-up key for a planned (not yet created) one. */
   key: string;
@@ -36,6 +43,10 @@ export interface PlannerCohort {
   status: Cohort['status'] | null;
   /** Class Sundays in week order. */
   classDates: string[];
+  classes: PlannerClass[];
+  /** Last day of the cycle: the end of the spare week, or later once it's used up. */
+  cycleEnd: string;
+  /** Rest, mobilisation, classes, and the spare week while any is left. */
   phases: PlannerPhase[];
 }
 
@@ -47,20 +58,29 @@ export const addDays = (iso: string, days: number) =>
 const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
 
-/** Phases worked out from the class Sundays: rest and mobilisation before, spare week after. */
-const phasesFor = (classDates: string[]): PlannerPhase[] => {
+/**
+ * Phases worked out from the class Sundays: rest and mobilisation before, the
+ * spare week after until the cycle ends. Once a pushed-back class has used the
+ * spare week there's no spare phase left.
+ */
+const phasesFor = (classDates: string[], cycleEnd: string): PlannerPhase[] => {
   const first = classDates[0];
   const last = classDates[classDates.length - 1];
   const classesStart = addDays(first, -6);
   const mobilisationStart = addDays(classesStart, -7 * MOBILISATION_WEEKS);
   const restStart = addDays(mobilisationStart, -7 * REST_WEEKS);
-  return [
+  const phases: PlannerPhase[] = [
     { kind: 'rest', start: restStart, end: addDays(mobilisationStart, -1) },
     { kind: 'mobilisation', start: mobilisationStart, end: addDays(classesStart, -1) },
     { kind: 'classes', start: classesStart, end: last },
-    { kind: 'spare', start: addDays(last, 1), end: addDays(last, 7 * SPARE_WEEKS) },
   ];
+  if (cycleEnd > last) phases.push({ kind: 'spare', start: addDays(last, 1), end: cycleEnd });
+  return phases;
 };
+
+/** The cohort's last day: the end of its spare week, or its last class once the spare week is used. */
+const cycleEndOf = (cohort: PlannerCohort) => cohort.cycleEnd;
+export const phaseOf = (cohort: PlannerCohort, kind: PhaseKind) => cohort.phases.find((p) => p.kind === kind) ?? null;
 
 /** "Cohort 10" → "Cohort 11"; anything without a trailing number gets "Next cohort". */
 const nextName = (name: string, step: number) => {
@@ -74,7 +94,7 @@ const nextName = (name: string, step: number) => {
  */
 export const buildPlannerCohorts = (
   cohorts: Cohort[],
-  weeks: Array<ClassWeek & { cohortId: string }>,
+  weeks: Array<ClassWeek & { cohortId: string; id?: number }>,
   untilIso: string,
 ): PlannerCohort[] => {
   const real: PlannerCohort[] = cohorts
@@ -82,24 +102,30 @@ export const buildPlannerCohorts = (
     .map((cohort) => {
       const start = cohort.startDate!.slice(0, 10);
       const own = weeks.filter((w) => w.cohortId === cohort.id);
-      const classDates = own.length > 0
-        ? own.map((w) => classDateIso(start, w)).sort()
-        : Array.from({ length: CLASS_WEEKS }, (_, i) => addDays(start, i * 7));
-      return { key: cohort.id, name: cohort.name, planned: false, status: cohort.status ?? null, classDates, phases: phasesFor(classDates) };
+      const classes: PlannerClass[] = own.length > 0
+        ? own.map((w) => ({ weekId: w.id ?? null, weekNumber: w.weekNumber, date: classDateIso(start, w) }))
+          .sort((a, b) => a.date.localeCompare(b.date))
+        : Array.from({ length: CLASS_WEEKS }, (_, i) => ({ weekId: null, weekNumber: i + 1, date: addDays(start, i * 7) }));
+      const classDates = classes.map((k) => k.date);
+      const last = classDates[classDates.length - 1];
+      const end = cohort.endDate ? cohort.endDate.slice(0, 10) : addDays(last, 7 * SPARE_WEEKS);
+      const cycleEnd = end > last ? end : last;
+      return { key: cohort.id, name: cohort.name, planned: false, status: cohort.status ?? null, classDates, classes, cycleEnd, phases: phasesFor(classDates, cycleEnd) };
     })
     .sort((a, b) => a.classDates[0].localeCompare(b.classDates[0]));
 
   const out = [...real];
   const latest = real[real.length - 1];
   if (!latest) return out;
-  // The next cycle's rest starts the day after the latest cohort's spare week.
-  let restStart = addDays(latest.phases[3].end, 1);
+  // The next cycle's rest starts the day after the latest cohort's cycle ends.
+  let restStart = addDays(cycleEndOf(latest), 1);
   for (let step = 1; restStart <= untilIso && step <= 12; step += 1) {
     const firstClass = addDays(restStart, 7 * (REST_WEEKS + MOBILISATION_WEEKS) + 6);
     const classDates = Array.from({ length: CLASS_WEEKS }, (_, i) => addDays(firstClass, i * 7));
-    const phases = phasesFor(classDates);
-    out.push({ key: `planned-${step}`, name: nextName(latest.name, step), planned: true, status: null, classDates, phases });
-    restStart = addDays(phases[3].end, 1);
+    const classes = classDates.map((date, i) => ({ weekId: null, weekNumber: i + 1, date }));
+    const cycleEnd = addDays(classDates[CLASS_WEEKS - 1], 7 * SPARE_WEEKS);
+    out.push({ key: `planned-${step}`, name: nextName(latest.name, step), planned: true, status: null, classDates, classes, cycleEnd, phases: phasesFor(classDates, cycleEnd) });
+    restStart = addDays(cycleEnd, 1);
   }
   return out;
 };
@@ -187,3 +213,39 @@ export const yearPercent = (iso: string, year: number) => {
 /** Cohorts whose classes start in `year`. */
 export const cohortsStartingIn = (cohorts: PlannerCohort[], year: number) =>
   cohorts.filter((c) => c.classDates[0].startsWith(String(year)));
+
+/** A church event, as the Planner needs it. */
+export interface PlannerEvent {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  stopsFof: boolean;
+}
+
+export interface PlannerClash {
+  event: PlannerEvent;
+  cohort: PlannerCohort;
+  cls: PlannerClass;
+}
+
+/**
+ * Class Sundays from today on that fall inside a Stops-FOF event. Planned
+ * cohorts are included (they can't be pushed until they're created).
+ */
+export const findClashes = (cohorts: PlannerCohort[], events: PlannerEvent[], today: string): PlannerClash[] => {
+  const out: PlannerClash[] = [];
+  for (const event of events) {
+    if (!event.stopsFof) continue;
+    for (const cohort of cohorts) {
+      for (const cls of cohort.classes) {
+        if (cls.date >= today && cls.date >= event.startDate && cls.date <= event.endDate) out.push({ event, cohort, cls });
+      }
+    }
+  }
+  return out.sort((a, b) => a.cls.date.localeCompare(b.cls.date));
+};
+
+/** Classes an event's dates would land on (for the warning while adding one). */
+export const classesHitBy = (cohorts: PlannerCohort[], start: string, end: string) =>
+  cohorts.flatMap((cohort) => cohort.classes.filter((cls) => cls.date >= start && cls.date <= end).map((cls) => ({ cohort, cls })));

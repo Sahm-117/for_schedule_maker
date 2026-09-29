@@ -6112,6 +6112,61 @@ export const plannerApi = {
     return { holidays: (data ?? []) as import('../types').PublicHoliday[] };
   },
 
+  async getEvents(): Promise<{ events: import('../types').ChurchEvent[] }> {
+    const { data, error } = await supabase
+      .from('ChurchEvent')
+      .select('id, name, startDate, endDate, stopsFof')
+      .order('startDate');
+    if (error) throw new Error(error.message);
+    return { events: (data ?? []) as import('../types').ChurchEvent[] };
+  },
+
+  // Admins only, checked in the database (planner_save_event / planner_delete_event).
+  async saveEvent(input: { id?: string | null; name: string; startDate: string; endDate: string; stopsFof: boolean }): Promise<{ event: import('../types').ChurchEvent }> {
+    const { data, error } = await supabase.rpc('planner_save_event', {
+      p_token: getSessionToken(),
+      p_id: input.id ?? null,
+      p_name: input.name,
+      p_start: input.startDate,
+      p_end: input.endDate,
+      p_stops_fof: input.stopsFof,
+    });
+    if (error) throw new Error(error.message === 'NOT_AUTHORISED' ? 'Only admins can change church events.' : error.message);
+    return { event: data as import('../types').ChurchEvent };
+  },
+
+  async deleteEvent(id: string): Promise<void> {
+    const { error } = await supabase.rpc('planner_delete_event', { p_token: getSessionToken(), p_id: id });
+    if (error) throw new Error(error.message === 'NOT_AUTHORISED' ? 'Only admins can change church events.' : error.message);
+  },
+
+  /** What moves if this class is pushed back a Sunday; with apply, it moves them. */
+  async pushBack(weekId: number, eventId: string | null, apply: boolean): Promise<import('../types').PushBackResult> {
+    const { data, error } = await supabase.rpc('planner_push_back', {
+      p_token: getSessionToken(),
+      p_week_id: weekId,
+      p_event_id: eventId,
+      p_apply: apply,
+    });
+    if (error) throw new Error(error.message === 'NOT_AUTHORISED' ? 'Only admins can move classes.' : error.message);
+    return data as import('../types').PushBackResult;
+  },
+
+  async getChanges(): Promise<{ changes: import('../types').PlannerChange[] }> {
+    const { data, error } = await supabase
+      .from('PlannerChange')
+      .select('id, summary, createdAt, undoneAt')
+      .order('createdAt', { ascending: false })
+      .limit(10);
+    if (error) throw new Error(error.message);
+    return { changes: (data ?? []) as import('../types').PlannerChange[] };
+  },
+
+  async undoChange(changeId: string): Promise<void> {
+    const { error } = await supabase.rpc('planner_undo_change', { p_token: getSessionToken(), p_change_id: changeId });
+    if (error) throw new Error(error.message === 'NOT_AUTHORISED' ? 'Only admins can undo changes.' : error.message);
+  },
+
   /** Admin "Refresh now": re-reads the holiday calendar straight away. */
   async refreshHolidays(): Promise<{ holidays: number }> {
     const { data, error } = await supabase.functions.invoke('refresh-public-holidays', { body: {} });

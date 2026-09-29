@@ -735,6 +735,12 @@ export const plannerApi = USE_SUPABASE ? supabasePlannerApi : {
   async getClassWeeks(): Promise<{ weeks: Array<{ id: number; cohortId: string; weekNumber: number; classDate: string | null }> }> { return { weeks: [] }; },
   async getHolidays(_from: string, _to: string): Promise<{ holidays: import('../types').PublicHoliday[] }> { return { holidays: [] }; },
   async refreshHolidays(): Promise<{ holidays: number }> { throw new Error('Holidays are only available in Supabase mode.'); },
+  async getEvents(): Promise<{ events: import('../types').ChurchEvent[] }> { return { events: [] }; },
+  async saveEvent(_input: { id?: string | null; name: string; startDate: string; endDate: string; stopsFof: boolean }): Promise<{ event: import('../types').ChurchEvent }> { throw new Error('The Planner is only available in Supabase mode.'); },
+  async deleteEvent(_id: string): Promise<void> { throw new Error('The Planner is only available in Supabase mode.'); },
+  async pushBack(_weekId: number, _eventId: string | null, _apply: boolean): Promise<import('../types').PushBackResult> { throw new Error('The Planner is only available in Supabase mode.'); },
+  async getChanges(): Promise<{ changes: import('../types').PlannerChange[] }> { return { changes: [] }; },
+  async undoChange(_changeId: string): Promise<void> { throw new Error('The Planner is only available in Supabase mode.'); },
 };
 
 export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {
