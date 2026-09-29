@@ -116,9 +116,33 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const [pendingClose, setPendingClose] = useState<{ contact: FollowUpContact; status: 'REGISTERED' | 'WRONG_NUMBER' } | null>(null);
   const [closeNotes, setCloseNotes] = useState('');
   const [copiedPhoneId, setCopiedPhoneId] = useState<string | null>(null);
+  const [copiedEmailId, setCopiedEmailId] = useState<string | null>(null);
   const [assigningOwner, setAssigningOwner] = useState<FollowUpContact | null>(null);
   const [ownerSearch, setOwnerSearch] = useState('');
   const dueDateInputRef = useRef<HTMLInputElement | null>(null);
+
+  const copyEmail = async (contact: FollowUpContact) => {
+    if (!contact.email) return;
+    try {
+      await navigator.clipboard.writeText(contact.email);
+      setCopiedEmailId(contact.id);
+      setTimeout(() => setCopiedEmailId(null), 2000);
+    } catch { /* ignore */ }
+  };
+
+  // Email in the i pop-up: tap it to email them, or Copy it.
+  const emailLine = (contact: FollowUpContact) => contact.email && (
+    <div className="mt-0.5 flex items-center gap-2">
+      <a href={`mailto:${contact.email}`} className="min-w-0 break-all text-sky-200 underline">{contact.email}</a>
+      <button
+        type="button"
+        onClick={() => { void copyEmail(contact); }}
+        className="shrink-0 rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-white/25"
+      >
+        {copiedEmailId === contact.id ? 'Copied!' : 'Copy'}
+      </button>
+    </div>
+  );
 
   const copyNumber = async (contact: FollowUpContact) => {
     const phone = contact.phone || '';
@@ -375,7 +399,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                     {viewingInfo === contact.id && (
                       <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
                         <p>{contact.phone || 'No phone'}</p>
-                        {contact.email && <a href={`mailto:${contact.email}`} className="mt-0.5 block break-all text-sky-200 underline">{contact.email}</a>}
+                        {emailLine(contact)}
                         {contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
                     {contact.createdAt && <p className="mt-0.5 text-gray-300">Added {formatDateTime(contact.createdAt)}</p>}
                       </div>
@@ -460,7 +484,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                 {viewingInfo === contact.id && (
                   <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
                     <p>{contact.phone || 'No phone'}</p>
-                    {contact.email && <a href={`mailto:${contact.email}`} className="mt-0.5 block break-all text-sky-200 underline">{contact.email}</a>}
+                    {emailLine(contact)}
                     {contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
                     {contact.createdAt && <p className="mt-0.5 text-gray-300">Added {formatDateTime(contact.createdAt)}</p>}
                   </div>
