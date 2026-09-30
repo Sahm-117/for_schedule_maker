@@ -708,6 +708,7 @@ export const supportSessionsApi = USE_SUPABASE ? supabaseSupportSessionsApi : {
 export const groupDiscussionApi = USE_SUPABASE ? supabaseGroupDiscussionApi : {
   async feed(_groupId: string, _before?: string | null): Promise<never> { return peopleUnavailable(); },
   async activity(_groupId: string): Promise<never> { return peopleUnavailable(); },
+  async summary(_cohortId: string): Promise<never> { return peopleUnavailable(); },
   async unseen(_groupId: string): Promise<number> { return 0; },
   async markSeen(_groupId: string): Promise<void> { return; },
   async post(_groupId: string, _body: string, _mentions?: import('../types').DiscussionMention[]): Promise<never> { return peopleUnavailable(); },
