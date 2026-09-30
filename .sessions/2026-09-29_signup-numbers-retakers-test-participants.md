@@ -56,3 +56,8 @@ The admin Dashboard's sign-up cards disagreed with Follow-ups → Overview. Trac
 - Mobilisation → Signed up on the form groups submissions by contact (or by phone if there is no contact). Each person gets one card with their latest submission and "Filled the form twice · dates". The count and the Logged in chips now match the Overview (41 people and 5 logged in for Cohort 10, where it showed 43 cards and 7 chips before). Search matches any submission's name. It's display only; every SheetRegistration row is kept.
 - Kate Enoch and Funmilayo each filled the form twice. Funmilayo's profile only took her corrected name from the second form; everything else matched.
 - Branch claude/signups-one-per-person is now in main and safe to delete.
+
+## 30 Sep: Sign-up list filter and WhatsApp badge
+- Mobilisation → Signed up on the form: a filter icon to the right of the search box (SignUpStageFilter) opens a checklist of stages (Login not shared yet, Login shared, Issue with login, Logged in, Next cohort, Waiting to be assigned) with counts. A badge shows how many are on, and an X beside it clears them. Filters combine with the search.
+- A tiny green WhatsApp badge beside "Followed up by …" opens a chat with that support with a short message asking if they need help with that person. It isn't shown on your own follow-ups or when the support has no number. `formRegistrationsApi.getAll` now also loads the owner's id and phone (supports can already read User.phone).
+- Branch claude/signup-filters is in main and safe to delete.
