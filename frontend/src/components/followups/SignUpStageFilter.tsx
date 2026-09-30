@@ -82,7 +82,7 @@ const SignUpStageFilter: React.FC<SignUpStageFilterProps> = ({ options, values, 
         )}
       </button>
       {open && createPortal(
-        <div ref={popRef} style={style} role="dialog" aria-label="Filter sign-ups" className="rounded-2xl border border-gray-100 bg-white p-2 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.28)]">
+        <div ref={popRef} style={style} role="dialog" aria-label="Filter registrations" className="rounded-2xl border border-gray-100 bg-white p-2 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.28)]">
           <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Follow-up stage</p>
           {options.map((option) => {
             const on = values.includes(option.value);

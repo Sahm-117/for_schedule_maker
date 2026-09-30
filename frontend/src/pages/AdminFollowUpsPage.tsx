@@ -649,7 +649,7 @@ const AdminFollowUpsPage: React.FC = () => {
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01" /><circle cx="12" cy="12" r="9" /></svg>
                 </span>
                 <h2 className="flex-1 text-[14px] font-bold text-gray-900">
-                  {invalidNumberContacts.length} sign-up{invalidNumberContacts.length === 1 ? ' needs' : 's need'} a valid number
+                  {invalidNumberContacts.length} registration{invalidNumberContacts.length === 1 ? ' needs' : 's need'} a valid number
                 </h2>
               </div>
               <p className="mt-1.5 text-[12.5px] leading-normal text-gray-500">Held back from auto-assignment until the number is fixed, so no support gets someone they can&apos;t reach.</p>

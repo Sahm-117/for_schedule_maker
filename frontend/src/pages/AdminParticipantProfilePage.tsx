@@ -282,7 +282,7 @@ const AdminParticipantProfilePage: React.FC = () => {
       id: 'registered',
       at: participant.registrationDate ?? participant.createdAt ?? '',
       title: 'Registered',
-      body: participant.source === 'FOLLOW_UP' ? 'Moved from a follow-up contact to a participant record.' : participant.source === 'FORM' ? 'Signed up on the registration form.' : `Added by ${SOURCE_LABEL[participant.source]?.toLowerCase() ?? 'the back office'}.`,
+      body: participant.source === 'FOLLOW_UP' ? 'Moved from a follow-up contact to a participant record.' : participant.source === 'FORM' ? 'Registered on the registration form.' : `Added by ${SOURCE_LABEL[participant.source]?.toLowerCase() ?? 'the back office'}.`,
       by: null,
     },
   ].filter((item) => item.at).sort((a, b) => (a.at < b.at ? 1 : -1));

@@ -95,7 +95,7 @@ export const buildSupportsText = (title: string, subtitle: string, supports: Use
     return `${i + 1}. ${u.name}${phone ? ` - ${phone}` : ''}${missing.length ? ` (missing: ${missing.join(', ')})` : ''}`;
   });
   const footer = showMissing
-    ? ['', 'Please complete your profile today: open the FOF app, go to *Profile* and fill in what is missing. We match new sign-ups to supports by gender and age.', 'https://fof.tcnikorodu.org']
+    ? ['', 'Please complete your profile today: open the FOF app, go to *Profile* and fill in what is missing. We match newly registered people to supports by gender and age.', 'https://fof.tcnikorodu.org']
     : [];
   return [header, '', ...lines, ...footer].join('\n');
 };

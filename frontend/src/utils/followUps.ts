@@ -69,7 +69,7 @@ export const FOLLOW_UP_STATUS_META: Record<FollowUpStatus, StatusMeta> = {
   NEEDS_REMINDER: { label: 'Needs reminder', description: 'They did not reply — send a gentle reminder.', tone: 'bg-amber-100/80 text-amber-700' },
   REPLIED: { label: 'Replied', description: 'They replied. Still working on getting them registered.', tone: 'bg-emerald-100/80 text-emerald-700' },
   CALL_BACK_LATER: { label: 'Call back later', description: 'They asked you to call another time.', tone: 'bg-violet-100/80 text-violet-700' },
-  REGISTERED: { label: 'Registered', description: 'They signed up. Still to hand them their app login.', tone: 'bg-emerald-100/80 text-emerald-700' },
+  REGISTERED: { label: 'Registered', description: 'They registered. Still to hand them their app login.', tone: 'bg-emerald-100/80 text-emerald-700' },
   LOGIN_SHARED: { label: 'Login shared', description: 'Login sent. Waiting for them to sign in.', tone: 'bg-sky-100/80 text-sky-700' },
   LOGIN_ISSUE: { label: 'Issue with login', description: 'They cannot get into the app. The admin and IT team are told.', tone: 'bg-orange-100/80 text-orange-700' },
   ACCESS_CONFIRMED: { label: 'Logged in', description: 'They signed in to the app. All done.', tone: 'bg-emerald-100/80 text-emerald-700' },

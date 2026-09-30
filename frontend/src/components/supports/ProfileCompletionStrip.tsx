@@ -50,7 +50,7 @@ const ProfileCompletionStrip: React.FC<{
       </div>
       <div className="mt-2">{bar('bg-white/70')}</div>
       <p className="mt-2 text-[13px] leading-relaxed text-gray-700">
-        Your incomplete profile is <span className="font-semibold text-gray-900">delaying mobilisation</span>. We match new sign-ups to supports by gender and age, so please do this today.
+        Your incomplete profile is <span className="font-semibold text-gray-900">delaying mobilisation</span>. We match newly registered people to supports by gender and age, so please do this today.
       </p>
       <p className="mt-1 text-xs text-gray-600">
         Still to add: {missing.map((item) => item.label).join(', ')}.

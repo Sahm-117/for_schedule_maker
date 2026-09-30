@@ -484,16 +484,16 @@ const RegistrationFunnel: React.FC<{ headline: FollowUpHeadline | null; target: 
   const steps = [
     // Measured against the cohort's sign-up target (set on Follow-ups → Overview).
     {
-      title: 'Signed up',
+      title: 'Registered',
       value: headline.signedUp,
       detail: target ? `of ${target} target` : 'No target set yet',
       base: target && target > 0 ? target : null,
       to: '/follow-ups?tab=contacts&status=REGISTERED',
     },
-    { title: 'Needs login', value: headline.needsLogin, detail: 'Signed up, but waiting for login', base: null as number | null, to: '/follow-ups?tab=contacts&status=REGISTERED' },
+    { title: 'Needs login', value: headline.needsLogin, detail: 'Registered, but waiting for login', base: null as number | null, to: '/follow-ups?tab=contacts&status=REGISTERED' },
     { title: 'Login shared', value: headline.loginShared, detail: 'Have their login, not signed in yet', base: null as number | null, to: '/follow-ups?tab=contacts&status=LOGIN_SHARED' },
-    { title: 'Logged in', value: headline.loggedIn, detail: 'of those signed up', base: headline.signedUp, to: '/follow-ups?tab=contacts&status=ACCESS_CONFIRMED' },
-    { title: 'Not signed up yet', value: headline.notDone, detail: 'Need to be contacted to register', base: null as number | null, to: '/follow-ups?tab=contacts&status=open' },
+    { title: 'Logged in', value: headline.loggedIn, detail: 'of those registered', base: headline.signedUp, to: '/follow-ups?tab=contacts&status=ACCESS_CONFIRMED' },
+    { title: 'Not registered yet', value: headline.notDone, detail: 'Need to be contacted to register', base: null as number | null, to: '/follow-ups?tab=contacts&status=open' },
   ];
   return (
     <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">

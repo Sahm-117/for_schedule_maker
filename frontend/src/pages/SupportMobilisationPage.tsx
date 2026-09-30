@@ -522,7 +522,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
         : 'waiting to be assigned';
       const signedUp = ['REGISTERED', 'LOGIN_SHARED', 'LOGIN_ISSUE', 'ACCESS_CONFIRMED'].includes(duplicate.registrationStatus);
       setProspectError(
-        `${duplicate.fullName} is already in the app${signedUp ? ' and has signed up' : ''} — ${owner}. No need to save them again.`,
+        `${duplicate.fullName} is already in the app${signedUp ? ' and has registered' : ''} — ${owner}. No need to save them again.`,
       );
       return;
     }
@@ -531,7 +531,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     // the same person arriving from the other side.
     const signUpMatch = signUps.find((row) => (row.phoneNormalised ?? normalizeToIntlPhone(row.phone)) === normalized);
     if (signUpMatch && !signUpMatch.contactId) {
-      setProspectError(`${signUpMatch.fullName} already signed up on the form. The back office will assign them.`);
+      setProspectError(`${signUpMatch.fullName} already registered on the form. The back office will assign them.`);
       return;
     }
 
@@ -575,7 +575,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
       <PageHeader
         title="Mobilisation"
         tourId="support:mobilisation"
-        subtitle="Save the details of people you meet, see who has signed up, and follow up the ones assigned to you."
+        subtitle="Save the details of people you meet, see who has registered, and follow up the ones assigned to you."
       />
 
       <div className="flex max-w-[760px] flex-col gap-3">
@@ -701,13 +701,13 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
 
             <section className={`${CARD} p-[18px]`}>
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-sm font-bold text-gray-900">Signed up on the form</h3>
+                <h3 className="text-sm font-bold text-gray-900">Registered on the form</h3>
                 <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-bold text-neutral-600">{signUpPeople.length}</span>
                 <button
                   type="button"
                   onClick={() => { void refreshSignUps(); }}
                   disabled={signUpsRefreshing}
-                  aria-label="Refresh sign-ups"
+                  aria-label="Refresh registrations"
                   title="Refresh"
                   className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 disabled:opacity-60"
                 >
@@ -751,9 +751,9 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   (and jump) as fewer names match. */}
               <div className={signUpSearch.trim() || signUpStages.length > 0 ? 'min-h-[min(60vh,32rem)]' : ''}>
               {signUps.length === 0 ? (
-                <p className="mt-3 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">Nobody has signed up on the form yet.</p>
+                <p className="mt-3 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">Nobody has registered on the form yet.</p>
               ) : visibleSignUps.length === 0 ? (
-                <p className="mt-3 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">{signUpSearch.trim() ? `Nobody matching “${signUpSearch.trim()}”` : 'Nobody'}{signUpStages.length > 0 ? ' at those stages' : ''} has signed up.</p>
+                <p className="mt-3 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">{signUpSearch.trim() ? `Nobody matching “${signUpSearch.trim()}”` : 'Nobody'}{signUpStages.length > 0 ? ' at those stages' : ''} has registered.</p>
               ) : (
                 // Everyone who ever signed up lives here, so the list is capped at
                 // roughly five cards and scrolls. The fade tells you there's more.
@@ -774,7 +774,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         {row.contactId ? (
                           <span className="rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">
-                            Signed up on reg form
+                            Registered on reg form
                           </span>
                         ) : row.outcome === 'FAILED' ? (
                           <span className="rounded-full bg-red-100/80 px-2.5 py-0.5 text-[11px] font-bold text-red-700">Could not be added</span>
@@ -788,7 +788,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                             {(() => {
                               // A shortcut to ask the support how it's going. Not shown on your own follow-ups.
                               if (!row.contactOwnerPhone || row.contactOwnerId === user?.id) return null;
-                              const message = `Hi ${row.contactOwnerName.split(' ')[0]}, it's ${user?.name ?? 'a fellow support'}. I saw ${row.fullName} in the sign-up list and you're following them up. Any challenge I can help with?`;
+                              const message = `Hi ${row.contactOwnerName.split(' ')[0]}, it's ${user?.name ?? 'a fellow support'}. I saw ${row.fullName} in the registrations list and you're following them up. Any challenge I can help with?`;
                               const link = buildWhatsAppLink(row.contactOwnerPhone, message);
                               return link ? (
                                 <a

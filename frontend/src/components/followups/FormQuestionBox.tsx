@@ -55,7 +55,7 @@ const FormQuestionBox: React.FC<FormQuestionBoxProps> = ({ contact, onChange, on
     <div className={`rounded-[12px] px-3 py-2.5 ${answered ? 'bg-gray-50' : 'bg-sky-50'} ${className}`}>
       <div className="flex items-center gap-2">
         <p className={`min-w-0 flex-1 text-[11px] font-bold uppercase tracking-[0.04em] ${answered ? 'text-gray-500' : 'text-sky-700'}`}>
-          They asked on the sign-up form
+          They asked on the registration form
         </p>
         {answered && (
           <span className="flex-none text-[11px] font-semibold text-emerald-700">

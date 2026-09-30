@@ -109,7 +109,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
   ],
   'support:mobilisation': [
     { target: wt('mob-tabs'), title: 'Two jobs, one page', body: 'Registration is for signing up people you meet. Follow-ups lists the people assigned to you to contact.' },
-    { target: wt('mob-link'), title: 'Share the sign-up link', body: 'Copy the registration link so people can sign themselves up.', optional: true },
+    { target: wt('mob-link'), title: 'Share the registration link', body: 'Copy the registration link so people can sign themselves up.', optional: true },
     { target: wt('mob-register'), title: 'Register someone', body: 'Fill this in when you meet someone who wants to join the cohort.', optional: true },
     { target: wt('mob-more'), title: 'More options', body: 'Report an issue with a contact, or export your contacts.' },
   ],
@@ -184,7 +184,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
   ],
   'admin:follow-ups': [
     { target: wt('page-action'), title: 'Add contacts', body: 'Add someone by hand. The ⋮ menu imports or exports contact lists.' },
-    { target: wt('fu-link'), title: 'Registration link', body: 'Copy or open the sign-up link you share with interested people.', optional: true },
+    { target: wt('fu-link'), title: 'Registration link', body: 'Copy or open the registration link you share with interested people.', optional: true },
     { target: wt('fu-tabs'), title: 'Four views', body: 'Overview shows progress, Contacts is the full list, Message Bank holds the WhatsApp templates, and Issues collects problems reported by supports.' },
   ],
   'admin:schedule': [

@@ -118,14 +118,14 @@ const MobilisationTarget: React.FC<{ cohortId: string; cohortName?: string; sign
           <h3 className="text-base font-semibold text-gray-900">Mobilisation target{cohortName ? ` · ${cohortName}` : ''}</h3>
           {target ? (
             <p className="mt-1 text-sm text-gray-600">
-              <span className="text-2xl font-bold tabular-nums text-gray-900">{signedUp}</span> of {target} signed up
+              <span className="text-2xl font-bold tabular-nums text-gray-900">{signedUp}</span> of {target} registered
               {' · '}
               <span className={left > 0 ? 'font-semibold text-amber-700' : 'font-semibold text-emerald-700'}>
                 {left > 0 ? `${left} to go` : 'Target reached'}
               </span>
             </p>
           ) : (
-            <p className="mt-1 text-sm text-gray-500">No target set yet. Set how many sign-ups this cohort is aiming for.</p>
+            <p className="mt-1 text-sm text-gray-500">No target set yet. Set how many people this cohort is aiming to register.</p>
           )}
         </div>
         {!editing && (
@@ -216,8 +216,8 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
   const byStage = (stages: string[]) => [...standing.buckets].filter((b) => stages.includes(b.stage)).sort((a, b) => b.value - a.value);
   const signedUpTotal = standing.registered + standing.loginShared + standing.done;
   const groups = [
-    { key: 'signed', title: 'Signed up', buckets: byStage(['registered', 'loginShared', 'done']) },
-    { key: 'open', title: 'Not signed up yet', buckets: byStage(['open']) },
+    { key: 'signed', title: 'Registered', buckets: byStage(['registered', 'loginShared', 'done']) },
+    { key: 'open', title: 'Not registered yet', buckets: byStage(['open']) },
     { key: 'next', title: 'Joining next cohort', buckets: byStage(['nextCohort']) },
     { key: 'stopped', title: 'Stopped', buckets: byStage(['stopped']) },
     { key: 'wrong', title: '', buckets: funnel.buckets.filter((b) => b.status === 'WRONG_NUMBER') },
@@ -230,7 +230,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
       {/* The path from sign-up to the app, then who still needs chasing. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <VitalTile
-          title="Signed up"
+          title="Registered"
           status="neutral"
           statusLabel={target ? `${pct(headline.signedUp / target)}% of ${target} target` : 'No target set'}
           value={headline.signedUp}
@@ -244,7 +244,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
           statusLabel={headline.needsLogin > 0 ? 'Waiting on us' : 'All handed over'}
           value={headline.needsLogin}
           unit={headline.needsLogin === 1 ? 'person' : 'people'}
-          detail={headline.needsLogin > 0 ? 'Signed up, but nobody has sent their login yet' : 'Nobody is waiting on a login'}
+          detail={headline.needsLogin > 0 ? 'Registered, but nobody has sent their login yet' : 'Nobody is waiting on a login'}
           to={contactsLink('REGISTERED')}
         />
         <VitalTile
@@ -264,16 +264,16 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
           statusLabel="Confirmed"
           value={headline.loggedIn}
           unit={headline.loggedIn === 1 ? 'person' : 'people'}
-          detail={headline.signedUp > 0 ? `${pct(headline.loggedIn / headline.signedUp)}% of those signed up are in the app` : 'Nobody has signed in yet'}
+          detail={headline.signedUp > 0 ? `${pct(headline.loggedIn / headline.signedUp)}% of those registered are in the app` : 'Nobody has signed in yet'}
           to={contactsLink('ACCESS_CONFIRMED')}
         />
         <VitalTile
-          title="Not signed up yet"
+          title="Not registered yet"
           status={headline.notDone > 0 ? 'warning' : 'good'}
           statusLabel={headline.notDone > 0 ? 'Needs work' : 'All handled'}
           value={headline.notDone}
           unit={headline.notDone === 1 ? 'person' : 'people'}
-          detail={headline.notDone > 0 ? 'They need to be contacted to register' : 'Everyone on the list has signed up or stopped'}
+          detail={headline.notDone > 0 ? 'They need to be contacted to register' : 'Everyone on the list has registered or stopped'}
           to={contactsLink('open')}
         />
       </div>
@@ -305,12 +305,12 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
         </section>
       )}
 
-      {/* Everyone on the list, grouped: signed up, not signed up yet, and the
+      {/* Everyone on the list, grouped: registered, not registered yet, and the
           rest. Each person counted once, in one place only. */}
       <section className="surface-card p-5 sm:p-6">
         <h3 className="text-base font-semibold text-gray-900">All {standing.total} contacts</h3>
         <p className="mb-4 text-xs text-gray-500">
-          {signedUpTotal} signed up · {standing.open} not signed up yet{standing.nextCohort + standing.stopped > 0 ? ` · ${standing.nextCohort + standing.stopped} other` : ''}. Each person counted once.
+          {signedUpTotal} registered · {standing.open} not registered yet{standing.nextCohort + standing.stopped > 0 ? ` · ${standing.nextCohort + standing.stopped} other` : ''}. Each person counted once.
           {wrongNumbers > 0 && ` Wrong numbers are shown but not counted in the ${standing.total}.`}
         </p>
         {ranked.length === 0 ? (
@@ -367,7 +367,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
             <tr>
               <th scope="col" className="px-5 py-3">Support</th>
               <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Contacts</th>
-              <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Not signed up yet</th>
+              <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Not registered yet</th>
               <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Needs login</th>
               <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Logged in</th>
               <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Next cohort</th>
@@ -410,7 +410,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
                         <td colSpan={7} className="px-5 py-3">
                           <div className="mb-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs sm:hidden">
                             <span className="text-gray-500">Contacts <span className="font-semibold tabular-nums text-gray-900">{row.assigned}</span></span>
-                            <span className="text-gray-500">Not signed up yet <span className="font-semibold tabular-nums text-amber-700">{row.stillOpen}</span></span>
+                            <span className="text-gray-500">Not registered yet <span className="font-semibold tabular-nums text-amber-700">{row.stillOpen}</span></span>
                             <span className="text-gray-500">Needs login <span className="font-semibold tabular-nums text-sky-700">{row.loginToShare}</span></span>
                             <span className="text-gray-500">Logged in <span className="font-semibold tabular-nums text-emerald-700">{row.accessConfirmed}</span></span>
                             <span className="text-gray-500">Next cohort <span className="font-semibold tabular-nums text-violet-700">{row.nextCohort}</span></span>
@@ -463,7 +463,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
           <p className="text-xs text-gray-500">
             {totalMet === 0
               ? 'Nobody has brought anyone in yet.'
-              : `${totalMet} ${totalMet === 1 ? 'person was' : 'people were'} brought in by a support. People who found the sign-up form on their own are not counted here.`}
+              : `${totalMet} ${totalMet === 1 ? 'person was' : 'people were'} brought in by a support. People who found the registration form on their own are not counted here.`}
           </p>
         </div>
         {introducers.length === 0 ? (
@@ -479,7 +479,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
                   <span className="sm:hidden">Brought</span>
                   <span className="hidden sm:inline">People brought</span>
                 </th>
-                <th scope="col" className="w-[22%] px-1.5 py-3 text-right sm:w-auto sm:px-3">Signed up</th>
+                <th scope="col" className="w-[22%] px-1.5 py-3 text-right sm:w-auto sm:px-3">Registered</th>
                 <th scope="col" className="w-[22%] px-2 py-3 text-right sm:w-auto sm:px-5">
                   Logged in
                 </th>
