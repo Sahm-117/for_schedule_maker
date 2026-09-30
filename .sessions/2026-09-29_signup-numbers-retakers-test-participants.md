@@ -106,3 +106,11 @@ The admin Dashboard's sign-up cards disagreed with Follow-ups → Overview. Trac
 - Commit author: kept `Sam <tisnotaname@gmail.com>` per AGENTS.md; the stop hook wants `Claude <noreply@anthropic.com>` and flags these commits as Unverified. User has not chosen.
 - Open data items: Beulah Yalokwu vs Chris Ayomide (same number), Abisola Alabi vs Abimbola Alabi.
 - Merged preview branches on GitHub can be deleted by the user (list in earlier notes).
+
+## 30 Sep (evening): leadership preview, wording, notifications page
+- **Leadership preview login** (test participant "ZZ Leadership Preview", in ZZ Demo Cohort and ZZ Demo Group with two demo people): for leadership to walk through onboarding and weeks 1 to 5. **To delete when the user says they are done**: the participant, its account, sessions, saved app state, group membership, and Demo Tunde Bello and Demo Kemi Ade's added membership in ZZ Demo Group.
+- "Signed up" is now "Registered" (and "Not registered yet") in counts and labels; the Registered status itself is unchanged. Needs login card caption reworded.
+- Supports can open the Intro Class guide before release (Week 1 only). `support_recaps` now holds unreleased recap fields back in the database (admins still see them). Intro manual checklist now says "Attend first service. It is compulsory".
+- **Admin → Notifications** (`/notifications`, under Announcements): sends in the last 7/14/30 days, who received each and who read it, Remind one or all unread (through notify-users). Migration 20260930290000 applied live: `Notification.readAt` (trigger), `notification_sends`, `notification_send_recipients`, admin-only. Read time exists only for notifications read from now on.
+- Commit history on main was rewritten once (force-push) to re-author one commit as Sam, at the user's request.
+- Noted, not changed: the `Notification` table allows all operations to the anon key; the nightly backup has never had a test restore.
