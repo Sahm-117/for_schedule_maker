@@ -4,6 +4,8 @@ type SegmentedTab = {
   key: string;
   label: string;
   shortLabel?: string;
+  /** Small orange dot after the label: something new on that tab. */
+  dot?: boolean;
 };
 
 interface SegmentedTabsProps {
@@ -60,6 +62,7 @@ const SegmentedTabs: React.FC<SegmentedTabsProps> = ({ tabs, active, onChange, s
               <span className="hidden xl:inline">{tab.label}</span>
             </>
           ) : tab.label}
+          {tab.dot && <span aria-label="New" className="ml-1.5 inline-block h-2 w-2 rounded-full bg-orange-500 align-middle" />}
         </button>
       );
     })}

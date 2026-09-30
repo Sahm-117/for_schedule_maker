@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
@@ -9,6 +9,7 @@ import ParticipantDiscussionTab from '../components/participantApp/ParticipantDi
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { buildWhatsAppLink } from '../utils/phone';
 import { normalizeLink } from '../utils/links';
+import { participantAppApi } from '../services/api';
 import { currentWeekNumber, formatTime, recapHasContent, titleCaseDay } from '../utils/participantApp';
 
 // My Group: the weekly group meeting, who is in the group, and a way to reach
@@ -26,8 +27,18 @@ const ParticipantGroupPage: React.FC = () => {
   const [tabChoice, setTabChoice] = useState<'discussion' | 'meeting' | null>(
     searchParams.get('tab') === 'meeting' ? 'meeting' : searchParams.get('tab') === 'discussion' ? 'discussion' : null,
   );
+  const [unseen, setUnseen] = useState(0);
+  const tabNow = tabChoice ?? (home?.groupMeetingLive ? 'meeting' : 'discussion');
+  // Orange dot on Discussion while it's closed and others have posted since last look.
+  useEffect(() => {
+    if (tabNow === 'discussion') { setUnseen(0); return undefined; }
+    const check = () => { participantAppApi.discussionUnseen().then(setUnseen).catch(() => {}); };
+    check();
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') check(); }, 30000);
+    return () => window.clearInterval(timer);
+  }, [tabNow]);
   if (loading || !home) return <PageLoader />;
-  const tab = tabChoice ?? (home.groupMeetingLive ? 'meeting' : 'discussion');
+  const tab = tabNow;
 
   const group = home.group;
   const scheduled = !!(group?.meetingDay && group.meetingTime);
@@ -57,7 +68,7 @@ const ParticipantGroupPage: React.FC = () => {
           <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">{group.name}</p>
           <SegmentedTabs
             tabs={[
-              { key: 'discussion', label: 'Discussion' },
+              { key: 'discussion', label: 'Discussion', dot: unseen > 0 },
               { key: 'meeting', label: 'Meeting' },
             ]}
             active={tab}

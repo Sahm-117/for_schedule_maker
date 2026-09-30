@@ -3131,6 +3131,16 @@ export const participantAppApi = {
     if (error) throw participantAppError(error.message, 'Could not load the discussion. Please try again.');
     return (data as import('../types').DiscussionFeed | null) ?? null;
   },
+  // Posts and replies by others since they last opened the Discussion tab (the orange dot).
+  async discussionUnseen(): Promise<number> {
+    const { data, error } = await supabase.rpc('participant_discussion_unseen', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not check the discussion.');
+    return Number(data ?? 0);
+  },
+  async discussionMarkSeen(): Promise<void> {
+    const { error } = await supabase.rpc('participant_discussion_mark_seen', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not update the discussion.');
+  },
   async discussionPost(body: string, mentions: import('../types').DiscussionMention[] = []): Promise<void> {
     const { error } = await supabase.rpc('participant_discussion_post', { p_token: getSessionToken(), p_body: body, p_mentions: mentions.map(({ kind, id }) => ({ kind, id })) });
     if (error) throw participantAppError(error.message, 'Could not post. Please try again.');
@@ -5983,6 +5993,16 @@ export const groupDiscussionApi = {
     const { data, error } = await supabase.rpc('group_discussion_feed', { p_group_id: groupId, p_before: before ?? null });
     if (error) throw new Error(error.message);
     return data as import('../types').DiscussionFeed;
+  },
+  // The group's support only: new posts/replies since they last opened the tab (0 for others).
+  async unseen(groupId: string): Promise<number> {
+    const { data, error } = await supabase.rpc('group_discussion_unseen', { p_group_id: groupId });
+    if (error) throw new Error(error.message);
+    return Number(data ?? 0);
+  },
+  async markSeen(groupId: string): Promise<void> {
+    const { error } = await supabase.rpc('group_discussion_mark_seen', { p_group_id: groupId });
+    if (error) throw new Error(error.message);
   },
   async activity(groupId: string): Promise<import('../types').DiscussionActivity> {
     const { data, error } = await supabase.rpc('group_discussion_activity', { p_group_id: groupId });

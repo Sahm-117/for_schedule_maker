@@ -11,7 +11,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { faithProjectsApi, faithProjectCategoriesApi, faithHelpRequestsApi, testimoniesApi, groupOnboardingStatusApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, participantPushApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
+import { faithProjectsApi, faithProjectCategoriesApi, faithHelpRequestsApi, testimoniesApi, groupOnboardingStatusApi, groupDiscussionApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, participantPushApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
 import type { FaithHelpRequest, FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, RetakeMatch, Testimony, User } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
@@ -69,6 +69,15 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const [selectedWeekId, setSelectedWeekId] = useState<number | null>(null);
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<GroupTab>(searchParams.get('tab') === 'prayers' ? 'prayers' : searchParams.get('tab') === 'discussion' ? 'discussion' : 'faith');
+  const [discussionUnseen, setDiscussionUnseen] = useState(0);
+  // Orange dot on Discussion while it's closed and the group has posted since the support last looked.
+  useEffect(() => {
+    if (!selectedGroupId || activeTab === 'discussion') { setDiscussionUnseen(0); return undefined; }
+    const check = () => { groupDiscussionApi.unseen(selectedGroupId).then(setDiscussionUnseen).catch(() => {}); };
+    check();
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') check(); }, 30000);
+    return () => window.clearInterval(timer);
+  }, [selectedGroupId, activeTab]);
   const [savingPrayerFocus, setSavingPrayerFocus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -413,7 +422,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
               <SegmentedTabs
                 tabs={[
                   { key: 'faith', label: 'Participants', shortLabel: 'People' },
-                  { key: 'discussion', label: 'Discussion' },
+                  { key: 'discussion', label: 'Discussion', dot: discussionUnseen > 0 },
                   { key: 'prayers', label: 'Group meetings', shortLabel: 'Meetings' },
                 ]}
                 active={activeTab}

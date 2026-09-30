@@ -23,6 +23,8 @@ const ParticipantDiscussionTab: React.FC<{ viewerName: string; viewerAvatarUrl?:
     try {
       setFeed(await participantAppApi.discussionFeed());
       setError('');
+      // They're looking at it, so nothing here is new any more.
+      participantAppApi.discussionMarkSeen().catch(() => {});
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load the discussion.');
     } finally {

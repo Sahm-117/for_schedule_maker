@@ -14,8 +14,10 @@ const StaffDiscussionPanel: React.FC<{ groupId: string; viewerName: string; view
 
   const load = useCallback(async () => {
     try {
-      setFeed(await groupDiscussionApi.feed(groupId));
+      const next = await groupDiscussionApi.feed(groupId);
+      setFeed(next);
       setError('');
+      if (next.access === 'SUPPORT') groupDiscussionApi.markSeen(groupId).catch(() => {});
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load the discussion.');
     } finally {
