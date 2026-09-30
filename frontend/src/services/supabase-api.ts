@@ -3125,6 +3125,17 @@ export const participantAppApi = {
     return data as import('../types').ParticipantPeople;
   },
 
+  // Pre-start "Get ready" steps (intro, people) already done, kept on the server.
+  async getReadySteps(): Promise<string[]> {
+    const { data, error } = await supabase.rpc('participant_ready_steps', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not load your steps.');
+    return (data as string[] | null) ?? [];
+  },
+  async markReadyStep(step: 'intro' | 'people'): Promise<void> {
+    const { error } = await supabase.rpc('participant_mark_ready_step', { p_token: getSessionToken(), p_step: step });
+    if (error) throw participantAppError(error.message, 'Could not save your step.');
+  },
+
   // Group Discussion: their own group only (null when not in a group yet).
   async discussionFeed(before?: string | null): Promise<import('../types').DiscussionFeed | null> {
     const { data, error } = await supabase.rpc('participant_discussion_feed', { p_token: getSessionToken(), p_before: before ?? null });
@@ -4012,20 +4023,31 @@ export const followUpIssuesApi = {
 
   async create(input: {
     contactId?: string | null;
+    // Every contact the issue is about (contactId stays the first). Each gets a link row.
+    contactIds?: string[];
     person?: string | null;
     issue: string;
     reportedById?: string | null;
     ownerId?: string | null;
     neededFrom?: string | null;
   }): Promise<{ issue: import('../types').FollowUpIssue }> {
+    const { contactIds, ...row } = input;
     const { data, error } = await supabase
       .from('FollowUpIssue')
-      .insert([input])
+      .insert([row])
       .select(ISSUE_SELECT)
       .single();
 
     if (error || !data) throw new Error(error?.message || 'Failed to create issue');
     const issue = mapFollowUpIssue(data);
+    // The issue is saved either way; a failed link write must not lose it.
+    const linkIds = Array.from(new Set(contactIds?.length ? contactIds : input.contactId ? [input.contactId] : []));
+    if (linkIds.length > 0) {
+      const { error: linkError } = await supabase
+        .from('FollowUpIssueContact')
+        .insert(linkIds.map((contactId) => ({ issueId: issue.id, contactId })));
+      if (linkError) console.error('followUpIssuesApi.create: link rows failed:', linkError.message);
+    }
     if (input.reportedById) {
       notifyFollowUpIssue(issue.id, input.reportedById);
     }
@@ -6273,6 +6295,32 @@ export const plannerApi = {
   async undoChange(changeId: string): Promise<void> {
     const { error } = await supabase.rpc('planner_undo_change', { p_token: getSessionToken(), p_change_id: changeId });
     if (error) throw new Error(error.message === 'NOT_AUTHORISED' ? 'Only admins can undo changes.' : error.message);
+  },
+
+  /** Hand-set dates for planned (not yet created) cohorts, keyed by cohort name. */
+  async getPlannedDates(): Promise<{ dates: Record<string, string[]> }> {
+    const { data, error } = await supabase.from('AppSetting').select('value').eq('settingKey', 'planner_planned_dates').maybeSingle();
+    if (error) throw new Error(error.message);
+    const value = (data as any)?.value;
+    return { dates: value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, string[]>) : {} };
+  },
+
+  /** A real cohort's class dates; with apply false it only returns what moves. */
+  async setClassDates(cohortId: string, dates: Array<{ weekId: number; date: string }>, apply: boolean): Promise<{ moves: Array<{ weekNumber: number; from: string; to: string }>; endBefore: string; endAfter: string; applied: boolean }> {
+    const { data, error } = await supabase.rpc('planner_set_class_dates', {
+      p_token: getSessionToken(),
+      p_cohort_id: cohortId,
+      p_dates: dates,
+      p_apply: apply,
+    });
+    if (error) throw new Error(error.message === 'NOT_AUTHORISED' ? 'Only admins can change class dates.' : error.message);
+    return data as any;
+  },
+
+  /** A planned cohort's class dates, or null to go back to automatic. */
+  async setPlannedDates(name: string, dates: string[] | null): Promise<void> {
+    const { error } = await supabase.rpc('planner_set_planned_dates', { p_token: getSessionToken(), p_name: name, p_dates: dates });
+    if (error) throw new Error(error.message === 'NOT_AUTHORISED' ? 'Only admins can change class dates.' : error.message);
   },
 
   /** Admin "Refresh now": re-reads the holiday calendar straight away. */

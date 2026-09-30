@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import Spinner from '../components/Spinner';
 import { useToast } from '../components/Toast';
 import ChurchEventSheet from '../components/planner/ChurchEventSheet';
+import ClassDatesSheet from '../components/planner/ClassDatesSheet';
 import PushBackSheet from '../components/planner/PushBackSheet';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
@@ -12,6 +13,7 @@ import { plannerApi } from '../services/api';
 import {
   CYCLE_WEEKS,
   PHASE_LABEL,
+  addDays,
   buildPlannerCohorts,
   cohortsStartingIn,
   currentMoment,
@@ -43,6 +45,34 @@ const LEGEND: Array<{ kind: PhaseKind; label: string }> = [
   { kind: 'spare', label: 'Spare week (1)' },
 ];
 
+type Zoom = 'year' | 'quarter' | 'month';
+const ZOOMS: Array<{ id: Zoom; label: string; factor: number }> = [
+  { id: 'year', label: 'Year', factor: 1 },
+  { id: 'quarter', label: 'Quarter', factor: 4 },
+  { id: 'month', label: 'Month', factor: 12 },
+];
+const ZOOM_KEY = 'fof-planner-zoom';
+const readZoom = (): Zoom => {
+  try {
+    const saved = localStorage.getItem(ZOOM_KEY);
+    return ZOOMS.some((z) => z.id === saved) ? (saved as Zoom) : 'year';
+  } catch {
+    return 'year';
+  }
+};
+// The label column is 112px; the rest of the track is 608px at Year zoom.
+const LABEL_COL = 112;
+const TRACK = 608;
+
+/** Every Monday (dow 1) or Sunday (dow 0) in the year, as YYYY-MM-DD. */
+const weekdaysIn = (year: number, dow: number) => {
+  const out: string[] = [];
+  let d = `${year}-01-01`;
+  while (new Date(`${d}T00:00:00Z`).getUTCDay() !== dow) d = addDays(d, 1);
+  for (; d.startsWith(String(year)); d = addDays(d, 7)) out.push(d);
+  return out;
+};
+
 type ClassWeekRow = { id: number; cohortId: string; weekNumber: number; classDate: string | null };
 
 /** "just now" / "20 minutes ago" / "5 hours ago" / "3 days ago". */
@@ -57,7 +87,7 @@ const updatedAgo = (iso: string) => {
 
 // The timeline is at least 608px wide (720px less the name column), and a
 // label letter is about 6px, so a label spans roughly this much of the year.
-const labelSpanPercent = (text: string) => ((text.length * 6 + 12) / 608) * 100;
+const labelSpanPercent = (text: string, factor: number) => ((text.length * 6 + 12) / (TRACK * factor)) * 100;
 
 /**
  * Dots for every holiday; labels laid out on up to three lines so they don't
@@ -65,7 +95,7 @@ const labelSpanPercent = (text: string) => ((text.length * 6 + 12) / 608) * 100;
  * "Eid El-Fitr") gets a dot but no label. Labels near either end are pinned
  * inside the timeline instead of centred on the dot.
  */
-const layoutHolidays = (holidays: PublicHoliday[], year: number) => {
+const layoutHolidays = (holidays: PublicHoliday[], year: number, factor: number) => {
   const lineEnds = [-Infinity, -Infinity, -Infinity];
   let prev: PublicHoliday | null = null;
   return holidays.map((holiday) => {
@@ -74,7 +104,7 @@ const layoutHolidays = (holidays: PublicHoliday[], year: number) => {
     if (repeat) return { holiday, at, label: null };
     prev = holiday;
     const text = `${holiday.name}${holiday.isEstimate ? '*' : ''}`;
-    const span = labelSpanPercent(text);
+    const span = labelSpanPercent(text, factor);
     const align: 'left' | 'center' | 'right' = at < span / 2 ? 'left' : at > 100 - span / 2 ? 'right' : 'center';
     const from = align === 'left' ? at : align === 'right' ? at - span : at - span / 2;
     const line = lineEnds.findIndex((end) => end <= from);
@@ -116,6 +146,10 @@ const AdminPlannerPage: React.FC = () => {
   const [eventSheet, setEventSheet] = useState<{ event: ChurchEvent | null } | null>(null);
   const [activeClash, setActiveClash] = useState<PlannerClash | null>(null);
   const [undoing, setUndoing] = useState(false);
+  const [plannedDates, setPlannedDates] = useState<Record<string, string[]>>({});
+  const [datesFor, setDatesFor] = useState<PlannerCohort | null>(null);
+  const [zoom, setZoom] = useState<Zoom>(readZoom);
+  const scroller = useRef<HTMLDivElement>(null);
   const toast = useToast();
 
   // Plan far enough ahead to fill the last year the switcher can show.
@@ -129,6 +163,7 @@ const AdminPlannerPage: React.FC = () => {
     .then((res) => setWeeks(res.weeks))
     .catch((err) => setError(err instanceof Error ? err.message : 'Could not load the planner.'));
   const loadEvents = () => plannerApi.getEvents().then((res) => setEvents(res.events)).catch(() => setEvents([]));
+  const loadPlannedDates = () => plannerApi.getPlannedDates().then((res) => setPlannedDates(res.dates)).catch(() => setPlannedDates({}));
   const loadChanges = () => plannerApi.getChanges().then((res) => setChanges(res.changes)).catch(() => setChanges([]));
 
   useEffect(() => {
@@ -136,6 +171,7 @@ const AdminPlannerPage: React.FC = () => {
     void loadHolidays();
     void loadEvents();
     void loadChanges();
+    void loadPlannedDates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -143,6 +179,7 @@ const AdminPlannerPage: React.FC = () => {
   const afterMove = () => {
     void loadWeeks();
     void loadChanges();
+    void loadPlannedDates();
     void reloadCohorts();
   };
 
@@ -172,11 +209,24 @@ const AdminPlannerPage: React.FC = () => {
     }
   };
   const plan = useMemo(
-    () => (weeks ? buildPlannerCohorts(cohorts, weeks, `${lastYear}-12-31`) : []),
-    [cohorts, weeks, lastYear],
+    () => (weeks ? buildPlannerCohorts(cohorts, weeks, `${lastYear}-12-31`, plannedDates) : []),
+    [cohorts, weeks, lastYear, plannedDates],
   );
   const firstYear = plan.length > 0 ? Math.min(thisYear, Number(plan[0].phases[0].start.slice(0, 4))) : thisYear;
   const clashes = useMemo(() => findClashes(plan, events, today), [plan, events, today]);
+
+  const factor = ZOOMS.find((z) => z.id === zoom)!.factor;
+  const chooseZoom = (next: Zoom) => {
+    setZoom(next);
+    try { localStorage.setItem(ZOOM_KEY, next); } catch { /* remembered per viewer when possible */ }
+  };
+  // On zoom (or year) change, bring today, or the start of the year, into view.
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const pct = today.startsWith(String(year)) ? yearPercent(today, year) : 0;
+    el.scrollLeft = factor === 1 ? 0 : Math.max(0, (TRACK * factor * pct) / 100 - 44);
+  }, [factor, year, today, weeks]);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -298,15 +348,44 @@ const AdminPlannerPage: React.FC = () => {
           </div>
 
           <section className={`${SURFACE} p-4 sm:p-5`}>
-            <div className="-mx-4 overflow-x-auto px-4 sm:-mx-5 sm:px-5">
-              <div className="min-w-[720px]">
+            <div className="mb-3 flex justify-end">
+              <div className="flex w-fit items-center gap-1 rounded-full bg-gray-100 p-1" role="group" aria-label="Zoom">
+                {ZOOMS.map((z) => (
+                  <button
+                    key={z.id}
+                    type="button"
+                    onClick={() => chooseZoom(z.id)}
+                    aria-pressed={zoom === z.id}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${zoom === z.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {z.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div ref={scroller} className="-mx-4 overflow-x-auto px-4 sm:-mx-5 sm:px-5">
+              <div style={{ minWidth: `${LABEL_COL + TRACK * factor}px` }}>
                 <div className="ml-[112px] grid grid-cols-12 text-center text-[11px] font-semibold text-gray-400">
                   {MONTHS.map((m) => <span key={m}>{m}</span>)}
                 </div>
+                {factor > 1 && (
+                  <div className="relative ml-[112px] h-4 text-[10px] font-medium text-gray-400" aria-hidden="true">
+                    {weekdaysIn(year, 0).map((sunday) => (
+                      <span key={sunday} className="absolute -translate-x-1/2" style={{ left: `${yearPercent(sunday, year)}%` }}>{Number(sunday.slice(8))}</span>
+                    ))}
+                  </div>
+                )}
                 <div className="relative mt-2">
                   <div className="pointer-events-none absolute inset-y-0 left-[112px] right-0 grid grid-cols-12" aria-hidden="true">
                     {MONTHS.map((m) => <span key={m} className="border-l border-gray-100" />)}
                   </div>
+                  {factor > 1 && (
+                    <div className="pointer-events-none absolute inset-y-0 left-[112px] right-0" aria-hidden="true">
+                      {weekdaysIn(year, 1).map((monday) => (
+                        <span key={monday} className="absolute inset-y-0 border-l border-gray-100/70" style={{ left: `${yearPercent(monday, year)}%` }} />
+                      ))}
+                    </div>
+                  )}
                   {todayInYear && (
                     <div className="pointer-events-none absolute inset-y-0 left-[112px] right-0" aria-hidden="true">
                       <span className="absolute inset-y-0 w-0.5 -translate-x-1/2 rounded-full bg-primary" style={{ left: `${yearPercent(today, year)}%` }} />
@@ -317,7 +396,7 @@ const AdminPlannerPage: React.FC = () => {
                   )}
                   {inYear.map((cohort) => (
                     <div key={cohort.key} className="relative flex h-12 items-center">
-                      <span className="w-[112px] shrink-0 pr-2">
+                      <span className="sticky left-0 z-10 flex w-[112px] shrink-0 flex-col justify-center self-stretch bg-white pr-2">
                         <span className="block truncate text-[13px] font-semibold text-gray-900">{cohort.name}</span>
                         {cohort.planned && <span className="block text-[11px] text-gray-400">planned</span>}
                       </span>
@@ -327,9 +406,12 @@ const AdminPlannerPage: React.FC = () => {
                           const left = yearPercent(phase.start, year);
                           const right = yearPercent(phase.end, year) + (phase.end <= yearEnd ? (100 / 365) : 0);
                           return (
-                            <div
+                            <button
                               key={phase.kind}
+                              type="button"
+                              onClick={() => setDatesFor(cohort)}
                               title={`${cohort.name} · ${PHASE_LABEL[phase.kind]}: ${formatPlannerRange(phase.start, phase.end, yearStart)}`}
+                              aria-label={`${cohort.name} ${PHASE_LABEL[phase.kind]}: change class dates`}
                               className={`absolute inset-y-0 rounded-md ${PHASE_BAR[phase.kind]} ${cohort.planned ? 'opacity-55' : ''}`}
                               style={{ left: `${left}%`, width: `calc(${Math.max(0, right - left)}% - 2px)` }}
                             />
@@ -351,7 +433,7 @@ const AdminPlannerPage: React.FC = () => {
                     </div>
                   ))}
                   <div className="relative flex min-h-[40px] items-start py-1">
-                    <span className="w-[112px] shrink-0 pr-2 pt-1 text-[13px] font-semibold text-gray-500">Church events</span>
+                    <span className="sticky left-0 z-10 w-[112px] shrink-0 self-stretch bg-white pr-2 pt-1 text-[13px] font-semibold text-gray-500">Church events</span>
                     <div className="relative flex-1">
                       {yearEvents.length === 0 ? (
                         <button type="button" onClick={() => setEventSheet({ event: null })} className="pt-1 text-[12px] font-semibold text-primary">+ Add one</button>
@@ -379,12 +461,12 @@ const AdminPlannerPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="relative flex h-[76px] items-start">
-                    <span className="w-[112px] shrink-0 pr-2 pt-0.5">
+                    <span className="sticky left-0 z-10 w-[112px] shrink-0 self-stretch bg-white pr-2 pt-0.5">
                       <span className="block text-[13px] font-semibold text-gray-500">Public holidays</span>
                       <span className="block text-[11px] text-gray-400">info only</span>
                     </span>
                     <div className="relative h-full flex-1">
-                      {layoutHolidays(yearHolidays, year).map(({ holiday, at, label }) => (
+                      {layoutHolidays(yearHolidays, year, factor).map(({ holiday, at, label }) => (
                         <React.Fragment key={holiday.id}>
                           <span
                             title={`${formatPlannerDate(holiday.date, true, yearStart)} · ${holiday.name}${holiday.isEstimate ? ' (estimate)' : ''}`}
@@ -431,7 +513,8 @@ const AdminPlannerPage: React.FC = () => {
                 {inYear.map((cohort) => {
                   const pill = statusPill(cohort, today);
                   return (
-                    <li key={cohort.key} className="px-4 py-3.5">
+                    <li key={cohort.key}>
+                      <button type="button" onClick={() => setDatesFor(cohort)} aria-label={`${cohort.name}: change class dates`} className="block w-full px-4 py-3.5 text-left hover:bg-gray-50 active:bg-gray-50">
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-[15px] font-semibold text-gray-900">{cohort.name}</p>
                         <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${pill.className}`}>{pill.label}</span>
@@ -451,6 +534,7 @@ const AdminPlannerPage: React.FC = () => {
                           </div>
                         ))}
                       </dl>
+                      </button>
                     </li>
                   );
                 })}
@@ -488,6 +572,13 @@ const AdminPlannerPage: React.FC = () => {
         plan={plan}
         today={today}
         onSaved={() => void loadEvents()}
+      />
+      <ClassDatesSheet
+        cohort={datesFor}
+        plan={plan}
+        today={today}
+        onClose={() => setDatesFor(null)}
+        onSaved={afterMove}
       />
       <PushBackSheet
         clash={activeClash}

@@ -125,6 +125,8 @@ const ParticipantJourneyPage: React.FC = () => {
 
               {home.weeks.map((week, index) => {
                 const reflection = reflectionFor(home.reflections, week.id);
+                // Before the start, week 1 is open to read (its recap stays locked).
+                const opensSoon = weekNumber < 1 && week.weekNumber === 1 && home.cohort?.status !== 'COMPLETED';
                 const reached = week.weekNumber <= weekNumber;
                 const isNow = week.weekNumber === weekNumber;
                 const open = openWeekId === week.id && !!reflection;
@@ -132,10 +134,10 @@ const ParticipantJourneyPage: React.FC = () => {
                   ? { label: 'This week', cls: 'bg-[#fff1e6] text-[#c2410c]' }
                   : reflection
                     ? reflection.goalDoneAt ? { label: 'Goal kept', cls: 'bg-[#f2fbf5] text-[#15803d]' } : { label: 'Not this time', cls: 'bg-[#fef3c7] text-[#b45309]' }
-                    : reached ? { label: 'No reflection', cls: 'bg-[#f6f7f9] text-gray-400' } : { label: 'Locked', cls: 'bg-[#f6f7f9] text-gray-400' };
+                    : reached ? { label: 'No reflection', cls: 'bg-[#f6f7f9] text-gray-400' } : opensSoon ? { label: 'Opens soon', cls: 'bg-[#f6f7f9] text-gray-500' } : { label: 'Locked', cls: 'bg-[#f6f7f9] text-gray-400' };
                 const onRow = () => {
                   if (reflection) setOpenWeekId(open ? null : week.id);
-                  else if (reached && week.released) navigate(`/me/week/${week.weekNumber}`);
+                  else if (opensSoon || (reached && week.released)) navigate(`/me/week/${week.weekNumber}`);
                 };
                 return (
                   <div key={week.id} className="flex items-stretch gap-3.5">
@@ -146,7 +148,7 @@ const ParticipantJourneyPage: React.FC = () => {
                       {index < home.weeks.length - 1 && <span className={`min-h-[14px] w-0.5 flex-auto ${week.weekNumber < weekNumber ? 'bg-[#ffdeca]' : 'bg-[#f1f2f5]'}`} />}
                     </div>
                     <div className="min-w-0 flex-auto pb-3.5">
-                      <button type="button" onClick={onRow} className={`flex w-full items-center gap-2.5 pt-[3px] text-left ${reflection || (reached && week.released) ? 'cursor-pointer' : 'cursor-default'}`}>
+                      <button type="button" onClick={onRow} className={`flex w-full items-center gap-2.5 pt-[3px] text-left ${reflection || opensSoon || (reached && week.released) ? 'cursor-pointer' : 'cursor-default'}`}>
                         <div className="min-w-0">
                           <p className={`text-[14.5px] font-bold leading-snug ${reached ? 'text-gray-900' : 'text-gray-400'}`}>{week.title || `Week ${week.weekNumber}`}</p>
                           <p className="mt-0.5 text-[12.5px] text-gray-400">Week {week.weekNumber}</p>

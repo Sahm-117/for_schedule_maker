@@ -23,6 +23,8 @@ interface FollowUpIssuesPanelProps {
   canAssignOwner?: boolean;
   canReply?: boolean;
   onIssuesOpen?: () => void;
+  /** Open the "Log an issue or question" form straight away with these contacts picked. */
+  startWithContactIds?: string[];
 }
 
 const inputClass =
@@ -39,10 +41,11 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   canAssignOwner = true,
   canReply = true,
   onIssuesOpen,
+  startWithContactIds,
 }) => {
   useEffect(() => { onIssuesOpen?.(); }, [onIssuesOpen]);
-  const [showForm, setShowForm] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showForm, setShowForm] = useState(!!startWithContactIds?.length);
+  const [selectedIds, setSelectedIds] = useState<string[]>(startWithContactIds ?? []);
   const [contactSearch, setContactSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [issueText, setIssueText] = useState('');
@@ -90,6 +93,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
       const names = selectedNames.join(', ');
       const { issue } = await followUpIssuesApi.create({
         contactId: selectedIds[0] || null,
+        contactIds: selectedIds,
         person: names || null,
         issue: issueText.trim(),
         reportedById: currentUserId || null,

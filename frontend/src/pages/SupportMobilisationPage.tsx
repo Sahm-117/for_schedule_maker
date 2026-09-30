@@ -188,6 +188,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   };
   const [notInterestedContact, setNotInterestedContact] = useState<FollowUpContact | null>(null);
   const [showIssues, setShowIssues] = useState(false);
+  // Set when "Log an issue" is picked on a contact's own menu: the Issues form opens with them ticked.
+  const [issueStartContactId, setIssueStartContactId] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [mobilisationTarget, setMobilisationTarget] = useState<number | null>(null);
@@ -929,6 +931,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                         ...(contact.phone?.trim() ? [{ label: 'Copy number', onClick: () => { void copyText(contact.phone!.trim()); } }] : []),
                         ...(waLink ? [{ label: 'Send message', onClick: () => { window.open(waLink, '_blank', 'noopener,noreferrer'); } }] : []),
                         ...(contact.email?.trim() ? [{ label: 'Send email', onClick: () => { void sendEmail(contact); } }] : []),
+                        { label: 'Log an issue', onClick: () => { setIssueStartContactId(contact.id); setShowIssues(true); } },
                         { label: 'Edit contact', onClick: () => setEditingContact(contact) },
                       ]}
                     />
@@ -1194,7 +1197,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
         />
       )}
 
-      <ModalShell isOpen={showIssues} onClose={() => setShowIssues(false)} title="Issues" subtitle="Questions and blockers on your follow-ups." wide>
+      <ModalShell isOpen={showIssues} onClose={() => { setShowIssues(false); setIssueStartContactId(null); }} title="Issues" subtitle="Questions and blockers on your follow-ups." wide>
         <FollowUpIssuesPanel
           issues={visibleIssues}
           onIssuesChanged={setIssues}
@@ -1206,6 +1209,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
           canDelete
           canAssignOwner={false}
           canReply={false}
+          startWithContactIds={issueStartContactId ? [issueStartContactId] : undefined}
         />
       </ModalShell>
 

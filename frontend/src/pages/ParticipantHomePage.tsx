@@ -59,6 +59,7 @@ const ParticipantHomePage: React.FC = () => {
   const [scriptureDragPx, setScriptureDragPx] = useState(0);
   const [scriptureAnimating, setScriptureAnimating] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
+  const [serverSteps, setServerSteps] = useState<string[]>([]);
   const scriptureTrackRef = useRef<HTMLDivElement>(null);
   const scriptureDrag = useRef<{ pointerId: number; x: number; y: number; time: number } | null>(null);
 
@@ -73,6 +74,25 @@ const ParticipantHomePage: React.FC = () => {
 
   // Intro Class reader for the pre-start Get ready list (week 1's class).
   const introManual = useManualContent(home?.weeks.find((w) => w.weekNumber === 1)?.title);
+
+  // Get ready steps kept on the server (the 7pm reminder reads them). Loaded once while
+  // before the start; anything ticked only on this phone is sent up. Failures stay silent.
+  const readyId = home?.participant.id;
+  const readyPreStart = !!home && currentWeekNumber(home.cohort?.startDate, now, home.weeks) < 1 && home.cohort?.status !== 'COMPLETED';
+  useEffect(() => {
+    if (!readyId || !readyPreStart) return;
+    let cancelled = false;
+    participantAppApi.getReadySteps()
+      .then((steps) => {
+        if (cancelled) return;
+        setServerSteps(steps);
+        (['intro', 'people'] as const).forEach((step) => {
+          if (!steps.includes(step) && hasDoneReadyStep(step, readyId)) void Promise.resolve(participantAppApi.markReadyStep(step)).catch(() => { /* ignore */ });
+        });
+      })
+      .catch(() => { /* ignore */ });
+    return () => { cancelled = true; };
+  }, [readyId, readyPreStart]);
 
   if (loading) {
     return <PageLoader label="Loading your FOF space…" />;
@@ -146,9 +166,9 @@ const ParticipantHomePage: React.FC = () => {
   };
   const readyItems: Array<{ key: string; label: string; to?: string; onClick?: () => void; done: boolean }> = [
     ...(!home.profile.avatarUrl ? [{ key: 'photo', label: 'Add a profile photo', to: '/me/profile', done: false }] : []),
-    ...(introManual ? [{ key: 'intro', label: 'Prep for the Intro Class', onClick: openIntro, done: hasDoneReadyStep('intro', home.participant.id) }] : []),
+    ...(introManual ? [{ key: 'intro', label: 'Prep for the Intro Class', onClick: openIntro, done: serverSteps.includes('intro') || hasDoneReadyStep('intro', home.participant.id) }] : []),
     { key: 'faith', label: 'Start your faith project', to: '/me/faith', done: faithStarted },
-    { key: 'people', label: 'Meet your cohort', to: '/me/people', done: hasDoneReadyStep('people', home.participant.id) },
+    { key: 'people', label: 'Meet your cohort', to: '/me/people', done: serverSteps.includes('people') || hasDoneReadyStep('people', home.participant.id) },
   ];
   const readyDone = readyItems.filter((item) => item.done).length;
 

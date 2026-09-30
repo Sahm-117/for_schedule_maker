@@ -48,9 +48,13 @@ export interface PlannerCohort {
   cycleEnd: string;
   /** Rest, mobilisation, classes, and the spare week while any is left. */
   phases: PlannerPhase[];
+  /** A planned cohort whose class dates were set by hand. */
+  plannedOverride?: boolean;
 }
 
 const DAY_MS = 86400000;
+
+export const isSunday = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay() === 0;
 
 export const addDays = (iso: string, days: number) =>
   new Date(Date.parse(`${iso}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
@@ -63,7 +67,7 @@ const daysBetween = (from: string, to: string) =>
  * spare week after until the cycle ends. Once a pushed-back class has used the
  * spare week there's no spare phase left.
  */
-const phasesFor = (classDates: string[], cycleEnd: string): PlannerPhase[] => {
+export const phasesFor = (classDates: string[], cycleEnd: string): PlannerPhase[] => {
   const first = classDates[0];
   const last = classDates[classDates.length - 1];
   const classesStart = addDays(first, -6);
@@ -96,6 +100,7 @@ export const buildPlannerCohorts = (
   cohorts: Cohort[],
   weeks: Array<ClassWeek & { cohortId: string; id?: number }>,
   untilIso: string,
+  plannedDates: Record<string, string[]> = {},
 ): PlannerCohort[] => {
   const real: PlannerCohort[] = cohorts
     .filter((cohort) => cohort.startDate && !/^zz\b/i.test(cohort.name.trim()))
@@ -119,12 +124,17 @@ export const buildPlannerCohorts = (
   if (!latest) return out;
   // The next cycle's rest starts the day after the latest cohort's cycle ends.
   let restStart = addDays(cycleEndOf(latest), 1);
+  const realNames = new Set(real.map((c) => c.name.trim().toLowerCase()));
   for (let step = 1; restStart <= untilIso && step <= 12; step += 1) {
+    const name = nextName(latest.name, step);
+    const saved = plannedDates[name];
+    const usable = !realNames.has(name.trim().toLowerCase()) && Array.isArray(saved) && saved.length === CLASS_WEEKS
+      && saved.every((d, i) => /^\d{4}-\d{2}-\d{2}$/.test(d) && (i === 0 || d > saved[i - 1]));
     const firstClass = addDays(restStart, 7 * (REST_WEEKS + MOBILISATION_WEEKS) + 6);
-    const classDates = Array.from({ length: CLASS_WEEKS }, (_, i) => addDays(firstClass, i * 7));
+    const classDates = usable ? saved : Array.from({ length: CLASS_WEEKS }, (_, i) => addDays(firstClass, i * 7));
     const classes = classDates.map((date, i) => ({ weekId: null, weekNumber: i + 1, date }));
     const cycleEnd = addDays(classDates[CLASS_WEEKS - 1], 7 * SPARE_WEEKS);
-    out.push({ key: `planned-${step}`, name: nextName(latest.name, step), planned: true, status: null, classDates, classes, cycleEnd, phases: phasesFor(classDates, cycleEnd) });
+    out.push({ key: `planned-${step}`, name, planned: true, status: null, classDates, classes, cycleEnd, phases: phasesFor(classDates, cycleEnd), ...(usable ? { plannedOverride: true } : {}) });
     restStart = addDays(cycleEnd, 1);
   }
   return out;

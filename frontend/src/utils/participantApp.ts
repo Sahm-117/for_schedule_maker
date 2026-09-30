@@ -3,6 +3,7 @@
 // answered in Lagos time regardless of the device's zone.
 
 import type { FaithProjectStatus, ParticipantHome, ParticipantHomeWeek, ParticipantReflection } from '../types';
+import { participantAppApi } from '../services/api';
 import { normaliseRules, sundayMarkAttended, type PersonHealth } from './programmeRules';
 
 const LAGOS_OFFSET_MS = 60 * 60 * 1000;
@@ -119,6 +120,8 @@ export const hasDoneReadyStep = (step: ReadyStep, participantId: string) => {
 };
 export const markReadyStepDone = (step: ReadyStep, participantId: string) => {
   try { localStorage.setItem(readyStepKey(step, participantId), '1'); } catch { /* ignore */ }
+  // Also tell the server so the 7pm "Get ready" reminder knows. Quiet if it fails.
+  void Promise.resolve(participantAppApi.markReadyStep(step)).catch(() => { /* ignore */ });
 };
 
 // Unsaved reflection answers, kept on this phone so leaving the week page never

@@ -9,7 +9,9 @@
  *
  * Reads AppSetting.remind_before_minutes to know which reminder intervals are
  * active, then sends Web Push to supports whose activities fall within each
- * window. All timing is derived in Africa/Lagos, never server-local: edge
+ * window. Participants also get class nudges, group call and recap reminders,
+ * and a 7pm "Get ready" until their first class. Supports also get a "no activity"
+ * nudge (9am, 12pm, 4pm, 9pm) on follow-ups untouched 24 hours after assignment. All timing is derived in Africa/Lagos, never server-local: edge
  * functions run UTC and the users do not.
  *
  * Test modes (body JSON, both safe against the 20 real users):
@@ -17,6 +19,7 @@
  *   { "onlyUserIds": ["<uuid>"] } — restrict delivery to specific users
  *   { "onlyParticipantIds": [...], "cohortId": "<uuid>", "asOf": "<ISO>" } — participant
  *     reminders only for those participants / that cohort, as if it were that moment
+ *     (asOf also sets the moment for the follow-up "no activity" nudge)
  *
  * Required Supabase secrets:
  *   VAPID_PUBLIC_KEY  — from `npx web-push generate-vapid-keys`
@@ -880,6 +883,57 @@ Deno.serve(async (req) => {
           }
         }
       }
+
+      // f) "Get ready" reminder at 7pm, only for cohorts whose first class is still
+      //    ahead (the loop above starts a day before the start, too late for this).
+      //    Tag is per day and the 10-minute window is narrow, so a missed run never
+      //    turns into a backlog. Lists only what each person still has to do.
+      if (pNowMinutes >= 19 * 60 && pNowMinutes < 19 * 60 + 10) {
+        const { data: readyCohorts } = onlyCohortId
+          ? await supabase.from('Cohort').select('id, startDate, status').eq('id', onlyCohortId)
+          : await supabase.from('Cohort').select('id, startDate, status').neq('status', 'COMPLETED')
+        for (const cohort of (readyCohorts ?? []) as any[]) {
+          if (!cohort.startDate || cohort.status === 'COMPLETED') continue
+          const startIso = String(cohort.startDate).slice(0, 10)
+          const { data: week1 } = await supabase.from('Week').select('weekNumber, classDate, title').eq('cohortId', cohort.id).eq('weekNumber', 1).maybeSingle()
+          const firstClassIso = week1 ? classIsoFor(startIso, week1 as any) : startIso
+          if (daysBetweenIso(pToday, firstClassIso) < 1) continue
+          // The Intro Class prep exists when week 1 has a bundled manual, which the app
+          // picks by class title (see manuals/index.ts) -- the database can only see the title.
+          const hasIntro = String((week1 as any)?.title || '').trim().toLowerCase() === 'introductory class'
+
+          const { data: accounts } = await supabase
+            .from('ParticipantAccount').select('participantId, participant:Participant!inner(id, cohortId, status, avatarUrl)')
+            .eq('isActive', true).eq('participant.cohortId', cohort.id).eq('participant.status', 'ACTIVE')
+          const rows = (accounts ?? []) as any[]
+          if (rows.length === 0) continue
+          const ids = rows.map((a) => a.participantId)
+          const [{ data: faithRows }, { data: stepRows }] = await Promise.all([
+            supabase.from('FaithProject').select('participantId, status, updatedAt').in('participantId', ids).order('updatedAt', { ascending: false }),
+            supabase.from('ParticipantReadyStep').select('participantId, step').in('participantId', ids),
+          ])
+          const faithStatus = new Map<string, string>()
+          for (const f of (faithRows ?? []) as any[]) if (!faithStatus.has(f.participantId)) faithStatus.set(f.participantId, f.status)
+          const doneSteps = new Set(((stepRows ?? []) as any[]).map((r) => `${r.participantId}:${r.step}`))
+
+          // Group people by identical wording: one send per message.
+          const byBody = new Map<string, string[]>()
+          for (const a of rows) {
+            const left: string[] = []
+            if (!String(a.participant?.avatarUrl || '').trim()) left.push('add a profile photo')
+            if (hasIntro && !doneSteps.has(`${a.participantId}:intro`)) left.push('prep for the Intro Class')
+            const faith = faithStatus.get(a.participantId)
+            if (!faith || faith === 'NOT_DRAFTED') left.push('start your faith project')
+            if (!doneSteps.has(`${a.participantId}:people`)) left.push('meet your cohort')
+            if (left.length === 0) continue
+            const body = `Still to do: ${left.join(', ')}`
+            byBody.set(body, [...(byBody.get(body) ?? []), a.participantId])
+          }
+          for (const [body, participantIds] of byBody) {
+            await pushParticipants(participantIds, { title: 'Get ready for FOF 🙌', body, path: '/me', tag: `GET_READY:${pToday}` })
+          }
+        }
+      }
     }
 
     // 7. Follow-up due-date reminders — one push per contact per due date.
@@ -987,6 +1041,108 @@ Deno.serve(async (req) => {
           {
             const r = await sendToSubscriptions(webPush, supabase, (subs || []) as any[], payload, notified)
             if (r.failed > 0) console.error(`push-reminders (followup-owner): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
+          }
+        }
+      }
+    }
+
+    // "No activity" nudge at 9am, 12pm, 4pm and 9pm Lagos: a support is nudged while a
+    // contact given to them 24+ hours ago has had no status change since, and no issue
+    // logged on it since. Honours asOf (dry runs can pretend it's 9:05 tomorrow).
+    // One alert per support per slot, deduped in FollowUpOwnerReminderLog.
+    {
+      const naClock = asOf ?? now
+      const naLagos = getLagosDateParts(naClock)
+      const naMinutes = naLagos.hour * 60 + naLagos.minute
+      const naSlot = [[9, '0900'], [12, '1200'], [16, '1600'], [21, '2100']]
+        .find(([hour]) => naMinutes >= (hour as number) * 60 && naMinutes < (hour as number) * 60 + 10)
+      if (naSlot) {
+        const naKind = `NO_ACTIVITY_${naSlot[1]}`
+        const cutoffIso = new Date(naClock.getTime() - 24 * 60 * 60 * 1000).toISOString()
+        const { data: assigned } = await supabase
+          .from('FollowUpContact')
+          .select('id, ownerId, fullName, nextAction, registrationStatus, ownerAssignedAt, statusChangedAt')
+          .is('archivedAt', null)
+          .not('ownerId', 'is', null)
+          .not('ownerAssignedAt', 'is', null)
+          .lte('ownerAssignedAt', cutoffIso)
+
+        // Status hasn't changed since it was assigned.
+        const unmoved = ((assigned || []) as any[]).filter((contact) =>
+          contact.nextAction !== 'CLOSE'
+          && !TERMINAL_REGISTRATION_STATUSES.has(contact.registrationStatus)
+          && (!contact.statusChangedAt || contact.statusChangedAt < contact.ownerAssignedAt)
+          && (!onlyUserIds || onlyUserIds.includes(contact.ownerId))
+        )
+
+        // An issue logged on the contact since it was assigned (any status) also stops the nudge.
+        const withIssue = new Set<string>()
+        if (unmoved.length > 0) {
+          const { data: links } = await supabase
+            .from('FollowUpIssueContact')
+            .select('contactId, issue:FollowUpIssue!inner(createdAt)')
+            .in('contactId', unmoved.map((contact) => contact.id))
+          const assignedAtById = new Map(unmoved.map((contact) => [contact.id, contact.ownerAssignedAt as string]))
+          for (const link of (links || []) as any[]) {
+            const issue = Array.isArray(link.issue) ? link.issue[0] : link.issue
+            const assignedAt = assignedAtById.get(link.contactId)
+            if (issue?.createdAt && assignedAt && issue.createdAt >= assignedAt) withIssue.add(link.contactId)
+          }
+        }
+
+        const staleByOwner = new Map<string, any[]>()
+        for (const contact of unmoved) {
+          if (withIssue.has(contact.id)) continue
+          staleByOwner.set(contact.ownerId, [...(staleByOwner.get(contact.ownerId) ?? []), contact])
+        }
+
+        if (staleByOwner.size > 0) {
+          const { data: owners } = await supabase
+            .from('User')
+            .select('id, role')
+            .in('id', [...staleByOwner.keys()])
+            .neq('role', 'ADMIN')
+
+          for (const owner of (owners || []) as any[]) {
+            const stale = staleByOwner.get(owner.id) ?? []
+            if (stale.length === 0) continue
+            const ending = 'Any challenge? Tap ⋮ on the person and Log an issue, and these reminders stop.'
+            const firstNames = stale.map((contact) => String(contact.fullName || '').trim().split(/\s+/)[0]).filter(Boolean)
+            const shown = firstNames.slice(0, 2).join(', ')
+            const more = firstNames.length > 2 ? `, +${firstNames.length - 2}` : ''
+            const title = 'No activity on your follow-ups'
+            const body = stale.length === 1
+              ? `${String(stale[0].fullName || '').trim()} was given to you over a day ago and hasn't moved yet. ${ending}`
+              : `${stale.length} people you were given over a day ago haven't moved yet (${shown}${more}). ${ending}`
+
+            if (dryRun) {
+              debug.push({ wouldSend: naKind, userId: owner.id, title, body })
+              continue
+            }
+
+            const { error: logError } = await supabase
+              .from('FollowUpOwnerReminderLog')
+              .insert([{ userId: owner.id, reminderDate: naLagos.isoDate, kind: naKind }])
+            if (logError) {
+              if (logError.code === '23505') continue
+              throw new Error(logError.message)
+            }
+
+            const path = '/support/mobilisation?tab=follow'
+            await insertNotifications(supabase, [{ userId: owner.id, title, body, path, type: 'REMINDER' }])
+            const { data: subs } = await supabase
+              .from('PushSubscription')
+              .select('userId, endpoint, p256dh, auth')
+              .eq('userId', owner.id)
+            const payload = JSON.stringify({
+              title,
+              body,
+              icon: '/icon-192.png',
+              tag: `fof-followup-no-activity-${owner.id}-${naLagos.isoDate}-${naSlot[1]}`,
+              data: { path },
+            })
+            const r = await sendToSubscriptions(webPush, supabase, (subs || []) as any[], payload, notified)
+            if (r.failed > 0) console.error(`push-reminders (followup-no-activity): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
           }
         }
       }
