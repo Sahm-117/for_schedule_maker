@@ -1453,6 +1453,28 @@ window.GUIDE_CONTENT = {
        "shot": "admin-users-add-modal.jpg"
       },
       {
+       "id": "users-export-supports",
+       "q": "How do I export all supports to paste on WhatsApp?",
+       "keywords": [
+        "export supports",
+        "list of supports",
+        "whatsapp",
+        "phone numbers",
+        "notifications off",
+        "home screen"
+       ],
+       "steps": [
+        "Open **Users** and tap **⋮** beside **Add User**.",
+        "Tap **Export supports**.",
+        "Tap **Copy all**, or **WhatsApp** to open WhatsApp with it ready to send."
+       ],
+       "result": "A numbered list of every active support with their name and phone number. An asterisk after a name means their notifications are off, or the app isn't on their Home Screen.",
+       "tips": [
+        "The asterisk goes by whether they have notifications saved on any device. On an iPhone, notifications only work once the app is on the Home Screen, so it catches both.",
+        "Test accounts and deactivated supports are left out."
+       ]
+      },
+      {
        "id": "users-row-menu",
        "q": "How do I reset someone's password, change their role, mark them as test, or remove them?",
        "keywords": [
@@ -1470,7 +1492,7 @@ window.GUIDE_CONTENT = {
        "result": "Reset password gives them a new temporary one to share; Deactivate is the safer option if you just need to stop someone logging in.",
        "shot": "admin-users-row-menu.jpg",
        "tips": [
-        "**Mark as test** is for demo or trial accounts. They work normally but are never picked for follow-up assignment or counted as spare places. They get a **Test** tag."
+        "**Mark as test** is for demo or trial accounts. They work normally but are never picked for follow-up assignment or counted as spare places. They get a **Test** tag, and they are left out of the lists where you pick a support. Where you really need one (assigning follow-ups, or a group's support), tick **Show test supports** under the list."
        ]
       },
       {

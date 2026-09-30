@@ -21,6 +21,7 @@ import Spinner from '../components/Spinner';
 import SupportNotesStar from '../components/hubs/SupportNotesStar';
 import Avatar from '../components/Avatar';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
+import { pickableUsers } from '../utils/testUsers';
 
 // ── Recap Attendance Modal ────────────────────────────────────────────────────
 // Same controls and API calls as the hub lead's Recap tab in SupportMyHubPage.
@@ -519,7 +520,9 @@ const AdminHubsPage: React.FC = () => {
       ]);
       setHubs(hs);
       setMemberships(ms);
-      setSupportUsers(sortByText(users.filter((u) => u.role === 'SUPPORT'), (u) => u.name));
+      // Test supports stay out of the pickers, unless they already hold a place.
+      const heldIds = [...ms.map((m) => m.userId), ...hs.flatMap((h) => [h.leadUserId, h.assistantLeadUserId, ...(h.recapLeadUserIds ?? []), ...(h.prayerLeadUserIds ?? [])])];
+      setSupportUsers(sortByText(pickableUsers(users.filter((u) => u.role === 'SUPPORT'), { keepIds: heldIds }), (u) => u.name));
       setGroups(gs);
       setKinds(ks);
       const itSupportEntries = await Promise.all(hs.map((h) => supportHubsApi.getItSupports(h.id).then((res) => res.itSupports).catch(() => [] as HubItSupportEntry[])));

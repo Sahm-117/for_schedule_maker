@@ -11,6 +11,7 @@ import { useAuth } from '../hooks/useAuth';
 import { labelsApi, supportActivityCompletionsApi, usersApi } from '../services/api';
 import type { Activity, Label, SupportActivityCompletion, User } from '../types';
 import { sortByText } from '../utils/sort';
+import { pickableUsers } from '../utils/testUsers';
 
 type EnrichedActivity = Activity & { dayName: string };
 
@@ -33,7 +34,7 @@ const ActivityOverviewPage: React.FC = () => {
 
     usersApi.getAll()
       .then(async (response) => {
-        const onlySupportUsers = response.users.filter((member) => member.role === 'SUPPORT');
+        const onlySupportUsers = pickableUsers(response.users.filter((member) => member.role === 'SUPPORT'));
         const usersWithLabels = await Promise.all(
           onlySupportUsers.map(async (member) => {
             try {

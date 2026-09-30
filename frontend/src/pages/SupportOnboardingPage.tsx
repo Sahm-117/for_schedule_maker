@@ -21,6 +21,7 @@ import { fillTemplate } from '../utils/followUps';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
 import { downloadFile } from '../utils/download';
 import { sortByText } from '../utils/sort';
+import { pickableUsers } from '../utils/testUsers';
 import type {
   MessageTemplate,
   Participant,
@@ -226,7 +227,7 @@ const CoordinatorSection: React.FC<CoordinatorSectionProps> = ({ coordinatorId, 
         ]);
         if (cancelled) return;
         setTemplates(sortByText(ts, (template) => template.useCase));
-        const sortedSupports = sortByText(users.filter((u) => u.role === 'SUPPORT' && u.id !== coordinatorId), (support) => support.name);
+        const sortedSupports = sortByText(pickableUsers(users.filter((u) => u.role === 'SUPPORT' && u.id !== coordinatorId)), (support) => support.name);
         setSupports(sortedSupports);
         setSelectedSupportId((current) => current || sortedSupports[0]?.id || '');
       } catch { /* ignore */ }

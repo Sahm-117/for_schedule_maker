@@ -20,6 +20,7 @@ import { buildTemplatePlaceholderSummary } from '../utils/followUps';
 import { formatDateTime } from '../utils/time';
 import { sortByText } from '../utils/sort';
 import type { MessageTemplate, OnboardingEvent, OnboardingProgress, User } from '../types';
+import { pickableUsers } from '../utils/testUsers';
 
 const inputClass =
   'w-full rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20';
@@ -93,7 +94,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
           usersApi.getAll(),
         ]);
         setTemplates(sortByText(templateRes.templates, (template) => template.useCase));
-        const supports = sortByText(usersRes.users.filter((entry) => entry.role === 'SUPPORT'), (entry) => entry.name);
+        const supports = sortByText(pickableUsers(usersRes.users.filter((entry) => entry.role === 'SUPPORT')), (entry) => entry.name);
         setSupportUsers(supports);
         setCoordinatorCandidateId((current) => {
           if (current && supports.some((entry) => entry.id === current && !entry.isCoordinator)) return current;

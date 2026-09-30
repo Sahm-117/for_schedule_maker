@@ -99,3 +99,28 @@ export const buildSupportsText = (title: string, subtitle: string, supports: Use
     : [];
   return [header, '', ...lines, ...footer].join('\n');
 };
+
+// ── Supports list ────────────────────────────────────────────────────────────
+// For an admin to paste into WhatsApp: each support's name and number, with a
+// * after anyone who is missing alerts (no notification saved on any device,
+// which on an iPhone also means the app isn't on the Home Screen).
+//
+//   *Supports (34)*
+//   * = notifications are off, or the app isn't on their Home Screen
+//
+//   1. Ada Obi - 08012345678
+//   2. Bola Ade - 08023456789 *
+export const buildSupportsList = (supports: User[], missingAlertsIds: Set<string>): string => {
+  const missing = supports.filter((s) => missingAlertsIds.has(s.id)).length;
+  const header = [
+    `*Supports (${supports.length})*`,
+    missing > 0
+      ? `* = notifications are off, or the app isn't on their Home Screen (${missing})`
+      : 'Everyone has notifications on.',
+  ].join('\n');
+  const lines = supports.map((s, i) => {
+    const phone = normalizePhone(s.phone);
+    return `${i + 1}. ${s.name}${phone ? ` - ${phone}` : ' - no number'}${missingAlertsIds.has(s.id) ? ' *' : ''}`;
+  });
+  return `${header}\n\n${lines.join('\n')}`;
+};

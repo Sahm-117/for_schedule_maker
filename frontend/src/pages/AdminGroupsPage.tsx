@@ -16,6 +16,8 @@ import NewGroupChooser from '../components/groups/NewGroupChooser';
 import { nextGroupNames } from '../utils/groupingEngine';
 import GroupMeetingSlotEditor, { type MeetingSlot } from '../components/GroupMeetingSlotEditor';
 import PageLoader from '../components/PageLoader';
+import { pickableUsers } from '../utils/testUsers';
+import TestSupportsToggle from '../components/TestSupportsToggle';
 import { sortByText } from '../utils/sort';
 import { selectedFirst } from '../utils/selectedFirst';
 import { reconcileById } from '../utils/reconcile';
@@ -107,12 +109,14 @@ interface GroupFormModalProps {
   cohortId: string;
   existing?: Group | null;
   supportUsers: User[];
+  /** With test supports on the system, the pickers can show them on request. */
+  testSupportsToggle?: { value: boolean; onChange: (value: boolean) => void };
   trainingCounts: Map<string, { attended: number; total: number }>;
   trainingsTotal: number;
   minTrainingsAttended: number;
 }
 
-const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSaved, cohortId, existing, supportUsers, trainingCounts, trainingsTotal, minTrainingsAttended }) => {
+const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSaved, cohortId, existing, supportUsers, testSupportsToggle, trainingCounts, trainingsTotal, minTrainingsAttended }) => {
   const [name, setName] = useState('');
   const [supportId, setSupportId] = useState('');
   const [slot, setSlot] = useState<MeetingSlot>({ meetingDay: null, meetingTime: null, meetingDurationMins: null });
@@ -214,6 +218,7 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
             placeholder="— None —"
             compact
           />
+          {testSupportsToggle && <TestSupportsToggle checked={testSupportsToggle.value} onChange={testSupportsToggle.onChange} className="mt-2" />}
         </div>
         {blocked && counts && selectedSupport && (
           <TrainingBlockNotice
@@ -256,12 +261,14 @@ interface AssignSupportModalProps {
   onSaved: (g: Group) => void;
   group: Group;
   supportUsers: User[];
+  /** With test supports on the system, the pickers can show them on request. */
+  testSupportsToggle?: { value: boolean; onChange: (value: boolean) => void };
   trainingCounts: Map<string, { attended: number; total: number }>;
   trainingsTotal: number;
   minTrainingsAttended: number;
 }
 
-const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose, onSaved, group, supportUsers, trainingCounts, trainingsTotal, minTrainingsAttended }) => {
+const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose, onSaved, group, supportUsers, testSupportsToggle, trainingCounts, trainingsTotal, minTrainingsAttended }) => {
   const [supportId, setSupportId] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -324,6 +331,7 @@ const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose
             placeholder="— None —"
             compact
           />
+          {testSupportsToggle && <TestSupportsToggle checked={testSupportsToggle.value} onChange={testSupportsToggle.onChange} className="mt-2" />}
         </div>
         {blocked && counts && selectedSupport && (
           <TrainingBlockNotice
@@ -487,7 +495,14 @@ const AdminGroupsContent: React.FC = () => {
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [supportUsers, setSupportUsers] = useState<User[]>([]);
+  // Every support; test accounts are hidden from the pickers unless asked for.
+  const [allSupportUsers, setAllSupportUsers] = useState<User[]>([]);
+  const [showTestSupports, setShowTestSupports] = useState(false);
+  const supportUsers = useMemo(
+    () => pickableUsers(allSupportUsers, { includeTest: showTestSupports, keepIds: groups.map((g) => g.supportId) }),
+    [allSupportUsers, showTestSupports, groups],
+  );
+  const hasTestSupports = allSupportUsers.some((u) => u.isTest);
   const [trainingSessions, setTrainingSessions] = useState<SupportSession[]>([]);
   const [trainingAttendance, setTrainingAttendance] = useState<Array<{ sessionId: string; userId: string; status: string }>>([]);
   const [minTrainingsAttended, setMinTrainingsAttended] = useState(DEFAULT_PROGRAMME_RULES.minTrainingsAttended);
@@ -536,11 +551,11 @@ const AdminGroupsContent: React.FC = () => {
         // full-grid re-render / scroll-jump on every realtime refresh.
         setGroups((prev) => reconcileById(prev, sortedGs));
         setParticipants((prev) => reconcileById(prev, sortedPs));
-        setSupportUsers((prev) => reconcileById(prev, sortedUsers));
+        setAllSupportUsers((prev) => reconcileById(prev, sortedUsers));
       } else {
         setGroups(sortedGs);
         setParticipants(sortedPs);
-        setSupportUsers(sortedUsers);
+        setAllSupportUsers(sortedUsers);
       }
       setTrainingSessions(ts);
       setTrainingAttendance(ta);
@@ -750,6 +765,7 @@ const AdminGroupsContent: React.FC = () => {
         cohortId={activeCohort?.id ?? ''}
         existing={editing}
         supportUsers={supportUsers}
+        testSupportsToggle={hasTestSupports ? { value: showTestSupports, onChange: setShowTestSupports } : undefined}
         trainingCounts={trainingCounts}
         trainingsTotal={trainingsTotal}
         minTrainingsAttended={minTrainingsAttended}
@@ -761,6 +777,7 @@ const AdminGroupsContent: React.FC = () => {
           onClose={() => setSupportTarget(null)}
           group={supportTarget}
           supportUsers={supportUsers}
+        testSupportsToggle={hasTestSupports ? { value: showTestSupports, onChange: setShowTestSupports } : undefined}
           trainingCounts={trainingCounts}
           trainingsTotal={trainingsTotal}
           minTrainingsAttended={minTrainingsAttended}
@@ -831,7 +848,8 @@ const AdminGroupsContent: React.FC = () => {
           cohortName={activeCohort.name}
           participants={participants}
           groups={groups}
-          supportUsers={supportUsers}
+          // The automatic builder never places a test support.
+          supportUsers={pickableUsers(allSupportUsers)}
           trainingCounts={trainingCounts}
           trainingsTotal={trainingsTotal}
           minTrainingsAttended={minTrainingsAttended}

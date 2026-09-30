@@ -14,6 +14,7 @@ import type { Day, Label, User } from '../types';
 import { exportAllWeeksToPDF, exportDayToPDF, exportWeekToPDF } from '../utils/pdfExport';
 import { sortByText } from '../utils/sort';
 import Spinner from '../components/Spinner';
+import { pickableUsers } from '../utils/testUsers';
 
 const AdminSchedulePage: React.FC = () => {
   const { user, isAdmin, userLabelIds } = useAuth();
@@ -63,7 +64,7 @@ const AdminSchedulePage: React.FC = () => {
     if (!isAdmin) return;
     usersApi.getAll()
       .then(async (response) => {
-        const onlySupportUsers = response.users.filter((member) => member.role === 'SUPPORT');
+        const onlySupportUsers = pickableUsers(response.users.filter((member) => member.role === 'SUPPORT'));
         const usersWithLabels = await Promise.all(
           onlySupportUsers.map(async (member) => {
             try {

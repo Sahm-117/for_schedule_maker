@@ -9,6 +9,8 @@ import FollowUpAssignmentSettings from '../components/followups/FollowUpAssignme
 import FollowUpDashboard from '../components/followups/FollowUpDashboard';
 import FollowUpContactsTable from '../components/followups/FollowUpContactsTable';
 import { hasOpenFormQuestion } from '../components/followups/FormQuestionBox';
+import { pickableUsers } from '../utils/testUsers';
+import TestSupportsToggle from '../components/TestSupportsToggle';
 import FollowUpContactModal from '../components/followups/FollowUpContactModal';
 import ContactImportModal from '../components/followups/ContactImportModal';
 import MessageTemplatePicker from '../components/followups/MessageTemplatePicker';
@@ -213,6 +215,13 @@ const AdminFollowUpsPage: React.FC = () => {
   // Test contacts stay listed (tagged) but are left out of every count.
   const realContacts = useMemo(() => contacts.filter((c) => !c.isTest), [contacts]);
   const realOwners = useMemo(() => owners.filter((o) => !o.isTest), [owners]);
+  // Test supports stay out of the "assign to" lists unless asked for (or already holding a contact).
+  const [showTestSupports, setShowTestSupports] = useState(false);
+  const assignOwners = useMemo(
+    () => pickableUsers(owners, { includeTest: showTestSupports, keepIds: contacts.map((c) => c.ownerId) }),
+    [owners, showTestSupports, contacts],
+  );
+  const hasTestSupports = owners.some((o) => o.isTest);
 
   // Load ring: open follow-ups per support against the max set in Settings.
   const ownerLoad = useMemo(() => openLoadByOwner(realContacts, activeCohort?.id), [realContacts, activeCohort?.id]);
@@ -557,7 +566,7 @@ const AdminFollowUpsPage: React.FC = () => {
                     options={[
                       { value: '', label: `All Supports (${ownerOptionCounts.total})` },
                       { value: '__unassigned__', label: `Unassigned (${ownerOptionCounts.unassigned})` },
-                      ...owners.map((o) => ({ value: o.id, label: `${o.name} (${ownerOptionCounts.perOwner[o.id] || 0})` })),
+                      ...assignOwners.map((o) => ({ value: o.id, label: `${o.name} (${ownerOptionCounts.perOwner[o.id] || 0})` })),
                     ]}
                     placeholder="All Supports"
                     compact
@@ -617,6 +626,11 @@ const AdminFollowUpsPage: React.FC = () => {
               >
                 Questions to answer ({openQuestionCount})
               </button>
+            )}
+            {hasTestSupports && (
+              <div className="mt-2">
+                <TestSupportsToggle checked={showTestSupports} onChange={setShowTestSupports} />
+              </div>
             )}
           </div>
         )}
@@ -682,7 +696,7 @@ const AdminFollowUpsPage: React.FC = () => {
           {tab === 'contacts' && (
             <FollowUpContactsTable
               contacts={filteredContacts}
-              owners={owners}
+              owners={assignOwners}
               canAssign
               onFieldChange={(c, patch) => handleFieldChange(c, patch)}
               onMessage={(c) => { setMessageChannel('whatsapp'); setMessagingContact(c); }}
@@ -711,7 +725,7 @@ const AdminFollowUpsPage: React.FC = () => {
               issues={issues}
               onIssuesChanged={setIssues}
               contacts={contacts}
-              owners={owners}
+              owners={assignOwners}
               currentUserId={user?.id}
             />
           )}
@@ -729,7 +743,7 @@ const AdminFollowUpsPage: React.FC = () => {
           });
         }}
         contact={editingContact}
-        owners={owners}
+        owners={assignOwners}
         cohorts={cohorts}
         defaultCohortId={activeCohort?.id}
         canEditOwner
