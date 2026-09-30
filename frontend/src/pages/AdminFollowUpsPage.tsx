@@ -75,7 +75,8 @@ const statusGroups: Array<{ key: keyof FilterState; label: string; options: Arra
   { key: 'next', label: 'Next action', options: Object.entries(NEXT_ACTION_META).map(([v, m]) => ({ value: v, label: m.label })) },
   { key: 'gender', label: 'Gender', options: [{ value: 'Male', label: 'Male' }, { value: 'Female', label: 'Female' }] },
   { key: 'assignment', label: 'Assignment', options: [
-    { value: 'waiting', label: 'Waiting to be assigned' },
+    { value: 'all', label: 'Everyone waiting' },
+    { value: 'waiting', label: 'Ready to assign' },
     { value: 'no_gender', label: 'No same gender to follow up' },
     { value: 'unknown_gender', label: 'Gender not known' },
   ] },
@@ -242,7 +243,8 @@ const AdminFollowUpsPage: React.FC = () => {
       if (filters.gender && c.gender !== filters.gender) return false;
       if (filters.assignment) {
         const tag = unassignedFollowUpTag(c, owners, ownerLoad, maxLoad);
-        if (ASSIGNMENT_TAG_KEY[tag?.label ?? ''] !== filters.assignment) return false;
+        // "all": everyone waiting, whatever the reason.
+        if (filters.assignment === 'all' ? !tag || !isWaitingForAssignment(c) : ASSIGNMENT_TAG_KEY[tag?.label ?? ''] !== filters.assignment) return false;
       }
       // Arrived from an Overview tile: a single derived status, or every status
       // that still counts as open work.
@@ -905,7 +907,11 @@ const FollowUpAssignmentSummary: React.FC<{
       </button>
       <div className="surface-card p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Waiting to be assigned</p>
-        <button type="button" onClick={() => onSetAssignmentFilter('waiting')} className="mt-1 block text-2xl font-bold text-gray-900 hover:underline">{tagCounts.waiting}</button>
+        {/* Everyone with nobody assigned (what the alert and Assign now count), then why. */}
+        <button type="button" onClick={() => onSetAssignmentFilter('all')} className="mt-1 block text-2xl font-bold text-gray-900 hover:underline">{waitingContacts.length}</button>
+        {tagCounts.waiting > 0 && (
+          <button type="button" onClick={() => onSetAssignmentFilter('waiting')} className="mt-1.5 block text-xs font-semibold text-amber-700 hover:underline">{tagCounts.waiting} ready to assign</button>
+        )}
         <button type="button" onClick={() => onSetAssignmentFilter('no_gender')} className="mt-1.5 block text-xs font-semibold text-orange-700 hover:underline">{tagCounts.no_gender} no same gender to follow up</button>
         {tagCounts.unknown_gender > 0 && (
           <button type="button" onClick={() => onSetAssignmentFilter('unknown_gender')} className="mt-0.5 block text-xs font-semibold text-neutral-600 hover:underline">{tagCounts.unknown_gender} gender not known</button>

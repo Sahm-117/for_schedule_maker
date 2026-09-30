@@ -1196,7 +1196,10 @@ window.GUIDE_CONTENT = {
        "steps": [
         "Look at the small tag next to a waiting contact's name."
        ],
-       "result": "\"No same gender to follow up\" means every support of their gender is already full. \"Gender not known\" means their gender isn't on file, so the system can't match them to a same-gender support — add it on their contact card to unblock them."
+       "result": "\"No same gender to follow up\" means every support of their gender is already full. \"Gender not known\" means their gender isn't on file, so the system can't match them to a same-gender support — add it on their contact card to unblock them.",
+       "tips": [
+        "The big number on the **Waiting to be assigned** card counts everyone with nobody assigned. The lines under it say why. Tap any of them to list those people."
+       ]
       },
       {
        "id": "follow-ups-status-dropdown",
