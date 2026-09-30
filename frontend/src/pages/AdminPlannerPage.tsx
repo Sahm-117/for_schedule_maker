@@ -423,10 +423,11 @@ const AdminPlannerPage: React.FC = () => {
                             type="button"
                             onClick={() => setActiveClash(cl)}
                             aria-label={`Clash: ${cl.event.name} on class ${cl.cls.weekNumber}`}
-                            className="absolute -top-2 flex h-4 w-4 -translate-x-1/2 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white"
+                            className="absolute -top-2.5 flex h-5 w-5 -translate-x-1/2 items-center justify-center"
                             style={{ left: `${yearPercent(cl.cls.date, year)}%` }}
                           >
-                            !
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-50 motion-reduce:hidden" aria-hidden="true" />
+                            <span className="relative flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">!</span>
                           </button>
                         ))}
                       </div>
@@ -449,10 +450,17 @@ const AdminPlannerPage: React.FC = () => {
                                 key={event.id}
                                 type="button"
                                 onClick={() => setEventSheet({ event })}
-                                className={`absolute whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${event.stopsFof ? 'bg-red-100/80 text-red-700' : 'bg-violet-100/80 text-violet-700'}`}
+                                title={`${event.name} · ${range} · ${event.stopsFof ? 'no FOF' : 'FOF runs'}`}
+                                aria-label={`${event.name}, ${range}, ${event.stopsFof ? 'no FOF' : 'FOF runs'}: see details`}
+                                className={`absolute inline-flex items-center gap-1.5 whitespace-nowrap rounded-full py-0.5 pl-1.5 pr-2 text-[11px] font-semibold ${event.stopsFof ? 'bg-red-100/80 text-red-700' : 'bg-violet-100/80 text-violet-700'}`}
                                 style={{ top: `${(index % 3) * 26}px`, ...(at > 70 ? { right: `${100 - at}%` } : { left: `${at}%` }) }}
                               >
-                                {event.stopsFof ? '⛔ ' : ''}{event.name} {range} · {event.stopsFof ? 'no FOF' : 'FOF runs'}
+                                {/* Just the date: the name and what it does are one tap away. */}
+                                <span className="relative flex h-2 w-2" aria-hidden="true">
+                                  {event.stopsFof && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-60 motion-reduce:hidden" />}
+                                  <span className={`relative inline-flex h-2 w-2 rounded-full ${event.stopsFof ? 'bg-red-500' : 'bg-violet-400'}`} />
+                                </span>
+                                {range}
                               </button>
                             );
                           })}
@@ -493,6 +501,7 @@ const AdminPlannerPage: React.FC = () => {
                 <span key={item.kind} className="flex items-center gap-1.5"><i className={`h-3 w-5 rounded ${PHASE_BAR[item.kind]}`} />{item.label}</span>
               ))}
               <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-sky-400" />Public holiday (doesn't clash)</span>
+              {yearEvents.some((e) => e.stopsFof) && <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-red-500" />No FOF (tap for details)</span>}
               {todayInYear && <span className="flex items-center gap-1.5"><i className="h-3 w-0.5 rounded-full bg-primary" />Today</span>}
             </div>
             {yearHolidays.some((h) => h.isEstimate) && (
