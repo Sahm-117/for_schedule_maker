@@ -56,15 +56,22 @@ const LoginShareReminder: React.FC<{ userId: string; enabled: boolean }> = ({ us
     try {
       const { contacts } = await followUpContactsApi.getAll({ ownerId: userId, archived: false });
       const registered = contacts.filter((c) => c.registrationStatus === 'REGISTERED' && !c.isTest);
+      // (LOGIN_SHARED people are moved by the database once they set a password.)
       const snoozes = readSnoozes(userId);
       const now = Date.now();
       const found: Pending[] = [];
       await Promise.all(registered.map(async (contact) => {
-        if (snoozes[contact.id] && new Date(snoozes[contact.id]).getTime() > now) return;
+        const snoozed = snoozes[contact.id] && new Date(snoozes[contact.id]).getTime() > now;
         try {
           const details = await participantAccountsApi.getLoginDetails({ followUpContactId: contact.id });
+          // Already in the app: move them quietly. No question, no notification.
+          if (details.passwordSetAt || details.lastSignInAt) {
+            await followUpContactsApi.update(contact.id, buildStatusPatch('ACCESS_CONFIRMED') as FollowUpContactUpdate);
+            return;
+          }
+          if (snoozed) return;
           // Only a login that exists, hasn't been used, and was made over an hour ago.
-          if (details.status !== 'CODE_READY' || !details.issuedAt || details.passwordSetAt) return;
+          if (details.status !== 'CODE_READY' || !details.issuedAt) return;
           if (now - new Date(details.issuedAt).getTime() < AFTER_MS) return;
           found.push({ contact, madeAt: details.issuedAt });
         } catch { /* one person failing to load shouldn't hide the rest */ }
