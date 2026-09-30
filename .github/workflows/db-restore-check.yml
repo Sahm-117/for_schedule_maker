@@ -1,0 +1,99 @@
+name: Backup Restore Check
+
+# Proves the nightly backup can actually be restored. After each successful backup this
+# unlocks it with BACKUP_PASSPHRASE, loads it into a throwaway database (same Postgres
+# version as the live project), and compares table row counts with the live database.
+# A failed run means "do not trust last night's backup": GitHub emails the repo owner.
+# Nothing here touches live data (it only counts rows) and the throwaway database
+# disappears when the run ends.
+#
+# Required repo secrets (already set for the backup): SUPABASE_DB_PASSWORD, BACKUP_PASSPHRASE.
+
+on:
+  workflow_run:
+    workflows: ['Nightly Database Backup']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Backup run to check (blank = the latest successful one)'
+        required: false
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PROJECT_REF: vnmeeqvwqaeczjlvzoul
+  DB_HOST: aws-1-eu-west-2.pooler.supabase.com
+  PG_IMAGE: supabase/postgres:17.6.1.011
+
+jobs:
+  restore-check:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      db:
+        image: supabase/postgres:17.6.1.011
+        env:
+          POSTGRES_PASSWORD: restorecheck
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -h localhost"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the backup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUN_ID="${{ github.event.workflow_run.id || inputs.run_id }}"
+          if [ -z "$RUN_ID" ]; then
+            RUN_ID=$(gh run list --workflow db-backup.yml --status success --limit 1 --json databaseId -q '.[0].databaseId')
+          fi
+          echo "Checking backup run $RUN_ID"
+          gh run download "$RUN_ID" --pattern 'fof-backup-*' --dir dl
+          ls -lhR dl | head -20
+
+      - name: Unlock it
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          FILE=$(ls dl/*/*.tar.gz.gpg | head -1)
+          gpg --batch --yes --passphrase-fd 0 -o backup.tar.gz -d "$FILE" <<< "$BACKUP_PASSPHRASE"
+          tar -xzf backup.tar.gz
+          ls -lh backup
+
+      - name: Restore into the throwaway database
+        env:
+          PGPASSWORD: restorecheck
+        run: |
+          set -euo pipefail
+          CID=$(docker ps -q --filter "ancestor=$PG_IMAGE" | head -1)
+          docker cp backup "$CID:/tmp/backup"
+          docker exec -e PGPASSWORD=restorecheck "$CID" psql -h localhost -U supabase_admin -d postgres \
+            --variable ON_ERROR_STOP=1 --single-transaction \
+            --file /tmp/backup/roles.sql --file /tmp/backup/schema.sql \
+            --command 'SET session_replication_role = replica' \
+            --file /tmp/backup/data.sql
+          echo "CID=$CID" >> "$GITHUB_ENV"
+
+      - name: Count rows in the restored copy and in the live database
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y --no-install-recommends postgresql-client >/dev/null
+          COUNT_SQL="SELECT table_name, (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from public.%I', table_name), false, true, '')))[1]::text FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY 1"
+          PGPASSWORD=restorecheck psql -h localhost -U supabase_admin -d postgres -At -F $'\t' -c "$COUNT_SQL" > restored.tsv
+          ENCODED=$(node -e 'process.stdout.write(encodeURIComponent(process.env.SUPABASE_DB_PASSWORD))')
+          psql "postgresql://postgres.${PROJECT_REF}:${ENCODED}@${DB_HOST}:5432/postgres" -At -F $'\t' -c "$COUNT_SQL" > live.tsv
+          wc -l restored.tsv live.tsv
+
+      - name: Compare
+        run: python3 .github/scripts/compare-restore-counts.py live.tsv restored.tsv
