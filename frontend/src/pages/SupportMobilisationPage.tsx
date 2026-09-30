@@ -449,14 +449,31 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
 
   // The sheet keeps growing, so searching is the only way to answer "has this
   // person signed up?" once there are more rows than fit on a screen.
+  // One card per person: someone who filled the form more than once (to fix
+  // their name, say) shows their latest submission, with the dates of all of
+  // them. Every submission is still stored; this only changes the list.
+  const signUpPeople = useMemo(() => {
+    const byPerson = new Map<string, FormRegistration & { submittedAt: string[]; allNames: string[] }>();
+    for (const row of signUps) { // newest first
+      const key = row.contactId ?? row.phoneNormalised ?? row.id;
+      const seen = byPerson.get(key);
+      if (seen) {
+        seen.submittedAt.push(row.signedUpAt);
+        seen.allNames.push(row.fullName);
+      } else {
+        byPerson.set(key, { ...row, submittedAt: [row.signedUpAt], allNames: [row.fullName] });
+      }
+    }
+    return [...byPerson.values()];
+  }, [signUps]);
   const visibleSignUps = useMemo(() => {
     const needle = signUpSearch.trim().toLowerCase();
-    if (!needle) return signUps;
+    if (!needle) return signUpPeople;
     const digits = needle.replace(/\D/g, '');
-    return signUps.filter((row) =>
-      row.fullName.toLowerCase().includes(needle)
+    return signUpPeople.filter((row) =>
+      row.allNames.some((name) => name.toLowerCase().includes(needle))
       || (digits.length >= 3 && row.phone.replace(/\D/g, '').includes(digits)));
-  }, [signUps, signUpSearch]);
+  }, [signUpPeople, signUpSearch]);
 
   const prospectNameError = prospectTouched && !prospect.fullName.trim();
   const prospectPhoneError = prospectTouched && !prospect.phone.trim()
@@ -663,7 +680,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
             <section className={`${CARD} p-[18px]`}>
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-sm font-bold text-gray-900">Signed up on the form</h3>
-                <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-bold text-neutral-600">{signUps.length}</span>
+                <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-bold text-neutral-600">{signUpPeople.length}</span>
                 <button
                   type="button"
                   onClick={() => { void refreshSignUps(); }}
@@ -724,6 +741,11 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                         <span className="ml-auto text-[11px] font-semibold text-gray-500">{shortDateTime(row.signedUpAt)}</span>
                       </div>
                       <p className="mt-1 text-xs text-gray-500">{row.phone}</p>
+                      {row.submittedAt.length > 1 && (
+                        <p className="mt-1 text-[11px] text-gray-500">
+                          Filled the form {row.submittedAt.length === 2 ? 'twice' : `${row.submittedAt.length} times`} · {[...row.submittedAt].reverse().map((at) => shortDate(at)).join(', ')}
+                        </p>
+                      )}
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         {row.contactId ? (
                           <span className="rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">
