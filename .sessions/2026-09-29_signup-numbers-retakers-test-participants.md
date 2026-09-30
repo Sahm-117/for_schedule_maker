@@ -41,3 +41,8 @@ The admin Dashboard's sign-up cards disagreed with Follow-ups → Overview. Trac
 - Migration 20260929170000 was applied to production. The trigger was tested in rolled-back transactions.
 - Guide: participants-retaking, follow-ups-form-questions, s-form-question.
 - Open: Beulah Yalokwu shows **Shared number** with Chris Ayomide (Cohort 9, Group 20, support Godswill Ndukwe, added by hand with only a name and number). The user is asking both of them. Abisola Alabi also shows Shared number (Abimbola Alabi, Cohort 9).
+
+## 30 Sep: Waiting card (d82db74)
+- Pulled the other session's FOF Planner step 4 (f3648d6, 1fc4f82) first.
+- On Follow-ups → Contacts, the **Waiting to be assigned** card's big number now counts everyone with nobody assigned, matching the alert and Assign now. Under it: ready to assign / no same gender / gender not known. Tapping the number uses a new Assignment filter value, `all` ("Everyone waiting"). The guide tip was added.
+- Why it came up: Esther (Switch) and Titilope Shofowora (Jesus Tribe), added by Opeyemi Ogundipe with no gender, showed as 0 on the card while the alert said 2. Someone has since assigned both by hand. They are prospects (NOT_REGISTERED), so they have no Participant record yet and don't appear on the Participants page.
