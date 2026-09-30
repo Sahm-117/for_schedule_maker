@@ -61,3 +61,9 @@ The admin Dashboard's sign-up cards disagreed with Follow-ups → Overview. Trac
 - Mobilisation → Signed up on the form: a filter icon to the right of the search box (SignUpStageFilter) opens a checklist of stages (Login not shared yet, Login shared, Issue with login, Logged in, Next cohort, Waiting to be assigned) with counts. A badge shows how many are on, and an X beside it clears them. Filters combine with the search.
 - A tiny green WhatsApp badge beside "Followed up by …" opens a chat with that support with a short message asking if they need help with that person. It isn't shown on your own follow-ups or when the support has no number. `formRegistrationsApi.getAll` now also loads the owner's id and phone (supports can already read User.phone).
 - Branch claude/signup-filters is in main and safe to delete.
+
+## 30 Sep: Follow-ups "more than one relationship" error (69adc8c)
+- A support (Adebisi Adetutu) saw "Could not embed because more than one relationship was found for 'FollowUpIssue' and 'FollowUpContact'" on Mobilisation → Follow-ups, and the tab came up empty.
+- Cause: the other session's df92649 (migration 20260930240000, applied live) added `FollowUpIssueContact`, a second route from an issue to its contacts. Any `contact:FollowUpContact(...)` embed off FollowUpIssue became ambiguous.
+- Fix: name the direct link, `contact:FollowUpContact!FollowUpIssue_contactId_fkey(...)`, in `ISSUE_SELECT` (supabase-api.ts) and in `notify-followup-issue` (redeployed as v11). Checked against the live API: 300 before, 200 after.
+- For whoever adds a junction or second foreign key between two tables: every embed between them then needs the FK name, or PostgREST refuses it.
