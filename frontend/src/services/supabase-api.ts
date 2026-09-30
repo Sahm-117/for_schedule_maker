@@ -3533,6 +3533,8 @@ export interface FormRegistration {
   outcomeDetail: string | null;
   contactId: string | null;
   contactOwnerName: string | null;
+  /** Where their follow-up stands, so any support can see it. */
+  contactStatus: import('../types').FollowUpRegistrationStatus | null;
 }
 
 const mapFormRegistration = (row: any): FormRegistration => ({
@@ -3546,6 +3548,7 @@ const mapFormRegistration = (row: any): FormRegistration => ({
   outcomeDetail: row.outcomeDetail ?? null,
   contactId: row.contactId ?? null,
   contactOwnerName: row.contact?.owner?.name ?? null,
+  contactStatus: row.contact?.registrationStatus ?? null,
 });
 
 export const formRegistrationsApi = {
@@ -3554,7 +3557,7 @@ export const formRegistrationsApi = {
   async getAll(options?: { limit?: number }): Promise<{ registrations: FormRegistration[] }> {
     const { data, error } = await supabase
       .from('SheetRegistration')
-      .select('*, contact:FollowUpContact(id, owner:User!FollowUpContact_ownerId_fkey(name))')
+      .select('*, contact:FollowUpContact(id, registrationStatus, owner:User!FollowUpContact_ownerId_fkey(name))')
       .order('signedUpAt', { ascending: false })
       .limit(options?.limit ?? 500);
 

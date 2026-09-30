@@ -17,7 +17,7 @@ import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { followUpContactsApi, followUpIssuesApi, followUpLoginIssuesApi, formRegistrationsApi, messageTemplatesApi, settingsApi } from '../services/api';
-import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, FollowUpStatus, ItLoginIssue, MessageTemplate, User } from '../types';
+import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, FollowUpRegistrationStatus, FollowUpStatus, ItLoginIssue, MessageTemplate, User } from '../types';
 import type { FormRegistration } from '../services/supabase-api';
 import {
   FOLLOW_UP_STATUS_META,
@@ -82,6 +82,20 @@ const shortDateTime = (value?: string | null) => {
 };
 
 // "5m ago" / "3h ago" today, then the date and time ("27 Sept, 9:38 am").
+// On the sign-up list: how far their follow-up has got, so every support can
+// see it (not only the one following them up).
+const SIGN_UP_STAGE: Partial<Record<FollowUpRegistrationStatus, { label: string; tone: string }>> = {
+  REGISTERED: { label: 'Login not shared yet', tone: 'bg-amber-100/80 text-amber-800' },
+  LOGIN_SHARED: { label: 'Login shared', tone: 'bg-sky-100/80 text-sky-700' },
+  LOGIN_ISSUE: { label: 'Issue with login', tone: 'bg-orange-100/80 text-orange-700' },
+  ACCESS_CONFIRMED: { label: 'Logged in', tone: 'bg-emerald-600 text-white' },
+  NEXT_COHORT: { label: 'Next cohort', tone: 'bg-violet-100/80 text-violet-700' },
+};
+const signUpStageChip = (status: FollowUpRegistrationStatus | null) => {
+  const stage = status ? SIGN_UP_STAGE[status] : null;
+  return stage ? <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${stage.tone}`}>{stage.label}</span> : null;
+};
+
 const reportedWhen = (value?: string | null) => {
   if (!value) return '';
   const then = new Date(value).getTime();
@@ -720,6 +734,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                         ) : (
                           <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">Not linked yet</span>
                         )}
+                        {signUpStageChip(row.contactStatus)}
                         {row.contactOwnerName ? (
                           <span className="text-[11px] font-semibold text-gray-500">Followed up by {row.contactOwnerName}</span>
                         ) : row.contactId ? (

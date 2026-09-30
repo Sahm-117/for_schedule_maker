@@ -2296,7 +2296,7 @@ window.GUIDE_CONTENT = {
         "Tap the **X** in the box to clear it and search again.",
         "Tap the refresh button to fetch the newest sign-ups."
        ],
-       "result": "You see when each person signed up and who is following them up. Check here before asking the back office.",
+       "result": "You see when each person signed up, who is following them up, and how far they are: **Login not shared yet**, **Login shared**, **Issue with login** or **Logged in**. Check here before asking the back office.",
        "shot": "support-mobilisation-signups.jpg"
       },
       {
