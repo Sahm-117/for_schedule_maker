@@ -6287,6 +6287,40 @@ export const supportRecapsApi = {
   },
 };
 
+export const notificationDeliveryApi = {
+  async getSends(days = 14): Promise<import('../types').NotificationSend[]> {
+    const { data, error } = await supabase.rpc('notification_sends', { p_days: days });
+    if (error) throw new Error(error.message);
+    return (data as import('../types').NotificationSend[]) ?? [];
+  },
+  async getRecipients(send: import('../types').NotificationSend): Promise<import('../types').NotificationRecipient[]> {
+    const { data, error } = await supabase.rpc('notification_send_recipients', {
+      p_source: send.source, p_type: send.type, p_title: send.title, p_body: send.body, p_path: send.path,
+      p_from: send.sentAt, p_to: send.lastAt,
+    });
+    if (error) throw new Error(error.message);
+    return (data as import('../types').NotificationRecipient[]) ?? [];
+  },
+  // Re-sends the same message to the people named, through the same sender as every other alert.
+  async remind(send: import('../types').NotificationSend, recipients: Array<{ id: string; role: string }>): Promise<{ notified: number; sent: number }> {
+    const userIds = recipients.filter((r) => r.role !== 'PARTICIPANT').map((r) => r.id);
+    const participantIds = recipients.filter((r) => r.role === 'PARTICIPANT').map((r) => r.id);
+    const { data, error } = await supabase.functions.invoke('notify-users', {
+      body: {
+        ...(userIds.length ? { userIds } : {}),
+        ...(participantIds.length ? { participantIds } : {}),
+        title: `Reminder: ${send.title}`,
+        body: send.body,
+        path: send.path || undefined,
+        type: 'REMINDER',
+      },
+    });
+    if (error) throw new Error(error.message);
+    const r = (data ?? {}) as { notified?: number; participants?: number; sent?: number };
+    return { notified: Number(r.notified ?? 0) + Number(r.participants ?? 0), sent: Number(r.sent ?? 0) };
+  },
+};
+
 export const plannerApi = {
   /** Every week's number and class date, across all cohorts, for the Planner. */
   async getClassWeeks(): Promise<{ weeks: Array<{ id: number; cohortId: string; weekNumber: number; classDate: string | null }> }> {

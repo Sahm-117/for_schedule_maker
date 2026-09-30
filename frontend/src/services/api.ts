@@ -42,6 +42,7 @@ import {
   groupDiscussionApi as supabaseGroupDiscussionApi,
   supportKindApi as supabaseSupportKindApi,
   supportRecapsApi as supabaseSupportRecapsApi,
+  notificationDeliveryApi as supabaseNotificationDeliveryApi,
   plannerApi as supabasePlannerApi,
   faithProjectsApi as supabaseFaithProjectsApi,
   faithProjectSettingsApi as supabaseFaithProjectSettingsApi,
@@ -747,6 +748,12 @@ export const myHubApi = USE_SUPABASE ? supabaseMyHubApi : {
 export const supportKindApi = USE_SUPABASE ? supabaseSupportKindApi : {
   async getForCohort(_cohortId: string): Promise<{ kinds: Record<string, import('../types').SupportKind> }> { return { kinds: {} }; },
   async set(_userId: string, _cohortId: string, _kind: import('../types').SupportKind): Promise<never> { return peopleUnavailable(); },
+};
+
+export const notificationDeliveryApi = USE_SUPABASE ? supabaseNotificationDeliveryApi : {
+  async getSends(): Promise<import('../types').NotificationSend[]> { return []; },
+  async getRecipients(): Promise<import('../types').NotificationRecipient[]> { return []; },
+  async remind(): Promise<{ notified: number; sent: number }> { return { notified: 0, sent: 0 }; },
 };
 
 export const supportRecapsApi = USE_SUPABASE ? supabaseSupportRecapsApi : {

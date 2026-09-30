@@ -1515,3 +1515,30 @@ export interface HubPrayerFocus {
   /** Persisted "Finish prayer" — clears the focus for everyone when set. */
   prayerFinished: boolean;
 }
+
+/** One batch of notifications, as Announcements → Sent & read lists it. */
+export interface NotificationSend {
+  /** STAFF and PARTICIPANT have bell rows (read is tracked); PUSH is a push that has none. */
+  source: 'STAFF' | 'PARTICIPANT' | 'PUSH';
+  type: string;
+  title: string;
+  body: string;
+  path: string;
+  sentAt: string;
+  lastAt: string;
+  recipients: number;
+  readCount: number;
+  tracked: boolean;
+}
+
+export interface NotificationRecipient {
+  id: string;
+  name: string;
+  role: string;
+  /** null for push-only sends, where reading is not tracked. */
+  read: boolean | null;
+  readAt: string | null;
+  sentAt: string;
+  /** Has a saved device, so a push can reach them. */
+  hasPush: boolean;
+}

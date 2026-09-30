@@ -69,6 +69,7 @@ const ICONS = {
   overview: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 19h16M6 16V8m6 8V5m6 11v-6" /></svg></IconBox>,
   cohorts: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5 5.15 5 3.067 5.865 2 7.2v11.547C3.067 17.412 5.15 16.547 7.5 16.547c1.746 0 3.332.477 4.5 1.253m0-11.547C13.168 5.477 14.754 5 16.5 5c2.35 0 4.433.865 5.5 2.2v11.547c-1.067-1.335-3.15-2.2-5.5-2.2-1.746 0-3.332.477-4.5 1.253" /></svg></IconBox>,
   users: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2a5 5 0 00-10 0v2m10-8a4 4 0 10-8 0 4 4 0 008 0zm6 2a4 4 0 11-8 0 4 4 0 018 0z" /></svg></IconBox>,
+  bell: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0m6 0H9" /></svg></IconBox>,
   megaphone: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M11 5 6 9H3v6h3l5 4V5Zm0 0h4a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4h-4" /></svg></IconBox>,
   resources: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M19 11H5m14 0a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2m14 0V9a2 2 0 0 0-2-2M5 11V9a2 2 0 0 1 2-2m0 0V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2M7 7h10" /></svg></IconBox>,
   settings: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M10.325 4.317a1 1 0 0 1 1.9 0 1 1 0 0 0 1.49.617 1 1 0 0 1 1.366.366 1 1 0 0 0 1.324.472 1 1 0 0 1 1.366.366 1 1 0 0 1-.366 1.366 1 1 0 0 0-.472 1.324 1 1 0 0 1 .617 1.49 1 1 0 0 0 0 1.9 1 1 0 0 1-.617 1.49 1 1 0 0 0-.472 1.324 1 1 0 0 1 .366 1.366 1 1 0 0 1-1.366.366 1 1 0 0 0-1.324.472 1 1 0 0 1-1.49.617 1 1 0 0 0-1.9 0 1 1 0 0 1-1.49-.617 1 1 0 0 0-1.324-.472 1 1 0 0 1-1.366-.366 1 1 0 0 1 .366-1.366 1 1 0 0 0 .472-1.324 1 1 0 0 1-.617-1.49 1 1 0 0 0 0-1.9 1 1 0 0 1 .617-1.49 1 1 0 0 0 .472-1.324 1 1 0 0 1-.366-1.366 1 1 0 0 1 1.366-.366 1 1 0 0 0 1.324-.472 1 1 0 0 1 1.49-.617Z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg></IconBox>,
@@ -104,6 +105,7 @@ const adminNav: NavItem[] = [
   { to: '/feedback', label: 'Feedback', icon: ICONS.feedback, adminOnly: true },
   { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
   { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
+  { to: '/notifications', label: 'Notifications', icon: ICONS.bell, adminOnly: true },
   { to: '/community', label: 'Community', icon: ICONS.hub },
   { to: '/resources', label: 'Resources', icon: ICONS.resources },
   { to: '/website', label: 'Website', icon: ICONS.website, adminOnly: true },
@@ -147,6 +149,7 @@ const adminNavGroups: NavGroup[] = [
     items: [
       { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
       { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
+      { to: '/notifications', label: 'Notifications', icon: ICONS.bell, adminOnly: true },
       { to: '/resources', label: 'Resources', icon: ICONS.resources },
       { to: '/website', label: 'Website', icon: ICONS.website, adminOnly: true },
       { to: '/settings', label: 'Settings', icon: ICONS.settings },
