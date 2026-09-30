@@ -764,6 +764,7 @@ export const cohortsApi = {
           name: member.name,
           role: member.role,
           isActive: member.isActive,
+          isTest: !!member.isTest,
           avatarUrl: member.avatarUrl ?? null,
           createdAt: member.createdAt,
           updatedAt: member.updatedAt,

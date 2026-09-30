@@ -97,8 +97,9 @@ const PeoplePanel: React.FC = () => {
       groupsApi.getAll({ cohortId }),
     ]).then(([membersRes, participantsRes, groupsRes]) => {
       if (cancelled) return;
-      setSupports(membersRes.users.filter((u) => u.role === 'SUPPORT' || u.role === 'ADMIN'));
-      setParticipants(participantsRes.participants);
+      // Test accounts (demo logins) aren't shown as people.
+      setSupports(membersRes.users.filter((u) => (u.role === 'SUPPORT' || u.role === 'ADMIN') && !u.isTest));
+      setParticipants(participantsRes.participants.filter((p) => !p.isTest));
       setGroups(groupsRes.groups);
     }).catch(() => {
       if (!cancelled) { setSupports([]); setParticipants([]); setGroups([]); }
