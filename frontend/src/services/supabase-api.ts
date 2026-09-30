@@ -2714,6 +2714,24 @@ export const pushSubscriptionsApi = {
     if (error) throw new Error(error.message);
   },
 
+  // Tells the server what this device is: on the Home Screen or in a browser, and
+  // whether notifications are on. Returns what a browser tab can't know itself.
+  async recordAppState(installed: boolean, device: string, notifications: string): Promise<{ installedBefore: boolean; sheetDismissed: number }> {
+    const { data, error } = await supabase.rpc('record_user_app_state', { p_installed: installed, p_device: device, p_notifications: notifications });
+    if (error) throw new Error(error.message);
+    return data as { installedBefore: boolean; sheetDismissed: number };
+  },
+  async recordSetupSheet(action: 'shown' | 'dismissed'): Promise<void> {
+    const { error } = await supabase.rpc('record_user_setup_sheet', { p_action: action });
+    if (error) throw new Error(error.message);
+  },
+  // Admin: active staff who have never opened the app from their Home Screen.
+  async listNotInstalledUserIds(): Promise<string[]> {
+    const { data, error } = await supabase.rpc('users_without_app');
+    if (error) return [];
+    return (data as string[]) ?? [];
+  },
+
   async remove(userId: string, endpoint: string): Promise<void> {
     const { error } = await supabase
       .from('PushSubscription')

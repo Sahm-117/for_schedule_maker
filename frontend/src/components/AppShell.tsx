@@ -6,8 +6,10 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import AppSelect from './AppSelect';
-import NotificationPromptModal from './NotificationPromptModal';
-import NotificationBlockedModal from './NotificationBlockedModal';
+import AppSetupSheet from './participantApp/AppSetupSheet';
+import AppSetupBanner from './participantApp/AppSetupBanner';
+import { useAppSetup, appSetupSheetDue } from '../hooks/useAppSetup';
+import { recordAppState, noteSheetShown, noteSheetDismissed } from '../hooks/useAppServerState';
 import ClassFeedbackModal from './ClassFeedbackModal';
 import HubRoleIntroModal from './hubs/HubRoleIntroModal';
 import RoleGuideModal from './hubs/RoleGuideModal';
@@ -15,7 +17,6 @@ import { useSupportClassFeedbackPrompt } from '../hooks/useSupportClassFeedbackP
 import { classFeedbackApi, groupsApi, myHubApi, supportKindApi } from '../services/api';
 import type { HubJob, SupportKind } from '../types';
 import { HUB_JOB_INFO, sortHubJobs } from './hubs/hubJobs';
-import PWAInstallBanner from './PWAInstallBanner';
 import ProfileMenu from './ProfileMenu';
 import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
 import NewNotificationBanner from './NewNotificationBanner';
@@ -296,7 +297,8 @@ const AppShell: React.FC = () => {
     weeks,
     liveRevision,
   } = useAppData();
-  const { showPrompt, showBlocked, enable, dismiss, dismissBlocked } = usePushNotifications(user?.id);
+  const { enable } = usePushNotifications(user?.id);
+  const appSetup = useAppSetup();
   const isSupport = user?.role === 'SUPPORT';
   // First time a support opens the app after getting a hub job: welcome them
   // to it (once per job, remembered on the server), with a link to the guide.
@@ -323,6 +325,25 @@ const AppShell: React.FC = () => {
   const navigate = useNavigate();
   // First-login order: password change, Welcome + Home tour, then the notification prompt.
   const { busy: tourBusy } = useTourState();
+  // Get the app (Home Screen + notifications): one ask per launch. It waits for a
+  // launch where the weekly feedback question or a role intro isn't due, and the
+  // banner in the page keeps asking meanwhile.
+  const [appSetupDismissed, setAppSetupDismissed] = useState(() => {
+    try { return sessionStorage.getItem('fof_staff_appsetup_dismissed_session') === '1'; } catch { return false; }
+  });
+  const showAppSetup = !!user && !tourBusy && !classFeedbackDueWeek && !pendingIntroJob && !appSetupDismissed && appSetupSheetDue(appSetup);
+  useEffect(() => {
+    if (user) void recordAppState(appSetup.installed, appSetup.device, appSetup.notifications, 'staff');
+  }, [user?.id, appSetup.installed, appSetup.device, appSetup.notifications]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shownCounted = React.useRef(false);
+  useEffect(() => {
+    if (showAppSetup && !shownCounted.current) { shownCounted.current = true; noteSheetShown(); }
+  }, [showAppSetup]);
+  const closeAppSetup = () => {
+    noteSheetDismissed();
+    try { sessionStorage.setItem('fof_staff_appsetup_dismissed_session', '1'); } catch { /* private browsing etc. */ }
+    setAppSetupDismissed(true);
+  };
   // Day 5+ of the cohort, a hub support reaches My Hub more than Mobilisation,
   // so the two swap places on the mobile bottom bar (desktop keeps both).
   const hubPhase = useMemo(
@@ -447,9 +468,8 @@ const AppShell: React.FC = () => {
     <div className="app-shell-bg min-h-screen text-gray-900">
       {/* The update prompt is mounted once, app-wide, in App.tsx. */}
       <NewNotificationBanner />
-      {!tourBusy && showPrompt && <NotificationPromptModal onEnable={enable} onDismiss={dismiss} />}
-      {!tourBusy && showBlocked && <NotificationBlockedModal onDismiss={dismissBlocked} />}
-      {!tourBusy && !showPrompt && !showBlocked && user && activeCohort && classFeedbackDueWeek && (
+      {showAppSetup && <AppSetupSheet audience="staff" enable={enable} onClose={closeAppSetup} />}
+      {!tourBusy && user && activeCohort && classFeedbackDueWeek && (
         <ClassFeedbackModal
           weekNumber={classFeedbackDueWeek.weekNumber}
           onSend={async (note) => {
@@ -465,12 +485,12 @@ const AppShell: React.FC = () => {
       )}
       {/* Supports: ask about logins they made over an hour ago but never marked as sent. */}
       {user && (
-        <LoginShareReminder userId={user.id} enabled={isSupport && !tourBusy && !showPrompt && !showBlocked && !classFeedbackDueWeek && !pendingIntroJob} />
+        <LoginShareReminder userId={user.id} enabled={isSupport && !tourBusy && !classFeedbackDueWeek && !pendingIntroJob} />
       )}
-      {OPEN_GUIDE_AS_WELCOME && !tourBusy && !showPrompt && !showBlocked && !classFeedbackDueWeek && pendingIntroJob && (
+      {OPEN_GUIDE_AS_WELCOME && !tourBusy && !classFeedbackDueWeek && pendingIntroJob && (
         <RoleGuideModal job={pendingIntroJob} onClose={() => finishIntro(pendingIntroJob)} />
       )}
-      {!OPEN_GUIDE_AS_WELCOME && !tourBusy && !showPrompt && !showBlocked && !classFeedbackDueWeek && pendingIntroJob && (
+      {!OPEN_GUIDE_AS_WELCOME && !tourBusy && !classFeedbackDueWeek && pendingIntroJob && (
         <HubRoleIntroModal
           job={pendingIntroJob}
           onGotIt={() => finishIntro(pendingIntroJob)}
@@ -693,6 +713,7 @@ const AppShell: React.FC = () => {
         <main className="mx-auto max-w-7xl px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-8">
           {/* Route-level boundary: a single page crash shows a contained error
               (nav/shell survive) and auto-recovers when the route changes. */}
+          <AppSetupBanner audience="staff" enable={enable} className="mb-4" />
           <ErrorBoundary inline resetKey={location.pathname}>
             {!isSupport && (
               <SectionTabs pathname={location.pathname} isAdmin={isAdmin} pendingApprovals={globalPendingChanges.length} />
@@ -781,7 +802,6 @@ const AppShell: React.FC = () => {
         document.body
       )}
 
-      <PWAInstallBanner />
       <NeedSupportButton className="lg:hidden" cohortId={activeCohort?.id ?? null} />
     </div>
   );

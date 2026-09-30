@@ -17,6 +17,7 @@ import { useAppData } from '../context/AppDataContext';
 import { followUpLoginIssuesApi, groupsApi, usersApi } from '../services/api';
 import type { User } from '../types';
 import NotificationSettings from '../components/NotificationSettings';
+import AppStatusCard from '../components/AppStatusCard';
 import { useAuth } from '../hooks/useAuth';
 import Avatar from '../components/Avatar';
 import { applyTheme, DEFAULT_THEME } from '../utils/theme';
@@ -288,6 +289,8 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
               )}
             </section>
           </div>
+
+          <AppStatusCard />
 
           <div data-wt="profile-notifications">
             <SectionLabel>Reminders</SectionLabel>

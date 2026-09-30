@@ -570,6 +570,9 @@ export const pushSubscriptionsApi = USE_SUPABASE ? supabasePushSubscriptionsApi 
   async save(_userId: string, _subscription: PushSubscriptionJSON): Promise<void> {},
   async remove(_userId: string, _endpoint: string): Promise<void> {},
   async listSubscribedUserIds(): Promise<string[]> { return []; },
+  async recordAppState(_installed: boolean, _device: string, _notifications: string): Promise<{ installedBefore: boolean; sheetDismissed: number }> { return { installedBefore: false, sheetDismissed: 0 }; },
+  async recordSetupSheet(_action: 'shown' | 'dismissed'): Promise<void> {},
+  async listNotInstalledUserIds(): Promise<string[]> { return []; },
   async sendTest(_userId: string): Promise<number> { return 0; },
 };
 

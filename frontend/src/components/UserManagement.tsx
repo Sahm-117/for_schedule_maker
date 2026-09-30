@@ -74,6 +74,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [roleFilter, setRoleFilter] = useState<'ALL' | User['role']>('ALL');
   // Staff userIds with no saved push subscription — "No alerts" tag + filter.
   const [subscribedUserIds, setSubscribedUserIds] = useState<Set<string>>(new Set());
+  const [notInstalledIds, setNotInstalledIds] = useState<Set<string>>(new Set());
   const [noAlertsOnly, setNoAlertsOnly] = useState(false);
   const [noAlertsCopied, setNoAlertsCopied] = useState(false);
   const [roleChangeTarget, setRoleChangeTarget] = useState<User | null>(null);
@@ -110,6 +111,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
     pushSubscriptionsApi.listSubscribedUserIds()
       .then((ids) => setSubscribedUserIds(new Set(ids)))
       .catch(() => setSubscribedUserIds(new Set()));
+    pushSubscriptionsApi.listNotInstalledUserIds()
+      .then((ids) => setNotInstalledIds(new Set(ids)))
+      .catch(() => setNotInstalledIds(new Set()));
   };
 
   const loadLabels = async () => {
@@ -669,6 +673,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-semibold text-gray-900 text-sm truncate">{user.name}</p>
                             {renderStatusBadge(user)}
+                            {user.isActive !== false && notInstalledIds.has(user.id) && (
+                              <span title="Has never opened the app from their Home Screen." className="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Not installed</span>
+                            )}
                             {hasNoAlerts(user) && (
                               <span title="No saved push subscription on any device." className="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">No alerts</span>
                             )}
@@ -734,6 +741,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             <div className="flex items-center gap-2">
                               <div className="text-sm font-medium text-gray-900">{user.name}</div>
                               {renderStatusBadge(user)}
+                              {user.isActive !== false && notInstalledIds.has(user.id) && (
+                                <span title="Has never opened the app from their Home Screen." className="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Not installed</span>
+                              )}
                               {hasNoAlerts(user) && (
                                 <span title="No saved push subscription on any device." className="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">No alerts</span>
                               )}

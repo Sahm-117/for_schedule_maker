@@ -53,6 +53,8 @@ export const useAppSetup = () => {
     // Already opened from the Home Screen at some point, but this is a browser tab.
     installedElsewhere: !isInstalled && device !== 'desktop' && !!server?.installedBefore,
     sheetDismissed: server?.sheetDismissed ?? 0,
+    // The server has answered, so "already installed" and the put-off count are known.
+    serverReady: server !== null,
     notifications,
     canInstallNatively: pwa.hasNativePrompt,
     install: pwa.install,
@@ -80,5 +82,5 @@ export const appSetupNeeded = (setup: Pick<AppSetup, 'device' | 'installed' | 'n
 export const MAX_AUTO_SHEET_DISMISSALS = 5;
 
 /** Whether the sheet may pop up by itself this launch. */
-export const appSetupSheetDue = (setup: Pick<AppSetup, 'device' | 'installed' | 'notifications' | 'installedElsewhere' | 'sheetDismissed'>) =>
-  appSetupNeeded(setup) && !setup.installedElsewhere && setup.sheetDismissed < MAX_AUTO_SHEET_DISMISSALS;
+export const appSetupSheetDue = (setup: Pick<AppSetup, 'device' | 'installed' | 'notifications' | 'installedElsewhere' | 'sheetDismissed' | 'serverReady'>) =>
+  setup.serverReady && appSetupNeeded(setup) && !setup.installedElsewhere && setup.sheetDismissed < MAX_AUTO_SHEET_DISMISSALS;

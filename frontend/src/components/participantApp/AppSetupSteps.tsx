@@ -44,12 +44,14 @@ const DEVICE_LABEL: Record<'iphone' | 'android', string> = { iphone: 'iPhone', a
 
 interface Props {
   setup: AppSetup;
+  /** Changes the wording for staff; defaults to a participant. */
+  audience?: 'participant' | 'staff';
   /** Asks the browser for notification permission and saves the subscription. */
   enableNotifications: () => Promise<void>;
   enabling: boolean;
 }
 
-const AppSetupSteps: React.FC<Props> = ({ setup, enableNotifications, enabling }) => {
+const AppSetupSteps: React.FC<Props> = ({ setup, audience = 'participant', enableNotifications, enabling }) => {
   const detected: DeviceKind = setup.device;
   const [override, setOverride] = useState<'iphone' | 'android' | null>(null);
   const [copied, setCopied] = useState(false);
@@ -63,7 +65,7 @@ const AppSetupSteps: React.FC<Props> = ({ setup, enableNotifications, enabling }
 
   const copyLink = async () => {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/me`);
+      await navigator.clipboard.writeText(`${window.location.origin}${audience === 'staff' ? '/' : '/me'}`);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2500);
     } catch { /* copy blocked: they can still open Safari themselves */ }
@@ -190,7 +192,7 @@ const AppSetupSteps: React.FC<Props> = ({ setup, enableNotifications, enabling }
               <p className="text-[14px] leading-snug text-gray-600">This browser can&apos;t show notifications. Add the app to your Home Screen (step 1) and open it from there.</p>
             ) : (
               <>
-                <p className="text-[14px] leading-snug text-gray-700">You will get your class and group call reminders, and messages from the team. When your phone asks, tap <b>Allow</b>.</p>
+                <p className="text-[14px] leading-snug text-gray-700">{audience === 'staff' ? 'You will get schedule changes, approvals, reminders and announcements.' : 'You will get your class and group call reminders, and messages from the team.'} When your phone asks, tap <b>Allow</b>.</p>
                 <button type="button" onClick={() => { void enableNotifications(); }} disabled={enabling} className="mt-3 min-h-[48px] w-full rounded-xl bg-primary text-[15px] font-semibold text-white disabled:opacity-60">
                   {enabling ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-4 w-4" />Turning on…</span>) : 'Turn on notifications'}
                 </button>

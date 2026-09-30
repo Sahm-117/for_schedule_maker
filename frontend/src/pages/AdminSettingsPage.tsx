@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import NotificationSettings from '../components/NotificationSettings';
+import AppStatusCard from '../components/AppStatusCard';
 import AppSelect from '../components/AppSelect';
 import { aiApi, settingsApi } from '../services/api';
 import type { AiSettings } from '../types';
@@ -871,6 +872,7 @@ const AdminSettingsPage: React.FC = () => {
 
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Just for you</h2>
       <div className="mb-6 grid items-start gap-4 xl:grid-cols-[1fr_1fr]">
+        <AppStatusCard />
         <div data-wt="settings-notifications"><NotificationSettings isOpen onClose={() => {}} embedded /></div>
       </div>
     </div>

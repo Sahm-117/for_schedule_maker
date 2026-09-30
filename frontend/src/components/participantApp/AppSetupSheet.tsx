@@ -7,13 +7,14 @@ import AppSetupSteps from './AppSetupSteps';
 // "See how to install" / "Show me how" buttons on the Profile page.
 
 interface Props {
+  audience?: 'participant' | 'staff';
   /** Turns notifications on (from useParticipantPush). */
   enable: () => Promise<void>;
   onClose: () => void;
   closeLabel?: string;
 }
 
-const AppSetupSheet: React.FC<Props> = ({ enable, onClose, closeLabel = 'Maybe later' }) => {
+const AppSetupSheet: React.FC<Props> = ({ audience = 'participant', enable, onClose, closeLabel = 'Maybe later' }) => {
   const setup = useAppSetup();
   const [enabling, setEnabling] = useState(false);
   const done = appSetupDone(setup);
@@ -31,9 +32,11 @@ const AppSetupSheet: React.FC<Props> = ({ enable, onClose, closeLabel = 'Maybe l
         <p className="mb-4 mt-1 text-[13.5px] leading-relaxed text-gray-600">
           {done
             ? 'FOF Ops is on your Home Screen and notifications are on.'
-            : 'Two quick steps so you never miss a class, a group call or a message from your support.'}
+            : audience === 'staff'
+              ? 'Two quick steps so you never miss a schedule change, an approval or a message from the team.'
+              : 'Two quick steps so you never miss a class, a group call or a message from your support.'}
         </p>
-        <AppSetupSteps setup={setup} enableNotifications={enableNotifications} enabling={enabling} />
+        <AppSetupSteps setup={setup} audience={audience} enableNotifications={enableNotifications} enabling={enabling} />
         <button type="button" onClick={onClose} className={`mt-4 min-h-[48px] w-full rounded-xl text-[14px] font-semibold ${done ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
           {done ? 'Done' : closeLabel}
         </button>
