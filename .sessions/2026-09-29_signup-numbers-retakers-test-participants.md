@@ -51,3 +51,8 @@ The admin Dashboard's sign-up cards disagreed with Follow-ups → Overview. Trac
 - Follow-ups → Overview and the Dashboard cards now read Signed up (measured against the target), Needs login, Login shared (new), Logged in, and Not signed up yet ("They need to be contacted to register"). "All N contacts" is grouped under Signed up and Not signed up yet. App-wide labels changed: Participant confirmed access → Logged in, Waiting → Messaged, no reply yet. Registered is kept as the step a support picks. Neutral pills no longer show the dash icon. The user confirmed people sign up only on the form, so the Signed up line says "They filled in the registration form".
 - Mobilisation → Signed up on the form shows each person's follow-up stage (Login not shared yet / Login shared / Issue with login / Logged in / Next cohort), from contact.registrationStatus in formRegistrationsApi.
 - Branches now fully in main, safe to delete: claude/overview-wording, claude/signup-status-chip.
+
+## 30 Sep: Sign-up list shows one card per person (7ec7ccb)
+- Mobilisation → Signed up on the form groups submissions by contact (or by phone if there is no contact). Each person gets one card with their latest submission and "Filled the form twice · dates". The count and the Logged in chips now match the Overview (41 people and 5 logged in for Cohort 10, where it showed 43 cards and 7 chips before). Search matches any submission's name. It's display only; every SheetRegistration row is kept.
+- Kate Enoch and Funmilayo each filled the form twice. Funmilayo's profile only took her corrected name from the second form; everything else matched.
+- Branch claude/signups-one-per-person is now in main and safe to delete.
