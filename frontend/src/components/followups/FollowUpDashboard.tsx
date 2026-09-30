@@ -235,7 +235,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
           statusLabel={target ? `${pct(headline.signedUp / target)}% of ${target} target` : 'No target set'}
           value={headline.signedUp}
           unit={headline.signedUp === 1 ? 'person' : 'people'}
-          detail={headline.nextCohort > 0 ? `${headline.nextCohort} more waiting for the next cohort` : 'On the form or with their support'}
+          detail={headline.nextCohort > 0 ? `${headline.nextCohort} more waiting for the next cohort` : 'They filled in the registration form'}
           to={contactsLink('REGISTERED')}
         />
         <VitalTile
