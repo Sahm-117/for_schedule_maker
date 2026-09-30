@@ -19,6 +19,8 @@ interface LoginDetailsCardProps {
   startDate?: string | null;
   /** Their email, for sending the login by email when the phone doesn't get through. */
   email?: string | null;
+  /** Called when the support taps Send in WhatsApp, Send by email or Copy message. */
+  onSendAttempt?: () => void;
 }
 
 const formatDay = (value: string | null) =>
@@ -30,7 +32,7 @@ const errorText = (err: unknown) => {
   return message || 'Could not load the login details. Please try again.';
 };
 
-const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, followUpContactId, defaultOpen = false, className = '', startDate, email }) => {
+const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, followUpContactId, defaultOpen = false, className = '', startDate, email, onSendAttempt }) => {
   const { user } = useAuth();
   const [details, setDetails] = useState<ParticipantLoginDetails | null>(null);
   const [open, setOpen] = useState(defaultOpen);
@@ -83,6 +85,7 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(message);
+      onSendAttempt?.();
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -126,12 +129,12 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
                   {copied ? 'Copied' : 'Copy message'}
                 </button>
                 {waLink && (
-                  <a href={waLink} target="_blank" rel="noreferrer" className="inline-flex min-h-[44px] flex-[1_1_150px] items-center justify-center rounded-[10px] bg-[#25d366] px-3.5 py-2.5 text-[13px] font-semibold text-white">
+                  <a href={waLink} target="_blank" rel="noreferrer" onClick={() => onSendAttempt?.()} className="inline-flex min-h-[44px] flex-[1_1_150px] items-center justify-center rounded-[10px] bg-[#25d366] px-3.5 py-2.5 text-[13px] font-semibold text-white">
                     Send in WhatsApp
                   </a>
                 )}
                 {mailLink && (
-                  <a href={mailLink} className="inline-flex min-h-[44px] flex-[1_1_150px] items-center justify-center rounded-[10px] bg-sky-600 px-3.5 py-2.5 text-[13px] font-semibold text-white">
+                  <a href={mailLink} onClick={() => onSendAttempt?.()} className="inline-flex min-h-[44px] flex-[1_1_150px] items-center justify-center rounded-[10px] bg-sky-600 px-3.5 py-2.5 text-[13px] font-semibold text-white">
                     Send by email
                   </a>
                 )}

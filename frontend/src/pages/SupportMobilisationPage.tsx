@@ -36,6 +36,8 @@ import LoginDetailsCard from '../components/participants/LoginDetailsCard';
 import FormQuestionBox from '../components/followups/FormQuestionBox';
 import SignUpStageFilter from '../components/followups/SignUpStageFilter';
 import { emailLoginDetails, hasLoginToSend } from '../utils/loginEmail';
+import { usePendingLoginShares } from '../utils/pendingLoginShares';
+import LoginShareConfirm from '../components/followups/LoginShareConfirm';
 
 type MobTab = 'register' | 'follow' | 'it';
 
@@ -175,11 +177,47 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   // Send email: once they're registered it opens the email app with their login
   // details; before that, the templates. Falls back to the templates if there's no
   // login to send (they've set their own password, or it isn't ready yet).
+  // Logins the support has sent (or copied) but not yet confirmed. The prompt
+  // stays on the card, and in a banner above the list, until they answer.
+  const { pending: pendingShares, add: addPendingShare, remove: removePendingShare } = usePendingLoginShares(user?.id);
+  const markShareAttempt = (contact: FollowUpContact) => {
+    if (contact.registrationStatus === 'REGISTERED') addPendingShare({ contactId: contact.id, name: contact.fullName });
+  };
+  const confirmLoginShared = async (contact: FollowUpContact) => {
+    removePendingShare(contact.id);
+    await handleFieldChange(contact, buildStatusPatch('LOGIN_SHARED') as FollowUpContactUpdate);
+    toast({ message: `${contact.fullName.split(' ')[0]} is now Login shared.` });
+  };
+  const loginShareConfirm = (contact: FollowUpContact, variant: 'card' | 'banner' = 'card') =>
+    contact.registrationStatus === 'REGISTERED' && pendingShares.some((entry) => entry.contactId === contact.id) ? (
+      <LoginShareConfirm
+        name={contact.fullName}
+        variant={variant}
+        onYes={() => confirmLoginShared(contact)}
+        onNotYet={() => removePendingShare(contact.id)}
+        className={variant === 'card' ? 'mt-2.5' : ''}
+      />
+    ) : null;
+  const pendingContacts = useMemo(
+    () => pendingShares
+      .map((entry) => allContacts.find((c) => c.id === entry.contactId))
+      .filter((c): c is FollowUpContact => !!c && c.registrationStatus === 'REGISTERED'),
+    [pendingShares, allContacts],
+  );
+  // Once someone has moved on (or is gone), there's nothing left to confirm.
+  useEffect(() => {
+    if (allContacts.length === 0) return;
+    pendingShares.forEach((entry) => {
+      const found = allContacts.find((c) => c.id === entry.contactId);
+      if (!found || found.registrationStatus !== 'REGISTERED') removePendingShare(entry.contactId);
+    });
+  }, [allContacts, pendingShares, removePendingShare]);
   const sendEmail = async (contact: FollowUpContact) => {
     if (!hasLoginToSend(contact)) { openTemplates(contact, 'email'); return; }
     try {
       const result = await emailLoginDetails(contact, user);
       if (result === 'password-set') toast({ message: `${contact.fullName.split(' ')[0]} has set their own password, so there's no login to send.` });
+      if (result === 'opened') markShareAttempt(contact);
       if (result !== 'opened') openTemplates(contact, 'email');
     } catch {
       toast({ message: 'Could not load their login details. Choose a message instead.' });
@@ -835,7 +873,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                           <span className="ml-auto rounded-full bg-[#fff8f3] px-2.5 py-0.5 text-[11px] font-bold text-[#c2410c]">{statusLabel}</span>
                         </div>
                         <p className="mt-1 text-xs text-gray-500">{contact.phone}</p>
-                        {(contact.registrationStatus === 'REGISTERED' || contact.registrationStatus === 'LOGIN_SHARED' || contact.registrationStatus === 'LOGIN_ISSUE') && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} email={contact.email} className="mt-2.5" />}
+                        {loginShareConfirm(contact)}
+                        {(contact.registrationStatus === 'REGISTERED' || contact.registrationStatus === 'LOGIN_SHARED' || contact.registrationStatus === 'LOGIN_ISSUE') && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} email={contact.email} onSendAttempt={() => markShareAttempt(contact)} className="mt-2.5" />}
                       </div>
                     );
                   })}
@@ -847,6 +886,13 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
 
         {tab === 'follow' && (
           <>
+            {pendingContacts.length > 0 && (
+              <div className="mb-3 space-y-2">
+                {pendingContacts.map((contact) => (
+                  <React.Fragment key={contact.id}>{loginShareConfirm(contact, 'banner')}</React.Fragment>
+                ))}
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[13px] font-semibold text-gray-700">{showClosed ? 'Closed contacts' : 'Assigned to you'}</span>
               <InfoTip label="Open and Closed">
@@ -1017,7 +1063,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       placeholder="Choose status"
                     />
                   </div>
-                  {(status === 'REGISTERED' || status === 'LOGIN_SHARED' || status === 'LOGIN_ISSUE') && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} email={contact.email} className="mt-3" />}
+                  {loginShareConfirm(contact)}
+                  {(status === 'REGISTERED' || status === 'LOGIN_SHARED' || status === 'LOGIN_ISSUE') && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} email={contact.email} onSendAttempt={() => markShareAttempt(contact)} className="mt-3" />}
                 </section>
               );
             })}
