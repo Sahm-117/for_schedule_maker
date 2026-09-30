@@ -13,6 +13,7 @@ import { useParticipantApp } from '../context/ParticipantAppContext';
 import { participantAppApi } from '../services/api';
 import type { OnboardingState } from '../types';
 import { useToast } from '../components/Toast';
+import AppSetupBanner from '../components/participantApp/AppSetupBanner';
 import { buildWhatsAppLink } from '../utils/phone';
 import { normalizeLink } from '../utils/links';
 import {
@@ -307,6 +308,7 @@ const ParticipantHomePage: React.FC = () => {
       />
 
       <div className="flex flex-col gap-4">
+        <AppSetupBanner />
         {home.groupMeetingLive && (
           // Tapping the banner opens the meeting on My Group; Join still goes
           // straight to the call link.

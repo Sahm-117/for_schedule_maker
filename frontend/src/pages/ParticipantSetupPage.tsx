@@ -19,7 +19,11 @@ const ParticipantSetupPage: React.FC = () => {
   if (user.mustChangePassword) return <Navigate to="/me/welcome" replace />;
 
   const done = appSetupDone(setup);
-  const next = () => navigate('/me/profile?welcome=1', { replace: true });
+  const next = () => {
+    // Asked just now: don't open the same steps again on the next screen.
+    try { sessionStorage.setItem('fof_appsetup_dismissed_session', '1'); } catch { /* private browsing etc. */ }
+    navigate('/me/profile?welcome=1', { replace: true });
+  };
 
   const enableNotifications = async () => {
     setEnabling(true);

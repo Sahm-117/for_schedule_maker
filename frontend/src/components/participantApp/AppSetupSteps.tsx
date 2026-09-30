@@ -55,7 +55,7 @@ const AppSetupSteps: React.FC<Props> = ({ setup, enableNotifications, enabling }
   const [copied, setCopied] = useState(false);
   const shown: 'iphone' | 'android' | 'desktop' = override ?? (detected === 'android' ? 'android' : detected === 'desktop' ? 'desktop' : 'iphone');
   // "Open this in Safari" only applies when we know they're on an iPhone in another browser.
-  const needsSafari = !override && detected === 'ios-other';
+  const inAppBrowser = !override && detected === 'ios-inapp';
   const iphone = shown === 'iphone';
 
   const { installed, notifications } = setup;
@@ -98,20 +98,20 @@ const AppSetupSteps: React.FC<Props> = ({ setup, enableNotifications, enabling }
           <div className="mt-3">
             {iphone ? (
               <>
-                {needsSafari && (
+                {inAppBrowser && (
                   <div className="mb-3 rounded-xl bg-amber-50 px-3 py-2.5 text-[13px] leading-snug text-amber-900">
-                    <p className="font-semibold">You are not in Safari.</p>
-                    <p className="mt-0.5">iPhone only lets Safari add apps to the Home Screen. Copy this link, open Safari, and paste it in the address bar.</p>
+                    <p className="font-semibold">You are inside another app.</p>
+                    <p className="mt-0.5">Apps like WhatsApp can&apos;t add to the Home Screen. Copy this link, open it in Safari (or Chrome), then follow the steps below.</p>
                     <button type="button" onClick={() => { void copyLink(); }} className="mt-2 min-h-[40px] rounded-lg bg-amber-600 px-3.5 text-[13px] font-semibold text-white">
                       {copied ? 'Link copied' : 'Copy link'}
                     </button>
                   </div>
                 )}
                 <ol className="space-y-2.5">
-                  <Line n={1}>Tap the <b>Share</b> button <ShareIcon /> at the bottom of Safari (or top right on iPad).</Line>
+                  <Line n={1}>Tap the <b>Share</b> button <ShareIcon />. It is at the bottom of Safari, or next to the address bar in Chrome and other browsers.</Line>
                   <Line n={2}>Scroll down and tap <b>Add to Home Screen</b> <PlusSquareIcon />.</Line>
                   <Line n={3}>Tap <b>Add</b> at the top right.</Line>
-                  <Line n={4}>Close Safari. Open <b>{APP}</b> from your Home Screen and sign in with the password you set.</Line>
+                  <Line n={4}>Close your browser. Open <b>{APP}</b> from your Home Screen and sign in with the password you set.</Line>
                 </ol>
               </>
             ) : shown === 'android' ? (

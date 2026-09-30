@@ -62,7 +62,8 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [activePage, markSeen]);
 
   const welcome = audience ? WELCOME[audience] : null;
-  const welcomeOpen = ready && !!seen && !seen.has(WELCOME_KEY) && !!welcome;
+  // Not over the Get the app page: one full-screen thing at a time.
+  const welcomeOpen = ready && !!seen && !seen.has(WELCOME_KEY) && !!welcome && location.pathname !== '/me/setup';
 
   const startFromWelcome = useCallback(() => {
     if (!welcome) return;

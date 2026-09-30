@@ -5,16 +5,16 @@ import { isInStandaloneMode, usePWAInstall } from './usePWAInstall';
 // on their Home Screen, and having notifications on. Read from the browser, so it
 // is always the truth on this device.
 
-export type DeviceKind = 'ios-safari' | 'ios-other' | 'android' | 'desktop';
+export type DeviceKind = 'ios' | 'ios-inapp' | 'android' | 'desktop';
 export type NotificationState = 'granted' | 'denied' | 'default' | 'unsupported';
 
 export const detectDevice = (): DeviceKind => {
   const ua = navigator.userAgent;
   const ipadOnMac = /Macintosh/i.test(ua) && navigator.maxTouchPoints > 1;
   if (/iphone|ipad|ipod/i.test(ua) || ipadOnMac) {
-    // Only Safari can add to the Home Screen on iPhone. Chrome, Firefox, Edge and the
-    // browsers inside WhatsApp, Facebook and Instagram can't.
-    return /CriOS|FxiOS|EdgiOS|OPiOS|GSA\/|FBAN|FBAV|Instagram|WhatsApp|Line\//i.test(ua) ? 'ios-other' : 'ios-safari';
+    // Safari, Chrome, Edge and Firefox can all add to the Home Screen. The browser
+    // built into WhatsApp, Facebook or Instagram can't.
+    return /FBAN|FBAV|Instagram|WhatsApp|Line\/|MicroMessenger|Twitter/i.test(ua) ? 'ios-inapp' : 'ios';
   }
   return /android/i.test(ua) ? 'android' : 'desktop';
 };

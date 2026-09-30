@@ -121,7 +121,10 @@ const ShellLayout: React.FC = () => {
   const departmentDismiss = useSessionDismiss('fof_department_dismissed_session');
   const classFeedbackPending = !tourBusy && !checkIn.pending && !!home?.classFeedbackDue?.open && !classFeedbackDismiss.dismissed;
   const departmentPending = !tourBusy && !checkIn.pending && !classFeedbackPending && !!home?.departmentPromptDue && !departmentDismiss.dismissed;
-  const notifReady = !tourBusy && !checkIn.pending && !classFeedbackPending && !departmentPending;
+  // One ask at a time. When check-in, class feedback or the department question is
+  // due, Get the app waits for a launch where none is (the Home banner keeps asking).
+  const otherPromptDue = !!checkIn.decision?.ask || !!home?.classFeedbackDue?.open || !!home?.departmentPromptDue;
+  const notifReady = !otherPromptDue && !tourBusy && !checkIn.pending && !classFeedbackPending && !departmentPending;
 
   if (!user) return null;
   if (user.mustChangePassword) return <Navigate to="/me/welcome" replace />;
