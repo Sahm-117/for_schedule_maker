@@ -1712,6 +1712,11 @@ export const notificationsApi = {
     const { error } = await supabase.rpc('mark_notification_read', { p_id: id });
     if (error) throw new Error(error.message);
   },
+  // A phone push was tapped: its bell copy counts as read.
+  async markTapped(title: string, body: string): Promise<void> {
+    const { error } = await supabase.rpc('mark_notifications_read_by_content', { p_title: title, p_body: body });
+    if (error) throw new Error(error.message);
+  },
 };
 
 // App Settings API
@@ -3506,6 +3511,11 @@ export const participantAppApi = {
 
   async markNotificationsRead(ids: string[] | null): Promise<void> {
     const { error } = await supabase.rpc('mark_participant_notifications_read', { p_token: getSessionToken(), p_ids: ids });
+    if (error) throw participantAppError(error.message, 'Could not update your notifications.');
+  },
+  // A phone push was tapped: its bell copy counts as read.
+  async markPushTapped(title: string, body: string): Promise<void> {
+    const { error } = await supabase.rpc('mark_participant_notifications_read_by_content', { p_token: getSessionToken(), p_title: title, p_body: body });
     if (error) throw participantAppError(error.message, 'Could not update your notifications.');
   },
 };

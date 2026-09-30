@@ -398,6 +398,7 @@ export const rejectedChangesApi = USE_SUPABASE ? supabaseRejectedChangesApi : {
 
 // In-app Notifications API
 export const notificationsApi = USE_SUPABASE ? supabaseNotificationsApi : {
+  async markTapped(_title: string, _body: string): Promise<void> { return undefined; },
   async getMine(): Promise<{ notifications: import('../types').Notification[]; unreadCount: number }> {
     const response = await api.get('/notifications/me');
     return response.data;
@@ -974,6 +975,7 @@ export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async submitClassFeedback(_input: { weekId: number; rating: number; comment: string; showName: boolean }): Promise<never> { return peopleUnavailable(); },
   async getNotifications(): Promise<never> { return peopleUnavailable(); },
   async markNotificationsRead(_ids: string[] | null): Promise<never> { return peopleUnavailable(); },
+  async markPushTapped(_title: string, _body: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const feedbackApi = USE_SUPABASE ? supabaseFeedbackApi : {

@@ -14,6 +14,8 @@ import { useParticipantPush } from '../../hooks/useParticipantPush';
 import AppSetupSheet from './AppSetupSheet';
 import { useAppSetup, appSetupSheetDue } from '../../hooks/useAppSetup';
 import { recordAppState, noteSheetShown, noteSheetDismissed } from '../../hooks/useAppServerState';
+import { usePushTapRead } from '../../hooks/usePushTapRead';
+import { participantAppApi } from '../../services/api';
 import ParticipantNotificationBell from './ParticipantNotificationBell';
 import LiveNavDot from '../LiveNavDot';
 import ProfileMenu from '../ProfileMenu';
@@ -114,6 +116,8 @@ const ShellLayout: React.FC = () => {
   const { enable } = useParticipantPush();
   const appSetup = useAppSetup();
   const appSetupDismiss = useSessionDismiss('fof_appsetup_dismissed_session');
+  // A tapped phone push counts as reading its bell copy.
+  usePushTapRead(!!user, React.useCallback((title: string, body: string) => participantAppApi.markPushTapped(title, body), []));
   // Tell the server what this device is (Home Screen or browser, notifications).
   useEffect(() => {
     void recordAppState(appSetup.installed, appSetup.device, appSetup.notifications);

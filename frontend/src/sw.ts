@@ -60,7 +60,9 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       const targetPath = typeof event.notification.data?.path === 'string' ? event.notification.data.path : '/'
-      const targetUrl = `${self.location.origin}${targetPath.startsWith('/') ? targetPath : `/${targetPath}`}`
+      // Tell the app which push was tapped (its title and text), so the matching bell copy counts as read.
+      const tap = targetPath.includes('#') ? '' : `#fof-tap=${encodeURIComponent(JSON.stringify({ t: event.notification.title, b: event.notification.body }))}`
+      const targetUrl = `${self.location.origin}${targetPath.startsWith('/') ? targetPath : `/${targetPath}`}${tap}`
       for (const client of clients) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           if ('navigate' in client) {

@@ -14,7 +14,8 @@ import ClassFeedbackModal from './ClassFeedbackModal';
 import HubRoleIntroModal from './hubs/HubRoleIntroModal';
 import RoleGuideModal from './hubs/RoleGuideModal';
 import { useSupportClassFeedbackPrompt } from '../hooks/useSupportClassFeedbackPrompt';
-import { classFeedbackApi, groupsApi, myHubApi, supportKindApi } from '../services/api';
+import { classFeedbackApi, groupsApi, myHubApi, notificationsApi, supportKindApi } from '../services/api';
+import { usePushTapRead } from '../hooks/usePushTapRead';
 import type { HubJob, SupportKind } from '../types';
 import { HUB_JOB_INFO, sortHubJobs } from './hubs/hubJobs';
 import ProfileMenu from './ProfileMenu';
@@ -299,7 +300,13 @@ const AppShell: React.FC = () => {
     myHub,
     weeks,
     liveRevision,
+    refreshNotifications,
   } = useAppData();
+  // A tapped phone push counts as reading its bell copy.
+  usePushTapRead(!!user, React.useCallback(async (title: string, body: string) => {
+    await notificationsApi.markTapped(title, body);
+    await refreshNotifications();
+  }, [refreshNotifications]));
   const { enable } = usePushNotifications(user?.id);
   const appSetup = useAppSetup();
   const isSupport = user?.role === 'SUPPORT';
