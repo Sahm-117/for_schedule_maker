@@ -6006,6 +6006,14 @@ export const myHubApi = {
     return data as import('../types').MyHubPayload;
   },
 
+  // A hub member's group (meeting + Join call), for their hub lead, an
+  // assistant with "See groups", or an admin. Null when they have no group.
+  async getSupportGroupView(supportId: string, cohortId: string): Promise<import('../types').SupportGroupView | null> {
+    const { data, error } = await supabase.rpc('get_support_group_view', { p_support_id: supportId, p_cohort_id: cohortId });
+    if (error) throw new Error(error.message);
+    return (data as import('../types').SupportGroupView | null) ?? null;
+  },
+
   async submitMeeting(hubId: string, weekId: number, notes: string): Promise<{ sessionId: string; hubId: string; weekId: number; notes: string | null; submittedAt: string; submittedById: string | null }> {
     const { data, error } = await supabase.rpc('submit_hub_meeting', { p_hub_id: hubId, p_week_id: weekId, p_notes: notes });
     if (error || !data) throw new Error(error?.message || 'Failed to submit the hub meeting');

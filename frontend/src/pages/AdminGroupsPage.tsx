@@ -704,6 +704,7 @@ const AdminGroupsContent: React.FC = () => {
                       items={g.archivedAt
                         ? [{ label: 'Restore group', onClick: () => void handleRestore(g) }]
                         : [
+                            ...(g.supportId ? [{ label: 'Open group view', onClick: () => navigate(`/group-view/${g.supportId}?cohort=${g.cohortId}`) }] : []),
                             { label: 'Manage members', onClick: () => setMembersTarget(g) },
                             { label: 'Assign support', onClick: () => setSupportTarget(g) },
                             { label: 'Edit', onClick: () => { setEditing(g); setFormOpen(true); } },

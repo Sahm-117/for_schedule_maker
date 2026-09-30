@@ -1215,7 +1215,7 @@ export interface ProfileCompletion {
 // the hub and keeps private notes on each support.
 
 /** Granular permissions a hub lead can grant their assistant. */
-export type AssistantHubPermission = 'MEETING' | 'ATTENDANCE' | 'MESSAGE';
+export type AssistantHubPermission = 'MEETING' | 'ATTENDANCE' | 'MESSAGE' | 'GROUPS';
 
 /** A support's kind within a cohort (UserCohort.supportKind). */
 export type SupportKind = 'PARTICIPANT_SUPPORT' | 'HUB_LEAD' | 'OPERATIONAL';
@@ -1335,6 +1335,22 @@ export interface MyHubAttendanceRow {
   /** SUNDAY_RECAP sessions only: the hub's submitted meeting notes. */
   notes?: string | null;
   submittedAt?: string | null;
+}
+
+/** One support's group as a hub lead (or admin) sees it — get_support_group_view. */
+export interface SupportGroupView {
+  groupId: string;
+  groupName: string;
+  supportId: string;
+  supportName: string;
+  supportAvatarUrl?: string | null;
+  hubName: string | null;
+  meetingDay: string | null;
+  meetingTime: string | null;
+  meetingDurationMins: number | null;
+  callPlatform: GroupCallPlatform | null;
+  callLink: string | null;
+  participantCount: number;
 }
 
 export interface MyHubPayload {

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import SegmentedTabs from '../components/SegmentedTabs';
 import AppSelect from '../components/AppSelect';
@@ -65,6 +65,7 @@ const PERMISSION_OPTIONS: Array<{ value: AssistantHubPermission; label: string; 
   { value: 'MEETING', label: 'Meeting time & link', hint: 'Edit when and where the hub meets.', summary: 'edit meeting time & link' },
   { value: 'ATTENDANCE', label: 'Attendance & hub meeting', hint: 'Mark attendance and run the hub meeting.', summary: 'run attendance & hub meeting' },
   { value: 'MESSAGE', label: 'Message the hub', hint: 'Send messages to everyone in the hub.', summary: 'message the hub' },
+  { value: 'GROUPS', label: 'See groups', hint: "Open each support's group and join their call.", summary: 'see groups' },
 ];
 
 // Off while trainings are marked from the Attendance page instead.
@@ -425,6 +426,7 @@ const SupportMyHubPage: React.FC = () => {
   const canMeeting = isLead || !!myHub?.canMeeting;
   const canAttendance = isLead || !!myHub?.canAttendance;
   const canMessage = isLead || !!myHub?.canMessage;
+  const canGroups = isLead || (!!myHub?.isAssistant && (myHub?.hub?.assistantPermissions ?? []).includes('GROUPS'));
   const isRecapLead = (myHub?.myJobs ?? []).includes('RECAP_LEAD');
   const isPrayerLead = (myHub?.myJobs ?? []).includes('PRAYER_LEAD');
   const leadMember = myHub?.hub ? myHub.members.find((m) => m.userId === myHub.hub!.leadUserId) : undefined;
@@ -540,7 +542,14 @@ const SupportMyHubPage: React.FC = () => {
                               </div>
                             )}
                           </div>
-                          <span className="flex-none text-[13px] text-gray-400">{m.groupName || 'No group'}</span>
+                          {canGroups && m.groupName ? (
+                            <Link to={`/group-view/${m.userId}`} className="flex flex-none items-center gap-1 text-[13px] font-medium text-primary">
+                              {m.groupName}
+                              <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
+                            </Link>
+                          ) : (
+                            <span className="flex-none text-[13px] text-gray-400">{m.groupName || 'No group'}</span>
+                          )}
                         </li>
                       );
                     })}
