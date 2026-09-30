@@ -11,8 +11,8 @@ import DepartmentPromptModal from './DepartmentPromptModal';
 import { shouldAskCheckIn } from '../../utils/participantApp';
 import { useTourState } from '../../context/TourContext';
 import { useParticipantPush } from '../../hooks/useParticipantPush';
-import NotificationPromptModal from '../NotificationPromptModal';
-import NotificationBlockedModal from '../NotificationBlockedModal';
+import AppSetupSheet from './AppSetupSheet';
+import { useAppSetup, appSetupNeeded } from '../../hooks/useAppSetup';
 import ParticipantNotificationBell from './ParticipantNotificationBell';
 import LiveNavDot from '../LiveNavDot';
 import ProfileMenu from '../ProfileMenu';
@@ -110,7 +110,9 @@ const ShellLayout: React.FC = () => {
   const groupMeetingLive = !!home?.groupMeetingLive;
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
-  const { showPrompt, showBlocked, enable, dismiss, dismissBlocked } = useParticipantPush();
+  const { enable } = useParticipantPush();
+  const appSetup = useAppSetup();
+  const appSetupDismiss = useSessionDismiss('fof_appsetup_dismissed_session');
   // Waits for the Welcome + Home tour on first sign-in, same as CheckInPrompt.
   const { busy: tourBusy } = useTourState();
   const checkIn = useCheckInState();
@@ -264,8 +266,7 @@ const ShellLayout: React.FC = () => {
           onLater={departmentDismiss.dismiss}
         />
       )}
-      {notifReady && showPrompt && <NotificationPromptModal onEnable={enable} onDismiss={dismiss} />}
-      {notifReady && showBlocked && <NotificationBlockedModal onDismiss={dismissBlocked} />}
+      {notifReady && !appSetupDismiss.dismissed && appSetupNeeded(appSetup) && <AppSetupSheet enable={enable} onClose={appSetupDismiss.dismiss} />}
       <NeedSupportButton className="lg:hidden" />
     </div>
   );

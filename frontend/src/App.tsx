@@ -20,6 +20,7 @@ const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
 const AdminScripturesPage = lazy(() => import('./pages/AdminScripturesPage'));
 const ParticipantHomePage = lazy(() => import('./pages/ParticipantHomePage'));
 const ParticipantWelcomePage = lazy(() => import('./pages/ParticipantWelcomePage'));
+const ParticipantSetupPage = lazy(() => import('./pages/ParticipantSetupPage'));
 const ParticipantWeekPage = lazy(() => import('./pages/ParticipantWeekPage'));
 const ParticipantJourneyPage = lazy(() => import('./pages/ParticipantJourneyPage'));
 const ParticipantShell = lazy(() => import('./components/participantApp/ParticipantShell'));
@@ -110,6 +111,7 @@ function App() {
             <Route path="/me/complete" element={<Suspense fallback={<RouteFallback />}><ParticipantCompletePage /></Suspense>} />
           </Route>
           <Route path="/me/welcome" element={<ErrorBoundary><ProtectedRoute audience="participant"><Suspense fallback={<RouteFallback />}><ParticipantWelcomePage /></Suspense></ProtectedRoute></ErrorBoundary>} />
+          <Route path="/me/setup" element={<ErrorBoundary><ProtectedRoute audience="participant"><Suspense fallback={<RouteFallback />}><ParticipantSetupPage /></Suspense></ProtectedRoute></ErrorBoundary>} />
           <Route
             element={
               <ErrorBoundary>

@@ -59,7 +59,7 @@ const ParticipantWelcomePage: React.FC = () => {
   const [justSet, setJustSet] = useState(false);
 
   if (!user) return null;
-  if (!user.mustChangePassword) return <Navigate to={justSet ? '/me/profile?welcome=1' : '/me'} replace />;
+  if (!user.mustChangePassword) return <Navigate to={justSet ? '/me/setup' : '/me'} replace />;
 
   const passwordError = touched && password.length < 8 ? 'Use at least 8 characters.' : '';
   const confirmError = touched && !passwordError && password !== confirm ? 'These do not match.' : '';

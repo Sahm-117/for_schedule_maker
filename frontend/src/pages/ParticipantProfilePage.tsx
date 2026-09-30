@@ -7,6 +7,8 @@ import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { useParticipantPush } from '../hooks/useParticipantPush';
+import { useAppSetup } from '../hooks/useAppSetup';
+import AppSetupSheet from '../components/participantApp/AppSetupSheet';
 import { participantAppApi } from '../services/api';
 import { currentWeekNumber, formatTime, titleCaseDay } from '../utils/participantApp';
 import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
@@ -31,6 +33,12 @@ const MEETING_TIMINGS = [
 
 const formatBirthday = (iso: string | null) =>
   iso ? new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : '';
+
+const StateTick: React.FC = () => (
+  <span className="grid h-7 w-7 flex-none place-items-center rounded-full bg-emerald-100 text-emerald-600" aria-label="Done">
+    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m5 12 5 5L20 7" /></svg>
+  </span>
+);
 
 const Switch: React.FC<{ on: boolean; onToggle?: () => void; label: string; disabled?: boolean }> = ({ on, onToggle, label, disabled }) => (
   <button
@@ -70,6 +78,11 @@ const ParticipantProfilePage: React.FC = () => {
   const { home, loading, reload } = useParticipantApp();
   const toast = useToast();
   const push = useParticipantPush();
+  const appSetup = useAppSetup();
+  const [setupOpen, setSetupOpen] = useState(false);
+  // iPhone only allows the question from the Home Screen app.
+  const canAskHere = appSetup.installed || appSetup.device === 'android' || appSetup.device === 'desktop';
+  const enableNotifications = async () => { await push.enable(); appSetup.refresh(); };
   const photoInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -223,14 +236,6 @@ const ParticipantProfilePage: React.FC = () => {
     `Recap ${recapReleased ? 'on' : 'off'}`,
   ].join(' · ');
 
-  const pushNote: Record<string, string> = {
-    unsupported: 'Notifications don’t work in this browser. On iPhone, add the app to your Home Screen first.',
-    blocked: 'Notifications are blocked. Allow them for this site in your browser settings.',
-    failed: 'Could not turn on notifications.',
-    ready: 'Turn on notifications to get these reminders.',
-    saving: 'Turning on notifications…',
-  };
-
   return (
     <div className="max-w-2xl">
       <PageHeader title="Profile" subtitle="Your details, photo and reminders." tourId="participant:profile" />
@@ -356,16 +361,44 @@ const ParticipantProfilePage: React.FC = () => {
           </dl>
         </section>
 
-        <div data-wt="pp-reminders">
-        <Fold title="Reminders" summary={reminderSummary}>
-          {push.status !== 'enabled' && (
-            <div className="mb-2 flex items-center gap-3 rounded-xl bg-[#fff8f3] px-3 py-2.5">
-              <p className="min-w-0 flex-1 text-[12.5px] leading-snug text-gray-600">{pushNote[push.status]}</p>
-              {(push.status === 'ready' || push.status === 'failed') && (
-                <button type="button" onClick={() => { void push.enable(); }} className="flex-none rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white">Turn on</button>
+        <section className={CARD} data-wt="pp-app">
+          <h3 className="text-base font-bold text-gray-900">The app</h3>
+          <div className="mt-2 divide-y divide-gray-100">
+            <div className="flex items-center gap-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900">{appSetup.installed ? 'On your Home Screen' : 'Not on your Home Screen'}</p>
+                <p className="text-xs text-gray-500">{appSetup.installed ? 'You are using the app.' : 'You are using this in a browser, so you do not have the app yet.'}</p>
+              </div>
+              {appSetup.installed ? <StateTick /> : (
+                <button type="button" onClick={() => setSetupOpen(true)} className="flex-none rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white">See how to install</button>
               )}
             </div>
-          )}
+            <div className="flex items-center gap-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900">{appSetup.notifications === 'granted' ? 'Notifications are on' : 'Notifications are off'}</p>
+                <p className="text-xs text-gray-500">
+                  {appSetup.notifications === 'granted'
+                    ? 'You will get your reminders and messages.'
+                    : appSetup.notifications === 'denied'
+                      ? 'They may have been switched off by accident. Turn them back on to get your reminders.'
+                      : 'Turn them on to get your class and group call reminders.'}
+                </p>
+              </div>
+              {appSetup.notifications === 'granted' ? <StateTick /> : (
+                <button
+                  type="button"
+                  onClick={() => { if (appSetup.notifications === 'default' && canAskHere) void enableNotifications(); else setSetupOpen(true); }}
+                  className="flex-none rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white"
+                >
+                  {appSetup.notifications === 'default' ? 'Turn on' : 'Show me how'}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <div data-wt="pp-reminders">
+        <Fold title="Reminders" summary={reminderSummary}>
           <div className="divide-y divide-gray-100">
             <div className="flex items-center gap-3 py-2.5">
               <div className="min-w-0 flex-1">
@@ -429,6 +462,7 @@ const ParticipantProfilePage: React.FC = () => {
           <span>Your weekly reflections are private to you. Your attendance and faith project are visible to your support and the programme team.</span>
         </p>
       </div>
+      {setupOpen && <AppSetupSheet enable={push.enable} onClose={() => setSetupOpen(false)} closeLabel="Close" />}
     </div>
   );
 };
