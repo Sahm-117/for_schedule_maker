@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { isInStandaloneMode, usePWAInstall } from './usePWAInstall';
 import { useAppServerState } from './useAppServerState';
 
@@ -23,28 +23,57 @@ export const detectDevice = (): DeviceKind => {
 const readNotificationState = (): NotificationState =>
   typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported';
 
+// One shared reading for every component that asks. The sheet, the banner, the
+// Profile card and the shell each used to keep their own copy, so turning
+// notifications on in one left the others showing "off" until a refresh.
+interface Reading { installed: boolean; notifications: NotificationState }
+const readNow = (): Reading => ({ installed: isInStandaloneMode(), notifications: readNotificationState() });
+
+let reading: Reading | null = null;
+const listeners = new Set<() => void>();
+let watching = false;
+
+/** Reads the browser again and tells everything that is showing it. */
+export const refreshAppSetup = () => {
+  const next = readNow();
+  if (!reading || next.installed !== reading.installed || next.notifications !== reading.notifications) {
+    reading = next;
+    listeners.forEach((listener) => listener());
+  }
+};
+
+// The phone's permission box and Settings don't reliably fire a page event, so watch
+// every signal there is: permission changes, coming back to the app, and focus.
+const startWatching = () => {
+  if (watching || typeof window === 'undefined') return;
+  watching = true;
+  const onVisible = () => { if (document.visibilityState === 'visible') refreshAppSetup(); };
+  document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('focus', refreshAppSetup);
+  window.addEventListener('appinstalled', refreshAppSetup);
+  try {
+    void navigator.permissions?.query({ name: 'notifications' as PermissionName }).then((status) => {
+      status.onchange = refreshAppSetup;
+    }).catch(() => { /* older browsers: the other signals still work */ });
+  } catch { /* no permissions API */ }
+};
+
+const subscribe = (listener: () => void) => {
+  startWatching();
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+};
+const getReading = (): Reading => {
+  if (!reading) reading = readNow();
+  return reading;
+};
+
 export const useAppSetup = () => {
   const pwa = usePWAInstall();
-  const [installed, setInstalled] = useState(() => isInStandaloneMode());
-  const [notifications, setNotifications] = useState<NotificationState>(readNotificationState);
+  const { installed, notifications } = useSyncExternalStore(subscribe, getReading);
   const device = detectDevice();
   const server = useAppServerState();
-
-  const refresh = useCallback(() => {
-    setInstalled(isInStandaloneMode());
-    setNotifications(readNotificationState());
-  }, []);
-
-  // Coming back from Settings or the install sheet: read it again.
-  useEffect(() => {
-    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
-    document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('appinstalled', refresh);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('appinstalled', refresh);
-    };
-  }, [refresh]);
+  const refresh = refreshAppSetup;
 
   const isInstalled = installed || pwa.isStandalone;
   return {

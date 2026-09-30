@@ -9,7 +9,9 @@ const AppSetupBanner: React.FC<{ enable: () => Promise<void>; audience?: 'partic
   const setup = useAppSetup();
   const [open, setOpen] = useState(false);
 
-  if (!appSetupNeeded(setup)) return null;
+  const needed = appSetupNeeded(setup);
+  // Keep the sheet up after it finishes, so they see "You are all set" before it closes.
+  if (!needed && !open) return null;
 
   const text = setup.installedElsewhere
     ? 'You already have FOF Ops. Open it from your Home Screen to get your reminders.'
@@ -19,10 +21,12 @@ const AppSetupBanner: React.FC<{ enable: () => Promise<void>; audience?: 'partic
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={`flex w-full items-center gap-3 rounded-[18px] border border-[#ffdeca] bg-[#fff8f3] px-4 py-3 text-left ${className}`}>
-        <span className="min-w-0 flex-1 text-[13.5px] font-semibold leading-snug text-gray-800">{text}</span>
-        <span className="flex-none rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white">Show me</span>
-      </button>
+      {needed && (
+        <button type="button" onClick={() => setOpen(true)} className={`flex w-full items-center gap-3 rounded-[18px] border border-[#ffdeca] bg-[#fff8f3] px-4 py-3 text-left ${className}`}>
+          <span className="min-w-0 flex-1 text-[13.5px] font-semibold leading-snug text-gray-800">{text}</span>
+          <span className="flex-none rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white">Show me</span>
+        </button>
+      )}
       {open && <AppSetupSheet audience={audience} enable={enable} onClose={() => setOpen(false)} closeLabel="Close" />}
     </>
   );
