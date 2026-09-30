@@ -68,8 +68,10 @@ const SupportBar: React.FC<{ row: OwnerBreakdownRow }> = ({ row }) => {
 
 // The cohort's sign-up goal, set by the admin, with how far along it is and
 // how many are still to go. Saved per cohort.
-const MobilisationTarget: React.FC<{ cohortId: string; cohortName?: string; signedUp: number }> = ({ cohortId, cohortName, signedUp }) => {
-  const [target, setTarget] = useState<number | null>(null);
+const MobilisationTarget: React.FC<{ cohortId: string; cohortName?: string; signedUp: number; onTarget?: (target: number | null) => void }> = ({ cohortId, cohortName, signedUp, onTarget }) => {
+  const [target, setTargetState] = useState<number | null>(null);
+  // The Signed up card below measures against the same target.
+  const setTarget = (value: number | null) => { setTargetState(value); onTarget?.(value); };
   const [loaded, setLoaded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -176,6 +178,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
   const introducers = computeIntroducerBreakdown(contacts);
   const totalMet = introducers.reduce((sum, row) => sum + row.met, 0);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [target, setTarget] = useState<number | null>(null);
   const priorContacts = reachable.filter((c) => !c.cohortId);
   const priorCohort = { total: priorContacts.length, unassigned: priorContacts.filter((c) => !c.ownerId).length };
   const currentCohortCount = reachable.length - priorCohort.total;
@@ -209,20 +212,29 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
     ...[...standing.buckets].sort((a, b) => b.value - a.value),
     ...funnel.buckets.filter((b) => b.status === 'WRONG_NUMBER'),
   ];
-  const biggest = ranked.length ? ranked[0].value : 0;
+  const biggest = ranked.length ? Math.max(...ranked.map((b) => b.value)) : 0;
+  const byStage = (stages: string[]) => [...standing.buckets].filter((b) => stages.includes(b.stage)).sort((a, b) => b.value - a.value);
+  const signedUpTotal = standing.registered + standing.loginShared + standing.done;
+  const groups = [
+    { key: 'signed', title: 'Signed up', buckets: byStage(['registered', 'loginShared', 'done']) },
+    { key: 'open', title: 'Not signed up yet', buckets: byStage(['open']) },
+    { key: 'next', title: 'Joining next cohort', buckets: byStage(['nextCohort']) },
+    { key: 'stopped', title: 'Stopped', buckets: byStage(['stopped']) },
+    { key: 'wrong', title: '', buckets: funnel.buckets.filter((b) => b.status === 'WRONG_NUMBER') },
+  ].map((g) => ({ ...g, total: g.buckets.reduce((n, b) => n + b.value, 0) })).filter((g) => g.buckets.length > 0);
 
   return (
     <div className="space-y-6">
-      {cohortId && <MobilisationTarget cohortId={cohortId} cohortName={cohortName} signedUp={headline.signedUp} />}
+      {cohortId && <MobilisationTarget cohortId={cohortId} cohortName={cohortName} signedUp={headline.signedUp} onTarget={setTarget} />}
 
       {/* The path from sign-up to the app, then who still needs chasing. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <VitalTile
           title="Signed up"
           status="neutral"
-          statusLabel={headline.conversion === null ? 'No prospects yet' : `${pct(headline.conversion)}% of ${headline.contacts}`}
+          statusLabel={target ? `${pct(headline.signedUp / target)}% of ${target} target` : 'No target set'}
           value={headline.signedUp}
-          unit={headline.contacts ? `of ${headline.contacts}` : undefined}
+          unit={headline.signedUp === 1 ? 'person' : 'people'}
           detail={headline.nextCohort > 0 ? `${headline.nextCohort} more waiting for the next cohort` : 'On the form or with their support'}
           to={contactsLink('REGISTERED')}
         />
@@ -256,12 +268,12 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
           to={contactsLink('ACCESS_CONFIRMED')}
         />
         <VitalTile
-          title="Not done yet"
+          title="Not signed up yet"
           status={headline.notDone > 0 ? 'warning' : 'good'}
           statusLabel={headline.notDone > 0 ? 'Needs work' : 'All handled'}
           value={headline.notDone}
           unit={headline.notDone === 1 ? 'person' : 'people'}
-          detail={headline.notDone > 0 ? 'Someone still has to message, call or chase them' : 'Nobody is waiting on a follow-up'}
+          detail={headline.notDone > 0 ? 'They need to be contacted to register' : 'Everyone on the list has signed up or stopped'}
           to={contactsLink('open')}
         />
       </div>
@@ -293,30 +305,42 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
         </section>
       )}
 
-      {/* One line per status, so the parts always add up to the whole. */}
+      {/* Everyone on the list, grouped: signed up, not signed up yet, and the
+          rest. Each person counted once, in one place only. */}
       <section className="surface-card p-5 sm:p-6">
-        <h3 className="text-base font-semibold text-gray-900">Where all {standing.total} stand</h3>
+        <h3 className="text-base font-semibold text-gray-900">All {standing.total} contacts</h3>
         <p className="mb-4 text-xs text-gray-500">
-          Each person counted once, in one place only.
+          {signedUpTotal} signed up · {standing.open} not signed up yet{standing.nextCohort + standing.stopped > 0 ? ` · ${standing.nextCohort + standing.stopped} other` : ''}. Each person counted once.
           {wrongNumbers > 0 && ` Wrong numbers are shown but not counted in the ${standing.total}.`}
         </p>
         {ranked.length === 0 ? (
-          <p className="rounded-2xl bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">No prospects yet.</p>
+          <p className="rounded-2xl bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">No contacts yet.</p>
         ) : (
-          <ul className="space-y-2.5">
-            {ranked.map((bucket) => (
-              <li key={bucket.status} className={`flex items-center gap-3 ${bucket.status === 'WRONG_NUMBER' && standing.total > 0 ? 'border-t border-dashed border-gray-200 pt-2.5' : ''}`}>
-                <span className="w-36 flex-none text-sm leading-tight text-gray-700 sm:w-48">{OVERVIEW_LABEL[bucket.status] ?? bucket.label}</span>
-                <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
-                  <span
-                    className="block h-full rounded-full"
-                    style={{ width: `${biggest ? Math.max((bucket.value / biggest) * 100, 4) : 0}%`, backgroundColor: STATUS_COLOR[bucket.status] }}
-                  />
-                </span>
-                <span className="w-14 flex-none text-right text-sm font-bold tabular-nums text-gray-900">{bucket.value}</span>
-              </li>
+          <div className="space-y-4">
+            {groups.map((group) => (
+              <div key={group.key} className={group.key === 'wrong' ? 'border-t border-dashed border-gray-200 pt-3' : ''}>
+                {group.title && (
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                    {group.title} <span className="tabular-nums text-gray-500">{group.total}</span>
+                  </p>
+                )}
+                <ul className="space-y-2.5">
+                  {group.buckets.map((bucket) => (
+                    <li key={bucket.status} className="flex items-center gap-3">
+                      <span className="w-36 flex-none text-sm leading-tight text-gray-700 sm:w-48">{OVERVIEW_LABEL[bucket.status] ?? bucket.label}</span>
+                      <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+                        <span
+                          className="block h-full rounded-full"
+                          style={{ width: `${biggest ? Math.max((bucket.value / biggest) * 100, 4) : 0}%`, backgroundColor: STATUS_COLOR[bucket.status] }}
+                        />
+                      </span>
+                      <span className="w-14 flex-none text-right text-sm font-bold tabular-nums text-gray-900">{bucket.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
@@ -343,7 +367,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
             <tr>
               <th scope="col" className="px-5 py-3">Support</th>
               <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Contacts</th>
-              <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Not done yet</th>
+              <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Not signed up yet</th>
               <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Needs login</th>
               <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Logged in</th>
               <th scope="col" className="hidden px-3 py-3 text-right sm:table-cell">Next cohort</th>
@@ -386,7 +410,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
                         <td colSpan={7} className="px-5 py-3">
                           <div className="mb-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs sm:hidden">
                             <span className="text-gray-500">Contacts <span className="font-semibold tabular-nums text-gray-900">{row.assigned}</span></span>
-                            <span className="text-gray-500">Not done yet <span className="font-semibold tabular-nums text-amber-700">{row.stillOpen}</span></span>
+                            <span className="text-gray-500">Not signed up yet <span className="font-semibold tabular-nums text-amber-700">{row.stillOpen}</span></span>
                             <span className="text-gray-500">Needs login <span className="font-semibold tabular-nums text-sky-700">{row.loginToShare}</span></span>
                             <span className="text-gray-500">Logged in <span className="font-semibold tabular-nums text-emerald-700">{row.accessConfirmed}</span></span>
                             <span className="text-gray-500">Next cohort <span className="font-semibold tabular-nums text-violet-700">{row.nextCohort}</span></span>

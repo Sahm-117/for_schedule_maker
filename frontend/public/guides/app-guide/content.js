@@ -193,8 +193,8 @@ window.GUIDE_CONTENT = {
         "target"
        ],
        "steps": [
-        "Before the cohort starts, look at the five numbers: **Signed up**, **Needs login** (login not sent yet), **Login shared** (have their login, not signed in yet), **Logged in** and **Not done yet** (still to message, call or chase).",
-        "Signed up shows how far you are to the sign-up target. Logged in shows how many of those signed up are in the app.",
+        "Before the cohort starts, look at the five numbers: **Signed up**, **Needs login** (login not sent yet), **Login shared** (have their login, not signed in yet), **Logged in** and **Not signed up yet** (they need to be contacted to register).",
+        "Signed up shows how far you are to the sign-up target. Logged in shows how many of those signed up are in the app. Signed up and Not signed up yet together make up everyone on the follow-up list.",
         "Tap any of them to open that list on Follow-ups."
        ],
        "result": "They're the same five numbers as Follow-ups → Overview, so the two pages always agree."
