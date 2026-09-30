@@ -2,7 +2,8 @@ name: Backup Restore Check
 
 # Proves the nightly backup can actually be restored. After each successful backup this
 # unlocks it with BACKUP_PASSPHRASE, loads it into a throwaway database (same Postgres
-# version as the live project), and compares table row counts with the live database.
+# version as the live project), and checks every app table holds exactly the rows the
+# backup file contains. (The live database is counted too, for information only.)
 # A failed run means "do not trust last night's backup": GitHub emails the repo owner.
 # Nothing here touches live data (it only counts rows) and the throwaway database
 # disappears when the run ends.
@@ -112,4 +113,4 @@ jobs:
           wc -l restored.tsv live.tsv
 
       - name: Compare
-        run: python3 .github/scripts/compare-restore-counts.py live.tsv restored.tsv
+        run: python3 .github/scripts/compare-restore-counts.py split/expected.tsv restored.tsv live.tsv

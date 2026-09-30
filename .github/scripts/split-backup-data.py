@@ -28,6 +28,7 @@ with open(src, encoding="utf-8", errors="surrogateescape", newline="") as f:
 
 preamble, public, other = [], [], []
 ignored = 0
+expected = {}
 i = 0
 while i < len(lines):
     line = lines[i]
@@ -37,7 +38,11 @@ while i < len(lines):
         while j < len(lines) and lines[j] != "\\.":
             j += 1
         chunk = lines[i:j + 1]
-        (other.append((m.group(1), m.group(2), chunk)) if m.group(1) in MANAGED else public.extend(chunk + [""]))
+        if m.group(1) in MANAGED:
+            other.append((m.group(1), m.group(2), chunk))
+        else:
+            public.extend(chunk + [""])
+            expected[m.group(2)] = expected.get(m.group(2), 0) + max(len(chunk) - 2, 0)
         i = j + 1
         continue
     s = SETVAL_RE.search(line)
@@ -59,6 +64,8 @@ def write(path, body):
 
 
 write(os.path.join(out, "public.sql"), public)
+with open(os.path.join(out, "expected.tsv"), "w") as f:
+    f.writelines(f"{t}\t{n}\n" for t, n in sorted(expected.items()))
 for n, (schema, name, chunk) in enumerate(other):
     write(os.path.join(out, "other", f"{n:03d}_{schema}_{name}.sql"), chunk)
 print(f"public.sql: {sum(1 for l in public if COPY_RE.match(l))} tables; other: {len(other)} files; preamble lines: {len(preamble)}; trigger toggles ignored: {ignored}")
