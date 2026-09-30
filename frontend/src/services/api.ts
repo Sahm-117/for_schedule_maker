@@ -39,6 +39,7 @@ import {
   supportNotesApi as supabaseSupportNotesApi,
   supportSessionsApi as supabaseSupportSessionsApi,
   myHubApi as supabaseMyHubApi,
+  groupDiscussionApi as supabaseGroupDiscussionApi,
   supportKindApi as supabaseSupportKindApi,
   supportRecapsApi as supabaseSupportRecapsApi,
   plannerApi as supabasePlannerApi,
@@ -704,6 +705,17 @@ export const supportSessionsApi = USE_SUPABASE ? supabaseSupportSessionsApi : {
   async remove(_sessionId: string): Promise<never> { return peopleUnavailable(); },
 };
 
+export const groupDiscussionApi = USE_SUPABASE ? supabaseGroupDiscussionApi : {
+  async feed(_groupId: string, _before?: string | null): Promise<never> { return peopleUnavailable(); },
+  async activity(_groupId: string): Promise<never> { return peopleUnavailable(); },
+  async post(_groupId: string, _body: string, _mentions?: import('../types').DiscussionMention[]): Promise<never> { return peopleUnavailable(); },
+  async reply(_postId: string, _body: string, _mentions?: import('../types').DiscussionMention[]): Promise<never> { return peopleUnavailable(); },
+  async like(_postId: string, _like: boolean): Promise<never> { return peopleUnavailable(); },
+  async deleteOwn(_kind: 'POST' | 'REPLY', _id: string): Promise<never> { return peopleUnavailable(); },
+  async pin(_postId: string, _pin: boolean): Promise<never> { return peopleUnavailable(); },
+  async moderate(_kind: 'POST' | 'REPLY', _id: string, _action: 'KEEP' | 'REMOVE'): Promise<never> { return peopleUnavailable(); },
+};
+
 export const myHubApi = USE_SUPABASE ? supabaseMyHubApi : {
   async get(_cohortId: string): Promise<import('../types').MyHubPayload> { return { hub: null, isLead: false, members: [], messages: [], myAttendance: [] }; },
   async postMessage(_hubId: string, _subject: string, _body: string): Promise<never> { return peopleUnavailable(); },
@@ -904,6 +916,12 @@ export const participantAccountsApi = USE_SUPABASE ? supabaseParticipantAccounts
 export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async getHome(): Promise<never> { return peopleUnavailable(); },
   async getPeople(): Promise<never> { return peopleUnavailable(); },
+  async discussionFeed(_before?: string | null): Promise<never> { return peopleUnavailable(); },
+  async discussionPost(_body: string, _mentions?: import('../types').DiscussionMention[]): Promise<never> { return peopleUnavailable(); },
+  async discussionReply(_postId: string, _body: string, _mentions?: import('../types').DiscussionMention[]): Promise<never> { return peopleUnavailable(); },
+  async discussionLike(_postId: string, _like: boolean): Promise<never> { return peopleUnavailable(); },
+  async discussionDelete(_kind: 'POST' | 'REPLY', _id: string): Promise<never> { return peopleUnavailable(); },
+  async discussionReport(_postId: string, _reason: import('../types').DiscussionReportReason): Promise<never> { return peopleUnavailable(); },
   async saveReflection(_weekId: number, _input: { stoodOut: string; goal: string; goalCheck: string }): Promise<never> { return peopleUnavailable(); },
   async setGoalDone(_weekId: number, _done: boolean): Promise<never> { return peopleUnavailable(); },
   async askManualQuestion(_weekId: number, _body: string, _weekNumber: number, _participantName: string): Promise<never> { return peopleUnavailable(); },

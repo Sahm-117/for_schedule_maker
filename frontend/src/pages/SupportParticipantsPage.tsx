@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink, Navigate, useSearchParams } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
 import SegmentedTabs from '../components/SegmentedTabs';
+import StaffDiscussionPanel from '../components/discussion/StaffDiscussionPanel';
 import GroupCallCard, { formatMeetingSlot } from '../components/groups/GroupCallCard';
 import MeetingModePanel from '../components/groups/MeetingModePanel';
 import ParticipantCard from '../components/groups/ParticipantCard';
@@ -16,7 +17,7 @@ import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 import Spinner from '../components/Spinner';
 
-type GroupTab = 'faith' | 'prayers';
+type GroupTab = 'faith' | 'discussion' | 'prayers';
 
 const virtualGroupStatus = (groupId: string, groupName: string | null | undefined, participantCount: number): GroupOnboardingStatus => ({
   id: `virtual-${groupId}`,
@@ -67,7 +68,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [selectedWeekId, setSelectedWeekId] = useState<number | null>(null);
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<GroupTab>(searchParams.get('tab') === 'prayers' ? 'prayers' : 'faith');
+  const [activeTab, setActiveTab] = useState<GroupTab>(searchParams.get('tab') === 'prayers' ? 'prayers' : searchParams.get('tab') === 'discussion' ? 'discussion' : 'faith');
   const [savingPrayerFocus, setSavingPrayerFocus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -412,6 +413,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
               <SegmentedTabs
                 tabs={[
                   { key: 'faith', label: 'Participants', shortLabel: 'People' },
+                  { key: 'discussion', label: 'Discussion' },
                   { key: 'prayers', label: 'Group meetings', shortLabel: 'Meetings' },
                 ]}
                 active={activeTab}
@@ -420,7 +422,9 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
             </div>
           </div>
 
-          {activeTab === 'faith' ? (
+          {activeTab === 'discussion' ? (
+            <StaffDiscussionPanel key={selectedGroupId} groupId={selectedGroupId} viewerName={user.name} viewerAvatarUrl={user.avatarUrl} />
+          ) : activeTab === 'faith' ? (
             <div className="space-y-3">
             {selectedParticipants.length === 0 ? (
               <div className="rounded-[18px] border border-dashed border-orange-200 bg-white py-12 text-center text-sm text-gray-500">

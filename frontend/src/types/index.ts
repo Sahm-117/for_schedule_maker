@@ -1337,6 +1337,74 @@ export interface MyHubAttendanceRow {
   submittedAt?: string | null;
 }
 
+/** Group Discussion (build_discussion_feed). Removed text comes back null
+ * except for moderators (the group's support and admins). */
+export type DiscussionAccess = 'PARTICIPANT' | 'SUPPORT' | 'ADMIN' | 'HUB';
+export type DiscussionReportReason = 'SPAM' | 'UNKIND' | 'OFF_TOPIC' | 'OTHER';
+
+export interface DiscussionAuthor {
+  kind: 'SUPPORT' | 'PARTICIPANT';
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+}
+
+/** Someone who can be @-tagged in a group's discussion. */
+export interface DiscussionMember {
+  kind: 'SUPPORT' | 'PARTICIPANT';
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+}
+export type DiscussionMention = Pick<DiscussionMember, 'kind' | 'id'> & { name?: string };
+
+export interface DiscussionReply {
+  id: string;
+  author: DiscussionAuthor;
+  isMine: boolean;
+  removed: boolean;
+  body: string | null;
+  createdAt: string;
+  mentions: DiscussionMention[];
+}
+
+export interface DiscussionPost extends DiscussionReply {
+  pinned: boolean;
+  pinnedByName: string | null;
+  likeCount: number;
+  likedByMe: boolean;
+  reportCount: number;
+  replies: DiscussionReply[];
+}
+
+export interface DiscussionFeed {
+  groupId: string;
+  groupName: string;
+  supportId: string | null;
+  supportName: string | null;
+  supportAvatarUrl?: string | null;
+  access: DiscussionAccess;
+  canPost: boolean;
+  canModerate: boolean;
+  members: DiscussionMember[];
+  pinned: DiscussionPost | null;
+  posts: DiscussionPost[];
+  hasMore: boolean;
+  openReports: Array<{ postId: string; count: number; reasons: DiscussionReportReason[] }>;
+}
+
+/** "Discussion this week" on the group view (group_discussion_activity). */
+export interface DiscussionActivity {
+  weekStart: string;
+  postsAndReplies: number;
+  members: number;
+  active: number;
+  quiet: number;
+  mostActive: string[];
+  goneQuiet: string[];
+  latest: { body: string; createdAt: string } | null;
+}
+
 /** One support's group as a hub lead (or admin) sees it — get_support_group_view. */
 export interface SupportGroupView {
   groupId: string;

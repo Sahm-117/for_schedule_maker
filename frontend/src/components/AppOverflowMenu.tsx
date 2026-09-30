@@ -4,7 +4,8 @@ import { createPortal } from 'react-dom';
 type OverflowMenuItem = {
   label: string;
   onClick: () => void;
-  tone?: 'default' | 'danger';
+  // 'muted': a quiet, small grey item (e.g. "Report post").
+  tone?: 'default' | 'danger' | 'muted';
   icon?: React.ReactNode;
 };
 
@@ -92,7 +93,9 @@ const AppOverflowMenu: React.FC<AppOverflowMenuProps> = ({ items, align = 'right
               className={`flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition ${
                 item.tone === 'danger'
                   ? 'text-red-600 hover:bg-red-50'
-                  : 'text-gray-700 hover:bg-gray-50'
+                  : item.tone === 'muted'
+                    ? 'text-[13px] font-normal text-gray-400 hover:bg-gray-50'
+                    : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
               {item.icon && <span className="h-4 w-4 shrink-0">{item.icon}</span>}

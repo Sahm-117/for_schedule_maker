@@ -3125,6 +3125,33 @@ export const participantAppApi = {
     return data as import('../types').ParticipantPeople;
   },
 
+  // Group Discussion: their own group only (null when not in a group yet).
+  async discussionFeed(before?: string | null): Promise<import('../types').DiscussionFeed | null> {
+    const { data, error } = await supabase.rpc('participant_discussion_feed', { p_token: getSessionToken(), p_before: before ?? null });
+    if (error) throw participantAppError(error.message, 'Could not load the discussion. Please try again.');
+    return (data as import('../types').DiscussionFeed | null) ?? null;
+  },
+  async discussionPost(body: string, mentions: import('../types').DiscussionMention[] = []): Promise<void> {
+    const { error } = await supabase.rpc('participant_discussion_post', { p_token: getSessionToken(), p_body: body, p_mentions: mentions.map(({ kind, id }) => ({ kind, id })) });
+    if (error) throw participantAppError(error.message, 'Could not post. Please try again.');
+  },
+  async discussionReply(postId: string, body: string, mentions: import('../types').DiscussionMention[] = []): Promise<void> {
+    const { error } = await supabase.rpc('participant_discussion_reply', { p_token: getSessionToken(), p_post_id: postId, p_body: body, p_mentions: mentions.map(({ kind, id }) => ({ kind, id })) });
+    if (error) throw participantAppError(error.message, 'Could not reply. Please try again.');
+  },
+  async discussionLike(postId: string, like: boolean): Promise<void> {
+    const { error } = await supabase.rpc('participant_discussion_like', { p_token: getSessionToken(), p_post_id: postId, p_like: like });
+    if (error) throw participantAppError(error.message, 'Could not save your like.');
+  },
+  async discussionDelete(kind: 'POST' | 'REPLY', id: string): Promise<void> {
+    const { error } = await supabase.rpc('participant_discussion_delete', { p_token: getSessionToken(), p_kind: kind, p_id: id });
+    if (error) throw participantAppError(error.message, 'Could not delete. Please try again.');
+  },
+  async discussionReport(postId: string, reason: import('../types').DiscussionReportReason): Promise<void> {
+    const { error } = await supabase.rpc('participant_discussion_report', { p_token: getSessionToken(), p_post_id: postId, p_reason: reason });
+    if (error) throw participantAppError(error.message, 'Could not send your report. Please try again.');
+  },
+
   async saveReflection(weekId: number, input: { stoodOut: string; goal: string; goalCheck: string }): Promise<import('../types').ParticipantReflection> {
     const { data, error } = await supabase.rpc('save_reflection', {
       p_token: getSessionToken(),
@@ -5945,6 +5972,45 @@ export const supportSessionsApi = {
 
   async remove(sessionId: string): Promise<void> {
     const { error } = await supabase.from('SupportSession').delete().eq('id', sessionId);
+    if (error) throw new Error(error.message);
+  },
+};
+
+// Group Discussion for staff: the group's support posts and moderates, admins
+// moderate, hub leads (with "See groups") read. Access is checked in each RPC.
+export const groupDiscussionApi = {
+  async feed(groupId: string, before?: string | null): Promise<import('../types').DiscussionFeed> {
+    const { data, error } = await supabase.rpc('group_discussion_feed', { p_group_id: groupId, p_before: before ?? null });
+    if (error) throw new Error(error.message);
+    return data as import('../types').DiscussionFeed;
+  },
+  async activity(groupId: string): Promise<import('../types').DiscussionActivity> {
+    const { data, error } = await supabase.rpc('group_discussion_activity', { p_group_id: groupId });
+    if (error) throw new Error(error.message);
+    return data as import('../types').DiscussionActivity;
+  },
+  async post(groupId: string, body: string, mentions: import('../types').DiscussionMention[] = []): Promise<void> {
+    const { error } = await supabase.rpc('group_discussion_post', { p_group_id: groupId, p_body: body, p_mentions: mentions.map(({ kind, id }) => ({ kind, id })) });
+    if (error) throw new Error(error.message);
+  },
+  async reply(postId: string, body: string, mentions: import('../types').DiscussionMention[] = []): Promise<void> {
+    const { error } = await supabase.rpc('group_discussion_reply', { p_post_id: postId, p_body: body, p_mentions: mentions.map(({ kind, id }) => ({ kind, id })) });
+    if (error) throw new Error(error.message);
+  },
+  async like(postId: string, like: boolean): Promise<void> {
+    const { error } = await supabase.rpc('group_discussion_like', { p_post_id: postId, p_like: like });
+    if (error) throw new Error(error.message);
+  },
+  async deleteOwn(kind: 'POST' | 'REPLY', id: string): Promise<void> {
+    const { error } = await supabase.rpc('group_discussion_delete', { p_kind: kind, p_id: id });
+    if (error) throw new Error(error.message);
+  },
+  async pin(postId: string, pin: boolean): Promise<void> {
+    const { error } = await supabase.rpc('group_discussion_pin', { p_post_id: postId, p_pin: pin });
+    if (error) throw new Error(error.message);
+  },
+  async moderate(kind: 'POST' | 'REPLY', id: string, action: 'KEEP' | 'REMOVE'): Promise<void> {
+    const { error } = await supabase.rpc('group_discussion_moderate', { p_kind: kind, p_id: id, p_action: action });
     if (error) throw new Error(error.message);
   },
 };

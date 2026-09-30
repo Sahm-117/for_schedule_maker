@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import Avatar from '../components/Avatar';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
+import SegmentedTabs from '../components/SegmentedTabs';
+import ParticipantDiscussionTab from '../components/participantApp/ParticipantDiscussionTab';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { buildWhatsAppLink } from '../utils/phone';
 import { normalizeLink } from '../utils/links';
@@ -19,7 +21,13 @@ const CARD = 'rounded-[22px] border border-[#eef0f4] bg-white p-5 shadow-[0_2px_
 const ParticipantGroupPage: React.FC = () => {
   const { home, loading } = useParticipantApp();
   const [docOpen, setDocOpen] = useState(false);
+  const [searchParams] = useSearchParams();
+  // Discussion comes first; the meeting tab opens by default while a meeting is on.
+  const [tabChoice, setTabChoice] = useState<'discussion' | 'meeting' | null>(
+    searchParams.get('tab') === 'meeting' ? 'meeting' : searchParams.get('tab') === 'discussion' ? 'discussion' : null,
+  );
   if (loading || !home) return <PageLoader />;
+  const tab = tabChoice ?? (home.groupMeetingLive ? 'meeting' : 'discussion');
 
   const group = home.group;
   const scheduled = !!(group?.meetingDay && group.meetingTime);
@@ -47,6 +55,18 @@ const ParticipantGroupPage: React.FC = () => {
       ) : (
         <div className="flex flex-col gap-4">
           <p className="text-xs font-bold uppercase tracking-[0.04em] text-[#9a6a4b]">{group.name}</p>
+          <SegmentedTabs
+            tabs={[
+              { key: 'discussion', label: 'Discussion' },
+              { key: 'meeting', label: 'Meeting' },
+            ]}
+            active={tab}
+            onChange={(key) => setTabChoice(key as 'discussion' | 'meeting')}
+          />
+          {tab === 'discussion' ? (
+            <ParticipantDiscussionTab viewerName={home.participant.name} viewerAvatarUrl={home.profile?.avatarUrl} />
+          ) : (
+          <>
 
           <section data-wt="pg-meeting" className={CARD}>
             {home.groupMeetingLive && (
@@ -206,6 +226,8 @@ const ParticipantGroupPage: React.FC = () => {
               <p className="mt-4 text-[13px] text-gray-500">Number not available yet.</p>
             )}
           </aside>
+          </>
+          )}
         </div>
       )}
 
