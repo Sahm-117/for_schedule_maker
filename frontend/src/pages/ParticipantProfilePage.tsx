@@ -366,10 +366,10 @@ const ParticipantProfilePage: React.FC = () => {
           <div className="mt-2 divide-y divide-gray-100">
             <div className="flex items-center gap-3 py-2.5">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-gray-900">{appSetup.installed ? 'On your Home Screen' : 'Not on your Home Screen'}</p>
-                <p className="text-xs text-gray-500">{appSetup.installed ? 'You are using the app.' : 'You are using this in a browser, so you do not have the app yet.'}</p>
+                <p className="text-sm font-semibold text-gray-900">{appSetup.installed ? 'On your Home Screen' : appSetup.installedElsewhere ? 'On your Home Screen already' : 'Not on your Home Screen'}</p>
+                <p className="text-xs text-gray-500">{appSetup.installed ? 'You are using the app.' : appSetup.installedElsewhere ? 'You are in a browser right now. Open FOF Ops from your Home Screen.' : 'You are using this in a browser, so you do not have the app yet.'}</p>
               </div>
-              {appSetup.installed ? <StateTick /> : (
+              {appSetup.installed || appSetup.installedElsewhere ? <StateTick /> : (
                 <button type="button" onClick={() => setSetupOpen(true)} className="flex-none rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white">See how to install</button>
               )}
             </div>

@@ -782,6 +782,7 @@ const AdminParticipantsContent: React.FC = () => {
   // "No alerts" tag + filter. Empty (not an error) until the
   // participants_without_push migration is applied.
   const [noAlertsIds, setNoAlertsIds] = useState<Set<string>>(new Set());
+  const [notInstalledIds, setNotInstalledIds] = useState<Set<string>>(new Set());
   const [noAlertsOnly, setNoAlertsOnly] = useState(false);
   // noAlertsIds spans every cohort; the count shows only this cohort's active participants.
   const noAlertsCount = counted.filter((p) => p.status === 'ACTIVE' && noAlertsIds.has(p.id)).length;
@@ -812,6 +813,7 @@ const AdminParticipantsContent: React.FC = () => {
       ]);
       setFlags(fs);
       setNoAlertsIds(new Set(unreachableIds));
+      participantPushApi.getNotInstalledIds().then((ids) => setNotInstalledIds(new Set(ids))).catch(() => { /* no tags */ });
       const referrals = await departmentReferralsApi.getForParticipants(ps.map((p) => p.id)).then((r) => r.referrals).catch(() => []);
       const deptsById = new Map<string, Set<string>>();
       const addDept = (id: string, dept: string | null | undefined) => {
@@ -1183,6 +1185,14 @@ const AdminParticipantsContent: React.FC = () => {
                             className="ml-2 inline-flex items-center whitespace-nowrap rounded-full border border-dashed border-gray-300 bg-gray-50 px-2 py-0.5 text-[11px] font-semibold text-gray-500"
                           >
                             Test · not counted
+                          </span>
+                        )}
+                        {notInstalledIds.has(p.id) && (
+                          <span
+                            title="They have signed in but have never opened the app from their Home Screen."
+                            className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600"
+                          >
+                            Not installed
                           </span>
                         )}
                         {noAlertsIds.has(p.id) && (

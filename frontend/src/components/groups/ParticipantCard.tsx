@@ -291,6 +291,8 @@ interface ParticipantCardProps {
   onHelpHandled?: (checkIn: ParticipantCheckIn) => void;
   /** Has an active app login but no saved push subscription — can't get alerts. */
   noAlerts?: boolean;
+  /** Signed in, but never opened the app from their Home Screen. */
+  notInstalled?: boolean;
   /** Open ("is it going well?") faith help requests for this participant. */
   faithHelpRequests?: FaithHelpRequest[];
   onFaithHelpResolved?: (request: FaithHelpRequest) => void;
@@ -325,6 +327,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   helpRequest,
   onHelpHandled,
   noAlerts,
+  notInstalled,
   faithHelpRequests,
   onFaithHelpResolved,
   testimonies,
@@ -511,6 +514,11 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
           {participant.status === 'ARCHIVED' ? 'Archived' : 'Active'}
         </span>
         <RetakingChip participant={participant} matches={retakeMatches} onUpdate={updateRetake} />
+        {notInstalled && (
+          <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600" title="They have signed in but have never opened the app from their Home Screen.">
+            Not installed
+          </span>
+        )}
         {noAlerts && (
           <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600" title="They have an app login but can't receive push notifications on any device.">
             No alerts

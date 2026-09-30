@@ -13,7 +13,9 @@ const AppSetupBanner: React.FC = () => {
 
   if (!appSetupNeeded(setup)) return null;
 
-  const text = !setup.installed && setup.device !== 'desktop'
+  const text = setup.installedElsewhere
+    ? 'You already have FOF Ops. Open it from your Home Screen to get your reminders.'
+    : !setup.installed && setup.device !== 'desktop'
     ? 'Add FOF Ops to your Home Screen so you never miss a class or group call.'
     : 'Turn on notifications to get your class and group call reminders.';
 

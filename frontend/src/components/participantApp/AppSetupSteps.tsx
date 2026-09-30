@@ -58,7 +58,7 @@ const AppSetupSteps: React.FC<Props> = ({ setup, enableNotifications, enabling }
   const inAppBrowser = !override && detected === 'ios-inapp';
   const iphone = shown === 'iphone';
 
-  const { installed, notifications } = setup;
+  const { installed, notifications, installedElsewhere } = setup;
   const notifLocked = iphone && !installed && !override;
 
   const copyLink = async () => {
@@ -94,7 +94,14 @@ const AppSetupSteps: React.FC<Props> = ({ setup, enableNotifications, enabling }
           </div>
         </div>
 
-        {!installed && (
+        {!installed && installedElsewhere && (
+          <div className="mt-3 rounded-xl bg-sky-50 px-3 py-2.5 text-[13.5px] leading-snug text-sky-900">
+            <p className="font-semibold">You already have the app on this phone.</p>
+            <p className="mt-0.5">Close this page and open <b>{APP}</b> from your Home Screen. You do not need to add it again.</p>
+          </div>
+        )}
+
+        {!installed && !installedElsewhere && (
           <div className="mt-3">
             {iphone ? (
               <>
@@ -149,7 +156,9 @@ const AppSetupSteps: React.FC<Props> = ({ setup, enableNotifications, enabling }
 
         {notifications !== 'granted' && (
           <div className="mt-3">
-            {notifLocked ? (
+            {installedElsewhere ? (
+              <p className="text-[14px] leading-snug text-gray-600">Turn these on inside the app. Open <b>{APP}</b> from your Home Screen and tap <b>Turn on notifications</b> there.</p>
+            ) : notifLocked ? (
               <p className="text-[14px] leading-snug text-gray-600">Do step 1 first. On iPhone, notifications only work from the app on your Home Screen.</p>
             ) : notifications === 'denied' ? (
               <>

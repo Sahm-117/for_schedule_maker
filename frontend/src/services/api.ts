@@ -954,6 +954,8 @@ export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async deleteTestimony(_id: string): Promise<never> { return peopleUnavailable(); },
   async saveReminders(_minutes: number[], _recapReleased: boolean): Promise<never> { return peopleUnavailable(); },
   async savePushSubscription(_subscription: PushSubscriptionJSON): Promise<never> { return peopleUnavailable(); },
+  async recordAppState(_installed: boolean, _device: string, _notifications: string): Promise<{ installedBefore: boolean; sheetDismissed: number }> { return peopleUnavailable(); },
+  async recordSetupSheet(_action: 'shown' | 'dismissed'): Promise<void> { return peopleUnavailable(); },
   async uploadAvatar(_participantId: string, _file: File): Promise<never> { return peopleUnavailable(); },
   async saveProfile(_input: { email: string; gender: string; ageRange: string; occupation: string; dateOfBirth: string; answers: Record<string, string> }): Promise<never> { return peopleUnavailable(); },
   async changePassword(_current: string, _next: string): Promise<never> { return peopleUnavailable(); },
@@ -972,6 +974,7 @@ export const feedbackApi = USE_SUPABASE ? supabaseFeedbackApi : {
 export const participantPushApi = USE_SUPABASE ? supabaseParticipantPushApi : {
   async notify(_participantIds: string[], _title: string, _body: string, _path: string): Promise<void> { return; },
   async getUnreachableIds(): Promise<string[]> { return []; },
+  async getNotInstalledIds(): Promise<string[]> { return []; },
 };
 
 export const reflectionActivityApi = USE_SUPABASE ? supabaseReflectionActivityApi : {

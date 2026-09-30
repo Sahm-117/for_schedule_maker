@@ -3377,6 +3377,20 @@ export const participantAppApi = {
     if (error) throw participantAppError(error.message, 'Could not save your reminders.');
   },
 
+  // Tells the server what this device is: on the Home Screen or in a browser, and
+  // whether notifications are on. Returns what a browser tab can't know itself.
+  async recordAppState(installed: boolean, device: string, notifications: string): Promise<{ installedBefore: boolean; sheetDismissed: number }> {
+    const { data, error } = await supabase.rpc('record_participant_app_state', {
+      p_token: getSessionToken(), p_installed: installed, p_device: device, p_notifications: notifications,
+    });
+    if (error) throw participantAppError(error.message, 'Could not save app status.');
+    return data as { installedBefore: boolean; sheetDismissed: number };
+  },
+  async recordSetupSheet(action: 'shown' | 'dismissed'): Promise<void> {
+    const { error } = await supabase.rpc('record_participant_setup_sheet', { p_token: getSessionToken(), p_action: action });
+    if (error) throw participantAppError(error.message, 'Could not save app status.');
+  },
+
   async savePushSubscription(subscription: PushSubscriptionJSON): Promise<void> {
     const keys = subscription.keys as { p256dh: string; auth: string } | undefined;
     if (!subscription.endpoint || !keys?.p256dh || !keys?.auth) throw new Error('Invalid push subscription');
@@ -7680,6 +7694,18 @@ export const participantPushApi = {
   async getUnreachableIds(): Promise<string[]> {
     try {
       const { data, error } = await supabase.rpc('participants_without_push');
+      if (error) return [];
+      return (data as string[]) ?? [];
+    } catch {
+      return [];
+    }
+  },
+
+  // participantIds who have signed in but never opened the app from their Home
+  // Screen. Backed by participants_without_app(); a failure resolves to [].
+  async getNotInstalledIds(): Promise<string[]> {
+    try {
+      const { data, error } = await supabase.rpc('participants_without_app');
       if (error) return [];
       return (data as string[]) ?? [];
     } catch {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
@@ -12,7 +12,8 @@ import { shouldAskCheckIn } from '../../utils/participantApp';
 import { useTourState } from '../../context/TourContext';
 import { useParticipantPush } from '../../hooks/useParticipantPush';
 import AppSetupSheet from './AppSetupSheet';
-import { useAppSetup, appSetupNeeded } from '../../hooks/useAppSetup';
+import { useAppSetup, appSetupSheetDue } from '../../hooks/useAppSetup';
+import { recordAppState, noteSheetShown, noteSheetDismissed } from '../../hooks/useAppServerState';
 import ParticipantNotificationBell from './ParticipantNotificationBell';
 import LiveNavDot from '../LiveNavDot';
 import ProfileMenu from '../ProfileMenu';
@@ -113,6 +114,10 @@ const ShellLayout: React.FC = () => {
   const { enable } = useParticipantPush();
   const appSetup = useAppSetup();
   const appSetupDismiss = useSessionDismiss('fof_appsetup_dismissed_session');
+  // Tell the server what this device is (Home Screen or browser, notifications).
+  useEffect(() => {
+    void recordAppState(appSetup.installed, appSetup.device, appSetup.notifications);
+  }, [appSetup.installed, appSetup.device, appSetup.notifications]);
   // Waits for the Welcome + Home tour on first sign-in, same as CheckInPrompt.
   const { busy: tourBusy } = useTourState();
   const checkIn = useCheckInState();
@@ -125,6 +130,13 @@ const ShellLayout: React.FC = () => {
   // due, Get the app waits for a launch where none is (the Home banner keeps asking).
   const otherPromptDue = !!checkIn.decision?.ask || !!home?.classFeedbackDue?.open || !!home?.departmentPromptDue;
   const notifReady = !otherPromptDue && !tourBusy && !checkIn.pending && !classFeedbackPending && !departmentPending;
+
+  const showAppSetup = notifReady && !appSetupDismiss.dismissed && appSetupSheetDue(appSetup);
+  // Counted once per app launch, not on every re-render.
+  const shownCounted = useRef(false);
+  useEffect(() => {
+    if (showAppSetup && !shownCounted.current) { shownCounted.current = true; noteSheetShown(); }
+  }, [showAppSetup]);
 
   if (!user) return null;
   if (user.mustChangePassword) return <Navigate to="/me/welcome" replace />;
@@ -269,7 +281,7 @@ const ShellLayout: React.FC = () => {
           onLater={departmentDismiss.dismiss}
         />
       )}
-      {notifReady && !appSetupDismiss.dismissed && appSetupNeeded(appSetup) && <AppSetupSheet enable={enable} onClose={appSetupDismiss.dismiss} />}
+      {showAppSetup && <AppSetupSheet enable={enable} onClose={() => { noteSheetDismissed(); appSetupDismiss.dismiss(); }} />}
       <NeedSupportButton className="lg:hidden" />
     </div>
   );

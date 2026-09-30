@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { isInStandaloneMode, usePWAInstall } from './usePWAInstall';
+import { useAppServerState } from './useAppServerState';
 
 // Where a participant is with the two things the app needs to reach them: being
 // on their Home Screen, and having notifications on. Read from the browser, so it
@@ -27,6 +28,7 @@ export const useAppSetup = () => {
   const [installed, setInstalled] = useState(() => isInStandaloneMode());
   const [notifications, setNotifications] = useState<NotificationState>(readNotificationState);
   const device = detectDevice();
+  const server = useAppServerState();
 
   const refresh = useCallback(() => {
     setInstalled(isInStandaloneMode());
@@ -44,9 +46,13 @@ export const useAppSetup = () => {
     };
   }, [refresh]);
 
+  const isInstalled = installed || pwa.isStandalone;
   return {
     device,
-    installed: installed || pwa.isStandalone,
+    installed: isInstalled,
+    // Already opened from the Home Screen at some point, but this is a browser tab.
+    installedElsewhere: !isInstalled && device !== 'desktop' && !!server?.installedBefore,
+    sheetDismissed: server?.sheetDismissed ?? 0,
     notifications,
     canInstallNatively: pwa.hasNativePrompt,
     install: pwa.install,
@@ -69,3 +75,10 @@ export const appSetupNeeded = (setup: Pick<AppSetup, 'device' | 'installed' | 'n
   setup.device === 'desktop'
     ? setup.notifications === 'default' || setup.notifications === 'denied'
     : !appSetupDone(setup);
+
+/** After this many "Maybe later"s the sheet stops popping up; the Home banner and Profile card stay. */
+export const MAX_AUTO_SHEET_DISMISSALS = 5;
+
+/** Whether the sheet may pop up by itself this launch. */
+export const appSetupSheetDue = (setup: Pick<AppSetup, 'device' | 'installed' | 'notifications' | 'installedElsewhere' | 'sheetDismissed'>) =>
+  appSetupNeeded(setup) && !setup.installedElsewhere && setup.sheetDismissed < MAX_AUTO_SHEET_DISMISSALS;

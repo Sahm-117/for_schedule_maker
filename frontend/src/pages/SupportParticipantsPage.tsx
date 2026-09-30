@@ -62,6 +62,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   // "No alerts" tag. Empty (not an error) until the participants_without_push
   // migration is applied.
   const [noAlertsIds, setNoAlertsIds] = useState<Set<string>>(new Set());
+  const [notInstalledIds, setNotInstalledIds] = useState<Set<string>>(new Set());
   const [noteParticipant, setNoteParticipant] = useState<Participant | null>(null);
   const [noteBody, setNoteBody] = useState('');
   const [savingNote, setSavingNote] = useState(false);
@@ -175,6 +176,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       setReflectionActivity(activityRes.activity);
       setCheckIns(checkInsRes.checkIns);
       setNoAlertsIds(new Set(unreachableIds));
+      participantPushApi.getNotInstalledIds().then((ids) => setNotInstalledIds(new Set(ids))).catch(() => { /* no tags */ });
       setFaithHelpRequests(faithHelpRes.requests);
       setTestimonies(testimoniesRes.testimonies);
 
@@ -474,6 +476,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
                 reflectedAt={reflectionActivity.find((entry) => entry.participantId === participant.id && entry.weekId === selectedWeek?.id)?.createdAt ?? null}
                 helpRequest={checkIns.find((entry) => entry.participantId === participant.id && entry.response === 'NEED_HELP' && !entry.handledAt) ?? null}
                 noAlerts={noAlertsIds.has(participant.id)}
+                notInstalled={notInstalledIds.has(participant.id)}
                 onHelpHandled={(checkIn) => setCheckIns((prev) => prev.map((entry) => (entry.id === checkIn.id ? checkIn : entry)))}
                 faithHelpRequests={faithHelpRequests.filter((entry) => entry.participantId === participant.id)}
                 onFaithHelpResolved={(resolved) => setFaithHelpRequests((prev) => prev.filter((entry) => entry.id !== resolved.id))}

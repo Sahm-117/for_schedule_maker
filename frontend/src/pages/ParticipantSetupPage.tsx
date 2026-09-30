@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useAppSetup, appSetupDone } from '../hooks/useAppSetup';
 import { useParticipantPush } from '../hooks/useParticipantPush';
+import { noteSheetDismissed } from '../hooks/useAppServerState';
 import AppSetupSteps from '../components/participantApp/AppSetupSteps';
 
 // Straight after choosing a password: add the app to the Home Screen and turn
@@ -22,6 +23,7 @@ const ParticipantSetupPage: React.FC = () => {
   const next = () => {
     // Asked just now: don't open the same steps again on the next screen.
     try { sessionStorage.setItem('fof_appsetup_dismissed_session', '1'); } catch { /* private browsing etc. */ }
+    if (!done) noteSheetDismissed();
     navigate('/me/profile?welcome=1', { replace: true });
   };
 
