@@ -154,7 +154,7 @@ const intro: ManualContent = {
               "type": "list",
               "entries": [
                 "Bring your phone, fully charged",
-                "Come on time",
+                "Attend first service. It is compulsory",
                 "Come with an open heart"
               ]
             }
