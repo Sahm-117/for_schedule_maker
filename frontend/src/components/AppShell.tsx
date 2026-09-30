@@ -22,6 +22,7 @@ import NewNotificationBanner from './NewNotificationBanner';
 import NeedSupportButton from './NeedSupportButton';
 import NotificationBell from './NotificationBell';
 import ForcePasswordChangeModal from './ForcePasswordChangeModal';
+import LoginShareReminder from './followups/LoginShareReminder';
 import ErrorBoundary from './ErrorBoundary';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useTourState } from '../context/TourContext';
@@ -461,6 +462,10 @@ const AppShell: React.FC = () => {
           }}
           onDismiss={dismissClassFeedback}
         />
+      )}
+      {/* Supports: ask about logins they made over an hour ago but never marked as sent. */}
+      {user && (
+        <LoginShareReminder userId={user.id} enabled={isSupport && !tourBusy && !showPrompt && !showBlocked && !classFeedbackDueWeek && !pendingIntroJob} />
       )}
       {OPEN_GUIDE_AS_WELCOME && !tourBusy && !showPrompt && !showBlocked && !classFeedbackDueWeek && pendingIntroJob && (
         <RoleGuideModal job={pendingIntroJob} onClose={() => finishIntro(pendingIntroJob)} />

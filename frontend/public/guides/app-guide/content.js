@@ -2511,6 +2511,7 @@ window.GUIDE_CONTENT = {
         "Open their card. Once they're **Registered**, a **Their login details** box appears.",
         "Tap it to see the details. Tap **Send in WhatsApp**, **Send by email** or **Copy message**.",
         "Once you've sent them, set **Where do they stand?** to **Login shared**.",
+        "If you forget, the app asks. An hour after you made someone's login, if they're still at Registered, a box opens whenever you enter the app: **Did you send this login?** Tap **Yes, I sent it** to mark them Login shared, or **Not yet** and it asks again tomorrow. The box stays until you answer.",
         "If they can't get in, choose **Issue with login**. A box asks **What's the problem?** Describe it (for example, the code isn't working or they changed phone) and tap **Submit**. The admins and your hub's IT Support are told, with what you wrote, and the login details box stays on the card so you can send a new code."
        ],
        "result": "When they sign in and set their password, the card closes by itself as **Logged in** and you get a notification. Your job for this person is done.",
