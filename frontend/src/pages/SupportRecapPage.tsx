@@ -4,7 +4,7 @@ import PageLoader from '../components/PageLoader';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
 import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
-import { loadManualForWeek } from '../components/classManual/manuals';
+import { hasManualForWeek, loadManualForWeek } from '../components/classManual/manuals';
 import type { ManualContent } from '../components/classManual/types';
 import { useAppData } from '../context/AppDataContext';
 import { supportRecapsApi, manualQuestionsApi, participantPushApi } from '../services/api';
@@ -27,9 +27,13 @@ const Chevron: React.FC<{ open?: boolean; className?: string }> = ({ open, class
   </svg>
 );
 
+// The Intro Class guide is open to everyone before the course starts (participants
+// read it in their Get ready list), so supports can read it from day one too.
+const hasIntroGuide = (week: SupportRecap) => week.weekNumber === 1 && hasManualForWeek(week.title);
+
 // A week opens once its manual is out (on its drop day, or earlier if an admin
 // sends it ahead). Until then it shows when the manual arrives.
-const isWeekOpen = (week: SupportRecap) => week.manualReleased || week.released;
+const isWeekOpen = (week: SupportRecap) => week.manualReleased || week.released || hasIntroGuide(week);
 
 // "Manual arrives …" / "Manual out · Recap arrives …" / "Recap out" — a dot and a few words.
 const WeekState: React.FC<{ week: SupportRecap }> = ({ week }) => {
@@ -140,7 +144,7 @@ const WeekBody: React.FC<{
   const prompt = (week.released ? week.discussionPrompt : week.manual?.discussionPrompt)?.trim()
     || week.manual?.discussionPrompt?.trim();
   const canReadRecap = week.released && !!week.recapDocumentUrl;
-  const canOpenManual = !!week.manual?.documentUrl;
+  const canOpenManual = !!week.manual?.documentUrl || hasIntroGuide(week);
   return (
     <>
       {summary && <p className="whitespace-pre-line text-[15px] leading-[1.7] text-gray-600">{summary}</p>}
@@ -187,7 +191,7 @@ const SupportRecapPage: React.FC = () => {
   const [error, setError] = useState('');
   const [doc, setDoc] = useState<{ url: string; title: string; fileName?: string | null } | null>(null);
   // Comic reader for weeks that have one; its "original PDF" button hands over to the doc viewer.
-  const [reader, setReader] = useState<{ content: ManualContent; pdf: { url: string; title: string; fileName?: string | null } } | null>(null);
+  const [reader, setReader] = useState<{ content: ManualContent; pdf: { url: string; title: string; fileName?: string | null } | null } | null>(null);
   const [openWeekId, setOpenWeekId] = useState<number | null>(null);
 
   const load = () => {
@@ -212,11 +216,13 @@ const SupportRecapPage: React.FC = () => {
     if (week.recapDocumentUrl) setDoc({ url: week.recapDocumentUrl, title: `Week ${week.weekNumber} recap`, fileName: week.recapDocumentName });
   };
   const openManual = (week: SupportRecap) => {
-    if (!week.manual?.documentUrl) return;
-    const pdf = { url: week.manual.documentUrl, title: `Week ${week.weekNumber} class manual`, fileName: week.manual.documentName };
+    const pdf = week.manual?.documentUrl
+      ? { url: week.manual.documentUrl, title: `Week ${week.weekNumber} class manual`, fileName: week.manual.documentName }
+      : null;
+    if (!pdf && !hasIntroGuide(week)) return;
     loadManualForWeek(week.title)
-      .then((content) => { if (content) setReader({ content, pdf }); else setDoc(pdf); })
-      .catch(() => setDoc(pdf));
+      .then((content) => { if (content) setReader({ content, pdf }); else if (pdf) setDoc(pdf); })
+      .catch(() => { if (pdf) setDoc(pdf); });
   };
   const bodyFor = (week: SupportRecap) => (
     <WeekBody
@@ -315,7 +321,7 @@ const SupportRecapPage: React.FC = () => {
         <ClassManualReader
           content={reader.content}
           onClose={() => setReader(null)}
-          onOpenOriginalPdf={() => { setDoc(reader.pdf); setReader(null); }}
+          onOpenOriginalPdf={reader.pdf ? () => { if (reader.pdf) setDoc(reader.pdf); setReader(null); } : undefined}
         />
       )}
     </div>
