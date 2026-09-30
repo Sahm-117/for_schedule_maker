@@ -87,8 +87,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (response.sessionToken) localStorage.setItem(SESSION_TOKEN_KEY, response.sessionToken);
     localStorage.setItem('user', JSON.stringify(response.user));
     setUser(response.user);
-    await fetchUserLabels(response.user.id, response.user.role);
-    await fetchUserCohorts(response.user.id, response.user.role);
+    await Promise.all([fetchUserLabels(response.user.id, response.user.role), fetchUserCohorts(response.user.id, response.user.role)]);
   };
 
   const clearSession = useCallback(() => {
@@ -145,8 +144,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       localStorage.setItem('user', JSON.stringify(response.user));
       setUser(response.user);
-      await fetchUserLabels(response.user.id, response.user.role);
-      await fetchUserCohorts(response.user.id, response.user.role);
+      await Promise.all([fetchUserLabels(response.user.id, response.user.role), fetchUserCohorts(response.user.id, response.user.role)]);
     } catch (error) {
       if (isInactiveAuthError(error)) {
         clearSession();
@@ -162,8 +160,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return;
           }
           setUser(cachedUser);
-          await fetchUserLabels(cachedUser.id, cachedUser.role);
-          await fetchUserCohorts(cachedUser.id, cachedUser.role);
+          await Promise.all([fetchUserLabels(cachedUser.id, cachedUser.role), fetchUserCohorts(cachedUser.id, cachedUser.role)]);
         } catch {
           clearSession();
         }

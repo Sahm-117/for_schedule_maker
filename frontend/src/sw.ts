@@ -1,10 +1,23 @@
 /// <reference lib="webworker" />
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
+import { registerRoute } from 'workbox-routing'
+import { CacheFirst } from 'workbox-strategies'
+import { ExpirationPlugin } from 'workbox-expiration'
 
 declare const self: ServiceWorkerGlobalScope
 
 cleanupOutdatedCaches()
 precacheAndRoute(self.__WB_MANIFEST)
+
+// Big, rarely used files (PDF tools, class manuals, the guide) are not saved on the first
+// visit. They are saved the first time they are opened and then work offline.
+registerRoute(
+  ({ url }) => url.origin === self.location.origin && (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/guides/')),
+  new CacheFirst({
+    cacheName: 'runtime-assets',
+    plugins: [new ExpirationPlugin({ maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 60 })],
+  }),
+)
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());

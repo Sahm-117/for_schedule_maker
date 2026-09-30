@@ -6,15 +6,13 @@ import ErrorBoundary from './components/ErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
 import PWAUpdateBanner from './components/PWAUpdateBanner';
 import PullToRefresh from './components/PullToRefresh';
-import AppShell from './components/AppShell';
-import { AppDataProvider } from './context/AppDataContext';
 import { TourProvider } from './context/TourContext';
-import { ToastProvider } from './components/Toast';
 import Login from './pages/Login';
 import RootRedirect from './pages/RootRedirect';
 
 // Lazy-loaded pages — each becomes its own chunk, so the initial load only
 // ships the shell + the route the user actually lands on.
+const StaffApp = lazy(() => import('./components/StaffApp'));
 const SopDownload = lazy(() => import('./pages/SopDownload'));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
 const AdminScripturesPage = lazy(() => import('./pages/AdminScripturesPage'));
@@ -117,11 +115,9 @@ function App() {
             element={
               <ErrorBoundary>
                 <ProtectedRoute>
-                  <AppDataProvider>
-                    <ToastProvider>
-                      <AppShell />
-                    </ToastProvider>
-                  </AppDataProvider>
+                  <Suspense fallback={<RouteFallback />}>
+                    <StaffApp />
+                  </Suspense>
                 </ProtectedRoute>
               </ErrorBoundary>
             }

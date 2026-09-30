@@ -32,6 +32,15 @@ export default defineConfig({
           { src: '/screenshots/desktop-1.png', sizes: '1280x800', type: 'image/png', form_factor: 'wide', label: 'Support home' },
         ],
       },
+      injectManifest: {
+        // Saved for offline on the very first visit: the app itself. The PDF/export tools,
+        // the class manuals and the guide are big and rarely needed; sw.ts saves those the
+        // first time they are opened, so the first visit isn't spent downloading them.
+        globIgnores: [
+          '**/assets/jspdf*', '**/assets/html2canvas*', '**/assets/pdf-*', '**/assets/index.es-*',
+          '**/assets/class*.js', '**/assets/intro-*.js', '**/assets/faithGuide*.js', '**/guides/**',
+        ],
+      },
       devOptions: {
         enabled: true,
         type: 'module',

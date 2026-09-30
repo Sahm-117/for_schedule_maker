@@ -1,4 +1,4 @@
-import axios from 'axios';
+import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 import type { AuthResponse, User, Week, PendingChange, RejectedChange, Label, SupportActivityCompletion, Cohort } from '../types';
 import { normalizePendingChanges } from '../utils/pendingChanges';
 import { DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
@@ -99,34 +99,48 @@ if (USE_SUPABASE && (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE
   throw new Error('Supabase mode selected but VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY are missing');
 }
 
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
 let authToken: string | null = null;
 
-api.interceptors.request.use((config) => {
-  if (authToken) {
-    config.headers.Authorization = `Bearer ${authToken}`;
-  }
-  return config;
-});
+// axios is only used by the old non-Supabase mode, so it is loaded the first time one of
+// those calls is made instead of shipping in the main app code.
+let axiosClient: Promise<AxiosInstance> | null = null;
+const getAxios = (): Promise<AxiosInstance> => {
+  axiosClient ??= import('axios').then(({ default: axios }) => {
+    const client = axios.create({
+      baseURL: API_URL,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    client.interceptors.request.use((config) => {
+      if (authToken) {
+        config.headers.Authorization = `Bearer ${authToken}`;
+      }
+      return config;
+    });
+    client.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        if (error.response?.status === 401) {
+          authToken = null;
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
+    );
+    return client;
+  });
+  return axiosClient;
+};
 
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      authToken = null;
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
+const api = {
+  get: <T = any>(url: string, config?: AxiosRequestConfig) => getAxios().then((client) => client.get<T>(url, config)),
+  delete: <T = any>(url: string, config?: AxiosRequestConfig) => getAxios().then((client) => client.delete<T>(url, config)),
+  post: <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig) => getAxios().then((client) => client.post<T>(url, data, config)),
+  put: <T = any>(url: string, data?: unknown, config?: AxiosRequestConfig) => getAxios().then((client) => client.put<T>(url, data, config)),
+};
 
 export const setAuthToken = USE_SUPABASE ? supabaseSetAuthToken : (token: string) => {
   authToken = token;

@@ -3,8 +3,10 @@ import { createRoot } from 'react-dom/client'
 import Clarity from '@microsoft/clarity'
 import './index.css'
 import App from './App.tsx'
+import { prefetchLikelyScreens } from './prefetch'
 
 Clarity.init('wsa5e4uym8')
+prefetchLikelyScreens()
 
 // Capture beforeinstallprompt before React mounts so the hook can read it
 window.addEventListener('beforeinstallprompt', (e) => {

@@ -65,13 +65,43 @@ const timeoutSignalFor = (ms: number): AbortSignal => {
   return controller.signal;
 };
 
+// The same read is often asked for by several parts of a screen at once (a dozen duplicate
+// requests on one load). Identical reads that overlap in time share one network request.
+// Only plain reads are shared: GET selects, and a short list of read-only functions.
+const SHAREABLE_RPCS = ['my_help_contact', 'get_my_hubs', 'get_my_hub', 'support_recaps', 'my_notifications'];
+const inFlight = new Map<string, Promise<Response>>();
+const shareKey = (url: string, init: RequestInit | undefined): string | null => {
+  if (init?.signal) return null; // a caller that can cancel gets its own request
+  const method = (init?.method || 'GET').toUpperCase();
+  if (method === 'GET' && url.includes('/rest/v1/')) {
+    const h = new Headers(init?.headers);
+    return `GET ${url} ${h.get('accept') || ''} ${h.get('prefer') || ''} ${h.get('range') || ''} ${h.get('accept-profile') || ''}`;
+  }
+  if (method === 'POST' && typeof init?.body === 'string') {
+    const name = url.split('/rest/v1/rpc/')[1]?.split('?')[0];
+    if (name && SHAREABLE_RPCS.includes(name)) return `RPC ${name} ${init.body}`;
+  }
+  return null;
+};
+
 const fetchWithTimeout: typeof fetch = (input, init) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   const timeoutSignal = timeoutSignalFor(url.includes('/functions/v1/ai-assist') ? AI_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
   const signal = init?.signal
     ? (signalAny ? signalAny([init.signal, timeoutSignal]) : init.signal)
     : timeoutSignal;
-  return fetch(routeLocally(input), { ...withSessionToken(init), signal });
+  const send = () => fetch(routeLocally(input), { ...withSessionToken(init), signal });
+  const key = shareKey(url, init);
+  if (!key) return send();
+  let pending = inFlight.get(key);
+  if (!pending) {
+    pending = send();
+    inFlight.set(key, pending);
+    const clear = () => { inFlight.delete(key); };
+    pending.then(clear, clear);
+  }
+  // Everyone gets their own copy, so one reader can't use up another's body.
+  return pending.then((response) => response.clone());
 };
 
 export const supabase = hasSupabaseConfig
