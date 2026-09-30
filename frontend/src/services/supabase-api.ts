@@ -1694,45 +1694,22 @@ export const notificationsApi = {
   async getMine(): Promise<{ notifications: import('../types').Notification[]; unreadCount: number }> {
     const me = getCurrentUserFromStorage();
     if (!me?.id) return { notifications: [], unreadCount: 0 };
-
-    const { data, error } = await supabase
-      .from('Notification')
-      .select('*')
-      .eq('userId', me.id)
-      .order('createdAt', { ascending: false })
-      .limit(50);
-
-    if (error) {
-      // Table not migrated yet → behave as an empty feed rather than crash.
-      if ((error as any).code === '42P01') return { notifications: [], unreadCount: 0 };
-      throw new Error(error.message);
-    }
-
-    const notifications = (data || []) as import('../types').Notification[];
+    // Through a checked function: the table itself is closed to the public key.
+    const { data, error } = await supabase.rpc('my_notifications', { p_limit: 50 });
+    if (error) throw new Error(error.message);
+    const notifications = ((data ?? []) as import('../types').Notification[]);
     const unreadCount = notifications.filter((n) => !n.isRead).length;
     return { notifications, unreadCount };
   },
-
   async markAllRead(): Promise<{ updatedCount: number }> {
     const me = getCurrentUserFromStorage();
     if (!me?.id) return { updatedCount: 0 };
-
-    const { data, error } = await supabase
-      .from('Notification')
-      .update({ isRead: true })
-      .eq('userId', me.id)
-      .eq('isRead', false)
-      .select('id');
-
+    const { data, error } = await supabase.rpc('mark_all_notifications_read');
     if (error) throw new Error(error.message);
-    return { updatedCount: data?.length || 0 };
+    return { updatedCount: Number(data ?? 0) };
   },
-
   async markRead(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('Notification')
-      .update({ isRead: true })
-      .eq('id', id);
+    const { error } = await supabase.rpc('mark_notification_read', { p_id: id });
     if (error) throw new Error(error.message);
   },
 };

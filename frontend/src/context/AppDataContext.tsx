@@ -162,11 +162,24 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setUnreadCount(response.unreadCount);
   }, []);
 
+  // Ids already seen, so a poll can tell what is new (null until the first load).
+  const seenNotificationIdsRef = useRef<Set<string> | null>(null);
   const refreshNotifications = useCallback(async () => {
     const response = await notificationsApi.getMine();
+    const seen = seenNotificationIdsRef.current;
+    if (seen) {
+      const arrived = response.notifications.filter((n) => !seen.has(n.id) && !n.isRead);
+      if (arrived.length > 0) {
+        // Something changed elsewhere: offer a refresh so the page catches up.
+        setLiveNotificationTitle(arrived[0].title);
+        // Group-assignment notifications are the signal that a support's cohort access may have changed.
+        if (arrived.some((n) => n.path === '/support/participants')) void refreshUserCohorts();
+      }
+    }
+    seenNotificationIdsRef.current = new Set(response.notifications.map((n) => n.id));
     setNotifications(response.notifications);
     setNotificationUnreadCount(response.unreadCount);
-  }, []);
+  }, [refreshUserCohorts]);
 
   const markNotificationsRead = useCallback(async () => {
     // Optimistic: clear the badge immediately, then persist.
@@ -347,28 +360,15 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       });
 
-    // Notifications get their own channel. Realtime rejects a whole channel
-    // if any table in it isn't published, and Notification is the only one
-    // that is — so sharing the channel above meant the bell never updated.
-    const notificationChannel = (supabase as any)
-      .channel(`notifications-${user.id}`)
-      // Notification rows are per-user and cheap — refresh just the feed (not
-      // the whole workspace) so the badge updates live.
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'Notification', filter: `userId=eq.${user.id}` }, (payload: { eventType?: string; new?: { path?: string; title?: string } }) => {
-        void refreshNotifications();
-        // A brand-new notification means something changed elsewhere; offer a
-        // refresh so the page the user is on catches up.
-        if (payload.eventType === 'INSERT' && payload.new?.title) {
-          setLiveNotificationTitle(payload.new.title);
-        }
-        // Group-assignment notifications are the one signal that a support's
-        // cohort access may have changed. Refresh that narrow membership list;
-        // the dependent workspace load then brings their group into view.
-        if (payload.new?.path === '/support/participants') {
-          void refreshUserCohorts();
-        }
-      })
-      .subscribe();
+    // The Notification table is closed to the public key, so the bell can no longer
+    // listen to it live. Check for new ones every 20 seconds while the app is in
+    // view, and as soon as it comes back to the front.
+    seenNotificationIdsRef.current = null; // a different person: start fresh
+    const pollNotifications = () => {
+      if (document.visibilityState === 'visible') void refreshNotifications().catch(() => {});
+    };
+    const notificationTimer = window.setInterval(pollNotifications, 20000);
+    document.addEventListener('visibilitychange', pollNotifications);
 
     return () => {
       if (refreshTimeoutRef.current) {
@@ -376,7 +376,8 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
       setRealtimeHealthy(false);
       (supabase as any).removeChannel(channel);
-      (supabase as any).removeChannel(notificationChannel);
+      window.clearInterval(notificationTimer);
+      document.removeEventListener('visibilitychange', pollNotifications);
     };
     // Depend on user.id (not the whole user object) so avatar/theme updates that
     // replace the user object don't tear down and rebuild the realtime channel.
