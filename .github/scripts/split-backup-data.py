@@ -1,0 +1,56 @@
+"""Splits the backup's data.sql so the restore check can be strict where it matters.
+
+Usage: split-backup-data.py data.sql out_dir
+
+Writes out_dir/public.sql (the app's own tables, restored strictly) and one small file per
+Supabase-managed table in out_dir/other/ (auth, storage and so on, restored best effort,
+because the throwaway database's copy of those internal tables can be a different version
+from the live project's). Every file starts with the same SET lines.
+"""
+import os
+import re
+import sys
+
+MANAGED = {
+    "auth", "storage", "realtime", "_realtime", "vault", "supabase_functions", "extensions",
+    "graphql", "graphql_public", "pgsodium", "net", "cron", "supabase_migrations", "pgbouncer",
+    "_analytics", "supabase_vault",
+}
+COPY_RE = re.compile(r'^COPY\s+"?([A-Za-z0-9_]+)"?\."?([A-Za-z0-9_]+)"?')
+SETVAL_RE = re.compile(r"setval\('\"?([A-Za-z0-9_]+)\"?\.\"?([A-Za-z0-9_]+)")
+
+src, out = sys.argv[1], sys.argv[2]
+os.makedirs(os.path.join(out, "other"), exist_ok=True)
+with open(src, encoding="utf-8", errors="surrogateescape", newline="") as f:
+    lines = f.read().split("\n")
+
+preamble, public, other = [], [], []
+i = 0
+while i < len(lines):
+    line = lines[i]
+    m = COPY_RE.match(line)
+    if m:
+        j = i
+        while j < len(lines) and lines[j] != "\\.":
+            j += 1
+        chunk = lines[i:j + 1]
+        (other.append((m.group(1), m.group(2), chunk)) if m.group(1) in MANAGED else public.extend(chunk + [""]))
+        i = j + 1
+        continue
+    s = SETVAL_RE.search(line)
+    if s:
+        (other.append((s.group(1), "seq_" + s.group(2), [line])) if s.group(1) in MANAGED else public.append(line))
+    elif line.strip() and not line.startswith("--"):
+        preamble.append(line)
+    i += 1
+
+
+def write(path, body):
+    with open(path, "w", encoding="utf-8", errors="surrogateescape", newline="") as f:
+        f.write("\n".join(preamble + [""] + body) + "\n")
+
+
+write(os.path.join(out, "public.sql"), public)
+for n, (schema, name, chunk) in enumerate(other):
+    write(os.path.join(out, "other", f"{n:03d}_{schema}_{name}.sql"), chunk)
+print(f"public.sql: {sum(1 for l in public if COPY_RE.match(l))} tables; other: {len(other)} files; preamble lines: {len(preamble)}")
