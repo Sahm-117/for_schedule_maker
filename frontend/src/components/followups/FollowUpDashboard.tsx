@@ -27,6 +27,9 @@ const STATUS_COLOR: Record<FollowUpStatus, string> = {
 
 const pct = (rate: number) => Math.round(rate * 100);
 
+// In "Where all … stand", Registered reads as the tile it belongs to.
+const OVERVIEW_LABEL: Partial<Record<FollowUpStatus, string>> = { REGISTERED: 'Needs login' };
+
 const Chevron: React.FC<{ open: boolean }> = ({ open }) => (
   <svg className={`h-3.5 w-3.5 flex-none text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="m9 5 7 7-7 7" />
@@ -212,15 +215,15 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
     <div className="space-y-6">
       {cohortId && <MobilisationTarget cohortId={cohortId} cohortName={cohortName} signedUp={headline.signedUp} />}
 
-      {/* The four numbers worth acting on. Everything else is detail below. */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* The path from sign-up to the app, then who still needs chasing. */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <VitalTile
           title="Signed up"
           status="neutral"
           statusLabel={headline.conversion === null ? 'No prospects yet' : `${pct(headline.conversion)}% of ${headline.contacts}`}
           value={headline.signedUp}
           unit={headline.contacts ? `of ${headline.contacts}` : undefined}
-          detail={headline.nextCohort > 0 ? `${headline.nextCohort} more waiting for the next cohort` : 'They filled in the registration form'}
+          detail={headline.nextCohort > 0 ? `${headline.nextCohort} more waiting for the next cohort` : 'On the form or with their support'}
           to={contactsLink('REGISTERED')}
         />
         <VitalTile
@@ -228,18 +231,20 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
           status={headline.needsLogin > 0 ? 'warning' : 'good'}
           statusLabel={headline.needsLogin > 0 ? 'Waiting on us' : 'All handed over'}
           value={headline.needsLogin}
-          unit={headline.needsLogin === 1 ? 'prospect' : 'prospects'}
-          detail={headline.needsLogin > 0 ? 'Signed up, but still cannot get into the app' : 'Nobody is waiting on a login'}
+          unit={headline.needsLogin === 1 ? 'person' : 'people'}
+          detail={headline.needsLogin > 0 ? 'Signed up, but nobody has sent their login yet' : 'Nobody is waiting on a login'}
           to={contactsLink('REGISTERED')}
         />
         <VitalTile
-          title="Not done yet"
-          status={headline.notDone > 0 ? 'warning' : 'good'}
-          statusLabel={headline.notDone > 0 ? 'Needs work' : 'All handled'}
-          value={headline.notDone}
-          unit={headline.notDone === 1 ? 'prospect' : 'prospects'}
-          detail={headline.notDone > 0 ? 'Someone still has to message, call or chase them' : 'Nobody is waiting on a follow-up'}
-          to={contactsLink('open')}
+          title="Login shared"
+          status="neutral"
+          statusLabel="Waiting on them"
+          value={headline.loginShared}
+          unit={headline.loginShared === 1 ? 'person' : 'people'}
+          detail={headline.loginShared > 0
+            ? `They have their login but haven't signed in yet${headline.loginIssue > 0 ? ` · ${headline.loginIssue} with a login problem` : ''}`
+            : 'Nobody is waiting to sign in'}
+          to={contactsLink('LOGIN_SHARED')}
         />
         <VitalTile
           title="Logged in"
@@ -249,6 +254,15 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
           unit={headline.loggedIn === 1 ? 'person' : 'people'}
           detail={headline.signedUp > 0 ? `${pct(headline.loggedIn / headline.signedUp)}% of those signed up are in the app` : 'Nobody has signed in yet'}
           to={contactsLink('ACCESS_CONFIRMED')}
+        />
+        <VitalTile
+          title="Not done yet"
+          status={headline.notDone > 0 ? 'warning' : 'good'}
+          statusLabel={headline.notDone > 0 ? 'Needs work' : 'All handled'}
+          value={headline.notDone}
+          unit={headline.notDone === 1 ? 'person' : 'people'}
+          detail={headline.notDone > 0 ? 'Someone still has to message, call or chase them' : 'Nobody is waiting on a follow-up'}
+          to={contactsLink('open')}
         />
       </div>
 
@@ -283,7 +297,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
       <section className="surface-card p-5 sm:p-6">
         <h3 className="text-base font-semibold text-gray-900">Where all {standing.total} stand</h3>
         <p className="mb-4 text-xs text-gray-500">
-          Each prospect counted once, in one place only.
+          Each person counted once, in one place only.
           {wrongNumbers > 0 && ` Wrong numbers are shown but not counted in the ${standing.total}.`}
         </p>
         {ranked.length === 0 ? (
@@ -292,7 +306,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
           <ul className="space-y-2.5">
             {ranked.map((bucket) => (
               <li key={bucket.status} className={`flex items-center gap-3 ${bucket.status === 'WRONG_NUMBER' && standing.total > 0 ? 'border-t border-dashed border-gray-200 pt-2.5' : ''}`}>
-                <span className="w-32 flex-none truncate text-sm text-gray-700 sm:w-44">{bucket.label}</span>
+                <span className="w-36 flex-none text-sm leading-tight text-gray-700 sm:w-48">{OVERVIEW_LABEL[bucket.status] ?? bucket.label}</span>
                 <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100">
                   <span
                     className="block h-full rounded-full"
@@ -322,7 +336,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
       <section className="surface-card overflow-hidden">
         <div className="border-b border-orange-100 px-5 py-4">
           <p className="text-sm font-bold text-gray-900">By support</p>
-          <p className="text-xs text-gray-500">Most work left first. A follow-up is only done once the prospect has their app login. Open a row to see who is not joining, and why.</p>
+          <p className="text-xs text-gray-500">Most work left first. A follow-up is only done once they’ve logged in to the app. Open a row to see who is not joining, and why.</p>
         </div>
         <table className="w-full text-left text-sm">
           <thead className="bg-orange-50/60 text-xs uppercase tracking-wide text-gray-500">

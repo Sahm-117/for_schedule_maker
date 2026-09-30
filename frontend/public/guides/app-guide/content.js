@@ -193,11 +193,11 @@ window.GUIDE_CONTENT = {
         "target"
        ],
        "steps": [
-        "Before the cohort starts, look at the four numbers: **Signed up**, **Needs login**, **Not done yet** and **Logged in**.",
+        "Before the cohort starts, look at the five numbers: **Signed up**, **Needs login** (login not sent yet), **Login shared** (have their login, not signed in yet), **Logged in** and **Not done yet** (still to message, call or chase).",
         "Signed up shows how far you are to the sign-up target. Logged in shows how many of those signed up are in the app.",
-        "Tap any of the four to open that list on Follow-ups."
+        "Tap any of them to open that list on Follow-ups."
        ],
-       "result": "They're the same four numbers as Follow-ups → Overview, so the two pages always agree."
+       "result": "They're the same five numbers as Follow-ups → Overview, so the two pages always agree."
       },
       {
        "id": "dashboard-operations",
@@ -1215,9 +1215,9 @@ window.GUIDE_CONTENT = {
        ],
        "steps": [
         "Open the contact's status dropdown.",
-        "Choose from three groups: **Still open** (To contact, Waiting, Needs reminder, Replied, Call back later, Registered, Login shared, Issue with login), **Moved to next cohort**, or **Closed** (Participant confirmed access, Wrong number, Not interested, No response)."
+        "Choose from three groups: **Still open** (To contact, Messaged, no reply yet, Needs reminder, Replied, Call back later, Registered, Login shared, Issue with login), **Moved to next cohort**, or **Closed** (Logged in, Wrong number, Not interested, No response)."
        ],
-       "result": "Only **Participant confirmed access** completes a follow-up — it's set by itself when the person signs in and chooses their password. **Login shared** keeps them open until then, and **Issue with login** alerts the admin and IT team.",
+       "result": "Only **Logged in** completes a follow-up — it's set by itself when the person signs in and chooses their password. **Login shared** keeps them open until then, and **Issue with login** alerts the admin and IT team.",
        "shot": "admin-follow-ups-contacts.jpg",
        "tips": [
         "**Attended** isn't in this list. It's set from the **From prior cohort** tag (see \"Someone from a prior cohort already attended\")."
@@ -2462,7 +2462,7 @@ window.GUIDE_CONTENT = {
        "result": "The card updates straight away. If this closes or reopens them, a message appears with **Undo** in case you tapped the wrong thing.",
        "tips": [
         "**Registered** doesn't close the follow-up. They still need their app login.",
-        "Once someone is registered, the box only offers the next steps: **Login shared**, **Participant confirmed access**, **Issue with login** and **Will join next cohort**.",
+        "Once someone is registered, the box only offers the next steps: **Login shared**, **Logged in**, **Issue with login** and **Will join next cohort**.",
         "Use **Will join next cohort** for people who want to come later.",
         "**Wrong number**, **Not interested** and **No response** close the card."
        ]
@@ -2489,10 +2489,10 @@ window.GUIDE_CONTENT = {
         "Once you've sent them, set **Where do they stand?** to **Login shared**.",
         "If they can't get in, choose **Issue with login**. A box asks **What's the problem?** Describe it (for example, the code isn't working or they changed phone) and tap **Submit**. The admins and your hub's IT Support are told, with what you wrote, and the login details box stays on the card so you can send a new code."
        ],
-       "result": "When they sign in and set their password, the card closes by itself as **Participant confirmed access** and you get a notification. Your job for this person is done.",
+       "result": "When they sign in and set their password, the card closes by itself as **Logged in** and you get a notification. Your job for this person is done.",
        "shot": "support-follow-ups.jpg",
        "tips": [
-        "When IT Support mark the problem sorted, you get a notification. If the person has signed in by then, the card closes as **Participant confirmed access**. If not, it goes back to **Login shared**.",
+        "When IT Support mark the problem sorted, you get a notification. If the person has signed in by then, the card closes as **Logged in**. If not, it goes back to **Login shared**.",
         "Couldn't reach them by phone? **Send by email** opens your email app with a message that says you couldn't get through, introduces you, and gives their login. It only shows if they gave an email."
        ]
       },
@@ -2588,9 +2588,9 @@ window.GUIDE_CONTENT = {
         "Add a short note on what fixed it if you like.",
         "Tap **Mark resolved** again to save."
        ],
-       "result": "If they have signed in, they move to **Participant confirmed access** and their follow-up closes. If not yet, they go back to **Login shared** until they sign in. Either way their support gets a notification.",
+       "result": "If they have signed in, they move to **Logged in** and their follow-up closes. If not yet, they go back to **Login shared** until they sign in. Either way their support gets a notification.",
        "tips": [
-        "When they choose their password later, the card closes by itself as **Participant confirmed access**."
+        "When they choose their password later, the card closes by itself as **Logged in**."
        ]
       }
      ]

@@ -315,7 +315,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
       toast({
         tone: 'success',
         message: registrationStatus === 'ACCESS_CONFIRMED'
-          ? `${firstName} is in the app. Moved to Participant confirmed access.`
+          ? `${firstName} is in the app. Moved to Logged in.`
           : `${firstName} moved back to Login shared until they sign in.`,
       });
       setResolvingIssue(null);
@@ -958,7 +958,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               </div>
               <InfoTip label="About IT issues">
                 <span className="block">When a support picks Issue with login, it shows here with what they wrote.</span>
-                <span className="mt-2 block">Reach the person or their support, send a new login code if needed, then mark it resolved. If they have signed in, they move to Participant confirmed access. If not yet, back to Login shared.</span>
+                <span className="mt-2 block">Reach the person or their support, send a new login code if needed, then mark it resolved. If they have signed in, they move to Logged in. If not yet, back to Login shared.</span>
               </InfoTip>
             </div>
 
@@ -1062,7 +1062,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
       >
         <p className="text-[13px] leading-normal text-gray-600">
           {resolvingIssue?.signedIn
-            ? 'They have signed in, so they will move to Participant confirmed access and their support is told.'
+            ? 'They have signed in, so they will move to Logged in and their support is told.'
             : "They haven't signed in yet, so they will go back to Login shared and their support is told."}
         </p>
         <label className="mt-4 block">

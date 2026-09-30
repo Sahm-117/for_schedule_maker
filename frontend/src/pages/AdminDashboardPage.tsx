@@ -476,7 +476,7 @@ const ParticipantsTile: React.FC<{ health: CohortHealthPayload; model: Dashboard
   );
 };
 
-// Before the cohort starts: the same four numbers as Follow-ups → Overview.
+// Before the cohort starts: the same five numbers as Follow-ups → Overview.
 const RegistrationFunnel: React.FC<{ headline: FollowUpHeadline | null; target: number | null }> = ({ headline, target }) => {
   if (!headline) return null;
   const steps = [
@@ -488,14 +488,16 @@ const RegistrationFunnel: React.FC<{ headline: FollowUpHeadline | null; target: 
       base: target && target > 0 ? target : headline.contacts,
       to: '/follow-ups?tab=contacts&status=REGISTERED',
     },
-    { title: 'Needs login', value: headline.needsLogin, detail: 'Signed up, no login yet', base: null as number | null, to: '/follow-ups?tab=contacts&status=REGISTERED' },
-    { title: 'Not done yet', value: headline.notDone, detail: 'Still to message, call or chase', base: null as number | null, to: '/follow-ups?tab=contacts&status=open' },
+    { title: 'Needs login', value: headline.needsLogin, detail: 'Signed up, login not sent yet', base: null as number | null, to: '/follow-ups?tab=contacts&status=REGISTERED' },
+    { title: 'Login shared', value: headline.loginShared, detail: 'Have their login, not signed in yet', base: null as number | null, to: '/follow-ups?tab=contacts&status=LOGIN_SHARED' },
     { title: 'Logged in', value: headline.loggedIn, detail: 'of those signed up', base: headline.signedUp, to: '/follow-ups?tab=contacts&status=ACCESS_CONFIRMED' },
+    { title: 'Not done yet', value: headline.notDone, detail: 'Still to message, call or chase', base: null as number | null, to: '/follow-ups?tab=contacts&status=open' },
   ];
   return (
-    <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-      {steps.map((step) => (
-        <NavLink key={step.title} to={step.to} className="surface-card block p-5 transition hover:-translate-y-0.5">
+    <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
+      {steps.map((step, i) => (
+        // Five cards: on a phone the first spans the row, then two pairs.
+        <NavLink key={step.title} to={step.to} className={`surface-card block p-5 transition hover:-translate-y-0.5 ${i === 0 ? 'col-span-2 xl:col-span-1' : ''}`}>
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{step.title}</p>
           <p className="mt-3 text-3xl font-bold tracking-tight text-gray-900 tabular-nums">{step.value}</p>
           <p className="mt-1 text-sm text-gray-600">

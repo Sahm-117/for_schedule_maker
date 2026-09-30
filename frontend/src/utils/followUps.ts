@@ -65,14 +65,14 @@ export const ISSUE_STATUS_META: Record<IssueStatus, StatusMeta> = {
 
 export const FOLLOW_UP_STATUS_META: Record<FollowUpStatus, StatusMeta> = {
   TO_CONTACT: { label: 'To contact', description: 'Not contacted yet — send them a message or give them a call.', tone: 'bg-slate-100 text-slate-600' },
-  WAITING: { label: 'Waiting', description: 'Message sent, waiting for a reply.', tone: 'bg-amber-100/80 text-amber-700' },
+  WAITING: { label: 'Messaged, no reply yet', description: 'Message sent, waiting for a reply.', tone: 'bg-amber-100/80 text-amber-700' },
   NEEDS_REMINDER: { label: 'Needs reminder', description: 'They did not reply — send a gentle reminder.', tone: 'bg-amber-100/80 text-amber-700' },
   REPLIED: { label: 'Replied', description: 'They replied. Still working on getting them registered.', tone: 'bg-emerald-100/80 text-emerald-700' },
   CALL_BACK_LATER: { label: 'Call back later', description: 'They asked you to call another time.', tone: 'bg-violet-100/80 text-violet-700' },
   REGISTERED: { label: 'Registered', description: 'They signed up. Still to hand them their app login.', tone: 'bg-emerald-100/80 text-emerald-700' },
   LOGIN_SHARED: { label: 'Login shared', description: 'Login sent. Waiting for them to sign in.', tone: 'bg-sky-100/80 text-sky-700' },
   LOGIN_ISSUE: { label: 'Issue with login', description: 'They cannot get into the app. The admin and IT team are told.', tone: 'bg-orange-100/80 text-orange-700' },
-  ACCESS_CONFIRMED: { label: 'Participant confirmed access', description: 'They signed in to the app. All done.', tone: 'bg-emerald-100/80 text-emerald-700' },
+  ACCESS_CONFIRMED: { label: 'Logged in', description: 'They signed in to the app. All done.', tone: 'bg-emerald-100/80 text-emerald-700' },
   WRONG_NUMBER: { label: 'Wrong number', description: 'The number does not work.', tone: 'bg-rose-100/80 text-rose-700' },
   NOT_INTERESTED: { label: 'Not interested', description: 'They said no, not available, or not a TCN member.', tone: 'bg-rose-100/80 text-rose-700' },
   NO_RESPONSE: { label: 'No response', description: 'They did not reply after multiple follow-ups.', tone: 'bg-neutral-100 text-neutral-600' },
@@ -726,6 +726,10 @@ export interface FollowUpHeadline {
   conversion: number | null;
   nextCohort: number;
   needsLogin: number;
+  /** Given their login (or having trouble with it), not signed in yet. */
+  loginShared: number;
+  /** Of loginShared, those who reported a problem with their login. */
+  loginIssue: number;
   notDone: number;
   loggedIn: number;
 }
@@ -741,6 +745,8 @@ export const computeFollowUpHeadline = (contacts: FollowUpContact[]): FollowUpHe
     conversion: cohort.conversion,
     nextCohort: cohort.nextCohort,
     needsLogin: all.registered,
+    loginShared: all.loginShared,
+    loginIssue: all.buckets.find((b) => b.status === 'LOGIN_ISSUE')?.value ?? 0,
     notDone: all.open,
     loggedIn: all.accessConfirmed,
   };

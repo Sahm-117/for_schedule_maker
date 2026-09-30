@@ -32,7 +32,8 @@ export const StatusIcon: React.FC<{ status: HealthStatus; className?: string }> 
 
 export const HealthPill: React.FC<{ status: HealthStatus; label?: string }> = ({ status, label }) => (
   <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_PILL[status]}`}>
-    <StatusIcon status={status} className="h-3 w-3" />
+    {/* Neutral pills are plain labels; a dash there read like a minus sign. */}
+    {status !== 'neutral' && <StatusIcon status={status} className="h-3 w-3" />}
     {label ?? STATUS_LABEL[status]}
   </span>
 );
