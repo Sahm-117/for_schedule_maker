@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
 
     const { data: issue, error: issueError } = await supabase
       .from('FollowUpIssue')
-      .select('issue, contact:FollowUpContact(fullName)')
+      .select('issue, contact:FollowUpContact!FollowUpIssue_contactId_fkey(fullName)')
       .eq('id', issueId)
       .single()
 

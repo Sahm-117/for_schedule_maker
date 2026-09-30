@@ -3983,7 +3983,7 @@ const mapFollowUpIssue = (row: any): import('../types').FollowUpIssue => ({
   updatedAt: row.updatedAt,
 });
 
-const ISSUE_SELECT = '*, contact:FollowUpContact(id, fullName), owner:User!FollowUpIssue_ownerId_fkey(id, name), reportedBy:User!FollowUpIssue_reportedById_fkey(id, name)';
+const ISSUE_SELECT = '*, contact:FollowUpContact!FollowUpIssue_contactId_fkey(id, fullName), owner:User!FollowUpIssue_ownerId_fkey(id, name), reportedBy:User!FollowUpIssue_reportedById_fkey(id, name)';
 
 const notifyFollowUpIssue = (issueId: string, reporterId: string) => {
   void supabase.functions
