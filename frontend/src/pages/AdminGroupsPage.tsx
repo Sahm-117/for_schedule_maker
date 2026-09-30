@@ -13,6 +13,7 @@ import Avatar from '../components/Avatar';
 import GroupsExportPopup from '../components/groups/GroupsExportPopup';
 import GroupEngineWizard from '../components/groups/GroupEngineWizard';
 import NewGroupChooser from '../components/groups/NewGroupChooser';
+import { nextGroupNames } from '../utils/groupingEngine';
 import GroupMeetingSlotEditor, { type MeetingSlot } from '../components/GroupMeetingSlotEditor';
 import PageLoader from '../components/PageLoader';
 import { sortByText } from '../utils/sort';
@@ -810,6 +811,15 @@ const AdminGroupsContent: React.FC = () => {
         ungroupedCount={participants.filter((p) => !p.groupId).length}
         onEngine={() => { setChooserOpen(false); setEngineOpen(true); }}
         onManual={() => { setChooserOpen(false); setEditing(null); setFormOpen(true); }}
+        onEmpty={async (count) => {
+          if (!activeCohort) return;
+          const names = nextGroupNames(groups.map((g) => g.name), count);
+          for (const name of names) {
+            await groupsApi.create({ cohortId: activeCohort.id, name, supportId: null });
+          }
+          setChooserOpen(false);
+          await load(true);
+        }}
       />
 
       {activeCohort && (

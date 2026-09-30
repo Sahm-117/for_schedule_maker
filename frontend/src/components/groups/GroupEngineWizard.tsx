@@ -14,6 +14,7 @@ import {
   evaluateGroup,
   toEnginePerson,
   type DraftGroup,
+  type SeedGroup,
   type EnginePerson,
   type EngineSupport,
 } from '../../utils/groupingEngine';
@@ -50,6 +51,7 @@ const STEPS: Array<{ key: Step; label: string }> = [
 const SURFACE = 'rounded-[22px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)]';
 const SECTION_LABEL = 'text-[11px] font-semibold uppercase tracking-wide text-gray-400';
 const LEFT_OUT = '__left_out__';
+const LEFT_OUT_BY_YOU = 'Left out by you';
 
 const shortAge = (range: string | null) => (range ? range.replace(/\s/g, '') : '—');
 
@@ -138,6 +140,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const [creating, setCreating] = useState(false);
   // Off each time the builder opens, so nobody who missed training is used by accident.
   const [includeMissedTraining, setIncludeMissedTraining] = useState(false);
+  // Empty groups the admin made first: fill them, or leave them alone. Asked each time.
+  const [emptyChoice, setEmptyChoice] = useState<'fill' | 'leave' | null>(null);
   const createdAny = useRef(false);
 
   useEffect(() => {
@@ -149,6 +153,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setPicked(null);
     setStatuses({});
     setIncludeMissedTraining(false);
+    setEmptyChoice(null);
     createdAny.current = false;
     setLoading(true);
     Promise.all([
@@ -180,6 +185,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
       const c = trainingCountFor(trainingCounts, u.id, trainingsTotal);
       if (kind !== 'PARTICIPANT_SUPPORT') { reasons.push({ user: u, reason: kind === 'HUB_LEAD' ? 'Hub lead' : 'Operational' }); return; }
       if (leading.has(u.id)) { reasons.push({ user: u, reason: 'Already has a group' }); return; }
+      if (rules.excludedSupportIds.includes(u.id)) { reasons.push({ user: u, reason: LEFT_OUT_BY_YOU }); return; }
       if (c.total > 0 && c.attended < minTrainingsAttended) {
         missedTraining.add(u.id);
         if (!includeMissedTraining) { reasons.push({ user: u, reason: `Trainings ${c.attended}/${c.total}` }); return; }
@@ -187,8 +193,43 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
       free.push({ ...toEnginePerson(u), trainingsAttended: c.attended });
     });
     return { free, reasons, missedTraining };
-  }, [supportUsers, memberIds, kinds, groups, trainingCounts, trainingsTotal, minTrainingsAttended, includeMissedTraining]);
-  const supportById = useMemo(() => new Map(supportPool.free.map((s) => [s.id, s])), [supportPool.free]);
+  }, [supportUsers, memberIds, kinds, groups, trainingCounts, trainingsTotal, minTrainingsAttended, includeMissedTraining, rules.excludedSupportIds]);
+
+  // Groups with nobody in them yet (made by hand first), and the support already on each.
+  const emptyGroups = useMemo(() => {
+    const withPeople = new Set(participants.map((p) => p.groupId).filter(Boolean) as string[]);
+    return groups.filter((g) => !g.archivedAt && !withPeople.has(g.id));
+  }, [groups, participants]);
+  const seeds = useMemo<SeedGroup[]>(() => emptyGroups.map((g) => {
+    const u = g.supportId ? supportUsers.find((x) => x.id === g.supportId) : null;
+    return {
+      id: g.id,
+      name: g.name,
+      support: u ? { ...toEnginePerson(u), trainingsAttended: trainingCountFor(trainingCounts, u.id, trainingsTotal).attended } : null,
+    };
+  }), [emptyGroups, supportUsers, trainingCounts, trainingsTotal]);
+  const seedSupports = useMemo(() => seeds.map((s) => s.support).filter((s): s is EngineSupport => !!s), [seeds]);
+  const supportById = useMemo(() => new Map([...supportPool.free, ...seedSupports].map((s) => [s.id, s])), [supportPool.free, seedSupports]);
+
+  // Leave a support out of the builder (or bring them back). Saved with the cohort's rules.
+  const [excludeSaving, setExcludeSaving] = useState<string | null>(null);
+  const toggleExcluded = async (userId: string) => {
+    const next = {
+      ...rules,
+      excludedSupportIds: rules.excludedSupportIds.includes(userId)
+        ? rules.excludedSupportIds.filter((id) => id !== userId)
+        : [...rules.excludedSupportIds, userId],
+    };
+    setRules(next);
+    setExcludeSaving(userId);
+    try {
+      setRules(await settingsApi.setGroupingRules(cohortId, next));
+    } catch (e: any) {
+      setErr(e?.message ? `Couldn't save: ${e.message}` : "Couldn't save. Try again.");
+    } finally {
+      setExcludeSaving(null);
+    }
+  };
 
   const readyCount = [...people.values()].filter((p) => p.gender && p.ageRange).length;
   const needsInfo = ungrouped.filter((p) => { const e = people.get(p.id); return !e?.gender || !e?.ageRange; });
@@ -198,7 +239,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const men = [...people.values()].filter((p) => p.gender === 'Male').length;
 
   const rebuild = (r: GroupingRules = rules) => {
-    const result = buildDraft([...people.values()], supportPool.free, r, groups.map((g) => g.name));
+    const result = buildDraft([...people.values()], supportPool.free, r, groups.map((g) => g.name), emptyChoice === 'fill' ? seeds : []);
     setDraft(result.groups);
     setLeftOut([...result.needsInfo, ...result.unplaced]);
     setPicked(null);
@@ -246,9 +287,16 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
       if (statuses[g.key] === 'done') continue; // retry only the ones that failed
       setStatuses((prev) => ({ ...prev, [g.key]: 'creating' }));
       try {
-        const { group } = await groupsApi.create({ cohortId, name: g.name, supportId: g.supportId });
+        let groupId = g.existingGroupId;
+        if (groupId) {
+          // An empty group made first: keep it, add its support if the builder picked one.
+          const before = groups.find((x) => x.id === groupId);
+          if ((before?.supportId ?? null) !== g.supportId) await groupsApi.update(groupId, { supportId: g.supportId });
+        } else {
+          ({ group: { id: groupId } } = await groupsApi.create({ cohortId, name: g.name, supportId: g.supportId }));
+        }
         createdAny.current = true;
-        await groupsApi.bulkAssign(g.memberIds.map((participantId) => ({ participantId, groupId: group.id })));
+        await groupsApi.bulkAssign(g.memberIds.map((participantId) => ({ participantId, groupId: groupId! })));
         setStatuses((prev) => ({ ...prev, [g.key]: 'done' }));
       } catch {
         setStatuses((prev) => ({ ...prev, [g.key]: 'failed' }));
@@ -319,7 +367,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const footer = (() => {
     const quiet = 'rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 active:scale-95 disabled:opacity-50';
     const primary = 'rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50';
-    if (step === 'people') return (<><button type="button" onClick={close} className={quiet}>Cancel</button><button type="button" disabled={loading || readyCount === 0} onClick={() => setStep('rules')} className={primary}>Next: rules</button></>);
+    if (step === 'people') return (<><button type="button" onClick={close} className={quiet}>Cancel</button><button type="button" disabled={loading || readyCount === 0 || (emptyGroups.length > 0 && !emptyChoice)} onClick={() => setStep('rules')} className={primary}>Next: rules</button></>);
     if (step === 'rules') return (<><button type="button" onClick={() => setStep('people')} className={quiet}>Back</button><button type="button" disabled={savingRules} onClick={() => void saveRulesAndBuild()} className={primary}>{savingRules ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span> : 'Save rules & build'}</button></>);
     if (step === 'draft') return (<><button type="button" onClick={() => setStep('rules')} className={quiet}>Back</button><button type="button" onClick={() => rebuild()} className={quiet}>Rebuild</button><button type="button" disabled={toCreate.length === 0} onClick={() => setStep('create')} className={primary}>Create {toCreate.length}</button></>);
     if (allDone) return <button type="button" onClick={close} className={primary}>View groups</button>;
@@ -406,6 +454,51 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   </div>
                 </div>
               )}
+              {emptyGroups.length > 0 && (
+                <div className={`${SURFACE} p-4`}>
+                  <p className="text-sm font-semibold text-gray-900">
+                    You have {emptyGroups.length} empty {emptyGroups.length === 1 ? 'group' : 'groups'}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {emptyGroups.map((g) => `${g.name}${g.supportId ? ` (${supportUsers.find((u) => u.id === g.supportId)?.name ?? 'support set'})` : ''}`).join(', ')}
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {([['fill', 'Fill them first', 'Put people in these before making new groups. Supports already on them stay.'], ['leave', 'Leave them alone', 'Make new groups for everyone. Fill these yourself.']] as const).map(([value, label, hint]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setEmptyChoice(value)}
+                        aria-pressed={emptyChoice === value}
+                        className={`rounded-2xl p-3 text-left transition ${emptyChoice === value ? 'bg-primary/10 ring-2 ring-primary/50' : 'bg-gray-50 hover:bg-gray-100'}`}
+                      >
+                        <span className="block text-sm font-semibold text-gray-900">{label}</span>
+                        <span className="mt-0.5 block text-[11px] text-gray-500">{hint}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {!emptyChoice && <p className="mt-2 text-[11px] text-amber-700">Pick one to carry on.</p>}
+                </div>
+              )}
+              {supportPool.free.length > 0 && (
+                <details className={`${SURFACE} p-4`}>
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-700">Supports the engine can use ({supportPool.free.length})</summary>
+                  <p className="mt-1 text-[11px] text-gray-400">Tap “Leave out” for anyone who shouldn’t get a group this cohort. It’s remembered.</p>
+                  <div className="mt-2 flex flex-col gap-1">
+                    {supportPool.free.map((sup) => {
+                      const user = supportUsers.find((u) => u.id === sup.id);
+                      return (
+                        <div key={sup.id} className="flex items-center gap-2.5 px-1 py-1">
+                          <Avatar name={sup.name} avatarUrl={user?.avatarUrl} size="xs" />
+                          <span className="min-w-0 flex-1 truncate text-[13px] text-gray-800">{sup.name}</span>
+                          <button type="button" disabled={excludeSaving === sup.id} onClick={() => void toggleExcluded(sup.id)} className="rounded-full bg-gray-100 px-3 py-1 text-[12px] font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60">
+                            {excludeSaving === sup.id ? <Spinner className="h-3 w-3" /> : 'Leave out'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
+              )}
               {supportPool.missedTraining.size > 0 && (
                 <div className={`${SURFACE} flex items-center justify-between gap-3 p-4`}>
                   <div className="min-w-0">
@@ -437,6 +530,11 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                         <Avatar name={user.name} avatarUrl={user.avatarUrl} size="xs" />
                         <span className="min-w-0 flex-1 truncate text-[13px] text-gray-800">{user.name}</span>
                         <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">{reason}</span>
+                        {reason === LEFT_OUT_BY_YOU && (
+                          <button type="button" disabled={excludeSaving === user.id} onClick={() => void toggleExcluded(user.id)} className="rounded-full bg-primary/10 px-3 py-1 text-[12px] font-semibold text-primary disabled:opacity-60">
+                            {excludeSaving === user.id ? <Spinner className="h-3 w-3" /> : 'Use again'}
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -510,13 +608,20 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   return (
                     <div key={g.key} className={`${SURFACE} flex flex-col gap-2.5 p-4`}>
                       <div className="flex items-center justify-between gap-2">
-                        <p className="font-bold text-gray-900">{g.name}</p>
+                        <p className="flex items-center gap-1.5 font-bold text-gray-900">
+                          {g.name}
+                          {g.existingGroupId && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Your group</span>}
+                        </p>
                         <div className="flex items-center gap-1.5">
                           {moveHere(g.key, g.memberIds)}
                           <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">{g.memberIds.length}</span>
                         </div>
                       </div>
-                      <AppSelect value={g.supportId ?? ''} onChange={(v) => setSupport(g.key, v)} options={options} placeholder="No support" compact />
+                      {g.existingGroupId && seeds.find((x) => x.id === g.existingGroupId)?.support ? (
+                        <p className="rounded-xl bg-gray-50 px-3 py-2 text-[13px] text-gray-700">Support: <b>{supportById.get(g.supportId ?? '')?.name}</b> (you chose)</p>
+                      ) : (
+                        <AppSelect value={g.supportId ?? ''} onChange={(v) => setSupport(g.key, v)} options={options} placeholder="No support" compact />
+                      )}
                       {(notes.length > 0 || (g.supportId && supportPool.missedTraining.has(g.supportId))) && (
                         <div className="flex flex-wrap gap-1.5">
                           {g.supportId && supportPool.missedTraining.has(g.supportId) && (

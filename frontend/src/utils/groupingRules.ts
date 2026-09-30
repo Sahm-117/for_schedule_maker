@@ -33,6 +33,8 @@ export interface GroupingRules {
   /** The ranges that count as "middle age" — a support from these is ideal. */
   preferredSupportAges: string[];
   supportAgeStrength: RuleStrength;
+  /** Supports an admin left out of the builder for this cohort (kept with the rules). */
+  excludedSupportIds: string[];
 }
 
 export const DEFAULT_GROUPING_RULES: GroupingRules = {
@@ -50,6 +52,7 @@ export const DEFAULT_GROUPING_RULES: GroupingRules = {
   supportAgeOrder: ['25 - 34', '35 - 44', '18 - 24', '45 - 59', '60 and above', '18 and below'],
   preferredSupportAges: ['25 - 34'],
   supportAgeStrength: 'PREFER',
+  excludedSupportIds: [],
 };
 
 // ── Normalising saved answers ────────────────────────────────────────────────
@@ -122,5 +125,8 @@ export const normaliseGroupingRules = (value: unknown): GroupingRules => {
     supportAgeOrder,
     preferredSupportAges: preferredSupportAges.length > 0 ? preferredSupportAges : d.preferredSupportAges,
     supportAgeStrength: strength(source.supportAgeStrength, d.supportAgeStrength),
+    excludedSupportIds: Array.isArray(source.excludedSupportIds)
+      ? [...new Set(source.excludedSupportIds.filter((id): id is string => typeof id === 'string' && id.length > 0))]
+      : [],
   };
 };

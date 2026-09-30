@@ -32,6 +32,15 @@ export interface DraftGroup {
   name: string;
   memberIds: string[];
   supportId: string | null;
+  /** An empty group the admin already made; the builder fills it instead of creating a new one. */
+  existingGroupId?: string;
+}
+
+/** An existing empty group to fill first; `support` is the support already on it, if any. */
+export interface SeedGroup {
+  id: string;
+  name: string;
+  support: EngineSupport | null;
 }
 
 export interface GroupDraft {
@@ -187,8 +196,10 @@ export const supportCost = (support: EngineSupport, members: EnginePerson[], rul
 
 const compareCost = (a: [number, number], b: [number, number]) => a[0] - b[0] || a[1] - b[1];
 
-const assignSupports = (groups: DraftGroup[], people: Map<string, EnginePerson>, supports: EngineSupport[], rules: GroupingRules) => {
+const assignSupports = (allGroups: DraftGroup[], people: Map<string, EnginePerson>, supports: EngineSupport[], rules: GroupingRules) => {
   const free = new Set(supports.map((s) => s.id));
+  // Groups that already have a support (an admin's empty group) keep it.
+  const groups = allGroups.filter((g) => !g.supportId && g.memberIds.length > 0);
   const membersOf = (g: DraftGroup) => g.memberIds.map((id) => people.get(id)!).filter(Boolean);
   // Hardest groups first: the fewest ideal (zero-cost) supports.
   const idealCount = (g: DraftGroup) =>
@@ -230,6 +241,7 @@ export const buildDraft = (
   supports: EngineSupport[],
   rules: GroupingRules,
   existingGroupNames: string[],
+  seeds: SeedGroup[] = [],
 ): GroupDraft => {
   const needsInfo = participants.filter((p) => !p.gender || !p.ageRange).map((p) => p.id);
   const ready = participants.filter((p) => p.gender && p.ageRange);
@@ -265,8 +277,32 @@ export const buildDraft = (
     unplaced.push(...result.unplaced);
   });
 
-  const names = nextGroupNames(existingGroupNames, memberLists.length);
-  const groups: DraftGroup[] = memberLists.map((memberIds, i) => ({ key: `draft-${i + 1}`, name: names[i], memberIds, supportId: null }));
+  // Fill the admin's empty groups first. One with a support takes the set of
+  // people that suits that support best (never one that breaks a Must rule);
+  // the rest take the remaining sets, largest first. Leftover sets become new groups.
+  const remaining = [...memberLists].sort((a, b) => b.length - a.length);
+  const seeded: DraftGroup[] = [];
+  const takeBest = (support: EngineSupport) => {
+    let bestIndex = -1;
+    let bestCost: [number, number] | null = null;
+    remaining.forEach((ids, i) => {
+      const cost = supportCost(support, ids.map((id) => people.get(id)!).filter(Boolean), rules);
+      if (cost && (!bestCost || compareCost(cost, bestCost) < 0)) { bestIndex = i; bestCost = cost; }
+    });
+    return bestIndex >= 0 ? remaining.splice(bestIndex, 1)[0] : [];
+  };
+  seeds.filter((seed) => seed.support).forEach((seed) => {
+    seeded.push({ key: `seed-${seed.id}`, name: seed.name, memberIds: takeBest(seed.support!), supportId: seed.support!.id, existingGroupId: seed.id });
+  });
+  seeds.filter((seed) => !seed.support).forEach((seed) => {
+    seeded.push({ key: `seed-${seed.id}`, name: seed.name, memberIds: remaining.shift() ?? [], supportId: null, existingGroupId: seed.id });
+  });
+
+  const names = nextGroupNames(existingGroupNames, remaining.length);
+  const groups: DraftGroup[] = [
+    ...seeded,
+    ...remaining.map((memberIds, i) => ({ key: `draft-${i + 1}`, name: names[i], memberIds, supportId: null })),
+  ];
   assignSupports(groups, people, supports, rules);
   return { groups, needsInfo, unplaced };
 };
