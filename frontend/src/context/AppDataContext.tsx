@@ -361,13 +361,13 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
 
     // The Notification table is closed to the public key, so the bell can no longer
-    // listen to it live. Check for new ones every 20 seconds while the app is in
+    // listen to it live. Check for new ones every 10 seconds while the app is in
     // view, and as soon as it comes back to the front.
     seenNotificationIdsRef.current = null; // a different person: start fresh
     const pollNotifications = () => {
       if (document.visibilityState === 'visible') void refreshNotifications().catch(() => {});
     };
-    const notificationTimer = window.setInterval(pollNotifications, 20000);
+    const notificationTimer = window.setInterval(pollNotifications, 10000);
     document.addEventListener('visibilitychange', pollNotifications);
 
     return () => {
