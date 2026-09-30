@@ -75,7 +75,7 @@ const ParticipantGroupPage: React.FC = () => {
             onChange={(key) => setTabChoice(key as 'discussion' | 'meeting')}
           />
           {tab === 'discussion' ? (
-            <ParticipantDiscussionTab viewerName={home.participant.name} viewerAvatarUrl={home.profile?.avatarUrl} />
+            <ParticipantDiscussionTab viewerName={home.participant.name} viewerAvatarUrl={home.profile?.avatarUrl} viewerGender={home.profile?.gender} />
           ) : (
           <>
 

@@ -347,6 +347,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, feed, actions, canModerate, r
     setSending(false);
   };
 
+  const isIntro = post.kind === 'INTRO';
   const replyCount = post.replies.length;
   const pinnedStyle = post.pinned ? 'border border-amber-200 bg-amber-50/70' : 'bg-white';
 
@@ -357,12 +358,14 @@ const PostCard: React.FC<PostCardProps> = ({ post, feed, actions, canModerate, r
       {post.pinned && (
         <p className="mb-2 text-[12px] font-bold uppercase tracking-[0.04em] text-amber-700">📌 Pinned by {post.pinnedByName || feed.supportName || 'your support'}</p>
       )}
+      {isIntro && !post.removed && <p className="mb-2 text-[12px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Introduction</p>}
       <div className="flex items-start gap-3">
-        <Avatar name={post.author.name} avatarUrl={post.author.avatarUrl} size="sm" enlargeable />
+        <Avatar name={post.author.name} avatarUrl={post.author.avatarUrl} size={isIntro && !post.removed ? 'lg' : 'sm'} enlargeable />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[15px] font-bold text-gray-900">{displayName(post.author.name, post.author.kind)}</span>
+            <span className={`${isIntro ? 'text-[17px]' : 'text-[15px]'} font-bold text-gray-900`}>{displayName(post.author.name, post.author.kind)}</span>
             {post.author.kind === 'SUPPORT' && <span className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">Support</span>}
+            {isIntro && post.author.kind === 'PARTICIPANT' && post.author.gender && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">{post.author.gender}</span>}
             {canModerate && reportCount > 0 && <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[11px] font-bold uppercase text-red-700">Reported</span>}
             {canModerate && post.removed && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-bold uppercase text-neutral-600">Removed</span>}
           </div>

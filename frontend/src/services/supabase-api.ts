@@ -3136,6 +3136,26 @@ export const participantAppApi = {
     if (error) throw participantAppError(error.message, 'Could not save your step.');
   },
 
+  // Participant-led onboarding: the four steps, and the actions behind them.
+  async getOnboardingState(): Promise<import('../types').OnboardingState> {
+    const { data, error } = await supabase.rpc('participant_onboarding_state_self', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not load your steps.');
+    return data as import('../types').OnboardingState;
+  },
+  async markIntroGuideRead(): Promise<void> {
+    const { error } = await supabase.rpc('participant_mark_intro_guide_read', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not save your step.');
+  },
+  async confirmReady(): Promise<import('../types').OnboardingState> {
+    const { data, error } = await supabase.rpc('participant_confirm_ready', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not save your step.');
+    return data as import('../types').OnboardingState;
+  },
+  async discussionIntro(body: string): Promise<void> {
+    const { error } = await supabase.rpc('participant_discussion_intro', { p_token: getSessionToken(), p_body: body });
+    if (error) throw participantAppError(error.message, 'Could not post your introduction. Please try again.');
+  },
+
   // Group Discussion: their own group only (null when not in a group yet).
   async discussionFeed(before?: string | null): Promise<import('../types').DiscussionFeed | null> {
     const { data, error } = await supabase.rpc('participant_discussion_feed', { p_token: getSessionToken(), p_before: before ?? null });
@@ -6045,6 +6065,20 @@ export const groupDiscussionApi = {
   async post(groupId: string, body: string, mentions: import('../types').DiscussionMention[] = []): Promise<void> {
     const { error } = await supabase.rpc('group_discussion_post', { p_group_id: groupId, p_body: body, p_mentions: mentions.map(({ kind, id }) => ({ kind, id })) });
     if (error) throw new Error(error.message);
+  },
+  async intro(groupId: string, body: string): Promise<void> {
+    const { error } = await supabase.rpc('group_discussion_intro', { p_group_id: groupId, p_body: body });
+    if (error) throw new Error(error.message);
+  },
+  async onboardingProgress(groupId: string): Promise<import('../types').OnboardingProgress> {
+    const { data, error } = await supabase.rpc('group_onboarding_progress', { p_group_id: groupId });
+    if (error) throw new Error(error.message);
+    return data as import('../types').OnboardingProgress;
+  },
+  async cohortOnboardingProgress(cohortId: string): Promise<import('../types').OnboardingProgress> {
+    const { data, error } = await supabase.rpc('cohort_onboarding_progress', { p_cohort_id: cohortId });
+    if (error) throw new Error(error.message);
+    return data as import('../types').OnboardingProgress;
   },
   async reply(postId: string, body: string, mentions: import('../types').DiscussionMention[] = []): Promise<void> {
     const { error } = await supabase.rpc('group_discussion_reply', { p_post_id: postId, p_body: body, p_mentions: mentions.map(({ kind, id }) => ({ kind, id })) });

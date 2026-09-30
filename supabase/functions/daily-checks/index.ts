@@ -233,13 +233,12 @@ Deno.serve(async (req) => {
       const groupOf = new Map<string, any>()
       for (const g of (groups ?? []) as any[]) for (const m of g.members ?? []) groupOf.set(m.participantId, g)
 
-      const [{ data: sunday }, { data: meeting }, { data: reports }, { data: onboardingRows }, { data: assigned }, { data: participantOnboarding }] = await Promise.all([
+      const [{ data: sunday }, { data: meeting }, { data: reports }, { data: assigned }, { data: participantOnboarding }] = await Promise.all([
         weekIds.length ? supabase.from('AttendanceRecord').select('participantId, weekId, status, markedAt').in('weekId', weekIds) : Promise.resolve({ data: [] }),
         weekIds.length ? supabase.from('MeetingAttendance').select('participantId, weekId, status, markedAt').in('weekId', weekIds) : Promise.resolve({ data: [] }),
         weekIds.length ? supabase.from('GroupPrayerStatus').select('groupId, weekId, done').in('weekId', weekIds).eq('done', true) : Promise.resolve({ data: [] }),
-        supabase.from('GroupOnboardingStatus').select('groupId, completedAt').in('groupId', ((groups ?? []) as any[]).map((g) => g.id)),
         supabase.from('OnboardingEvent').select('groupId, createdAt').eq('type', 'GROUP_ASSIGNED').in('groupId', ((groups ?? []) as any[]).map((g) => g.id)),
-        supabase.from('ParticipantOnboardingStatus').select('participantId, contacted, addedToGroup, introductionDone, venueAcknowledged').in('participantId', [...personById.keys()]),
+        supabase.from('ParticipantOnboarding').select('participantId, completedAt').in('participantId', [...personById.keys()]),
       ])
 
       // Participants: each new miss → their support; enough misses → needs attention.
@@ -286,8 +285,7 @@ Deno.serve(async (req) => {
       const reportKeys = new Set(((reports ?? []) as any[]).map((r) => `${r.groupId}:${r.weekId}`))
       const judgedWeeks = ((weeks ?? []) as any[]).filter((w) => w.weekNumber < currentWeek).sort((x, y) => x.weekNumber - y.weekNumber)
       const onboardedIds = new Set(((participantOnboarding ?? []) as any[])
-        .filter((o) => o.contacted && o.addedToGroup && o.introductionDone && o.venueAcknowledged).map((o) => o.participantId))
-      const completedAt = new Map(((onboardingRows ?? []) as any[]).map((o) => [o.groupId, o.completedAt]))
+        .filter((o) => o.completedAt).map((o) => o.participantId))
 
       for (const group of (groups ?? []) as any[]) {
         const members = (group.members ?? []).map((m: any) => m.participantId).filter((id: string) => personById.has(id))
@@ -316,11 +314,11 @@ Deno.serve(async (req) => {
           digestSupports.push(`${supportName} (${group.name})`)
         }
 
-        // Onboarding: finished when every member is onboarded and the group is marked complete.
+        // Onboarding: finished when every member has completed their four steps.
         const assignedTimes = ((assigned ?? []) as any[]).filter((e) => e.groupId === group.id).map((e) => new Date(e.createdAt).getTime())
         if (assignedTimes.length === 0) continue
         const assignedAt = Math.max(...assignedTimes)
-        const done = !!completedAt.get(group.id) && members.every((m: string) => onboardedIds.has(m))
+        const done = members.every((m: string) => onboardedIds.has(m))
         if (done) continue
         const days = Math.floor((nowMs - assignedAt) / MS_PER_DAY)
         const onboardedCount = members.filter((m: string) => onboardedIds.has(m)).length

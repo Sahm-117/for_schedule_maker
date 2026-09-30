@@ -201,7 +201,8 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
         ...groupStatusRes.statuses.map((status) => status.groupId),
         ...participantsRes.participants.map((participant) => participant.groupId).filter(Boolean) as string[],
       ]));
-      setSelectedGroupId((current) => (current && availableGroupIds.includes(current) ? current : (availableGroupIds[0] ?? '')));
+      const requestedGroup = searchParams.get('group');
+      setSelectedGroupId((current) => (current && availableGroupIds.includes(current) ? current : (requestedGroup && availableGroupIds.includes(requestedGroup) ? requestedGroup : (availableGroupIds[0] ?? ''))));
     } catch (err: any) {
       console.error('Unexpected error loading support participants page:', err);
       setLoadError(err?.message || 'Something went wrong loading your group.');

@@ -3,6 +3,7 @@ import { Navigate, NavLink, useParams } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
 import Avatar from '../components/Avatar';
 import { useToast } from '../components/Toast';
+import OnboardingStepPills from '../components/OnboardingStepPills';
 import ModalShell from '../components/followups/ModalShell';
 import {
   buildWeekStats,
@@ -25,7 +26,7 @@ import {
   participantFlagsApi,
   participantHandoversApi,
   participantNotesApi,
-  participantOnboardingStatusApi,
+  groupDiscussionApi,
   participantsApi,
   participantStageChangesApi,
   settingsApi,
@@ -43,7 +44,7 @@ import type {
   ParticipantFlag,
   ParticipantHandover,
   ParticipantNote,
-  ParticipantOnboardingStatus,
+  OnboardingProgressParticipant,
   ParticipantStageChange,
   ParticipantUpdate,
   RetakeMatch,
@@ -119,7 +120,7 @@ interface ProfileData {
   sunday: AttendanceRecord[];
   excusals: AttendanceExcusal[];
   meeting: MeetingAttendance[];
-  onboarding: ParticipantOnboardingStatus | null;
+  onboarding: OnboardingProgressParticipant | null;
   faithProject: FaithProject | null;
   notes: ParticipantNote[];
   handovers: ParticipantHandover[];
@@ -161,8 +162,8 @@ const AdminParticipantProfilePage: React.FC = () => {
         departmentReferralsApi.getForParticipants([participant.id]).then((r) => r.referrals).catch(() => []),
         participantStageChangesApi.getForParticipant(participant.id).then((r) => r.changes).catch(() => []),
         faithProjectsApi.getByParticipant(participant.id).then((r) => r.projects[0] ?? null).catch(() => null),
-        participant.groupId
-          ? participantOnboardingStatusApi.getForGroup(participant.groupId).then((r) => r.statuses.find((s) => s.participantId === participant.id) ?? null).catch(() => null)
+        cohortId
+          ? groupDiscussionApi.cohortOnboardingProgress(cohortId).then((r) => r.participants.find((p) => p.participantId === participant.id) ?? null).catch(() => null)
           : Promise.resolve(null),
         cohortId ? wrapUpApi.getDepartmentsForCohort(cohortId).then((m) => m.get(participant.id) ?? null).catch(() => null) : Promise.resolve(null),
         participant.followUpContactId ? followUpContactsApi.getById(participant.followUpContactId).then((r) => r.contact).catch(() => null) : Promise.resolve(null),
@@ -216,15 +217,15 @@ const AdminParticipantProfilePage: React.FC = () => {
       );
     }
     const group = health?.groups.find((g) => g.id === participant.groupId) ?? null;
-    const onboarded = data.onboarding && data.onboarding.contacted && data.onboarding.addedToGroup && data.onboarding.introductionDone && data.onboarding.venueAcknowledged;
     const attendedTimes = [
       ...data.sunday.filter(sundayMarkAttended).map((r) => r.markedAt),
       ...data.meeting.filter((r) => r.status === 'JOINED').map((r) => r.markedAt),
     ].filter(Boolean).sort() as string[];
     const journey = buildJourney({
       registeredAt: participant.registrationDate ?? participant.createdAt ?? null,
-      onboardedAt: onboarded ? data.onboarding?.updatedAt ?? null : null,
-      onboardedBy: onboarded ? data.onboarding?.updatedByName ?? null : null,
+      // The progress feed has no finish time, so the journey can't date this stage.
+      onboardedAt: null,
+      onboardedBy: null,
       firstAttendedAt: attendedTimes[0] ?? null,
       completedAt: evaluation?.completion?.outcome === 'COMPLETED' ? (cohort?.endDate ?? health?.cohort?.endDate ?? null) : null,
       referrals: data.referrals,
@@ -359,6 +360,15 @@ const AdminParticipantProfilePage: React.FC = () => {
         <p className="mt-1 text-sm text-gray-500">Send {participant.fullName.split(' ')[0]} their login, and see what they have done in the app.</p>
         <LoginDetailsCard participantId={participant.id} email={participant.email} startDate={cohorts.find((c) => c.id === participant.cohortId)?.startDate} className="mt-4 max-w-xl" />
         <ParticipantAppActivity participantId={participant.id} cohortId={participant.cohortId} weeks={weeks} />
+      </section>
+
+      {/* Onboarding */}
+      <section data-wt="pp-onboarding" className={CARD}>
+        <h2 className="text-lg font-semibold text-gray-900">Onboarding</h2>
+        <p className="text-sm text-gray-500">The four steps the participant does themselves.</p>
+        <div className="mt-3">
+          {data.onboarding ? <OnboardingStepPills state={data.onboarding} /> : <p className="text-sm text-gray-500">No onboarding progress for this participant.</p>}
+        </div>
       </section>
 
       {/* Journey */}

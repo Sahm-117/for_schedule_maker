@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import IntroComposer from '../discussion/IntroComposer';
 import Spinner from '../Spinner';
 import DiscussionFeedView, { type DiscussionActions } from '../discussion/DiscussionFeedView';
 import { participantAppApi } from '../../services/api';
-import type { DiscussionFeed } from '../../types';
+import type { DiscussionFeed, OnboardingState } from '../../types';
 
 // My Group → Discussion: just the participant, their group and their support.
 const ACTIONS: DiscussionActions = {
@@ -13,7 +15,10 @@ const ACTIONS: DiscussionActions = {
   report: (postId, reason) => participantAppApi.discussionReport(postId, reason),
 };
 
-const ParticipantDiscussionTab: React.FC<{ viewerName: string; viewerAvatarUrl?: string | null }> = ({ viewerName, viewerAvatarUrl }) => {
+const ParticipantDiscussionTab: React.FC<{ viewerName: string; viewerAvatarUrl?: string | null; viewerGender?: string | null }> = ({ viewerName, viewerAvatarUrl, viewerGender }) => {
+  const [searchParams] = useSearchParams();
+  const introRequested = searchParams.get('intro') === '1';
+  const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [feed, setFeed] = useState<DiscussionFeed | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -25,6 +30,7 @@ const ParticipantDiscussionTab: React.FC<{ viewerName: string; viewerAvatarUrl?:
       setError('');
       // They're looking at it, so nothing here is new any more.
       participantAppApi.discussionMarkSeen().catch(() => {});
+      participantAppApi.getOnboardingState().then(setOnboarding).catch(() => {});
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load the discussion.');
     } finally {
@@ -60,6 +66,9 @@ const ParticipantDiscussionTab: React.FC<{ viewerName: string; viewerAvatarUrl?:
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[13px] text-gray-500">Just you, your group and your support{feed.supportName ? `, ${feed.supportName}` : ''}.</p>
+      {onboarding && onboarding.supportIntroPosted && !onboarding.introPosted && (
+        <IntroComposer name={viewerName} avatarUrl={viewerAvatarUrl} label={viewerGender} autoFocus={introRequested} send={(body) => participantAppApi.discussionIntro(body)} onPosted={load} />
+      )}
       <DiscussionFeedView
         feed={feed}
         actions={ACTIONS}

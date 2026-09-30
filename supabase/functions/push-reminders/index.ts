@@ -898,33 +898,36 @@ Deno.serve(async (req) => {
           const { data: week1 } = await supabase.from('Week').select('weekNumber, classDate, title').eq('cohortId', cohort.id).eq('weekNumber', 1).maybeSingle()
           const firstClassIso = week1 ? classIsoFor(startIso, week1 as any) : startIso
           if (daysBetweenIso(pToday, firstClassIso) < 1) continue
-          // The Intro Class prep exists when week 1 has a bundled manual, which the app
-          // picks by class title (see manuals/index.ts) -- the database can only see the title.
-          const hasIntro = String((week1 as any)?.title || '').trim().toLowerCase() === 'introductory class'
-
           const { data: accounts } = await supabase
-            .from('ParticipantAccount').select('participantId, participant:Participant!inner(id, cohortId, status, avatarUrl)')
+            .from('ParticipantAccount').select('participantId, participant:Participant!inner(id, cohortId, status)')
             .eq('isActive', true).eq('participant.cohortId', cohort.id).eq('participant.status', 'ACTIVE')
           const rows = (accounts ?? []) as any[]
           if (rows.length === 0) continue
           const ids = rows.map((a) => a.participantId)
-          const [{ data: faithRows }, { data: stepRows }] = await Promise.all([
-            supabase.from('FaithProject').select('participantId, status, updatedAt').in('participantId', ids).order('updatedAt', { ascending: false }),
+          // Where each person stands comes from the same database function the app uses
+          // (introduction posted, support's intro posted, guide read, profile at 100%,
+          // ready confirmed, completed). Service role can call it.
+          const [{ data: stepRows }, stateList] = await Promise.all([
             supabase.from('ParticipantReadyStep').select('participantId, step').in('participantId', ids),
+            Promise.all(ids.map(async (id: string) => {
+              const { data, error } = await supabase.rpc('participant_onboarding_state', { p_participant_id: id })
+              return [id, error ? null : (data as any)] as const
+            })),
           ])
-          const faithStatus = new Map<string, string>()
-          for (const f of (faithRows ?? []) as any[]) if (!faithStatus.has(f.participantId)) faithStatus.set(f.participantId, f.status)
           const doneSteps = new Set(((stepRows ?? []) as any[]).map((r) => `${r.participantId}:${r.step}`))
+          const states = new Map<string, any>(stateList)
 
           // Group people by identical wording: one send per message.
           const byBody = new Map<string, string[]>()
           for (const a of rows) {
+            const st = states.get(a.participantId)
+            if (!st || st.completed) continue
+            const guideRead = !!st.introGuideRead || doneSteps.has(`${a.participantId}:intro`)
             const left: string[] = []
-            if (!String(a.participant?.avatarUrl || '').trim()) left.push('add a profile photo')
-            if (hasIntro && !doneSteps.has(`${a.participantId}:intro`)) left.push('prep for the Intro Class')
-            const faith = faithStatus.get(a.participantId)
-            if (!faith || faith === 'NOT_DRAFTED') left.push('start your faith project')
-            if (!doneSteps.has(`${a.participantId}:people`)) left.push('meet your cohort')
+            if (st.supportIntroPosted && !st.introPosted) left.push('introduce yourself')
+            if (!guideRead) left.push('read the Intro Class guide')
+            if (!st.profileComplete) left.push('finish your profile')
+            if (left.length === 0 && st.introPosted && !st.readyConfirmed) left.push("confirm you're ready for class")
             if (left.length === 0) continue
             const body = `Still to do: ${left.join(', ')}`
             byBody.set(body, [...(byBody.get(body) ?? []), a.participantId])

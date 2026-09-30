@@ -8,36 +8,23 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
+import OnboardingStepPills from '../components/OnboardingStepPills';
 import {
-  groupOnboardingStatusApi,
+  groupDiscussionApi,
   messageTemplatesApi,
   onboardingEventsApi,
-  participantOnboardingStatusApi,
   usersApi,
 } from '../services/api';
 import Spinner from '../components/Spinner';
 import { buildTemplatePlaceholderSummary } from '../utils/followUps';
 import { formatDateTime } from '../utils/time';
 import { sortByText } from '../utils/sort';
-import type { GroupOnboardingStatus, MessageTemplate, OnboardingEvent, ParticipantOnboardingStatus, User } from '../types';
+import type { MessageTemplate, OnboardingEvent, OnboardingProgress, User } from '../types';
 
 const inputClass =
   'w-full rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20';
 
 type TemplateTab = 'ONBOARDING' | 'COORDINATOR';
-type ParticipantKey = 'contacted' | 'addedToGroup' | 'introductionDone' | 'venueAcknowledged';
-
-const PARTICIPANT_KEYS: ParticipantKey[] = ['contacted', 'addedToGroup', 'introductionDone', 'venueAcknowledged'];
-
-const countChecklistSteps = (status: GroupOnboardingStatus, participantStatuses: ParticipantOnboardingStatus[]) =>
-  [
-    !!status.groupCreated,
-    participantStatuses.length > 0 && participantStatuses.every((entry) => entry.contacted),
-    participantStatuses.length > 0 && participantStatuses.every((entry) => entry.addedToGroup),
-    participantStatuses.length > 0 && participantStatuses.every((entry) => entry.introductionDone),
-    participantStatuses.length > 0 && participantStatuses.every((entry) => entry.venueAcknowledged),
-  ].filter(Boolean).length;
-
 const describeEvent = (event: OnboardingEvent) => {
   switch (event.type) {
     case 'GROUP_ASSIGNED':
@@ -69,8 +56,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
   const { activeCohort } = useAppData();
   const [templateTab, setTemplateTab] = useState<TemplateTab>('ONBOARDING');
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
-  const [statuses, setStatuses] = useState<GroupOnboardingStatus[]>([]);
-  const [participantStatuses, setParticipantStatuses] = useState<ParticipantOnboardingStatus[]>([]);
+  const [cohortProgress, setCohortProgress] = useState<OnboardingProgress>({ groups: [], participants: [] });
   const [events, setEvents] = useState<OnboardingEvent[]>([]);
   const [supportUsers, setSupportUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,17 +101,14 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
         });
 
         if (activeCohortId) {
-          const [statusRes, participantStatusRes, eventRes] = await Promise.all([
-            groupOnboardingStatusApi.getForCohort(activeCohortId),
-            participantOnboardingStatusApi.getForCohort(activeCohortId),
+          const [progressRes, eventRes] = await Promise.all([
+            groupDiscussionApi.cohortOnboardingProgress(activeCohortId).catch(() => ({ groups: [], participants: [] } as OnboardingProgress)),
             onboardingEventsApi.getForCohort(activeCohortId),
           ]);
-          setStatuses(statusRes.statuses);
-          setParticipantStatuses(participantStatusRes.statuses);
+          setCohortProgress(progressRes);
           setEvents(eventRes.events);
         } else {
-          setStatuses([]);
-          setParticipantStatuses([]);
+          setCohortProgress({ groups: [], participants: [] });
           setEvents([]);
         }
       } catch {
@@ -141,50 +124,35 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
     [templateTab, templates]
   );
 
-  const groupedParticipantStatuses = useMemo(() => {
-    const map = new Map<string, ParticipantOnboardingStatus[]>();
-    participantStatuses.forEach((status) => {
-      if (!status.groupId) return;
-      const existing = map.get(status.groupId) ?? [];
-      existing.push(status);
-      map.set(status.groupId, existing);
-    });
-    return map;
-  }, [participantStatuses]);
-
   const groupCollator = useMemo(() => new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }), []);
 
-  const groupSummaries = useMemo(() => [...statuses]
+  const groupSummaries = useMemo(() => [...cohortProgress.groups]
     .sort((a, b) => groupCollator.compare(a.groupName || '', b.groupName || ''))
-    .map((status) => {
-    const members = groupedParticipantStatuses.get(status.groupId) ?? [];
-    const stepsDone = countChecklistSteps(status, members);
-    const participantCount = status.participantCount ?? members.length;
-    const completedParticipants = members.filter((entry) => PARTICIPANT_KEYS.every((key) => !!entry[key])).length;
-    return {
-      status,
-      members,
-      stepsDone,
-      pct: Math.round((stepsDone / 5) * 100),
-      participantCount,
-      completedParticipants,
-      completed: !!status.groupCreated && participantCount > 0 && completedParticipants === participantCount,
-    };
-  }), [groupCollator, groupedParticipantStatuses, statuses]);
+    .map((group) => {
+      const members = cohortProgress.participants
+        .filter((entry) => entry.groupId === group.groupId)
+        .sort((a, b) => groupCollator.compare(a.name, b.name));
+      const readyCount = members.filter((entry) => entry.completed).length;
+      return {
+        group,
+        members,
+        participantCount: members.length,
+        readyCount,
+        completed: members.length > 0 && readyCount === members.length,
+      };
+    }), [groupCollator, cohortProgress]);
 
   const groupOptions = useMemo(
     () => [
       { value: '', label: 'All groups' },
-      ...[...statuses]
-        .sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.groupName || '', b.groupName || ''))
-        .map((s) => ({ value: s.groupId, label: s.groupName || 'Group' })),
+      ...groupSummaries.map((s) => ({ value: s.group.groupId, label: s.group.groupName || 'Group' })),
     ],
-    [statuses]
+    [groupSummaries]
   );
 
   const visibleGroupSummaries = useMemo(
     () => groupSummaries.filter((s) => {
-      if (groupFilter && s.status.groupId !== groupFilter) return false;
+      if (groupFilter && s.group.groupId !== groupFilter) return false;
       if (statusFilter === 'completed') return s.completed;
       if (statusFilter === 'in_progress') return !s.completed;
       return true;
@@ -195,7 +163,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
 
   const progress = useMemo(() => {
     const totalParticipants = groupSummaries.reduce((sum, summary) => sum + summary.participantCount, 0);
-    const onboardedParticipants = groupSummaries.reduce((sum, summary) => sum + (summary.completed ? summary.participantCount : 0), 0);
+    const onboardedParticipants = groupSummaries.reduce((sum, summary) => sum + summary.readyCount, 0);
     const completedGroups = groupSummaries.filter((summary) => summary.completed).length;
     return {
       totalParticipants,
@@ -330,7 +298,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
               </h2>
               <p className="mt-1 text-sm text-gray-500">
                 {activeCohort
-                  ? `${progress.onboardedParticipants} of ${progress.totalParticipants} participants are in fully onboarded groups.`
+                  ? `${progress.onboardedParticipants} of ${progress.totalParticipants} participants are onboarded.`
                   : 'Progress cards fill in when an active cohort is selected.'}
               </p>
             </div>
@@ -454,7 +422,7 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Group status</p>
               <h3 className="mt-1 text-lg font-bold text-gray-900">Progress by group</h3>
             </div>
-            {statuses.length > 0 && (
+            {groupSummaries.length > 0 && (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5">
                 <div className="min-w-0">
                   <AppSelect
@@ -484,36 +452,32 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
             </div>
           ) : (
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                {visibleGroupSummaries.map(({ status, pct, participantCount, completed, completedParticipants, members }) => {
-                  return (
-                    <div key={status.groupId} className="surface-card p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-base font-bold text-gray-900">{status.groupName}</p>
-                          <p className="mt-1 text-sm text-gray-500">{status.supportName || 'No support assigned'} • {participantCount} participant{participantCount === 1 ? '' : 's'}</p>
-                        </div>
-                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${completed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {completed ? 'Completed' : `${pct}% done`}
-                        </span>
+                {visibleGroupSummaries.map(({ group, members, participantCount, readyCount, completed }) => (
+                  <div key={group.groupId} className="surface-card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-base font-bold text-gray-900">{group.groupName}</p>
+                        <p className="mt-1 text-sm text-gray-500">{group.supportName || 'No support assigned'} • {participantCount} participant{participantCount === 1 ? '' : 's'}</p>
                       </div>
-                      <div className="mt-4 space-y-2 text-sm text-gray-600">
-                        <StatusLine label="Group created" checked={status.groupCreated} />
-                        <StatusLine label="All contacted" checked={members.length > 0 && members.every((entry) => entry.contacted)} />
-                        <StatusLine label="All added to group" checked={members.length > 0 && members.every((entry) => entry.addedToGroup)} />
-                        <StatusLine label="All introductions done" checked={members.length > 0 && members.every((entry) => entry.introductionDone)} />
-                        <StatusLine label="All venue acknowledged" checked={members.length > 0 && members.every((entry) => entry.venueAcknowledged)} />
-                      </div>
-                      <p className="mt-4 text-xs text-gray-500">
-                        {completedParticipants} of {participantCount} participants fully onboarded.
-                      </p>
-                      {status.updatedAt && (
-                        <p className="mt-4 text-xs text-gray-400">
-                          Last updated by {status.updatedByName || 'a support'} on {formatDateTime(status.updatedAt)}.
-                        </p>
-                      )}
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${completed ? 'bg-emerald-100/80 text-emerald-700' : 'bg-amber-100/80 text-amber-700'}`}>
+                        {readyCount} of {participantCount} ready
+                      </span>
                     </div>
-                  );
-                })}
+                    <div className="mt-3">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${group.supportIntroPosted ? 'bg-emerald-100/80 text-emerald-700' : 'bg-neutral-100 text-neutral-600'}`}>
+                        {group.supportIntroPosted ? 'Support intro posted' : 'Support intro not posted'}
+                      </span>
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      {members.map((member) => (
+                        <div key={member.participantId}>
+                          <p className="mb-1 text-sm font-semibold text-gray-800">{member.name}</p>
+                          <OnboardingStepPills state={member} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
         </section>
@@ -686,17 +650,6 @@ const MetricCard: React.FC<{ label: string; value: React.ReactNode; tone: string
   <div className={`rounded-2xl px-4 py-3 ${tone}`}>
     <p className="text-xs font-semibold uppercase tracking-wide opacity-70">{label}</p>
     <p className="mt-1 text-2xl font-bold">{value}</p>
-  </div>
-);
-
-const StatusLine: React.FC<{ label: string; checked: boolean }> = ({ label, checked }) => (
-  <div className="flex items-center gap-2">
-    <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${checked ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="m5 13 4 4L19 7" />
-      </svg>
-    </span>
-    <span>{label}</span>
   </div>
 );
 

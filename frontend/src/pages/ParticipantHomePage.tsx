@@ -4,11 +4,14 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import Avatar from '../components/Avatar';
 import AttendanceCountdownCard from '../components/participantApp/AttendanceCountdownCard';
+import ConfettiBurst from '../components/participantApp/ConfettiBurst';
+import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
 import { useManualContent } from '../components/classManual/manuals';
 import { useAuth } from '../hooks/useAuth';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { participantAppApi } from '../services/api';
+import type { OnboardingState } from '../types';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
 import { normalizeLink } from '../utils/links';
@@ -16,8 +19,6 @@ import {
   FAITH_PROJECT_PARTICIPANT_LABEL,
   currentWeekNumber,
   formatTime,
-  hasDoneReadyStep,
-  markReadyStepDone,
   nextClassWeek,
   reflectionFor,
   scriptureDayIndex,
@@ -46,6 +47,8 @@ const ICON_MESSAGE = 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8-1.2
 const ICON_RESOURCES = 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z';
 const ICON_FEEDBACK = 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z';
 
+const confettiKey = (participantId: string) => `fof_ready_confetti_${participantId}`;
+
 const formatDateLabel = (date: Date) => date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 const ParticipantHomePage: React.FC = () => {
@@ -59,7 +62,9 @@ const ParticipantHomePage: React.FC = () => {
   const [scriptureDragPx, setScriptureDragPx] = useState(0);
   const [scriptureAnimating, setScriptureAnimating] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
-  const [serverSteps, setServerSteps] = useState<string[]>([]);
+  const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [confetti, setConfetti] = useState(false);
   const scriptureTrackRef = useRef<HTMLDivElement>(null);
   const scriptureDrag = useRef<{ pointerId: number; x: number; y: number; time: number } | null>(null);
 
@@ -75,21 +80,14 @@ const ParticipantHomePage: React.FC = () => {
   // Intro Class reader for the pre-start Get ready list (week 1's class).
   const introManual = useManualContent(home?.weeks.find((w) => w.weekNumber === 1)?.title);
 
-  // Get ready steps kept on the server (the 7pm reminder reads them). Loaded once while
-  // before the start; anything ticked only on this phone is sent up. Failures stay silent.
+  // The four Get ready steps, kept on the server (the 7pm reminder reads them too).
   const readyId = home?.participant.id;
   const readyPreStart = !!home && currentWeekNumber(home.cohort?.startDate, now, home.weeks) < 1 && home.cohort?.status !== 'COMPLETED';
   useEffect(() => {
     if (!readyId || !readyPreStart) return;
     let cancelled = false;
-    participantAppApi.getReadySteps()
-      .then((steps) => {
-        if (cancelled) return;
-        setServerSteps(steps);
-        (['intro', 'people'] as const).forEach((step) => {
-          if (!steps.includes(step) && hasDoneReadyStep(step, readyId)) void Promise.resolve(participantAppApi.markReadyStep(step)).catch(() => { /* ignore */ });
-        });
-      })
+    participantAppApi.getOnboardingState()
+      .then((state) => { if (!cancelled) setOnboarding(state); })
       .catch(() => { /* ignore */ });
     return () => { cancelled = true; };
   }, [readyId, readyPreStart]);
@@ -161,16 +159,47 @@ const ParticipantHomePage: React.FC = () => {
   const preStart = !started && home.cohort?.status !== 'COMPLETED';
   const faithStarted = !!home.faithProjectStatus && home.faithProjectStatus !== 'NOT_DRAFTED';
   const openIntro = () => {
-    markReadyStepDone('intro', home.participant.id);
     setIntroOpen(true);
+    if (onboarding && !onboarding.introGuideRead) setOnboarding({ ...onboarding, introGuideRead: true });
+    void Promise.resolve(participantAppApi.markIntroGuideRead()).catch(() => { /* ignore */ });
   };
-  const readyItems: Array<{ key: string; label: string; to?: string; onClick?: () => void; done: boolean }> = [
-    ...(!home.profile.avatarUrl ? [{ key: 'photo', label: 'Add a profile photo', to: '/me/profile', done: false }] : []),
-    ...(introManual ? [{ key: 'intro', label: 'Prep for the Intro Class', onClick: openIntro, done: serverSteps.includes('intro') || hasDoneReadyStep('intro', home.participant.id) }] : []),
-    { key: 'faith', label: 'Start your faith project', to: '/me/faith', done: faithStarted },
-    { key: 'people', label: 'Meet your cohort', to: '/me/people', done: serverSteps.includes('people') || hasDoneReadyStep('people', home.participant.id) },
-  ];
+  const readyItems: Array<{ key: string; label: string; sub?: string; to?: string; onClick?: () => void; done: boolean }> = onboarding ? [
+    {
+      key: 'introduce',
+      label: 'Introduce yourself',
+      sub: !onboarding.introPosted && !onboarding.supportIntroPosted ? 'Waiting for your support to start introductions' : undefined,
+      to: onboarding.supportIntroPosted || onboarding.introPosted ? '/me/group?tab=discussion&intro=1' : undefined,
+      done: onboarding.introPosted,
+    },
+    { key: 'guide', label: 'Read the Intro Class guide', onClick: introManual ? openIntro : undefined, sub: introManual ? undefined : 'Not available yet', done: onboarding.introGuideRead },
+    {
+      key: 'profile',
+      label: 'Finish your profile',
+      sub: onboarding.profileComplete ? undefined : `${onboarding.profileMissing} ${onboarding.profileMissing === 1 ? 'thing' : 'things'} left`,
+      to: '/me/profile',
+      done: onboarding.profileComplete,
+    },
+  ] : [];
   const readyDone = readyItems.filter((item) => item.done).length;
+  const allThreeDone = readyItems.length === 3 && readyDone === 3;
+
+  const confirmReady = async () => {
+    setConfirming(true);
+    try {
+      const next = await participantAppApi.confirmReady();
+      setOnboarding(next);
+      let seen = false;
+      try { seen = localStorage.getItem(confettiKey(home.participant.id)) === '1'; } catch { /* ignore */ }
+      if (!seen) {
+        setConfetti(true);
+        try { localStorage.setItem(confettiKey(home.participant.id), '1'); } catch { /* ignore */ }
+      }
+    } catch (err) {
+      toast({ message: err instanceof Error ? err.message : 'Could not save your step.', tone: 'error' });
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   // Whole Lagos calendar days until the first class.
   const firstClassDate = home.cohort?.startDate
@@ -440,30 +469,54 @@ const ParticipantHomePage: React.FC = () => {
 
         {preStart && (
           <section data-wt="ph-get-ready" className={CARD}>
+            {!onboarding ? (
+              <div className="flex justify-center py-4"><Spinner /></div>
+            ) : onboarding.readyConfirmed || onboarding.completed ? (
+              <div className="flex items-center gap-3">
+                <span className="grid h-8 w-8 flex-none place-items-center rounded-full bg-emerald-500 text-white" aria-hidden="true">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 12 5 5L20 7" /></svg>
+                </span>
+                <h2 className="text-lg font-bold text-gray-900">You're ready for class 🎉</h2>
+              </div>
+            ) : (
+              <>
             <div className="flex items-baseline gap-2">
               <h2 className="text-lg font-bold text-gray-900">Get ready</h2>
-              <span className="ml-auto text-xs font-semibold text-gray-500">{readyDone} of {readyItems.length} done</span>
+              <span className="ml-auto text-xs font-semibold text-gray-500">{readyDone} of 4 done</span>
             </div>
             <div className="mt-3 flex flex-col gap-2">
               {readyItems.map((item) => {
-                const rowClass = 'flex min-h-[48px] w-full items-center gap-3 rounded-[14px] border border-[#f1f2f5] px-3.5 py-3 text-left hover:border-[#ffdeca]';
+                const tappable = !!(item.onClick || item.to);
+                const rowClass = `flex min-h-[48px] w-full items-center gap-3 rounded-[14px] border border-[#f1f2f5] px-3.5 py-3 text-left ${tappable ? 'hover:border-[#ffdeca]' : 'opacity-70'}`;
                 const row = (
                   <>
                   <span className={`grid h-6 w-6 flex-none place-items-center rounded-full ${item.done ? 'bg-emerald-500 text-white' : 'border-2 border-gray-300'}`} aria-hidden="true">
                     {item.done && <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 12 5 5L20 7" /></svg>}
                   </span>
-                  <span className={`text-sm font-semibold ${item.done ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{item.label}</span>
+                  <span className="min-w-0">
+                    <span className={`block text-sm font-semibold ${item.done ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{item.label}</span>
+                    {item.sub && !item.done && <span className="block text-xs text-gray-500">{item.sub}</span>}
+                  </span>
                   <span className="sr-only">{item.done ? '(done)' : ''}</span>
-                  <span className="ml-auto text-gray-300" aria-hidden="true">&#8250;</span>
+                  {tappable && <span className="ml-auto text-gray-300" aria-hidden="true">&#8250;</span>}
                   </>
                 );
-                return item.onClick ? (
-                  <button key={item.key} type="button" onClick={item.onClick} className={rowClass}>{row}</button>
-                ) : (
-                  <NavLink key={item.key} to={item.to ?? '/me'} className={rowClass}>{row}</NavLink>
-                );
+                if (item.onClick) return <button key={item.key} type="button" onClick={item.onClick} className={rowClass}>{row}</button>;
+                if (item.to) return <NavLink key={item.key} to={item.to} className={rowClass}>{row}</NavLink>;
+                return <div key={item.key} className={rowClass}>{row}</div>;
               })}
+              <button
+                type="button"
+                onClick={() => void confirmReady()}
+                disabled={!allThreeDone || confirming}
+                className="mt-1 flex min-h-[48px] w-full items-center gap-3 rounded-[14px] bg-primary px-3.5 py-3 text-left text-sm font-semibold text-white disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                {confirming ? <Spinner className="h-4 w-4" /> : <span className="grid h-6 w-6 flex-none place-items-center rounded-full border-2 border-current" aria-hidden="true" />}
+                <span>I have all I need to be ready for class{firstClassDate ? ` on ${formatDateLabel(firstClassDate)}` : ''}</span>
+              </button>
             </div>
+              </>
+            )}
           </section>
         )}
 
@@ -565,6 +618,7 @@ const ParticipantHomePage: React.FC = () => {
           </section>
         )}
       </div>
+      {confetti && <ConfettiBurst onDone={() => setConfetti(false)} />}
       {introOpen && introManual && <ClassManualReader content={introManual} onClose={() => setIntroOpen(false)} />}
     </div>
   );

@@ -1347,6 +1347,9 @@ export interface DiscussionAuthor {
   id: string;
   name: string;
   avatarUrl?: string | null;
+  /** Participants only (read live from their profile). */
+  gender?: string | null;
+  isSupport?: boolean;
 }
 
 /** Someone who can be @-tagged in a group's discussion. */
@@ -1369,6 +1372,8 @@ export interface DiscussionReply {
 }
 
 export interface DiscussionPost extends DiscussionReply {
+  /** 'INTRO' = an onboarding introduction (one per person per group). */
+  kind: 'POST' | 'INTRO';
   pinned: boolean;
   pinnedByName: string | null;
   likeCount: number;
@@ -1391,6 +1396,41 @@ export interface DiscussionFeed {
   posts: DiscussionPost[];
   hasMore: boolean;
   openReports: Array<{ postId: string; count: number; reasons: DiscussionReportReason[] }>;
+}
+
+/** Where one participant stands on the four onboarding steps (participant_onboarding_state). */
+export interface OnboardingState {
+  introPosted: boolean;
+  supportIntroPosted: boolean;
+  introGuideRead: boolean;
+  profileComplete: boolean;
+  profileMissing: number;
+  readyConfirmed: boolean;
+  completed: boolean;
+  /** First class date, YYYY-MM-DD (null if the cohort has none). */
+  firstClassDate: string | null;
+}
+
+export interface OnboardingProgressParticipant extends OnboardingState {
+  participantId: string;
+  name: string;
+  avatarUrl: string | null;
+  groupId: string | null;
+  groupName: string | null;
+}
+
+export interface OnboardingProgressGroup {
+  groupId: string;
+  groupName: string;
+  supportId: string | null;
+  supportName: string | null;
+  supportIntroPosted: boolean;
+}
+
+/** group_onboarding_progress / cohort_onboarding_progress. */
+export interface OnboardingProgress {
+  groups: OnboardingProgressGroup[];
+  participants: OnboardingProgressParticipant[];
 }
 
 /** "Discussion this week" on the group view (group_discussion_activity). */
