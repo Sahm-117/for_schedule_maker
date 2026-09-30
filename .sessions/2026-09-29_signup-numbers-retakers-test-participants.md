@@ -98,3 +98,11 @@ The admin Dashboard's sign-up cards disagreed with Follow-ups → Overview. Trac
 - Backend (applied live, `20260930270000_staff_app_state.sql`): `UserAppState` table (locked), `record_user_app_state`, `record_user_setup_sheet`, admin-only `users_without_app`. Admin Users page shows a "Not installed" tag beside "No alerts". Verified against the live API: no session → refused, table read 401.
 - Fix for participants too: the sheet no longer flashes before the server has answered (`serverReady`), so someone who already has the app never sees it open and close.
 - Fix (user report on the installed PWA): after turning notifications on, the Home banner stayed until a refresh, because the sheet, banner, Profile card and shell each kept their own copy of the install/notification reading. `useAppSetup` now reads one shared store (`refreshAppSetup`), refreshed on permission change, focus, visibility, appinstalled and after enabling. The banner's sheet also stays open to show "You are all set" instead of vanishing with the banner.
+
+## 30 Sep: Planner church events (b28d16d, pushed)
+- The long "⛔ Combined Service 20 Dec · no FOF" pill was clipped behind the row heading at Quarter zoom. Church events are now date-only pills (`AdminPlannerPage`); no-FOF events have a pulsing red dot, and the class-clash "!" markers pulse. Tap opens the event sheet (or clash sheet). Legend gained "No FOF (tap for details)". No backend change.
+
+## Open at end of session
+- Commit author: kept `Sam <tisnotaname@gmail.com>` per AGENTS.md; the stop hook wants `Claude <noreply@anthropic.com>` and flags these commits as Unverified. User has not chosen.
+- Open data items: Beulah Yalokwu vs Chris Ayomide (same number), Abisola Alabi vs Abimbola Alabi.
+- Merged preview branches on GitHub can be deleted by the user (list in earlier notes).
