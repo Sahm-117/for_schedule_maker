@@ -2294,6 +2294,8 @@ window.GUIDE_CONTENT = {
         "Tap the search box. It moves up to the top of the screen so you can see the names under it.",
         "Type a name or number. The list narrows as you type.",
         "Tap the **X** in the box to clear it and search again.",
+        "Tap the **filter** icon beside the box to show only certain stages, for example **Login not shared yet** or **Logged in**. Tap the **X** that appears next to it to clear the filters.",
+        "Tap the small green **WhatsApp** badge beside a support's name to message them about that person, for example to ask if they need help.",
         "Tap the refresh button to fetch the newest sign-ups."
        ],
        "result": "You see when each person signed up, who is following them up, and how far they are: **Login not shared yet**, **Login shared**, **Issue with login** or **Logged in**. Check here before asking the back office.",

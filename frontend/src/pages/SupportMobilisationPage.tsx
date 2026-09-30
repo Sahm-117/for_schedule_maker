@@ -34,6 +34,7 @@ import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
 import { compareText, sortByText } from '../utils/sort';
 import LoginDetailsCard from '../components/participants/LoginDetailsCard';
 import FormQuestionBox from '../components/followups/FormQuestionBox';
+import SignUpStageFilter from '../components/followups/SignUpStageFilter';
 import { emailLoginDetails, hasLoginToSend } from '../utils/loginEmail';
 
 type MobTab = 'register' | 'follow' | 'it';
@@ -91,6 +92,17 @@ const SIGN_UP_STAGE: Partial<Record<FollowUpRegistrationStatus, { label: string;
   ACCESS_CONFIRMED: { label: 'Logged in', tone: 'bg-emerald-600 text-white' },
   NEXT_COHORT: { label: 'Next cohort', tone: 'bg-violet-100/80 text-violet-700' },
 };
+// Filter choices: the stages above, plus people nobody is following up yet.
+const SIGN_UP_FILTERS: Array<{ value: string; label: string }> = [
+  { value: 'REGISTERED', label: 'Login not shared yet' },
+  { value: 'LOGIN_SHARED', label: 'Login shared' },
+  { value: 'LOGIN_ISSUE', label: 'Issue with login' },
+  { value: 'ACCESS_CONFIRMED', label: 'Logged in' },
+  { value: 'NEXT_COHORT', label: 'Next cohort' },
+  { value: '__unassigned__', label: 'Waiting to be assigned' },
+];
+const signUpInStage = (row: { contactId: string | null; contactStatus: FollowUpRegistrationStatus | null; contactOwnerName: string | null }, stage: string) =>
+  stage === '__unassigned__' ? !!row.contactId && !row.contactOwnerName : row.contactStatus === stage;
 const signUpStageChip = (status: FollowUpRegistrationStatus | null) => {
   const stage = status ? SIGN_UP_STAGE[status] : null;
   return stage ? <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${stage.tone}`}>{stage.label}</span> : null;
@@ -136,6 +148,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [prospect, setProspect] = useState(EMPTY_PROSPECT);
   const [signUps, setSignUps] = useState<FormRegistration[]>([]);
   const [signUpSearch, setSignUpSearch] = useState('');
+  // Follow-up stages ticked in the filter (empty = everyone).
+  const [signUpStages, setSignUpStages] = useState<string[]>([]);
   // On a phone the keyboard covers the list under the search box. When it's
   // tapped, bring the box up under the header so the names show as they filter.
   const signUpSearchRef = useRef<HTMLInputElement | null>(null);
@@ -468,12 +482,18 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   }, [signUps]);
   const visibleSignUps = useMemo(() => {
     const needle = signUpSearch.trim().toLowerCase();
-    if (!needle) return signUpPeople;
     const digits = needle.replace(/\D/g, '');
-    return signUpPeople.filter((row) =>
-      row.allNames.some((name) => name.toLowerCase().includes(needle))
-      || (digits.length >= 3 && row.phone.replace(/\D/g, '').includes(digits)));
-  }, [signUpPeople, signUpSearch]);
+    return signUpPeople.filter((row) => {
+      if (signUpStages.length > 0 && !signUpStages.some((stage) => signUpInStage(row, stage))) return false;
+      if (!needle) return true;
+      return row.allNames.some((name) => name.toLowerCase().includes(needle))
+        || (digits.length >= 3 && row.phone.replace(/\D/g, '').includes(digits));
+    });
+  }, [signUpPeople, signUpSearch, signUpStages]);
+  const signUpStageOptions = useMemo(
+    () => SIGN_UP_FILTERS.map((option) => ({ ...option, count: signUpPeople.filter((row) => signUpInStage(row, option.value)).length })),
+    [signUpPeople],
+  );
 
   const prospectNameError = prospectTouched && !prospect.fullName.trim();
   const prospectPhoneError = prospectTouched && !prospect.phone.trim()
@@ -698,13 +718,14 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               <p className="mt-1 text-[13px] leading-normal text-gray-500">Everyone who filled in the registration form. Check here before asking the back office.</p>
 
               {signUps.length > 0 && (
-                <div className="relative mt-3 scroll-mt-28">
+                <div className="mt-3 flex items-center gap-2">
+                <div className="relative min-w-0 flex-1 scroll-mt-28">
                   <input
                     ref={signUpSearchRef}
                     value={signUpSearch}
                     onChange={(e) => setSignUpSearch(e.target.value)}
                     onFocus={bringSignUpSearchUp}
-                    placeholder="Search by name or number"
+                    placeholder="Search name or number"
                     className={`${INPUT} scroll-mt-28 pr-11`}
                   />
                   {signUpSearch && (
@@ -720,15 +741,17 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                     </button>
                   )}
                 </div>
+                <SignUpStageFilter options={signUpStageOptions} values={signUpStages} onChange={setSignUpStages} />
+                </div>
               )}
 
               {/* While searching, hold this area's height so the page doesn't shrink
                   (and jump) as fewer names match. */}
-              <div className={signUpSearch.trim() ? 'min-h-[min(60vh,32rem)]' : ''}>
+              <div className={signUpSearch.trim() || signUpStages.length > 0 ? 'min-h-[min(60vh,32rem)]' : ''}>
               {signUps.length === 0 ? (
                 <p className="mt-3 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">Nobody has signed up on the form yet.</p>
               ) : visibleSignUps.length === 0 ? (
-                <p className="mt-3 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">Nobody matching “{signUpSearch.trim()}” has signed up.</p>
+                <p className="mt-3 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">{signUpSearch.trim() ? `Nobody matching “${signUpSearch.trim()}”` : 'Nobody'}{signUpStages.length > 0 ? ' at those stages' : ''} has signed up.</p>
               ) : (
                 // Everyone who ever signed up lives here, so the list is capped at
                 // roughly five cards and scrolls. The fade tells you there's more.
@@ -758,7 +781,30 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                         )}
                         {signUpStageChip(row.contactStatus)}
                         {row.contactOwnerName ? (
-                          <span className="text-[11px] font-semibold text-gray-500">Followed up by {row.contactOwnerName}</span>
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500">
+                            Followed up by {row.contactOwnerName}
+                            {(() => {
+                              // A shortcut to ask the support how it's going. Not shown on your own follow-ups.
+                              if (!row.contactOwnerPhone || row.contactOwnerId === user?.id) return null;
+                              const message = `Hi ${row.contactOwnerName.split(' ')[0]}, it's ${user?.name ?? 'a fellow support'}. I saw ${row.fullName} in the sign-up list and you're following them up. Any challenge I can help with?`;
+                              const link = buildWhatsAppLink(row.contactOwnerPhone, message);
+                              return link ? (
+                                <a
+                                  href={link}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  aria-label={`Message ${row.contactOwnerName} on WhatsApp`}
+                                  title={`Message ${row.contactOwnerName} on WhatsApp`}
+                                  className="inline-grid h-5 w-5 place-items-center rounded-full bg-[#25d366] text-white"
+                                >
+                                  <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3" aria-hidden="true">
+                                    <path d="M12.032 21.965c-1.922 0-3.805-.537-5.414-1.556l-3.633.954.995-3.513a9.939 9.939 0 0 1-1.653-5.534c0-5.523 4.5-10.023 10.023-10.023 2.685 0 5.208 1.045 7.104 2.942a9.975 9.975 0 0 1 2.941 7.104c0 5.522-4.5 10.022-10.023 10.022l-.34-.003v-.001Zm0-18.524c-4.7 0-8.524 3.823-8.524 8.523 0 1.87.606 3.674 1.741 5.16l-1.144 4.035 4.172-1.115a8.54 8.54 0 0 0 4.755 1.443c4.7 0 8.523-3.823 8.523-8.523 0-2.278-.888-4.419-2.5-6.03a8.534 8.534 0 0 0-6.023-2.493Z" />
+                                    <path d="M17.507 14.307c-.269-.134-1.592-.785-1.838-.874-.247-.09-.427-.134-.607.134-.179.27-.696.875-.854 1.055-.157.18-.314.202-.583.067-.27-.134-1.137-.418-2.165-1.335-.8-.713-1.34-1.594-1.497-1.863-.157-.27-.016-.415.118-.55.12-.119.27-.313.404-.47.135-.156.18-.269.27-.448.09-.18.045-.336-.022-.47-.067-.135-.607-1.46-.832-2-.22-.525-.445-.437-.607-.445-.157-.008-.336-.01-.516-.01-.18 0-.472.067-.72.336-.247.27-.944.923-.944 2.252 0 1.33.966 2.614 1.102 2.794.135.18 1.902 2.906 4.61 4.075 2.707 1.168 2.707.78 3.195.73.494-.05 1.588-.645 1.812-1.27.224-.623.224-1.157.157-1.27-.067-.112-.247-.18-.516-.314Z" />
+                                  </svg>
+                                </a>
+                              ) : null;
+                            })()}
+                          </span>
                         ) : row.contactId ? (
                           <span className="text-[11px] font-semibold text-gray-500">Waiting to be assigned</span>
                         ) : null}
