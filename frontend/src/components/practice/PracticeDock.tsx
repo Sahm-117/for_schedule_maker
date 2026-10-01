@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import ModalShell from '../followups/ModalShell';
 import PracticeChecklist from './PracticeChecklist';
 import PracticeTogether from './PracticeTogether';
@@ -6,7 +7,7 @@ import PeerWalkthroughSheet from './PeerWalkthroughSheet';
 import SegmentedTabs from '../SegmentedTabs';
 import { useToast } from '../Toast';
 import { practiceApi } from '../../services/api';
-import { PRACTICE_ROLE_LABEL, PRACTICE_SCENARIOS, type PracticeSeat } from '../../constants/practiceScenarios';
+import { PRACTICE_ROLE_LABEL, PRACTICE_SCENARIOS, peerSteps, type PracticeScenario, type PracticeSeat } from '../../constants/practiceScenarios';
 import { enterParticipantView, isInParticipantView, leaveParticipantView } from '../../utils/practiceSwap';
 import type { PracticeMyProgress, PracticePeerActive, PracticeProgressItem, PracticePulse, PracticeRole, PracticeSeatKey } from '../../types';
 
@@ -48,6 +49,10 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
   const [peerOpen, setPeerOpen] = useState(false);
   const [busySeat, setBusySeat] = useState<PracticeSeatKey | null>(null);
   const swapped = mode === 'participant' && isInParticipantView();
+  const location = useLocation();
+  // Steps the person unticked by hand: not ticked again by a visit this session.
+  const unticked = useRef<Set<string>>(new Set());
+  const visited = useRef<Set<string>>(new Set());
 
   const load = useCallback(() => {
     const request = mode === 'staff' ? practiceApi.getMine() : practiceApi.getForParticipant();
@@ -59,7 +64,7 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
     if (!active) { setData(null); return undefined; }
     // Participants wait a moment so the first screen is not slowed for real people.
     const first = window.setTimeout(load, mode === 'participant' ? 1500 : 0);
-    const poll = window.setInterval(() => { if (document.visibilityState === 'visible') load(); }, mode === 'participant' ? 5000 : 15000);
+    const poll = window.setInterval(() => { if (document.visibilityState === 'visible') load(); }, 5000);
     return () => { window.clearTimeout(first); window.clearInterval(poll); };
   }, [active, load, mode]);
 
@@ -69,6 +74,8 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
   const items = data?.items ?? [];
 
   const changeOwn = (key: string, done: boolean, stuck: boolean) => {
+    if (!done && !stuck) { unticked.current.add(key); visited.current.delete(key); }
+    if (done) unticked.current.delete(key);
     setData((prev) => (prev ? { ...prev, items: withChange(prev.items, key, done, stuck) } : prev));
     const save = mode === 'staff' ? practiceApi.setMine(key, done, stuck) : practiceApi.setForParticipant(key, done, stuck);
     save.then(() => { void refreshPulse?.(); if (mode === 'participant') load(); }).catch(load);
@@ -79,6 +86,23 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
     setPartner((prev) => (prev ? { ...prev, myProgress: withChange(prev.myProgress, key, done, stuck) } : prev));
     changeOwn(key, done, stuck);
   };
+
+  // Steps the data can't see are ticked when the person opens the screen.
+  useEffect(() => {
+    if (!active) return;
+    const candidates: PracticeScenario[] = [...(peer ? peerSteps(peer.myRole, peer.partnerRole) : []), ...scenarios].filter((step) => step.visit && step.to);
+    const doneNow = new Set([...items, ...(peer?.myProgress ?? [])].filter((item) => item.doneAt).map((item) => item.key));
+    candidates.forEach((step) => {
+      const [path, query = ''] = step.to!.split('?');
+      const onPath = location.pathname === path || (path !== '/me' && location.pathname.startsWith(`${path}/`));
+      const onTab = !query || location.search.includes(query);
+      if (!onPath || !onTab || doneNow.has(step.key) || unticked.current.has(step.key) || visited.current.has(step.key)) return;
+      visited.current.add(step.key);
+      if (peer && peerSteps(peer.myRole, peer.partnerRole).some((s) => s.key === step.key)) changePeer(step.key, true, false);
+      else changeOwn(step.key, true, false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, location.pathname, location.search, data, partner, pulse?.active?.id]);
 
   const pickSeat = async (key: PracticeSeatKey) => {
     if (busySeat || key === seat) return;

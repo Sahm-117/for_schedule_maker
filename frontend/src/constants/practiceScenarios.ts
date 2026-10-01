@@ -8,6 +8,8 @@ export interface PracticeScenario {
   hint: string;
   /** Where to go to do it. */
   to?: string;
+  /** Ticks by itself when the person opens `to` (steps the data can't see). */
+  visit?: boolean;
 }
 
 export const PRACTICE_ROLE_LABEL: Record<PracticeSeat, string> = {
@@ -23,7 +25,7 @@ export const PRACTICE_ROLE_LABEL: Record<PracticeSeat, string> = {
 // are supports first, so they start with these.
 const SUPPORT_BASE: PracticeScenario[] = [
   { key: 'sup-intro', title: 'Post your introduction to your group', hint: 'In My Group, open the discussion and introduce yourself.', to: '/support/participants' },
-  { key: 'sup-onboarding', title: 'Check how your participants are getting on', hint: 'Open Onboard and look at each person’s steps.', to: '/support/onboarding' },
+  { key: 'sup-onboarding', title: 'Check how your participants are getting on', hint: 'Open Onboard and look at each person’s steps.', to: '/support/onboarding', visit: true },
   { key: 'sup-attendance', title: 'Start class attendance and mark everyone', hint: 'Open Attendance, start the register and mark each person.', to: '/support/attendance' },
   { key: 'sup-post', title: 'Post a message in the group discussion', hint: 'Say something to your group.', to: '/support/participants' },
   { key: 'sup-pin', title: 'Pin a message to the top', hint: 'Pin one of the posts so everyone sees it first.', to: '/support/participants' },
@@ -32,15 +34,15 @@ const SUPPORT_BASE: PracticeScenario[] = [
 export const PRACTICE_SCENARIOS: Record<PracticeSeat, PracticeScenario[]> = {
   SUPPORT: [
     ...SUPPORT_BASE,
-    { key: 'sup-hub', title: 'Open My Hub and find the hub meeting', hint: 'See who leads your hub and when it meets.', to: '/support/my-hub' },
+    { key: 'sup-hub', title: 'Open My Hub and find the hub meeting', hint: 'See who leads your hub and when it meets.', to: '/support/my-hub', visit: true },
   ],
   HUB_LEAD: [
-    { key: 'hl-hub', title: 'Open My Hub and find your supports', hint: 'You lead the hub. See everyone and their roles.', to: '/support/my-hub' },
+    { key: 'hl-hub', title: 'Open My Hub and find your supports', hint: 'You lead the hub. See everyone and their roles.', to: '/support/my-hub', visit: true },
     { key: 'hl-group', title: 'Open a support’s group and read how the discussion is going', hint: 'Tap a support in My Hub, then look at Discussion this week.', to: '/support/my-hub' },
     { key: 'hl-people', title: 'Check a support’s profile and their participants', hint: 'On the group page, scroll to The support and Participants.', to: '/support/my-hub' },
     { key: 'hl-attendance', title: 'Take hub attendance', hint: 'In the Hub meeting tab, mark each support.', to: '/support/my-hub?tab=meeting' },
     { key: 'hl-meeting', title: 'Run the hub meeting through to Submit', hint: 'Go step by step: Attendance, Prayer, Recap, Announcements, Notes, Submit.', to: '/support/my-hub?tab=meeting' },
-    { key: 'hl-leads', title: 'Find the Hub Leads meeting', hint: 'Open the Hub Leads tab in My Hub.', to: '/support/my-hub?tab=leads' },
+    { key: 'hl-leads', title: 'Find the Hub Leads meeting', hint: 'Open the Hub Leads tab in My Hub.', to: '/support/my-hub?tab=leads', visit: true },
     { key: 'hl-message', title: 'Send a message to your hub', hint: 'Use the Message tab.', to: '/support/my-hub?tab=message' },
   ],
   ASSISTANT: [
@@ -50,8 +52,8 @@ export const PRACTICE_SCENARIOS: Record<PracticeSeat, PracticeScenario[]> = {
   ],
   RECAP_LEAD: [
     ...SUPPORT_BASE,
-    { key: 'rc-recap', title: 'Open the Review and Recap step and read the summary', hint: 'In the Hub meeting tab, open step 3.', to: '/support/my-hub?tab=meeting' },
-    { key: 'rc-prompt', title: 'Read out the discussion prompt', hint: 'Lead the hub through the week’s prompt.', to: '/support/my-hub?tab=meeting' },
+    { key: 'rc-recap', title: 'Open the Review and Recap step and read the summary', hint: 'In the Hub meeting tab, open step 3.', to: '/support/my-hub?tab=meeting', visit: true },
+    { key: 'rc-prompt', title: 'Read out the discussion prompt', hint: 'Lead the hub through the week’s prompt.', to: '/support/my-hub?tab=meeting', visit: true },
   ],
   PRAYER_LEAD: [
     ...SUPPORT_BASE,
@@ -60,11 +62,11 @@ export const PRACTICE_SCENARIOS: Record<PracticeSeat, PracticeScenario[]> = {
   ],
   PARTICIPANT: [
     { key: 'pt-signin', title: 'Sign in and choose your own password', hint: 'Use your phone number and the code you were given.' },
-    { key: 'pt-guide', title: 'Read the Intro Class guide', hint: 'Open it from your home page.' },
+    { key: 'pt-guide', title: 'Read the Intro Class guide', hint: 'Open it from your home page.', to: '/me', visit: true },
     { key: 'pt-profile', title: 'Complete your profile', hint: 'Fill in your details.' },
     { key: 'pt-intro', title: 'Post your introduction to your group', hint: 'In your group discussion, say hello.' },
     { key: 'pt-ready', title: 'Confirm you are ready', hint: 'Tell your support you are set for the first class.' },
-    { key: 'pt-class', title: 'Open this week’s class and see the attendance countdown', hint: 'Find this week’s class on your home page.' },
+    { key: 'pt-class', title: 'Open this week’s class and see the attendance countdown', hint: 'Find this week’s class on your home page.', to: '/me/week', visit: true },
     { key: 'pt-reflect', title: 'Write this week’s reflection', hint: 'Save a short reflection and one thing you will do.' },
     { key: 'pt-discuss', title: 'Post and like something in the group discussion', hint: 'Take part in the conversation.' },
   ],
@@ -75,17 +77,17 @@ export const PRACTICE_SCENARIOS: Record<PracticeSeat, PracticeScenario[]> = {
 // on their partner's list.
 const HUB_JOB_STEP: Partial<Record<PracticeSeat, PracticeScenario>> = {
   ASSISTANT: { key: 'peer-ASSISTANT-2', title: 'Take hub attendance for the hub', hint: 'In the Hub meeting tab, mark each support.', to: '/support/my-hub?tab=meeting' },
-  RECAP_LEAD: { key: 'peer-RECAP_LEAD-2', title: 'Open the Review and Recap step and read it out', hint: 'In the Hub meeting tab, open step 3.', to: '/support/my-hub?tab=meeting' },
+  RECAP_LEAD: { key: 'peer-RECAP_LEAD-2', title: 'Open the Review and Recap step and read it out', hint: 'In the Hub meeting tab, open step 3.', to: '/support/my-hub?tab=meeting', visit: true },
   PRAYER_LEAD: { key: 'peer-PRAYER_LEAD-2', title: 'Open the Prayer step and pick someone to pray for', hint: 'In the Hub meeting tab, open step 2.', to: '/support/my-hub?tab=meeting' },
-  SUPPORT: { key: 'peer-SUPPORT-2', title: 'Open My Hub and read the message', hint: 'It arrives in My Hub, Messages.', to: '/support/my-hub' },
+  SUPPORT: { key: 'peer-SUPPORT-hub', title: 'Open My Hub and read the message', hint: 'It arrives in My Hub, Messages.', to: '/support/my-hub' },
 };
 
 export const peerSteps = (role: PracticeSeat, other: PracticeSeat): PracticeScenario[] => {
   if (role === 'PARTICIPANT') {
     return [
-      { key: 'peer-PARTICIPANT-1', title: 'Open this week and read it', hint: 'From Home, open the current week.' },
+      { key: 'peer-PARTICIPANT-1', title: 'Open this week and read it', hint: 'From Home, open the current week.', to: '/me/week', visit: true },
       { key: 'peer-PARTICIPANT-2', title: 'Post in your group discussion', hint: 'Say something your support can reply to.' },
-      { key: 'peer-PARTICIPANT-3', title: 'Find the message your support pinned', hint: 'Pinned messages sit at the top of the discussion.' },
+      { key: 'peer-PARTICIPANT-3', title: 'Find the message your support pinned', hint: 'Pinned messages sit at the top of the discussion.', to: '/me/group', visit: true },
       { key: 'peer-PARTICIPANT-4', title: 'Check in for the class', hint: 'Use the check-in on Home.' },
     ];
   }
@@ -100,11 +102,11 @@ export const peerSteps = (role: PracticeSeat, other: PracticeSeat): PracticeScen
     const partnerJob = HUB_JOB_STEP[other];
     return [
       { key: 'peer-HUB_LEAD-1', title: 'Send a message to your hub', hint: 'Use the Message tab in My Hub.', to: '/support/my-hub?tab=message' },
-      { key: 'peer-HUB_LEAD-2', title: partnerJob ? 'Open the hub meeting and watch your partner’s step arrive' : 'Open the hub meeting', hint: 'In the Hub meeting tab.', to: '/support/my-hub?tab=meeting' },
+      { key: 'peer-HUB_LEAD-2', title: partnerJob ? 'Open the hub meeting and watch your partner’s step arrive' : 'Open the hub meeting', hint: 'In the Hub meeting tab.', to: '/support/my-hub?tab=meeting', visit: true },
       { key: 'peer-HUB_LEAD-3', title: 'Run the meeting through to Submit', hint: 'Attendance, Prayer, Recap, Announcements, Notes, Submit.', to: '/support/my-hub?tab=meeting' },
     ];
   }
   const own = HUB_JOB_STEP[role];
-  const first: PracticeScenario = { key: `peer-${role}-1`, title: 'Open My Hub and find your Hub Lead', hint: 'You and your partner are in the same hub.', to: '/support/my-hub' };
+  const first: PracticeScenario = { key: `peer-${role}-1`, title: 'Open My Hub and find your Hub Lead', hint: 'You and your partner are in the same hub.', to: '/support/my-hub', visit: true };
   return own && own.key !== `peer-${role}-1` ? [first, own] : [first];
 };
