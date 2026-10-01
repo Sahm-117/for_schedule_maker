@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import AnnouncementsModal from '../components/AnnouncementsModal';
@@ -6,35 +6,45 @@ import { announcementsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import type { Announcement } from '../types';
 
+const sameList = (a: Announcement[], b: Announcement[]) => JSON.stringify(a) === JSON.stringify(b);
+
 const AdminAnnouncementsPage: React.FC = () => {
   const { isAdmin, user, userCohortIds } = useAuth();
   const [showComposer, setShowComposer] = React.useState(false);
   const [history, setHistory] = useState<Announcement[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const fetchHistory = useCallback(async () => {
-    if (!user) return;
-    setLoadingHistory(true);
+  // The signed-in user object and the cohort list get new identities whenever
+  // the app refreshes its data, so key on the id and keep the list in a ref.
+  // Only the very first load shows a spinner; later checks are silent and only
+  // redraw the list when something actually changed.
+  const userId = user?.id;
+  const cohortIdsRef = useRef(userCohortIds);
+  cohortIdsRef.current = userCohortIds;
+
+  const fetchHistory = useCallback(async (silent = false) => {
+    if (!userId) return;
+    if (!silent) setLoadingHistory(true);
     try {
       const res = await announcementsApi.getHistory({
-        userId: user.id,
+        userId,
         isAdmin: true,
-        accessibleCohortIds: userCohortIds,
+        accessibleCohortIds: cohortIdsRef.current,
       });
-      setHistory(res.announcements);
+      setHistory((prev) => (sameList(prev, res.announcements) ? prev : res.announcements));
     } catch {
       // ignore
     } finally {
-      setLoadingHistory(false);
+      if (!silent) setLoadingHistory(false);
     }
-  }, [user, userCohortIds]);
+  }, [userId]);
 
   useEffect(() => {
     void fetchHistory();
   }, [fetchHistory]);
 
   useEffect(() => {
-    const interval = setInterval(() => void fetchHistory(), 15000);
+    const interval = setInterval(() => void fetchHistory(true), 15000);
     return () => clearInterval(interval);
   }, [fetchHistory]);
 
@@ -59,14 +69,14 @@ const AdminAnnouncementsPage: React.FC = () => {
         )}
       />
       <div data-wt="announcements-history">
-        <AnnouncementsModal isOpen onClose={() => {}} embedded showComposer={false} showHistory history={history} loadingHistory={loadingHistory} onSent={fetchHistory} />
+        <AnnouncementsModal isOpen onClose={() => {}} embedded showComposer={false} showHistory history={history} loadingHistory={loadingHistory} onSent={() => void fetchHistory(true)} />
       </div>
       <AnnouncementsModal
         isOpen={showComposer}
         onClose={() => setShowComposer(false)}
         showComposer
         showHistory={false}
-        onSent={fetchHistory}
+        onSent={() => void fetchHistory(true)}
       />
     </div>
   );

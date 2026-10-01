@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import SegmentedTabs from '../components/SegmentedTabs';
 import { createPortal } from 'react-dom';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -534,17 +535,8 @@ const AdminFollowUpsPage: React.FC = () => {
       )}
 
       <div data-wt="fu-filters" className="mb-5 space-y-3">
-        <div data-wt="fu-tabs" className="flex flex-wrap items-center gap-2">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${tab === t.key ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-          >
-            {t.label}
-          </button>
-        ))}
+        <div data-wt="fu-tabs">
+          <SegmentedTabs tabs={tabs} active={tab} onChange={(k) => setTab(k as Tab)} />
         </div>
         {(tab === 'overview' || tab === 'contacts') && (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

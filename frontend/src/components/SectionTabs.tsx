@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { TAB_ACTIVE, TAB_IDLE, TAB_TRAY } from './SegmentedTabs';
 
 // Back office sections that group related pages under one sidebar item.
 // Each page keeps its own URL (old links still work); the section shows a tab
@@ -67,7 +68,7 @@ const SectionTabs: React.FC<{ pathname: string; isAdmin: boolean; pendingApprova
 
   return (
     <nav aria-label="Section" className="-mx-4 mb-5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-      <div className="inline-flex min-w-max gap-1 rounded-2xl border border-[#eef0f4] bg-white p-[5px]">
+      <div className={`inline-flex min-w-max gap-1 ${TAB_TRAY}`}>
         {tabs.map((tab) => {
           const active = pathname === tab.to;
           const count = tab.badge === 'pendingApprovals' ? pendingApprovals : 0;
@@ -76,7 +77,7 @@ const SectionTabs: React.FC<{ pathname: string; isAdmin: boolean; pendingApprova
               key={tab.to}
               to={tab.to}
               aria-current={active ? 'page' : undefined}
-              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-semibold transition ${active ? 'bg-[#3f4757] text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-semibold transition ${active ? TAB_ACTIVE : TAB_IDLE}`}
             >
               {tab.label}
               {count > 0 && (

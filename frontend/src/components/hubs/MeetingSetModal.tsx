@@ -44,6 +44,7 @@ const MeetingSetModal: React.FC<{
           resetKey={resetKey}
           linkLabel={linkLabel}
           saveLabel="Save meeting"
+          anySlot
           onSave={async (input) => { await onSave(input, notify); onClose(); }}
         />
       </div>

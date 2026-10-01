@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import SegmentedTabs from '../components/SegmentedTabs';
 import { createPortal } from 'react-dom';
 import Avatar from '../components/Avatar';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -444,45 +445,26 @@ const CommunityPage: React.FC = () => {
         )}
       </div>
 
-      {/* Discussion / People: slim underline tabs, sized to their content. */}
-      <div data-wt="community-sections" role="tablist" className="mb-4 flex items-center gap-5 border-b border-[#eef0f4]">
-        {([['discussion', 'Discussion'], ['people', 'People']] as const).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={section === key}
-            onClick={() => setSection(key)}
-            className={`relative pb-2.5 text-sm font-semibold transition ${section === key ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-          >
-            {label}
-            {section === key && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" aria-hidden="true" />}
-          </button>
-        ))}
+      <div data-wt="community-sections" className="mb-4">
+        <SegmentedTabs
+          tabs={[{ key: 'discussion', label: 'Discussion' }, { key: 'people', label: 'People' }]}
+          active={section}
+          onChange={(k) => setSection(k as typeof section)}
+        />
       </div>
 
       {section === 'people' ? (
         <PeoplePanel />
       ) : (
       <>
-      {/* Open/Closed: a secondary text toggle, with the result count on the same line. */}
-      <div data-wt="hub-tabs" role="tablist" className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-[13px]">
-          {(['OPEN', 'CLOSED'] as Tab[]).map((t, i) => (
-            <React.Fragment key={t}>
-              {i > 0 && <span className="text-gray-300" aria-hidden="true">·</span>}
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === t}
-                onClick={() => setTab(t)}
-                className={`rounded-full px-1 py-0.5 transition ${tab === t ? 'font-semibold text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-              >
-                {t === 'OPEN' ? 'Open' : 'Closed'}
-              </button>
-            </React.Fragment>
-          ))}
-        </div>
+      {/* Open/Closed, with the result count on the same line. */}
+      <div data-wt="hub-tabs" className="mb-3 flex items-center justify-between gap-3">
+        <SegmentedTabs
+          className="w-44"
+          tabs={[{ key: 'OPEN', label: 'Open' }, { key: 'CLOSED', label: 'Closed' }]}
+          active={tab}
+          onChange={(k) => setTab(k as Tab)}
+        />
         {!loading && <span className="text-xs text-gray-400">{topics.length} topic{topics.length === 1 ? '' : 's'}</span>}
       </div>
 

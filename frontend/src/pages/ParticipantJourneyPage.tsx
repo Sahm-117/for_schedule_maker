@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import SegmentedTabs from '../components/SegmentedTabs';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
@@ -69,23 +70,11 @@ const ParticipantJourneyPage: React.FC = () => {
       <div className="flex flex-col gap-4">
         <AttendanceCountdownCard openWindow={home.openWindow} />
 
-        <div className="flex gap-2" role="tablist" aria-label="My Journey sections">
-          {([
-            { key: 'journey', label: 'Journey' },
-            { key: 'attendance', label: 'Attendance' },
-          ] as const).map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.key}
-              onClick={() => setTab(t.key)}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${tab === t.key ? 'bg-primary text-white' : 'border border-[#eef0f4] bg-white text-gray-600 hover:bg-orange-50'}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          tabs={[{ key: 'journey', label: 'Journey' }, { key: 'attendance', label: 'Attendance' }]}
+          active={tab}
+          onChange={(k) => setTab(k as typeof tab)}
+        />
 
         {tab === 'journey' ? (
           <>

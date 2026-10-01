@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import SegmentedTabs from '../components/SegmentedTabs';
 import { Navigate } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
 import PageHeader from '../components/PageHeader';
@@ -68,10 +69,12 @@ const SupportAttendancePage: React.FC = () => {
   }, [user]);
   if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
   const switcher = canMarkTrainings ? (
-    <div className="mb-4 inline-flex rounded-2xl bg-white p-1 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-      {([['class', 'Participants'], ['trainings', 'Supports (trainings)']] as const).map(([key, label]) => (
-        <button key={key} type="button" onClick={() => setView(key)} aria-pressed={view === key} className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${view === key ? 'bg-primary text-white' : 'text-gray-600 hover:bg-orange-50'}`}>{label}</button>
-      ))}
+    <div className="mb-4">
+      <SegmentedTabs
+        tabs={[{ key: 'class', label: 'Participants' }, { key: 'trainings', label: 'Supports (trainings)' }]}
+        active={view}
+        onChange={(k) => setView(k as typeof view)}
+      />
     </div>
   ) : null;
   if (canMarkTrainings && view === 'trainings') {

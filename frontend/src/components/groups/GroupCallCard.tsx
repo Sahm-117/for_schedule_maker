@@ -57,6 +57,8 @@ export interface MeetingCallCardProps {
   // Omit to render read-only (no edit/set-up affordance) — e.g. a hub member viewing
   // the lead's meeting.
   onSave?: (input: MeetingSaveInput) => Promise<void>;
+  // Admin-set meetings (hubs, Hub Leads): any day, any time, any length.
+  anySlot?: boolean;
 }
 
 // Recurring call + meeting slot editor/display, shared by a group's own call
@@ -72,6 +74,7 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
   linkLabel = 'Call Link',
   saveLabel = 'Save meeting',
   onSave,
+  anySlot = false,
 }) => {
   const callLink = savedCallLink?.trim() || fallbackLink?.trim() || null;
   const hasSetup = !!callLink && !!slot.meetingDay && !!slot.meetingTime;
@@ -146,9 +149,9 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
               <div>
               <div className="mb-1.5 flex items-center gap-2">
                 <span className="text-[13px] font-semibold text-gray-900">Day and time</span>
-                <InfoTip label="Meeting time rules">Meetings run on Wednesday, Friday or Saturday, between 5 and 9 pm, for 45 minutes to 1 hour.</InfoTip>
+                <InfoTip label="Meeting time rules">{anySlot ? 'Admins can set any day, time and length.' : 'Meetings run on Wednesday, Friday or Saturday, between 5 and 9 pm, for 45 minutes to 1 hour.'}</InfoTip>
               </div>
-              <GroupMeetingSlotEditor value={slotDraft} onChange={setSlotDraft} />
+              <GroupMeetingSlotEditor value={slotDraft} onChange={setSlotDraft} anySlot={anySlot} />
               </div>
             </>
           ) : (

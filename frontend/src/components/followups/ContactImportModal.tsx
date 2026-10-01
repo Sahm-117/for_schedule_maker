@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import SegmentedTabs from '../SegmentedTabs';
 import type { Cohort, FollowUpContact } from '../../types';
 import AppSelect from '../AppSelect';
 import ModalShell from './ModalShell';
@@ -97,9 +98,6 @@ const ContactImportModal: React.FC<ContactImportModalProps> = ({
     }
   };
 
-  const tabClass = (active: boolean) =>
-    `rounded-2xl px-4 py-2 text-sm font-semibold transition ${active ? 'bg-primary text-white' : 'bg-orange-50 text-gray-600 hover:bg-orange-100'}`;
-
   return (
     <ModalShell
       isOpen={isOpen}
@@ -124,10 +122,11 @@ const ContactImportModal: React.FC<ContactImportModalProps> = ({
       )}
     >
       <div className="space-y-4">
-        <div className="flex gap-2">
-          <button type="button" className={tabClass(mode === 'paste')} onClick={() => { setMode('paste'); setResult(null); }}>Bulk paste</button>
-          <button type="button" className={tabClass(mode === 'csv')} onClick={() => { setMode('csv'); setResult(null); }}>CSV upload</button>
-        </div>
+        <SegmentedTabs
+          tabs={[{ key: 'paste', label: 'Bulk paste' }, { key: 'csv', label: 'CSV upload' }]}
+          active={mode}
+          onChange={(k) => { setMode(k as typeof mode); setResult(null); }}
+        />
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>

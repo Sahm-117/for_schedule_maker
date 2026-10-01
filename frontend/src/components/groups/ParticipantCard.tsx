@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import SegmentedTabs from '../SegmentedTabs';
 import { createPortal } from 'react-dom';
 import ModalShell from '../followups/ModalShell';
 import InfoTip from '../InfoTip';
@@ -930,18 +931,15 @@ const FaithProjectSheet: React.FC<{
 
       {trailOpen && <>
       <div className="mt-3 flex items-center gap-2">
-      <div className="flex flex-1 gap-2 rounded-full bg-[#f6f7f9] p-1">
-        {([['coach', 'With participant'], ['office', 'With back office']] as Array<['coach' | 'office', string]>).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => { setTab(key); setNote(''); setShowFullTrail(false); }}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-2.5 py-[9px] text-[12.5px] font-semibold transition ${tab === key ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}
-          >
-            {label}
-            {unread.has(key) && tab !== key && <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-label="New" />}
-          </button>
-        ))}
+      <div className="flex-1">
+        <SegmentedTabs
+          tabs={[
+            { key: 'coach', label: 'With participant', dot: unread.has('coach') && tab !== 'coach' },
+            { key: 'office', label: 'With back office', dot: unread.has('office') && tab !== 'office' },
+          ]}
+          active={tab}
+          onChange={(k) => { setTab(k as 'coach' | 'office'); setNote(''); setShowFullTrail(false); }}
+        />
       </div>
       <InfoTip label="Who sees this trail">
         {tab === 'office'

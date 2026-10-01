@@ -216,12 +216,12 @@ const RequestInfoModal: React.FC<RequestInfoModalProps> = ({ isOpen, onClose }) 
             <div className="mt-2">
               <AppMultiSelect values={cohortIds} onChange={(values) => { setCohortIds(values); setGroupIds([]); setParticipantIds([]); }} options={cohorts.filter((cohort) => cohort.status !== 'ARCHIVED').map((cohort) => ({ value: cohort.id, label: cohort.name }))} placeholder="Choose cohorts" label="Cohorts" />
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {([['GROUPS', 'Groups'], ['PEOPLE', 'Specific participants']] as Array<['GROUPS' | 'PEOPLE', string]>).map(([value, text]) => (
-                <button key={value} type="button" aria-pressed={audience === value} onClick={() => setAudience(value)} className={`rounded-full px-3 py-1.5 text-sm font-semibold ${audience === value ? 'bg-[#3f4757] text-white' : 'bg-white text-gray-600'}`}>
-                  {text}
-                </button>
-              ))}
+            <div className="mt-3">
+              <SegmentedTabs
+                tabs={[{ key: 'GROUPS', label: 'Groups' }, { key: 'PEOPLE', label: 'Specific participants' }]}
+                active={audience}
+                onChange={(k) => setAudience(k as 'GROUPS' | 'PEOPLE')}
+              />
             </div>
             {audience === 'GROUPS' ? (
               <div className="mt-3 space-y-2">

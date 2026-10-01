@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import SegmentedTabs from '../components/SegmentedTabs';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
@@ -526,22 +527,15 @@ const AdminFaithProjectsContent: React.FC = () => {
         <p className="text-sm text-gray-500">Select or create a cohort first.</p>
       ) : (
         <>
-          <div className="mb-6 flex gap-2" role="tablist" aria-label="Faith projects sections">
-            {([
-              { key: 'projects', label: 'Faith projects' },
-              { key: 'testimonies', label: `Testimonies${testimonies.filter((t) => t.status === 'PENDING').length > 0 ? ` (${testimonies.filter((t) => t.status === 'PENDING').length})` : ''}` },
-            ] as const).map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                role="tab"
-                aria-selected={pageTab === t.key}
-                onClick={() => setPageTab(t.key)}
-                className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${pageTab === t.key ? 'bg-primary text-white' : 'border border-gray-100 bg-white text-gray-600 hover:bg-gray-50'}`}
-              >
-                {t.label}
-              </button>
-            ))}
+          <div className="mb-6">
+            <SegmentedTabs
+              tabs={[
+                { key: 'projects', label: 'Faith projects' },
+                { key: 'testimonies', label: `Testimonies${testimonies.filter((t) => t.status === 'PENDING').length > 0 ? ` (${testimonies.filter((t) => t.status === 'PENDING').length})` : ''}` },
+              ]}
+              active={pageTab}
+              onChange={(k) => setPageTab(k as typeof pageTab)}
+            />
           </div>
 
           {pageTab === 'testimonies' ? (

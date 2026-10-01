@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, NavLink } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAppData } from '../context/AppDataContext';
@@ -13,36 +13,39 @@ const AnnouncementsFeedPage: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!userId) return;
-    setLoading(true);
-    announcementsApi.getHistory({
-      cohortId: activeCohort?.id || null,
+  // Only the first load (or a change of cohort) shows a spinner. The 15-second
+  // check and live updates are silent and only redraw the list if it changed.
+  const idsRef = useRef({ userCohortIds, userLabelIds });
+  idsRef.current = { userCohortIds, userLabelIds };
+  const cohortId = activeCohort?.id || null;
+
+  const fetchFeed = useCallback((silent: boolean) => {
+    if (!userId) return Promise.resolve();
+    if (!silent) setLoading(true);
+    return announcementsApi.getHistory({
+      cohortId,
       userId,
       isAdmin,
-      accessibleCohortIds: userCohortIds,
-        userLabelIds,
+      accessibleCohortIds: idsRef.current.userCohortIds,
+      userLabelIds: idsRef.current.userLabelIds,
     })
-      .then((res) => setAnnouncements(res.announcements))
-      .catch(() => setAnnouncements([]))
-      .finally(() => setLoading(false));
-  }, [activeCohort?.id, isAdmin, liveRevision, userId, userCohortIds, userLabelIds]);
+      .then((res) => setAnnouncements((prev) => (JSON.stringify(prev) === JSON.stringify(res.announcements) ? prev : res.announcements)))
+      .catch(() => { if (!silent) setAnnouncements([]); })
+      .finally(() => { if (!silent) setLoading(false); });
+  }, [cohortId, isAdmin, userId]);
+
+  useEffect(() => { void fetchFeed(false); }, [fetchFeed]);
+
+  const firstRevision = useRef(true);
+  useEffect(() => {
+    if (firstRevision.current) { firstRevision.current = false; return; }
+    void fetchFeed(true);
+  }, [liveRevision, fetchFeed]);
 
   useEffect(() => {
-    if (!userId) return;
-    const interval = setInterval(() => {
-      announcementsApi.getHistory({
-        cohortId: activeCohort?.id || null,
-        userId,
-        isAdmin,
-        accessibleCohortIds: userCohortIds,
-        userLabelIds,
-      })
-        .then((res) => setAnnouncements(res.announcements))
-        .catch(() => {});
-    }, 15000);
+    const interval = setInterval(() => { void fetchFeed(true); }, 15000);
     return () => clearInterval(interval);
-  }, [activeCohort?.id, isAdmin, userId, userCohortIds, userLabelIds]);
+  }, [fetchFeed]);
 
   if (!user) return null;
 

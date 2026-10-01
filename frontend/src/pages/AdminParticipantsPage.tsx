@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import SegmentedTabs from '../components/SegmentedTabs';
 import { Navigate, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
@@ -424,9 +425,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
     }
   };
 
-  const tabClass = (active: boolean) =>
-    `rounded-2xl px-4 py-2 text-sm font-semibold transition ${active ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`;
-
   const csvRowsForImport = csvSplit
     ? [
         ...(csvIncludeNew ? csvSplit.newRows.map((item) => item.row) : []),
@@ -488,10 +486,11 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onImported, 
       <div className="flex flex-col gap-4">
         {err && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{err}</p>}
 
-        <div className="flex gap-2">
-          <button type="button" className={tabClass(tab === 'paste')} onClick={() => { setTab('paste'); setErr(''); }}>Bulk paste</button>
-          <button type="button" className={tabClass(tab === 'csv')} onClick={() => { setTab('csv'); setErr(''); }}>CSV upload</button>
-        </div>
+        <SegmentedTabs
+          tabs={[{ key: 'paste', label: 'Bulk paste' }, { key: 'csv', label: 'CSV upload' }]}
+          active={tab}
+          onChange={(k) => { setTab(k as typeof tab); setErr(''); }}
+        />
 
         {tab === 'paste' ? (
           <>

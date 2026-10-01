@@ -867,20 +867,12 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${showPastCohorts ? 'translate-x-5' : ''}`} />
                 </button>
               </label>
-              <div className="grid grid-cols-2 gap-0.5 rounded-full border border-[#eef0f4] bg-white p-0.5 text-xs font-semibold">
-                <button type="button" onClick={() => setShowClosed(false)} aria-pressed={!showClosed} className={`rounded-full px-3 py-1.5 transition ${!showClosed ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}>
-                  Open ({openContacts.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowClosed(true)}
-                  disabled={closedCount === 0}
-                  aria-pressed={showClosed}
-                  className={`rounded-full px-3 py-1.5 transition disabled:cursor-default disabled:opacity-40 ${showClosed ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}
-                >
-                  Closed ({closedCount})
-                </button>
-              </div>
+              <SegmentedTabs
+                className="w-60"
+                tabs={[{ key: 'open', label: `Open (${openContacts.length})` }, { key: 'closed', label: `Closed (${closedCount})` }]}
+                active={showClosed ? 'closed' : 'open'}
+                onChange={(k) => { if (k === 'closed' && closedCount === 0) return; setShowClosed(k === 'closed'); }}
+              />
             </div>
 
             {loading ? (

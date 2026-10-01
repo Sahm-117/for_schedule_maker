@@ -11,6 +11,8 @@ interface Props {
   value: MeetingSlot;
   onChange: (slot: MeetingSlot) => void;
   disabled?: boolean;
+  /** Admin-set meetings: any day, any time, any length. Group calls keep the usual limits. */
+  anySlot?: boolean;
 }
 
 const DAY_OPTIONS = [
@@ -18,6 +20,18 @@ const DAY_OPTIONS = [
   { value: 'FRIDAY', label: 'Friday' },
   { value: 'SATURDAY', label: 'Saturday' },
 ];
+
+const ALL_DAY_OPTIONS = [
+  { value: 'MONDAY', label: 'Monday' },
+  { value: 'TUESDAY', label: 'Tuesday' },
+  { value: 'WEDNESDAY', label: 'Wednesday' },
+  { value: 'THURSDAY', label: 'Thursday' },
+  { value: 'FRIDAY', label: 'Friday' },
+  { value: 'SATURDAY', label: 'Saturday' },
+  { value: 'SUNDAY', label: 'Sunday' },
+];
+
+const ANY_DURATION_OPTIONS = [30, 45, 60, 75, 90, 120, 150, 180].map((m) => ({ value: String(m), label: m < 60 ? `${m} minutes` : m === 60 ? '1 hour' : m % 60 === 0 ? `${m / 60} hours` : `${Math.floor(m / 60)} h ${m % 60} min` }));
 
 const DURATION_OPTIONS = [
   { value: '45', label: '45 minutes' },
@@ -51,7 +65,7 @@ export const formatMeetingSlot = (slot: { meetingDay?: string | null; meetingTim
   return `${dayLabel} · ${displayH}:${displayM} ${ampm}${dur ? ` · ${dur}` : ''}`;
 };
 
-const GroupMeetingSlotEditor: React.FC<Props> = ({ value, onChange, disabled }) => {
+const GroupMeetingSlotEditor: React.FC<Props> = ({ value, onChange, disabled, anySlot = false }) => {
   const [expanded, setExpanded] = useState(false);
 
   const summary = formatMeetingSlot(value);
@@ -96,27 +110,36 @@ const GroupMeetingSlotEditor: React.FC<Props> = ({ value, onChange, disabled }) 
           <AppSelect
             value={value.meetingDay ?? ''}
             onChange={(v) => update({ meetingDay: v || null })}
-            options={[{ value: '', label: '— Pick a day —' }, ...DAY_OPTIONS]}
+            options={[{ value: '', label: '— Pick a day —' }, ...(anySlot ? ALL_DAY_OPTIONS : DAY_OPTIONS)]}
             placeholder="Day"
             compact
           />
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-500">Start time</label>
-          <AppSelect
-            value={value.meetingTime ?? ''}
-            onChange={(v) => update({ meetingTime: v || null })}
-            options={[{ value: '', label: '— Pick a time —' }, ...TIME_OPTIONS]}
-            placeholder="Time"
-            compact
-          />
+          {anySlot ? (
+            <input
+              type="time"
+              value={value.meetingTime ?? ''}
+              onChange={(e) => update({ meetingTime: e.target.value || null })}
+              className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+          ) : (
+            <AppSelect
+              value={value.meetingTime ?? ''}
+              onChange={(v) => update({ meetingTime: v || null })}
+              options={[{ value: '', label: '— Pick a time —' }, ...TIME_OPTIONS]}
+              placeholder="Time"
+              compact
+            />
+          )}
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-500">Duration</label>
           <AppSelect
             value={value.meetingDurationMins ? String(value.meetingDurationMins) : ''}
             onChange={(v) => update({ meetingDurationMins: v ? Number(v) : null })}
-            options={[{ value: '', label: '— Pick duration —' }, ...DURATION_OPTIONS]}
+            options={[{ value: '', label: '— Pick duration —' }, ...(anySlot ? (value.meetingDurationMins && !ANY_DURATION_OPTIONS.some((o) => o.value === String(value.meetingDurationMins)) ? [{ value: String(value.meetingDurationMins), label: `${value.meetingDurationMins} minutes` }, ...ANY_DURATION_OPTIONS] : ANY_DURATION_OPTIONS) : DURATION_OPTIONS)]}
             placeholder="Duration"
             compact
           />

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import SegmentedTabs from '../components/SegmentedTabs';
 import { createPortal } from 'react-dom';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -358,24 +359,15 @@ const SupportFollowUpsPage: React.FC = () => {
       )}
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        {[
-          { key: 'contacts', label: `Contacts (${cohortScopedContacts.filter((c) => !c.archivedAt).length})` },
-          { key: 'issues', label: 'Issues' },
-        ].map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            onClick={() => handleTabChange(item.key as Tab)}
-            className={`relative rounded-2xl px-4 py-2 text-sm font-semibold transition ${tab === item.key ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-orange-50'}`}
-          >
-            {item.label}
-            {item.key === 'issues' && unread > 0 && tab !== 'issues' && (
-              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold leading-none text-white shadow-sm">
-                {unread}
-              </span>
-            )}
-          </button>
-        ))}
+        <SegmentedTabs
+          className="w-full sm:w-72"
+          tabs={[
+            { key: 'contacts', label: `Contacts (${cohortScopedContacts.filter((c) => !c.archivedAt).length})` },
+            { key: 'issues', label: 'Issues', dot: unread > 0 && tab !== 'issues' },
+          ]}
+          active={tab}
+          onChange={(k) => handleTabChange(k as Tab)}
+        />
         <div className="ml-auto flex items-center gap-3">
           <label className="flex items-center gap-2 text-xs font-semibold text-gray-600">
             <span>Show past cohorts</span>

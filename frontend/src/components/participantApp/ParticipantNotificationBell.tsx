@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import SegmentedTabs from '../SegmentedTabs';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { participantAppApi } from '../../services/api';
@@ -160,20 +161,15 @@ const ParticipantNotificationBell: React.FC = () => {
             )}
           </div>
           <div className="border-b border-orange-100 px-4 pb-2.5">
-            <div role="tablist" className="mt-2.5 grid grid-cols-2 gap-1 rounded-xl bg-[#f4f5f7] p-1">
-              {([['announcements', 'Announcements', announcementItems], ['activity', 'Activity', activityItems]] as const).map(([key, label, list]) => (
-                <button
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === key}
-                  onClick={() => setTab(key)}
-                  className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold transition ${tab === key ? 'bg-[#3f4757] text-white' : 'text-gray-600'}`}
-                >
-                  {key === 'announcements' && unreadIn(list) > 0 ? `${label} (${unreadIn(list)})` : label}
-                  {key === 'activity' && unreadIn(list) > 0 && <span className={`h-1.5 w-1.5 rounded-full ${tab === key ? 'bg-white' : 'bg-primary'}`} />}
-                </button>
-              ))}
+            <div className="mt-2.5">
+              <SegmentedTabs
+                tabs={[
+                  { key: 'announcements', label: unreadIn(announcementItems) > 0 ? `Announcements (${unreadIn(announcementItems)})` : 'Announcements' },
+                  { key: 'activity', label: 'Activity', dot: unreadIn(activityItems) > 0 },
+                ]}
+                active={tab}
+                onChange={(k) => setTab(k as typeof tab)}
+              />
             </div>
           </div>
           <div className="max-h-96 overflow-y-auto">

@@ -361,26 +361,17 @@ const AdminSupportsPage: React.FC = () => {
               </InfoTip>
             </div>
             <div className="mt-4">
-              {/* Same look as SegmentedTabs, but wraps to two rows on phones so counts stay readable. */}
-              <div role="tablist" className="grid grid-cols-2 gap-1.5 rounded-2xl border border-[#eef0f4] bg-white p-[5px] sm:grid-cols-4">
-                {([
-                  ['all', 'All', model.total],
-                  ['critical', 'Needs attention', model.counts.critical],
-                  ['warning', 'Keep an eye on', model.counts.warning],
-                  ['good', 'On track', model.counts.good],
-                ] as const).map(([key, label, count]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    role="tab"
-                    aria-selected={filter === key}
-                    onClick={() => setFilter(key)}
-                    className={`min-w-0 truncate rounded-xl px-1.5 py-[9px] text-[12.5px] font-semibold transition ${filter === key ? 'bg-[#3f4757] text-white' : 'text-gray-600 hover:bg-gray-50'}`}
-                  >
-                    {label} {count}
-                  </button>
-                ))}
-              </div>
+              <SegmentedTabs
+                wrap
+                tabs={[
+                  { key: 'all', label: `All ${model.total}` },
+                  { key: 'critical', label: `Needs attention ${model.counts.critical}` },
+                  { key: 'warning', label: `Keep an eye on ${model.counts.warning}` },
+                  { key: 'good', label: `On track ${model.counts.good}` },
+                ]}
+                active={filter}
+                onChange={(k) => setFilter(k as typeof filter)}
+              />
             </div>
           </section>
 
