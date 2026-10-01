@@ -75,6 +75,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   // '' = no one person picked; 'user:<id>' (support) or 'participant:<id>'.
   // Picking a person overrides audience/tag/group/hub for who actually gets it.
   const [targetPersonKey, setTargetPersonKey] = useState('');
+  const [narrowOpen, setNarrowOpen] = useState(false); // the "Send to specific people" accordion
   const [groups, setGroups] = useState<Group[]>([]);
   const [hubs, setHubs] = useState<SupportHub[]>([]);
   const [supports, setSupports] = useState<User[]>([]);
@@ -207,6 +208,16 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     return [{ value: '', label: 'Everyone in audience' }, ...sorted.map((l) => ({ value: l.id, label: l.name }))];
   }, [labels, activeCohort?.id]);
 
+  // What the "Send to specific people" accordion shows when it is closed.
+  const narrowParts = (targetPersonKey
+    ? [targetPersonName || 'One person']
+    : [
+      audience === 'PARTICIPANTS'
+        ? (targetGroupId ? groupNameById.get(targetGroupId) : '')
+        : (targetHubId ? hubNameById.get(targetHubId) : (targetLabelId ? labelNameById.get(targetLabelId) : '')),
+      audience === 'SUPPORTS' && targetHubJobs.length > 0 ? targetHubJobs.map((job) => `${HUB_JOB_INFO[job].label}s`).join(', ') : '',
+    ]).filter(Boolean) as string[];
+
   const homeLinkUrl = linkTarget === EXTERNAL_LINK ? externalUrl.trim() : linkTarget;
   const homeInvalid = showOnHome && (!homeUntil || (linkTarget === EXTERNAL_LINK && !/^https?:\/\//i.test(externalUrl.trim())));
 
@@ -248,6 +259,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       setTargetHubId('');
       setTargetHubJobs([]);
       setTargetPersonKey('');
+      setNarrowOpen(false);
       setAudience('SUPPORTS');
       setShowOnHome(false);
       setHomeUntil('');
@@ -387,100 +399,120 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
               </div>
             )}
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Or send to one person (optional)</label>
-              <AppSelect
-                value={targetPersonKey}
-                onChange={setTargetPersonKey}
-                options={personOptions}
-                placeholder="Everyone in audience"
-                compact
-              />
-              {targetPersonKey ? (
-                <p className="mt-1 text-[11px] font-semibold text-primary">
-                  Only {targetPersonName || 'this person'} will get this.
-                </p>
-              ) : (
-                <p className="mt-1 text-[11px] text-gray-500">
-                  Pick one person to send only to them. This overrides the audience, tag, group and hub below.
-                </p>
+            <div className="rounded-2xl border border-gray-200 bg-white">
+              <button
+                type="button"
+                onClick={() => setNarrowOpen((v) => !v)}
+                aria-expanded={narrowOpen}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-gray-800">Send to specific people</span>
+                  <span className={`block truncate text-[11px] ${narrowParts.length > 0 ? 'font-semibold text-primary' : 'text-gray-500'}`}>
+                    {narrowParts.length > 0 ? narrowParts.join(' · ') : 'Optional: a person, group, hub or role'}
+                  </span>
+                </span>
+                <svg className={`h-4 w-4 flex-none text-gray-400 transition-transform ${narrowOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 6l6 6-6 6" /></svg>
+              </button>
+              {narrowOpen && (
+                <div className="space-y-3 border-t border-gray-100 px-4 py-3">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Send to one person</label>
+                  <AppSelect
+                    value={targetPersonKey}
+                    onChange={setTargetPersonKey}
+                    options={personOptions}
+                    placeholder="Everyone in audience"
+                    compact
+                  />
+                  {targetPersonKey ? (
+                    <p className="mt-1 text-[11px] font-semibold text-primary">
+                      Only {targetPersonName || 'this person'} will get this.
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      Pick one person to send only to them. This overrides the audience, tag, group and hub below.
+                    </p>
+                  )}
+                </div>
+
+                {audience === 'PARTICIPANTS' ? (
+                <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific group (optional)</label>
+                  <AppSelect
+                    value={targetGroupId}
+                    onChange={setTargetGroupId}
+                    options={groupOptions}
+                    placeholder="Everyone in audience"
+                    compact
+                    disabled={!!targetPersonKey}
+                  />
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    Pick a group to send only to the participants in that group. Leave as “Everyone” to notify all participants.
+                  </p>
+                </div>
+                ) : (
+                <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific tag (optional)</label>
+                  <AppSelect
+                    value={targetLabelId}
+                    onChange={(v) => { setTargetLabelId(v); if (v) setTargetHubId(''); }}
+                    options={labelOptions}
+                    placeholder="Everyone in audience"
+                    compact
+                    disabled={!!targetPersonKey || !!targetHubId}
+                  />
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    Pick a group’s support tag to send to only that support. Leave as “Everyone” to notify the whole audience.
+                  </p>
+                </div>
+                )}
+
+                {audience !== 'PARTICIPANTS' && hubs.length > 0 && (
+                <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific hub (optional)</label>
+                  <AppSelect
+                    value={targetHubId}
+                    onChange={(v) => { setTargetHubId(v); if (v) setTargetLabelId(''); }}
+                    options={hubOptions}
+                    placeholder="Everyone in audience"
+                    compact
+                    disabled={!!targetPersonKey || !!targetLabelId}
+                  />
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    Pick a hub to send only to its members. Leave as “Everyone” to notify the whole audience.
+                  </p>
+                </div>
+                )}
+
+                {audience === 'SUPPORTS' && hubs.length > 0 && (
+                <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">Send to hub roles only (optional)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {HUB_JOB_ORDER.map((job) => {
+                      const on = targetHubJobs.includes(job);
+                      return (
+                        <button
+                          key={job}
+                          type="button"
+                          disabled={!!targetPersonKey}
+                          onClick={() => setTargetHubJobs((prev) => (on ? prev.filter((j) => j !== job) : [...prev, job]))}
+                          aria-pressed={on}
+                          className={`rounded-xl border px-3 py-2 text-sm font-semibold ${on ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                        >
+                          {on ? '✓ ' : ''}{HUB_JOB_INFO[job].label}s
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    Tap one or more to send only to people in those roles{targetHubId ? ' in the hub picked above' : ' across all hubs'}. Leave all off to notify the whole audience.
+                  </p>
+                </div>
+                )}
+                </div>
               )}
             </div>
-
-            {audience === 'PARTICIPANTS' ? (
-            <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific group (optional)</label>
-              <AppSelect
-                value={targetGroupId}
-                onChange={setTargetGroupId}
-                options={groupOptions}
-                placeholder="Everyone in audience"
-                compact
-                disabled={!!targetPersonKey}
-              />
-              <p className="mt-1 text-[11px] text-gray-500">
-                Pick a group to send only to the participants in that group. Leave as “Everyone” to notify all participants.
-              </p>
-            </div>
-            ) : (
-            <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific tag (optional)</label>
-              <AppSelect
-                value={targetLabelId}
-                onChange={(v) => { setTargetLabelId(v); if (v) setTargetHubId(''); }}
-                options={labelOptions}
-                placeholder="Everyone in audience"
-                compact
-                disabled={!!targetPersonKey || !!targetHubId}
-              />
-              <p className="mt-1 text-[11px] text-gray-500">
-                Pick a group’s support tag to send to only that support. Leave as “Everyone” to notify the whole audience.
-              </p>
-            </div>
-            )}
-
-            {audience !== 'PARTICIPANTS' && hubs.length > 0 && (
-            <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Send to a specific hub (optional)</label>
-              <AppSelect
-                value={targetHubId}
-                onChange={(v) => { setTargetHubId(v); if (v) setTargetLabelId(''); }}
-                options={hubOptions}
-                placeholder="Everyone in audience"
-                compact
-                disabled={!!targetPersonKey || !!targetLabelId}
-              />
-              <p className="mt-1 text-[11px] text-gray-500">
-                Pick a hub to send only to its members. Leave as “Everyone” to notify the whole audience.
-              </p>
-            </div>
-            )}
-
-            {audience === 'SUPPORTS' && hubs.length > 0 && (
-            <div className={targetPersonKey ? 'opacity-40 pointer-events-none' : ''}>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Send to hub roles only (optional)</label>
-              <div className="flex flex-wrap gap-2">
-                {HUB_JOB_ORDER.map((job) => {
-                  const on = targetHubJobs.includes(job);
-                  return (
-                    <button
-                      key={job}
-                      type="button"
-                      disabled={!!targetPersonKey}
-                      onClick={() => setTargetHubJobs((prev) => (on ? prev.filter((j) => j !== job) : [...prev, job]))}
-                      aria-pressed={on}
-                      className={`rounded-xl border px-3 py-2 text-sm font-semibold ${on ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                    >
-                      {on ? '✓ ' : ''}{HUB_JOB_INFO[job].label}s
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-1 text-[11px] text-gray-500">
-                Tap one or more to send only to people in those roles{targetHubId ? ' in the hub picked above' : ' across all hubs'}. Leave all off to notify the whole audience.
-              </p>
-            </div>
-            )}
 
             <div>
               <div className="flex justify-between items-center mb-1">
