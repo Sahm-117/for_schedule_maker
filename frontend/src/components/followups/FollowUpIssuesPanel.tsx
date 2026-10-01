@@ -163,7 +163,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
       setReplyText('');
       if (issue.reportedById && issue.reportedById !== currentUserId) {
         void supabase.functions.invoke('notify-followup-issue', {
-          body: { issueId: issue.id, reporterId: issue.reportedById },
+          body: { issueId: issue.id, reporterId: issue.reportedById, replierId: currentUserId, kind: 'REPLY' },
         }).catch(() => undefined);
       }
     } finally {

@@ -4,10 +4,17 @@
  * Sends a push notification to all admins when a non-admin logs a follow-up
  * issue. Admin-authored issues do not send notifications.
  *
+ * A reply is different: when an admin (or IT support) replies to an issue, only
+ * the support who logged it hears about it. Admins are never notified again for a
+ * reply. A reply is recognised by kind = 'REPLY', or, for older app versions that
+ * do not send it, by the "---\nReply:" the app appends to the issue text.
+ *
  * POST body:
  * {
  *   issueId: string,
- *   reporterId: string
+ *   reporterId: string,
+ *   replierId?: string,
+ *   kind?: 'REPLY'
  * }
  *
  * Required Supabase secrets:
@@ -55,9 +62,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { issueId, reporterId } = await req.json() as {
+    const { issueId, reporterId, replierId, kind } = await req.json() as {
       issueId: string
       reporterId: string
+      replierId?: string
+      kind?: string
     }
 
     if (!issueId || !reporterId) {
@@ -91,6 +100,47 @@ Deno.serve(async (req) => {
 
     if (issueError || !issue) {
       throw new Error(issueError?.message || 'Issue not found')
+    }
+
+    // A reply: tell the support who logged the issue, and nobody else.
+    if (kind === 'REPLY' || /\n---\nReply:/.test(issue.issue)) {
+      if (replierId && replierId === reporterId) {
+        return new Response(JSON.stringify({ ok: true, sent: 0, skipped: 'replier_is_reporter' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      let replierName = 'Someone'
+      if (replierId) {
+        const { data: replier } = await supabase.from('User').select('name').eq('id', replierId).maybeSingle()
+        if (replier?.name) replierName = replier.name
+      }
+      const lastReply = issue.issue.split(/\n---\nReply:/).pop()?.trim() ?? ''
+      const contactForReply = issue.contact?.fullName?.trim()
+      const replyTitle = 'Reply to your issue'
+      const replyBody = `${replierName} replied${contactForReply ? ` about ${contactForReply}` : ''}: ${truncate(lastReply)}`
+      await insertNotifications(supabase, [{ userId: reporterId, title: replyTitle, body: replyBody, path: '/support/mobilisation?tab=follow', type: 'FOLLOWUP_ISSUE' }])
+      const { data: replySubs, error: replySubsError } = await supabase
+        .from('PushSubscription')
+        .select('userId, endpoint, p256dh, auth')
+        .eq('userId', reporterId)
+      if (replySubsError) throw new Error(replySubsError.message)
+      if (!replySubs || replySubs.length === 0) {
+        return new Response(JSON.stringify({ ok: true, sent: 0, reply: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      const replyPayload = JSON.stringify({
+        title: replyTitle,
+        body: replyBody,
+        icon: '/icon-192.png',
+        tag: `fof-followup-issue-reply-${issueId}`,
+        data: { path: '/support/mobilisation?tab=follow' },
+      })
+      const replyResult = await sendToSubscriptions(webPush, supabase, replySubs as any[], replyPayload)
+      if (replyResult.failed > 0) console.error(`notify-followup-issue (reply): ${replyResult.sent} sent, ${replyResult.failed} failed`, JSON.stringify(replyResult.errors))
+      return new Response(JSON.stringify({ ok: true, sent: replyResult.sent, reply: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     const { data: admins, error: adminsError } = await supabase
