@@ -5738,6 +5738,11 @@ const mapSupportHub = (row: any): import('../types').SupportHub => ({
   assistantPermissions: row.assistantPermissions ?? [],
   recapLeadUserIds: row.recapLeadUserIds ?? [],
   prayerLeadUserIds: row.prayerLeadUserIds ?? [],
+  meetingDay: row.meetingDay ?? null,
+  meetingTime: row.meetingTime ?? null,
+  meetingDurationMins: row.meetingDurationMins ?? null,
+  callPlatform: row.callPlatform ?? null,
+  callLink: row.callLink ?? null,
   createdAt: row.createdAt,
 });
 
@@ -6177,7 +6182,7 @@ export const myHubApi = {
     if (error) throw new Error(error.message);
   },
 
-  async updateMeeting(hubId: string, input: { meetingDay: string | null; meetingTime: string | null; meetingDurationMins: number | null; callPlatform: import('../types').GroupCallPlatform | null; callLink: string | null }): Promise<{ hub: NonNullable<import('../types').MyHubPayload['hub']> }> {
+  async updateMeeting(hubId: string, input: { meetingDay: string | null; meetingTime: string | null; meetingDurationMins: number | null; callPlatform: import('../types').GroupCallPlatform | null; callLink: string | null }, notify = false): Promise<{ hub: NonNullable<import('../types').MyHubPayload['hub']> }> {
     const { data, error } = await supabase.rpc('update_hub_meeting', {
       p_hub_id: hubId,
       p_meeting_day: input.meetingDay,
@@ -6185,9 +6190,32 @@ export const myHubApi = {
       p_meeting_duration_mins: input.meetingDurationMins,
       p_call_platform: input.callPlatform,
       p_call_link: input.callLink,
+      p_notify: notify,
     });
     if (error || !data) throw new Error(error?.message || 'Failed to save the hub meeting');
     return { hub: data as NonNullable<import('../types').MyHubPayload['hub']> };
+  },
+
+  // The weekly meeting for a cohort's Hub Leads. Hub Leads and admins read it;
+  // only admins write it.
+  async getLeadsMeeting(cohortId: string): Promise<import('../types').HubLeadsMeeting> {
+    const { data, error } = await supabase.rpc('get_hub_leads_meeting', { p_cohort_id: cohortId });
+    if (error || !data) throw new Error(error?.message || 'Could not load the Hub Leads meeting');
+    return data as import('../types').HubLeadsMeeting;
+  },
+
+  async setLeadsMeeting(cohortId: string, input: { meetingDay: string | null; meetingTime: string | null; meetingDurationMins: number | null; callPlatform: import('../types').GroupCallPlatform | null; callLink: string | null }, notify = false): Promise<import('../types').HubLeadsMeeting> {
+    const { data, error } = await supabase.rpc('set_hub_leads_meeting', {
+      p_cohort_id: cohortId,
+      p_meeting_day: input.meetingDay,
+      p_meeting_time: input.meetingTime,
+      p_meeting_duration_mins: input.meetingDurationMins,
+      p_call_platform: input.callPlatform,
+      p_call_link: input.callLink,
+      p_notify: notify,
+    });
+    if (error || !data) throw new Error(error?.message || 'Failed to save the Hub Leads meeting');
+    return data as import('../types').HubLeadsMeeting;
   },
 
   // Every hub the caller belongs to or IT-supports in a cohort — for an

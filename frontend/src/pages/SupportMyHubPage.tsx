@@ -7,7 +7,8 @@ import AppSelect from '../components/AppSelect';
 import SaveStatus, { type SaveState } from '../components/SaveStatus';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
-import { MeetingCallCard, formatMeetingSlot, type MeetingSaveInput } from '../components/groups/GroupCallCard';
+import { formatMeetingSlot } from '../components/groups/GroupCallCard';
+import LeadsMeetingTab from '../components/hubs/LeadsMeetingTab';
 import Avatar from '../components/Avatar';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import HubMeetingPanel from '../components/hubs/HubMeetingPanel';
@@ -62,7 +63,6 @@ const STATUS_PILL: Record<SupportAttendanceStatus, string> = {
 };
 
 const PERMISSION_OPTIONS: Array<{ value: AssistantHubPermission; label: string; hint: string; summary: string }> = [
-  { value: 'MEETING', label: 'Meeting time & link', hint: 'Edit when and where the hub meets.', summary: 'edit meeting time & link' },
   { value: 'ATTENDANCE', label: 'Attendance & hub meeting', hint: 'Mark attendance and run the hub meeting.', summary: 'run attendance & hub meeting' },
   { value: 'MESSAGE', label: 'Message the hub', hint: 'Send messages to everyone in the hub.', summary: 'message the hub' },
   { value: 'GROUPS', label: 'See groups', hint: "Open each support's group and join their call.", summary: 'see groups' },
@@ -71,7 +71,7 @@ const PERMISSION_OPTIONS: Array<{ value: AssistantHubPermission; label: string; 
 // Off while trainings are marked from the Attendance page instead.
 const TRAININGS_TAB_ENABLED = false as boolean;
 
-type HubTab = 'overview' | 'meeting' | 'trainings' | 'notes' | 'message';
+type HubTab = 'overview' | 'meeting' | 'leads' | 'trainings' | 'notes' | 'message';
 
 const SupportMyHubPage: React.FC = () => {
   const { user } = useAuth();
@@ -81,7 +81,7 @@ const SupportMyHubPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<HubTab>(() => {
     const requested = searchParams.get('tab');
-    return (['overview', 'meeting', 'trainings', 'notes', 'message'] as const).includes(requested as HubTab)
+    return (['overview', 'meeting', 'leads', 'trainings', 'notes', 'message'] as const).includes(requested as HubTab)
       ? (requested as HubTab)
       : 'overview';
   });
@@ -412,18 +412,9 @@ const SupportMyHubPage: React.FC = () => {
     }
   };
 
-  // ── Hub meeting time/link (lead, or assistant with MEETING permission) ────
-  const handleSaveMeeting = async (input: MeetingSaveInput) => {
-    if (!myHub?.hub) return;
-    await myHubApi.updateMeeting(myHub.hub.id, input);
-    void loadHubs();
-    void refreshMyHub();
-  };
-
   if (user?.role !== 'SUPPORT') return <Navigate to="/dashboard" replace />;
 
   const isLead = !!myHub?.isLead;
-  const canMeeting = isLead || !!myHub?.canMeeting;
   const canAttendance = isLead || !!myHub?.canAttendance;
   const canMessage = isLead || !!myHub?.canMessage;
   const canGroups = isLead || (!!myHub?.isAssistant && (myHub?.hub?.assistantPermissions ?? []).includes('GROUPS'));
@@ -437,6 +428,7 @@ const SupportMyHubPage: React.FC = () => {
   const tabs = [
     { key: 'overview', label: 'My Hub' },
     { key: 'meeting', label: 'Hub meeting', shortLabel: 'Meeting' },
+    ...(isLead ? [{ key: 'leads', label: 'Hub Leads', shortLabel: 'Leads' }] : []),
     // Trainings tab hidden for now: trainings are marked by the supports an
     // admin picks, on the Attendance page (see TrainingAttendancePanel).
     ...(isLead ? [
@@ -507,7 +499,7 @@ const SupportMyHubPage: React.FC = () => {
                 </span>
                 <h2 className="mt-2 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">{hub.name}</h2>
                 <p className="mt-3 text-[15.5px] leading-[1.7] text-gray-600">
-                  {slot ? `Meets ${slot}.` : canMeeting ? 'No meeting time yet. Set it up below.' : 'Meeting time not set yet.'}
+                  {slot ? `Meets ${slot}.` : 'Meeting time not set yet. Your admin sets it.'}
                 </p>
                 {(callHref || (!isLead && leadWhatsAppLink)) && (
                   <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
@@ -515,6 +507,7 @@ const SupportMyHubPage: React.FC = () => {
                     {!isLead && leadWhatsAppLink && <a href={leadWhatsAppLink} target="_blank" rel="noreferrer" className={callHref ? SECONDARY : PRIMARY}>Message {hub.leadName?.split(' ')[0] || 'the lead'}</a>}
                   </div>
                 )}
+                {slot && <p className="mt-4 text-[13px] text-gray-400">Your admin sets the time and link.</p>}
               </section>
 
               <section data-wt="hub-members" className={`${SURFACE} px-6 py-5 sm:px-8`}>
@@ -667,24 +660,6 @@ const SupportMyHubPage: React.FC = () => {
                   )}
                 </DisclosureRow>
 
-                {canMeeting && (
-                  <DisclosureRow label="Meeting time & link" hint={slot ? 'Set' : 'Not set'} hintCls={slot ? undefined : 'font-semibold text-primary'} open={isOpen('meeting')} onToggle={() => toggle('meeting')}>
-                    <MeetingCallCard
-                      slot={{
-                        meetingDay: hub.meetingDay ?? null,
-                        meetingTime: hub.meetingTime ?? null,
-                        meetingDurationMins: hub.meetingDurationMins ?? null,
-                      }}
-                      callPlatform={hub.callPlatform ?? null}
-                      callLink={hub.callLink ?? null}
-                      resetKey={hub.id}
-                      linkLabel="Meeting Call Link"
-                      saveLabel="Save hub meeting"
-                      onSave={handleSaveMeeting}
-                    />
-                  </DisclosureRow>
-                )}
-
                 {isLead && hub.assistantLeadUserId && (
                   <DisclosureRow label="Assistant permissions" hint={grantedPerms.length === 0 ? 'None' : `${grantedPerms.length} on`} open={isOpen('perms')} onToggle={() => toggle('perms')}>
                     <p className="mb-3 text-[13px] text-gray-500">What {hub.assistantLeadName || 'your assistant'} can do.</p>
@@ -761,6 +736,10 @@ const SupportMyHubPage: React.FC = () => {
               meetingTime={myHub.hub.meetingTime}
               meetingDurationMins={myHub.hub.meetingDurationMins}
             />
+          )}
+
+          {tab === 'leads' && isLead && activeCohort?.id && (
+            <LeadsMeetingTab cohortId={activeCohort.id} />
           )}
 
           {tab === 'trainings' && isLead && TRAININGS_TAB_ENABLED && (

@@ -1244,6 +1244,12 @@ export interface SupportHub {
   prayerLeadUserIds?: string[];
   prayerLeadNames?: string[];
   itSupports?: HubItSupportEntry[];
+  /** The hub's weekly meeting. Set by admins only. */
+  meetingDay?: string | null;
+  meetingTime?: string | null;
+  meetingDurationMins?: number | null;
+  callPlatform?: GroupCallPlatform | null;
+  callLink?: string | null;
   memberCount?: number;
   createdAt?: string;
 }
@@ -1459,6 +1465,16 @@ export interface SupportGroupView {
   callPlatform: GroupCallPlatform | null;
   callLink: string | null;
   participantCount: number;
+}
+
+/** The weekly meeting for the Hub Leads of a cohort. Set by admins only. */
+export interface HubLeadsMeeting {
+  cohortId: string;
+  meetingDay: string | null;
+  meetingTime: string | null;
+  meetingDurationMins: number | null;
+  callPlatform: GroupCallPlatform | null;
+  callLink: string | null;
 }
 
 export interface HubGroupOverview {

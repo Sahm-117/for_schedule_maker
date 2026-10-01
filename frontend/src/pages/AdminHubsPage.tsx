@@ -3,8 +3,8 @@ import { Link, Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { groupsApi, supportHubsApi, supportKindApi, supportSessionsApi, usersApi } from '../services/api';
-import type { Group, HubItSupportEntry, HubJob, HubMembership, SupportAttendanceStatus, SupportHub, SupportKind, User, Week } from '../types';
+import { groupsApi, myHubApi, supportHubsApi, supportKindApi, supportSessionsApi, usersApi } from '../services/api';
+import type { Group, HubItSupportEntry, HubJob, HubLeadsMeeting, HubMembership, SupportAttendanceStatus, SupportHub, SupportKind, User, Week } from '../types';
 import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -17,6 +17,8 @@ import { selectedFirst } from '../utils/selectedFirst';
 import { getIdealWeekForCohort, getIdealWeekNumberForCohort } from '../utils/weekFocus';
 import { cohortMode } from '../components/dashboard/healthModel';
 import AttendanceSummaryStrip from '../components/hubs/AttendanceSummaryStrip';
+import MeetingSetModal from '../components/hubs/MeetingSetModal';
+import { formatMeetingSlot } from '../components/groups/GroupCallCard';
 import Spinner from '../components/Spinner';
 import SupportNotesStar from '../components/hubs/SupportNotesStar';
 import Avatar from '../components/Avatar';
@@ -471,6 +473,10 @@ const AdminHubsPage: React.FC = () => {
   const { activeCohort, liveRevision, weeks } = useAppData();
 
   const [hubs, setHubs] = useState<SupportHub[]>([]);
+  // Admins set every meeting time and link: each hub's weekly meeting, and the one for Hub Leads.
+  const [leadsMeeting, setLeadsMeeting] = useState<HubLeadsMeeting | null>(null);
+  const [leadsMeetingOpen, setLeadsMeetingOpen] = useState(false);
+  const [meetingTarget, setMeetingTarget] = useState<SupportHub | null>(null);
   // Card columns follow the sm/lg breakpoints. Hubs are dealt across them in
   // turn so they read 1, 2, 3 along each row (CSS columns filled downwards).
   const columnCountFor = (width: number) => (width >= 1024 ? 3 : width >= 640 ? 2 : 1);
@@ -544,6 +550,15 @@ const AdminHubsPage: React.FC = () => {
   }, [activeCohort]);
 
   useEffect(() => { void load(); }, [load, liveRevision]);
+
+  useEffect(() => {
+    if (!activeCohort?.id) { setLeadsMeeting(null); return; }
+    let cancelled = false;
+    myHubApi.getLeadsMeeting(activeCohort.id)
+      .then((m) => { if (!cancelled) setLeadsMeeting(m); })
+      .catch(() => { if (!cancelled) setLeadsMeeting(null); });
+    return () => { cancelled = true; };
+  }, [activeCohort?.id]);
 
   // Recap summary for the card: the latest week that's actually over and fair
   // to judge — same "judged weeks" rule as the Supports page and dashboard
@@ -668,6 +683,20 @@ const AdminHubsPage: React.FC = () => {
             summaryWeek={summaryWeek}
             recapMarksByHubWeek={recapMarksByHubWeek}
           />
+          <section className="mb-5 flex items-center gap-4 rounded-[28px] bg-white px-6 py-5 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]">
+            <div className="min-w-0 flex-1">
+              <span className="inline-flex rounded-full bg-violet-100/80 px-2.5 py-1 text-xs font-semibold text-violet-700">Hub Leads meeting</span>
+              <p className="mt-2 text-[17px] font-bold text-gray-900">
+                {formatMeetingSlot(leadsMeeting?.meetingDay, leadsMeeting?.meetingTime, leadsMeeting?.meetingDurationMins) ?? 'Not set yet'}
+              </p>
+              <p className="mt-0.5 text-[13px] text-gray-500">
+                {leadsMeeting?.callLink ? 'Link set. Hub Leads meet once a week.' : 'Add a time and link so Hub Leads can join.'}
+              </p>
+            </div>
+            <button type="button" onClick={() => setLeadsMeetingOpen(true)} className="flex-none rounded-full bg-[#f5f5f7] px-4 py-2 text-[13px] font-semibold text-gray-800 active:scale-[0.98]">
+              {leadsMeeting?.meetingDay ? 'Edit' : 'Set up'}
+            </button>
+          </section>
         </>
       )}
 
@@ -748,6 +777,7 @@ const AdminHubsPage: React.FC = () => {
                       items={[
                         { label: 'Manage members', onClick: () => setMembersTarget(h) },
                         { label: 'Hub roles', onClick: () => setLeadTarget(h) },
+                        { label: 'Meeting time & link', onClick: () => setMeetingTarget(h) },
                         { label: 'Recap attendance', onClick: () => setRecapTarget(h) },
                         { label: 'Edit name', onClick: () => { setEditing(h); setFormOpen(true); } },
                         { label: 'Delete hub', onClick: () => setDeleteTarget(h), tone: 'danger' },
@@ -830,6 +860,42 @@ const AdminHubsPage: React.FC = () => {
           )}
         </>
       )}
+
+      <MeetingSetModal
+        isOpen={leadsMeetingOpen}
+        onClose={() => setLeadsMeetingOpen(false)}
+        title="Hub Leads meeting"
+        subtitle="One meeting a week for all Hub Leads. Only admins can change it."
+        slot={{ meetingDay: leadsMeeting?.meetingDay ?? null, meetingTime: leadsMeeting?.meetingTime ?? null, meetingDurationMins: leadsMeeting?.meetingDurationMins ?? null }}
+        callPlatform={leadsMeeting?.callPlatform ?? null}
+        callLink={leadsMeeting?.callLink ?? null}
+        resetKey={activeCohort?.id ?? ''}
+        linkLabel="Meeting Call Link"
+        tellLabel="Tell the Hub Leads"
+        onSave={async (input, notify) => {
+          if (!activeCohort) return;
+          setLeadsMeeting(await myHubApi.setLeadsMeeting(activeCohort.id, input, notify));
+        }}
+      />
+
+      <MeetingSetModal
+        isOpen={!!meetingTarget}
+        onClose={() => setMeetingTarget(null)}
+        title={meetingTarget ? `${meetingTarget.name} meeting` : 'Hub meeting'}
+        subtitle="The hub's weekly meeting. Only admins can change it."
+        slot={{ meetingDay: meetingTarget?.meetingDay ?? null, meetingTime: meetingTarget?.meetingTime ?? null, meetingDurationMins: meetingTarget?.meetingDurationMins ?? null }}
+        callPlatform={meetingTarget?.callPlatform ?? null}
+        callLink={meetingTarget?.callLink ?? null}
+        resetKey={meetingTarget?.id ?? ''}
+        linkLabel="Meeting Call Link"
+        tellLabel="Tell the hub"
+        onSave={async (input, notify) => {
+          if (!meetingTarget) return;
+          await myHubApi.updateMeeting(meetingTarget.id, input, notify);
+          const patch = { meetingDay: input.meetingDay, meetingTime: input.meetingTime, meetingDurationMins: input.meetingDurationMins, callPlatform: input.callPlatform, callLink: input.callLink };
+          setHubs((prev) => prev.map((x) => (x.id === meetingTarget.id ? { ...x, ...patch } : x)));
+        }}
+      />
 
       <HubFormModal
         isOpen={formOpen}
