@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import React, { useCallback, useEffect, useState } from 'react';
 import { practiceApi } from '../../services/api';
 import { useToast } from '../Toast';
@@ -57,6 +58,7 @@ const PracticeModeCard: React.FC = () => {
           <span className={`absolute top-[3px] h-[22px] w-[22px] rounded-full bg-white shadow transition-all ${status?.on ? 'left-[23px]' : 'left-[3px]'}`} />
         </span>
       </button>
+      <Link to="/settings/practice" className="mt-3 inline-block text-sm font-semibold text-primary hover:underline">View activity</Link>
       {status?.on && (
         <p className="mt-3 text-xs text-gray-500">
           {status.people} {status.people === 1 ? 'person has' : 'people have'} joined · {status.online} here now · {status.walkthroughs} walkthrough{status.walkthroughs === 1 ? '' : 's'} running

@@ -633,6 +633,7 @@ export const practiceApi = USE_SUPABASE ? supabasePracticeApi : {
   async enterParticipant(): Promise<{ token: string; user: any }> { return practiceUnavailable(); },
   async leaveParticipant(): Promise<void> {},
   async participantPeerEnd(): Promise<void> {},
+  async overview(): Promise<import('../types').PracticeOverview> { return { on: false, members: [], walkthroughs: [] }; },
   async getStatus(): Promise<import('../types').PracticeStatus> { return { on: false, people: 0, online: 0, walkthroughs: 0 }; },
   async resetMe(): Promise<void> { practiceUnavailable(); },
   async resetMyFirstTime(): Promise<void> { practiceUnavailable(); },

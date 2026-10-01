@@ -8179,6 +8179,12 @@ export const practiceApi = {
     return data as { token: string; user: import('../types').User };
   },
 
+  async overview(): Promise<import('../types').PracticeOverview> {
+    const { data, error } = await supabase.rpc('practice_overview');
+    if (error || !data) throw new Error(error?.message || 'Could not load Practice');
+    return data as import('../types').PracticeOverview;
+  },
+
   async getStatus(): Promise<import('../types').PracticeStatus> {
     const { data, error } = await supabase.rpc('practice_status');
     if (error || !data) throw new Error(error?.message || 'Could not load Practice');

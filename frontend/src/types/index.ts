@@ -1741,6 +1741,35 @@ export interface PracticeActivePeer {
   status: 'ACTIVE' | 'PENDING';
 }
 
+export interface PracticeOverviewMember {
+  userId: string;
+  name: string;
+  avatarUrl?: string | null;
+  role: PracticeRole;
+  joinedAt: string;
+  lastSeenAt: string | null;
+  online: boolean;
+  inParticipantView: boolean;
+  progress: Array<{ key: string; doneAt: string | null; stuckAt: string | null }>;
+}
+
+export interface PracticeOverviewWalkthrough {
+  id: string;
+  fromName: string;
+  toName: string;
+  fromRole: string;
+  toRole: string;
+  status: 'PENDING' | 'ACTIVE' | 'ENDED' | 'DECLINED' | 'CANCELLED';
+  createdAt: string;
+  endedAt: string | null;
+}
+
+export interface PracticeOverview {
+  on: boolean;
+  members: PracticeOverviewMember[];
+  walkthroughs: PracticeOverviewWalkthrough[];
+}
+
 export interface PracticeStatus {
   on: boolean;
   people: number;
