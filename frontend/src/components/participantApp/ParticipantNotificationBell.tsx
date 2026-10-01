@@ -190,14 +190,21 @@ const ParticipantNotificationBell: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleRowClick(n)}
-                      className={`flex w-full flex-col gap-0.5 px-4 py-3 text-left transition hover:bg-orange-50/40 ${n.readAt ? '' : 'bg-orange-50/60'}`}
+                      className={`flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-orange-50/40 ${n.readAt ? '' : 'bg-orange-50/60'}`}
                     >
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="flex items-center gap-2">
                         {!n.readAt && <span className="h-2 w-2 flex-shrink-0 rounded-full bg-primary" />}
                         <span className="truncate text-sm font-semibold text-gray-900">{n.title}</span>
                       </span>
                       <span className="text-xs leading-snug text-gray-600">{n.body}</span>
                       <span className="mt-0.5 text-[11px] text-gray-400">{timeAgo(n.createdAt)}</span>
+                      </span>
+                      {!n.readAt ? (
+                        <span className="flex-shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">Open</span>
+                      ) : (
+                        <svg className="h-4 w-4 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" /></svg>
+                      )}
                     </button>
                   </li>
                 ))}
