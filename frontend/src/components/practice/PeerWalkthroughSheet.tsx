@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Spinner from '../Spinner';
 import ModalShell from '../followups/ModalShell';
 import SegmentedTabs from '../SegmentedTabs';
 import { practiceApi } from '../../services/api';
@@ -99,7 +100,7 @@ const PeerWalkthroughSheet: React.FC<{
         onClick={() => void send()}
         className="mt-4 flex h-[52px] w-full items-center justify-center rounded-full bg-primary px-5 text-[15px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-50"
       >
-        {busy ? 'Sending…' : 'Send request'}
+        {busy && <Spinner className="mr-2 h-4 w-4" />}{busy ? 'Sending…' : 'Send request'}
       </button>
     </ModalShell>
   );

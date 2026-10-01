@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Spinner from '../Spinner';
 import { createPortal } from 'react-dom';
 import { practiceApi } from '../../services/api';
 import { PRACTICE_ROLE_LABEL } from '../../constants/practiceScenarios';
@@ -36,8 +37,8 @@ const PracticeIncoming: React.FC<{
           {first} will be the {PRACTICE_ROLE_LABEL[request.fromRole]} and you will be the {PRACTICE_ROLE_LABEL[request.toRole]}. It takes about ten minutes.
         </p>
         <div className="mt-5 flex flex-col gap-2.5">
-          <button type="button" disabled={busy !== null} onClick={() => void answer(true)} className="flex h-[52px] w-full items-center justify-center rounded-full bg-primary px-5 text-[15px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60">{busy === 'JOIN' ? 'Joining…' : 'Join'}</button>
-          <button type="button" disabled={busy !== null} onClick={() => void answer(false)} className="flex h-[52px] w-full items-center justify-center rounded-full bg-[#f2f2f4] px-5 text-[15px] font-semibold text-gray-900 transition active:scale-[0.98] disabled:opacity-60">Not now</button>
+          <button type="button" disabled={busy !== null} onClick={() => void answer(true)} className="flex h-[52px] w-full items-center justify-center rounded-full bg-primary px-5 gap-2 text-[15px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-60">{busy === 'JOIN' && <Spinner className="h-4 w-4" />}{busy === 'JOIN' ? 'Joining…' : 'Join'}</button>
+          <button type="button" disabled={busy !== null} onClick={() => void answer(false)} className="flex h-[52px] w-full items-center justify-center rounded-full bg-[#f2f2f4] px-5 gap-2 text-[15px] font-semibold text-gray-900 transition active:scale-[0.98] disabled:opacity-60">{busy === 'NO' && <Spinner className="h-4 w-4" />}Not now</button>
         </div>
       </div>
     </div>,

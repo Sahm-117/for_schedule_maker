@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import Spinner from './Spinner';
 
 type SegmentedTab = {
   key: string;
@@ -23,13 +24,15 @@ interface SegmentedTabsProps {
   /** Wrap onto two rows on phones even with four or fewer tabs (long labels). */
   wrap?: boolean;
   className?: string;
+  /** A tab whose action is in progress: shows a small spinner in it and ignores taps. */
+  busyKey?: string | null;
 }
 
 // Full-width segmented tab bar; `shortLabel` is shown on small screens.
 // More than four tabs wrap onto a second row on phones instead of being cut off.
 // `scrollable` instead keeps one row that scrolls sideways (no visible bar),
 // with the active tab brought into view.
-const SegmentedTabs: React.FC<SegmentedTabsProps> = ({ tabs, active, onChange, scrollable = false, wrap = false, className = '' }) => {
+const SegmentedTabs: React.FC<SegmentedTabsProps> = ({ tabs, active, onChange, scrollable = false, wrap = false, className = '', busyKey = null }) => {
   const wraps = !scrollable && (wrap || tabs.length > 4);
   const rowRef = useRef<HTMLDivElement | null>(null);
 
@@ -62,9 +65,11 @@ const SegmentedTabs: React.FC<SegmentedTabsProps> = ({ tabs, active, onChange, s
           type="button"
           role="tab"
           aria-selected={isActive}
-          onClick={() => onChange(tab.key)}
+          onClick={() => { if (!busyKey) onChange(tab.key); }}
+          aria-busy={tab.key === busyKey || undefined}
           className={`${scrollable ? 'flex-none snap-start whitespace-nowrap px-3.5 sm:flex-auto' : 'min-w-0 truncate px-1.5'} rounded-xl py-[9px] text-[12.5px] font-semibold transition ${wraps ? 'flex-1 basis-[30%]' : ''} ${isActive ? TAB_ACTIVE : TAB_IDLE}`}
         >
+          {tab.key === busyKey && <Spinner className="mr-1.5 inline-block h-3.5 w-3.5 align-[-2px]" />}
           {tab.shortLabel ? (
             <>
               <span className="xl:hidden">{tab.shortLabel}</span>

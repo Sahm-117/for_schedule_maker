@@ -5,6 +5,7 @@ import PracticeChecklist from './PracticeChecklist';
 import PracticeTogether from './PracticeTogether';
 import PeerWalkthroughSheet from './PeerWalkthroughSheet';
 import SegmentedTabs from '../SegmentedTabs';
+import Spinner from '../Spinner';
 import { useToast } from '../Toast';
 import { practiceApi } from '../../services/api';
 import { PRACTICE_ROLE_LABEL, PRACTICE_SCENARIOS, peerSteps, type PracticeScenario, type PracticeSeat } from '../../constants/practiceScenarios';
@@ -155,11 +156,15 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
     } finally { setResetting(null); }
   };
 
+  const [ending, setEnding] = useState(false);
   const endWalkthrough = async (id: string) => {
+    if (ending) return;
+    setEnding(true);
     try {
       if (mode === 'participant') { await practiceApi.participantPeerEnd(); setPartner(null); load(); } else { await practiceApi.peerEnd(id); await refreshPulse?.(); }
       toast({ message: 'Walkthrough ended.' });
     } catch { toast({ tone: 'error', message: 'Could not end it. Please try again.' }); }
+    finally { setEnding(false); }
   };
 
   if (!active) return null;
@@ -181,7 +186,7 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
             <button type="button" onClick={() => void leaveParticipantView()} className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-bold text-white">Back to my account</button>
           )}
           {peer && (
-            <button type="button" onClick={() => void endWalkthrough(peer.id)} className="rounded-full bg-white px-3 py-0.5 text-[11px] font-bold text-violet-800">End walkthrough</button>
+            <button type="button" onClick={() => void endWalkthrough(peer.id)} disabled={ending} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-0.5 text-[11px] font-bold text-violet-800 disabled:opacity-70">{ending && <Spinner className="h-3 w-3" />}End walkthrough</button>
           )}
         </div>
       )}
@@ -202,7 +207,7 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
         {mode === 'staff' && (
           <>
             <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">Play as</p>
-            <SegmentedTabs tabs={SEAT_TABS} active={seat ?? 'SUPPORT'} onChange={(k) => void pickSeat(k as PracticeSeatKey)} wrap />
+            <SegmentedTabs tabs={SEAT_TABS} active={seat ?? 'SUPPORT'} onChange={(k) => void pickSeat(k as PracticeSeatKey)} busyKey={busySeat} wrap />
             {peer && <p className="mt-1.5 text-[11.5px] text-gray-500">Your seat is set by the walkthrough. End it to switch.</p>}
           </>
         )}
@@ -216,16 +221,16 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
               </span>
             </div>
             {mode === 'staff' && peer.iAmParticipant && (
-              <button type="button" onClick={() => void pickSeat('PARTICIPANT')} className="mt-2 w-full rounded-full bg-violet-700 px-4 py-2.5 text-[13.5px] font-semibold text-white">Switch to participant view</button>
+              <button type="button" onClick={() => void pickSeat('PARTICIPANT')} disabled={busySeat !== null} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full bg-violet-700 px-4 py-2.5 text-[13.5px] font-semibold text-white disabled:opacity-70">{busySeat === 'PARTICIPANT' && <Spinner className="h-4 w-4" />}Switch to participant view</button>
             )}
-            <button type="button" onClick={() => void endWalkthrough(peer.id)} className="mt-2 flex h-11 w-full items-center justify-center rounded-full bg-rose-600 px-4 text-[14px] font-bold text-white shadow-sm active:scale-[0.98]">End walkthrough</button>
+            <button type="button" onClick={() => void endWalkthrough(peer.id)} disabled={ending} className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-rose-600 px-4 text-[14px] font-bold text-white shadow-sm active:scale-[0.98] disabled:opacity-70">{ending && <Spinner className="h-4 w-4" />}End walkthrough</button>
           </div>
         ) : mode === 'staff' && (
           <div className="mt-4">
             {outgoing ? (
               <div className="flex items-center justify-between rounded-2xl bg-[#f2f2f4] px-4 py-3">
                 <p className="text-[13.5px] font-semibold text-gray-800">Waiting for {outgoing.toName.split(' ')[0]}…</p>
-                <button type="button" onClick={() => void endWalkthrough(outgoing.id)} className="text-[12.5px] font-semibold text-gray-500">Cancel</button>
+                <button type="button" onClick={() => void endWalkthrough(outgoing.id)} disabled={ending} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-gray-500 disabled:opacity-70">{ending && <Spinner className="h-3.5 w-3.5" />}Cancel</button>
               </div>
             ) : (
               <button type="button" onClick={() => setPeerOpen(true)} className="flex w-full items-center justify-between rounded-2xl bg-[#f2f2f4] px-4 py-3 text-left">
@@ -256,12 +261,12 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
             <div className="flex flex-col gap-2">
               {mode === 'staff' && (
                 <button type="button" disabled={resetting !== null} onClick={() => void resetMine('practice')} className="flex h-11 items-center justify-between rounded-2xl bg-[#f2f2f4] px-4 text-left text-[14px] font-semibold text-gray-900 disabled:opacity-60">
-                  <span>{resetting === 'practice' ? 'Resetting…' : 'Reset my practice'}</span>
+                  <span className="inline-flex items-center gap-2">{resetting === 'practice' && <Spinner className="h-4 w-4" />}{resetting === 'practice' ? 'Resetting…' : 'Reset my practice'}</span>
                   <span className="text-[12px] font-medium text-gray-500">New group, clean checklist</span>
                 </button>
               )}
               <button type="button" disabled={resetting !== null} onClick={() => void resetMine('first')} className="flex h-11 items-center justify-between rounded-2xl bg-[#f2f2f4] px-4 text-left text-[14px] font-semibold text-gray-900 disabled:opacity-60">
-                <span>{resetting === 'first' ? 'Resetting…' : mode === 'participant' ? 'Reset this participant' : 'Reset my first-time experience'}</span>
+                <span className="inline-flex items-center gap-2">{resetting === 'first' && <Spinner className="h-4 w-4" />}{resetting === 'first' ? 'Resetting…' : mode === 'participant' ? 'Reset this participant' : 'Reset my first-time experience'}</span>
                 <span className="text-[12px] font-medium text-gray-500">{mode === 'participant' ? 'Back to first sign-in' : 'Welcome and tours again'}</span>
               </button>
             </div>
