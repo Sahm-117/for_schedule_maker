@@ -3968,6 +3968,11 @@ export const followUpContactsApi = {
         callStatus: 'NOT_CALLED',
         nextAction: 'SEND_MESSAGE',
         archivedAt: null,
+        // A fresh start in the new cohort: the old cohort's owner and due date don't carry over.
+        ownerId: null,
+        ownerAssignedAt: null,
+        dueDate: null,
+        dueReminderSentAt: null,
         updatedAt: new Date().toISOString(),
       })
       .in('id', contactIds);
