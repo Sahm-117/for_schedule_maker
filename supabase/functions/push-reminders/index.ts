@@ -992,12 +992,19 @@ Deno.serve(async (req) => {
     if (!dryRun && lagos.hour === 8 && lagos.minute < 10) {
       const { data: openContacts } = await supabase
         .from('FollowUpContact')
-        .select('id, ownerId, fullName, nextAction, registrationStatus')
+        .select('id, ownerId, fullName, nextAction, registrationStatus, cohortId')
         .is('archivedAt', null)
         .not('ownerId', 'is', null)
 
+      // Only the current cohort: supports can't see past-cohort people, so nudging about them is noise.
+      const { data: currentCohortRow } = await supabase
+        .from('Cohort').select('id').eq('status', 'ACTIVE').order('startDate', { ascending: false, nullsFirst: false }).limit(1).maybeSingle()
+      const currentCohortId = (currentCohortRow as any)?.id ?? null
+      const inCurrentCohort = (contact: any) => !contact.cohortId || !currentCohortId || contact.cohortId === currentCohortId
+
       const eligibleContacts = ((openContacts || []) as any[]).filter((contact) =>
         contact.nextAction !== 'CLOSE' && !TERMINAL_REGISTRATION_STATUSES.has(contact.registrationStatus)
+        && inCurrentCohort(contact)
       )
 
       const ownerIds = Array.from(new Set(eligibleContacts.map((contact) => contact.ownerId).filter(Boolean)))
@@ -1062,9 +1069,12 @@ Deno.serve(async (req) => {
       if (naSlot) {
         const naKind = `NO_ACTIVITY_${naSlot[1]}`
         const cutoffIso = new Date(naClock.getTime() - 24 * 60 * 60 * 1000).toISOString()
+        const { data: naCohortRow } = await supabase
+          .from('Cohort').select('id').eq('status', 'ACTIVE').order('startDate', { ascending: false, nullsFirst: false }).limit(1).maybeSingle()
+        const naCurrentCohortId = (naCohortRow as any)?.id ?? null
         const { data: assigned } = await supabase
           .from('FollowUpContact')
-          .select('id, ownerId, fullName, nextAction, registrationStatus, ownerAssignedAt, statusChangedAt')
+          .select('id, ownerId, fullName, nextAction, registrationStatus, ownerAssignedAt, statusChangedAt, cohortId')
           .is('archivedAt', null)
           .not('ownerId', 'is', null)
           .not('ownerAssignedAt', 'is', null)
@@ -1076,6 +1086,7 @@ Deno.serve(async (req) => {
           && !TERMINAL_REGISTRATION_STATUSES.has(contact.registrationStatus)
           && (!contact.statusChangedAt || contact.statusChangedAt < contact.ownerAssignedAt)
           && (!onlyUserIds || onlyUserIds.includes(contact.ownerId))
+          && (!contact.cohortId || !naCurrentCohortId || contact.cohortId === naCurrentCohortId)
         )
 
         // An issue logged on the contact since it was assigned (any status) also stops the nudge.
