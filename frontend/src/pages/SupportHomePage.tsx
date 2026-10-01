@@ -735,16 +735,24 @@ const NextHubMeetingCard: React.FC<{
               Join Call
             </a>
           ) : (
-            <>
+            <span className="group relative mt-2 inline-flex items-center">
               <span
                 role="link"
                 aria-disabled="true"
-                className="mt-2 inline-flex h-8 min-h-8 cursor-not-allowed items-center justify-center rounded-[10px] bg-gray-200 px-3.5 text-xs font-semibold leading-none text-gray-400"
+                tabIndex={0}
+                aria-describedby="join-call-hint"
+                className="inline-flex h-8 min-h-8 cursor-not-allowed items-center justify-center rounded-[10px] bg-gray-200 px-3.5 text-xs font-semibold leading-none text-gray-400 outline-none"
               >
                 Join Call
               </span>
-              <p className={`mt-1 text-[11px] ${style.detail}`}>Opens 10 min before</p>
-            </>
+              <span
+                id="join-call-hint"
+                role="tooltip"
+                className="pointer-events-none absolute left-full top-1/2 ml-2 -translate-y-1/2 whitespace-nowrap rounded-lg bg-gray-900 px-2.5 py-1.5 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+              >
+                Opens 10 min before
+              </span>
+            </span>
           ))}
         </>
       ) : (
