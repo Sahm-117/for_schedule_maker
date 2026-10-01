@@ -328,6 +328,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
 
   const content = (
     <div className="p-6">
+      {/* The page already has its own title; the card repeats it only inside the composer / popup. */}
+      {!(embedded && !showComposer) && (
       <div className="flex justify-between items-center mb-5">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Announcements</h2>
@@ -341,6 +343,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
           </button>
         )}
       </div>
+      )}
 
       {status && (
         <div className={`mb-4 p-3 rounded-lg text-sm ${

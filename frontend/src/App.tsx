@@ -134,7 +134,7 @@ function App() {
             <Route path="/team-announcements" element={<Suspense fallback={<RouteFallback />}><AnnouncementsFeedPage /></Suspense>} />
             <Route path="/resources" element={<Suspense fallback={<RouteFallback />}><AdminResourcesPage /></Suspense>} />
             <Route path="/scriptures" element={<Suspense fallback={<RouteFallback />}><AdminScripturesPage /></Suspense>} />
-            <Route path="/settings/practice" element={<Suspense fallback={<RouteFallback />}><AdminPracticePage /></Suspense>} />
+            <Route path="/practice" element={<Suspense fallback={<RouteFallback />}><AdminPracticePage /></Suspense>} />
             <Route path="/settings" element={<Suspense fallback={<RouteFallback />}><AdminSettingsPage /></Suspense>} />
             <Route path="/website" element={<Suspense fallback={<RouteFallback />}><AdminWebsitePage /></Suspense>} />
             <Route path="/activity-overview" element={<Suspense fallback={<RouteFallback />}><ActivityOverviewPage /></Suspense>} />
