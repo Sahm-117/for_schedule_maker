@@ -519,6 +519,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
               value={newUser.phone}
               onChange={(e) => setNewUser((prev) => ({ ...prev, phone: e.target.value }))}
               onBlur={() => setNewUser((prev) => ({ ...prev, phone: toLocalNigerianPhone(prev.phone) ?? prev.phone }))}
+              onPaste={(e) => { const pasted = e.clipboardData.getData('text'); const local = toLocalNigerianPhone(pasted); if (local) { e.preventDefault(); setNewUser((prev) => ({ ...prev, phone: local })); } }}
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-primary"
               placeholder="08012345678"
             />
@@ -883,6 +884,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
                     inputMode="tel"
                     value={selectedUserDraft.phone}
                     onChange={(e) => setSelectedUserDraft((prev) => ({ ...prev, phone: e.target.value }))}
+                    onPaste={(e) => { const local = toLocalNigerianPhone(e.clipboardData.getData('text')); if (local) { e.preventDefault(); setSelectedUserDraft((prev) => ({ ...prev, phone: local })); } }}
+                    onBlur={() => setSelectedUserDraft((prev) => ({ ...prev, phone: toLocalNigerianPhone(prev.phone) ?? prev.phone }))}
                     placeholder="08012345678"
                     className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary focus:outline-none focus:ring-primary"
                   />
