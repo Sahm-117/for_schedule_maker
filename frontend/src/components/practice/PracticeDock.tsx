@@ -122,6 +122,26 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
     } finally { setBusySeat(null); }
   };
 
+  const [resetting, setResetting] = useState<null | 'practice' | 'first'>(null);
+  const resetMine = async (kind: 'practice' | 'first') => {
+    setResetting(kind);
+    try {
+      if (mode === 'participant') {
+        await practiceApi.participantResetMe();
+        toast({ message: 'Reset. Reloading as a brand-new participant…' });
+        window.setTimeout(() => window.location.assign('/me'), 600);
+        return;
+      }
+      if (kind === 'practice') await practiceApi.resetMe(); else await practiceApi.resetMyFirstTime();
+      await refreshPulse?.();
+      load();
+      onWorkspaceChanged?.();
+      toast({ message: kind === 'practice' ? 'Your practice is fresh. New group, clean checklist.' : 'Your welcome and tours will show again.' });
+    } catch (e) {
+      toast({ tone: 'error', message: e instanceof Error ? e.message : 'Could not reset.' });
+    } finally { setResetting(null); }
+  };
+
   const endWalkthrough = async (id: string) => {
     try {
       if (mode === 'participant') { await practiceApi.participantPeerEnd(); setPartner(null); load(); } else { await practiceApi.peerEnd(id); await refreshPulse?.(); }
@@ -215,6 +235,23 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
               <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${Math.round((doneCount / Math.max(total, 1)) * 100)}%` }} />
             </div>
             <PracticeChecklist scenarios={list} items={items} onChange={changeOwn} onNavigate={() => setOpen(false)} />
+          </>
+        )}
+        {!peer && (
+          <>
+            <p className={SECTION}>Start fresh</p>
+            <div className="flex flex-col gap-2">
+              {mode === 'staff' && (
+                <button type="button" disabled={resetting !== null} onClick={() => void resetMine('practice')} className="flex h-11 items-center justify-between rounded-2xl bg-[#f2f2f4] px-4 text-left text-[14px] font-semibold text-gray-900 disabled:opacity-60">
+                  <span>{resetting === 'practice' ? 'Resetting…' : 'Reset my practice'}</span>
+                  <span className="text-[12px] font-medium text-gray-500">New group, clean checklist</span>
+                </button>
+              )}
+              <button type="button" disabled={resetting !== null} onClick={() => void resetMine('first')} className="flex h-11 items-center justify-between rounded-2xl bg-[#f2f2f4] px-4 text-left text-[14px] font-semibold text-gray-900 disabled:opacity-60">
+                <span>{resetting === 'first' ? 'Resetting…' : mode === 'participant' ? 'Reset this participant' : 'Reset my first-time experience'}</span>
+                <span className="text-[12px] font-medium text-gray-500">{mode === 'participant' ? 'Back to first sign-in' : 'Welcome and tours again'}</span>
+              </button>
+            </div>
           </>
         )}
         {peer && mode === 'participant' && scenarios.length > 0 && (

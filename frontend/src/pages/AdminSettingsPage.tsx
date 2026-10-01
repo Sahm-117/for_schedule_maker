@@ -14,6 +14,7 @@ import { setChurchDepartmentsCache } from '../hooks/useChurchDepartments';
 import { useAppData } from '../context/AppDataContext';
 import Spinner from '../components/Spinner';
 import FollowUpAssignmentSettings from '../components/followups/FollowUpAssignmentSettings';
+import PracticeModeCard from '../components/settings/PracticeModeCard';
 
 // Every section on this page reads the same way: a compact summary of what is
 // currently set, and nothing editable until you press Edit. Save writes and
@@ -867,6 +868,7 @@ const AdminSettingsPage: React.FC = () => {
           <div data-wt="settings-departments"><ChurchDepartmentsCard /></div>
           <div data-wt="settings-contact"><SupportContactCard /></div>
           <div data-wt="settings-followup-assignment"><FollowUpAssignmentSettings /></div>
+          <PracticeModeCard />
         </div>
       </div>
 

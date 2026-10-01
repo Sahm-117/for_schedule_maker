@@ -114,7 +114,6 @@ const adminNav: NavItem[] = [
   { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
   { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
   { to: '/notifications', label: 'Notifications', icon: ICONS.bell, adminOnly: true },
-  { to: '/practice', label: 'Practice', icon: ICONS.practice, adminOnly: true },
   { to: '/community', label: 'Community', icon: ICONS.hub },
   { to: '/resources', label: 'Resources', icon: ICONS.resources },
   { to: '/website', label: 'Website', icon: ICONS.website, adminOnly: true },
@@ -159,7 +158,6 @@ const adminNavGroups: NavGroup[] = [
       { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
       { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
       { to: '/notifications', label: 'Notifications', icon: ICONS.bell, adminOnly: true },
-      { to: '/practice', label: 'Practice', icon: ICONS.practice, adminOnly: true },
       { to: '/resources', label: 'Resources', icon: ICONS.resources },
       { to: '/website', label: 'Website', icon: ICONS.website, adminOnly: true },
       { to: '/settings', label: 'Settings', icon: ICONS.settings },
@@ -215,7 +213,7 @@ const resolveNavTo = (item: NavItem, hubMeetingLive: boolean, groupMeetingLive: 
 
 // Admins inside the Practice cohort can't open the areas that are not cohort data.
 const PracticeLockContext = React.createContext(false);
-const LOCKED_IN_PRACTICE = ['/users', '/resources', '/settings'];
+const LOCKED_IN_PRACTICE = ['/users', '/resources'];
 const isLockedInPractice = (path: string) => LOCKED_IN_PRACTICE.some((base) => path === base || path.startsWith(`${base}/`));
 
 const NavItemLink: React.FC<{
@@ -504,7 +502,7 @@ const AppShell: React.FC = () => {
 
   const practiceLocked = isAdmin && !!activeCohort?.isPractice;
   useEffect(() => {
-    if (practiceLocked && isLockedInPractice(location.pathname)) navigate('/practice', { replace: true });
+    if (practiceLocked && isLockedInPractice(location.pathname)) navigate('/dashboard', { replace: true });
   }, [practiceLocked, location.pathname, navigate]);
 
   return (
@@ -525,7 +523,7 @@ const AppShell: React.FC = () => {
             </button>
           </div>
         ) : isAdmin ? (
-          <div className="sticky top-0 z-40 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white">Practice cohort. Users, Resources and Settings are switched off here.</div>
+          <div className="sticky top-0 z-40 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white">Practice cohort. Users and Resources are switched off here.</div>
         ) : (
           <div className="sticky top-0 z-40 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white">Practice mode. Nothing here is real.</div>
         )

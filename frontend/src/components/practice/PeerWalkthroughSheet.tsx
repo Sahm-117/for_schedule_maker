@@ -27,12 +27,14 @@ const PeerWalkthroughSheet: React.FC<{
   const [mine, setMine] = useState<PracticeSeatKey>(mySeat);
   const [theirs, setTheirs] = useState<PracticeSeatKey>('PARTICIPANT');
   const [pick, setPick] = useState('');
+  const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return undefined;
     setMine(mySeat);
     setPick('');
+    setQuery('');
     let live = true;
     const load = () => practiceApi.team().then((rows) => { if (live) setTeam(rows); }).catch(() => {});
     void load();
@@ -62,11 +64,20 @@ const PeerWalkthroughSheet: React.FC<{
       <SegmentedTabs tabs={SEATS} active={theirs} onChange={(k) => setTheirs(k as PracticeSeatKey)} wrap />
       {bothParticipants && <p className="mt-2 text-[12px] text-rose-600">Only one of you can be the participant.</p>}
       <p className={LABEL}>Pick a person</p>
+      {team.length > 6 && (
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by name"
+          className="mb-1 h-11 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[14px] text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none"
+        />
+      )}
       {team.length === 0 ? (
         <p className="py-4 text-center text-sm text-gray-500">No one else is on the Practice team yet.</p>
       ) : (
         <ul className="divide-y divide-gray-100">
-          {team.map((member) => (
+          {team.filter((member) => member.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 40).map((member) => (
             <li key={member.userId}>
               <button type="button" onClick={() => setPick(member.userId)} className="flex w-full items-center gap-3 py-2.5 text-left" aria-pressed={pick === member.userId}>
                 <span className="grid h-8 w-8 flex-none place-items-center rounded-full bg-primary/15 text-[11px] font-bold text-primary">

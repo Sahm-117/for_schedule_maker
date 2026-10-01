@@ -8156,6 +8156,27 @@ export const practiceApi = {
     return data as { token: string; user: import('../types').User };
   },
 
+  async getStatus(): Promise<import('../types').PracticeStatus> {
+    const { data, error } = await supabase.rpc('practice_status');
+    if (error || !data) throw new Error(error?.message || 'Could not load Practice');
+    return data as import('../types').PracticeStatus;
+  },
+
+  async resetMe(): Promise<void> {
+    const { error } = await supabase.rpc('practice_reset_me');
+    if (error) throw new Error(error.message);
+  },
+
+  async resetMyFirstTime(): Promise<void> {
+    const { error } = await supabase.rpc('practice_reset_my_first_time');
+    if (error) throw new Error(error.message);
+  },
+
+  async participantResetMe(): Promise<void> {
+    const { error } = await supabase.rpc('practice_participant_reset_me', { p_token: getSessionToken() });
+    if (error) throw new Error(error.message);
+  },
+
   async participantPeerEnd(): Promise<void> {
     const { error } = await supabase.rpc('practice_participant_peer_end', { p_token: getSessionToken() });
     if (error) throw new Error(error.message);

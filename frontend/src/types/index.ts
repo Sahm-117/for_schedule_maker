@@ -1740,3 +1740,10 @@ export interface PracticeActivePeer {
   toRole: PracticeSeatKey;
   status: 'ACTIVE' | 'PENDING';
 }
+
+export interface PracticeStatus {
+  on: boolean;
+  people: number;
+  online: number;
+  walkthroughs: number;
+}

@@ -3,6 +3,8 @@ import { practiceApi } from '../services/api';
 import type { PracticePulse } from '../types';
 
 const POLL_MS = 4000;
+// While Practice is off and the person is not in it, a slower check is plenty.
+const IDLE_POLL_MS = 20000;
 
 // Asks the database one tiny question every few seconds while the app is on
 // screen: what is my cohort list, am I in Practice, is anyone asking me to
@@ -29,14 +31,15 @@ export const usePracticePulse = (enabled: boolean, onCohortKeyChange: () => void
     finally { busy.current = false; }
   }, []);
 
+  const idle = !pulse || (!pulse.member && !pulse.on);
   useEffect(() => {
     if (!enabled) { setPulse(null); lastKey.current = null; return undefined; }
     void refresh();
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, POLL_MS);
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, idle ? IDLE_POLL_MS : POLL_MS);
     const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
-  }, [enabled, refresh]);
+  }, [enabled, refresh, idle]);
 
   return { pulse, refresh };
 };
