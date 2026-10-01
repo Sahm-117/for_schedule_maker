@@ -435,11 +435,13 @@ const AdminFollowUpsPage: React.FC = () => {
     }
   };
 
-  const tabs: Array<{ key: Tab; label: string }> = [
+  // Open issues are the ones waiting on someone: show the count and a dot so they are hard to miss.
+  const openIssueCount = issues.filter((issue) => issue.status === 'OPEN').length;
+  const tabs: Array<{ key: Tab; label: string; dot?: boolean }> = [
     { key: 'overview', label: 'Overview' },
     { key: 'contacts', label: 'Contacts' },
     { key: 'messages', label: 'Message Bank' },
-    { key: 'issues', label: 'Issues' },
+    { key: 'issues', label: openIssueCount > 0 ? `Issues (${openIssueCount})` : 'Issues', dot: openIssueCount > 0 },
   ];
 
   return (

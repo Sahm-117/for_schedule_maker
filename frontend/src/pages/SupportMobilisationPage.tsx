@@ -585,7 +585,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               tabs={[
                 { key: 'register', label: 'Registration' },
                 { key: 'follow', label: `Follow-ups (${openContacts.length})` },
-                ...(isItSupport ? [{ key: 'it', label: `IT issues (${openItIssues.length})` }] : []),
+                ...(isItSupport ? [{ key: 'it', label: `IT issues (${openItIssues.length})`, dot: openItIssues.length > 0 }] : []),
               ]}
               active={tab}
               onChange={(key) => setTab(key as MobTab)}
