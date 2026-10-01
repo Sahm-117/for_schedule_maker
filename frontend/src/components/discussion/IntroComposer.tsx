@@ -45,11 +45,42 @@ const IntroComposer: React.FC<IntroComposerProps> = ({
   const cardRef = useRef<HTMLElement>(null);
   const areaRef = useRef<HTMLTextAreaElement>(null);
 
+  // The phone keyboard slides up over the lower half of the screen. Keep the whole card (the
+  // text box, the prompt chips and Send) above it: scroll just enough once the keyboard is up,
+  // and again whenever the visible area changes while the box has focus.
+  const keepCardAboveKeyboard = () => {
+    const card = cardRef.current;
+    if (!card) return;
+    const vv = window.visualViewport;
+    const visibleTop = vv ? vv.offsetTop : 0;
+    const visibleBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+    const rect = card.getBoundingClientRect();
+    const margin = 12;
+    if (rect.height + margin * 2 > visibleBottom - visibleTop) {
+      // Taller than the free space: show from the top of the card.
+      window.scrollBy({ top: rect.top - visibleTop - margin, behavior: 'smooth' });
+    } else if (rect.bottom > visibleBottom - margin) {
+      window.scrollBy({ top: rect.bottom - visibleBottom + margin, behavior: 'smooth' });
+    } else if (rect.top < visibleTop + margin) {
+      window.scrollBy({ top: rect.top - visibleTop - margin, behavior: 'smooth' });
+    }
+  };
+
   useEffect(() => {
-    if (!autoFocus) return;
+    if (!autoFocus) return undefined;
     cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     areaRef.current?.focus({ preventScroll: true });
+    const timers = [350, 800].map((ms) => window.setTimeout(keepCardAboveKeyboard, ms));
+    return () => timers.forEach((t) => window.clearTimeout(t));
   }, [autoFocus]);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return undefined;
+    const onResize = () => { if (document.activeElement === areaRef.current) keepCardAboveKeyboard(); };
+    vv.addEventListener('resize', onResize);
+    return () => vv.removeEventListener('resize', onResize);
+  }, []);
 
   const addPrompt = (starter: string) => {
     setBody((prev) => (prev.trim() ? `${prev.replace(/\s+$/, '')}\n\n${starter}` : starter));
@@ -85,6 +116,7 @@ const IntroComposer: React.FC<IntroComposerProps> = ({
         ref={areaRef}
         value={body}
         onChange={(e) => setBody(e.target.value)}
+        onFocus={() => { window.setTimeout(keepCardAboveKeyboard, 350); }}
         rows={5}
         placeholder={placeholder}
         className="mt-3 w-full resize-none rounded-2xl border border-gray-200 px-3.5 py-3 text-[15px] outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
