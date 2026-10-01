@@ -213,6 +213,11 @@ const resolveNavTo = (item: NavItem, hubMeetingLive: boolean, groupMeetingLive: 
   return item.to;
 };
 
+// Admins inside the Practice cohort can't open the areas that are not cohort data.
+const PracticeLockContext = React.createContext(false);
+const LOCKED_IN_PRACTICE = ['/users', '/resources', '/settings'];
+const isLockedInPractice = (path: string) => LOCKED_IN_PRACTICE.some((base) => path === base || path.startsWith(`${base}/`));
+
 const NavItemLink: React.FC<{
   item: NavItem;
   active: boolean;
@@ -225,6 +230,15 @@ const NavItemLink: React.FC<{
   onClick?: () => void;
 }> = ({ item, active, globalPendingCount, newResourceCount, hasNewHubActivity, hubMeetingLive = false, groupMeetingLive = false, groupLiveWeekId = null, onClick }) => {
   const isLive = (item.to === '/support/my-hub' && hubMeetingLive) || (item.to === '/support/participants' && groupMeetingLive);
+  const practiceLocked = React.useContext(PracticeLockContext) && isLockedInPractice(item.to);
+  if (practiceLocked) {
+    return (
+      <span className="nav-pill cursor-not-allowed opacity-40" title="Not available while you are in the Practice cohort" aria-disabled="true">
+        {item.icon}
+        <span>{item.label}</span>
+      </span>
+    );
+  }
   return (
     <NavLink
       key={item.to}
@@ -488,7 +502,13 @@ const AppShell: React.FC = () => {
       : 'No dates set',
   }));
 
+  const practiceLocked = isAdmin && !!activeCohort?.isPractice;
+  useEffect(() => {
+    if (practiceLocked && isLockedInPractice(location.pathname)) navigate('/practice', { replace: true });
+  }, [practiceLocked, location.pathname, navigate]);
+
   return (
+    <PracticeLockContext.Provider value={practiceLocked}>
     <div className="app-shell-bg min-h-screen text-gray-900">
       {/* The update prompt is mounted once, app-wide, in App.tsx. */}
       <NewNotificationBanner />
@@ -505,7 +525,7 @@ const AppShell: React.FC = () => {
             </button>
           </div>
         ) : isAdmin ? (
-          <div className="sticky top-0 z-40 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white">Practice cohort. Users, Resources and Settings are still real.</div>
+          <div className="sticky top-0 z-40 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white">Practice cohort. Users, Resources and Settings are switched off here.</div>
         ) : (
           <div className="sticky top-0 z-40 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white">Practice mode. Nothing here is real.</div>
         )
@@ -871,6 +891,7 @@ const AppShell: React.FC = () => {
 
       <NeedSupportButton className="lg:hidden" cohortId={activeCohort?.id ?? null} />
     </div>
+    </PracticeLockContext.Provider>
   );
 };
 
