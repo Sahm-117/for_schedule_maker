@@ -120,7 +120,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     { target: wt('activity-mark-done'), title: 'Mark activities done', body: 'Tap "Mark done" when you finish an activity. It saves straight away. Tap again to undo.', optional: true },
   ],
   'support:group': [
-    { target: wt('group-tabs'), title: 'Your group workspace', body: 'Participants shows each person. Group meetings walks you through your weekly meeting in Meeting Mode. Attendance has its own place in the menu.' },
+    { target: wt('group-tabs'), title: 'Your group workspace', body: 'Discussion is where your group talks. Group meetings walks you through your weekly meeting in Meeting Mode. People shows each person. Attendance has its own place in the menu.' },
     { target: wt('group-call'), title: 'Your group call', body: 'Your group’s meeting link and time. Set or update them here.', optional: true },
     { target: '[data-wt="group-call"] + *', title: 'Each participant', body: 'See how each person is doing and read their faith project. If something is wrong, flag a concern and Operations is told straight away.', optional: true },
   ],

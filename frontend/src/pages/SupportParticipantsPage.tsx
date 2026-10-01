@@ -69,7 +69,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [selectedWeekId, setSelectedWeekId] = useState<number | null>(null);
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<GroupTab>(searchParams.get('tab') === 'prayers' ? 'prayers' : searchParams.get('tab') === 'discussion' ? 'discussion' : 'faith');
+  const [activeTab, setActiveTab] = useState<GroupTab>(searchParams.get('tab') === 'prayers' ? 'prayers' : searchParams.get('tab') === 'faith' ? 'faith' : 'discussion');
   const [discussionUnseen, setDiscussionUnseen] = useState(0);
   // Orange dot on Discussion while it's closed and the group has posted since the support last looked.
   useEffect(() => {
@@ -424,9 +424,9 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
             <div data-wt="group-tabs">
               <SegmentedTabs
                 tabs={[
-                  { key: 'faith', label: 'Participants', shortLabel: 'People' },
                   { key: 'discussion', label: 'Discussion', dot: discussionUnseen > 0 },
                   { key: 'prayers', label: 'Group meetings', shortLabel: 'Meetings' },
+                  { key: 'faith', label: 'Participants', shortLabel: 'People' },
                 ]}
                 active={activeTab}
                 onChange={(key) => setActiveTab(key as GroupTab)}
