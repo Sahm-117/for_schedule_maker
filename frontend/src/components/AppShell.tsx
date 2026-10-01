@@ -310,7 +310,7 @@ const NavGroupSection: React.FC<{
 );
 
 const AppShell: React.FC = () => {
-  const { user, isAdmin, logout, refreshUserCohorts } = useAuth();
+  const { user, isAdmin, logout, refreshUserCohorts, switchRole } = useAuth();
   const {
     cohorts,
     activeCohort,
@@ -751,7 +751,7 @@ const AppShell: React.FC = () => {
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
 
-            {user && <ProfileMenu name={user.name} avatarUrl={user.avatarUrl} profilePath={isSupport ? '/support/profile' : '/settings'} onLogout={logout} />}
+            {user && <ProfileMenu name={user.name} avatarUrl={user.avatarUrl} profilePath={isSupport ? '/support/profile' : '/settings'} onLogout={logout} roles={user.roles} activeRole={user.role} onSwitchRole={switchRole} />}
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{user?.name}</p>

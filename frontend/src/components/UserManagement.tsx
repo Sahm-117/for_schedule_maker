@@ -18,6 +18,16 @@ const ROLE_BADGE: Record<User['role'], string> = {
   SUPPORT: 'bg-sky-100/80 text-sky-700',
   PARTICIPANT: 'bg-neutral-100 text-neutral-600',
 };
+// Everyone holds at least their home role; some hold more and can switch between them.
+type StaffRole = 'ADMIN' | 'SUPPORT';
+const rolesOf = (user: User): StaffRole[] => (user.roles && user.roles.length > 0 ? user.roles : [user.role as StaffRole]);
+const RoleBadges: React.FC<{ user: User }> = ({ user }) => (
+  <span className="inline-flex flex-wrap justify-end gap-1">
+    {rolesOf(user).map((role) => (
+      <span key={role} className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${ROLE_BADGE[role]}`}>{ROLE_LABEL[role]}</span>
+    ))}
+  </span>
+);
 const ROLE_LABEL: Record<User['role'], string> = {
   ADMIN: 'Admin',
   SUPPORT: 'Support',
@@ -81,7 +91,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [noAlertsOnly, setNoAlertsOnly] = useState(false);
   const [noAlertsCopied, setNoAlertsCopied] = useState(false);
   const [roleChangeTarget, setRoleChangeTarget] = useState<User | null>(null);
-  const [roleChangeValue, setRoleChangeValue] = useState<'ADMIN' | 'SUPPORT'>('SUPPORT');
+  const [roleChangeValues, setRoleChangeValues] = useState<StaffRole[]>(['SUPPORT']);
 
   const [newUser, setNewUser] = useState({
     name: '',
@@ -370,12 +380,12 @@ const UserManagement: React.FC<UserManagementProps> = ({
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: 'ADMIN' | 'SUPPORT') => {
+  const handleRoleChange = async (userId: string, newRoles: StaffRole[]) => {
     setLoading(true);
     setError('');
     setSuccess('');
     try {
-      const response = await usersApi.update(userId, { role: newRole });
+      const response = await usersApi.update(userId, { roles: newRoles });
       setUsers((prev) => sortByText(
         prev.map((entry) => (entry.id === userId ? { ...entry, ...response.user } : entry)),
         (user) => user.name
@@ -397,7 +407,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const noAlertsCount = users.filter(hasNoAlerts).length;
 
   const filteredUsers = sortByText(users.filter((user) => {
-    const matchesRole = roleFilter === 'ALL' || user.role === roleFilter;
+    const matchesRole = roleFilter === 'ALL' || rolesOf(user).includes(roleFilter as StaffRole);
     const haystack = [user.name, user.email, user.phone].filter(Boolean).join(' ').toLowerCase();
     const matchesSearch = searchQuery.trim().length === 0 || haystack.includes(searchQuery.trim().toLowerCase());
     const matchesAlerts = !noAlertsOnly || hasNoAlerts(user);
@@ -408,14 +418,14 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const activeUsers = users.filter((u) => u.isActive !== false);
   const deactivatedCount = users.length - activeUsers.length;
   const headCount = [
-    `${activeUsers.filter((u) => u.role === 'ADMIN').length} admins`,
-    `${activeUsers.filter((u) => u.role === 'SUPPORT').length} supports`,
+    `${activeUsers.filter((u) => rolesOf(u).includes('ADMIN')).length} admins`,
+    `${activeUsers.filter((u) => rolesOf(u).includes('SUPPORT')).length} supports`,
     deactivatedCount > 0 ? `${deactivatedCount} deactivated` : '',
   ].filter(Boolean).join(' · ');
 
   // WhatsApp-ready list of the supports shown under the "No alerts" filter,
   // with install videos, so an admin can paste it into a group chat.
-  const noAlertsSupports = noAlertsOnly ? filteredUsers.filter((user) => user.role === 'SUPPORT') : [];
+  const noAlertsSupports = noAlertsOnly ? filteredUsers.filter((user) => rolesOf(user).includes('SUPPORT')) : [];
   const noAlertsMessage = [
     'The following supports do not have alerts set up on their phone yet, so they are missing reminders:',
     '',
@@ -466,7 +476,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       <button type="button" aria-label="Close user actions" className="fixed inset-0 z-[90] cursor-default" onClick={() => setOpenMenuId(null)} />
       <div className="fixed z-[100] w-44 rounded-2xl border border-gray-200 bg-white py-1 shadow-xl" style={menuPosition} role="menu">
         <button onClick={() => { openUserDetails(user); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-gray-50" role="menuitem">Manage</button>
-        <button onClick={() => { setRoleChangeTarget(user); setRoleChangeValue(user.role as 'ADMIN' | 'SUPPORT'); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">Change role</button>
+        <button onClick={() => { setRoleChangeTarget(user); setRoleChangeValues(rolesOf(user)); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">Roles</button>
         <button onClick={() => { void handleTestChange(user); setOpenMenuId(null); }} disabled={loading} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">{user.isTest ? 'Unmark as test' : 'Mark as test'}</button>
         <button onClick={() => { setResetPasswordUserId(user.id); setError(''); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-orange-500 hover:bg-gray-50" role="menuitem">Reset password</button>
         <button onClick={() => { setFirstTimeTarget(user); setFirstTimePassword(false); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">Reset first-time experience</button>
@@ -691,7 +701,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                         </div>
                         {/* Role badge + hamburger */}
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${ROLE_BADGE[user.role]}`}>{ROLE_LABEL[user.role]}</span>
+                          <RoleBadges user={user} />
                           <div>
                             <button
                               onClick={(event) => toggleUserMenu(user.id, event.currentTarget)}
@@ -755,7 +765,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             <div className="text-sm text-gray-500">{user.email || user.phone}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${ROLE_BADGE[user.role]}`}>{ROLE_LABEL[user.role]}</span>
+                            <RoleBadges user={user} />
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {user.createdAt ? formatDate(user.createdAt) : 'N/A'}
@@ -880,12 +890,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      selectedUser.role === 'ADMIN' ? 'bg-orange-100 text-orange-700'
-                      : 'bg-blue-100 text-blue-700'
-                    }`}>
-                      {selectedUser.role === 'ADMIN' ? 'Admin' : 'Support'}
-                    </span>
+                    <RoleBadges user={selectedUser} />
                   </div>
                 </div>
                 <div>
@@ -1049,23 +1054,30 @@ const UserManagement: React.FC<UserManagementProps> = ({
       <ConfirmationModal
         isOpen={!!roleChangeTarget}
         onClose={() => setRoleChangeTarget(null)}
-        onConfirm={() => { if (roleChangeTarget) void handleRoleChange(roleChangeTarget.id, roleChangeValue); }}
-        title={`Change role for ${roleChangeTarget?.name ?? 'this user'}?`}
-        message="They will get the permissions of the new role the next time they load the app."
+        onConfirm={() => { if (roleChangeTarget) void handleRoleChange(roleChangeTarget.id, roleChangeValues); }}
+        title={`Roles for ${roleChangeTarget?.name ?? 'this user'}`}
+        message="Someone with more than one role can switch between them from their profile menu, without logging out. They always sign in as the lowest one."
         type="warning"
-        confirmText="Change role"
-        confirmDisabled={!roleChangeTarget || roleChangeValue === roleChangeTarget.role}
+        confirmText="Save roles"
+        confirmDisabled={!roleChangeTarget || roleChangeValues.length === 0 || [...roleChangeValues].sort().join() === [...rolesOf(roleChangeTarget)].sort().join()}
       >
-        <AppSelect
-          value={roleChangeValue}
-          onChange={(value) => setRoleChangeValue(value as 'ADMIN' | 'SUPPORT')}
-          options={[
-            { value: 'SUPPORT', label: 'Support' },
-            { value: 'ADMIN', label: 'Admin' },
-          ]}
-          placeholder="Choose role"
-          compact
-        />
+        <div className="space-y-2">
+          {(['SUPPORT', 'ADMIN'] as StaffRole[]).map((role) => {
+            const on = roleChangeValues.includes(role);
+            const lockedSelf = role === 'ADMIN' && roleChangeTarget?.id === currentUser?.id;
+            return (
+              <label key={role} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium ${on ? 'border-orange-300 bg-orange-50' : 'border-gray-200'} ${lockedSelf ? 'opacity-70' : 'cursor-pointer'}`}>
+                <input
+                  type="checkbox"
+                  checked={on}
+                  disabled={lockedSelf}
+                  onChange={() => setRoleChangeValues((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]))}
+                />
+                {ROLE_LABEL[role]}{lockedSelf ? ' (you can’t remove your own)' : ''}
+              </label>
+            );
+          })}
+        </div>
       </ConfirmationModal>
     </>
   );

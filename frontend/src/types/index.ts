@@ -62,6 +62,8 @@ export interface User {
   phone?: string;
   name: string;
   role: 'ADMIN' | 'SUPPORT' | 'PARTICIPANT';
+  /** Every role this login may act as (the active one is `role`). Absent = just `role`. */
+  roles?: Array<'ADMIN' | 'SUPPORT'>;
   isActive?: boolean;
   /** Test account: works normally, but follow-up assignment and counts ignore it. */
   isTest?: boolean;

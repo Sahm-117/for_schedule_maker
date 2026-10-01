@@ -144,7 +144,7 @@ const friendlyUserError = (rawMessage: string | undefined, fallback: string): st
 // Auth API using Supabase Auth
 // Every column of "User" the app uses. password_hash is deliberately absent so a
 // stolen anon key (or DevTools) can never read password material.
-const USER_SELECT = 'id, email, phone, name, role, "isActive", "isTest", "deactivatedAt", "isCoordinator", "avatarUrl", "themeColor", "hubLastSeenAt", "whatsappGroupUrl", gender, "ageRange", birthday, "onboardingCompleted", "onboardingReplayCount", "onboardingLastReplayAt", "mustChangePassword", "createdAt", "updatedAt"';
+const USER_SELECT = 'id, email, phone, name, role, roles, "isActive", "isTest", "deactivatedAt", "isCoordinator", "avatarUrl", "themeColor", "hubLastSeenAt", "whatsappGroupUrl", gender, "ageRange", birthday, "onboardingCompleted", "onboardingReplayCount", "onboardingLastReplayAt", "mustChangePassword", "createdAt", "updatedAt"';
 
 export const authApi = {
   async login(identifier: string, password: string): Promise<AuthResponse> {
@@ -250,7 +250,18 @@ export const authApi = {
       throw new Error('Account deactivated');
     }
 
-    return { user: data as unknown as User };
+    // The table holds the home role; the database knows which role this login is acting as.
+    const me = data as unknown as User;
+    const { data: session } = await supabase.rpc('get_session_user', { p_token: getSessionToken() });
+    const active = (session as { role?: User['role'] } | null)?.role;
+    const roles = (me.roles && me.roles.length > 0) ? me.roles : [me.role as 'ADMIN' | 'SUPPORT'];
+    return { user: { ...me, role: active ?? me.role, roles } };
+  },
+
+  async switchRole(role: 'ADMIN' | 'SUPPORT'): Promise<User> {
+    const { data, error } = await supabase.rpc('switch_my_role', { p_token: getSessionToken(), p_role: role });
+    if (error || !data) throw new Error(error?.message?.includes('do not have') ? 'You do not have that role.' : 'Could not switch roles.');
+    return data as unknown as User;
   },
 
   async refresh(refreshToken: string): Promise<AuthResponse> {
@@ -2517,6 +2528,7 @@ export const usersApi = {
     phone?: string | null;
     password?: string;
     role?: 'ADMIN' | 'SUPPORT';
+    roles?: Array<'ADMIN' | 'SUPPORT'>;
     isActive?: boolean;
     deactivatedAt?: string | null;
     isCoordinator?: boolean;
@@ -2531,6 +2543,8 @@ export const usersApi = {
     delete finalUpdateData.password;
     const newRole = updateData.role;
     delete finalUpdateData.role;
+    const newRoles = updateData.roles;
+    delete finalUpdateData.roles;
 
     if (newPassword) {
       const { error: passwordError } = await supabase.rpc('set_user_password', {
@@ -2550,12 +2564,10 @@ export const usersApi = {
     }
 
     let roleUser: User | null = null;
-    if (newRole) {
-      const { data: roleData, error: roleError } = await supabase.rpc('set_user_role', {
-        p_token: getSessionToken(),
-        target_user: userId,
-        p_role: newRole,
-      });
+    if (newRole || (newRoles && newRoles.length > 0)) {
+      const { data: roleData, error: roleError } = newRoles && newRoles.length > 0
+        ? await supabase.rpc('set_user_roles', { p_token: getSessionToken(), target_user: userId, p_roles: newRoles })
+        : await supabase.rpc('set_user_role', { p_token: getSessionToken(), target_user: userId, p_role: newRole });
       if (roleError) {
         if (roleError.message.includes('NOT_AUTHORISED')) {
           throw new Error('Only an admin can change a role.');

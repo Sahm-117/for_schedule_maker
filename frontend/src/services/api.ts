@@ -165,6 +165,7 @@ if (typeof window !== 'undefined') {
 
 // Auth API
 export const authApi = USE_SUPABASE ? supabaseAuthApi : {
+  async switchRole(_role: 'ADMIN' | 'SUPPORT'): Promise<User> { throw new Error('Switching roles needs the database.'); },
   async login(email: string, password: string): Promise<AuthResponse> {
     const response = await api.post('/auth/login', { email, password });
     return response.data;

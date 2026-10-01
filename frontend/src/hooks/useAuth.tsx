@@ -11,6 +11,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   refreshUser: (patch?: Partial<User>) => void;
+  /** Act as another of the roles this login holds, then reload so nothing from the old view lingers. */
+  switchRole: (role: 'ADMIN' | 'SUPPORT') => Promise<void>;
   isAdmin: boolean;
   userLabelIds: string[];
   userLabels: Label[];
@@ -122,6 +124,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       applyTheme(next.themeColor);
       return next;
     });
+  }, []);
+
+  const switchRole = useCallback(async (role: 'ADMIN' | 'SUPPORT') => {
+    const next = await authApi.switchRole(role);
+    try { localStorage.setItem('user', JSON.stringify({ ...next, roles: next.roles })); } catch { /* ignore */ }
+    // A clean start in the new view: cohorts, labels, caches and open pages all reload.
+    window.location.assign('/');
   }, []);
 
   const checkAuth = useCallback(async () => {
@@ -284,6 +293,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     refreshUser,
+    switchRole,
     isAdmin: user?.role === 'ADMIN',
     userLabelIds,
     userLabels,
