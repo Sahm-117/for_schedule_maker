@@ -15,7 +15,7 @@ import { practiceApi, usersApi } from '../services/api';
 import { PRACTICE_ROLE_LABEL, PRACTICE_SCENARIOS } from '../constants/practiceScenarios';
 import { pickableUsers } from '../utils/testUsers';
 import { sortByText } from '../utils/sort';
-import type { PracticeCalendar, PracticeMemberState, PracticeProgressItem, PracticeRole, PracticeState, User } from '../types';
+import type { PracticeActivePeer, PracticeCalendar, PracticeMemberState, PracticeProgressItem, PracticeRole, PracticeState, User } from '../types';
 
 const SURFACE = 'rounded-[28px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]';
 const ROLE_OPTIONS = (['SUPPORT', 'HUB_LEAD', 'ASSISTANT', 'RECAP_LEAD', 'PRAYER_LEAD'] as PracticeRole[]).map((role) => ({ value: role, label: PRACTICE_ROLE_LABEL[role] }));
@@ -40,6 +40,7 @@ const AdminPracticePage: React.FC = () => {
   const { isAdmin } = useAuth();
   const toast = useToast();
   const [state, setState] = useState<PracticeState | null>(null);
+  const [peers, setPeers] = useState<PracticeActivePeer[]>([]);
   const [error, setError] = useState('');
   const [tab, setTab] = useState<'board' | 'team'>('board');
   const [busy, setBusy] = useState(false);
@@ -57,6 +58,7 @@ const AdminPracticePage: React.FC = () => {
   const load = useCallback(async (silent = false) => {
     try {
       const next = await practiceApi.getState();
+      practiceApi.activePeers().then((rows) => setPeers((prev) => (JSON.stringify(prev) === JSON.stringify(rows) ? prev : rows))).catch(() => {});
       setState((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
       if (!dirtyRef.current) {
         setRoster(next.members.map((m) => ({ userId: m.userId, name: m.name, role: m.role, avatarUrl: m.avatarUrl })));
@@ -117,6 +119,25 @@ const AdminPracticePage: React.FC = () => {
       {error && <p className={`${SURFACE} mb-4 px-6 py-4 text-sm text-gray-500`}>{error}</p>}
 
       <div className="flex flex-col gap-4">
+        {peers.length > 0 && (
+          <section className="rounded-[28px] bg-violet-700 px-6 py-5 text-white shadow-[0_1px_2px_rgba(15,23,42,0.06)]">
+            <p className="text-[17px] font-bold">{peers.length} walkthrough{peers.length === 1 ? '' : 's'} in progress</p>
+            <ul className="mt-2 space-y-1 text-[13px] text-white/85">
+              {peers.map((peer) => (
+                <li key={peer.id}>{peer.fromName} ({PRACTICE_ROLE_LABEL[peer.fromRole]}) with {peer.toName} ({PRACTICE_ROLE_LABEL[peer.toRole]}){peer.status === 'PENDING' ? ' · waiting to join' : ''}</li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void run(async () => { const n = await practiceApi.endAllPeers(); setPeers([]); if (n === 0) throw new Error('Nothing to end.'); }, 'All walkthroughs ended.')}
+              className="mt-4 flex h-12 w-full items-center justify-center rounded-full bg-white text-[15px] font-bold text-violet-800 active:scale-[0.98] disabled:opacity-60"
+            >
+              End all walkthroughs
+            </button>
+          </section>
+        )}
+
         <section className={`${SURFACE} px-6 py-5`}>
           <button
             type="button"

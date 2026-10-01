@@ -461,6 +461,62 @@ BEGIN
 END;
 $function$;
 
+
+-- A participant session ends the walkthrough it belongs to.
+CREATE OR REPLACE FUNCTION public.practice_participant_peer_end(p_token TEXT)
+ RETURNS VOID
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
+AS $function$
+DECLARE
+  v_pid UUID := public.app_participant_id(p_token);
+BEGIN
+  IF v_pid IS NULL THEN
+    RAISE EXCEPTION 'SESSION_EXPIRED';
+  END IF;
+  UPDATE "PracticePeer" SET status = 'ENDED', "endedAt" = NOW() WHERE status = 'ACTIVE' AND "participantId" = v_pid;
+END;
+$function$;
+
+-- Admin: who is in a walkthrough right now, and end them all.
+CREATE OR REPLACE FUNCTION public.practice_active_peers()
+ RETURNS JSONB
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+BEGIN
+  IF NOT public.app_is_admin() THEN
+    RAISE EXCEPTION 'Only admins can see this';
+  END IF;
+  RETURN COALESCE((
+    SELECT jsonb_agg(jsonb_build_object('id', pp.id, 'fromName', f.name, 'toName', t.name, 'fromRole', pp."fromRole", 'toRole', pp."toRole", 'status', pp.status) ORDER BY pp."createdAt")
+    FROM public."PracticePeer" pp JOIN public."User" f ON f.id = pp."fromUserId" JOIN public."User" t ON t.id = pp."toUserId"
+    WHERE pp.status IN ('ACTIVE', 'PENDING') AND pp."createdAt" > NOW() - INTERVAL '1 day'), '[]'::jsonb);
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.practice_end_all_peers()
+ RETURNS INTEGER
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+DECLARE
+  v_n INTEGER;
+BEGIN
+  IF NOT public.app_is_admin() THEN
+    RAISE EXCEPTION 'Only admins can end walkthroughs';
+  END IF;
+  UPDATE public."PracticePeer"
+     SET status = CASE WHEN status = 'PENDING' THEN 'CANCELLED' ELSE 'ENDED' END, "endedAt" = NOW(), "respondedAt" = COALESCE("respondedAt", NOW())
+   WHERE status IN ('ACTIVE', 'PENDING');
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  RETURN v_n;
+END;
+$function$;
+
 -- Set-up clears walkthroughs along with everything else practice.
 DO $patch$
 DECLARE
@@ -488,7 +544,7 @@ DECLARE
 BEGIN
   FOREACH f IN ARRAY ARRAY[
     'practice_set_my_role(text)', 'practice_team()', 'practice_peer_request(uuid,text,text)', 'practice_peer_respond(uuid,boolean)',
-    'practice_peer_end(uuid)', 'practice_pulse()', 'practice_enter_participant()', 'practice_leave_participant()', 'practice_participant_peer(text)'
+    'practice_peer_end(uuid)', 'practice_participant_peer_end(text)', 'practice_active_peers()', 'practice_end_all_peers()', 'practice_pulse()', 'practice_enter_participant()', 'practice_leave_participant()', 'practice_participant_peer(text)'
   ] LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION public.%s FROM PUBLIC', f);
     EXECUTE format('GRANT EXECUTE ON FUNCTION public.%s TO anon, authenticated', f);

@@ -123,7 +123,10 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
   };
 
   const endWalkthrough = async (id: string) => {
-    try { await practiceApi.peerEnd(id); await refreshPulse?.(); } catch { toast({ tone: 'error', message: 'Could not end it. Please try again.' }); }
+    try {
+      if (mode === 'participant') { await practiceApi.participantPeerEnd(); setPartner(null); load(); } else { await practiceApi.peerEnd(id); await refreshPulse?.(); }
+      toast({ message: 'Walkthrough ended.' });
+    } catch { toast({ tone: 'error', message: 'Could not end it. Please try again.' }); }
   };
 
   if (!active) return null;
@@ -144,12 +147,15 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
           {swapped && (
             <button type="button" onClick={() => void leaveParticipantView()} className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-bold text-white">Back to my account</button>
           )}
+          {peer && (
+            <button type="button" onClick={() => void endWalkthrough(peer.id)} className="rounded-full bg-white px-3 py-0.5 text-[11px] font-bold text-violet-800">End walkthrough</button>
+          )}
         </div>
       )}
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+92px)] left-4 z-40 inline-flex items-center gap-2 rounded-full bg-[#3f4757] py-2.5 pl-3.5 pr-4 text-[13px] font-semibold text-white shadow-lg active:scale-[0.98]"
+        className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+92px)] left-4 z-40 inline-flex items-center gap-2 rounded-full py-2.5 pl-3.5 pr-4 text-[13px] font-semibold text-white shadow-lg active:scale-[0.98] ${peer ? 'bg-violet-700' : 'bg-[#3f4757]'}`}
       >
         <span className="grid h-5 w-5 place-items-center rounded-full bg-white/20 text-[11px] font-bold">{doneCount}</span>
         {peer ? `Walkthrough · ${doneCount} done` : `Practice · ${doneCount} of ${total}`}
@@ -176,14 +182,10 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
                 {peer.partnerInParticipantView ? '● In participant view' : peer.partnerPresent ? '● Here now' : 'Away'}
               </span>
             </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              {mode === 'staff' && peer.iAmParticipant && (
-                <button type="button" onClick={() => void pickSeat('PARTICIPANT')} className="rounded-full bg-violet-700 px-3.5 py-1.5 text-[12.5px] font-semibold text-white">Switch to participant view</button>
-              )}
-              {mode === 'staff' && (
-                <button type="button" onClick={() => void endWalkthrough(peer.id)} className="rounded-full bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-violet-700">End walkthrough</button>
-              )}
-            </div>
+            {mode === 'staff' && peer.iAmParticipant && (
+              <button type="button" onClick={() => void pickSeat('PARTICIPANT')} className="mt-2 w-full rounded-full bg-violet-700 px-4 py-2.5 text-[13.5px] font-semibold text-white">Switch to participant view</button>
+            )}
+            <button type="button" onClick={() => void endWalkthrough(peer.id)} className="mt-2 flex h-11 w-full items-center justify-center rounded-full bg-rose-600 px-4 text-[14px] font-bold text-white shadow-sm active:scale-[0.98]">End walkthrough</button>
           </div>
         ) : mode === 'staff' && (
           <div className="mt-4">

@@ -494,16 +494,18 @@ const AppShell: React.FC = () => {
       <NewNotificationBanner />
       {activeCohort?.isPractice && (
         practicePulse?.active ? (
-          <div className="sticky top-0 z-40 flex items-center justify-center gap-3 bg-violet-700 px-4 py-1.5 text-center text-[12px] font-semibold text-white">
-            <span>Walkthrough with {practicePulse.active.partnerName.split(' ')[0]} · you are the {PRACTICE_ROLE_LABEL[practicePulse.active.myRole]}</span>
+          <div className="sticky top-0 z-40 flex items-center justify-between gap-3 bg-violet-700 px-4 py-2 text-white">
+            <span className="min-w-0 truncate text-[12.5px] font-semibold">With {practicePulse.active.partnerName.split(' ')[0]} · {PRACTICE_ROLE_LABEL[practicePulse.active.myRole]}</span>
             <button
               type="button"
               onClick={() => { const id = practicePulse.active!.id; void practiceApi.peerEnd(id).then(() => refreshPracticePulse()); }}
-              className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-bold"
+              className="flex-none rounded-full bg-white px-4 py-1.5 text-[12.5px] font-bold text-violet-800 shadow-sm active:scale-[0.97]"
             >
-              End
+              End walkthrough
             </button>
           </div>
+        ) : isAdmin ? (
+          <div className="sticky top-0 z-40 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white">Practice cohort. Users, Resources and Settings are still real.</div>
         ) : (
           <div className="sticky top-0 z-40 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white">Practice mode. Nothing here is real.</div>
         )

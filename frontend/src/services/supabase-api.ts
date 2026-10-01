@@ -8156,6 +8156,23 @@ export const practiceApi = {
     return data as { token: string; user: import('../types').User };
   },
 
+  async participantPeerEnd(): Promise<void> {
+    const { error } = await supabase.rpc('practice_participant_peer_end', { p_token: getSessionToken() });
+    if (error) throw new Error(error.message);
+  },
+
+  async activePeers(): Promise<import('../types').PracticeActivePeer[]> {
+    const { data, error } = await supabase.rpc('practice_active_peers');
+    if (error) throw new Error(error.message);
+    return (data as import('../types').PracticeActivePeer[]) ?? [];
+  },
+
+  async endAllPeers(): Promise<number> {
+    const { data, error } = await supabase.rpc('practice_end_all_peers');
+    if (error) throw new Error(error.message);
+    return Number(data ?? 0);
+  },
+
   async leaveParticipant(): Promise<void> {
     await supabase.rpc('practice_leave_participant');
   },

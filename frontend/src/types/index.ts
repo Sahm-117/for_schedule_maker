@@ -1731,3 +1731,12 @@ export interface PracticePulse {
   outgoing?: { id: string; toName: string; myRole: PracticeSeatKey; theirRole: PracticeSeatKey } | null;
   active?: PracticePeerActive | null;
 }
+
+export interface PracticeActivePeer {
+  id: string;
+  fromName: string;
+  toName: string;
+  fromRole: PracticeSeatKey;
+  toRole: PracticeSeatKey;
+  status: 'ACTIVE' | 'PENDING';
+}
