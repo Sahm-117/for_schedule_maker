@@ -14,6 +14,7 @@
  *   issueId: string,
  *   reporterId: string,
  *   replierId?: string,
+ *   replierSuffix?: string,   // e.g. "(Admin)" when a multi-role person replied while acting as Admin
  *   kind?: 'REPLY'
  * }
  *
@@ -62,10 +63,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { issueId, reporterId, replierId, kind } = await req.json() as {
+    const { issueId, reporterId, replierId, replierSuffix, kind } = await req.json() as {
       issueId: string
       reporterId: string
       replierId?: string
+      replierSuffix?: string
       kind?: string
     }
 
@@ -112,7 +114,7 @@ Deno.serve(async (req) => {
       let replierName = 'Someone'
       if (replierId) {
         const { data: replier } = await supabase.from('User').select('name').eq('id', replierId).maybeSingle()
-        if (replier?.name) replierName = replier.name
+        if (replier?.name) replierName = replierSuffix === '(Admin)' ? `${replier.name} (Admin)` : replier.name
       }
       const lastReply = issue.issue.split(/\n---\nReply:/).pop()?.trim() ?? ''
       const contactForReply = issue.contact?.fullName?.trim()

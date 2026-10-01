@@ -7,6 +7,7 @@ import FollowUpStatusPill from './FollowUpStatusPill';
 import { ISSUE_STATUS_META } from '../../utils/followUps';
 import { followUpIssuesApi } from '../../services/api';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../hooks/useAuth';
 import { sortByText } from '../../utils/sort';
 import { selectedFirst } from '../../utils/selectedFirst';
 import Spinner from '../Spinner';
@@ -44,6 +45,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   startWithContactIds,
 }) => {
   useEffect(() => { onIssuesOpen?.(); }, [onIssuesOpen]);
+  const { user } = useAuth();
   const [showForm, setShowForm] = useState(!!startWithContactIds?.length);
   const [selectedIds, setSelectedIds] = useState<string[]>(startWithContactIds ?? []);
   const [contactSearch, setContactSearch] = useState('');
@@ -153,6 +155,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   };
 
   const handleReply = async (issue: FollowUpIssue) => {
+    const actingAsAdminOfMany = user?.role === 'ADMIN' && (user.roles?.length ?? 0) > 1;
     if (!replyText.trim()) return;
     setSaving(true);
     try {
@@ -163,7 +166,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
       setReplyText('');
       if (issue.reportedById && issue.reportedById !== currentUserId) {
         void supabase.functions.invoke('notify-followup-issue', {
-          body: { issueId: issue.id, reporterId: issue.reportedById, replierId: currentUserId, kind: 'REPLY' },
+          body: { issueId: issue.id, reporterId: issue.reportedById, replierId: currentUserId, replierSuffix: actingAsAdminOfMany ? '(Admin)' : undefined, kind: 'REPLY' },
         }).catch(() => undefined);
       }
     } finally {

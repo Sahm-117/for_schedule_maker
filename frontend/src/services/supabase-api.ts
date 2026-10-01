@@ -144,6 +144,11 @@ const friendlyUserError = (rawMessage: string | undefined, fallback: string): st
 // Auth API using Supabase Auth
 // Every column of "User" the app uses. password_hash is deliberately absent so a
 // stolen anon key (or DevTools) can never read password material.
+// "Sam (Admin)": a change made by someone who holds several roles while acting as Admin.
+// The database fills the ActedAs value from the session; support-mode and single-role changes stay plain.
+const withActedAs = (name: string | null, actedAs?: string | null): string | null =>
+  (name && actedAs === 'ADMIN' ? `${name} (Admin)` : name);
+
 const USER_SELECT = 'id, email, phone, name, role, roles, "isActive", "isTest", "deactivatedAt", "isCoordinator", "avatarUrl", "themeColor", "hubLastSeenAt", "whatsappGroupUrl", gender, "ageRange", birthday, "onboardingCompleted", "onboardingReplayCount", "onboardingLastReplayAt", "mustChangePassword", "createdAt", "updatedAt"';
 
 export const authApi = {
@@ -3652,7 +3657,7 @@ const mapFollowUpContact = (row: any): import('../types').FollowUpContact => ({
   ageRange: row.ageRange ?? null,
   occupation: row.occupation ?? null,
   registeredById: row.registeredById ?? null,
-  registeredByName: row.registeredBy?.name ?? null,
+  registeredByName: withActedAs(row.registeredBy?.name ?? null, row.registeredByActedAs),
   sheetSyncedAt: row.sheetSyncedAt ?? null,
   sheetSyncError: row.sheetSyncError ?? null,
   sheetSyncWarning: row.sheetSyncWarning ?? null,
@@ -4656,10 +4661,10 @@ const mapDepartmentReferral = (row: any): import('../types').DepartmentReferral 
   status: row.status,
   loggedAt: row.loggedAt,
   loggedById: row.loggedById ?? null,
-  loggedByName: row.loggedBy?.name ?? null,
+  loggedByName: withActedAs(row.loggedBy?.name ?? null, row.loggedByActedAs),
   joinedAt: row.joinedAt ?? null,
   updatedById: row.updatedById ?? null,
-  updatedByName: row.updatedBy?.name ?? null,
+  updatedByName: withActedAs(row.updatedBy?.name ?? null, row.updatedByActedAs),
   note: row.note ?? null,
   updatedAt: row.updatedAt,
 });
@@ -4711,7 +4716,7 @@ const mapStageChange = (row: any): import('../types').ParticipantStageChange => 
   stage: row.stage,
   note: row.note ?? null,
   changedById: row.changedById ?? null,
-  changedByName: row.changedBy?.name ?? null,
+  changedByName: withActedAs(row.changedBy?.name ?? null, row.changedByActedAs),
   changedAt: row.changedAt,
 });
 
@@ -4824,7 +4829,7 @@ const mapGroupOnboardingStatus = (row: any): import('../types').GroupOnboardingS
   participantCount: (row.group?.members ?? []).length,
   groupCreated: !!row.groupCreated,
   updatedById: row.updatedById ?? null,
-  updatedByName: row.updatedBy?.name ?? null,
+  updatedByName: withActedAs(row.updatedBy?.name ?? null, row.updatedByActedAs),
   updatedAt: row.updatedAt,
   completedAt: row.completedAt ?? null,
 });
@@ -4840,7 +4845,7 @@ const mapParticipantOnboardingStatus = (row: any): import('../types').Participan
   introductionDone: !!row.introductionDone,
   venueAcknowledged: !!row.venueAcknowledged,
   updatedById: row.updatedById ?? null,
-  updatedByName: row.updatedBy?.name ?? null,
+  updatedByName: withActedAs(row.updatedBy?.name ?? null, row.updatedByActedAs),
   updatedAt: row.updatedAt,
 });
 
@@ -6600,7 +6605,7 @@ const mapFaithProject = (row: any): import('../types').FaithProject => ({
   categoryName: row.category?.name ?? null,
   status: row.status ?? 'NOT_DRAFTED',
   updatedById: row.updatedById ?? null,
-  updatedByName: row.updatedBy?.name ?? null,
+  updatedByName: withActedAs(row.updatedBy?.name ?? null, row.updatedByActedAs),
   reviewHistory: (row.reviewHistory as import('../types').FaithProjectReviewEntry[]) ?? [],
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -6726,7 +6731,7 @@ const mapFaithHelpRequest = (row: any): import('../types').FaithHelpRequest => (
   createdAt: row.createdAt,
   resolvedAt: row.resolvedAt ?? null,
   resolvedById: row.resolvedById ?? null,
-  resolvedByName: row.resolvedBy?.name ?? null,
+  resolvedByName: withActedAs(row.resolvedBy?.name ?? null, row.resolvedByActedAs),
 });
 
 export const faithHelpRequestsApi = {
@@ -6771,7 +6776,7 @@ const mapTestimony = (row: any): import('../types').Testimony => ({
   visibility: row.visibility,
   status: row.status,
   reviewedById: row.reviewedById ?? null,
-  reviewedByName: row.reviewedBy?.name ?? null,
+  reviewedByName: withActedAs(row.reviewedBy?.name ?? null, row.reviewedByActedAs),
   reviewedAt: row.reviewedAt ?? null,
   viewedAt: row.viewedAt ?? null,
   createdAt: row.createdAt,
@@ -6890,7 +6895,7 @@ const mapGroupPrayer = (row: any): import('../types').GroupPrayer => ({
   weekNumber: row.week?.weekNumber ?? undefined,
   body: row.body,
   createdById: row.createdById ?? null,
-  createdByName: row.createdBy?.name ?? null,
+  createdByName: withActedAs(row.createdBy?.name ?? null, row.createdByActedAs),
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
@@ -6941,7 +6946,7 @@ const mapGroupPrayerFocus = (row: any): import('../types').GroupPrayerFocus => (
   participantId: row.participantId,
   participantName: row.participant?.fullName ?? null,
   setById: row.setById ?? null,
-  setByName: row.setBy?.name ?? null,
+  setByName: withActedAs(row.setBy?.name ?? null, row.setByActedAs),
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
@@ -7474,10 +7479,10 @@ const mapParticipantFlag = (row: any): import('../types').ParticipantFlag => ({
   reason: row.reason,
   note: row.note ?? null,
   raisedById: row.raisedById ?? null,
-  raisedByName: row.raisedBy?.name ?? null,
+  raisedByName: withActedAs(row.raisedBy?.name ?? null, row.raisedByActedAs),
   raisedAt: row.raisedAt,
   clearedById: row.clearedById ?? null,
-  clearedByName: row.clearedBy?.name ?? null,
+  clearedByName: withActedAs(row.clearedBy?.name ?? null, row.clearedByActedAs),
   clearedAt: row.clearedAt ?? null,
 });
 
