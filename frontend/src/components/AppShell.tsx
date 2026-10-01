@@ -444,6 +444,10 @@ const AppShell: React.FC = () => {
 
   // The support badge names the group(s) they lead in the selected cohort —
   // activity tags aren't cohort-specific, so an old cohort's tag would show.
+  // Bumped when Practice moves the person to another seat or resets them. The header label and
+  // the page behind it (My Hub, My Group, Attendance...) re-read everything right away instead of
+  // on the next background refresh.
+  const [workspaceRevision, setWorkspaceRevision] = useState(0);
   const [myGroupNames, setMyGroupNames] = useState<string[]>([]);
   // This support's own group id, for the "My Group" nav dot (useGroupMeetingLive
   // polls MeetingAttendance/GroupPrayerStatus for it — see that hook).
@@ -460,14 +464,11 @@ const AppShell: React.FC = () => {
       })
       .catch(() => { if (!cancelled) { setMyGroupNames([]); setMyGroupId(null); } });
     return () => { cancelled = true; };
-  }, [isSupport, user, activeCohort]);
+  }, [isSupport, user, activeCohort, workspaceRevision]);
   // Hub jobs held in the selected cohort — fetched across every hub this
   // support belongs to or IT-supports, so an operational support on 2+ hubs
   // still gets a single deduped list of job labels.
   const [myHubJobs, setMyHubJobs] = useState<HubJob[]>([]);
-  // Bumped when Practice moves the person to another seat, so the header label (and the page
-  // behind it) re-read their hub jobs now instead of on the next background refresh.
-  const [workspaceRevision, setWorkspaceRevision] = useState(0);
   // Whether ANY hub this support belongs to/IT-supports has a meeting on
   // right now — an operational support covering 2+ hubs needs every one
   // checked, not just myHub (which only ever holds one).
@@ -814,7 +815,8 @@ const AppShell: React.FC = () => {
             {!isSupport && (
               <SectionTabs pathname={location.pathname} isAdmin={isAdmin} pendingApprovals={globalPendingChanges.length} />
             )}
-            <Outlet />
+            {/* A seat switch in Practice remounts the page so it loads the new group and hub. */}
+            <React.Fragment key={workspaceRevision}><Outlet /></React.Fragment>
           </ErrorBoundary>
         </main>
 
