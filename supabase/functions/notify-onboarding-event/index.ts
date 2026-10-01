@@ -249,6 +249,15 @@ Deno.serve(async (req) => {
     }
 
     const event = await loadOnboardingEvent(body)
+    // Practice is a rehearsal: nothing about its groups is announced to anyone.
+    if (event.group?.cohortId) {
+      const { data: practice } = await supabase.from('Cohort').select('id').eq('id', event.group.cohortId).eq('isPractice', true).maybeSingle()
+      if (practice) {
+        return new Response(JSON.stringify({ ok: true, skipped: 'practice' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
     const notifications: NotificationTarget[] = []
     const baseNotification = buildNotification(event)
     if (baseNotification) notifications.push(baseNotification)

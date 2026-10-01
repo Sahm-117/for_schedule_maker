@@ -40,6 +40,12 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 )
 
+// Practice is a rehearsal: its groups, hubs and meetings never send reminders.
+const getPracticeCohortId = async (): Promise<string | null> => {
+  const { data } = await supabase.from('Cohort').select('id').eq('isPractice', true).maybeSingle()
+  return (data as { id: string } | null)?.id ?? null
+}
+
 const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY')!
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')!
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@fof.com'
@@ -483,14 +489,16 @@ Deno.serve(async (req) => {
 
         const { data: groups } = await supabase
           .from('Group')
-          .select('id, name, meetingTime, supportId')
+          .select('id, name, meetingTime, supportId, cohortId')
           .eq('meetingDay', DAY_NAMES_UPPER[target.dayIndex])
           .not('supportId', 'is', null)
           .not('meetingTime', 'is', null)
 
         if (!groups || groups.length === 0) continue
 
+        const practiceCohortId = await getPracticeCohortId()
         const matchingGroups = (groups as any[]).filter((g: any) => {
+          if (practiceCohortId && g.cohortId === practiceCohortId) return false
           const t = parseTime(g.meetingTime)
           if (t === null) return false
           return Math.abs(t - target.targetMinutes) <= WINDOW
@@ -546,14 +554,16 @@ Deno.serve(async (req) => {
 
         const { data: hubs } = await supabase
           .from('SupportHub')
-          .select('id, name, meetingTime, callLink, leadUserId, assistantLeadUserId, recapLeadUserIds, prayerLeadUserIds')
+          .select('id, name, meetingTime, callLink, leadUserId, assistantLeadUserId, recapLeadUserIds, prayerLeadUserIds, cohortId')
           .eq('meetingDay', DAY_NAMES_UPPER[target.dayIndex])
           .not('meetingTime', 'is', null)
           .not('callLink', 'is', null)
 
         if (!hubs || hubs.length === 0) continue
 
+        const practiceCohortId = await getPracticeCohortId()
         const matchingHubs = (hubs as any[]).filter((h: any) => {
+          if (practiceCohortId && h.cohortId === practiceCohortId) return false
           const t = parseTime(h.meetingTime)
           if (t === null) return false
           return Math.abs(t - target.targetMinutes) <= WINDOW
@@ -654,7 +664,9 @@ Deno.serve(async (req) => {
 
         if (!meetings || meetings.length === 0) continue
 
+        const practiceCohortId = await getPracticeCohortId()
         const matching = (meetings as any[]).filter((m: any) => {
+          if (practiceCohortId && m.cohortId === practiceCohortId) return false
           const t = parseTime(m.meetingTime)
           return t !== null && Math.abs(t - target.targetMinutes) <= WINDOW
         })
