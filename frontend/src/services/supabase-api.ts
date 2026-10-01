@@ -1821,6 +1821,29 @@ export const settingsApi = {
     if (error) throw new Error(error.message);
     return enabled;
   },
+  // Staged relaxation when no same-gender support has room: the person who added
+  // them, then any active support, then (off by default) ignoring the limit.
+  async getFollowUpRelax(): Promise<{ adder: boolean; anyGender: boolean; overLimit: boolean }> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('settingKey, value')
+      .in('settingKey', ['followup_relax_adder', 'followup_relax_any_gender', 'followup_relax_over_limit']);
+    if (error) throw new Error(error.message);
+    const byKey = new Map(((data as any[]) ?? []).map((row) => [row.settingKey, row.value]));
+    return {
+      adder: byKey.get('followup_relax_adder') !== false,
+      anyGender: byKey.get('followup_relax_any_gender') !== false,
+      overLimit: byKey.get('followup_relax_over_limit') === true,
+    };
+  },
+  async setFollowUpRelax(step: 'adder' | 'anyGender' | 'overLimit', enabled: boolean): Promise<boolean> {
+    const settingKey = step === 'adder' ? 'followup_relax_adder' : step === 'anyGender' ? 'followup_relax_any_gender' : 'followup_relax_over_limit';
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert([{ settingKey, value: enabled, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+    if (error) throw new Error(error.message);
+    return enabled;
+  },
   // Whether admins get a reminder every 2 hours while someone is still
   // waiting to be assigned. Missing row means on.
   async getFollowUpAdminAlertsEnabled(): Promise<boolean> {

@@ -544,6 +544,8 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async getFollowUpAutoReassignEnabled(): Promise<boolean> { return true; },
   async setFollowUpAutoReassignEnabled(enabled: boolean): Promise<boolean> { return enabled; },
   async getFollowUpAdminAlertsEnabled(): Promise<boolean> { return true; },
+  async getFollowUpRelax(): Promise<{ adder: boolean; anyGender: boolean; overLimit: boolean }> { return { adder: true, anyGender: true, overLimit: false }; },
+  async setFollowUpRelax(_step: 'adder' | 'anyGender' | 'overLimit', enabled: boolean): Promise<boolean> { return enabled; },
   async setFollowUpAdminAlertsEnabled(enabled: boolean): Promise<boolean> { return enabled; },
   async getRegistrationLink(): Promise<{ url: string }> {
     return { url: '' };

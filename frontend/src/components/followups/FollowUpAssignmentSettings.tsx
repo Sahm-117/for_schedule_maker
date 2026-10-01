@@ -118,13 +118,14 @@ const FollowUpAssignmentSettings: React.FC<{ waitingCount?: number; onClose?: ()
   const [loading, setLoading] = useState(true);
   const [autoReassign, setAutoReassign] = useState(true);
   const [showMoves, setShowMoves] = useState(false);
-  const [saving, setSaving] = useState<'autoAssign' | 'adminAlerts' | 'autoReassign' | null>(null);
+  const [relax, setRelax] = useState({ adder: true, anyGender: true, overLimit: false });
+  const [saving, setSaving] = useState<'autoAssign' | 'adminAlerts' | 'autoReassign' | 'adder' | 'anyGender' | 'overLimit' | null>(null);
   const [confirmOn, setConfirmOn] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([settingsApi.getFollowUpAutoAssignEnabled(), settingsApi.getFollowUpAdminAlertsEnabled(), settingsApi.getFollowUpAutoReassignEnabled()])
-      .then(([auto, alerts, reassign]) => { if (!cancelled) { setAutoAssign(auto); setAdminAlerts(alerts); setAutoReassign(reassign); } })
+    Promise.all([settingsApi.getFollowUpAutoAssignEnabled(), settingsApi.getFollowUpAdminAlertsEnabled(), settingsApi.getFollowUpAutoReassignEnabled(), settingsApi.getFollowUpRelax()])
+      .then(([auto, alerts, reassign, relaxed]) => { if (!cancelled) { setAutoAssign(auto); setAdminAlerts(alerts); setAutoReassign(reassign); setRelax(relaxed); } })
       .catch(() => { /* keep defaults on error */ })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -147,7 +148,7 @@ const FollowUpAssignmentSettings: React.FC<{ waitingCount?: number; onClose?: ()
         )}
       </div>
       <p className="mt-1 text-sm text-gray-500">
-        Same gender only. Whoever added them gets them first if they have room; otherwise it goes to the same-gender support with the fewest open follow-ups.
+        Same gender first, and only to supports who used the app in the last week. Whoever added them gets them first if they have room; otherwise the same-gender support with the fewest open follow-ups. If nobody fits, the steps below relax the rules, in order.
       </p>
       {loading ? (
         <p className="mt-3 flex items-center gap-1.5 text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading…</p>
@@ -182,6 +183,43 @@ const FollowUpAssignmentSettings: React.FC<{ waitingCount?: number; onClose?: ()
               settingsApi.setFollowUpAdminAlertsEnabled(next).catch(() => setAdminAlerts(!next)).finally(() => setSaving(null));
             }}
           />
+        </div>
+      )}
+      {!loading && (
+        <div className="mt-3 rounded-2xl bg-gray-50 px-4 py-2">
+          <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-gray-500">If no same-gender support has room</p>
+          <div className="divide-y divide-gray-100">
+            <ToggleRow
+              label="1 · Whoever added them"
+              description="Give them to the person who added them, even if not the same gender, if they are active and under the limit."
+              checked={relax.adder}
+              disabled={saving === 'adder'}
+              onChange={(next) => {
+                setSaving('adder'); setRelax((prev) => ({ ...prev, adder: next }));
+                settingsApi.setFollowUpRelax('adder', next).catch(() => setRelax((prev) => ({ ...prev, adder: !next }))).finally(() => setSaving(null));
+              }}
+            />
+            <ToggleRow
+              label="2 · Any active support"
+              description="Give them to any support who used the app this week and is under the limit, fewest open follow-ups first."
+              checked={relax.anyGender}
+              disabled={saving === 'anyGender'}
+              onChange={(next) => {
+                setSaving('anyGender'); setRelax((prev) => ({ ...prev, anyGender: next }));
+                settingsApi.setFollowUpRelax('anyGender', next).catch(() => setRelax((prev) => ({ ...prev, anyGender: !next }))).finally(() => setSaving(null));
+              }}
+            />
+            <ToggleRow
+              label="3 · Go over the limit"
+              description="Last resort: ignore the follow-up limit and use the active support with the fewest open, same gender first."
+              checked={relax.overLimit}
+              disabled={saving === 'overLimit'}
+              onChange={(next) => {
+                setSaving('overLimit'); setRelax((prev) => ({ ...prev, overLimit: next }));
+                settingsApi.setFollowUpRelax('overLimit', next).catch(() => setRelax((prev) => ({ ...prev, overLimit: !next }))).finally(() => setSaving(null));
+              }}
+            />
+          </div>
         </div>
       )}
       {!loading && (
