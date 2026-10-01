@@ -40,10 +40,15 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 )
 
-// Practice is a rehearsal: its groups, hubs and meetings never send reminders.
-const getPracticeCohortId = async (): Promise<string | null> => {
-  const { data } = await supabase.from('Cohort').select('id').eq('isPractice', true).maybeSingle()
-  return (data as { id: string } | null)?.id ?? null
+// Meeting reminders (group, hub, Hub Leads) only run inside a cohort that is
+// ACTIVE and has started (Lagos date on or after its start date). A cohort that
+// has not started, has finished, or is Practice sends none; with no running
+// cohort, nothing is sent.
+const getRunningCohortIds = async (todayISO: string): Promise<Set<string>> => {
+  const { data } = await supabase.from('Cohort').select('id, startDate, isPractice').eq('status', 'ACTIVE')
+  return new Set(((data ?? []) as any[])
+    .filter((c) => !c.isPractice && c.startDate && String(c.startDate).slice(0, 10) <= todayISO)
+    .map((c) => c.id as string))
 }
 
 const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY')!
@@ -496,9 +501,9 @@ Deno.serve(async (req) => {
 
         if (!groups || groups.length === 0) continue
 
-        const practiceCohortId = await getPracticeCohortId()
+        const runningCohortIds = await getRunningCohortIds(todayISO)
         const matchingGroups = (groups as any[]).filter((g: any) => {
-          if (practiceCohortId && g.cohortId === practiceCohortId) return false
+          if (!runningCohortIds.has(g.cohortId)) return false
           const t = parseTime(g.meetingTime)
           if (t === null) return false
           return Math.abs(t - target.targetMinutes) <= WINDOW
@@ -561,9 +566,9 @@ Deno.serve(async (req) => {
 
         if (!hubs || hubs.length === 0) continue
 
-        const practiceCohortId = await getPracticeCohortId()
+        const runningCohortIds = await getRunningCohortIds(todayISO)
         const matchingHubs = (hubs as any[]).filter((h: any) => {
-          if (practiceCohortId && h.cohortId === practiceCohortId) return false
+          if (!runningCohortIds.has(h.cohortId)) return false
           const t = parseTime(h.meetingTime)
           if (t === null) return false
           return Math.abs(t - target.targetMinutes) <= WINDOW
@@ -664,9 +669,9 @@ Deno.serve(async (req) => {
 
         if (!meetings || meetings.length === 0) continue
 
-        const practiceCohortId = await getPracticeCohortId()
+        const runningCohortIds = await getRunningCohortIds(todayISO)
         const matching = (meetings as any[]).filter((m: any) => {
-          if (practiceCohortId && m.cohortId === practiceCohortId) return false
+          if (!runningCohortIds.has(m.cohortId)) return false
           const t = parseTime(m.meetingTime)
           return t !== null && Math.abs(t - target.targetMinutes) <= WINDOW
         })
@@ -833,7 +838,9 @@ Deno.serve(async (req) => {
 
         // b) Group call reminders at each participant's chosen timings.
         const intervals = [...new Set([...participantIds].flatMap(meetingMinutesFor))]
-        for (const interval of intervals) {
+        // No group call reminders before the cohort has started.
+        const cohortStarted = daysBetweenIso(startIso, pToday) >= 0
+        for (const interval of cohortStarted ? intervals : []) {
           const target = resolveTarget(pNowMinutes, interval, pToday)
           if (endIso && target.isoDate > endIso) continue
           for (const group of groups) {
