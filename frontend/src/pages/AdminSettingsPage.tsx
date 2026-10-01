@@ -855,27 +855,22 @@ const AdminSettingsPage: React.FC = () => {
       />
 
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Programme</h2>
-      {/* Two independent column flexes (not a shared per-row grid) so the
-          shorter right-hand cards stack with a consistent gap-4 instead of
-          waiting on the taller left-hand cards to end each "row". */}
-      <div className="mb-6 grid items-start gap-4 xl:grid-cols-[1fr_1fr]">
-        <div className="flex flex-col gap-4">
-          <div data-wt="settings-rules"><ProgrammeRulesCard /></div>
-          <div data-wt="settings-timings"><RecapTimingsCard /></div>
-          <div data-wt="settings-ai"><AiSettingsCard /></div>
-        </div>
-        <div className="flex flex-col gap-4">
-          <div data-wt="settings-departments"><ChurchDepartmentsCard /></div>
-          <div data-wt="settings-contact"><SupportContactCard /></div>
-          <div data-wt="settings-followup-assignment"><FollowUpAssignmentSettings /></div>
-          <PracticeModeCard />
-        </div>
+      {/* Masonry: cards flow in order, down the first column then the next, each at
+          its own height, so a short card never leaves a hole beside a tall one. */}
+      <div className="mb-6 columns-1 gap-4 xl:columns-2">
+        <div data-wt="settings-rules" className="mb-4 break-inside-avoid"><ProgrammeRulesCard /></div>
+        <div data-wt="settings-timings" className="mb-4 break-inside-avoid"><RecapTimingsCard /></div>
+        <div data-wt="settings-ai" className="mb-4 break-inside-avoid"><AiSettingsCard /></div>
+        <div data-wt="settings-departments" className="mb-4 break-inside-avoid"><ChurchDepartmentsCard /></div>
+        <div data-wt="settings-contact" className="mb-4 break-inside-avoid"><SupportContactCard /></div>
+        <div data-wt="settings-followup-assignment" className="mb-4 break-inside-avoid"><FollowUpAssignmentSettings /></div>
+        <div className="mb-4 break-inside-avoid"><PracticeModeCard /></div>
       </div>
 
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Just for you</h2>
-      <div className="mb-6 grid items-start gap-4 xl:grid-cols-[1fr_1fr]">
-        <AppStatusCard />
-        <div data-wt="settings-notifications"><NotificationSettings isOpen onClose={() => {}} embedded /></div>
+      <div className="mb-6 columns-1 gap-4 xl:columns-2">
+        <div className="mb-4 break-inside-avoid"><AppStatusCard /></div>
+        <div data-wt="settings-notifications" className="mb-4 break-inside-avoid"><NotificationSettings isOpen onClose={() => {}} embedded /></div>
       </div>
     </div>
   );
