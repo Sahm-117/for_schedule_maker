@@ -69,3 +69,42 @@ export const PRACTICE_SCENARIOS: Record<PracticeSeat, PracticeScenario[]> = {
     { key: 'pt-discuss', title: 'Post and like something in the group discussion', hint: 'Take part in the conversation.' },
   ],
 };
+
+// Walkthrough steps: what each person does while paired with someone in the
+// opposite seat. Keys are by seat (peer-<SEAT>-<n>) so each person's ticks show
+// on their partner's list.
+const HUB_JOB_STEP: Partial<Record<PracticeSeat, PracticeScenario>> = {
+  ASSISTANT: { key: 'peer-ASSISTANT-2', title: 'Take hub attendance for the hub', hint: 'In the Hub meeting tab, mark each support.', to: '/support/my-hub?tab=meeting' },
+  RECAP_LEAD: { key: 'peer-RECAP_LEAD-2', title: 'Open the Review and Recap step and read it out', hint: 'In the Hub meeting tab, open step 3.', to: '/support/my-hub?tab=meeting' },
+  PRAYER_LEAD: { key: 'peer-PRAYER_LEAD-2', title: 'Open the Prayer step and pick someone to pray for', hint: 'In the Hub meeting tab, open step 2.', to: '/support/my-hub?tab=meeting' },
+  SUPPORT: { key: 'peer-SUPPORT-2', title: 'Open My Hub and read the message', hint: 'It arrives in My Hub, Messages.', to: '/support/my-hub' },
+};
+
+export const peerSteps = (role: PracticeSeat, other: PracticeSeat): PracticeScenario[] => {
+  if (role === 'PARTICIPANT') {
+    return [
+      { key: 'peer-PARTICIPANT-1', title: 'Open this week and read it', hint: 'From Home, open the current week.' },
+      { key: 'peer-PARTICIPANT-2', title: 'Post in your group discussion', hint: 'Say something your support can reply to.' },
+      { key: 'peer-PARTICIPANT-3', title: 'Find the message your support pinned', hint: 'Pinned messages sit at the top of the discussion.' },
+      { key: 'peer-PARTICIPANT-4', title: 'Check in for the class', hint: 'Use the check-in on Home.' },
+    ];
+  }
+  if (other === 'PARTICIPANT') {
+    return [
+      { key: 'peer-SUPPORT-1', title: 'Read your participant’s post and reply', hint: 'Open the group discussion in My Group.', to: '/support/participants' },
+      { key: 'peer-SUPPORT-2', title: 'Pin a message for your group', hint: 'Pin one post so it sits at the top.', to: '/support/participants' },
+      { key: 'peer-SUPPORT-3', title: 'Mark them present in attendance', hint: 'Start the register and mark your participant.', to: '/support/attendance' },
+    ];
+  }
+  if (role === 'HUB_LEAD') {
+    const partnerJob = HUB_JOB_STEP[other];
+    return [
+      { key: 'peer-HUB_LEAD-1', title: 'Send a message to your hub', hint: 'Use the Message tab in My Hub.', to: '/support/my-hub?tab=message' },
+      { key: 'peer-HUB_LEAD-2', title: partnerJob ? 'Open the hub meeting and watch your partner’s step arrive' : 'Open the hub meeting', hint: 'In the Hub meeting tab.', to: '/support/my-hub?tab=meeting' },
+      { key: 'peer-HUB_LEAD-3', title: 'Run the meeting through to Submit', hint: 'Attendance, Prayer, Recap, Announcements, Notes, Submit.', to: '/support/my-hub?tab=meeting' },
+    ];
+  }
+  const own = HUB_JOB_STEP[role];
+  const first: PracticeScenario = { key: `peer-${role}-1`, title: 'Open My Hub and find your Hub Lead', hint: 'You and your partner are in the same hub.', to: '/support/my-hub' };
+  return own && own.key !== `peer-${role}-1` ? [first, own] : [first];
+};

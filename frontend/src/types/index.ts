@@ -1695,3 +1695,39 @@ export interface PracticeMyProgress {
   practice?: boolean;
   items: PracticeProgressItem[];
 }
+
+export type PracticeSeatKey = PracticeRole | 'PARTICIPANT';
+
+export interface PracticeTeamMember {
+  userId: string;
+  name: string;
+  avatarUrl?: string | null;
+  role: PracticeRole;
+  online: boolean;
+  busy: boolean;
+}
+
+export interface PracticePeerActive {
+  id: string;
+  partnerUserId: string;
+  partnerName: string;
+  myRole: PracticeSeatKey;
+  partnerRole: PracticeSeatKey;
+  iAmParticipant: boolean;
+  partnerPresent: boolean;
+  partnerInParticipantView: boolean;
+  myProgress: PracticeProgressItem[];
+  partnerProgress: PracticeProgressItem[];
+}
+
+export interface PracticePulse {
+  member: boolean;
+  on?: boolean;
+  role?: PracticeRole;
+  inParticipantView?: boolean;
+  /** Changes whenever the person's cohort access changes. */
+  cohortKey: string;
+  incoming?: Array<{ id: string; fromName: string; fromRole: PracticeSeatKey; toRole: PracticeSeatKey }>;
+  outgoing?: { id: string; toName: string; myRole: PracticeSeatKey; theirRole: PracticeSeatKey } | null;
+  active?: PracticePeerActive | null;
+}

@@ -8117,6 +8117,55 @@ export const practiceApi = {
     if (error) throw new Error(error.message);
   },
 
+  async pulse(): Promise<import('../types').PracticePulse> {
+    const { data, error } = await supabase.rpc('practice_pulse');
+    if (error || !data) throw new Error(error?.message || 'pulse failed');
+    return data as import('../types').PracticePulse;
+  },
+
+  async team(): Promise<import('../types').PracticeTeamMember[]> {
+    const { data, error } = await supabase.rpc('practice_team');
+    if (error) throw new Error(error.message);
+    return (data as import('../types').PracticeTeamMember[]) ?? [];
+  },
+
+  async setMyRole(role: import('../types').PracticeRole): Promise<void> {
+    const { error } = await supabase.rpc('practice_set_my_role', { p_role: role });
+    if (error) throw new Error(error.message);
+  },
+
+  async peerRequest(toUserId: string, myRole: import('../types').PracticeSeatKey, theirRole: import('../types').PracticeSeatKey): Promise<void> {
+    const { error } = await supabase.rpc('practice_peer_request', { p_to: toUserId, p_my_role: myRole, p_their_role: theirRole });
+    if (error) throw new Error(error.message);
+  },
+
+  async peerRespond(id: string, accept: boolean): Promise<void> {
+    const { error } = await supabase.rpc('practice_peer_respond', { p_id: id, p_accept: accept });
+    if (error) throw new Error(error.message);
+  },
+
+  async peerEnd(id: string): Promise<void> {
+    const { error } = await supabase.rpc('practice_peer_end', { p_id: id });
+    if (error) throw new Error(error.message);
+  },
+
+  // A real participant session for one of my practice participants.
+  async enterParticipant(): Promise<{ token: string; user: import('../types').User }> {
+    const { data, error } = await supabase.rpc('practice_enter_participant');
+    if (error || !data) throw new Error(error?.message || 'Could not switch');
+    return data as { token: string; user: import('../types').User };
+  },
+
+  async leaveParticipant(): Promise<void> {
+    await supabase.rpc('practice_leave_participant');
+  },
+
+  async participantPeer(): Promise<import('../types').PracticePeerActive | null> {
+    const { data, error } = await supabase.rpc('practice_participant_peer', { p_token: getSessionToken() });
+    if (error) throw new Error(error.message);
+    return (data as import('../types').PracticePeerActive | null) ?? null;
+  },
+
   // Next sign-in feels brand new: welcome, tours, role intros, Get the app prompt.
   async resetFirstTime(userId: string, forcePassword = false): Promise<void> {
     const { error } = await supabase.rpc('admin_reset_first_time', { p_user_id: userId, p_force_password: forcePassword });

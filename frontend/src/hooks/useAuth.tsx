@@ -87,6 +87,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setAuthToken(response.accessToken);
     localStorage.setItem('refreshToken', response.refreshToken);
     if (response.sessionToken) localStorage.setItem(SESSION_TOKEN_KEY, response.sessionToken);
+    localStorage.removeItem('fofPracticeStash');
     localStorage.setItem('user', JSON.stringify(response.user));
     setUser(response.user);
     await Promise.all([fetchUserLabels(response.user.id, response.user.role), fetchUserCohorts(response.user.id, response.user.role)]);
@@ -97,6 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const sessionToken = getSessionToken();
     if (sessionToken) void authApi.signOut(sessionToken).catch(() => undefined);
     clearAuthToken();
+    localStorage.removeItem('fofPracticeStash');
     localStorage.removeItem('user');
     setUser(null);
     setUserLabelIds([]);

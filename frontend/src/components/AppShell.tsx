@@ -32,6 +32,10 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useTourState } from '../context/TourContext';
 import { sortByText } from '../utils/sort';
 import { getHubPhase } from '../utils/hubPhase';
+import { usePracticePulse } from '../hooks/usePracticePulse';
+import PracticeIncoming from './practice/PracticeIncoming';
+import { practiceApi } from '../services/api';
+import { PRACTICE_ROLE_LABEL } from '../constants/practiceScenarios';
 
 type NavItem = {
   to: string;
@@ -294,7 +298,7 @@ const NavGroupSection: React.FC<{
 );
 
 const AppShell: React.FC = () => {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, logout, refreshUserCohorts } = useAuth();
   const {
     cohorts,
     activeCohort,
@@ -306,6 +310,7 @@ const AppShell: React.FC = () => {
     weeks,
     liveRevision,
     refreshNotifications,
+    refreshMyHub,
   } = useAppData();
   // A tapped phone push counts as reading its bell copy.
   usePushTapRead(!!user, React.useCallback(async (title: string, body: string) => {
@@ -315,6 +320,10 @@ const AppShell: React.FC = () => {
   const { enable } = usePushNotifications(user?.id);
   const appSetup = useAppSetup();
   const isSupport = user?.role === 'SUPPORT';
+  // Practice: one tiny check every few seconds, so Test mode, seats and
+  // walkthrough requests show up by themselves with no reload.
+  const { pulse: practicePulse, refresh: refreshPracticePulse } = usePracticePulse(isSupport, () => { void refreshUserCohorts(); });
+  const practiceOn = !!practicePulse?.member && !!practicePulse.on;
   // First time a support opens the app after getting a hub job: welcome them
   // to it (once per job, remembered on the server), with a link to the guide.
   const [introDoneJobs, setIntroDoneJobs] = useState<HubJob[]>([]);
@@ -484,7 +493,20 @@ const AppShell: React.FC = () => {
       {/* The update prompt is mounted once, app-wide, in App.tsx. */}
       <NewNotificationBanner />
       {activeCohort?.isPractice && (
-        <div className="sticky top-0 z-40 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white">Practice mode. Nothing here is real.</div>
+        practicePulse?.active ? (
+          <div className="sticky top-0 z-40 flex items-center justify-center gap-3 bg-violet-700 px-4 py-1.5 text-center text-[12px] font-semibold text-white">
+            <span>Walkthrough with {practicePulse.active.partnerName.split(' ')[0]} · you are the {PRACTICE_ROLE_LABEL[practicePulse.active.myRole]}</span>
+            <button
+              type="button"
+              onClick={() => { const id = practicePulse.active!.id; void practiceApi.peerEnd(id).then(() => refreshPracticePulse()); }}
+              className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-bold"
+            >
+              End
+            </button>
+          </div>
+        ) : (
+          <div className="sticky top-0 z-40 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white">Practice mode. Nothing here is real.</div>
+        )
       )}
       {showAppSetup && <AppSetupSheet audience="staff" enable={enable} onClose={closeAppSetup} />}
       {!tourBusy && user && activeCohort && classFeedbackDueWeek && (
@@ -506,7 +528,29 @@ const AppShell: React.FC = () => {
         <LoginShareReminder userId={user.id} enabled={isSupport && !tourBusy && !classFeedbackDueWeek && !pendingIntroJob} />
       )}
       {/* Supports: asked once if they are following up the people they were given. */}
-      {user && <PracticeDock mode="staff" active={isSupport && !!activeCohort?.isPractice} />}
+      {user && (
+        <PracticeDock
+          mode="staff"
+          active={isSupport && practiceOn && !!activeCohort?.isPractice}
+          pulse={practicePulse}
+          refreshPulse={refreshPracticePulse}
+          onWorkspaceChanged={() => { void refreshMyHub(); }}
+        />
+      )}
+      {user && isSupport && practiceOn && (
+        <PracticeIncoming
+          request={practicePulse?.incoming?.[0]}
+          onAnswered={(accepted) => {
+            void (async () => {
+              await refreshPracticePulse();
+              if (!accepted) return;
+              const practiceCohort = cohorts.find((c) => c.isPractice);
+              if (practiceCohort && activeCohort?.id !== practiceCohort.id) await setActiveCohort(practiceCohort.id);
+              await refreshMyHub();
+            })();
+          }}
+        />
+      )}
       {user && <FollowUpCheckPrompt enabled={isSupport && !tourBusy && !classFeedbackDueWeek && !pendingIntroJob && !showAppSetup} />}
       {OPEN_GUIDE_AS_WELCOME && !tourBusy && !classFeedbackDueWeek && pendingIntroJob && (
         <RoleGuideModal job={pendingIntroJob} onClose={() => finishIntro(pendingIntroJob)} />
