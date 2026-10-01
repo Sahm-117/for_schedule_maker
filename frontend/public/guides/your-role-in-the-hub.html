@@ -35,14 +35,19 @@ h1,h2,h3{margin:0}
 h2{font-size:26px;line-height:1.15;letter-spacing:-.02em;font-weight:700}
 .say{font-size:17px;line-height:1.4;color:#6B625C;margin:6px 0 0}
 .cap{padding:0 2px}
-.bottom{padding:10px 16px 22px;display:flex;gap:10px;flex-shrink:0;background:linear-gradient(rgba(255,250,245,0),#FFFAF5 30%)}
+.bottom{padding:10px 16px 14px;display:flex;flex-direction:column;gap:2px;flex-shrink:0;background:linear-gradient(rgba(255,250,245,0),#FFFAF5 30%)}
+.navrow{display:flex;gap:10px}
+.links{display:flex;justify-content:center;gap:22px;min-height:40px;align-items:center}
+.lnk{font-size:14px;font-weight:700;color:#6B625C;padding:8px 6px;text-decoration:underline;text-decoration-color:rgba(107,98,92,.35);text-underline-offset:3px}
+.at-start .startover{visibility:hidden}
+.at-end .skiplink{display:none}
 .btn{height:54px;border-radius:27px;font-size:17px;font-weight:650;display:flex;align-items:center;justify-content:center;gap:6px;transition:transform .15s}
 .btn:active{transform:scale(.97)}
 .btn.ghost{width:64px;background:#fff;box-shadow:0 1px 2px rgba(90,45,10,.06),0 6px 16px -6px rgba(90,45,10,.14)}
 .btn.pri{flex:1;background:#FF914D;color:#2B1204;box-shadow:0 10px 24px -10px rgba(255,120,40,.7)}
-.restartbtn{display:none}
+.donebtn{display:none}
 .at-end .nextbtn{display:none}
-.at-end .restartbtn{display:flex}
+.at-end .donebtn{display:flex;flex:1;background:#2B2118;color:#fff;box-shadow:0 10px 24px -12px rgba(43,33,24,.6)}
 .on-pick .bottom,.on-pick .dots,.on-pick .count,.on-pick .homebtn{display:none}
 .on-pick .top{height:12px}
 .pill{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 11px;border-radius:13px;font-size:13px;font-weight:650;white-space:nowrap;line-height:1}
@@ -824,9 +829,15 @@ html,body{margin:0;min-height:100%;background:#FFFAF5}
 
 </div>
 <div class="bottom">
+<div class="navrow">
 <button class="btn ghost backbtn" aria-label="Back" data-act="back"><svg class="ic l" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button>
 <button class="btn pri nextbtn" data-act="next">Next<svg class="ic" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
-<button class="btn pri restartbtn" data-act="home"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>Start again</button>
+<button class="btn donebtn" data-act="close">Done, close the guide</button>
+</div>
+<div class="links">
+<button class="lnk startover" data-act="restart">Start over</button>
+<button class="lnk skiplink" data-act="close">Skip the guide and close</button>
+</div>
 </div>
 </div>
 <script>
@@ -849,6 +860,7 @@ var C={initial: function() {
     var list = C.paths()[s.path] || [];
     if (n === 'next') return s.path && s.i < list.length - 1 ? { i: s.i + 1, dir: 'fwd' } : {};
     if (n === 'back') return !s.path ? {} : s.i > 0 ? { i: s.i - 1, dir: 'bwd' } : { path: '', i: 0, dir: 'bwd' };
+    if (n === 'restart') return { i: 0, dir: 'bwd', sub: false, noted: false, pray: 0, corp: false, gc: 1 };
     if (n === 'home') return { path: '', i: 0, dir: 'bwd', job: '', sub: false, noted: false, pray: 0, corp: false, gc: 1 };
     if (n.indexOf('go_') === 0) return { path: n.slice(3), i: 0, dir: 'fwd' };
     if (n.indexOf('job_') === 0) { var j = n.slice(4); return { job: s.job === j ? '' : j }; }
@@ -863,7 +875,7 @@ var C={initial: function() {
   view: function(s) {
     var list = C.paths()[s.path] || [];
     var id = s.path ? list[s.i] : 'pick';
-    var cls = ['app', s.dir, s.path ? '' : 'on-pick', s.path && s.i === list.length - 1 ? 'at-end' : '', 'job-' + (s.job || 'none'),
+    var cls = ['app', s.dir, s.path ? '' : 'on-pick', s.path && s.i === list.length - 1 ? 'at-end' : '', s.path && s.i === 0 ? 'at-start' : '', 'job-' + (s.job || 'none'),
       s.pa ? 'perm-a' : '', s.pb ? 'perm-b' : '', s.pc ? 'perm-c' : '', s.sub ? 'submitted' : '', s.noted ? 'noted' : '',
       'pray-' + s.pray, s.corp ? 'corp-on' : '', 'gc-' + s.gc].filter(Boolean).join(' ');
     var parts = [];
@@ -889,7 +901,7 @@ function render(){
  [].forEach.call(document.querySelectorAll('[data-bind]'),function(el){el.textContent=v[el.getAttribute('data-bind')];});
  if(v.id!==last){stage.scrollTop=0;last=v.id;}
 }
-function act(n){var p=C.reduce(s,n);for(var k in p)s[k]=p[k];render();}
+function act(n){if(n==='close'){if(window.parent&&window.parent!==window){window.parent.postMessage('fof-guide-done',location.origin);}else{act('home');}return;}var p=C.reduce(s,n);for(var k in p)s[k]=p[k];render();}
 document.addEventListener('click',function(e){var b=e.target.closest('[data-act]');if(b){act(b.getAttribute('data-act'));}});
 document.addEventListener('keydown',function(e){if(e.key==='ArrowRight')act('next');else if(e.key==='ArrowLeft')act('back');});
 var x=null,y=0;
