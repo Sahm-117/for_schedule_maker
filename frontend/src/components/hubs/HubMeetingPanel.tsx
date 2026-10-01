@@ -7,6 +7,7 @@ import Spinner from '../Spinner';
 import { useToast } from '../Toast';
 import { supabase } from '../../lib/supabase';
 import { myHubApi, supportSessionsApi } from '../../services/api';
+import { prefetchPdfEngine, prefetchDocumentFile } from '../../utils/prefetchDocument';
 import type { HubMessage, HubPrayerFocus, HubPrayerListItem, MyHubMember, SupportAttendanceStatus, SupportRecap, Week } from '../../types';
 import { parseTimeToMinutes } from '../../utils/time';
 import { PERSON_OF_INTEREST_INFO } from './hubJobs';
@@ -615,6 +616,12 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   // Leads see the recap whenever it exists; everyone else once it is released.
   const recapReleasedForViewer = !!recap && (isFullAccess || isRecapLead || recap.released || recap.manualReleased);
   const recapHasContent = !!recap && !!(recap.recapDocumentUrl || recap.recapSummary?.trim() || recap.discussionPrompt?.trim());
+  // Get the PDF reader going once a recap document exists, and the file itself once the
+  // Review & Recap step is on screen, so tapping it opens quickly.
+  const recapDocUrl = recapReleasedForViewer ? recap?.recapDocumentUrl ?? null : null;
+  const recapOnScreen = step === RECAP_STEP || followView === 'recap';
+  useEffect(() => { if (recapDocUrl) prefetchPdfEngine(); }, [recapDocUrl]);
+  useEffect(() => { if (recapDocUrl && recapOnScreen) prefetchDocumentFile(recapDocUrl); }, [recapDocUrl, recapOnScreen]);
   const recapStepContent = (
     <section className={CARD}>
       <h3 className="text-[17px] font-semibold text-gray-900">Review & Recap</h3>

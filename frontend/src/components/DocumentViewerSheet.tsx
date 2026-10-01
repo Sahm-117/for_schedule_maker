@@ -19,6 +19,7 @@ const isImage = (url: string, fileName?: string | null) => /\.(png|jpe?g|gif|web
 const PdfPages: React.FC<{ url: string }> = ({ url }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [percent, setPercent] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,13 +28,18 @@ const PdfPages: React.FC<{ url: string }> = ({ url }) => {
     if (!container) return undefined;
     container.innerHTML = '';
     setState('loading');
+    setPercent(null);
 
     (async () => {
       try {
         const pdfjs = await import('pdfjs-dist');
         const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
         pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-        const task = pdfjs.getDocument({ url });
+        // Range requests + no read-ahead: the first page can show before the whole file has arrived.
+        const task = pdfjs.getDocument({ url, disableAutoFetch: true });
+        task.onProgress = ({ loaded, total }: { loaded: number; total?: number }) => {
+          if (!cancelled && total) setPercent(Math.min(99, Math.round((loaded / total) * 100)));
+        };
         destroy = () => { void task.destroy(); };
         const doc = await task.promise;
         if (cancelled) return;
@@ -68,7 +74,14 @@ const PdfPages: React.FC<{ url: string }> = ({ url }) => {
 
   return (
     <>
-      {state === 'loading' && <p className="py-10 text-center text-sm text-gray-400">Opening document…</p>}
+      {state === 'loading' && (
+        <div className="py-10 text-center">
+          <p className="text-sm text-gray-400">Opening document…{percent !== null ? ` ${percent}%` : ''}</p>
+          <div className="mx-auto mt-3 h-1 w-40 overflow-hidden rounded-full bg-gray-200">
+            <div className={`h-full rounded-full bg-primary transition-all ${percent === null ? 'w-1/3 animate-pulse' : ''}`} style={percent === null ? undefined : { width: `${percent}%` }} />
+          </div>
+        </div>
+      )}
       {state === 'error' && <p className="py-10 text-center text-sm text-gray-500">This document could not be opened.</p>}
       <div ref={containerRef} className="flex flex-col gap-3" />
     </>
