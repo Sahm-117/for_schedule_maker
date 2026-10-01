@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { resourcesApi, announcementsApi } from '../services/api';
+import { resourcesApi, supportHubsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import type { Resource } from '../types';
+import type { Resource, SupportHub } from '../types';
 import { downloadFile } from '../utils/download';
 import DocumentViewerSheet from './DocumentViewerSheet';
 import { sortByText } from '../utils/sort';
-import Spinner from './Spinner';
+import AppOverflowMenu from './AppOverflowMenu';
+import ResourceEditorModal from './resources/ResourceEditorModal';
+import ResourceHistorySheet from './resources/ResourceHistorySheet';
+import { audienceFromResource } from './resources/audience';
 
 const LAST_SEEN_KEY = 'fof_resources_last_seen';
 
@@ -17,8 +20,6 @@ interface ResourceHubModalProps {
   embedded?: boolean;
   layout?: 'list' | 'grid';
 }
-
-type AddMode = 'link' | 'file';
 
 const TYPE_ICONS: Record<Resource['type'], React.ReactNode> = {
   link: (
@@ -71,114 +72,41 @@ const TYPE_KIND: Record<Resource['type'], string> = {
 };
 
 const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, onViewed, embedded = false, layout = 'list' }) => {
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
   const [resources, setResources] = useState<Resource[]>([]);
   const [viewing, setViewing] = useState<Resource | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showAdd, setShowAdd] = useState(false);
-  const [addMode, setAddMode] = useState<AddMode>('link');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [url, setUrl] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [editor, setEditor] = useState<{ mode: 'add' | 'update'; resource: Resource | null } | null>(null);
+  const [historyFor, setHistoryFor] = useState<Resource | null>(null);
+  const [hubs, setHubs] = useState<SupportHub[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [notifyUsers, setNotifyUsers] = useState(false);
-  const [notifyScope, setNotifyScope] = useState<'ACTIVE_COHORT' | 'ALL_USERS'>('ACTIVE_COHORT');
-  const fileRef = useRef<HTMLInputElement>(null);
 
+  // Only the first load shows a spinner; live updates refresh the list quietly.
+  const loadedOnce = useRef(false);
   const load = () => {
-    setLoading(true);
+    if (!loadedOnce.current) setLoading(true);
     resourcesApi.getAll()
       .then((res) => setResources(sortByText(res.resources, (resource) => resource.title)))
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { loadedOnce.current = true; setLoading(false); });
   };
 
   const shouldRender = embedded || isOpen;
 
   useEffect(() => {
     if (!shouldRender) return;
-    setShowAdd(false);
-    setError('');
     load();
     // Mark as seen
     localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString());
     onViewed?.();
   }, [liveRevision, onViewed, shouldRender]);
 
-  const resetForm = () => {
-    setTitle('');
-    setDescription('');
-    setUrl('');
-    setFile(null);
-    setError('');
-    setNotifyUsers(false);
-    setNotifyScope('ACTIVE_COHORT');
-    if (fileRef.current) fileRef.current.value = '';
-  };
-
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    setSaving(true);
-    setError('');
-    try {
-      let createdResource: Resource | null = null;
-      if (addMode === 'link') {
-        let finalUrl = url.trim();
-        if (finalUrl && !finalUrl.startsWith('http')) finalUrl = 'https://' + finalUrl;
-        const response = await resourcesApi.addLink({ title: title.trim(), description: description.trim() || undefined, url: finalUrl, addedBy: user.id });
-        createdResource = response.resource;
-      } else {
-        if (!file) { setError('Please select a file.'); setSaving(false); return; }
-        const response = await resourcesApi.uploadFile({ title: title.trim(), description: description.trim() || undefined, file, addedBy: user.id });
-        createdResource = response.resource;
-      }
-      if (notifyUsers && user) {
-        try {
-          await announcementsApi.send(
-            'New resource added',
-            `"${title.trim()}" has been added to Resources. Open the app to view it.`,
-            user.id,
-            {
-              scope: notifyScope,
-              cohortId: notifyScope === 'ACTIVE_COHORT' ? activeCohort?.id || null : null,
-            },
-          );
-        } catch {
-          // notification failure is non-blocking
-        }
-      }
-      resetForm();
-      setShowAdd(false);
-      if (createdResource) {
-        setResources((prev) => sortByText(
-          [...prev.filter((item) => item.id !== createdResource?.id), createdResource as Resource],
-          (resource) => resource.title
-        ));
-      } else {
-        load();
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to add resource.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Admins choose which resources appear in the participant app.
-  const toggleParticipantVisibility = async (id: string, visible: boolean) => {
-    setResources((prev) => prev.map((resource) => (resource.id === id ? { ...resource, visibleToParticipants: visible } : resource)));
-    try {
-      await resourcesApi.setVisibleToParticipants(id, visible);
-    } catch (err: any) {
-      setResources((prev) => prev.map((resource) => (resource.id === id ? { ...resource, visibleToParticipants: !visible } : resource)));
-      setError(err?.message || 'Could not update this resource.');
-    }
-  };
+  // Hubs are the audience choices for supports; only admins pick an audience.
+  useEffect(() => {
+    if (!isAdmin || !activeCohort?.id) { setHubs([]); return; }
+    supportHubsApi.getAll(activeCohort.id).then((res) => setHubs(res.hubs)).catch(() => setHubs([]));
+  }, [isAdmin, activeCohort?.id]);
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
@@ -191,143 +119,18 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
 
   if (!shouldRender) return null;
 
-  const addModal = isAdmin && showAdd ? (
-    <div className="fixed inset-0 z-[70] flex items-end bg-black/50 p-0 sm:items-center sm:justify-center sm:p-4">
-      <div className="w-full overflow-y-auto rounded-t-3xl bg-white shadow-xl sm:max-w-lg sm:rounded-2xl">
-        <form onSubmit={handleAdd} className="space-y-4 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Add Resource</h3>
-              <p className="mt-1 text-sm text-gray-500">Upload a file or add a link without leaving the resource page.</p>
-            </div>
-            <button type="button" onClick={() => { setShowAdd(false); resetForm(); }} className="text-gray-400 hover:text-gray-600">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="flex overflow-hidden rounded-2xl border border-gray-200">
-            <button
-              type="button"
-              onClick={() => setAddMode('link')}
-              className={`flex-1 py-2 text-sm font-semibold transition-colors ${addMode === 'link' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
-            >
-              Link
-            </button>
-            <button
-              type="button"
-              onClick={() => setAddMode('file')}
-              className={`flex-1 py-2 text-sm font-semibold transition-colors ${addMode === 'file' ? 'bg-primary text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
-            >
-              File
-            </button>
-          </div>
-
-          <input
-            type="text"
-            required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Title"
-            maxLength={80}
-            className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-
-          <input
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Short description (optional)"
-            maxLength={120}
-            className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-
-          {addMode === 'link' ? (
-            <input
-              type="text"
-              required
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://..."
-              className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          ) : (
-            <div>
-              <input
-                ref={fileRef}
-                type="file"
-                required
-                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xlsx,.pptx,.zip"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="w-full text-sm text-gray-500 file:mr-3 file:rounded-xl file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary-dark"
-              />
-              <p className="mt-1 text-xs text-gray-400">PDF, Word, Excel, PowerPoint, images, ZIP</p>
-            </div>
-          )}
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <button
-            type="button"
-            onClick={() => setNotifyUsers((prev) => !prev)}
-            className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition ${
-              notifyUsers ? 'border-primary bg-orange-50/60' : 'border-gray-200 bg-white hover:bg-gray-50'
-            }`}
-          >
-            <span className="text-sm font-semibold text-gray-800">Notify active cohort</span>
-            <span className={`relative inline-flex h-7 w-12 items-center rounded-full transition ${notifyUsers ? 'bg-primary' : 'bg-slate-200'}`}>
-              <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${notifyUsers ? 'translate-x-6' : 'translate-x-1'}`} />
-            </span>
-          </button>
-
-          {notifyUsers && (
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Audience</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setNotifyScope('ACTIVE_COHORT')}
-                  className={`rounded-xl border px-3 py-2 text-sm font-semibold ${notifyScope === 'ACTIVE_COHORT' ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                >
-                  Active Cohort
-                  <span className="mt-1 block text-[11px] font-medium text-gray-500">
-                    {activeCohort?.name || 'No active cohort'}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNotifyScope('ALL_USERS')}
-                  className={`rounded-xl border px-3 py-2 text-sm font-semibold ${notifyScope === 'ALL_USERS' ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                >
-                  All Users
-                  <span className="mt-1 block text-[11px] font-medium text-gray-500">
-                    Global blast
-                  </span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-2 border-t pt-4">
-            <button
-              type="button"
-              onClick={() => { setShowAdd(false); resetForm(); }}
-              className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
-            >
-              {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Adding...</span>) : 'Add Resource'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+  const editorModals = isAdmin ? (
+    <>
+      <ResourceEditorModal
+        isOpen={!!editor}
+        onClose={() => setEditor(null)}
+        mode={editor?.mode ?? 'add'}
+        resource={editor?.resource ?? null}
+        hubs={hubs}
+        onSaved={(saved) => setResources((prev) => sortByText([...prev.filter((item) => item.id !== saved.id), saved], (resource) => resource.title))}
+      />
+      <ResourceHistorySheet resource={historyFor} onClose={() => setHistoryFor(null)} />
+    </>
   ) : null;
 
   const content = (
@@ -340,7 +143,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
         <div className="flex items-center gap-2">
           {isAdmin && (
             <button
-              onClick={() => { setShowAdd(true); resetForm(); }}
+              onClick={() => setEditor({ mode: 'add', resource: null })}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -423,17 +226,27 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
                     {r.fileName && r.fileSize && (
                       <p className="text-xs text-gray-400 mt-0.5">{r.fileName} · {formatBytes(r.fileSize)}</p>
                     )}
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => { void toggleParticipantVisibility(r.id, !r.visibleToParticipants); }}
-                        aria-pressed={!!r.visibleToParticipants}
-                        className={`mt-1.5 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${r.visibleToParticipants ? 'bg-emerald-100/80 text-emerald-700' : 'bg-neutral-100 text-neutral-600'}`}
-                        title="Show this resource in the participant app"
-                      >
-                        {r.visibleToParticipants ? 'Shown to participants' : 'Team only · show to participants'}
-                      </button>
-                    )}
+                    {isAdmin && (() => {
+                      const aud = audienceFromResource(r);
+                      const hubNames = aud.hubIds.map((id) => hubs.find((h) => h.id === id)?.name).filter(Boolean) as string[];
+                      const who = [
+                        aud.supports ? (aud.hubsOnly ? (hubNames.length ? hubNames.join(', ') : 'Hubs') : 'Supports') : '',
+                        aud.participants ? 'Participants' : '',
+                      ].filter(Boolean).join(' + ');
+                      const cohortName = activeCohort?.id === r.cohortId ? activeCohort?.name ?? 'Cohort' : 'One cohort';
+                      const pill = 'inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold';
+                      const history = [
+                        r.updatedAt ? `Updated ${new Date(r.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : '',
+                        (r.versionCount ?? 0) > 0 ? `${r.versionCount} earlier` : '',
+                      ].filter(Boolean).join(' · ');
+                      return (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          <span className={`${pill} bg-violet-100/80 text-violet-700`}>{who}</span>
+                          <span className={`${pill} ${aud.cohortId ? 'bg-neutral-100 text-neutral-600' : 'bg-emerald-100/80 text-emerald-700'}`}>{aud.cohortId ? cohortName : 'All cohorts'}</span>
+                          {history && <span className={`${pill} bg-orange-100/80 text-orange-700`}>{history}</span>}
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     {r.type === 'link' ? (
@@ -461,16 +274,14 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
                       </button>
                     )}
                     {isAdmin && (
-                      <button
-                        onClick={() => handleDelete(r.id)}
-                        disabled={deletingId === r.id}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
-                        title="Delete"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                      <AppOverflowMenu
+                        align="right"
+                        items={[
+                          { label: 'Update document', onClick: () => setEditor({ mode: 'update', resource: r }) },
+                          { label: 'Version history', onClick: () => setHistoryFor(r) },
+                          { label: deletingId === r.id ? 'Deleting…' : 'Delete', onClick: () => { void handleDelete(r.id); }, tone: 'danger' },
+                        ]}
+                      />
                     )}
                   </div>
                 </div>
@@ -489,7 +300,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
       >
         {content}
       </div>
-      {addModal}
+      {editorModals}
     </>
   ) : (
     <>
@@ -498,7 +309,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
           {content}
         </div>
       </div>
-      {addModal}
+      {editorModals}
     </>
   );
 };

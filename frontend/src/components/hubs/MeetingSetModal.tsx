@@ -24,7 +24,7 @@ const MeetingSetModal: React.FC<{
 
   return (
     <ModalShell isOpen={isOpen} onClose={onClose} title={title} subtitle={subtitle}>
-      <div className="flex flex-col gap-4 px-6 py-5">
+      <div className="flex flex-col gap-4">
         <button
           type="button"
           role="switch"

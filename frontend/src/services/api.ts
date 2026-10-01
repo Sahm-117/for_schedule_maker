@@ -616,6 +616,8 @@ export const resourcesApi = USE_SUPABASE ? supabaseResourcesApi : {
   async getAll(): Promise<{ resources: import('../types').Resource[] }> { return { resources: [] }; },
   async addLink(_input: any): Promise<any> { return {}; },
   async uploadFile(_input: any): Promise<any> { return {}; },
+  async replaceDocument(_id: string, _input: any): Promise<any> { return {}; },
+  async getVersions(_id: string): Promise<any> { return { current: null, earlier: [] }; },
   async delete(_id: string): Promise<void> {},
   async setVisibleToParticipants(_id: string, _visible: boolean): Promise<void> {},
   async getNewCount(_since?: string): Promise<number> { return 0; },

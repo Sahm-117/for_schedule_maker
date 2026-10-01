@@ -2998,6 +2998,7 @@ export const resourcesApi = {
     description?: string;
     url: string;
     addedBy: string;
+    audience?: import('../types').ResourceAudiencePayload;
   }): Promise<{ resource: import('../types').Resource }> {
     const { data, error } = await supabase
       .from('Resource')
@@ -3007,6 +3008,7 @@ export const resourcesApi = {
         type: 'link',
         url: input.url,
         addedBy: input.addedBy,
+        ...(input.audience ?? {}),
       }])
       .select()
       .single();
@@ -3014,17 +3016,13 @@ export const resourcesApi = {
     return { resource: data as any };
   },
 
-  async uploadFile(input: {
-    title: string;
-    description?: string;
-    file: File;
-    addedBy: string;
-  }): Promise<{ resource: import('../types').Resource }> {
-    const ext = input.file.name.split('.').pop()?.toLowerCase() || 'file';
-    const path = `${Date.now()}_${input.file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  // Puts a file in the resources bucket and says what kind of file it is.
+  async uploadToBucket(file: File): Promise<{ url: string; type: import('../types').Resource['type']; fileName: string; fileSize: number }> {
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'file';
+    const path = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
     const { error: uploadError } = await supabase.storage
       .from('resources')
-      .upload(path, input.file, { upsert: false });
+      .upload(path, file, { upsert: false });
     if (uploadError) throw new Error(uploadError.message);
 
     const { data: urlData } = supabase.storage.from('resources').getPublicUrl(path);
@@ -3032,22 +3030,74 @@ export const resourcesApi = {
       : ['doc', 'docx'].includes(ext) ? 'doc'
       : ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext) ? 'image'
       : 'file';
+    return { url: urlData.publicUrl, type, fileName: file.name, fileSize: file.size };
+  },
 
+  async uploadFile(input: {
+    title: string;
+    description?: string;
+    file: File;
+    addedBy: string;
+    audience?: import('../types').ResourceAudiencePayload;
+  }): Promise<{ resource: import('../types').Resource }> {
+    const stored = await resourcesApi.uploadToBucket(input.file);
     const { data, error } = await supabase
       .from('Resource')
       .insert([{
         title: input.title,
         description: input.description || null,
-        type,
-        url: urlData.publicUrl,
-        fileName: input.file.name,
-        fileSize: input.file.size,
+        type: stored.type,
+        url: stored.url,
+        fileName: stored.fileName,
+        fileSize: stored.fileSize,
         addedBy: input.addedBy,
+        ...(input.audience ?? {}),
       }])
       .select()
       .single();
     if (error) throw new Error(error.message);
     return { resource: data as any };
+  },
+
+  // Swap in a new file or link (the old one goes to the version history), and/or
+  // change who sees it. With no file or link given, only the audience changes.
+  async replaceDocument(resourceId: string, input: {
+    file?: File | null;
+    url?: string | null;
+    note?: string;
+    audience: import('../types').ResourceAudiencePayload;
+  }): Promise<{ resource: import('../types').Resource }> {
+    let type: string | null = null;
+    let url: string | null = null;
+    let fileName: string | null = null;
+    let fileSize: number | null = null;
+    if (input.file) {
+      const stored = await resourcesApi.uploadToBucket(input.file);
+      ({ type, url, fileName, fileSize } = stored);
+    } else if (input.url) {
+      type = 'link';
+      url = input.url;
+    }
+    const { data, error } = await supabase.rpc('resource_replace_document', {
+      p_resource_id: resourceId,
+      p_type: type,
+      p_url: url,
+      p_file_name: fileName,
+      p_file_size: fileSize,
+      p_note: input.note ?? null,
+      p_visible_to_supports: input.audience.visibleToSupports,
+      p_visible_to_participants: input.audience.visibleToParticipants,
+      p_cohort_id: input.audience.cohortId,
+      p_hub_ids: input.audience.hubIds,
+    });
+    if (error || !data) throw new Error(error?.message || 'Could not update the resource');
+    return { resource: data as any };
+  },
+
+  async getVersions(resourceId: string): Promise<import('../types').ResourceVersions> {
+    const { data, error } = await supabase.rpc('resource_versions', { p_resource_id: resourceId });
+    if (error || !data) throw new Error(error?.message || 'Could not load the version history');
+    return data as import('../types').ResourceVersions;
   },
 
   async delete(resourceId: string): Promise<void> {

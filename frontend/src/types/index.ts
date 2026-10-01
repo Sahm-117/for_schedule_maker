@@ -10,6 +10,40 @@ export interface Resource {
   createdAt: string;
   /** Shown to participants in their app's Resources. */
   visibleToParticipants?: boolean;
+  /** Shown to supports. Defaults to true. */
+  visibleToSupports?: boolean;
+  /** One cohort, or null for every cohort. */
+  cohortId?: string | null;
+  /** When set, supports see it only if they are in one of these hubs. */
+  hubIds?: string[];
+  updatedAt?: string | null;
+  updateNote?: string | null;
+  /** How many earlier versions are kept. */
+  versionCount?: number;
+}
+
+/** Who a resource is for, as sent to the database. */
+export interface ResourceAudiencePayload {
+  visibleToSupports: boolean;
+  visibleToParticipants: boolean;
+  cohortId: string | null;
+  hubIds: string[];
+}
+
+export interface ResourceVersionEntry {
+  versionNo: number;
+  type: Resource['type'];
+  url: string;
+  fileName?: string | null;
+  fileSize?: number | null;
+  note?: string | null;
+  at: string;
+  by?: string | null;
+}
+
+export interface ResourceVersions {
+  current: ResourceVersionEntry;
+  earlier: ResourceVersionEntry[];
 }
 
 export interface Label {
