@@ -25,6 +25,7 @@ import {
   notificationSettingsApi as supabaseNotificationSettingsApi,
   announcementsApi as supabaseAnnouncementsApi,
   resourcesApi as supabaseResourcesApi,
+  practiceApi as supabasePracticeApi,
   followUpContactsApi as supabaseFollowUpContactsApi,
   formRegistrationsApi as supabaseFormRegistrationsApi,
   messageTemplatesApi as supabaseMessageTemplatesApi,
@@ -610,6 +611,21 @@ export const announcementsApi = USE_SUPABASE ? supabaseAnnouncementsApi : {
     isAdmin?: boolean;
     accessibleCohortIds?: string[];
   }): Promise<{ announcements: import('../types').Announcement[] }> { return { announcements: [] }; },
+};
+
+const practiceUnavailable = () => { throw new Error('Practice is only available in Supabase mode.'); };
+export const practiceApi = USE_SUPABASE ? supabasePracticeApi : {
+  async getState(): Promise<import('../types').PracticeState> { return practiceUnavailable(); },
+  async setRoster(_members: any[]): Promise<void> { practiceUnavailable(); },
+  async build(_calendar?: any): Promise<void> { practiceUnavailable(); },
+  async setOn(_on: boolean): Promise<void> { practiceUnavailable(); },
+  async setCalendar(_mode: any): Promise<void> { practiceUnavailable(); },
+  async resetPerson(_userId: string): Promise<void> { practiceUnavailable(); },
+  async resetParticipant(_id: string): Promise<void> { practiceUnavailable(); },
+  async getMine(): Promise<import('../types').PracticeMyProgress> { return { role: null, items: [] }; },
+  async setMine(_k: string, _d: boolean, _s: boolean): Promise<void> {},
+  async getForParticipant(): Promise<import('../types').PracticeMyProgress> { return { role: null, practice: false, items: [] }; },
+  async setForParticipant(_k: string, _d: boolean, _s: boolean): Promise<void> {},
 };
 
 export const resourcesApi = USE_SUPABASE ? supabaseResourcesApi : {

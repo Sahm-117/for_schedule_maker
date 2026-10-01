@@ -20,6 +20,7 @@ import ParticipantNotificationBell from './ParticipantNotificationBell';
 import LiveNavDot from '../LiveNavDot';
 import ProfileMenu from '../ProfileMenu';
 import NeedSupportButton from '../NeedSupportButton';
+import PracticeDock from '../practice/PracticeDock';
 
 // Layout for the participant app: sidebar on desktop, floating bar on mobile, the
 // same look as the support app. Also asks "are you okay?" when their attendance
@@ -213,6 +214,7 @@ const ShellLayout: React.FC = () => {
             <Outlet />
           </ErrorBoundary>
         </main>
+        <PracticeDock mode="participant" />
       </div>
 
       <nav data-wt="app-nav" className="fixed bottom-4 left-1/2 z-30 w-[calc(100%-24px)] max-w-[400px] -translate-x-1/2 rounded-[22px] border border-[#eef0f4] bg-white p-1.5 shadow-[0_18px_40px_-20px_rgba(17,24,39,0.28)] lg:hidden">

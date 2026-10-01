@@ -97,6 +97,9 @@ export interface Cohort {
   /** COMPLETED: the cohort has finished; it stays viewable and selectable. */
   status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
   schedulePublished?: boolean;
+  /** The Practice cohort: a safe place to try the app. Never the running cohort. */
+  isPractice?: boolean;
+  practiceOn?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -1641,4 +1644,52 @@ export interface FollowUpReassignmentSummary {
   recent: FollowUpReassignmentRow[];
   waiting: Array<{ ownerName: string; promptedAt: string; deadlineAt: string; answer: 'YES' | 'NOT_NOW' | null; people: number }>;
   activeSupports: number;
+}
+
+// ---------------------------------------------------------------------------
+// Practice (a safe place to try the app together)
+// ---------------------------------------------------------------------------
+
+export type PracticeRole = 'SUPPORT' | 'HUB_LEAD' | 'ASSISTANT' | 'RECAP_LEAD' | 'PRAYER_LEAD';
+export type PracticeCalendar = 'BEFORE' | 'CLASS_DAY' | 'MID_WEEK' | 'WEEK_2';
+
+export interface PracticeProgressItem {
+  key: string;
+  doneAt: string | null;
+  stuckAt: string | null;
+}
+
+export interface PracticeParticipant {
+  id: string;
+  name: string;
+  phone: string;
+  /** The first-sign-in code, shown until they choose their own password. */
+  code: string | null;
+  signedIn: boolean;
+  progress: PracticeProgressItem[];
+}
+
+export interface PracticeMemberState {
+  userId: string;
+  name: string;
+  role: PracticeRole;
+  avatarUrl?: string | null;
+  progress: PracticeProgressItem[];
+  group: { id: string; name: string; participants: PracticeParticipant[] } | null;
+}
+
+export interface PracticeState {
+  cohortId: string | null;
+  on: boolean;
+  built: boolean;
+  calendar: PracticeCalendar | null;
+  members: PracticeMemberState[];
+  hubs?: Array<{ id: string; name: string; leadName: string | null }>;
+}
+
+export interface PracticeMyProgress {
+  /** Staff: their practice role (null when not in Practice). Participants: unused. */
+  role: PracticeRole | null;
+  practice?: boolean;
+  items: PracticeProgressItem[];
 }

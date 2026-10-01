@@ -429,6 +429,8 @@ export const cohortsApi = {
         endDate: row.endDate,
         status: row.status,
         schedulePublished: row.schedulePublished ?? false,
+        isPractice: row.isPractice ?? false,
+        practiceOn: row.practiceOn ?? false,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
       })),
@@ -8087,5 +8089,73 @@ export const landingApi = {
     const { data, error } = await supabase.rpc('public_fof_landing');
     if (error) throw new Error(error.message);
     return data as PublicLandingInfo;
+  },
+};
+
+
+// ---------------------------------------------------------------------------
+// Practice: a safe place for the team to try the app together
+// ---------------------------------------------------------------------------
+
+export const practiceApi = {
+  async getState(): Promise<import('../types').PracticeState> {
+    const { data, error } = await supabase.rpc('practice_state');
+    if (error || !data) throw new Error(error?.message || 'Could not load Practice');
+    return data as import('../types').PracticeState;
+  },
+
+  async setRoster(members: Array<{ userId: string; role: import('../types').PracticeRole }>): Promise<void> {
+    const { error } = await supabase.rpc('practice_set_roster', { p_members: members });
+    if (error) throw new Error(error.message);
+  },
+
+  // Wipes and rebuilds Practice from the team list.
+  async build(calendar?: import('../types').PracticeCalendar | null): Promise<void> {
+    const { error } = await supabase.rpc('practice_build', { p_calendar: calendar ?? null });
+    if (error) throw new Error(error.message);
+  },
+
+  async setOn(on: boolean): Promise<void> {
+    const { error } = await supabase.rpc('practice_set_on', { p_on: on });
+    if (error) throw new Error(error.message);
+  },
+
+  async setCalendar(mode: import('../types').PracticeCalendar): Promise<void> {
+    const { error } = await supabase.rpc('practice_set_calendar', { p_mode: mode });
+    if (error) throw new Error(error.message);
+  },
+
+  async resetPerson(userId: string): Promise<void> {
+    const { error } = await supabase.rpc('practice_reset_person', { p_user_id: userId });
+    if (error) throw new Error(error.message);
+  },
+
+  async resetParticipant(participantId: string): Promise<void> {
+    const { error } = await supabase.rpc('practice_reset_participant', { p_participant_id: participantId });
+    if (error) throw new Error(error.message);
+  },
+
+  // Staff: my role and ticks.
+  async getMine(): Promise<import('../types').PracticeMyProgress> {
+    const { data, error } = await supabase.rpc('practice_my_progress');
+    if (error || !data) throw new Error(error?.message || 'Could not load your checklist');
+    return data as import('../types').PracticeMyProgress;
+  },
+
+  async setMine(key: string, done: boolean, stuck: boolean): Promise<void> {
+    const { error } = await supabase.rpc('practice_set_progress', { p_key: key, p_done: done, p_stuck: stuck });
+    if (error) throw new Error(error.message);
+  },
+
+  // Practice participants, through their own sign-in.
+  async getForParticipant(): Promise<import('../types').PracticeMyProgress> {
+    const { data, error } = await supabase.rpc('practice_participant_progress', { p_token: getSessionToken() });
+    if (error || !data) throw new Error(error?.message || 'Could not load your checklist');
+    return data as import('../types').PracticeMyProgress;
+  },
+
+  async setForParticipant(key: string, done: boolean, stuck: boolean): Promise<void> {
+    const { error } = await supabase.rpc('practice_participant_set_progress', { p_token: getSessionToken(), p_key: key, p_done: done, p_stuck: stuck });
+    if (error) throw new Error(error.message);
   },
 };

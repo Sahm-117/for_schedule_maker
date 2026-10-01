@@ -104,7 +104,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // switches to an old cohort isn't moved off it by background refreshes.
     const isFirstResolve = firstCohortResolveRef.current;
     firstCohortResolveRef.current = false;
-    const keepPersisted = persisted && (!isFirstResolve || persisted.status === 'ACTIVE' || !running);
+    const keepPersisted = persisted && (!isFirstResolve || persisted.status === 'ACTIVE' || persisted.isPractice || !running);
     const resolved = (keepPersisted ? persisted : null) || running || accessible[0] || null;
 
     // Keep references STABLE when nothing actually changed. Background refreshes

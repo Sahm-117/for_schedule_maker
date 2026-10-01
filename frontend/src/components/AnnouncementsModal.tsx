@@ -229,8 +229,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     try {
       const personPicked = !!targetPersonKey;
       const { sent } = await announcementsApi.send(subject.trim(), body.trim(), user.id, {
-        scope,
-        cohortId: scope === 'ACTIVE_COHORT' ? activeCohort?.id || null : null,
+        scope: activeCohort?.isPractice ? 'ACTIVE_COHORT' : scope,
+        cohortId: (activeCohort?.isPractice || scope === 'ACTIVE_COHORT') ? activeCohort?.id || null : null,
         targetLabelId: personPicked || audience === 'PARTICIPANTS' ? null : targetLabelId || null,
         targetGroupId: personPicked || audience !== 'PARTICIPANTS' ? null : targetGroupId || null,
         targetHubId: personPicked || audience === 'PARTICIPANTS' ? null : targetHubId || null,
@@ -368,7 +368,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setScope('ALL_USERS')}
-                  className={`rounded-xl border px-3 py-2 text-sm font-semibold ${scope === 'ALL_USERS' ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                  disabled={!!activeCohort?.isPractice}
+                  className={`disabled:cursor-not-allowed disabled:opacity-40 rounded-xl border px-3 py-2 text-sm font-semibold ${scope === 'ALL_USERS' ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                 >
                   All Users
                   <span className="mt-1 block text-[11px] font-medium text-gray-500">

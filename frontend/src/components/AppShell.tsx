@@ -17,6 +17,7 @@ import { useSupportClassFeedbackPrompt } from '../hooks/useSupportClassFeedbackP
 import { classFeedbackApi, groupsApi, myHubApi, notificationsApi, supportKindApi } from '../services/api';
 import { usePushTapRead } from '../hooks/usePushTapRead';
 import FollowUpCheckPrompt from './followups/FollowUpCheckPrompt';
+import PracticeDock from './practice/PracticeDock';
 import type { HubJob, SupportKind } from '../types';
 import { HUB_JOB_INFO, sortHubJobs } from './hubs/hubJobs';
 import ProfileMenu from './ProfileMenu';
@@ -74,6 +75,7 @@ const ICONS = {
   bell: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0m6 0H9" /></svg></IconBox>,
   megaphone: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M11 5 6 9H3v6h3l5 4V5Zm0 0h4a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4h-4" /></svg></IconBox>,
   resources: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M19 11H5m14 0a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2m14 0V9a2 2 0 0 0-2-2M5 11V9a2 2 0 0 1 2-2m0 0V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2M7 7h10" /></svg></IconBox>,
+  practice: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 3h6M10 3v5.2L5.4 17A2.2 2.2 0 0 0 7.3 20.3h9.4a2.2 2.2 0 0 0 1.9-3.3L14 8.200V3M8 14h8" /></svg></IconBox>,
   settings: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M10.325 4.317a1 1 0 0 1 1.9 0 1 1 0 0 0 1.49.617 1 1 0 0 1 1.366.366 1 1 0 0 0 1.324.472 1 1 0 0 1 1.366.366 1 1 0 0 1-.366 1.366 1 1 0 0 0-.472 1.324 1 1 0 0 1 .617 1.49 1 1 0 0 0 0 1.9 1 1 0 0 1-.617 1.49 1 1 0 0 0-.472 1.324 1 1 0 0 1 .366 1.366 1 1 0 0 1-1.366.366 1 1 0 0 0-1.324.472 1 1 0 0 1-1.49.617 1 1 0 0 0-1.9 0 1 1 0 0 1-1.49-.617 1 1 0 0 0-1.324-.472 1 1 0 0 1-1.366-.366 1 1 0 0 1 .366-1.366 1 1 0 0 0 .472-1.324 1 1 0 0 1-.617-1.49 1 1 0 0 0 0-1.9 1 1 0 0 1 .617-1.49 1 1 0 0 0 .472-1.324 1 1 0 0 1-.366-1.366 1 1 0 0 1 1.366-.366 1 1 0 0 0 1.324-.472 1 1 0 0 1 1.49-.617Z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg></IconBox>,
   followups: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 8l7.89 5.26a2 2 0 0 0 2.22 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z" /></svg></IconBox>,
   profile: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M20 21a8 8 0 1 0-16 0m8-11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" /></svg></IconBox>,
@@ -108,6 +110,7 @@ const adminNav: NavItem[] = [
   { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
   { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
   { to: '/notifications', label: 'Notifications', icon: ICONS.bell, adminOnly: true },
+  { to: '/practice', label: 'Practice', icon: ICONS.practice, adminOnly: true },
   { to: '/community', label: 'Community', icon: ICONS.hub },
   { to: '/resources', label: 'Resources', icon: ICONS.resources },
   { to: '/website', label: 'Website', icon: ICONS.website, adminOnly: true },
@@ -152,6 +155,7 @@ const adminNavGroups: NavGroup[] = [
       { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
       { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
       { to: '/notifications', label: 'Notifications', icon: ICONS.bell, adminOnly: true },
+      { to: '/practice', label: 'Practice', icon: ICONS.practice, adminOnly: true },
       { to: '/resources', label: 'Resources', icon: ICONS.resources },
       { to: '/website', label: 'Website', icon: ICONS.website, adminOnly: true },
       { to: '/settings', label: 'Settings', icon: ICONS.settings },
@@ -479,6 +483,9 @@ const AppShell: React.FC = () => {
     <div className="app-shell-bg min-h-screen text-gray-900">
       {/* The update prompt is mounted once, app-wide, in App.tsx. */}
       <NewNotificationBanner />
+      {activeCohort?.isPractice && (
+        <div className="sticky top-0 z-40 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white">Practice mode. Nothing here is real.</div>
+      )}
       {showAppSetup && <AppSetupSheet audience="staff" enable={enable} onClose={closeAppSetup} />}
       {!tourBusy && user && activeCohort && classFeedbackDueWeek && (
         <ClassFeedbackModal
@@ -499,6 +506,7 @@ const AppShell: React.FC = () => {
         <LoginShareReminder userId={user.id} enabled={isSupport && !tourBusy && !classFeedbackDueWeek && !pendingIntroJob} />
       )}
       {/* Supports: asked once if they are following up the people they were given. */}
+      {user && <PracticeDock mode="staff" active={isSupport && !!activeCohort?.isPractice} />}
       {user && <FollowUpCheckPrompt enabled={isSupport && !tourBusy && !classFeedbackDueWeek && !pendingIntroJob && !showAppSetup} />}
       {OPEN_GUIDE_AS_WELCOME && !tourBusy && !classFeedbackDueWeek && pendingIntroJob && (
         <RoleGuideModal job={pendingIntroJob} onClose={() => finishIntro(pendingIntroJob)} />
