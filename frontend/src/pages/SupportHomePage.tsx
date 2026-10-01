@@ -13,6 +13,7 @@ import { normalizeLink } from '../utils/links';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
 import { GROUP_MEETING_CHANGED_EVENT } from '../utils/meetingLiveEvents';
+import { isCallJoinable } from '../utils/joinWindow';
 import { HUB_JOB_INFO, sortHubJobs } from '../components/hubs/hubJobs';
 import { formatMeetingTime } from '../components/groups/GroupCallCard';
 import Spinner from '../components/Spinner';
@@ -396,6 +397,9 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                   meetingDay={nextHubMeeting?.hub?.meetingDay}
                   meetingTime={nextHubMeeting?.hub?.meetingTime}
                   callLink={nextHubMeeting?.hub?.callLink}
+                  durationMins={nextHubMeeting?.hub?.meetingDurationMins}
+                  live={!!hubsList.find((h) => h.hub?.id && h.hub.id === nextHubMeeting?.hub?.id)?.meetingLive}
+                  now={tickNow}
                 />
               ) : (
                 <QuickStat title="Faith Projects" value={`${draftedProjectCount}/${participants.length}`} detail={participants.length > 0 ? 'Participants drafted' : 'No participants yet'} to="/support/participants" tone="green" />
@@ -705,9 +709,14 @@ const NextHubMeetingCard: React.FC<{
   meetingDay?: string | null;
   meetingTime?: string | null;
   callLink?: string | null;
-}> = ({ hubName, meetingDay, meetingTime, callLink }) => {
+  durationMins?: number | null;
+  live?: boolean;
+  now?: Date;
+}> = ({ hubName, meetingDay, meetingTime, callLink, durationMins, live = false, now }) => {
   const when = formatMeetingTime(meetingDay, meetingTime);
   const link = normalizeLink(callLink || '');
+  // The call opens 10 minutes before the meeting; the rest of the week it waits.
+  const joinable = isCallJoinable(meetingDay, meetingTime, durationMins, now ?? new Date(), live);
   const style = QUICK_STAT_TONES.green;
   return (
     <div className={`rounded-2xl border p-3.5 ${style.box}`}>
@@ -716,7 +725,7 @@ const NextHubMeetingCard: React.FC<{
         <>
           <p className="mt-1.5 line-clamp-1 text-xl font-extrabold leading-tight text-gray-900">{hubName}</p>
           <p className={`mt-0.5 text-xs ${style.detail}`}>{when}</p>
-          {link && (
+          {link && (joinable ? (
             <a
               href={link}
               target="_blank"
@@ -725,7 +734,18 @@ const NextHubMeetingCard: React.FC<{
             >
               Join Call
             </a>
-          )}
+          ) : (
+            <>
+              <span
+                role="link"
+                aria-disabled="true"
+                className="mt-2 inline-flex h-8 min-h-8 cursor-not-allowed items-center justify-center rounded-[10px] bg-gray-200 px-3.5 text-xs font-semibold leading-none text-gray-400"
+              >
+                Join Call
+              </span>
+              <p className={`mt-1 text-[11px] ${style.detail}`}>Opens 10 min before</p>
+            </>
+          ))}
         </>
       ) : (
         <>
