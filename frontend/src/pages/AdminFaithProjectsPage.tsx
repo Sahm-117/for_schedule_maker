@@ -70,20 +70,28 @@ const SupportConversation: React.FC<{
         <p className="px-3.5 py-4 text-sm text-gray-400">No messages yet.</p>
       ) : (
         <div className="max-h-72 divide-y divide-gray-100 overflow-y-auto">
-          {entries.map((entry) => (
+          {entries.map((entry) => (entry.decision ? (
+            <div
+              key={entry.key}
+              className={`flex items-start gap-3 px-3.5 py-2.5 ${entry.decision === 'APPROVED' ? 'bg-emerald-50 shadow-[inset_5px_0_0_0_#059669]' : 'bg-orange-50 shadow-[inset_5px_0_0_0_#ea580c]'}`}
+            >
+              <span className={`mt-0.5 flex-none whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11.5px] font-bold text-white ${entry.decision === 'APPROVED' ? 'bg-emerald-600' : 'bg-orange-600'}`}>
+                {entry.decision === 'APPROVED' ? '✓ Approved' : '↻ Needs refinement'}
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs text-gray-600"><span className="font-semibold text-gray-800">{entry.who}</span> · {formatReviewDate(entry.at)}</p>
+                {entry.text && <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{entry.text}</p>}
+              </div>
+            </div>
+          ) : (
             <div key={entry.key} className="px-3.5 py-2.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-gray-800">{entry.who}</span>
-                {entry.decision && (
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${entry.decision === 'APPROVED' ? 'bg-emerald-100/80 text-emerald-700' : 'bg-orange-100/80 text-orange-700'}`}>
-                    {entry.decision === 'APPROVED' ? 'Approved' : 'Needs refinement'}
-                  </span>
-                )}
                 <span className="text-xs text-gray-400">{formatReviewDate(entry.at)}</span>
               </div>
               {entry.text && <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{entry.text}</p>}
             </div>
-          ))}
+          )))}
         </div>
       )}
       {canReply && (
@@ -186,9 +194,9 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant,
             type="button"
             onClick={() => void handleSubmit()}
             disabled={!canSubmit || saving || !existing}
-            className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
+            className={`rounded-2xl px-5 py-2.5 text-sm font-bold text-white active:scale-95 disabled:opacity-50 ${decision === 'APPROVED' ? 'bg-emerald-600' : decision === 'NEEDS_REFINEMENT' ? 'bg-orange-600' : 'bg-primary'}`}
           >
-            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Submit review'}
+            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : decision === 'APPROVED' ? 'Approve and send' : decision === 'NEEDS_REFINEMENT' ? 'Send for refinement' : 'Choose a decision'}
           </button>
         </>
       }
@@ -209,21 +217,31 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant,
         {/* Decision */}
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Your decision</p>
-          <div className="flex gap-2">
-            {(['APPROVED', 'NEEDS_REFINEMENT'] as const).map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => setDecision(d)}
-                className={`flex-1 rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95 ${
-                  decision === d
-                    ? d === 'APPROVED' ? 'border-emerald-300 bg-emerald-100/80 text-emerald-700' : 'border-orange-300 bg-orange-100/80 text-orange-700'
-                    : 'border-gray-100 bg-white text-gray-500 hover:bg-gray-50'
-                }`}
-              >
-                {d === 'APPROVED' ? 'Approve' : 'Needs Refinement'}
-              </button>
-            ))}
+          <div className="flex gap-2.5">
+            {(['APPROVED', 'NEEDS_REFINEMENT'] as const).map((d) => {
+              const approve = d === 'APPROVED';
+              const selected = decision === d;
+              const otherSelected = decision !== null && !selected;
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setDecision(d)}
+                  className={`flex flex-1 flex-col items-center gap-1 rounded-2xl border-2 px-3 py-3 text-sm font-bold transition active:scale-95 ${
+                    selected
+                      ? approve ? 'border-emerald-600 bg-emerald-600 text-white shadow-md' : 'border-orange-600 bg-orange-600 text-white shadow-md'
+                      : approve ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-orange-200 bg-orange-50 text-orange-700'
+                  } ${otherSelected ? 'opacity-55' : ''}`}
+                >
+                  <span className={`grid h-6 w-6 place-items-center rounded-full text-[14px] font-extrabold ${selected ? 'bg-white' : approve ? 'bg-emerald-100' : 'bg-orange-100'} ${selected ? (approve ? 'text-emerald-600' : 'text-orange-600') : ''}`}>
+                    {approve ? '✓' : '↻'}
+                  </span>
+                  {approve ? 'Approve' : 'Needs refinement'}
+                  <span className="text-[11px] font-semibold opacity-80">{approve ? 'Sent to the support' : 'Say what to change'}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -231,14 +249,14 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant,
         {decision === 'NEEDS_REFINEMENT' && (
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Reason <span className="text-red-400">*</span>
+              What needs to change <span className="text-red-400">*</span>
             </label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={3}
               autoFocus
-              className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-xl border border-orange-200 bg-orange-50/40 px-3.5 py-2.5 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
               placeholder="Tell the support what needs to change…"
             />
           </div>
