@@ -244,10 +244,16 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   const prayerFinished = prayerFocus.prayerFinished;
   useEffect(() => { setFollowView(prayerFinished ? 'recap' : 'prayer'); }, [prayerFinished, weekId]);
 
-  const loadPrayerFocus = useCallback(async () => {
+  // A refresh already on its way when the lead picks someone (or ticks/finishes prayer) carries the
+  // old answer and would flip the screen back. Only the check made after the change itself counts.
+  const prayerWrites = React.useRef(0);
+  const lastPrayerWrite = React.useRef(0);
+  const loadPrayerFocus = useCallback(async (afterChange = false) => {
     if (!hubId || weekId === null) return;
+    const startedAt = Date.now();
     try {
       const focus = await myHubApi.getPrayerFocus(hubId, weekId);
+      if (!afterChange && (prayerWrites.current > 0 || lastPrayerWrite.current > startedAt)) return;
       setPrayerFocus(focus);
     } catch {
       /* keep showing the last value we had */
@@ -323,14 +329,17 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
       : { ...previous, faithProjectId: null, participantName: null, groupName: null, projectText: null, setAt: null };
     setPrayerFocus(optimistic);
     setFocusSaving(true);
+    prayerWrites.current += 1;
     try {
       await myHubApi.setPrayerFocus(hubId, weekId, item?.faithProjectId ?? null);
-      await loadPrayerFocus();
+      await loadPrayerFocus(true);
       void channel?.send({ type: 'broadcast', event: 'prayer-focus', payload: {} });
     } catch (err) {
       setPrayerFocus(previous);
       toast({ tone: 'error', message: err instanceof Error ? err.message : 'Could not set this.' });
     } finally {
+      prayerWrites.current -= 1;
+      lastPrayerWrite.current = Date.now();
       setFocusSaving(false);
     }
   };
@@ -352,14 +361,17 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
     const previous = prayerFocus;
     setPrayerFocus((prev) => ({ ...prev, hubPrayerDone: !prev.hubPrayerDone }));
     setStateSaving(true);
+    prayerWrites.current += 1;
     try {
       await myHubApi.setPrayerState(hubId, weekId, { hubPrayerDone: !previous.hubPrayerDone });
-      await loadPrayerFocus();
+      await loadPrayerFocus(true);
       void channel?.send({ type: 'broadcast', event: 'prayer-focus', payload: {} });
     } catch (err) {
       setPrayerFocus(previous);
       toast({ tone: 'error', message: err instanceof Error ? err.message : 'Could not save this.' });
     } finally {
+      prayerWrites.current -= 1;
+      lastPrayerWrite.current = Date.now();
       setStateSaving(false);
     }
   };
@@ -369,14 +381,17 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
     const previous = prayerFocus;
     setPrayerFocus((prev) => ({ ...prev, prayerFinished: true, faithProjectId: null, participantName: null, groupName: null, projectText: null, setAt: null }));
     setStateSaving(true);
+    prayerWrites.current += 1;
     try {
       await myHubApi.setPrayerState(hubId, weekId, { prayerFinished: true });
-      await loadPrayerFocus();
+      await loadPrayerFocus(true);
       void channel?.send({ type: 'broadcast', event: 'prayer-focus', payload: {} });
     } catch (err) {
       setPrayerFocus(previous);
       toast({ tone: 'error', message: err instanceof Error ? err.message : 'Could not finish prayer.' });
     } finally {
+      prayerWrites.current -= 1;
+      lastPrayerWrite.current = Date.now();
       setStateSaving(false);
     }
   };
@@ -386,14 +401,17 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
     const previous = prayerFocus;
     setPrayerFocus((prev) => ({ ...prev, prayerFinished: false }));
     setStateSaving(true);
+    prayerWrites.current += 1;
     try {
       await myHubApi.setPrayerState(hubId, weekId, { prayerFinished: false });
-      await loadPrayerFocus();
+      await loadPrayerFocus(true);
       void channel?.send({ type: 'broadcast', event: 'prayer-focus', payload: {} });
     } catch (err) {
       setPrayerFocus(previous);
       toast({ tone: 'error', message: err instanceof Error ? err.message : 'Could not undo this.' });
     } finally {
+      prayerWrites.current -= 1;
+      lastPrayerWrite.current = Date.now();
       setStateSaving(false);
     }
   };

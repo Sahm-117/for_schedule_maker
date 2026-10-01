@@ -167,7 +167,11 @@ const AdminFollowUpsPage: React.FC = () => {
   const [deletingContact, setDeletingContact] = useState<FollowUpContact | null>(null);
   const [showExport, setShowExport] = useState(false);
 
+  // A change just saved must not be undone by a refresh that was already on its way.
+  const lastEditAt = useRef(0);
+
   const loadAll = useCallback(async () => {
+    const startedAt = Date.now();
     if (initialLoadRef.current) setLoading(true);
     setLoadError('');
     try {
@@ -178,6 +182,7 @@ const AdminFollowUpsPage: React.FC = () => {
         followUpIssuesApi.getAll(),
         settingsApi.getRegistrationLink(),
       ]);
+      if (lastEditAt.current > startedAt) return;
       setContacts(sortByText(contactsRes.contacts, (contact) => contact.fullName));
       setOwners(sortByText(usersRes.users.filter((u) => u.role === 'SUPPORT' || u.role === 'ADMIN'), (owner) => owner.name));
       setTemplates(sortByText(templatesRes.templates, (template) => template.useCase));
@@ -210,6 +215,7 @@ const AdminFollowUpsPage: React.FC = () => {
   }, [activeCohort]);
 
   const replaceContact = (updated: FollowUpContact) => {
+    lastEditAt.current = Date.now();
     setContacts((prev) => sortByText(prev.map((c) => (c.id === updated.id ? updated : c)), (contact) => contact.fullName));
   };
 
@@ -378,6 +384,7 @@ const AdminFollowUpsPage: React.FC = () => {
   const handleDelete = async () => {
     if (!deletingContact) return;
     await followUpContactsApi.delete(deletingContact.id);
+    lastEditAt.current = Date.now();
     setContacts((prev) => prev.filter((c) => c.id !== deletingContact.id));
     setDeletingContact(null);
   };

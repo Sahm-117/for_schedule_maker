@@ -54,6 +54,14 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
   // Steps the person unticked by hand: not ticked again by a visit this session.
   const unticked = useRef<Set<string>>(new Set());
   const visited = useRef<Set<string>>(new Set());
+  // After a seat switch or reset, the screen the person is already on must not tick the fresh
+  // steps by itself: they have to open it (move to another screen and back).
+  const suppressVisit = useRef<string | null>(null);
+  const startFresh = () => {
+    visited.current.clear();
+    unticked.current.clear();
+    suppressVisit.current = `${location.pathname}${location.search}`;
+  };
 
   // A refresh that was already on its way when someone ticked a step carries the old answer.
   // Letting it land would un-tick the box they just ticked, so it is dropped (a fresh one follows the save).
@@ -104,6 +112,10 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
   // Steps the data can't see are ticked when the person opens the screen.
   useEffect(() => {
     if (!active) return;
+    if (suppressVisit.current !== null) {
+      if (suppressVisit.current === `${location.pathname}${location.search}`) return;
+      suppressVisit.current = null;
+    }
     const candidates: PracticeScenario[] = [...(peer ? peerSteps(peer.myRole, peer.partnerRole) : []), ...scenarios].filter((step) => step.visit && step.to);
     const doneNow = new Set([...items, ...(peer?.myProgress ?? [])].filter((item) => item.doneAt).map((item) => item.key));
     candidates.forEach((step) => {
@@ -127,6 +139,7 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
         return;
       }
       await practiceApi.setMyRole(key as PracticeRole);
+      startFresh();
       await refreshPulse?.();
       load();
       onWorkspaceChanged?.();
@@ -147,6 +160,7 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
         return;
       }
       if (kind === 'practice') await practiceApi.resetMe(); else await practiceApi.resetMyFirstTime();
+      if (kind === 'practice') startFresh();
       await refreshPulse?.();
       load();
       onWorkspaceChanged?.();

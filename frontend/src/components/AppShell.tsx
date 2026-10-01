@@ -397,6 +397,10 @@ const AppShell: React.FC = () => {
   };
   // Kind tagged for this cohort: hub leads and operational supports don't run
   // a participant group, so "My Group" doesn't apply to them.
+  // Bumped when Practice moves the person to another seat or resets them. The header label and
+  // the page behind it (My Hub, My Group, Attendance...) re-read everything right away instead of
+  // on the next background refresh.
+  const [workspaceRevision, setWorkspaceRevision] = useState(0);
   const [supportKind, setSupportKind] = useState<SupportKind>('PARTICIPANT_SUPPORT');
   useEffect(() => {
     if (!isSupport || !user || !activeCohort) { setSupportKind('PARTICIPANT_SUPPORT'); return; }
@@ -405,7 +409,7 @@ const AppShell: React.FC = () => {
       .then(({ kinds }) => { if (!cancelled) setSupportKind(kinds[user.id] ?? 'PARTICIPANT_SUPPORT'); })
       .catch(() => { if (!cancelled) setSupportKind('PARTICIPANT_SUPPORT'); });
     return () => { cancelled = true; };
-  }, [isSupport, user, activeCohort]);
+  }, [isSupport, user, activeCohort, workspaceRevision]);
   const isHubOnlySupport = isSupport && (supportKind === 'HUB_LEAD' || supportKind === 'OPERATIONAL');
   const canShowForKind = (item: NavItem) => !(item.hiddenForHubOnly && isHubOnlySupport);
   const navItems = useMemo(() => {
@@ -444,10 +448,6 @@ const AppShell: React.FC = () => {
 
   // The support badge names the group(s) they lead in the selected cohort —
   // activity tags aren't cohort-specific, so an old cohort's tag would show.
-  // Bumped when Practice moves the person to another seat or resets them. The header label and
-  // the page behind it (My Hub, My Group, Attendance...) re-read everything right away instead of
-  // on the next background refresh.
-  const [workspaceRevision, setWorkspaceRevision] = useState(0);
   const [myGroupNames, setMyGroupNames] = useState<string[]>([]);
   // This support's own group id, for the "My Group" nav dot (useGroupMeetingLive
   // polls MeetingAttendance/GroupPrayerStatus for it — see that hook).

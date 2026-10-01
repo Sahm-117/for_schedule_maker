@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SegmentedTabs from '../components/SegmentedTabs';
 import { Navigate } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
@@ -120,7 +120,13 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
     }
   }, [activeCohort, cohortWeeks, selectedWeekId]);
 
+  // A refresh that was already on its way when someone marked a person (or started attendance)
+  // carries the old answer; letting it land would undo what they just did.
+  const writesInFlight = useRef(0);
+  const lastWriteAt = useRef(0);
+
   const load = useCallback(async (silent = false) => {
+    const startedAt = Date.now();
     if (!activeCohort || !selectedWeekId) { if (!silent) setLoading(false); return; }
     if (!silent) setLoading(true);
     try {
@@ -146,6 +152,7 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
         attendanceApi.getForWeek({ weekId: selectedWeekId }),
         attendanceApi.getSession(selectedWeekId),
       ]);
+      if (writesInFlight.current > 0 || lastWriteAt.current > startedAt) return;
       setParticipants(sortByText(people.filter((person) => person.status === 'ACTIVE'), (person) => person.fullName));
       setRecords(new Map(saved.map((record) => [record.participantId, record])));
       setSession(attendanceSession);
@@ -189,12 +196,15 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
   const startAttendance = async () => {
     if (typeof selectedWeekId !== 'number' || starting) return;
     setStarting(true);
+    writesInFlight.current += 1;
     try {
       const { session: saved } = await attendanceApi.startWindow(selectedWeekId);
       setSession(saved);
     } catch (error) {
       toast({ tone: 'error', message: error instanceof Error ? error.message : 'Could not start attendance.' });
     } finally {
+      writesInFlight.current -= 1;
+      lastWriteAt.current = Date.now();
       setStarting(false);
     }
   };
@@ -222,6 +232,7 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
     if (typeof selectedWeekId !== 'number' || saving.has(participant.id)) return;
     if (locked && !allowedWhenLocked(records.get(participant.id)?.status, status)) return;
     const previous = records.get(participant.id);
+    writesInFlight.current += 1;
     setSaving((current) => new Map(current).set(participant.id, status));
     setRecords((current) => new Map(current).set(participant.id, {
       id: previous?.id ?? `pending-${participant.id}`,
@@ -243,6 +254,8 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
       });
       toast({ tone: 'error', message: error instanceof Error ? error.message : `Couldn’t save ${participant.fullName}.` });
     } finally {
+      writesInFlight.current -= 1;
+      lastWriteAt.current = Date.now();
       setSaving((current) => { const next = new Map(current); next.delete(participant.id); return next; });
     }
   };

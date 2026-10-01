@@ -130,7 +130,11 @@ const SupportFollowUpsPage: React.FC = () => {
   const [showExport, setShowExport] = useState(false);
 
 
+  // A change just saved must not be undone by a refresh that was already on its way.
+  const lastEditAt = useRef(0);
+
   const loadAll = useCallback(async () => {
+    const startedAt = Date.now();
     if (!user?.id) return;
     if (initialLoadRef.current) setLoading(true);
     setLoadError('');
@@ -141,6 +145,7 @@ const SupportFollowUpsPage: React.FC = () => {
         settingsApi.getRegistrationLink(),
       ]);
       const issuesRes = await followUpIssuesApi.getAll();
+      if (lastEditAt.current > startedAt) return;
       setContacts(sortByText(contactsRes.contacts, (contact) => contact.fullName));
       setIssues(issuesRes.issues);
       setTemplates(sortByText(templatesRes.templates, (template) => template.useCase));
@@ -213,6 +218,7 @@ const SupportFollowUpsPage: React.FC = () => {
   }
 
   const replaceContact = (updated: FollowUpContact) => {
+    lastEditAt.current = Date.now();
     setContacts((prev) => sortByText(prev.map((c) => (c.id === updated.id ? updated : c)), (contact) => contact.fullName));
   };
 

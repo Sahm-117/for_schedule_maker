@@ -269,7 +269,11 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     return { signedUp: current.signedUp, currentProspects: current.open, priorProspects: prior.open, onboarded };
   }, [allContacts, activeCohort]);
 
+  // A change just saved must not be undone by a refresh that was already on its way.
+  const lastEditAt = useRef(0);
+
   const loadAll = useCallback(async () => {
+    const startedAt = Date.now();
     if (!user?.id) return;
     if (initialLoadRef.current) setLoading(true);
     setLoadError('');
@@ -284,6 +288,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
         formRegistrationsApi.getAll(),
       ]);
       const issuesRes = await followUpIssuesApi.getAll();
+      if (lastEditAt.current > startedAt) return;
       setContacts(sortByText(contactsRes.contacts, (contact) => contact.fullName));
       setAllContacts(allRes.contacts);
       setMyProspects(allRes.contacts.filter((contact) => contact.registeredById === user.id || contact.source === `Registered by ${user.name}` || contact.source === `Added for follow up by ${user.name}`));
@@ -390,6 +395,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const unread = unreadIssueCount(visibleIssues);
 
   const replaceContact = (updated: FollowUpContact) => {
+    lastEditAt.current = Date.now();
     setContacts((prev) => sortByText(prev.map((c) => (c.id === updated.id ? updated : c)), (contact) => contact.fullName));
   };
 
