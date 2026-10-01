@@ -17,16 +17,20 @@ const BACKGROUND_POLL_MS = 12000;
 // updates by itself with no reload.
 export const usePracticePulse = (enabled: boolean, onCohortKeyChange: () => void, inPractice = false) => {
   const [pulse, setPulse] = useState<PracticePulse | null>(null);
+  const pulseRef = useRef<PracticePulse | null>(null);
+  pulseRef.current = pulse;
   const lastKey = useRef<string | null>(null);
   const onChange = useRef(onCohortKeyChange);
   onChange.current = onCohortKeyChange;
   const busy = useRef(false);
+  const activeRef = useRef(inPractice);
+  activeRef.current = inPractice || !!pulseRef.current?.active || (pulseRef.current?.incoming?.length ?? 0) > 0;
 
   const refresh = useCallback(async () => {
     if (busy.current) return;
     busy.current = true;
     try {
-      const next = await practiceApi.pulse();
+      const next = await practiceApi.pulse(activeRef.current);
       if (lastKey.current !== null && lastKey.current !== next.cohortKey) onChange.current();
       lastKey.current = next.cohortKey;
       // Keep the same object when nothing changed, so nothing re-renders for nothing.

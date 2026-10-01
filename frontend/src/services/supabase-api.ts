@@ -8159,8 +8159,10 @@ export const practiceApi = {
     if (error) throw new Error(error.message);
   },
 
-  async pulse(): Promise<import('../types').PracticePulse> {
-    const { data, error } = await supabase.rpc('practice_pulse');
+  async pulse(active = true): Promise<import('../types').PracticePulse> {
+    // `active`: the person is inside Practice or in a walkthrough. Otherwise the database
+    // skips the tick-checking scan, which keeps the beat light for supports doing real work.
+    const { data, error } = await supabase.rpc('practice_pulse', { p_active: active });
     if (error || !data) throw new Error(error?.message || 'pulse failed');
     return data as import('../types').PracticePulse;
   },
