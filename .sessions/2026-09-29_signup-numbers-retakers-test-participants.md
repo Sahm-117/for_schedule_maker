@@ -166,3 +166,8 @@ The admin Dashboard's sign-up cards disagreed with Follow-ups → Overview. Trac
 - **Guardrails:** push notifications skip the practice cohort (hub membership/role triggers patched); announcements in Practice are forced to the cohort; persisted practice cohort sticks across reloads; banner "Practice mode. Nothing here is real."
 - **App:** `PracticeDock` pill with per-role scenario checklist (`constants/practiceScenarios.ts`) for supports and participants; `AdminPracticePage`; route `/practice`.
 - **Go-live order:** apply migration first, then push app. Test mode off by default. Profile and Community are not isolated. Separate Supabase project for staging deferred.
+
+## 1 Oct: Reset first-time experience (held locally, migration 20261001180000 NOT applied)
+- `admin_reset_first_time(user, force_password)` and `admin_reset_participant_first_time(participant)`, admin-only: clear TourProgress, HubRoleIntroSeen, Get-the-app sheet counters; optional mustChangePassword. Tested in a rolled-back transaction (non-admin refused).
+- App: Users ⋮ → "Reset first-time experience" with confirm + password switch; Practice Board ⋮ gets "Reset practice + first-time experience"; participant Reset in Practice also clears tours.
+- Limit: "Get the app" install state kept in the browser itself cannot be cleared from the server.

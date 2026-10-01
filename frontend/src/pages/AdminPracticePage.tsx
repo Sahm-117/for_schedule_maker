@@ -50,7 +50,7 @@ const AdminPracticePage: React.FC = () => {
   const [adding, setAdding] = useState(false);
   const [pick, setPick] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState('');
-  const [confirm, setConfirm] = useState<null | { kind: 'all' } | { kind: 'person'; member: PracticeMemberState } | { kind: 'participant'; id: string; name: string }>(null);
+  const [confirm, setConfirm] = useState<null | { kind: 'all' } | { kind: 'person'; member: PracticeMemberState; withFirstTime?: boolean } | { kind: 'participant'; id: string; name: string }>(null);
   const dirtyRef = useRef(false);
   dirtyRef.current = dirty;
 
@@ -180,7 +180,10 @@ const AdminPracticePage: React.FC = () => {
                         </span>
                         <svg className={`h-4 w-4 flex-none text-gray-400 transition-transform ${isOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 6l6 6-6 6" /></svg>
                       </button>
-                      <AppOverflowMenu align="right" items={[{ label: 'Reset this person', onClick: () => setConfirm({ kind: 'person', member: m }) }]} />
+                      <AppOverflowMenu align="right" items={[
+                        { label: 'Reset practice progress', onClick: () => setConfirm({ kind: 'person', member: m }) },
+                        { label: 'Reset practice + first-time experience', onClick: () => setConfirm({ kind: 'person', member: m, withFirstTime: true }) },
+                      ]} />
                     </div>
                     {isOpen && (
                       <div className="mt-3 border-t border-gray-100 pt-3">
@@ -300,7 +303,9 @@ const AdminPracticePage: React.FC = () => {
         message={confirm?.kind === 'all'
           ? 'Everything people did in Practice is cleared and it is rebuilt from the team list. Real data is not touched.'
           : confirm?.kind === 'person'
-            ? 'Their practice group starts again with new made-up participants, and their checklist is cleared.'
+            ? confirm.withFirstTime
+              ? 'Their practice group and checklist start again, and the welcome, tours and role introductions show again on their next sign-in.'
+              : 'Their practice group starts again with new made-up participants, and their checklist is cleared.'
             : 'They go back to their first sign-in, with the same phone number and code.'}
         confirmText="Reset"
         type="warning"
@@ -310,8 +315,8 @@ const AdminPracticePage: React.FC = () => {
           setConfirm(null);
           if (!target) return;
           if (target.kind === 'all') void setUp();
-          else if (target.kind === 'person') void run(() => practiceApi.resetPerson(target.member.userId), `${target.member.name} is reset.`);
-          else void run(() => practiceApi.resetParticipant(target.id), `${target.name} is reset.`);
+          else if (target.kind === 'person') void run(async () => { await practiceApi.resetPerson(target.member.userId); if (target.withFirstTime) await practiceApi.resetFirstTime(target.member.userId); }, `${target.member.name} is reset.`);
+          else void run(async () => { await practiceApi.resetParticipant(target.id); await practiceApi.resetParticipantFirstTime(target.id); }, `${target.name} is reset.`);
         }}
       />
     </div>

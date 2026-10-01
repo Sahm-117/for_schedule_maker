@@ -8115,6 +8115,17 @@ export const practiceApi = {
     if (error) throw new Error(error.message);
   },
 
+  // Next sign-in feels brand new: welcome, tours, role intros, Get the app prompt.
+  async resetFirstTime(userId: string, forcePassword = false): Promise<void> {
+    const { error } = await supabase.rpc('admin_reset_first_time', { p_user_id: userId, p_force_password: forcePassword });
+    if (error) throw new Error(error.message);
+  },
+
+  async resetParticipantFirstTime(participantId: string): Promise<void> {
+    const { error } = await supabase.rpc('admin_reset_participant_first_time', { p_participant_id: participantId });
+    if (error) throw new Error(error.message);
+  },
+
   async setOn(on: boolean): Promise<void> {
     const { error } = await supabase.rpc('practice_set_on', { p_on: on });
     if (error) throw new Error(error.message);

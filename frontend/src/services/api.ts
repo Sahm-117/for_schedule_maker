@@ -621,6 +621,8 @@ export const practiceApi = USE_SUPABASE ? supabasePracticeApi : {
   async setOn(_on: boolean): Promise<void> { practiceUnavailable(); },
   async setCalendar(_mode: any): Promise<void> { practiceUnavailable(); },
   async resetPerson(_userId: string): Promise<void> { practiceUnavailable(); },
+  async resetFirstTime(_userId: string, _force?: boolean): Promise<void> { practiceUnavailable(); },
+  async resetParticipantFirstTime(_id: string): Promise<void> { practiceUnavailable(); },
   async resetParticipant(_id: string): Promise<void> { practiceUnavailable(); },
   async getMine(): Promise<import('../types').PracticeMyProgress> { return { role: null, items: [] }; },
   async setMine(_k: string, _d: boolean, _s: boolean): Promise<void> {},

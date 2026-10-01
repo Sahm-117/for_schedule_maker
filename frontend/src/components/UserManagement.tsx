@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { usersApi, authApi, labelsApi, pushSubscriptionsApi } from '../services/api';
+import { usersApi, authApi, labelsApi, pushSubscriptionsApi, practiceApi } from '../services/api';
 import type { User, Label } from '../types';
 import AppSelect from './AppSelect';
 import ConfirmationModal from './ConfirmationModal';
@@ -52,6 +52,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [firstTimeTarget, setFirstTimeTarget] = useState<User | null>(null);
+  const [firstTimePassword, setFirstTimePassword] = useState(false);
+  const [firstTimeBusy, setFirstTimeBusy] = useState(false);
   const [invite, setInvite] = useState<InviteDetails | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedUserLabels, setSelectedUserLabels] = useState<Label[]>([]);
@@ -466,6 +469,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
         <button onClick={() => { setRoleChangeTarget(user); setRoleChangeValue(user.role as 'ADMIN' | 'SUPPORT'); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">Change role</button>
         <button onClick={() => { void handleTestChange(user); setOpenMenuId(null); }} disabled={loading} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">{user.isTest ? 'Unmark as test' : 'Mark as test'}</button>
         <button onClick={() => { setResetPasswordUserId(user.id); setError(''); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-orange-500 hover:bg-gray-50" role="menuitem">Reset password</button>
+        <button onClick={() => { setFirstTimeTarget(user); setFirstTimePassword(false); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">Reset first-time experience</button>
         <button onClick={() => { void handleActivationChange(user); setOpenMenuId(null); }} disabled={loading || (user.isActive !== false && user.id === currentUser?.id)} className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">{user.isActive === false ? 'Reactivate' : 'Deactivate'}</button>
         <button onClick={() => { void handlePermanentDeleteUser(user); setOpenMenuId(null); }} disabled={loading || user.id === currentUser?.id} className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">Permanent delete</button>
       </div>
@@ -1011,6 +1015,36 @@ const UserManagement: React.FC<UserManagementProps> = ({
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={!!firstTimeTarget}
+        onClose={() => setFirstTimeTarget(null)}
+        onConfirm={async () => {
+          const target = firstTimeTarget;
+          if (!target) return;
+          setFirstTimeBusy(true);
+          try {
+            await practiceApi.resetFirstTime(target.id, firstTimePassword);
+            setError('');
+            setSuccess(`${target.name} will see the first-time experience on their next sign-in.`);
+          } catch (e) {
+            setError(e instanceof Error ? e.message : 'Could not reset.');
+          } finally {
+            setFirstTimeBusy(false);
+            setFirstTimeTarget(null);
+          }
+        }}
+        title={`Reset for ${firstTimeTarget?.name ?? 'this user'}?`}
+        message="Next time they sign in it feels brand new: the welcome and page tours, role introductions and the Get the app prompt all show again. Schedule, hubs, groups, messages and attendance are not touched."
+        type="warning"
+        confirmText="Reset"
+        confirmLoading={firstTimeBusy}
+      >
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={firstTimePassword} onChange={(e) => setFirstTimePassword(e.target.checked)} />
+          Also ask them to set a new password
+        </label>
+      </ConfirmationModal>
 
       <ConfirmationModal
         isOpen={!!roleChangeTarget}
