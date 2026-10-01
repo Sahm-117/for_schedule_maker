@@ -229,9 +229,17 @@ DECLARE
   v_pid UUID;
   v_name TEXT;
 BEGIN
-  SELECT * INTO r FROM public."PracticePeer" WHERE id = p_id AND "toUserId" = v_me AND status = 'PENDING';
+  SELECT * INTO r FROM public."PracticePeer"
+   WHERE id = p_id AND "toUserId" = v_me AND status = 'PENDING' AND "createdAt" > NOW() - INTERVAL '1 hour';
   IF r.id IS NULL THEN
     RAISE EXCEPTION 'That request is no longer open';
+  END IF;
+  IF p_accept AND (
+       NOT COALESCE((SELECT "practiceOn" FROM public."Cohort" WHERE "isPractice" LIMIT 1), FALSE)
+       OR NOT EXISTS (SELECT 1 FROM public."PracticeMember" WHERE "userId" = r."fromUserId")
+       OR NOT EXISTS (SELECT 1 FROM public."PracticeMember" WHERE "userId" = r."toUserId")) THEN
+    UPDATE public."PracticePeer" SET status = 'CANCELLED', "respondedAt" = NOW() WHERE id = r.id;
+    RAISE EXCEPTION 'Practice is off, or that person has left the team';
   END IF;
   SELECT name INTO v_name FROM public."User" WHERE id = v_me;
   IF NOT p_accept THEN

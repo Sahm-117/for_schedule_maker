@@ -27,7 +27,9 @@ export const leaveParticipantView = async (): Promise<void> => {
   try { stash = JSON.parse(localStorage.getItem(STASH_KEY) || 'null'); } catch { stash = null; }
   const participantToken = localStorage.getItem(SESSION_TOKEN_KEY);
   if (!stash) {
-    // Nothing to go back to: sign out so they can sign in as themselves.
+    // Nothing to go back to: sign the practice session out so they can sign in as themselves.
+    if (participantToken) { try { await authApi.signOut(participantToken); } catch { /* it expires on its own */ } }
+    AUTH_KEYS.forEach((key) => localStorage.removeItem(key));
     window.location.assign('/login');
     return;
   }

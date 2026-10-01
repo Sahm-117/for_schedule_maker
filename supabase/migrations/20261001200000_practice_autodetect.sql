@@ -69,10 +69,14 @@ CREATE OR REPLACE FUNCTION public.practice_autotick_staff(p_user UUID)
 AS $function$
 DECLARE
   v_c UUID := (SELECT id FROM public."Cohort" WHERE "isPractice" LIMIT 1);
+  v_since TIMESTAMPTZ;
 BEGIN
   IF v_c IS NULL THEN
     RETURN;
   END IF;
+  -- Walkthrough steps count only what was done since the walkthrough began.
+  SELECT "respondedAt" INTO v_since FROM public."PracticePeer"
+   WHERE status = 'ACTIVE' AND p_user IN ("fromUserId", "toUserId") ORDER BY "respondedAt" DESC LIMIT 1;
   WITH
   posts AS (
     SELECT gp."createdAt" AS ts, row_number() OVER (ORDER BY gp."createdAt") AS n
@@ -139,7 +143,8 @@ BEGIN
     UNION ALL SELECT 'pr-done', ts FROM prayfin
   )
   INSERT INTO public."PracticeProgress" ("userId", "scenarioKey", "doneAt")
-  SELECT p_user, d.key, d.ts FROM d WHERE d.ts IS NOT NULL
+  SELECT p_user, d.key, d.ts FROM d
+   WHERE d.ts IS NOT NULL AND (d.key NOT LIKE 'peer-%' OR (v_since IS NOT NULL AND d.ts >= v_since))
   ON CONFLICT ("userId", "scenarioKey") WHERE "userId" IS NOT NULL DO UPDATE
     SET "doneAt" = EXCLUDED."doneAt", "updatedAt" = NOW()
     WHERE public."PracticeProgress"."doneAt" IS NULL AND NOT public."PracticeProgress"."autoDisabled";
@@ -153,7 +158,11 @@ CREATE OR REPLACE FUNCTION public.practice_autotick_participant(p_pid UUID)
  SECURITY DEFINER
  SET search_path TO ''
 AS $function$
+DECLARE
+  v_since TIMESTAMPTZ;
 BEGIN
+  SELECT "respondedAt" INTO v_since FROM public."PracticePeer"
+   WHERE status = 'ACTIVE' AND "participantId" = p_pid ORDER BY "respondedAt" DESC LIMIT 1;
   WITH
   post AS (SELECT min("createdAt") AS ts FROM public."GroupPost" WHERE "authorParticipantId" = p_pid AND "deletedAt" IS NULL),
   engage AS (
@@ -174,7 +183,8 @@ BEGIN
     UNION ALL SELECT 'pt-reflect', ts FROM refl
   )
   INSERT INTO public."PracticeProgress" ("participantId", "scenarioKey", "doneAt")
-  SELECT p_pid, d.key, d.ts FROM d WHERE d.ts IS NOT NULL
+  SELECT p_pid, d.key, d.ts FROM d
+   WHERE d.ts IS NOT NULL AND (d.key NOT LIKE 'peer-%' OR (v_since IS NOT NULL AND d.ts >= v_since))
   ON CONFLICT ("participantId", "scenarioKey") WHERE "participantId" IS NOT NULL DO UPDATE
     SET "doneAt" = EXCLUDED."doneAt", "updatedAt" = NOW()
     WHERE public."PracticeProgress"."doneAt" IS NULL AND NOT public."PracticeProgress"."autoDisabled";
