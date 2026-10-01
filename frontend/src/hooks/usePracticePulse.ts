@@ -5,13 +5,17 @@ import type { PracticePulse } from '../types';
 const POLL_MS = 4000;
 // While Practice is off and the person is not in it, a slower check is plenty.
 const IDLE_POLL_MS = 20000;
+// Practice is on for everyone, but most supports are doing real work: they only need the
+// fast beat while they are inside Practice or in a walkthrough. Otherwise this keeps the
+// phone and the database quiet (and still catches a request within a few seconds).
+const BACKGROUND_POLL_MS = 12000;
 
 // Asks the database one tiny question every few seconds while the app is on
 // screen: what is my cohort list, am I in Practice, is anyone asking me to
 // practise, who am I walking through with. When the cohort list changes
 // (Test mode switched on or off) it tells the caller, so the cohort menu
 // updates by itself with no reload.
-export const usePracticePulse = (enabled: boolean, onCohortKeyChange: () => void) => {
+export const usePracticePulse = (enabled: boolean, onCohortKeyChange: () => void, inPractice = false) => {
   const [pulse, setPulse] = useState<PracticePulse | null>(null);
   const lastKey = useRef<string | null>(null);
   const onChange = useRef(onCohortKeyChange);
@@ -32,14 +36,15 @@ export const usePracticePulse = (enabled: boolean, onCohortKeyChange: () => void
   }, []);
 
   const idle = !pulse || (!pulse.member && !pulse.on);
+  const fast = inPractice || !!pulse?.active || (pulse?.incoming?.length ?? 0) > 0;
   useEffect(() => {
     if (!enabled) { setPulse(null); lastKey.current = null; return undefined; }
     void refresh();
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, idle ? IDLE_POLL_MS : POLL_MS);
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, idle ? IDLE_POLL_MS : fast ? POLL_MS : BACKGROUND_POLL_MS);
     const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
-  }, [enabled, refresh, idle]);
+  }, [enabled, refresh, idle, fast]);
 
   return { pulse, refresh };
 };

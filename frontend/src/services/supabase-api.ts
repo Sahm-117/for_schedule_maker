@@ -257,9 +257,11 @@ export const authApi = {
 
     // The table holds the home role; the database knows which role this login is acting as.
     const me = data as unknown as User;
+    const roles = (me.roles && me.roles.length > 0) ? me.roles : [me.role as 'ADMIN' | 'SUPPORT'];
+    // Only people with several roles need the extra round trip; everyone else keeps their one role.
+    if (roles.length < 2) return { user: { ...me, roles } };
     const { data: session } = await supabase.rpc('get_session_user', { p_token: getSessionToken() });
     const active = (session as { role?: User['role'] } | null)?.role;
-    const roles = (me.roles && me.roles.length > 0) ? me.roles : [me.role as 'ADMIN' | 'SUPPORT'];
     return { user: { ...me, role: active ?? me.role, roles } };
   },
 

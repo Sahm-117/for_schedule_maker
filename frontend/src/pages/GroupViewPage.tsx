@@ -7,7 +7,7 @@ import GroupPeopleOverview from '../components/groups/GroupPeopleOverview';
 import { formatMeetingTime } from '../components/groups/GroupCallCard';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { groupDiscussionApi, myHubApi } from '../services/api';
+import { groupDiscussionApi, myHubApi, practiceApi } from '../services/api';
 import { normalizeLink } from '../utils/links';
 import type { DiscussionActivity, SupportGroupView } from '../types';
 
@@ -71,6 +71,13 @@ const GroupViewPage: React.FC = () => {
     );
   }
 
+  // In Practice, opening the discussion counts for the "read the discussion" step even when
+  // the group is empty (no posts or participants to detect).
+  const openReading = () => {
+    setReading((v) => !v);
+    if (!reading && activeCohort?.isPractice) void practiceApi.setMine('hl-group', true, false).catch(() => undefined);
+  };
+
   const meetingTime = formatMeetingTime(view.meetingDay, view.meetingTime);
   const callHref = normalizeLink(view.callLink?.trim() || '');
   const details = [view.callPlatform ? PLATFORM_LABEL[view.callPlatform] : null, view.meetingDurationMins ? `${view.meetingDurationMins} minutes` : null].filter(Boolean).join(' · ');
@@ -121,7 +128,7 @@ const GroupViewPage: React.FC = () => {
         </section>
 
         <section className={SURFACE}>
-          <button type="button" onClick={() => setReading((v) => !v)} aria-expanded={reading} className="flex w-full items-center gap-3 px-6 py-5 text-left">
+          <button type="button" onClick={openReading} aria-expanded={reading} className="flex w-full items-center gap-3 px-6 py-5 text-left">
             <span className="min-w-0 flex-1">
               <span className="block text-[17px] font-bold text-gray-900">Read the discussion</span>
               <span className="block truncate text-[13px] text-gray-500">

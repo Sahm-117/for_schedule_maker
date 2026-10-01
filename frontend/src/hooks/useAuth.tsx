@@ -175,6 +175,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     try {
+      // The team and cohort lookups only need the saved user's id and role, so start them
+      // alongside the "who am I" check instead of after it (one round trip less on a slow phone).
+      let early: Promise<unknown> = Promise.resolve();
+      let earlyFor: { id: string; role: string } | null = null;
+      try {
+        const saved = JSON.parse(localStorage.getItem('user') || 'null');
+        if (saved?.id && saved.role && saved.role !== 'PARTICIPANT') {
+          earlyFor = { id: saved.id, role: saved.role };
+          early = Promise.all([fetchUserLabels(saved.id, saved.role), fetchUserCohorts(saved.id, saved.role)]);
+        }
+      } catch { /* no usable saved user: fall through */ }
       const response = await authApi.getMe();
       if (response.user.isActive === false) {
         clearSession();
@@ -182,7 +193,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
       localStorage.setItem('user', JSON.stringify(response.user));
       setUser(response.user);
-      await Promise.all([fetchUserLabels(response.user.id, response.user.role), fetchUserCohorts(response.user.id, response.user.role)]);
+      if (earlyFor && earlyFor.id === response.user.id && earlyFor.role === response.user.role) {
+        await early;
+      } else {
+        await Promise.all([fetchUserLabels(response.user.id, response.user.role), fetchUserCohorts(response.user.id, response.user.role)]);
+      }
     } catch (error) {
       if (isInactiveAuthError(error)) {
         clearSession();

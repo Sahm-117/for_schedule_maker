@@ -62,9 +62,11 @@ const IconBox: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <span className="grid h-5 w-5 place-items-center">{children}</span>
 );
 
-const BrandMark: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <span className={`relative block h-12 w-[52px] overflow-hidden ${className}`}>
-    <img src="/logo-full.png" alt="" className="absolute left-0 top-0 h-12 w-auto max-w-none" />
+// The crest only, cropped out of the full logo. The crop box and the picture scale together
+// (the crest is 52:48 of the logo's height), so a smaller size can't let the lettering beside it creep in.
+const BrandMark: React.FC<{ size?: number }> = ({ size = 48 }) => (
+  <span className="relative block flex-none overflow-hidden" style={{ height: size, width: Math.floor((size * 52) / 48) - 1 }}>
+    <img src="/logo-full.png" alt="" className="absolute left-0 top-0 w-auto max-w-none" style={{ height: size }} />
   </span>
 );
 
@@ -88,7 +90,6 @@ const ICONS = {
   attendance: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" /></svg></IconBox>,
   faith: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" /></svg></IconBox>,
   prayer: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4.318 6.318a4.5 4.5 0 0 0 0 6.364L12 20.364l7.682-7.682a4.5 4.5 0 0 0-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 0 0-6.364 0Z" /></svg></IconBox>,
-  practice: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3" /></svg></IconBox>,
   onboarding: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5l-3 3v-3Z" /></svg></IconBox>,
   hub: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg></IconBox>,
   mobilisation: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M18 9v6m3-3h-6M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM3 20a6 6 0 0 1 12 0v1H3v-1Z" /></svg></IconBox>,
@@ -337,7 +338,7 @@ const AppShell: React.FC = () => {
   const isSupport = user?.role === 'SUPPORT';
   // Practice: one tiny check every few seconds, so Test mode, seats and
   // walkthrough requests show up by themselves with no reload.
-  const { pulse: practicePulse, refresh: refreshPracticePulse } = usePracticePulse(isSupport, () => { void refreshUserCohorts(); });
+  const { pulse: practicePulse, refresh: refreshPracticePulse } = usePracticePulse(isSupport, () => { void refreshUserCohorts(); }, !!activeCohort?.isPractice);
   const practiceOn = !!practicePulse?.member && !!practicePulse.on;
   // First time a support opens the app after getting a hub job: welcome them
   // to it (once per job, remembered on the server), with a link to the guide.
@@ -665,10 +666,10 @@ const AppShell: React.FC = () => {
       {open && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
           <button type="button" className="absolute inset-0 bg-slate-900/45" onClick={() => setOpen(false)} />
-          <div className="surface-card relative m-4 flex w-80 flex-col overflow-hidden">
+          <div className="surface-card relative m-4 flex w-80 flex-col overflow-hidden !bg-white">
             <div className="flex items-center justify-between border-b border-orange-100 px-5 py-5">
             <div className="flex items-center gap-2">
-              <BrandMark className="h-10 w-[44px] [&>img]:h-10" />
+              <BrandMark size={40} />
               <div>
                 <p className="text-base font-bold text-gray-900">FOF Ops</p>
                 <button
