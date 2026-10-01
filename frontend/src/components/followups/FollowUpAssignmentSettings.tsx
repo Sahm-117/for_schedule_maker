@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import ConfirmationModal from '../ConfirmationModal';
 import Spinner from '../Spinner';
-import { settingsApi } from '../../services/api';
+import { followUpChecksApi, settingsApi } from '../../services/api';
+import type { FollowUpReassignmentSummary } from '../../types';
 
 const ToggleRow: React.FC<{
   label: string;
@@ -30,19 +31,100 @@ const ToggleRow: React.FC<{
   </div>
 );
 
+const REASON: Record<string, string> = {
+  NO_RESPONSE: 'No answer',
+  NOT_NOW: 'Said not right now',
+  NO_MOVEMENT_AFTER_YES: 'Said yes, no movement',
+};
+const fmt = (iso: string) => new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' });
+
+// What the automatic reassignment has done lately, and who is being asked right now.
+const ReassignmentSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const [data, setData] = useState<FollowUpReassignmentSummary | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let cancelled = false;
+    followUpChecksApi.getReassignments(7)
+      .then((res) => { if (!cancelled) setData(res); })
+      .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load.'); });
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[130] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label="Automatic reassignment">
+      <button type="button" aria-label="Close" className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      <div className="relative flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[32px] bg-white shadow-[0_-8px_40px_rgba(15,23,42,0.2)] sm:rounded-[32px]">
+        <div className="flex items-start justify-between gap-3 px-6 pb-3 pt-6">
+          <div>
+            <p className="text-[13px] font-semibold text-primary">Follow-ups</p>
+            <h2 className="mt-1 text-[24px] font-bold leading-[1.15] tracking-[-0.02em] text-gray-900">Reassigned automatically</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#f2f2f4] text-[18px] leading-none text-gray-500">×</button>
+        </div>
+        <div className="min-h-[120px] flex-1 overflow-y-auto px-3 pb-6">
+          {error ? (
+            <p className="px-3 py-8 text-center text-sm text-red-600">{error}</p>
+          ) : !data ? (
+            <p className="px-3 py-8 text-center text-sm text-gray-500">Loading…</p>
+          ) : (
+            <>
+              <h3 className="px-3 pb-1 pt-3 text-[13px] font-semibold text-gray-500">Being asked now</h3>
+              {data.waiting.length === 0 ? (
+                <p className="px-3 py-2 text-[14px] text-gray-500">Nobody right now.</p>
+              ) : (
+                <ul>
+                  {data.waiting.map((w) => (
+                    <li key={`${w.ownerName}-${w.promptedAt}`} className="rounded-2xl px-3 py-2.5">
+                      <p className="text-[15px] font-semibold text-gray-900">{w.ownerName} <span className="font-normal text-gray-500">· {w.people} {w.people === 1 ? 'person' : 'people'}</span></p>
+                      <p className="text-[13px] text-gray-500">
+                        {w.answer === 'YES' ? 'Said yes' : w.answer === 'NOT_NOW' ? 'Said not right now' : 'Not answered'} · decided by {fmt(w.deadlineAt)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <h3 className="px-3 pb-1 pt-4 text-[13px] font-semibold text-gray-500">Last 7 days</h3>
+              {data.recent.length === 0 ? (
+                <p className="px-3 py-2 text-[14px] text-gray-500">Nobody has been reassigned yet.</p>
+              ) : (
+                <ul>
+                  {data.recent.map((r) => (
+                    <li key={r.id} className="rounded-2xl px-3 py-2.5">
+                      <p className="text-[15px] font-semibold text-gray-900">{r.contactName}</p>
+                      <p className="text-[13px] text-gray-500">{r.fromName ?? 'Someone'} → {r.toName ?? 'Someone'} · {REASON[r.reason] ?? r.reason} · {fmt(r.createdAt)}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+};
+
 // Shown on Settings and on the Follow-ups page. Turning automatic assigning on
 // asks first, since it starts handing out everyone already waiting.
 const FollowUpAssignmentSettings: React.FC<{ waitingCount?: number; onClose?: () => void }> = ({ waitingCount, onClose }) => {
   const [autoAssign, setAutoAssign] = useState(false);
   const [adminAlerts, setAdminAlerts] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<'autoAssign' | 'adminAlerts' | null>(null);
+  const [autoReassign, setAutoReassign] = useState(true);
+  const [showMoves, setShowMoves] = useState(false);
+  const [saving, setSaving] = useState<'autoAssign' | 'adminAlerts' | 'autoReassign' | null>(null);
   const [confirmOn, setConfirmOn] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([settingsApi.getFollowUpAutoAssignEnabled(), settingsApi.getFollowUpAdminAlertsEnabled()])
-      .then(([auto, alerts]) => { if (!cancelled) { setAutoAssign(auto); setAdminAlerts(alerts); } })
+    Promise.all([settingsApi.getFollowUpAutoAssignEnabled(), settingsApi.getFollowUpAdminAlertsEnabled(), settingsApi.getFollowUpAutoReassignEnabled()])
+      .then(([auto, alerts, reassign]) => { if (!cancelled) { setAutoAssign(auto); setAdminAlerts(alerts); setAutoReassign(reassign); } })
       .catch(() => { /* keep defaults on error */ })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -79,6 +161,17 @@ const FollowUpAssignmentSettings: React.FC<{ waitingCount?: number; onClose?: ()
             onChange={(next) => { if (next) setConfirmOn(true); else saveAutoAssign(false); }}
           />
           <ToggleRow
+            label="Hand people to active supports"
+            description="Checks in with supports who haven't moved their people. No reply and the people are reassigned."
+            checked={autoReassign}
+            disabled={saving === 'autoReassign'}
+            onChange={(next) => {
+              setSaving('autoReassign');
+              setAutoReassign(next);
+              settingsApi.setFollowUpAutoReassignEnabled(next).catch(() => setAutoReassign(!next)).finally(() => setSaving(null));
+            }}
+          />
+          <ToggleRow
             label="Alert admins when someone's stuck"
             description="While anyone is waiting unassigned, admins get a reminder every 2 hours (one alert, not one per person)."
             checked={adminAlerts}
@@ -91,6 +184,12 @@ const FollowUpAssignmentSettings: React.FC<{ waitingCount?: number; onClose?: ()
           />
         </div>
       )}
+      {!loading && (
+        <button type="button" onClick={() => setShowMoves(true)} className="mt-3 text-sm font-semibold text-primary hover:underline">
+          See who was reassigned
+        </button>
+      )}
+      {showMoves && <ReassignmentSheet onClose={() => setShowMoves(false)} />}
       {/* Portalled and lifted above the Follow-ups pop-up (z-[120]), which would otherwise trap or cover it. */}
       {createPortal(
         <div className="relative z-[130]">

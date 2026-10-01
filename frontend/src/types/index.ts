@@ -1542,3 +1542,27 @@ export interface NotificationRecipient {
   /** Has a saved device, so a push can reach them. */
   hasPush: boolean;
 }
+
+/** A support's open question: "are you actively following up?" (automatic reassignment). */
+export interface FollowUpCheck {
+  id: string;
+  promptedAt: string;
+  deadlineAt: string;
+  people: Array<{ id: string; name: string }>;
+}
+
+export interface FollowUpReassignmentRow {
+  id: string;
+  createdAt: string;
+  reason: 'NO_RESPONSE' | 'NOT_NOW' | 'NO_MOVEMENT_AFTER_YES';
+  contactName: string;
+  fromName: string | null;
+  toName: string | null;
+}
+
+/** Admin view of automatic reassignment: who is being asked, and what has moved. */
+export interface FollowUpReassignmentSummary {
+  recent: FollowUpReassignmentRow[];
+  waiting: Array<{ ownerName: string; promptedAt: string; deadlineAt: string; answer: 'YES' | 'NOT_NOW' | null; people: number }>;
+  activeSupports: number;
+}

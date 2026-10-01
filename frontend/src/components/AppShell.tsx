@@ -16,6 +16,7 @@ import RoleGuideModal from './hubs/RoleGuideModal';
 import { useSupportClassFeedbackPrompt } from '../hooks/useSupportClassFeedbackPrompt';
 import { classFeedbackApi, groupsApi, myHubApi, notificationsApi, supportKindApi } from '../services/api';
 import { usePushTapRead } from '../hooks/usePushTapRead';
+import FollowUpCheckPrompt from './followups/FollowUpCheckPrompt';
 import type { HubJob, SupportKind } from '../types';
 import { HUB_JOB_INFO, sortHubJobs } from './hubs/hubJobs';
 import ProfileMenu from './ProfileMenu';
@@ -497,6 +498,8 @@ const AppShell: React.FC = () => {
       {user && (
         <LoginShareReminder userId={user.id} enabled={isSupport && !tourBusy && !classFeedbackDueWeek && !pendingIntroJob} />
       )}
+      {/* Supports: asked once if they are following up the people they were given. */}
+      {user && <FollowUpCheckPrompt enabled={isSupport && !tourBusy && !classFeedbackDueWeek && !pendingIntroJob && !showAppSetup} />}
       {OPEN_GUIDE_AS_WELCOME && !tourBusy && !classFeedbackDueWeek && pendingIntroJob && (
         <RoleGuideModal job={pendingIntroJob} onClose={() => finishIntro(pendingIntroJob)} />
       )}

@@ -43,6 +43,7 @@ import {
   supportKindApi as supabaseSupportKindApi,
   supportRecapsApi as supabaseSupportRecapsApi,
   notificationDeliveryApi as supabaseNotificationDeliveryApi,
+  followUpChecksApi as supabaseFollowUpChecksApi,
   plannerApi as supabasePlannerApi,
   faithProjectsApi as supabaseFaithProjectsApi,
   faithProjectSettingsApi as supabaseFaithProjectSettingsApi,
@@ -539,6 +540,8 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   },
   async getFollowUpAutoAssignEnabled(): Promise<boolean> { return true; },
   async setFollowUpAutoAssignEnabled(enabled: boolean): Promise<boolean> { return enabled; },
+  async getFollowUpAutoReassignEnabled(): Promise<boolean> { return true; },
+  async setFollowUpAutoReassignEnabled(enabled: boolean): Promise<boolean> { return enabled; },
   async getFollowUpAdminAlertsEnabled(): Promise<boolean> { return true; },
   async setFollowUpAdminAlertsEnabled(enabled: boolean): Promise<boolean> { return enabled; },
   async getRegistrationLink(): Promise<{ url: string }> {
@@ -763,6 +766,12 @@ export const myHubApi = USE_SUPABASE ? supabaseMyHubApi : {
 export const supportKindApi = USE_SUPABASE ? supabaseSupportKindApi : {
   async getForCohort(_cohortId: string): Promise<{ kinds: Record<string, import('../types').SupportKind> }> { return { kinds: {} }; },
   async set(_userId: string, _cohortId: string, _kind: import('../types').SupportKind): Promise<never> { return peopleUnavailable(); },
+};
+
+export const followUpChecksApi = USE_SUPABASE ? supabaseFollowUpChecksApi : {
+  async getMine(): Promise<import('../types').FollowUpCheck | null> { return null; },
+  async answer(): Promise<void> { return undefined; },
+  async getReassignments(): Promise<import('../types').FollowUpReassignmentSummary> { return { recent: [], waiting: [], activeSupports: 0 }; },
 };
 
 export const notificationDeliveryApi = USE_SUPABASE ? supabaseNotificationDeliveryApi : {

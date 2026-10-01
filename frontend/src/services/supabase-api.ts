@@ -1798,6 +1798,27 @@ export const settingsApi = {
     return enabled;
   },
 
+  // Whether a support who hasn't moved anyone in 24 hours is asked if they are following
+  // up, and their people are handed to an active support if they don't answer. Missing row means on.
+  async getFollowUpAutoReassignEnabled(): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'followup_auto_reassign_enabled')
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as any)?.value !== false;
+  },
+  async setFollowUpAutoReassignEnabled(enabled: boolean): Promise<boolean> {
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert(
+        [{ settingKey: 'followup_auto_reassign_enabled', value: enabled, updatedAt: new Date().toISOString() }],
+        { onConflict: 'settingKey' }
+      );
+    if (error) throw new Error(error.message);
+    return enabled;
+  },
   // Whether admins get a reminder every 2 hours while someone is still
   // waiting to be assigned. Missing row means on.
   async getFollowUpAdminAlertsEnabled(): Promise<boolean> {
@@ -6305,6 +6326,24 @@ export const notificationDeliveryApi = {
     if (error) throw new Error(error.message);
     const r = (data ?? {}) as { notified?: number; participants?: number; sent?: number };
     return { notified: Number(r.notified ?? 0) + Number(r.participants ?? 0), sent: Number(r.sent ?? 0) };
+  },
+};
+
+// A support's question "are you actively following up?", and the admin view of what moved.
+export const followUpChecksApi = {
+  async getMine(): Promise<import('../types').FollowUpCheck | null> {
+    const { data, error } = await supabase.rpc('my_followup_check');
+    if (error) throw new Error(error.message);
+    return (data as import('../types').FollowUpCheck | null) ?? null;
+  },
+  async answer(answer: 'YES' | 'NOT_NOW'): Promise<void> {
+    const { error } = await supabase.rpc('answer_followup_check', { p_answer: answer });
+    if (error) throw new Error(error.message);
+  },
+  async getReassignments(days = 7): Promise<import('../types').FollowUpReassignmentSummary> {
+    const { data, error } = await supabase.rpc('followup_reassignments', { p_days: days });
+    if (error) throw new Error(error.message);
+    return data as import('../types').FollowUpReassignmentSummary;
   },
 };
 
