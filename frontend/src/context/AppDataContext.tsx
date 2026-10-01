@@ -177,7 +177,14 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     }
     seenNotificationIdsRef.current = new Set(response.notifications.map((n) => n.id));
-    setNotifications(response.notifications);
+    // The 10-second check usually finds nothing new; keeping the same list stops the whole
+    // app re-rendering for no reason.
+    setNotifications((prev) => (
+      prev.length === response.notifications.length
+      && prev.every((n, i) => n.id === response.notifications[i].id && n.isRead === response.notifications[i].isRead)
+        ? prev
+        : response.notifications
+    ));
     setNotificationUnreadCount(response.unreadCount);
   }, [refreshUserCohorts]);
 

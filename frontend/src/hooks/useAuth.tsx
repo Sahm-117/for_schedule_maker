@@ -136,6 +136,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     setAuthToken(token);
 
+    // A returning participant: show their screen straight away from what was saved last time,
+    // and confirm in the background (an invalid or switched-off account is signed out a moment
+    // later). Staff still wait, because their team and cohort filters must be right first.
+    // Skipped when the saved account still has to choose a password.
+    try {
+      const saved = JSON.parse(localStorage.getItem('user') || 'null');
+      if (saved?.role === 'PARTICIPANT' && saved.isActive !== false && !saved.mustChangePassword) {
+        setUser(saved);
+        setLoading(false);
+        authApi.getMe().then((response) => {
+          if (response.user.isActive === false) {
+            clearSession();
+            return;
+          }
+          localStorage.setItem('user', JSON.stringify(response.user));
+          _setUser((prev) => (prev && JSON.stringify(prev) === JSON.stringify(response.user) ? prev : response.user));
+        }).catch((error) => {
+          if (isInactiveAuthError(error)) clearSession();
+        });
+        return;
+      }
+    } catch {
+      // Unreadable saved data: fall through to the normal check.
+    }
+
     try {
       const response = await authApi.getMe();
       if (response.user.isActive === false) {

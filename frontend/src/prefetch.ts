@@ -10,6 +10,12 @@ export function prefetchLikelyScreens(): void {
     const path = window.location.pathname;
     if (role === 'PARTICIPANT') {
       void import('./components/participantApp/ParticipantShell');
+      // Ask for the home data now, in parallel with the sign-in check, instead of after the
+      // screen has loaded and run. The screen's own request reuses this answer (lib/supabase.ts).
+      void import('./services/supabase-api').then(({ participantAppApi }) => {
+        void participantAppApi.getHome().catch(() => undefined);
+        void participantAppApi.getNotifications().catch(() => undefined);
+      });
       if (path === '/' || path === '/me') void import('./pages/ParticipantHomePage');
       return;
     }

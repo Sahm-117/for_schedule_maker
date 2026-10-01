@@ -68,8 +68,16 @@ const timeoutSignalFor = (ms: number): AbortSignal => {
 // The same read is often asked for by several parts of a screen at once (a dozen duplicate
 // requests on one load). Identical reads that overlap in time share one network request.
 // Only plain reads are shared: GET selects, and a short list of read-only functions.
-const SHAREABLE_RPCS = ['my_help_contact', 'get_my_hubs', 'get_my_hub', 'support_recaps', 'my_notifications'];
+const SHAREABLE_RPCS = ['my_help_contact', 'get_my_hubs', 'get_my_hub', 'support_recaps', 'my_notifications', 'participant_home', 'participant_notifications'];
+// A participant's home data is asked for at start-up (prefetch.ts) before the screen is ready
+// to use it. These answers are kept for about three seconds so the screen picks them up instead of
+// asking again. Any change the person makes (a write) throws them away, so nothing stale is shown.
+const KEPT_RPCS = ['participant_home', 'participant_notifications'];
+const KEEP_MS = 3000;
+const HARMLESS_POSTS = /\/rest\/v1\/rpc\/(get_session_user|get_tour_progress|record_participant_app_state|record_participant_setup_sheet|record_user_app_state|record_user_setup_sheet|my_help_contact|get_my_hubs|get_my_hub|support_recaps|my_notifications|participant_home|participant_notifications)$/;
 const inFlight = new Map<string, Promise<Response>>();
+const keptKeys = new Set<string>();
+const dropKept = () => { keptKeys.forEach((k) => inFlight.delete(k)); keptKeys.clear(); };
 const shareKey = (url: string, init: RequestInit | undefined): string | null => {
   if (init?.signal) return null; // a caller that can cancel gets its own request
   const method = (init?.method || 'GET').toUpperCase();
@@ -92,13 +100,25 @@ const fetchWithTimeout: typeof fetch = (input, init) => {
     : timeoutSignal;
   const send = () => fetch(routeLocally(input), { ...withSessionToken(init), signal });
   const key = shareKey(url, init);
-  if (!key) return send();
+  if (!key) {
+    // A real change drops the saved answers. Start-up bookkeeping and plain reads sent as POSTs don't.
+    if ((init?.method || 'GET').toUpperCase() !== 'GET' && !HARMLESS_POSTS.test(url.split('?')[0])) dropKept();
+    return send();
+  }
   let pending = inFlight.get(key);
   if (!pending) {
     pending = send();
     inFlight.set(key, pending);
-    const clear = () => { inFlight.delete(key); };
-    pending.then(clear, clear);
+    const made = pending;
+    const keep = KEPT_RPCS.some((name) => key.startsWith(`RPC ${name} `));
+    made.then(
+      () => {
+        if (!keep) { inFlight.delete(key); return; }
+        keptKeys.add(key);
+        setTimeout(() => { if (inFlight.get(key) === made) inFlight.delete(key); keptKeys.delete(key); }, KEEP_MS);
+      },
+      () => { inFlight.delete(key); },
+    );
   }
   // Everyone gets their own copy, so one reader can't use up another's body.
   return pending.then((response) => response.clone());

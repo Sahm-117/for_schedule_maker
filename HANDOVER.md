@@ -149,6 +149,10 @@ Claude Code can do all of section 6 for you. To set it up:
 - **The browser key is public by design.** The "anon" key is in the website's code; anyone can read it.
   Safety comes from each table's rules inside Supabase. New tables must be closed to that key unless there
   is a reason. Staff and participant data are reached only through checked functions.
+- **Vercel's free plan caps deploys per day.** Past the cap it refuses new builds ("Deployment rate limited,
+  retry in 24 hours") and the live site stays on the last good version. Your pushes are still saved in git;
+  press **Redeploy** in Vercel when the cap lifts. Pushing several changes together, instead of one by one,
+  avoids it. Vercel's Pro plan removes the cap.
 - **Free plan**: no automatic Supabase backups (that is why the nightly one exists). Upgrading to Pro adds
   daily backups and optional point-in-time recovery.
 - **Open items at handover** (also in the newest `.sessions/` note): a leadership preview test login may
