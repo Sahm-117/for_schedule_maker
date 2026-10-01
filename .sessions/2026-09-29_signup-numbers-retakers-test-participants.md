@@ -137,3 +137,10 @@ The admin Dashboard's sign-up cards disagreed with Follow-ups → Overview. Trac
 - **Bell rows look tappable** (338e762): unread rows show an orange "Open" pill, read rows a grey chevron (staff and participant bells). Tap on a push or a bell row marks it read; opening the bell alone does not. Confirmed with a test notification to the user's support account.
 - Leadership preview login is still in place (they have not logged in yet). Delete only when the user says so.
 - Working agreement: commits are held locally and pushed when the user says "push" (or for a hotfix).
+
+## 1 Oct (later): hub lead oversight built (fa97399, held locally)
+- **New read-only RPC `hub_group_overview(group)`** (migration 20261001100000, **applied live**, additive): for the group's support, hub lead (and assistant with "See groups"), and admins (same check as the discussion and onboarding views). Returns the support's profile items done (photo, gender, age range, phone) and whether they have phone alerts, plus the group's active non-test participants: onboarding state, classes attended against finalized classes, last four classes, Faith Project status, phone alerts. No contact details leave the database. Tested rolled back: a hub lead sees it, an unrelated support is refused.
+- **App:** `GroupPeopleOverview` on the group page (tap a support in My Hub): "The support" card and a "Participants" card with overall tiles, per-person chips, bell-off where alerts are off, tap a person for onboarding steps and recent classes. App code not pushed yet (user holds pushes), so the screen appears only after the next push; the database function is already live and unused until then.
+- Attendance rule: a class counts once its register is finalized; Present counts, Late or Left early count only when excused. Cohort 10 has no groups yet, so the screen will be empty until groups are created.
+- Lead Roles Guide PDF: v4 matches what was built (Poppins and Montserrat, church colours, line illustrations, no emojis). PDFs live in the scratchpad only.
+- Open: survey builder (answers in the brief, mock-ups approved, not started); app-wide tab restyle (plan agreed, not started).
