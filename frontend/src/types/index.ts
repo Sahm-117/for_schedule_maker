@@ -1461,6 +1461,32 @@ export interface SupportGroupView {
   participantCount: number;
 }
 
+export interface HubGroupOverview {
+  groupId: string;
+  groupName: string;
+  support: {
+    id: string;
+    name: string;
+    hasPhoto: boolean;
+    hasGender: boolean;
+    hasAgeRange: boolean;
+    hasPhone: boolean;
+    hasPush: boolean;
+  } | null;
+  /** Classes whose register has been finalized: what attendance is counted against. */
+  classesRun: number;
+  participants: Array<{
+    participantId: string;
+    name: string;
+    avatarUrl: string | null;
+    onboarding: OnboardingState;
+    faithProjectStatus: FaithProjectStatus | null;
+    hasPush: boolean;
+    classesAttended: number;
+    recent: Array<{ weekNumber: number; status: string; attended: boolean }>;
+  }>;
+}
+
 export interface MyHubPayload {
   hub: {
     id: string; name: string; leadUserId: string | null; leadName: string | null; cohortId: string;

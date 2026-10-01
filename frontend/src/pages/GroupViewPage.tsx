@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import Spinner from '../components/Spinner';
 import StaffDiscussionPanel from '../components/discussion/StaffDiscussionPanel';
+import GroupPeopleOverview from '../components/groups/GroupPeopleOverview';
 import { formatMeetingTime } from '../components/groups/GroupCallCard';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
@@ -133,6 +134,8 @@ const GroupViewPage: React.FC = () => {
         {reading && (
           <StaffDiscussionPanel groupId={view.groupId} viewerName={user?.name ?? ''} viewerAvatarUrl={user?.avatarUrl} onChanged={loadActivity} />
         )}
+
+        <GroupPeopleOverview groupId={view.groupId} />
 
         <section data-wt="group-view-meeting" className={`${SURFACE} px-6 py-5`}>
           <p className="text-[13px] font-semibold uppercase tracking-[0.04em] text-gray-500">Group meeting</p>

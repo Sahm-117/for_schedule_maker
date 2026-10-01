@@ -754,6 +754,7 @@ export const myHubApi = USE_SUPABASE ? supabaseMyHubApi : {
   async getMyHubs(_cohortId: string): Promise<{ hubs: import('../types').MyHubPayload[] }> { return { hubs: [] }; },
   async getHubView(_hubId: string): Promise<import('../types').MyHubPayload> { return { hub: null, isLead: false, members: [], messages: [], myAttendance: [] }; },
   async getSupportGroupView(_supportId: string, _cohortId: string): Promise<import('../types').SupportGroupView | null> { return null; },
+  async getGroupOverview(_groupId: string): Promise<import('../types').HubGroupOverview> { return peopleUnavailable(); },
   async submitMeeting(_hubId: string, _weekId: number, _notes: string): Promise<never> { return peopleUnavailable(); },
   async reopenMeeting(_hubId: string, _weekId: number): Promise<never> { return peopleUnavailable(); },
   async prayerList(_hubId: string): Promise<{ items: import('../types').HubPrayerListItem[] }> { return { items: [] }; },

@@ -6213,6 +6213,12 @@ export const myHubApi = {
     return (data as import('../types').SupportGroupView | null) ?? null;
   },
 
+  async getGroupOverview(groupId: string): Promise<import('../types').HubGroupOverview> {
+    const { data, error } = await supabase.rpc('hub_group_overview', { p_group_id: groupId });
+    if (error || !data) throw new Error(error?.message || 'Could not load the group overview');
+    return data as import('../types').HubGroupOverview;
+  },
+
   async submitMeeting(hubId: string, weekId: number, notes: string): Promise<{ sessionId: string; hubId: string; weekId: number; notes: string | null; submittedAt: string; submittedById: string | null }> {
     const { data, error } = await supabase.rpc('submit_hub_meeting', { p_hub_id: hubId, p_week_id: weekId, p_notes: notes });
     if (error || !data) throw new Error(error?.message || 'Failed to submit the hub meeting');
