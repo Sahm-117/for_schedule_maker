@@ -54,9 +54,18 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
   const unticked = useRef<Set<string>>(new Set());
   const visited = useRef<Set<string>>(new Set());
 
+  // A refresh that was already on its way when someone ticked a step carries the old answer.
+  // Letting it land would un-tick the box they just ticked, so it is dropped (a fresh one follows the save).
+  const pendingSaves = useRef(0);
+  const lastChangeAt = useRef(0);
+
   const load = useCallback(() => {
+    const startedAt = Date.now();
     const request = mode === 'staff' ? practiceApi.getMine() : practiceApi.getForParticipant();
-    request.then(setData).catch(() => {});
+    request.then((next) => {
+      if (pendingSaves.current > 0 || lastChangeAt.current > startedAt) return;
+      setData(next);
+    }).catch(() => {});
     if (mode === 'participant') practiceApi.participantPeer().then(setPartner).catch(() => {});
   }, [mode]);
 
@@ -76,9 +85,13 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
   const changeOwn = (key: string, done: boolean, stuck: boolean) => {
     if (!done && !stuck) { unticked.current.add(key); visited.current.delete(key); }
     if (done) unticked.current.delete(key);
+    lastChangeAt.current = Date.now();
+    pendingSaves.current += 1;
     setData((prev) => (prev ? { ...prev, items: withChange(prev.items, key, done, stuck) } : prev));
     const save = mode === 'staff' ? practiceApi.setMine(key, done, stuck) : practiceApi.setForParticipant(key, done, stuck);
-    save.then(() => { void refreshPulse?.(); if (mode === 'participant') load(); }).catch(load);
+    save
+      .then(() => { pendingSaves.current -= 1; lastChangeAt.current = Date.now(); void refreshPulse?.(); load(); })
+      .catch(() => { pendingSaves.current -= 1; lastChangeAt.current = 0; load(); });
   };
 
   const changePeer = (key: string, done: boolean, stuck: boolean) => {

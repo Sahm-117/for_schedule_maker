@@ -23,11 +23,13 @@ export const usePracticePulse = (enabled: boolean, onCohortKeyChange: () => void
   const onChange = useRef(onCohortKeyChange);
   onChange.current = onCohortKeyChange;
   const busy = useRef(false);
+  const queued = useRef(false);
   const activeRef = useRef(inPractice);
   activeRef.current = inPractice || !!pulseRef.current?.active || (pulseRef.current?.incoming?.length ?? 0) > 0;
 
-  const refresh = useCallback(async () => {
-    if (busy.current) return;
+  const refresh = useCallback(async (queueIfBusy = false): Promise<void> => {
+    // A beat already on its way may predate whatever just changed: ask again right after it.
+    if (busy.current) { if (queueIfBusy) queued.current = true; return; }
     busy.current = true;
     try {
       const next = await practiceApi.pulse(activeRef.current);
@@ -36,7 +38,10 @@ export const usePracticePulse = (enabled: boolean, onCohortKeyChange: () => void
       // Keep the same object when nothing changed, so nothing re-renders for nothing.
       setPulse((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
     } catch { /* offline or signed out: try again on the next beat */ }
-    finally { busy.current = false; }
+    finally {
+      busy.current = false;
+      if (queued.current) { queued.current = false; void refresh(); }
+    }
   }, []);
 
   const idle = !pulse || (!pulse.member && !pulse.on);
@@ -50,5 +55,7 @@ export const usePracticePulse = (enabled: boolean, onCohortKeyChange: () => void
     return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
   }, [enabled, refresh, idle, fast]);
 
-  return { pulse, refresh };
+  // The returned refresh is the "something just changed" one: it is never skipped.
+  const refreshNow = useCallback(() => refresh(true), [refresh]);
+  return { pulse, refresh: refreshNow };
 };
