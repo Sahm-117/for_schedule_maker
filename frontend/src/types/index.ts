@@ -526,6 +526,8 @@ export interface Participant {
   cohortName?: string | null;
   source: ParticipantSource;
   followUpContactId?: string | null;
+  /** Pre-cohort (follow-up) status, e.g. LOGIN_SHARED. Null when they never came through follow-up. */
+  followUpStatus?: FollowUpRegistrationStatus | null;
   status: ParticipantStatus;
   notes?: string | null;
   // Registration details (from the church platform / Google Form). All optional.

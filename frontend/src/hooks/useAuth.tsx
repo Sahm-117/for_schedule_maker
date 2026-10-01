@@ -68,9 +68,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
     try {
       const response = await usersApi.getUserCohorts(userId);
-      setUserCohortIds(response.cohorts.map((cohort) => cohort.id));
+      const next = response.cohorts.map((cohort) => cohort.id).sort();
+      // Same list → same array, so the 20-second re-check doesn't ripple through every consumer.
+      setUserCohortIds((prev) => (prev.length === next.length && prev.every((id, i) => id === next[i]) ? prev : next));
     } catch {
-      setUserCohortIds([]);
+      // Keep what we had: a failed re-check must not empty someone's cohort list.
     }
   }, []);
 

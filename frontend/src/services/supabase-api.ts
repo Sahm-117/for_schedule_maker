@@ -4233,7 +4233,8 @@ export const followUpLoginIssuesApi = {
 const PARTICIPANT_SELECT = `
   *,
   cohort:Cohort(name),
-  group:GroupParticipant(group:Group(id, name))
+  group:GroupParticipant(group:Group(id, name)),
+  followUp:FollowUpContact(registrationStatus)
 `.trim();
 
 const resolveSupportScopedGroups = async (supportId: string, cohortId?: string | null): Promise<import('../types').Group[]> => {
@@ -4289,6 +4290,7 @@ const mapParticipant = (row: any): import('../types').Participant => {
     cohortName: row.cohort?.name ?? null,
     source: row.source ?? 'MANUAL',
     followUpContactId: row.followUpContactId ?? null,
+    followUpStatus: (Array.isArray(row.followUp) ? row.followUp[0] : row.followUp)?.registrationStatus ?? null,
     status: row.status ?? 'ACTIVE',
     notes: row.notes ?? null,
     email: row.email ?? null,

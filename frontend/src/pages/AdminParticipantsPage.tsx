@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { participantsApi, groupsApi, participantFlagsApi, participantPushApi, cohortsApi, settingsApi, profileFieldsApi, wrapUpApi, departmentReferralsApi } from '../services/api';
+import { participantsApi, practiceApi, groupsApi, participantFlagsApi, participantPushApi, cohortsApi, settingsApi, profileFieldsApi, wrapUpApi, departmentReferralsApi } from '../services/api';
 import { buildDashboardModel, type PeopleSummary } from '../components/dashboard/healthModel';
 import { PERSON_HEALTH_LABEL, type PersonHealth } from '../utils/programmeRules';
 import type { Participant, Group, ParticipantFlag, ParticipantUpdate, RetakeMatch } from '../types';
@@ -15,6 +15,8 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
 import AppMultiSelect from '../components/AppMultiSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { useToast } from '../components/Toast';
+import { REGISTRATION_STATUS_META } from '../utils/followUps';
 import ParticipantsExportPopup from '../components/participants/ParticipantsExportPopup';
 import {
   parseBulkPaste,
@@ -763,6 +765,8 @@ const AdminParticipantsContent: React.FC = () => {
   const [editing, setEditing] = useState<Participant | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Participant | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Participant | null>(null);
+  const [firstTimeTarget, setFirstTimeTarget] = useState<Participant | null>(null);
+  const toast = useToast();
   const navigate = useNavigate();
   const [flags, setFlags] = useState<ParticipantFlag[]>([]);
   const [flaggedOnly, setFlaggedOnly] = useState(false);
@@ -988,6 +992,17 @@ const AdminParticipantsContent: React.FC = () => {
     setParticipants((prev) => prev.map((x) => x.id === p.id ? { ...x, ...participant, groupId: x.groupId, groupName: x.groupName } : x));
   };
 
+  const handleFirstTimeReset = async () => {
+    const p = firstTimeTarget;
+    if (!p) return;
+    try {
+      await practiceApi.resetParticipantFirstTime(p.id);
+      toast({ message: `${p.fullName} will see the first-time experience on their next sign-in.` });
+    } catch (e) {
+      toast({ tone: 'error', message: e instanceof Error ? e.message : 'Could not reset.' });
+    } finally { setFirstTimeTarget(null); }
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const p = deleteTarget;
@@ -1145,6 +1160,7 @@ const AdminParticipantsContent: React.FC = () => {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Phone</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Profile</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Pre-cohort</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Source</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Support</th>
                     <th className="sticky right-0 bg-primary/5 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
@@ -1213,6 +1229,13 @@ const AdminParticipantsContent: React.FC = () => {
                         ) : <span className="text-gray-400">—</span>}
                       </td>
                       <td className="px-4 py-3">
+                        {p.followUpStatus && REGISTRATION_STATUS_META[p.followUpStatus] ? (
+                          <span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${REGISTRATION_STATUS_META[p.followUpStatus].tone}`}>
+                            {REGISTRATION_STATUS_META[p.followUpStatus].label}
+                          </span>
+                        ) : <span className="text-gray-400">—</span>}
+                      </td>
+                      <td className="px-4 py-3">
                         <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
                           {SOURCE_LABEL[p.source] ?? p.source}
                         </span>
@@ -1236,6 +1259,7 @@ const AdminParticipantsContent: React.FC = () => {
                                 { label: 'Edit', onClick: () => { setEditing(p); setAddOpen(true); } },
                                 { label: 'Assign to group', onClick: () => setAssigning(p) },
                                 { label: 'Mark as retaking', onClick: () => setRetakeMarking(p) },
+                                { label: 'Reset first-time experience', onClick: () => setFirstTimeTarget(p) },
                                 { label: p.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => void handleSetTest(p, !p.isTest) },
                                 { label: 'Archive', onClick: () => setArchiveTarget(p), tone: 'danger' },
                               ]}
@@ -1307,6 +1331,16 @@ const AdminParticipantsContent: React.FC = () => {
         title="Archive participant"
         message={`Archive ${archiveTarget?.fullName}? They will no longer appear in attendance.`}
         confirmText="Archive"
+      />
+
+      <ConfirmationModal
+        isOpen={!!firstTimeTarget}
+        onClose={() => setFirstTimeTarget(null)}
+        onConfirm={() => { void handleFirstTimeReset(); }}
+        title={`Reset for ${firstTimeTarget?.fullName ?? 'this participant'}?`}
+        message="Next time they sign in it feels brand new: the welcome and page tours and the Get the app prompt show again. Their attendance, group, messages and Faith Project are not touched."
+        type="warning"
+        confirmText="Reset"
       />
 
       <ConfirmationModal

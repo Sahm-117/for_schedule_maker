@@ -401,6 +401,26 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [realtimeHealthy, refreshNotifications, refreshWorkspaceData, user?.id]);
 
+  // A support whose cohort list changes (e.g. Practice switched on for them) sees
+  // it in their cohort menu straight away, without reloading.
+  const cohortIdsKey = userCohortIds.join(',');
+  const lastCohortIdsKey = useRef(cohortIdsKey);
+  useEffect(() => {
+    if (lastCohortIdsKey.current === cohortIdsKey) return;
+    lastCohortIdsKey.current = cohortIdsKey;
+    if (user && !isAdmin) refreshWorkspaceData();
+  }, [cohortIdsKey, isAdmin, refreshWorkspaceData, user]);
+
+  // UserCohort changes aren't broadcast live, so supports quietly re-check their
+  // cohort list every 20 seconds and whenever the app comes back to the front.
+  useEffect(() => {
+    if (!user || isAdmin) return undefined;
+    const check = () => { if (document.visibilityState === 'visible') void refreshUserCohorts(); };
+    const timer = window.setInterval(check, 20000);
+    document.addEventListener('visibilitychange', check);
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', check); };
+  }, [user, isAdmin, refreshUserCohorts]);
+
   const handleWeekSelect = useCallback(async (weekId: number) => {
     try {
       const response = await weeksApi.getById(weekId, activeCohort?.id);
