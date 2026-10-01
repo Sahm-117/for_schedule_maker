@@ -8,13 +8,12 @@ import type { FollowUpContact, FollowUpContactUpdate } from '../../types';
 // A support opens someone's login, which makes their code, and then sends it
 // outside the app (WhatsApp, email, a paste). The app can't see that, so the
 // person stays at Registered. Whenever a support enters the app, this asks
-// about anyone whose login was made over an hour ago and who is still at
+// about anyone whose login has been made and who is still at
 // Registered: "Did you send it?" It can't be closed without answering.
 // "Yes" moves them to Login shared. "Not yet" asks again tomorrow.
 
-const AFTER_MS = 60 * 60 * 1000;
 const SNOOZE_MS = 24 * 60 * 60 * 1000;
-const RECHECK_MS = 5 * 60 * 1000;
+const RECHECK_MS = 15 * 1000;
 
 interface Pending {
   contact: FollowUpContact;
@@ -70,9 +69,8 @@ const LoginShareReminder: React.FC<{ userId: string; enabled: boolean }> = ({ us
             return;
           }
           if (snoozed) return;
-          // Only a login that exists, hasn't been used, and was made over an hour ago.
+          // Only a login that exists and hasn't been used. Asked on the very next entry.
           if (details.status !== 'CODE_READY' || !details.issuedAt) return;
-          if (now - new Date(details.issuedAt).getTime() < AFTER_MS) return;
           found.push({ contact, madeAt: details.issuedAt });
         } catch { /* one person failing to load shouldn't hide the rest */ }
       }));
