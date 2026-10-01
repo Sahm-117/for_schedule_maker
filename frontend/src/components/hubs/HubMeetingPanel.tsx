@@ -176,7 +176,9 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
     return set;
   }, [isFullAccess, isPrayerLead, isRecapLead]);
   const isFollowAlong = !isFullAccess && (restrictedStepIndices?.size ?? 0) === 0;
-  const canOpenStep = (index: number) => isFullAccess || (restrictedStepIndices?.has(index) ?? false);
+  // Everyone in the hub can open Review & Recap and follow it together; only the
+  // leads run the other steps.
+  const canOpenStep = (index: number) => isFullAccess || index === RECAP_STEP || (restrictedStepIndices?.has(index) ?? false);
 
   const [step, setStep] = useState(0);
   const [marks, setMarks] = useState<Record<string, SupportAttendanceStatus>>({});
@@ -189,6 +191,8 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   const [reopening, setReopening] = useState(false);
 
   const submitted = !!session?.submittedAt;
+  // Plain members follow along: Prayer while it is on, then Review & Recap once prayer is finished.
+  const [followView, setFollowView] = useState<'prayer' | 'recap'>('prayer');
 
   // Each week's attendance marks, and whether its meeting is already
   // submitted, come from the same per-hub-week fetch. Restricted/follow-along
@@ -236,6 +240,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   // off prayerFocus so every viewer sees the same state.
   const huddleDone = prayerFocus.hubPrayerDone;
   const prayerFinished = prayerFocus.prayerFinished;
+  useEffect(() => { setFollowView(prayerFinished ? 'recap' : 'prayer'); }, [prayerFinished, weekId]);
 
   const loadPrayerFocus = useCallback(async () => {
     if (!hubId || weekId === null) return;
@@ -607,6 +612,9 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
     </div>
   );
 
+  // Leads see the recap whenever it exists; everyone else once it is released.
+  const recapReleasedForViewer = !!recap && (isFullAccess || isRecapLead || recap.released || recap.manualReleased);
+  const recapHasContent = !!recap && !!(recap.recapDocumentUrl || recap.recapSummary?.trim() || recap.discussionPrompt?.trim());
   const recapStepContent = (
     <section className={CARD}>
       <h3 className="text-[17px] font-semibold text-gray-900">Review & Recap</h3>
@@ -615,9 +623,13 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
           ? `${joinNames(recapLeadNames)} ${recapLeadNames.length === 1 ? 'leads' : 'lead'} this part.`
           : 'No recap lead assigned yet.'}
       </p>
-      {!recap ? (
+      {!recap || !recapHasContent ? (
         <div className="mt-3 rounded-[14px] border border-dashed border-[#e5e7eb] px-3.5 py-6 text-center text-[13px] text-gray-500">
-          No recap for this week yet.
+          To be taken by the Recap Lead.
+        </div>
+      ) : !recapReleasedForViewer ? (
+        <div className="mt-3 rounded-[14px] border border-dashed border-[#e5e7eb] px-3.5 py-6 text-center text-[13px] text-gray-500">
+          The recap opens when this week’s manual is released.
         </div>
       ) : (
         <>
@@ -688,17 +700,30 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
             </div>
           )}
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {STEPS.map((label) => (
-              <span key={label} className="rounded-lg bg-neutral-100 px-2.5 py-1.5 text-[12px] font-semibold leading-tight text-gray-500">{label}</span>
-            ))}
+            {STEPS.map((label, index) => {
+              const openable = index === PRAYER_STEP || index === RECAP_STEP;
+              const current = (index === PRAYER_STEP && followView === 'prayer') || (index === RECAP_STEP && followView === 'recap');
+              if (!openable) return <span key={label} className="rounded-lg bg-neutral-100 px-2.5 py-1.5 text-[12px] font-semibold leading-tight text-gray-500">{label}</span>;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setFollowView(index === RECAP_STEP ? 'recap' : 'prayer')}
+                  className={`rounded-lg px-2.5 py-1.5 text-[12px] font-semibold leading-tight ${current ? 'bg-primary text-white' : 'bg-neutral-100 text-gray-700'}`}
+                >
+                  {label}{index === PRAYER_STEP && prayerFinished ? ' ✓' : ''}
+                </button>
+              );
+            })}
           </div>
         </section>
-        {!showFollowAlongPrayer ? (
+        {followView === 'recap' ? recapStepContent : !showFollowAlongPrayer ? (
           <section className={`${CARD} text-center`}>
             <p className="text-sm text-gray-500">Activities show here once the hub meeting starts.</p>
           </section>
         ) : (<>
         <FollowAlongPrayerCard focus={prayerFocus} prayerLeadNames={prayerLeadNames} />
+        {!prayerFinished && (
         <section className={CARD}>
           <p className="text-xs font-bold uppercase tracking-[0.04em] text-gray-500">Prayer list</p>
           {sortedPrayerItems.length === 0 ? (
@@ -720,6 +745,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
             </ul>
           )}
         </section>
+        )}
         </>)}
       </div>
     );
@@ -775,7 +801,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
             })}
           </div>
         </section>
-        {step === PRAYER_STEP && isPrayerLead ? prayerStepContent : step === RECAP_STEP && isRecapLead ? recapStepContent : (
+        {step === PRAYER_STEP && isPrayerLead ? prayerStepContent : step === RECAP_STEP ? recapStepContent : (
           <section className={CARD}>
             <p className="text-sm text-gray-500">Pick a step above.</p>
           </section>

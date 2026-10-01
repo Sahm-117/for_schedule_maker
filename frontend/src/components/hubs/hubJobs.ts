@@ -31,13 +31,13 @@ export const HUB_JOB_INFO: Record<HubJob, HubJobInfo> = {
     label: 'Recap Lead',
     pill: 'bg-indigo-100/80 text-indigo-700',
     description: 'Leads Review & Recap in the hub meeting.',
-    introBody: "You lead the Review & Recap part of the hub meeting — walking the hub through what was covered that week.",
+    introBody: "You lead the Review & Recap part of the hub meeting — walking the hub through what was covered that week. Everyone in the hub can open it and follow along once the manual is released.",
   },
   PRAYER_LEAD: {
     label: 'Prayer Lead',
     pill: 'bg-emerald-100/80 text-emerald-700',
     description: 'Leads prayer in the hub meeting.',
-    introBody: 'You lead prayer in the hub meeting — first for hub members, then for the participants shared on the prayer list.',
+    introBody: 'You lead prayer in the hub meeting — first for hub members, then for the participants shared on the prayer list. When prayer is finished, everyone moves on to Review & Recap together.',
   },
   IT_SUPPORT: {
     label: 'IT Support',

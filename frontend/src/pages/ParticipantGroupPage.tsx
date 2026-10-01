@@ -148,6 +148,19 @@ const ParticipantGroupPage: React.FC = () => {
             </section>
           )}
 
+          {home.groupMeetingLive && !prayerFinished && !recapFinished && liveWeek?.released && recapHasContent(liveWeek) && (
+            <NavLink
+              to={`/me/week/${liveWeek.weekNumber}`}
+              className="flex items-center justify-between gap-3 rounded-[20px] bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
+            >
+              <span className="min-w-0">
+                <span className="block text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Week {liveWeek.weekNumber} recap</span>
+                <span className="block text-[14px] font-semibold text-gray-900">Read ahead while you wait</span>
+              </span>
+              <span className="flex-none text-[13px] font-semibold text-primary">Open →</span>
+            </NavLink>
+          )}
+
           {home.groupMeetingLive && recapFinished && (
             <section data-wt="pg-live-done" className={`${CARD} text-center`}>
               <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">{liveWeek ? `Week ${liveWeek.weekNumber} recap` : 'This week'}</p>
