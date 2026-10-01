@@ -52,8 +52,8 @@ export const PRACTICE_SCENARIOS: Record<PracticeSeat, PracticeScenario[]> = {
   ],
   RECAP_LEAD: [
     ...SUPPORT_BASE,
-    { key: 'rc-recap', title: 'Open the Review and Recap step and read the summary', hint: 'In the Hub meeting tab, open step 3.', to: '/support/my-hub?tab=meeting', visit: true },
-    { key: 'rc-prompt', title: 'Read out the discussion prompt', hint: 'Lead the hub through the week’s prompt.', to: '/support/my-hub?tab=meeting', visit: true },
+    { key: 'rc-recap', title: 'Open the Review and Recap step and read the summary', hint: 'In the Hub meeting tab, open step 3.', to: '/support/my-hub?tab=meeting' },
+    { key: 'rc-prompt', title: 'Read out the discussion prompt', hint: 'Open the Review and Recap step and tap the prompt once you have read it out.', to: '/support/my-hub?tab=meeting' },
   ],
   PRAYER_LEAD: [
     ...SUPPORT_BASE,

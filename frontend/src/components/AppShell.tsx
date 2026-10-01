@@ -465,6 +465,9 @@ const AppShell: React.FC = () => {
   // support belongs to or IT-supports, so an operational support on 2+ hubs
   // still gets a single deduped list of job labels.
   const [myHubJobs, setMyHubJobs] = useState<HubJob[]>([]);
+  // Bumped when Practice moves the person to another seat, so the header label (and the page
+  // behind it) re-read their hub jobs now instead of on the next background refresh.
+  const [workspaceRevision, setWorkspaceRevision] = useState(0);
   // Whether ANY hub this support belongs to/IT-supports has a meeting on
   // right now — an operational support covering 2+ hubs needs every one
   // checked, not just myHub (which only ever holds one).
@@ -484,7 +487,7 @@ const AppShell: React.FC = () => {
     return () => { cancelled = true; };
     // liveRevision re-checks meetingLive on the app's existing refresh cadence
     // (realtime + 15s fallback), same as myHub — no separate polling needed.
-  }, [isSupport, activeCohort, liveRevision]);
+  }, [isSupport, activeCohort, liveRevision, workspaceRevision]);
   const myHubJobLabels = myHubJobs.map((job) => HUB_JOB_INFO[job].label);
   const groupMeetingLiveInfo = useGroupMeetingLive(myGroupId);
   const groupMeetingLive = !!groupMeetingLiveInfo;
@@ -558,7 +561,11 @@ const AppShell: React.FC = () => {
           active={isSupport && practiceOn && !!activeCohort?.isPractice}
           pulse={practicePulse}
           refreshPulse={refreshPracticePulse}
-          onWorkspaceChanged={() => { void refreshMyHub(); }}
+          onWorkspaceChanged={() => {
+            setWorkspaceRevision((n) => n + 1);
+            window.dispatchEvent(new Event('fof:workspace-changed'));
+            void refreshMyHub();
+          }}
         />
       )}
       {user && isSupport && practiceOn && (

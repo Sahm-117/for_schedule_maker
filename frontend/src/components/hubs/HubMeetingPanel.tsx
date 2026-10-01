@@ -6,7 +6,8 @@ import SaveStatus, { type SaveState } from '../SaveStatus';
 import Spinner from '../Spinner';
 import { useToast } from '../Toast';
 import { supabase } from '../../lib/supabase';
-import { myHubApi, supportSessionsApi } from '../../services/api';
+import { myHubApi, practiceApi, supportSessionsApi } from '../../services/api';
+import { useAppData } from '../../context/AppDataContext';
 import { prefetchPdfEngine, prefetchDocumentFile } from '../../utils/prefetchDocument';
 import type { HubMessage, HubPrayerFocus, HubPrayerListItem, MyHubMember, SupportAttendanceStatus, SupportRecap, Week } from '../../types';
 import { parseTimeToMinutes } from '../../utils/time';
@@ -618,6 +619,20 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   const recapHasContent = !!recap && !!(recap.recapDocumentUrl || recap.recapSummary?.trim() || recap.discussionPrompt?.trim());
   // Get the PDF reader going once a recap document exists, and the file itself once the
   // Review & Recap step is on screen, so tapping it opens quickly.
+  // Practice, Recap Lead seat: opening the Review & Recap step counts as reading the summary;
+  // tapping the prompt counts as reading it out. (Not tied to just being on the page.)
+  const { activeCohort } = useAppData();
+  const practiceRecapSeat = !!activeCohort?.isPractice && isRecapLead;
+  const practiceTicked = React.useRef<Set<string>>(new Set());
+  const tickPractice = (key: string) => {
+    if (!practiceRecapSeat || practiceTicked.current.has(key)) return;
+    practiceTicked.current.add(key);
+    void practiceApi.setMine(key, true, false).catch(() => practiceTicked.current.delete(key));
+  };
+  useEffect(() => {
+    if (step === RECAP_STEP && recapHasContent && recapReleasedForViewer) tickPractice('rc-recap');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, recapHasContent, recapReleasedForViewer, practiceRecapSeat]);
   const recapDocUrl = recapReleasedForViewer ? recap?.recapDocumentUrl ?? null : null;
   const recapOnScreen = step === RECAP_STEP || followView === 'recap';
   useEffect(() => { if (recapDocUrl) prefetchPdfEngine(); }, [recapDocUrl]);
@@ -663,7 +678,11 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
             </div>
           )}
           {recap.discussionPrompt?.trim() && (
-            <div className="mt-2.5 rounded-[14px] border border-[#f1f2f5] p-3.5">
+            <div
+              className="mt-2.5 rounded-[14px] border border-[#f1f2f5] p-3.5"
+              onClick={practiceRecapSeat ? () => tickPractice('rc-prompt') : undefined}
+              role={practiceRecapSeat ? 'button' : undefined}
+            >
               <p className="text-[13px] font-bold text-gray-900">Discussion prompt</p>
               <p className="mt-1 text-sm leading-normal text-gray-700">{recap.discussionPrompt.trim()}</p>
             </div>

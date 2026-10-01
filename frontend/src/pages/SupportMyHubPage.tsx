@@ -105,6 +105,13 @@ const SupportMyHubPage: React.FC = () => {
     void loadHubs().finally(() => setLoaded(true));
   }, [loadHubs]);
 
+  // Practice seat switches (and resets) change the hub this person is in: re-read it right away.
+  useEffect(() => {
+    const onChanged = () => { void loadHubs(); };
+    window.addEventListener('fof:workspace-changed', onChanged);
+    return () => window.removeEventListener('fof:workspace-changed', onChanged);
+  }, [loadHubs]);
+
   const myHub = useMemo(() => hubs.find((h) => h.hub?.id === selectedHubId) ?? null, [hubs, selectedHubId]);
 
   // ── Prayer list — visible to every hub member, not just the lead ─────────
