@@ -39,7 +39,17 @@ const FollowUpCheckPrompt: React.FC<{ enabled: boolean }> = ({ enabled }) => {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [enabled, load]);
 
-  if (!enabled || !check) return null;
+  // Held back for 2 seconds, so a tap meant for the screen underneath can't land on a button.
+  const checkId = check?.id;
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    setReady(false);
+    if (!checkId) return undefined;
+    const timer = window.setTimeout(() => setReady(true), 2000);
+    return () => window.clearTimeout(timer);
+  }, [checkId]);
+
+  if (!enabled || !check || !ready) return null;
 
   const answer = async (value: 'YES' | 'NOT_NOW') => {
     setBusy(value);
