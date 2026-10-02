@@ -462,3 +462,64 @@
 .fof-landing .menu-chip{display:inline-flex;align-items:center;min-height:44px;padding:0 20px;border-radius:999px;background:#f97316;color:#fff;font-size:14px;font-weight:600;letter-spacing:.04em;transition:background .3s}
 .fof-landing .menu-chip:hover,.fof-landing .menu-chip:active{background:#ea580c;color:#fff}
 @media (min-width:901px){.fof-landing .menu-overlay{display:none}}
+
+/* -----------------------------------------------------------------------
+ * Same header as the church site: its crest and name (FOF is not a separate
+ * church), 80px on a phone, and the menu button turns into an X while the
+ * menu slides down. Timings are read off tcnikorodu.org.
+ * --------------------------------------------------------------------- */
+.fof-landing .nav{z-index:80}
+.fof-landing .brand{gap:8px}
+.fof-landing .brand img{width:auto}
+@media (max-width:900px){
+  .fof-landing .nav,.fof-landing .nav.is-scrolled{padding:16px 0}
+  .fof-landing .brand img{height:30px}
+  .fof-landing .nav.is-scrolled .brand img{height:30px}
+  .fof-landing .brand span{font-size:18px !important}
+}
+.fof-landing .nav-burger{position:relative;display:none;flex:none}
+@media (max-width:900px){.fof-landing .nav-burger{display:block}}
+.fof-landing .nav-burger span{position:absolute;left:12px;display:block;width:24px;height:2px;border-radius:0;background:#f97316;transition:transform .5s cubic-bezier(.65,0,.35,1),top .5s cubic-bezier(.65,0,.35,1),background-color .4s ease}
+.fof-landing .nav-burger span:first-child{top:19px}
+.fof-landing .nav-burger span:last-child{top:27px}
+.fof-landing .nav.menu-open .nav-burger span{background:#fff;top:23px}
+.fof-landing .nav.menu-open .nav-burger span:first-child{transform:rotate(45deg)}
+.fof-landing .nav.menu-open .nav-burger span:last-child{transform:rotate(-45deg)}
+/* While the menu is open the bar sits on top of it, clear, with the white name. */
+.fof-landing .nav.menu-open{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none}
+.fof-landing .nav.menu-open .brand span{color:#fff}
+
+.fof-landing .menu-overlay{display:flex;background:#1e1412;color:#fed7aa;padding:112px 6vw 32px;transform:translateY(-100%);visibility:hidden;transition:transform .7s cubic-bezier(.65,0,.35,1),visibility 0s linear .7s}
+.fof-landing .menu-overlay.is-open{transform:none;visibility:visible;transition:transform .7s cubic-bezier(.65,0,.35,1),visibility 0s}
+.fof-landing .menu-links{margin-top:0;gap:4px;align-items:flex-start}
+.fof-landing .menu-links > a,.fof-landing .menu-contact{opacity:0;transform:translateX(-18px);transition:opacity .25s ease,transform .25s ease,color .3s}
+.fof-landing .menu-overlay.is-open .menu-links > a,.fof-landing .menu-overlay.is-open .menu-contact{opacity:1;transform:none;transition:opacity .55s cubic-bezier(.22,.61,.36,1) calc(.45s + var(--i,0) * .06s),transform .55s cubic-bezier(.22,.61,.36,1) calc(.45s + var(--i,0) * .06s),color .3s}
+.fof-landing .menu-links a{font-size:40px;color:#fed7aa}
+/* Member portal: the one that matters, so it is a filled orange button. */
+.fof-landing .menu-links a.menu-portal{display:inline-flex;align-items:center;justify-content:center;min-height:56px;margin-bottom:24px;padding:0 36px;border-radius:999px;background:#f97316;color:#fff;font-family:'Host Grotesk',system-ui,sans-serif;font-size:16px;font-weight:600;letter-spacing:.56px;text-transform:uppercase;box-shadow:0 10px 30px -10px rgba(249,115,22,.65)}
+.fof-landing .menu-links a.menu-portal:hover,.fof-landing .menu-links a.menu-portal:active{background:#ea580c;color:#fff}
+
+/* Hero buttons, as on the church site (phone: 250 wide, 16px; desktop: 20px). */
+.fof-landing .hero-ctas{gap:12px}
+.fof-landing .btn{height:auto;padding:24px 40px;font-size:20px;letter-spacing:0;line-height:1.2}
+.fof-landing .btn-ghost{background:rgba(0,0,0,.3);border:1px solid #fdba74;color:#fff}
+.fof-landing .btn-ghost:hover,.fof-landing .btn-ghost:active{background:rgba(0,0,0,.45);border-color:#f97316;color:#fff}
+@media (max-width:640px){
+  .fof-landing .hero-ctas{flex-direction:column;align-items:center;width:100%}
+  .fof-landing .btn,.fof-landing .hero-ctas .btn{width:250px;max-width:100%;padding:20px;font-size:16px;letter-spacing:-.32px;justify-content:center}
+  .fof-landing .mbar{text-align:center}
+  .fof-landing .mbar .btn{width:250px;padding:16px 20px;margin:0 auto;justify-content:center}
+}
+@media (prefers-reduced-motion:reduce){
+  .fof-landing .menu-overlay,.fof-landing .menu-overlay.is-open,.fof-landing .nav-burger span{transition-duration:.01s}
+  .fof-landing .menu-links > a,.fof-landing .menu-contact{transition:none !important;transform:none}
+}
+.fof-landing .btn{border:1px solid transparent;line-height:1;min-width:250px;padding:24px 28px;justify-content:center}
+.fof-landing .btn-ghost{border:1px solid #fdba74}
+.fof-landing .hero-ctas{gap:20px}
+@media (max-width:900px){.fof-landing .nav-in{height:48px}}
+@media (max-width:640px){
+  .fof-landing .hero-ctas{gap:12px}
+  .fof-landing .btn,.fof-landing .hero-ctas .btn{min-width:0;width:250px;padding:20px}
+  .fof-landing .mbar .btn{min-width:0;width:250px;padding:16px 20px}
+}

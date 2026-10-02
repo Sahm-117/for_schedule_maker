@@ -325,16 +325,16 @@ const LandingPage: React.FC = () => {
   };
 
   const rootClass = `fof-landing${fxOn ? ' fx' : ''}${loaded || !fxOn ? ' is-loaded' : ''}`;
-  const navClass = `nav${navScrolled ? ' is-scrolled' : ''}${navHidden ? ' is-hidden' : ''}`;
+  const navClass = `nav${navScrolled ? ' is-scrolled' : ''}${navHidden ? ' is-hidden' : ''}${menuOpen ? ' menu-open' : ''}`;
 
   return (
     <div className={rootClass} ref={rootRef}>
       {/* ================= NAV ================= */}
       <header className={navClass}>
         <div className="nav-in">
-          <a className="brand" href="#hero" onClick={smoothScrollTo('hero')} aria-label="Foundation of Faith — back to top">
-            <img src="/logo-crest.webp" alt="" width={46} height={46} />
-            <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em' }}>Foundation of Faith</span>
+          <a className="brand" href="https://www.tcnikorodu.org" aria-label="TCN Ikorodu, church home">
+            <img src="/logo-crest.webp" alt="" width={48} height={48} />
+            <span>Ikorodu</span>
           </a>
           <nav className="nav-links" aria-label="Sections">
             {NAV_ITEMS.map((n) => (
@@ -348,34 +348,23 @@ const LandingPage: React.FC = () => {
         </div>
       </header>
 
-      {/* ================= MOBILE MENU (full screen, like tcnikorodu.org) ================= */}
-      {menuOpen && (
-        <div className="menu-overlay" role="dialog" aria-modal="true" aria-label="Menu">
-          <div className="menu-top">
-            <a className="brand" href="#hero" onClick={(e) => { smoothScrollTo('hero')(e); setMenuOpen(false); }} aria-label="Foundation of Faith, back to top">
-              <img src="/logo-crest.webp" alt="" width={46} height={46} />
-              <span>Foundation of Faith</span>
-            </a>
-            <button type="button" className="menu-close" aria-label="Close menu" onClick={() => setMenuOpen(false)}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg>
-            </button>
-          </div>
-          <nav className="menu-links" aria-label="Menu">
-            {NAV_ITEMS.map((n) => (
-              <a key={n.id} href={`#${n.id}`} onClick={(e) => { smoothScrollTo(n.id)(e); setMenuOpen(false); }}>{n.label}</a>
+      {/* ================= MOBILE MENU (slides down, like tcnikorodu.org) ================= */}
+      <div className={`menu-overlay${menuOpen ? ' is-open' : ''}`} role="dialog" aria-modal="true" aria-label="Menu" aria-hidden={!menuOpen}>
+        <nav className="menu-links" aria-label="Menu">
+          <Link to="/login" className="menu-portal" style={vars({ '--i': 0 })} onClick={() => setMenuOpen(false)} tabIndex={menuOpen ? 0 : -1}>Member portal</Link>
+          {NAV_ITEMS.map((n, idx) => (
+            <a key={n.id} href={`#${n.id}`} style={vars({ '--i': idx + 1 })} tabIndex={menuOpen ? 0 : -1} onClick={(e) => { smoothScrollTo(n.id)(e); setMenuOpen(false); }}>{n.label}</a>
+          ))}
+        </nav>
+        <div className="menu-contact" style={vars({ '--i': NAV_ITEMS.length + 1 })}>
+          <p className="menu-contact-h">Connect</p>
+          <div className="menu-contact-row">
+            {content.footer.social.map((link, k) => (
+              <a key={k} href={link.url} target="_blank" rel="noopener noreferrer" tabIndex={menuOpen ? 0 : -1} className="menu-chip">{link.label}</a>
             ))}
-            <Link to="/login" onClick={() => setMenuOpen(false)}>Member portal</Link>
-          </nav>
-          <div className="menu-contact">
-            <p className="menu-contact-h">Connect</p>
-            <div className="menu-contact-row">
-              {content.footer.social.map((link, i) => (
-                <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="menu-chip">{link.label}</a>
-              ))}
-            </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* ================= HERO ================= */}
       <section id="hero" className="hero">
