@@ -578,7 +578,7 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
     return contact;
   },
   async getLandingImages(): Promise<LandingImages> {
-    return { hero: null, group: null, class: null };
+    return { hero: null, heroMobile: null, group: null, class: null };
   },
   async setLandingImages(images: LandingImages): Promise<LandingImages> {
     return images;
@@ -1123,7 +1123,7 @@ const FALLBACK_LANDING_INFO: PublicLandingInfo = {
   registrationLink: FALLBACK_REGISTRATION_LINK,
   nextCohort: null,
   classStartTime: null,
-  landingImages: { hero: null, group: null, class: null },
+  landingImages: { hero: null, heroMobile: null, group: null, class: null },
   landingContent: null,
 };
 

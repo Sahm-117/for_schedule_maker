@@ -76,6 +76,8 @@ export interface LandingContent {
     /** Short facts read out under the buttons, e.g. "10 weeks". */
     facts: string[];
     scrollLabel: string;
+    /** How dark the layer over the hero photo is, 0 (none) to 95 (almost black). */
+    overlay: number;
   };
   marquee: {
     words: string[];
@@ -127,6 +129,7 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
     subtitle: 'A 10-week course to help you grow deep roots in Christ and find your home in the church.',
     facts: ['10 weeks', 'Every Sunday', 'Free'],
     scrollLabel: 'Scroll',
+    overlay: 70,
   },
   marquee: {
     words: ['Belong', 'Believe', 'Become', 'Foundation of Faith', 'Belong', 'Believe', 'Become', 'Ten weeks'],

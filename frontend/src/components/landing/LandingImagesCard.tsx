@@ -11,13 +11,14 @@ import { useToast } from '../Toast';
 type LandingSlot = keyof LandingImages;
 
 const LANDING_SLOTS: Array<{ key: LandingSlot; label: string; hint: string; maxWidth: number; aspect: string }> = [
-  { key: 'hero', label: 'Hero', hint: 'Wide worship photo behind the headline.', maxWidth: 2400, aspect: 'aspect-video' },
+  { key: 'hero', label: 'Hero (computer)', hint: 'Wide photo behind the headline. Phones use it too until you add a phone photo.', maxWidth: 2560, aspect: 'aspect-video' },
+  { key: 'heroMobile', label: 'Hero (phone)', hint: 'Tall photo for phones. Leave empty to use the wide one.', maxWidth: 1800, aspect: 'aspect-[3/4]' },
   { key: 'group', label: 'Small group', hint: 'A small group meeting together.', maxWidth: 1600, aspect: 'aspect-[4/3]' },
   { key: 'class', label: 'Class', hint: 'A Sunday FOF class in session.', maxWidth: 1600, aspect: 'aspect-[4/3]' },
 ];
 
 const LANDING_IMAGE_QUALITY = 0.82;
-const EMPTY_LANDING_IMAGES: LandingImages = { hero: null, group: null, class: null };
+const EMPTY_LANDING_IMAGES: LandingImages = { hero: null, heroMobile: null, group: null, class: null };
 
 // Resize to at most `maxWidth` wide and re-encode as WebP (JPEG where WebP
 // isn't supported) — same client-side compression as the Scriptures uploader.
@@ -51,7 +52,7 @@ const LandingImagesCard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<LandingSlot | null>(null);
   const [savedSlot, setSavedSlot] = useState<LandingSlot | null>(null);
-  const fileInputs = useRef<Record<LandingSlot, HTMLInputElement | null>>({ hero: null, group: null, class: null });
+  const fileInputs = useRef<Record<LandingSlot, HTMLInputElement | null>>({ hero: null, heroMobile: null, group: null, class: null });
 
   useEffect(() => {
     let cancelled = false;
@@ -113,7 +114,7 @@ const LandingImagesCard: React.FC = () => {
       {loading ? (
         <div className="h-40 animate-pulse rounded-2xl bg-gray-50" />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {LANDING_SLOTS.map((slot) => {
             const url = images[slot.key];
             const isBusy = busy === slot.key;

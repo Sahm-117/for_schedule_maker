@@ -250,7 +250,7 @@ const LandingPage: React.FC = () => {
     return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
   }, [menuOpen]);
   const [nextCohortText, setNextCohortText] = useState('Registration is open');
-  const [images, setImages] = useState<{ hero: string | null; group: string | null; class: string | null }>({ hero: null, group: null, class: null });
+  const [images, setImages] = useState<{ hero: string | null; heroMobile: string | null; group: string | null; class: string | null }>({ hero: null, heroMobile: null, group: null, class: null });
   const [content, setContent] = useState<LandingContent>(DEFAULT_LANDING_CONTENT);
   const [openFaq, setOpenFaq] = useState(0);
 
@@ -307,6 +307,7 @@ const LandingPage: React.FC = () => {
       }
       setImages({
         hero: info.landingImages?.hero ?? null,
+        heroMobile: info.landingImages?.heroMobile ?? null,
         group: info.landingImages?.group ?? null,
         class: info.landingImages?.class ?? null,
       });
@@ -367,8 +368,13 @@ const LandingPage: React.FC = () => {
       </div>
 
       {/* ================= HERO ================= */}
-      <section id="hero" className="hero">
-        {images.hero && <div className="hero-photo" style={{ backgroundImage: `url(${images.hero})` }} />}
+      <section id="hero" className="hero" style={vars({ '--ov': Math.min(95, Math.max(0, Number(content.hero.overlay ?? 70))) / 100 })}>
+        {(images.hero || images.heroMobile) && (
+          <>
+            <div className={`hero-photo${images.heroMobile && images.hero ? ' hero-photo--desktop' : ''}`} style={{ backgroundImage: `url(${images.hero ?? images.heroMobile})` }} />
+            {images.heroMobile && images.hero && <div className="hero-photo hero-photo--mobile" style={{ backgroundImage: `url(${images.heroMobile})` }} />}
+          </>
+        )}
         <div className="hero-glow" data-par="0.25" />
         <div className="hero-mark" data-par="-0.18" aria-hidden="true">FOF</div>
         <div className="hero-grain" />

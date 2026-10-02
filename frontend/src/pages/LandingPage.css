@@ -525,3 +525,12 @@
 }
 
 .fof-landing .menu-links a.menu-portal{margin:24px 0 0}
+
+
+/* Hero photo: separate phone photo, and an overlay whose darkness the admin sets (Website > Hero). */
+.fof-landing .hero-photo--mobile{display:none}
+@media (max-width:640px){
+  .fof-landing .hero-photo--desktop{display:none}
+  .fof-landing .hero-photo--mobile{display:block}
+}
+.fof-landing .hero::before{background:linear-gradient(180deg,rgba(10,10,10,calc(var(--ov,.7) - .1)),rgba(10,10,10,calc(var(--ov,.7) + .06)))}

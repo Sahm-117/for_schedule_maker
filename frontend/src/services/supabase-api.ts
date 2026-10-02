@@ -2184,6 +2184,7 @@ export const settingsApi = {
     const value = (data as any)?.value || {};
     return {
       hero: typeof value.hero === 'string' ? value.hero : null,
+      heroMobile: typeof value.heroMobile === 'string' ? value.heroMobile : null,
       group: typeof value.group === 'string' ? value.group : null,
       class: typeof value.class === 'string' ? value.class : null,
     };
@@ -2230,12 +2231,14 @@ export const settingsApi = {
 
 export interface LandingImages {
   hero: string | null;
+  /** Tall photo for phones; the hero photo is used when this is empty. */
+  heroMobile: string | null;
   group: string | null;
   class: string | null;
 }
 
 export const landingImagesApi = {
-  async upload(slot: 'hero' | 'group' | 'class', image: Blob): Promise<string> {
+  async upload(slot: 'hero' | 'heroMobile' | 'group' | 'class', image: Blob): Promise<string> {
     const extension = image.type === 'image/webp' ? 'webp' : image.type === 'image/png' ? 'png' : 'jpg';
     const path = `landing/${slot}-${Date.now()}.${extension}`;
     const { error } = await supabase.storage.from('resources').upload(path, image, { upsert: false, contentType: image.type || undefined });

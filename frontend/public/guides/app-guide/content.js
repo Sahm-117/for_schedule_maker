@@ -1758,6 +1758,28 @@ window.GUIDE_CONTENT = {
        ],
        "result": "The public FAQ accordion updates to match.",
        "shot": "admin-website-faq-tab.jpg"
+      },
+      {
+       "id": "website-hero-photo",
+       "q": "How do I change the hero photo and how dark it is?",
+       "keywords": [
+        "hero",
+        "photo",
+        "darkness",
+        "overlay",
+        "phone",
+        "mobile",
+        "picture"
+       ],
+       "steps": [
+        "Open **Website → Photos**. Upload a wide photo under **Hero (computer)** and, if you like, a tall photo under **Hero (phone)**. Phones use the wide one until you add a phone photo.",
+        "Open **Website → Hero**. Drag **Photo darkness** until the headline is easy to read. The preview shows the effect.",
+        "Tap **Save** on the Hero tab (photos upload straight away)."
+       ],
+       "result": "The public page shows your photo, with the darkness you chose, as soon as you save.",
+       "tips": [
+        "A higher percentage means a darker photo. Around 70% suits most photos."
+       ]
       }
      ]
     },

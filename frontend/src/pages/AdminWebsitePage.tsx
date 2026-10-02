@@ -147,6 +147,10 @@ const AdminWebsitePage: React.FC = () => {
   const { isAdmin } = useAuth();
   const toast = useToast();
   const [tab, setTab] = useState<string>('hero');
+  const [heroPreview, setHeroPreview] = useState<string | null>(null);
+  useEffect(() => {
+    settingsApi.getLandingImages().then((v) => setHeroPreview(v.hero ?? v.heroMobile)).catch(() => setHeroPreview(null));
+  }, []);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState<LandingContent>(DEFAULT_LANDING_CONTENT);
   const [savedContent, setSavedContent] = useState<LandingContent>(DEFAULT_LANDING_CONTENT);
@@ -246,7 +250,7 @@ const AdminWebsitePage: React.FC = () => {
                   The Register link is set in Follow-ups &rarr; Message bank. The next cohort date updates automatically.
                 </div>
                 <SectionCard title="Hero" description="The first thing a visitor sees." onReset={() => resetSection('hero')}>
-                  <Field label="Headline lines (shown in white, top to bottom)">
+                  <Field label="Headline lines (top to bottom)">
                     <ListEditor
                       items={content.hero.lines}
                       onChange={(lines) => patch('hero', { ...content.hero, lines })}
@@ -256,7 +260,7 @@ const AdminWebsitePage: React.FC = () => {
                       minItems={1}
                     />
                   </Field>
-                  <Field label="Last line (shown in orange)">
+                  <Field label="Last line">
                     <TextInput value={content.hero.accentLine} onChange={(v) => patch('hero', { ...content.hero, accentLine: v })} />
                   </Field>
                   <Field label="Subtitle">
@@ -271,6 +275,26 @@ const AdminWebsitePage: React.FC = () => {
                       addLabel="+ Add fact"
                       minItems={1}
                     />
+                  </Field>
+                  <Field label="Photo darkness" hint="How dark the layer over the hero photo is. Raise it if the headline is hard to read.">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min={0}
+                        max={95}
+                        step={5}
+                        value={content.hero.overlay ?? 70}
+                        onChange={(e) => patch('hero', { ...content.hero, overlay: Number(e.target.value) })}
+                        className="h-2 flex-1 cursor-pointer accent-[var(--color-primary)]"
+                        aria-label="Photo darkness"
+                      />
+                      <span className="w-12 text-right text-sm font-semibold tabular-nums text-gray-700">{content.hero.overlay ?? 70}%</span>
+                    </div>
+                    <div className="relative mt-3 h-32 overflow-hidden rounded-2xl bg-[#0a0a0a]">
+                      {heroPreview && <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${heroPreview})` }} />}
+                      <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, rgba(10,10,10,${Math.max(0, (content.hero.overlay ?? 70) / 100 - 0.1)}), rgba(10,10,10,${Math.min(1, (content.hero.overlay ?? 70) / 100 + 0.06)}))` }} />
+                      <p className="relative flex h-full items-center justify-center px-4 text-center text-xl font-bold text-[#fff7ed]">{content.hero.lines.join(' ')} {content.hero.accentLine}</p>
+                    </div>
                   </Field>
                   <Field label="Scroll hint label">
                     <TextInput value={content.hero.scrollLabel} onChange={(v) => patch('hero', { ...content.hero, scrollLabel: v })} />
