@@ -105,6 +105,25 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
+  // Birthday is optional and only day + month (MM-DD); it saves once both are picked.
+  const [bMonth, bDay] = (user.birthday ?? '').split('-');
+  const [birthdayDraft, setBirthdayDraft] = useState({ month: bMonth ?? '', day: bDay ?? '' });
+  const saveBirthday = async (next: { month: string; day: string }) => {
+    setBirthdayDraft(next);
+    if ((next.month && !next.day) || (!next.month && next.day)) return;
+    const value = next.month ? `${next.month}-${next.day}` : null;
+    if (value === (user.birthday ?? null)) return;
+    setDetailsError('');
+    try {
+      await usersApi.saveBirthday(user.id, value);
+      refreshUser({ birthday: value });
+    } catch {
+      setBirthdayDraft({ month: bMonth ?? '', day: bDay ?? '' });
+      setDetailsError('Could not save. Please try again.');
+    }
+  };
+  const birthdayDays = birthdayDraft.month ? new Date(2024, Number(birthdayDraft.month), 0).getDate() : 31;
+
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -202,6 +221,16 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
               <Row label="Age range" missing={!ageRange}>
                 <div className="w-40"><AppSelect value={ageRange} onChange={(value) => { void saveDetails({ gender, ageRange: value }); }} options={toSelectOptions(AGE_RANGE_OPTIONS)} placeholder="Choose…" compact /></div>
               </Row>
+              <Row label="Birthday">
+                <div className="flex items-center gap-2">
+                  <div className="w-[4.25rem]"><AppSelect value={birthdayDraft.day} onChange={(v) => { void saveBirthday({ ...birthdayDraft, day: v }); }} options={BIRTHDAY_DAYS.slice(0, birthdayDays)} placeholder="Day" compact /></div>
+                  <div className="w-24"><AppSelect value={birthdayDraft.month} onChange={(v) => { void saveBirthday({ month: v, day: birthdayDraft.day && Number(birthdayDraft.day) <= new Date(2024, Number(v), 0).getDate() ? birthdayDraft.day : '' }); }} options={BIRTHDAY_MONTHS} placeholder="Month" compact /></div>
+                  {(birthdayDraft.month || birthdayDraft.day) && (
+                    <button type="button" onClick={() => { void saveBirthday({ month: '', day: '' }); }} aria-label="Clear birthday" className="px-1 text-base leading-none text-gray-400 hover:text-gray-600">×</button>
+                  )}
+                </div>
+              </Row>
+              <p className="-mt-1 px-4 pb-2 text-xs text-gray-400">Optional. Only the day and month are saved, so admins can celebrate you.</p>
 {!editingPhone ? (
                 <div>
                 <Row label="Phone" missing={!phone}>
@@ -313,6 +342,9 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 );
 
 // One row: label on the left (orange dot when it's still needed), control on the right.
+const BIRTHDAY_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((label, i) => ({ value: String(i + 1).padStart(2, '0'), label }));
+const BIRTHDAY_DAYS = Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1).padStart(2, '0'), label: String(i + 1) }));
+
 const Row: React.FC<{ label: string; missing?: boolean; children: React.ReactNode }> = ({ label, missing, children }) => (
   <div className="flex min-h-[52px] items-center justify-between gap-3 px-4 py-2">
     <span className="flex flex-none items-center gap-2 text-sm text-gray-600">

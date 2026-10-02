@@ -45,6 +45,8 @@ const AdminBirthdaysPage: React.FC = () => {
   const { user } = useAuth();
   const { activeCohort, cohorts } = useAppData();
   const [cohortId, setCohortId] = useState<string>('');
+  const [search, setSearch] = useState('');
+  const [month, setMonth] = useState('');
   const [tab, setTab] = useState<'supports' | 'participants'>('supports');
   const [data, setData] = useState<BirthdayList | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,9 +73,14 @@ const AdminBirthdaysPage: React.FC = () => {
     [cohorts],
   );
 
+  const monthOptions = [{ value: '', label: 'Any month' }, ...MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))];
+
   if (user?.role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
 
-  const list = data ? (tab === 'supports' ? data.supports : data.participants) : [];
+  const all = data ? (tab === 'supports' ? data.supports : data.participants) : [];
+  const needle = search.trim().toLowerCase();
+  const list = all.filter((p) => (!needle || p.name.toLowerCase().includes(needle)) && (!month || p.month === Number(month)));
+  const filtering = !!needle || !!month;
   const missing = data ? (tab === 'supports' ? data.missing.supports : data.missing.participants) : 0;
   const todayMonth = data ? Number(data.today.slice(5, 7)) : 0;
 
@@ -94,6 +101,18 @@ const AdminBirthdaysPage: React.FC = () => {
           <AppSelect value={cohortId} onChange={setCohortId} options={cohortOptions} placeholder="All cohorts" compact />
         </div>
       </div>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={`Search ${tab === 'supports' ? 'supports' : 'participants'} by name`}
+          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:flex-1"
+        />
+        <div className="sm:w-56">
+          <AppSelect value={month} onChange={setMonth} options={monthOptions} placeholder="Any month" compact />
+        </div>
+      </div>
 
       {loading ? (
         <div className="flex justify-center py-12"><Spinner /></div>
@@ -102,7 +121,7 @@ const AdminBirthdaysPage: React.FC = () => {
       ) : (
         <>
           {list.length === 0 ? (
-            <p className="rounded-2xl bg-white px-4 py-10 text-center text-sm text-gray-500">No birthdays on file for this view yet.</p>
+            <p className="rounded-2xl bg-white px-4 py-10 text-center text-sm text-gray-500">{filtering ? 'No one matches that search.' : 'No birthdays on file for this view yet.'}</p>
           ) : (
             <div className="space-y-5">
               {GROUPS.map((group) => {
