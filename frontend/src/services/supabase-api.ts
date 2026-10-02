@@ -2888,7 +2888,7 @@ export const announcementsApi = {
       targetHubJobs?: import('../types').HubJob[];
       targetUserId?: string | null;
       targetParticipantId?: string | null;
-      home?: { homeUntil: string; linkUrl?: string | null; linkLabel?: string | null } | null;
+      home?: { homeUntil: string; homeLabel?: string | null; linkUrl?: string | null; linkLabel?: string | null } | null;
       audience?: import('../types').AnnouncementAudience;
     }
   ): Promise<{ sent: number }> {
@@ -2914,6 +2914,7 @@ export const announcementsApi = {
       const { error: homeError } = await supabase.from('Announcement').update({
         showOnHome: true,
         homeUntil: options.home.homeUntil,
+        homeLabel: options.home.homeLabel?.trim() || null,
         linkUrl: options.home.linkUrl?.trim() || null,
         linkLabel: options.home.linkUrl?.trim() ? (options.home.linkLabel?.trim() || 'Open') : null,
       }).eq('id', announcementId);
@@ -2976,6 +2977,7 @@ export const announcementsApi = {
       homeUntil: row.homeUntil ?? null,
       linkUrl: row.linkUrl ?? null,
       linkLabel: row.linkLabel ?? null,
+      homeLabel: row.homeLabel ?? null,
       audience: (row.audience ?? 'SUPPORTS') as import('../types').AnnouncementAudience,
     }));
 

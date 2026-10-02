@@ -422,7 +422,7 @@ const ParticipantHomePage: React.FC = () => {
 
         {home.announcement && (
           <section className="rounded-[18px] border border-[#ffdeca] bg-[#fff8f3] px-4 py-3.5">
-            <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#c2410c]">From the FOF team</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#c2410c]">{home.announcement.homeLabel || 'From the FOF team'}</p>
             <p className="mt-1.5 text-[15px] font-bold text-gray-900">{home.announcement.subject}</p>
             <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-gray-600">{home.announcement.body}</p>
             {home.announcement.linkUrl && (/^https?:\/\//i.test(home.announcement.linkUrl) ? (

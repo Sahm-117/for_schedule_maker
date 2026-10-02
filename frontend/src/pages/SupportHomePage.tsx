@@ -480,7 +480,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
             <section className="rounded-[18px] border border-[#fecaca] bg-[#fef2f2] px-4 py-3.5">
               <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.04em] text-[#b91c1c]">
                 <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="m3 11 18-5v12L3 13v-2ZM11.6 16.8a3 3 0 1 1-5.8-1.6" /></svg>
-                Urgent
+                {homeAnnouncement.homeLabel || 'Urgent'}
               </div>
               <p className="mt-1.5 text-[15px] font-bold text-gray-900">{homeAnnouncement.subject}</p>
               <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-gray-600">{homeAnnouncement.body}</p>

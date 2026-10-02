@@ -331,6 +331,8 @@ export interface Announcement {
   homeUntil?: string | null;
   linkUrl?: string | null;
   linkLabel?: string | null;
+  /** Small heading above the pinned Home card, chosen by the admin. */
+  homeLabel?: string | null;
   /** Who it is for: supports (default), participants, or everyone. */
   audience?: AnnouncementAudience;
 }
@@ -1034,7 +1036,7 @@ export interface ParticipantHome {
   faithUnread: boolean;
   reminders: { meetingRemindMinutes: number[]; recapReleased: boolean };
   resources: Array<{ id: string; title: string; description: string | null; type: Resource['type']; url: string; fileName: string | null }>;
-  announcement: { id: string; subject: string; body: string; linkUrl: string | null; linkLabel: string | null } | null;
+  announcement: { id: string; subject: string; body: string; linkUrl: string | null; linkLabel: string | null; homeLabel?: string | null } | null;
   wrapUp: { submitted: boolean; department: string | null };
   /** Fields admins requested that apply to this participant, with their answers. */
   profileFields: ProfileFieldEntry[];

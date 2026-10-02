@@ -86,6 +86,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   const [linkTarget, setLinkTarget] = useState('');
   const [externalUrl, setExternalUrl] = useState('');
   const [linkLabel, setLinkLabel] = useState('');
+  const [homeLabel, setHomeLabel] = useState('');
   const [removingHomeId, setRemovingHomeId] = useState<string | null>(null);
   const [labels, setLabels] = useState<Label[]>([]);
   const [sending, setSending] = useState(false);
@@ -219,7 +220,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     ]).filter(Boolean) as string[];
 
   const homeLinkUrl = linkTarget === EXTERNAL_LINK ? externalUrl.trim() : linkTarget;
-  const homeInvalid = showOnHome && (!homeUntil || (linkTarget === EXTERNAL_LINK && !/^https?:\/\//i.test(externalUrl.trim())));
+  const homeInvalid = showOnHome && (!homeUntil || !homeLabel.trim() || (linkTarget === EXTERNAL_LINK && !/^https?:\/\//i.test(externalUrl.trim())));
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,7 +240,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
         targetParticipantId,
         audience,
         home: showOnHome
-          ? { homeUntil: new Date(`${homeUntil}T23:59:59`).toISOString(), linkUrl: homeLinkUrl || null, linkLabel: linkLabel.trim() || null }
+          ? { homeUntil: new Date(`${homeUntil}T23:59:59`).toISOString(), linkUrl: homeLinkUrl || null, linkLabel: linkLabel.trim() || null, homeLabel: homeLabel.trim() }
           : null,
       });
       const jobsPicked = !personPicked && audience === 'SUPPORTS' && targetHubJobs.length > 0;
@@ -266,6 +267,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       setLinkTarget('');
       setExternalUrl('');
       setLinkLabel('');
+      setHomeLabel('');
       if (onSent) {
         onSent();
       } else {
@@ -562,6 +564,22 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
               </label>
               {showOnHome && (
                 <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Heading on Home</label>
+                    <input
+                      type="text"
+                      value={homeLabel}
+                      onChange={(e) => setHomeLabel(e.target.value.slice(0, 30))}
+                      placeholder="e.g. Reminder"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {['Urgent', 'Reminder', 'Update', 'Good news', 'From the FOF team'].map((chip) => (
+                        <button key={chip} type="button" onClick={() => setHomeLabel(chip)} className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${homeLabel === chip ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}>{chip}</button>
+                      ))}
+                    </div>
+                  </div>
                   <div>
                     <label className="mb-1 block text-sm font-medium text-gray-700">Show until</label>
                     <input
