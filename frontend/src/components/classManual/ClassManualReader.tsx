@@ -400,7 +400,7 @@ export default function ClassManualReader({ content, onOpenOriginalPdf, renderEn
 
         <div className="cmr-topbar">
           <span className="cmr-topbar-label">
-            FOF <span aria-hidden="true">/</span> {content.classLabel.toUpperCase()}
+            {content.classLabel.replace(/^Week \d+\s*·\s*/i, '').toUpperCase()}
           </span>
           <div className="cmr-topbar-actions">
             <button
