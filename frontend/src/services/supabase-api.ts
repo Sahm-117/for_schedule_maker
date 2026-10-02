@@ -7952,6 +7952,15 @@ export const feedbackApi = {
   },
 };
 
+// Birthdays (admins): supports and participants, nearest first.
+export const birthdaysApi = {
+  async list(cohortId: string | null): Promise<import('../types').BirthdayList> {
+    const { data, error } = await supabase.rpc('birthdays_list', { p_token: getSessionToken(), p_cohort_id: cohortId });
+    if (error) throw new Error(error.message.includes('SESSION_EXPIRED') ? 'Please sign out and sign in again.' : error.message);
+    return data as import('../types').BirthdayList;
+  },
+};
+
 // Other sign-ups that used the same email as a follow-up contact (for contacts with no working number).
 export const followUpRelatedApi = {
   async forContact(contactId: string): Promise<import('../types').FollowUpRelatedContact[]> {

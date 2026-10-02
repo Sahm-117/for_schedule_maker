@@ -1917,3 +1917,23 @@ export interface FollowUpRelatedContact {
   ownerName: string | null;
   mine: boolean;
 }
+
+// ── Birthdays ────────────────────────────────────────────────────────────────
+export interface BirthdayPerson {
+  id: string;
+  name: string;
+  /** 1 to 12, and the day of that month. The year is never sent. */
+  month: number;
+  day: number;
+  /** 0 = today. */
+  daysUntil: number;
+  cohorts: string[];
+}
+
+export interface BirthdayList {
+  today: string;
+  supports: BirthdayPerson[];
+  participants: BirthdayPerson[];
+  /** People with no birthday on file yet. */
+  missing: { supports: number; participants: number };
+}

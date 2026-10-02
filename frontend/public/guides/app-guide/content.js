@@ -1476,6 +1476,52 @@ window.GUIDE_CONTENT = {
      ]
     },
     {
+     "id": "birthdays",
+     "title": "Birthdays",
+     "where": "Sidebar → Engagement → Birthdays",
+     "summary": "See whose birthday is coming next, for supports and participants.",
+     "tasks": [
+      {
+       "id": "birthdays-view",
+       "popular": true,
+       "q": "How do I see upcoming birthdays?",
+       "keywords": [
+        "birthday",
+        "birthdays",
+        "celebrate",
+        "countdown"
+       ],
+       "steps": [
+        "Open **Birthdays**.",
+        "Use the **Supports** and **Participants** tabs, and the cohort box to look at one cohort or all of them.",
+        "Each person shows \"Birthday is on the 19th\" and how many days away it is, nearest first."
+       ],
+       "result": "You can see who is celebrating this week, in the next 30 days and later.",
+       "tips": [
+        "People who have not given their birthday are not listed. The count of those is shown at the bottom.",
+        "Supports add their birthday in their profile. Participants add their date of birth in their profile."
+       ]
+      },
+      {
+       "id": "birthdays-alerts",
+       "q": "Will I be told when a birthday is coming?",
+       "keywords": [
+        "birthday alert",
+        "notification",
+        "reminder"
+       ],
+       "steps": [
+        "Every admin gets a notification **2 days** before a birthday, and another **1 day** before.",
+        "The alerts arrive in the morning. Tap one to open the Birthdays page."
+       ],
+       "result": "You hear about each birthday twice, never more.",
+       "tips": [
+        "Alerts cover supports and participants in a running cohort."
+       ]
+      }
+     ]
+    },
+    {
      "id": "community",
      "title": "Community",
      "where": "Sidebar → Engagement → Community",

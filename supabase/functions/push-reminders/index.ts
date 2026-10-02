@@ -1290,6 +1290,61 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Birthdays: tell every admin two days and one day before someone's birthday
+    // (supports, and participants in a running cohort). Sent from 8am Lagos time;
+    // the log in the database stops any alert repeating. Skipped in the test modes.
+    if (!dryRun && !onlyUserIds && !onlyParticipantIds && !onlyCohortId) {
+      try {
+        if (getLagosDateParts(new Date()).hour >= 8) {
+          const { data: dueBirthdays } = await supabase.rpc('birthday_alerts_due')
+          const alerts = (dueBirthdays ?? []) as Array<{ subject_key: string; person_name: string; kind: string; birthday_date: string; days_before: number }>
+          if (alerts.length > 0) {
+            const { data: adminRows } = await supabase
+              .from('User')
+              .select('id, isTest')
+              .eq('role', 'ADMIN')
+              .eq('isActive', true)
+            const adminIds = ((adminRows ?? []) as any[]).filter((a) => a.isTest !== true).map((a) => a.id as string)
+            const ordinal = (n: number) => {
+              const v = n % 100
+              if (v >= 11 && v <= 13) return `${n}th`
+              return `${n}${({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th'}`
+            }
+            for (const daysBefore of [2, 1]) {
+              const group = alerts.filter((a) => a.days_before === daysBefore)
+              if (group.length === 0 || adminIds.length === 0) continue
+              const when = daysBefore === 1 ? 'tomorrow' : 'in 2 days'
+              const title = group.length === 1 ? `Birthday ${when}` : `${group.length} birthdays ${when}`
+              const describe = (a: typeof group[number]) =>
+                `${a.person_name} (${a.kind === 'SUPPORT' ? 'support' : 'participant'}), the ${ordinal(Number(a.birthday_date.slice(8, 10)))}`
+              const shown = group.slice(0, 5).map(describe).join('; ')
+              const body = group.length > 5 ? `${shown}; +${group.length - 5} more` : shown
+              const path = '/birthdays'
+              await insertNotifications(supabase, adminIds.map((userId) => ({ userId, title, body, path, type: 'REMINDER' })))
+              const { data: subs } = await supabase
+                .from('PushSubscription')
+                .select('userId, endpoint, p256dh, auth')
+                .in('userId', adminIds)
+              const payload = JSON.stringify({
+                title,
+                body,
+                icon: '/icon-192.png',
+                tag: `fof-birthday-${daysBefore}-${getLagosDateParts(new Date()).isoDate}`,
+                data: { path },
+              })
+              const r = await sendToSubscriptions(webPush, supabase, (subs || []) as any[], payload, notified)
+              if (r.failed > 0) console.error(`push-reminders (birthdays): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
+            }
+            await supabase.rpc('birthday_alerts_mark', {
+              p_alerts: alerts.map((a) => ({ subjectKey: a.subject_key, birthdayDate: a.birthday_date, daysBefore: a.days_before })),
+            })
+          }
+        }
+      } catch (birthdayError) {
+        console.error('push-reminders (birthdays) failed:', String(birthdayError))
+      }
+    }
+
     return new Response(
       JSON.stringify({ ok: true, notified: notified.length, ...(dryRun ? { dryRun: true, debug } : {}) }),
       { headers: { 'Content-Type': 'application/json' } }

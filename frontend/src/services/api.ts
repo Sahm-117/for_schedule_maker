@@ -77,6 +77,7 @@ import {
   participantPushApi as supabaseParticipantPushApi,
   feedbackApi as supabaseFeedbackApi,
   surveyApi as supabaseSurveyApi,
+  birthdaysApi as supabaseBirthdaysApi,
   followUpRelatedApi as supabaseFollowUpRelatedApi,
   aiApi as supabaseAiApi,
   profileFieldsApi as supabaseProfileFieldsApi,
@@ -1052,6 +1053,7 @@ export const feedbackApi = USE_SUPABASE ? supabaseFeedbackApi : {
 };
 
 export const surveyApi = supabaseSurveyApi;
+export const birthdaysApi = supabaseBirthdaysApi;
 export const followUpRelatedApi = supabaseFollowUpRelatedApi;
 
 export const participantPushApi = USE_SUPABASE ? supabaseParticipantPushApi : {

@@ -31,6 +31,7 @@ const ParticipantProfilePage = lazy(() => import('./pages/ParticipantProfilePage
 const ParticipantFeedbackPage = lazy(() => import('./pages/ParticipantFeedbackPage'));
 const ParticipantCompletePage = lazy(() => import('./pages/ParticipantCompletePage'));
 const AdminFeedbackPage = lazy(() => import('./pages/AdminFeedbackPage'));
+const AdminBirthdaysPage = lazy(() => import('./pages/AdminBirthdaysPage'));
 const AdminSurveysPage = lazy(() => import('./pages/AdminSurveysPage'));
 const AdminSurveyResultsPage = lazy(() => import('./pages/AdminSurveyResultsPage'));
 const ParticipantSurveyPage = lazy(() => import('./pages/ParticipantSurveyPage'));
@@ -159,6 +160,7 @@ function App() {
             <Route path="/faith-projects" element={<Suspense fallback={<RouteFallback />}><AdminFaithProjectsPage /></Suspense>} />
             <Route path="/group-prayers" element={<Suspense fallback={<RouteFallback />}><AdminGroupPrayersPage /></Suspense>} />
             <Route path="/onboarding" element={<Suspense fallback={<RouteFallback />}><AdminOnboardingPage /></Suspense>} />
+            <Route path="/birthdays" element={<Suspense fallback={<RouteFallback />}><AdminBirthdaysPage /></Suspense>} />
             <Route path="/surveys" element={<Suspense fallback={<RouteFallback />}><AdminSurveysPage /></Suspense>} />
             <Route path="/surveys/:id" element={<Suspense fallback={<RouteFallback />}><AdminSurveyResultsPage /></Suspense>} />
             <Route path="/feedback" element={<Suspense fallback={<RouteFallback />}><AdminFeedbackPage /></Suspense>} />
