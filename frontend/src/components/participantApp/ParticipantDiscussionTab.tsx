@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import IntroComposer from '../discussion/IntroComposer';
+import IntroComposer, { INTRO_PROMPTS } from '../discussion/IntroComposer';
 import Spinner from '../Spinner';
 import DiscussionFeedView, { type DiscussionActions } from '../discussion/DiscussionFeedView';
 import { participantAppApi } from '../../services/api';
@@ -68,6 +68,17 @@ const ParticipantDiscussionTab: React.FC<{ viewerName: string; viewerAvatarUrl?:
       <p className="text-[13px] text-gray-500">Just you, your group and your support{feed.supportName ? `, ${feed.supportName}` : ''}.</p>
       {onboarding && onboarding.supportIntroPosted && !onboarding.introPosted && (
         <IntroComposer name={viewerName} avatarUrl={viewerAvatarUrl} label={viewerGender} autoFocus={introRequested} send={(body) => participantAppApi.discussionIntro(body)} onPosted={load} />
+      )}
+      {onboarding && !onboarding.supportIntroPosted && !onboarding.introPosted && (
+        <section data-wt="pd-intro-waiting" className="rounded-[22px] bg-white p-4 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-12px_rgba(17,24,39,0.14)]">
+          <h2 className="text-[15px] font-bold text-gray-900">Introduce yourself soon</h2>
+          <p className="mt-1 text-[13px] text-gray-500">{feed.supportName || 'Your support'} introduces themselves first. Once they have, a box opens here for you to do the same. It could cover:</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {INTRO_PROMPTS.map((prompt) => (
+              <span key={prompt.label} className="rounded-full bg-[#fff1e6] px-3 py-1.5 text-[12px] font-semibold text-[#9a4a12]">{prompt.label}</span>
+            ))}
+          </div>
+        </section>
       )}
       <DiscussionFeedView
         feed={feed}

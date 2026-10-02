@@ -133,6 +133,18 @@
   display: grid;
   place-items: center;
 }
+.cmr-close-button {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--cmr-ink);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .cmr-settings-panel {
   position: fixed;
   top: calc(56px + env(safe-area-inset-top));
@@ -803,6 +815,16 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   font-size: 12px;
+}
+.cmr-footer-back {
+  flex: 1 1 100%;
+  min-height: 48px;
+  border: 2px solid var(--cmr-ink);
+  border-radius: 999px;
+  background: var(--cmr-ink);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
 }
 .cmr-footer-pdf {
   display: inline-flex;

@@ -234,8 +234,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
   ],
   'participant:group': [
     { target: wt('pg-meeting'), title: 'Next meeting', body: 'When your group meets, the call link and a button to add it to your calendar.', optional: true },
-    { target: wt('pg-members'), title: 'Group members', body: 'Your support and the people in your group.', optional: true },
-    { target: wt('pg-help'), title: 'Need help?', body: 'Message your support if you have a question or can’t make it.', optional: true },
+    { target: wt('pg-members'), title: 'Group members', body: 'Your support and the people in your group. Tap Contact to message your support if you have a question or can’t make it.', optional: true },
   ],
   'participant:faith': [
     { target: wt('pf-project'), title: 'Your faith project', body: 'One thing you are trusting God for across the programme. Be specific.' },

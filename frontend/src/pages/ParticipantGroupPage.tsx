@@ -210,8 +210,10 @@ const ParticipantGroupPage: React.FC = () => {
                     <p className="text-[15px] font-bold text-gray-900">{group.supportName}</p>
                     <p className="mt-0.5 text-xs text-gray-500">Your support</p>
                   </div>
-                  {supportLink && (
+                  {supportLink ? (
                     <a href={supportLink} target="_blank" rel="noreferrer" className="ml-auto inline-flex min-h-[40px] items-center rounded-[10px] bg-[#25d366] px-3.5 text-xs font-semibold text-white">Contact</a>
+                  ) : (
+                    <p className="ml-auto text-xs text-gray-500">Number not available yet</p>
                   )}
                 </div>
               )}
@@ -228,15 +230,6 @@ const ParticipantGroupPage: React.FC = () => {
             </div>
           </section>
 
-          <aside data-wt="pg-help" className="rounded-[22px] border border-[#ffeadb] bg-[#fffaf5] p-5 shadow-[0_2px_6px_-2px_rgba(17,24,39,0.08)]">
-            <h2 className="text-sm font-bold text-gray-600">Need help?</h2>
-            <p className="mt-2 text-[15px] font-bold text-gray-900">Contact {supportName}</p>
-            {supportLink ? (
-              <a href={supportLink} target="_blank" rel="noreferrer" className="mt-4 flex min-h-[44px] w-full items-center justify-center rounded-xl bg-[#25d366] p-3 text-sm font-semibold text-white">Contact support</a>
-            ) : (
-              <p className="mt-4 text-[13px] text-gray-500">Number not available yet.</p>
-            )}
-          </aside>
           </>
           )}
         </div>

@@ -3342,7 +3342,9 @@ export const participantAppApi = {
         'MANUAL_QUESTION',
       );
     }
-    void notifyAdmins(
+    // An admin who is also this group's support already has the support alert.
+    void notify(
+      { role: 'ADMIN', excludeUserId: result.supportId ?? undefined },
       `${participantName} asked a question`,
       `About Week ${weekNumber}'s class manual.`,
       '/feedback?tab=manual',

@@ -414,8 +414,8 @@ export default function ClassManualReader({ content, onOpenOriginalPdf, renderEn
             >
               ⚙
             </button>
-            <button type="button" className="cmr-icon-button" aria-label="Close reader" onClick={() => onClose?.()}>
-              ✕
+            <button type="button" className="cmr-close-button" aria-label="Close reader" onClick={() => onClose?.()}>
+              <span aria-hidden="true">✕</span> Close
             </button>
           </div>
 
@@ -600,6 +600,9 @@ export default function ClassManualReader({ content, onOpenOriginalPdf, renderEn
             <span className="cmr-footer-org">{content.cover.org}</span>
             <button type="button" className="cmr-footer-pdf" onClick={handlePdf}>
               View original PDF
+            </button>
+            <button type="button" className="cmr-footer-back" onClick={() => onClose?.()}>
+              Back to app
             </button>
           </footer>
         </div>

@@ -10,7 +10,7 @@ import ClassManualReader from '../components/classManual/ClassManualReader';
 import { useManualContent } from '../components/classManual/manuals';
 import { useAuth } from '../hooks/useAuth';
 import { useParticipantApp } from '../context/ParticipantAppContext';
-import { participantAppApi } from '../services/api';
+import { participantAppApi, practiceApi } from '../services/api';
 import type { OnboardingState } from '../types';
 import { useToast } from '../components/Toast';
 import AppSetupBanner from '../components/participantApp/AppSetupBanner';
@@ -67,6 +67,8 @@ const ParticipantHomePage: React.FC = () => {
   const [introOpen, setIntroOpen] = useState(false);
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [confirming, setConfirming] = useState(false);
+  // Practice cohorts are always "completed" on paper, but a practice participant still walks the Get ready list.
+  const [isPractice, setIsPractice] = useState(false);
   const [confetti, setConfetti] = useState(false);
   const scriptureTrackRef = useRef<HTMLDivElement>(null);
   const scriptureDrag = useRef<{ pointerId: number; x: number; y: number; time: number } | null>(null);
@@ -85,7 +87,13 @@ const ParticipantHomePage: React.FC = () => {
 
   // The four Get ready steps, kept on the server (the 7pm reminder reads them too).
   const readyId = home?.participant.id;
-  const readyPreStart = !!home && currentWeekNumber(home.cohort?.startDate, now, home.weeks) < 1 && home.cohort?.status !== 'COMPLETED';
+  const readyPreStart = !!home && (isPractice || (currentWeekNumber(home.cohort?.startDate, now, home.weeks) < 1 && home.cohort?.status !== 'COMPLETED'));
+  useEffect(() => {
+    if (!readyId) return;
+    let cancelled = false;
+    practiceApi.getForParticipant().then((p) => { if (!cancelled) setIsPractice(!!p?.practice); }).catch(() => { /* ignore */ });
+    return () => { cancelled = true; };
+  }, [readyId]);
   useEffect(() => {
     if (!readyId || !readyPreStart) return;
     let cancelled = false;
@@ -471,7 +479,7 @@ const ParticipantHomePage: React.FC = () => {
           })}
         </div>
 
-        {preStart && (
+        {(preStart || isPractice) && (
           <section data-wt="ph-get-ready" className={CARD}>
             {!onboarding ? (
               <div className="flex justify-center py-4"><Spinner /></div>
