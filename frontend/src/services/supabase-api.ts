@@ -3332,7 +3332,7 @@ export const participantAppApi = {
   async askManualQuestion(weekId: number, body: string, weekNumber: number, participantName: string): Promise<import('../types').ParticipantManualQuestion> {
     const { data, error } = await supabase.rpc('ask_manual_question', { p_token: getSessionToken(), p_week_id: weekId, p_body: body });
     if (error) throw participantAppError(error.message, 'Could not send your question. Please try again.');
-    const result = data as import('../types').ParticipantManualQuestion & { supportId?: string | null };
+    const result = data as import('../types').ParticipantManualQuestion & { supportId?: string | null; isPractice?: boolean };
     if (result.supportId) {
       void notify(
         { userIds: [result.supportId] },
@@ -3342,14 +3342,17 @@ export const participantAppApi = {
         'MANUAL_QUESTION',
       );
     }
-    // An admin who is also this group's support already has the support alert.
-    void notify(
-      { role: 'ADMIN', excludeUserId: result.supportId ?? undefined },
-      `${participantName} asked a question`,
-      `About Week ${weekNumber}'s class manual.`,
-      '/feedback?tab=manual',
-      'MANUAL_QUESTION',
-    );
+    // A Practice question stays with the person testing; a real one also goes to every admin
+    // (except the group's support, who already has the support alert).
+    if (!result.isPractice) {
+      void notify(
+        { role: 'ADMIN', excludeUserId: result.supportId ?? undefined },
+        `${participantName} asked a question`,
+        `About Week ${weekNumber}'s class manual.`,
+        '/feedback?tab=manual',
+        'MANUAL_QUESTION',
+      );
+    }
     return { id: result.id, body: result.body, status: result.status, reply: result.reply, createdAt: result.createdAt };
   },
 
