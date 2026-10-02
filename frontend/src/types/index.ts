@@ -1911,6 +1911,9 @@ export interface FollowUpRelatedContact {
   sharedBy: 'EMAIL' | 'PHONE';
   /** Minutes between the two sign-ups (a few minutes usually means one person signed up two people). */
   minutesApart: number;
+  /** The cohort the other sign-up is in, and whether it is the same one. */
+  cohortName: string | null;
+  sameCohort: boolean;
   ownerName: string | null;
   mine: boolean;
 }

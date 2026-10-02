@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { FollowUpContact, FollowUpRelatedContact } from '../../types';
 import { buildWhatsAppLink } from '../../utils/phone';
 
-const ago = (minutes: number): string => {
-  if (minutes < 2) return 'at the same time';
-  if (minutes < 120) return `${minutes} minutes apart`;
-  if (minutes < 60 * 48) return `${Math.round(minutes / 60)} hours apart`;
-  return `${Math.round(minutes / 1440)} days apart`;
+const when = (r: FollowUpRelatedContact, first: string): string => {
+  if (!r.sameCohort) return r.cohortName ? `in ${r.cohortName}` : 'in an earlier cohort';
+  if (r.minutesApart < 10) return `at the same time as ${first}`;
+  if (r.minutesApart < 120) return `${r.minutesApart} minutes apart from ${first}`;
+  if (r.minutesApart < 60 * 48) return `${Math.round(r.minutesApart / 60)} hours apart from ${first}`;
+  return `${Math.round(r.minutesApart / 1440)} days apart from ${first}`;
 };
 
 interface Props {
@@ -19,65 +20,84 @@ interface Props {
   onHaveNumber?: () => void;
 }
 
-// Shown when a contact has no usable WhatsApp number: what to do instead, and
-// who else signed up with the same email or number (they may know how to reach them).
+const Step: React.FC<{ n: number; children: React.ReactNode }> = ({ n, children }) => (
+  <div className="flex items-start gap-3 px-3.5 py-3">
+    <span className="mt-0.5 grid h-5 w-5 flex-none place-items-center rounded-full bg-gray-200 text-[11px] font-bold text-gray-600">{n}</span>
+    <div className="min-w-0 flex-1">{children}</div>
+  </div>
+);
+
+// Shown when a contact has no usable WhatsApp number. Leads with the problem, then
+// the next steps in order: email them, ask someone who signed up with the same email
+// or number, or enter a number you have been given.
 const NoNumberHelp: React.FC<Props> = ({ contact, related, emailInstead, onEmailInstead, onHaveNumber }) => {
   const first = contact.fullName.split(' ')[0];
   const email = contact.email?.trim();
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? related : related.slice(0, 1);
+
+  if (emailInstead) {
+    return (
+      <div className="mb-3 flex items-center gap-2.5 rounded-2xl bg-gray-100 px-3.5 py-2.5">
+        <span className="h-2 w-2 flex-none rounded-full bg-amber-500" aria-hidden="true" />
+        <p className="min-w-0 flex-1 text-[13px] text-gray-700"><span className="font-semibold text-gray-900">{first}'s number isn't valid.</span> Emailing {email} instead.</p>
+      </div>
+    );
+  }
+
+  let step = 0;
   return (
-    <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900" role="alert">
-      <p className="text-[13.5px] font-bold">{first} has no working number</p>
-      <p className="mt-0.5 text-[12.5px] leading-snug text-amber-900/80">
-        {contact.phone?.trim() ? `They wrote “${contact.phone.trim()}”, which isn't a phone number.` : 'There is no number on file.'}
-        {' '}Don't paste this message into another person's chat.
-      </p>
-
-      {email && (
-        <div className="mt-2.5 rounded-xl bg-white px-3 py-2.5">
-          <p className="text-[11px] font-semibold text-gray-500">Email from their form</p>
-          <p className="truncate text-[13.5px] font-semibold text-gray-900">{email}</p>
-          {emailInstead ? (
-            <p className="mt-1 text-[12.5px] font-semibold text-emerald-700">Pick a template below and tap Open email.</p>
-          ) : onEmailInstead && (
-            <button type="button" onClick={onEmailInstead} className="mt-2 inline-flex min-h-[38px] items-center rounded-[10px] bg-sky-600 px-3.5 text-[12.5px] font-semibold text-white">
-              Email {first} instead
-            </button>
-          )}
+    <div className="mb-3" role="alert">
+      <div className="flex items-start gap-2.5 px-1 pb-2.5">
+        <span className="mt-1.5 h-2 w-2 flex-none rounded-full bg-amber-500" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-[15px] font-semibold leading-tight text-gray-900">{first}'s number isn't valid</p>
+          <p className="mt-0.5 text-[12.5px] leading-snug text-gray-500">{contact.phone?.trim() ? `They wrote “${contact.phone.trim()}”. ` : 'There is no number on file. '}A WhatsApp message can't reach them.</p>
         </div>
-      )}
+      </div>
 
-      {related.length > 0 && (
-        <div className="mt-2.5 rounded-xl bg-white px-3 py-2.5">
-          <p className="text-[11px] font-semibold text-gray-500">{related.some((r) => r.sharedBy === 'EMAIL') ? 'Signed up with the same email' : 'Signed up with the same number'}</p>
-          <ul className="mt-1 space-y-2">
-            {related.map((r) => {
-              const wa = buildWhatsAppLink(r.phone, '');
-              return (
-                <li key={r.id} className="flex items-center gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13.5px] font-semibold text-gray-900">{r.fullName}</p>
-                    <p className="text-[12px] text-gray-500">
-                      {r.phone && buildWhatsAppLink(r.phone, '') ? r.phone : 'No number'} · {ago(r.minutesApart)}{r.mine ? ' · on your list' : r.ownerName ? ` · with ${r.ownerName.split(' ')[0]}` : ''}
-                    </p>
-                  </div>
-                  {wa && (
-                    <a href={wa} target="_blank" rel="noreferrer" className="flex-none rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-700">
-                      WhatsApp {r.fullName.split(' ')[0]}
-                    </a>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          <p className="mt-1.5 text-[12px] text-gray-500">They may know {first} or how to reach them.</p>
-        </div>
-      )}
-
-      {onHaveNumber && (
-        <button type="button" onClick={onHaveNumber} className="mt-2.5 text-[12.5px] font-semibold text-amber-800 underline underline-offset-2">
-          I have their number
-        </button>
-      )}
+      <p className="px-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">What you can do</p>
+      <div className="divide-y divide-gray-200/80 overflow-hidden rounded-2xl bg-gray-100">
+        {email && onEmailInstead && (
+          <Step n={++step}>
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[13.5px] font-semibold text-gray-900">Email {first}</p>
+                <p className="truncate text-[12.5px] text-gray-500">{email}</p>
+              </div>
+              <button type="button" onClick={onEmailInstead} className="flex-none rounded-full bg-sky-600 px-3.5 py-1.5 text-[12.5px] font-semibold text-white">Email</button>
+            </div>
+          </Step>
+        )}
+        {shown.map((r) => {
+          const wa = buildWhatsAppLink(r.phone, '');
+          const rFirst = r.fullName.split(' ')[0];
+          return (
+            <Step key={r.id} n={++step}>
+              <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13.5px] font-semibold text-gray-900">Ask {r.fullName}</p>
+                  <p className="text-[12.5px] leading-snug text-gray-500">
+                    Signed up with the same {r.sharedBy === 'EMAIL' ? 'email' : 'number'} {when(r, first)}. They may know each other, so it's worth asking {rFirst}.
+                  </p>
+                  {r.phone && wa && <p className="mt-0.5 text-[12px] text-gray-400">{r.phone}{r.mine ? ' · on your list' : r.ownerName ? ` · with ${r.ownerName.split(' ')[0]}` : ''}</p>}
+                </div>
+                {wa && <a href={wa} target="_blank" rel="noreferrer" className="flex-none rounded-full bg-emerald-600 px-3.5 py-1.5 text-[12.5px] font-semibold text-white">WhatsApp</a>}
+              </div>
+            </Step>
+          );
+        })}
+        {related.length > 1 && !showAll && (
+          <div className="px-3.5 py-2.5 pl-[3.1rem]">
+            <button type="button" onClick={() => setShowAll(true)} className="text-left text-[12.5px] font-semibold text-gray-500">Show {related.length - 1} more who signed up with the same {related[1].sharedBy === 'EMAIL' ? 'email' : 'number'}</button>
+          </div>
+        )}
+        {onHaveNumber && (
+          <Step n={++step}>
+            <button type="button" onClick={onHaveNumber} className="text-left text-[13.5px] font-semibold text-sky-700">I already have their number</button>
+          </Step>
+        )}
+      </div>
     </div>
   );
 };
