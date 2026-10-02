@@ -2130,6 +2130,87 @@ window.GUIDE_CONTENT = {
      ]
     },
     {
+     "id": "practice",
+     "title": "Practice before the cohort starts",
+     "where": "Home → Practice (later: More → Practice), or the cohort name at the top right",
+     "summary": "Rehearse the app as a participant, a support or a hub role before the real cohort begins, in a safe practice group.",
+     "tasks": [
+      {
+       "id": "practice-start",
+       "popular": true,
+       "q": "How do I start practising?",
+       "keywords": [
+        "practice",
+        "practise",
+        "test",
+        "rehearse",
+        "try the app",
+        "test mode"
+       ],
+       "steps": [
+        "On **Home**, tap **Practice**. You can also pick the Practice cohort from the cohort name at the top right.",
+        "The app switches to the Practice cohort and a pop-up asks **Who do you want to practice as?**",
+        "Tap one card (nothing is chosen for you). Each card says what you will do and shows **Your group** so you know where you will land.",
+        "Tap **Start as …** at the bottom."
+       ],
+       "result": "You are placed in your own practice group and the practice checklist opens.",
+       "tips": [
+        "Every support gets their own practice group, so what you do never mixes with another support.",
+        "Once the real cohort starts, **Practice** moves from the Home shortcuts to **More**."
+       ]
+      },
+      {
+       "id": "practice-change-role",
+       "q": "How do I practise as a different role?",
+       "keywords": [
+        "change role",
+        "switch role",
+        "another role"
+       ],
+       "steps": [
+        "Open the practice banner at the top of the pop-up.",
+        "Tap **Change role**.",
+        "Pick another card and tap **Start as …**."
+       ],
+       "result": "The checklist now follows the new role."
+      },
+      {
+       "id": "practice-peer",
+       "q": "How do I practise with another support?",
+       "keywords": [
+        "peer",
+        "partner",
+        "together",
+        "pair"
+       ],
+       "steps": [
+        "Agree who will act as the participant and who will be the support.",
+        "The one acting as the participant picks the participant role; the other practises their own support role in the same group.",
+        "Swap roles and go again."
+       ],
+       "result": "Each of you sees what the other does, just like a real group.",
+       "tips": [
+        "Practice participants in your group see what you do as their support, so treat it like the real thing."
+       ]
+      },
+      {
+       "id": "practice-return",
+       "q": "How do I get back to my real cohort?",
+       "keywords": [
+        "test mode",
+        "return",
+        "exit practice",
+        "real cohort"
+       ],
+       "steps": [
+        "While practising, a bar at the top says **Test mode**.",
+        "Tap it to return to your real cohort."
+       ],
+       "result": "You are back on your real cohort and nothing from Practice appears there."
+      }
+     ]
+    },
+    {
      "id": "class-check-in",
      "title": "Class check-in",
      "where": "Pops up after each Sunday class",
