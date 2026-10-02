@@ -289,6 +289,105 @@ window.GUIDE_CONTENT = {
      ]
     },
     {
+     "id": "planner",
+     "title": "Planner",
+     "where": "Sidebar → Programme → Planner",
+     "summary": "See when each cohort runs through the year, how many weeks its classes take, and what church events get in the way.",
+     "tasks": [
+      {
+       "id": "planner-read",
+       "popular": true,
+       "q": "How do I read the Planner?",
+       "keywords": [
+        "planner",
+        "year",
+        "timeline",
+        "weeks",
+        "cohort dates",
+        "overview"
+       ],
+       "steps": [
+        "Open **Planner**. The card at the top says what is happening **Right now** and what is **Next up**.",
+        "The year view shows each cohort as a bar: grey is rest, yellow is mobilisation, orange is classes and green is the spare week. The number on each piece is its number of weeks.",
+        "Hover over a piece (or tap it on a phone) to see its exact weeks and dates, for example \"Classes 3–5 of 10 (3 weeks)\".",
+        "Scroll down for one card per cohort, with every week as a small square. The classes are numbered 1 to 10."
+       ],
+       "result": "You can see at a glance when each cohort starts and ends, and how long its classes run.",
+       "tips": [
+        "Use the arrows next to the year to look at another year. Three cohorts a year is the aim, and the page tells you how many start.",
+        "Red shading down the page is a time when FOF stops. Blue dots are public holidays, shown for information only."
+       ]
+      },
+      {
+       "id": "planner-gap",
+       "q": "What does a broken bar mean?",
+       "keywords": [
+        "gap",
+        "paused",
+        "push back",
+        "clash",
+        "church event",
+        "extension",
+        "moved"
+       ],
+       "steps": [
+        "When a church event that stops FOF lands on a class Sunday, a red **!** appears on that class and a red box appears at the top of the page.",
+        "Tap it to see **What moves**, then tap **Push back** to move that class and every later one a week.",
+        "The bar then breaks: a dashed red gap shows the paused week with the event's name, and the classes carry on after it.",
+        "Striped weeks at the end are weeks added past the usual end. The cohort's card says where it now ends."
+       ],
+       "result": "The classes, reminders and the participant app all update by themselves.",
+       "tips": [
+        "The first push-back uses the cohort's spare week, so the end date does not change. A second one moves the end date.",
+        "The last change appears under **Recent changes**, where you can **Undo** it."
+       ]
+      },
+      {
+       "id": "planner-start",
+       "q": "How do I add a cohort or change when it starts?",
+       "keywords": [
+        "add cohort",
+        "start date",
+        "first class",
+        "plan cohort",
+        "move cohort"
+       ],
+       "steps": [
+        "Tap **Add cohort** to plan the next cohort that is not created yet, or tap **Dates** on any cohort's card.",
+        "Pick the **First class** date. It must be a Sunday.",
+        "Check the rest, mobilisation, classes and spare week dates that it makes, then tap **Save start date**."
+       ],
+       "result": "Later planned cohorts follow on automatically.",
+       "tips": [
+        "Planned cohorts are only kept on the Planner. Create the real cohort on the **Cohorts** page when it is time.",
+        "A cohort that has already started can't be moved this way. Use **Edit each class date…** to move the classes still to come."
+       ]
+      },
+      {
+       "id": "planner-events",
+       "q": "How do I add a church event?",
+       "keywords": [
+        "church event",
+        "anniversary",
+        "stops fof",
+        "holiday",
+        "test cohort",
+        "practice"
+       ],
+       "steps": [
+        "Tap **Add event**, then type the name and pick the dates.",
+        "Switch on **Stops FOF** if no class can hold on those Sundays. Leave it off if FOF still runs.",
+        "Save. The page warns you straight away if it falls on a class."
+       ],
+       "result": "The event shows on the timeline, and the Planner flags any class it lands on.",
+       "tips": [
+        "The Practice and demo cohorts are hidden. Open the ⋮ menu and choose **Show test cohorts** if you want to see them.",
+        "The ⋮ menu also has **Refresh public holidays**."
+       ]
+      }
+     ]
+    },
+    {
      "id": "approvals",
      "title": "Approvals",
      "where": "Sidebar → Programme → Schedule → Approvals tab",
@@ -1494,6 +1593,7 @@ window.GUIDE_CONTENT = {
        "steps": [
         "Open **Birthdays**.",
         "Use the **Supports** and **Participants** tabs, and the cohort box to look at one cohort or all of them.",
+        "Type a name in the search box, or pick a month, to narrow the list.",
         "Each person shows \"Birthday is on the 19th\" and how many days away it is, nearest first."
        ],
        "result": "You can see who is celebrating this week, in the next 30 days and later.",
@@ -3496,6 +3596,7 @@ window.GUIDE_CONTENT = {
         "Open **More** → **Profile**.",
         "Tap **Add a profile photo** (or the camera on your picture) and choose a photo.",
         "Pick your **Gender** and **Age range**. They save straight away.",
+        "Optional: pick the day and month of your **Birthday** so admins can celebrate you. Only the day and month are saved; tap × to remove it.",
         "Tap **Add number**, type your WhatsApp number (like 08012345678) and save."
        ],
        "result": "The bar at the top fills up as your profile gets closer to complete.",
