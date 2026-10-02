@@ -34,6 +34,8 @@ import { sortByText } from '../utils/sort';
 import { getHubPhase } from '../utils/hubPhase';
 import { usePracticePulse } from '../hooks/usePracticePulse';
 import PracticeIncoming from './practice/PracticeIncoming';
+import { OPEN_PRACTICE_EVENT, OPEN_PRACTICE_FLAG } from './practice/PracticeDock';
+import { PracticeEntryProvider } from '../context/PracticeEntryContext';
 import { practiceApi } from '../services/api';
 import { PRACTICE_ROLE_LABEL } from '../constants/practiceScenarios';
 
@@ -49,6 +51,8 @@ type NavItem = {
   hubOnly?: boolean;
   /** Hidden for a support whose kind in the active cohort is hub-only (no participant group). */
   hiddenForHubOnly?: boolean;
+  /** Only shown while Practice is switched on for this support. */
+  practiceOnly?: boolean;
 };
 
 type NavGroup = {
@@ -178,6 +182,7 @@ const supportNav: NavItem[] = [
   { to: '/support/attendance', label: 'Attendance', icon: ICONS.attendance, mobileMore: true },
   { to: '/support/onboarding', label: 'Onboard', icon: ICONS.onboarding, mobileMore: true },
   { to: '/support/community', label: 'Community', icon: ICONS.hub, mobileMore: true },
+  { to: '/support/practice', label: 'Practice', icon: ICONS.practice, mobileMore: true, practiceOnly: true },
   { to: '/support/resources', label: 'Resources', icon: ICONS.resources, mobileMore: true },
   { to: '/support/profile', label: 'Profile', icon: ICONS.profile, mobileMore: true },
 ];
@@ -340,6 +345,20 @@ const AppShell: React.FC = () => {
   // walkthrough requests show up by themselves with no reload.
   const { pulse: practicePulse, refresh: refreshPracticePulse } = usePracticePulse(isSupport, () => { void refreshUserCohorts(); }, !!activeCohort?.isPractice);
   const practiceOn = !!practicePulse?.member && !!practicePulse.on;
+  // Before a real cohort starts, Practice takes the Resources spot in the quick actions; once one
+  // has started it moves under More. Either way it switches to the Practice cohort and opens the pop-up.
+  const realCohortStarted = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return cohorts.some((c) => !c.isPractice && c.status !== 'COMPLETED' && !!c.startDate && c.startDate.slice(0, 10) <= today);
+  }, [cohorts]);
+  const openPractice = React.useCallback(async () => {
+    const practiceCohort = cohorts.find((c) => c.isPractice);
+    if (!practiceCohort) return;
+    try { sessionStorage.setItem(OPEN_PRACTICE_FLAG, '1'); } catch { /* ignore */ }
+    if (activeCohort?.id !== practiceCohort.id) await setActiveCohort(practiceCohort.id);
+    else window.dispatchEvent(new Event(OPEN_PRACTICE_EVENT));
+  }, [cohorts, activeCohort?.id, setActiveCohort]);
+  const practiceEntry = useMemo(() => ({ on: practiceOn, started: realCohortStarted, open: openPractice }), [practiceOn, realCohortStarted, openPractice]);
   // First time a support opens the app after getting a hub job: welcome them
   // to it (once per job, remembered on the server), with a link to the guide.
   const [introDoneJobs, setIntroDoneJobs] = useState<HubJob[]>([]);
@@ -413,10 +432,10 @@ const AppShell: React.FC = () => {
   const isHubOnlySupport = isSupport && (supportKind === 'HUB_LEAD' || supportKind === 'OPERATIONAL');
   const canShowForKind = (item: NavItem) => !(item.hiddenForHubOnly && isHubOnlySupport);
   const navItems = useMemo(() => {
-    if (isSupport) return supportNav.filter((item) => (!item.hubOnly || !!myHub?.hub) && canShowForKind(item));
+    if (isSupport) return supportNav.filter((item) => (!item.hubOnly || !!myHub?.hub) && canShowForKind(item) && (!item.practiceOnly || practiceOn));
     return adminNav.filter((item) => canShowNavItem(item, isAdmin));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, isSupport, myHub?.hub, isHubOnlySupport]);
+  }, [isAdmin, isSupport, myHub?.hub, isHubOnlySupport, practiceOn]);
   const navGroups = useMemo(() => {
     if (isSupport) return [];
     return adminNavGroups
@@ -434,15 +453,15 @@ const AppShell: React.FC = () => {
     }));
   };
   const mobileNavItems = useMemo(() => {
-    if (isSupport) return supportNav.filter((item) => !item.mobileHidden && !isMobileMoreItem(item) && (!item.hubOnly || !!myHub?.hub) && canShowForKind(item));
+    if (isSupport) return supportNav.filter((item) => !item.mobileHidden && !isMobileMoreItem(item) && (!item.hubOnly || !!myHub?.hub) && canShowForKind(item) && (!item.practiceOnly || practiceOn));
     const mobileAdminRoutes = new Set(['/dashboard', '/schedule', '/participants', '/supports', '/community']);
     return navItems.filter((item) => mobileAdminRoutes.has(item.to));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSupport, navItems, myHub?.hub, hubPhase, isHubOnlySupport]);
+  }, [isSupport, navItems, myHub?.hub, hubPhase, isHubOnlySupport, practiceOn]);
   const mobileMoreItems = useMemo(
-    () => (isSupport ? supportNav.filter((item) => isMobileMoreItem(item) && (!item.hubOnly || !!myHub?.hub) && canShowForKind(item)) : []),
+    () => (isSupport ? supportNav.filter((item) => isMobileMoreItem(item) && (!item.hubOnly || !!myHub?.hub) && canShowForKind(item) && (!item.practiceOnly || practiceOn)) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isSupport, myHub?.hub, hubPhase, isHubOnlySupport]
+    [isSupport, myHub?.hub, hubPhase, isHubOnlySupport, practiceOn]
   );
   const moreActive = mobileMoreItems.some((item) => isNavActive(location.pathname, item.to));
 
@@ -816,7 +835,7 @@ const AppShell: React.FC = () => {
               <SectionTabs pathname={location.pathname} isAdmin={isAdmin} pendingApprovals={globalPendingChanges.length} />
             )}
             {/* A seat switch in Practice remounts the page so it loads the new group and hub. */}
-            <React.Fragment key={workspaceRevision}><Outlet /></React.Fragment>
+            <PracticeEntryProvider value={practiceEntry}><React.Fragment key={workspaceRevision}><Outlet /></React.Fragment></PracticeEntryProvider>
           </ErrorBoundary>
         </main>
 

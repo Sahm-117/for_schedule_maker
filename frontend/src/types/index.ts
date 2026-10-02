@@ -1695,6 +1695,10 @@ export interface PracticeMyProgress {
   /** Staff: their practice role (null when not in Practice). Participants: unused. */
   role: PracticeRole | null;
   practice?: boolean;
+  /** Staff: the practice group and hub they sit in, and the practice participants in that group. */
+  groupName?: string | null;
+  hubName?: string | null;
+  groupParticipants?: string[];
   items: PracticeProgressItem[];
 }
 

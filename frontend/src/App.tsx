@@ -63,6 +63,7 @@ const SupportParticipantsPage = lazy(() => import('./pages/SupportParticipantsPa
 const SupportHomePage = lazy(() => import('./pages/SupportHomePage'));
 const SupportSchedulePage = lazy(() => import('./pages/SupportSchedulePage'));
 const SupportResourcesPage = lazy(() => import('./pages/SupportResourcesPage'));
+const SupportPracticeEntryPage = lazy(() => import('./pages/SupportPracticeEntryPage'));
 const SupportProfilePage = lazy(() => import('./pages/SupportProfilePage'));
 const AdminOnboardingPage = lazy(() => import('./pages/AdminOnboardingPage'));
 const SupportOnboardingPage = lazy(() => import('./pages/SupportOnboardingPage'));
@@ -162,6 +163,7 @@ function App() {
             <Route path="/support/recap" element={<Suspense fallback={<RouteFallback />}><SupportRecapPage /></Suspense>} />
             <Route path="/support" element={<Suspense fallback={<RouteFallback />}><SupportHomePage /></Suspense>} />
             <Route path="/support/schedule" element={<Suspense fallback={<RouteFallback />}><SupportSchedulePage /></Suspense>} />
+            <Route path="/support/practice" element={<Suspense fallback={<RouteFallback />}><SupportPracticeEntryPage /></Suspense>} />
             <Route path="/support/resources" element={<Suspense fallback={<RouteFallback />}><SupportResourcesPage /></Suspense>} />
             <Route path="/support/announcements" element={<Suspense fallback={<RouteFallback />}><AnnouncementsFeedPage /></Suspense>} />
             <Route path="/support/profile" element={<Suspense fallback={<RouteFallback />}><SupportProfilePage /></Suspense>} />

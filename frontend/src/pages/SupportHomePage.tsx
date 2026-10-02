@@ -3,6 +3,7 @@ import { Navigate, NavLink } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import ActivityText from '../components/ActivityText';
 import { useAuth } from '../hooks/useAuth';
+import { usePracticeEntry } from '../context/PracticeEntryContext';
 import { useAppData } from '../context/AppDataContext';
 import { announcementsApi, faithProjectsApi, groupsApi, meetingAttendanceApi, myHubApi, participantCheckInsApi, participantsApi, resourcesApi, supportActivityCompletionsApi, supportChecklistApi, supportKindApi, supportRecapsApi } from '../services/api';
 import type { Announcement, FaithProject, Group, HubJob, MyHubPayload, Participant, ParticipantCheckIn, SupportActivityCompletion, SupportChecklistItem, SupportKind, User } from '../types';
@@ -66,6 +67,7 @@ const SupportHomePage: React.FC = () => {
 };
 
 const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
+  const practiceEntry = usePracticeEntry();
   const { userLabelIds, userCohortIds } = useAuth();
   const { activeCohort, selectedWeek, weeks, newResourceCount, liveRevision, myHub } = useAppData();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -551,7 +553,11 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
               />
             )}
             <QuickLink to="/support/schedule?tab=checklist" label="My Tasks" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 11l3 3L22 4M2 12a10 10 0 1 0 5-8.66" />} />
-            <QuickLink to="/support/resources" label="Resources" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Zm0 17A2.5 2.5 0 0 1 6.5 19H20" />} />
+            {practiceEntry.on && !practiceEntry.started ? (
+              <QuickLink to="/support/practice" label="Practice" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 5a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm0 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z" />} />
+            ) : (
+              <QuickLink to="/support/resources" label="Resources" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5v-17Zm0 17A2.5 2.5 0 0 1 6.5 19H20" />} />
+            )}
             <QuickLink to="/support/recap" label="Classes" icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M7 3h7l5 5v13H7zM14 3v5h5M9 13h6M9 17h6" />} />
           </div>
 
