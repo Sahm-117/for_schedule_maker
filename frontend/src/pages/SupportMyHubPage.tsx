@@ -8,6 +8,7 @@ import SaveStatus, { type SaveState } from '../components/SaveStatus';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { formatMeetingSlot } from '../components/groups/GroupCallCard';
+import JoinCallButton from '../components/JoinCallButton';
 import LeadsMeetingTab from '../components/hubs/LeadsMeetingTab';
 import Avatar from '../components/Avatar';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
@@ -510,7 +511,7 @@ const SupportMyHubPage: React.FC = () => {
                 </p>
                 {(callHref || (!isLead && leadWhatsAppLink)) && (
                   <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
-                    {callHref && <a href={callHref} target="_blank" rel="noreferrer" className={PRIMARY}>Join the call</a>}
+                    {callHref && <JoinCallButton href={callHref} day={hub.meetingDay} time={hub.meetingTime} durationMins={hub.meetingDurationMins} live={!!myHub.meetingLive} className={PRIMARY} />}
                     {!isLead && leadWhatsAppLink && <a href={leadWhatsAppLink} target="_blank" rel="noreferrer" className={callHref ? SECONDARY : PRIMARY}>Message {hub.leadName?.split(' ')[0] || 'the lead'}</a>}
                   </div>
                 )}

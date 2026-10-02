@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Spinner from '../Spinner';
 import { formatMeetingSlot } from '../groups/GroupCallCard';
+import JoinCallButton from '../JoinCallButton';
 import { myHubApi } from '../../services/api';
 import { normalizeLink } from '../../utils/links';
 import { nextOccurrences } from '../../utils/meetingDates';
@@ -41,7 +42,7 @@ const LeadsMeetingTab: React.FC<{ cohortId: string }> = ({ cohortId }) => {
         </p>
         {href && (
           <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
-            <a href={href} target="_blank" rel="noreferrer" className={PRIMARY}>Join the call</a>
+            <JoinCallButton href={href} day={meeting.meetingDay} time={meeting.meetingTime} durationMins={meeting.meetingDurationMins} className={PRIMARY} />
           </div>
         )}
         <p className="mt-5 rounded-2xl bg-[#f5f5f7] px-4 py-3 text-[13px] text-gray-500">

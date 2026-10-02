@@ -5,6 +5,7 @@ import { groupsApi } from '../../services/api';
 import type { Group, GroupCallPlatform } from '../../types';
 import { normalizeLink } from '../../utils/links';
 import Spinner from '../Spinner';
+import JoinCallButton from '../JoinCallButton';
 
 const platformFromLink = (link: string | null | undefined): GroupCallPlatform | null => {
   if (!link?.trim()) return null;
@@ -59,6 +60,8 @@ export interface MeetingCallCardProps {
   onSave?: (input: MeetingSaveInput) => Promise<void>;
   // Admin-set meetings (hubs, Hub Leads): any day, any time, any length.
   anySlot?: boolean;
+  // The meeting is marked live: the call is open whatever the clock says.
+  live?: boolean;
 }
 
 // Recurring call + meeting slot editor/display, shared by a group's own call
@@ -75,6 +78,7 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
   saveLabel = 'Save meeting',
   onSave,
   anySlot = false,
+  live = false,
 }) => {
   const callLink = savedCallLink?.trim() || fallbackLink?.trim() || null;
   const hasSetup = !!callLink && !!slot.meetingDay && !!slot.meetingTime;
@@ -182,14 +186,15 @@ export const MeetingCallCard: React.FC<MeetingCallCardProps> = ({
             {slot.meetingDurationMins && <p className="mt-0.5 text-xs text-gray-500">{slot.meetingDurationMins} min</p>}
           </div>
           <div className="flex flex-none items-center gap-2">
-            <a
+            <JoinCallButton
               href={normalizeLink(callLink) || '#'}
-              target="_blank"
-              rel="noreferrer"
+              day={slot.meetingDay}
+              time={slot.meetingTime}
+              durationMins={slot.meetingDurationMins}
+              live={live}
+              label="Join Call"
               className="inline-flex h-11 min-h-11 shrink-0 items-center justify-center rounded-[10px] bg-primary px-3.5 py-0 text-sm font-semibold leading-none text-white"
-            >
-              Join Call
-            </a>
+            />
             {canEdit && (
               <button
                 type="button"

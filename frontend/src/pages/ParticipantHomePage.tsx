@@ -18,6 +18,7 @@ import { useParticipantPush } from '../hooks/useParticipantPush';
 import { buildWhatsAppLink } from '../utils/phone';
 import PendingSurveyCards from '../components/surveys/PendingSurveyCards';
 import { normalizeLink } from '../utils/links';
+import { JOIN_LEAD_MINUTES, isCallJoinable } from '../utils/joinWindow';
 import {
   FAITH_PROJECT_PARTICIPANT_LABEL,
   currentWeekNumber,
@@ -154,11 +155,11 @@ const ParticipantHomePage: React.FC = () => {
   const groupCallLink = normalizeLink(group?.callLink?.trim() || '') || null;
   const supportWaLink = buildWhatsAppLink(group?.supportPhone, `Hi ${(group?.supportName || 'there').split(' ')[0]}, it's ${home.participant.name.split(' ')[0]} from FOF.`);
 
-  const quickTiles: Array<{ key: string; label: string; icon: string; to?: string; href?: string; disabled?: boolean; avatarName?: string; avatarUrl?: string | null }> = [
+  const quickTiles: Array<{ key: string; label: string; icon: string; to?: string; href?: string; disabled?: boolean; hint?: string; avatarName?: string; avatarUrl?: string | null }> = [
     // Nothing to join until the support shares the group's call link.
-    groupCallLink
+    groupCallLink && (!callSet || isCallJoinable(group?.meetingDay, group?.meetingTime, group?.meetingDurationMins, now, !!home.groupMeetingLive))
       ? { key: 'call', label: 'Join call', icon: ICON_CALL, href: groupCallLink }
-      : { key: 'call', label: 'Join call', icon: ICON_CALL, disabled: true },
+      : { key: 'call', label: 'Join call', icon: ICON_CALL, disabled: true, hint: groupCallLink ? `Opens ${JOIN_LEAD_MINUTES} min before` : undefined },
     supportWaLink
       ? { key: 'message-support', label: 'Message support', icon: ICON_MESSAGE, href: supportWaLink, avatarName: group?.supportName ?? 'Support', avatarUrl: group?.supportAvatarUrl }
       : { key: 'message-support', label: 'Message support', icon: ICON_MESSAGE, to: '/me/group', avatarName: group?.supportName ?? 'Support', avatarUrl: group?.supportAvatarUrl },
@@ -452,6 +453,7 @@ const ParticipantHomePage: React.FC = () => {
                   </span>
                 )}
                 <span className="text-center text-[13px] font-semibold leading-snug text-gray-800">{tile.label}</span>
+                {tile.hint && <span className="-mt-1.5 text-center text-[11px] leading-tight text-gray-500">{tile.hint}</span>}
               </>
             );
             if (tile.disabled) {
