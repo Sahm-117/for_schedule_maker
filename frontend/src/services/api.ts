@@ -77,6 +77,7 @@ import {
   participantPushApi as supabaseParticipantPushApi,
   feedbackApi as supabaseFeedbackApi,
   surveyApi as supabaseSurveyApi,
+  followUpRelatedApi as supabaseFollowUpRelatedApi,
   aiApi as supabaseAiApi,
   profileFieldsApi as supabaseProfileFieldsApi,
   reflectionActivityApi as supabaseReflectionActivityApi,
@@ -1051,6 +1052,7 @@ export const feedbackApi = USE_SUPABASE ? supabaseFeedbackApi : {
 };
 
 export const surveyApi = supabaseSurveyApi;
+export const followUpRelatedApi = supabaseFollowUpRelatedApi;
 
 export const participantPushApi = USE_SUPABASE ? supabaseParticipantPushApi : {
   async notify(_participantIds: string[], _title: string, _body: string, _path: string): Promise<void> { return; },

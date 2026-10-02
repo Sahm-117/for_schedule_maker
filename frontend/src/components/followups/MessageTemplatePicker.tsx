@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import type { FollowUpContact, FollowUpRelatedContact, MessageTemplate } from '../../types';
+import type { FollowUpContact, MessageTemplate } from '../../types';
 import ModalShell from './ModalShell';
 import { fillTemplate } from '../../utils/followUps';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../../utils/phone';
@@ -22,8 +22,6 @@ interface MessageTemplatePickerProps {
   channel?: 'whatsapp' | 'email';
   /** Opens the edit form for a supporter who has got the number from someone else. */
   onHaveNumber?: (contact: FollowUpContact) => void;
-  /** Other sign-ups that used the same email or number. */
-  related?: FollowUpRelatedContact[];
 }
 
 // Subject line for follow-up emails opened from a template.
@@ -39,7 +37,6 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
   onMessageSent,
   channel = 'whatsapp',
   onHaveNumber,
-  related = [],
 }) => {
   const [selectedId, setSelectedId] = useState('');
   const [marking, setMarking] = useState(false);
@@ -145,7 +142,6 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
       ) : !numberOk ? (
         <NoNumberHelp
           contact={contact}
-          related={related}
           emailInstead={emailInstead}
           onEmailInstead={() => { setEmailInstead(true); setSelectedId(''); }}
           onHaveNumber={onHaveNumber ? () => { setSelectedId(''); setEmailInstead(false); onHaveNumber(contact); } : undefined}

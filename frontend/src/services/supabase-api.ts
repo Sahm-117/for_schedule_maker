@@ -7949,6 +7949,15 @@ export const feedbackApi = {
   },
 };
 
+// Other sign-ups that used the same email as a follow-up contact (for contacts with no working number).
+export const followUpRelatedApi = {
+  async forContact(contactId: string): Promise<import('../types').FollowUpRelatedContact[]> {
+    const { data, error } = await supabase.rpc('followup_related_contacts', { p_token: getSessionToken(), p_contact_id: contactId });
+    if (error) return [];
+    return (data as import('../types').FollowUpRelatedContact[]) ?? [];
+  },
+};
+
 // Surveys: admins build them, participants and supports answer them. Everything
 // goes through database functions that check who is asking.
 const SURVEY_ERRORS: Record<string, string> = {

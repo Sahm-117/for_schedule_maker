@@ -335,7 +335,7 @@ const LandingPage: React.FC = () => {
           </nav>
           <Link to="/login" className="nav-login">Member portal</Link>
           <button type="button" className="nav-burger" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
-            <span /><span /><span />
+            <span /><span />
           </button>
         </div>
         {menuOpen && (

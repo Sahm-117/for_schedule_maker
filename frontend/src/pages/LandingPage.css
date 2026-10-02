@@ -396,3 +396,52 @@
   .fof-landing .hero-ctas .btn{justify-content:center}
   .fof-landing .lesson-title{font-size:30px}
 }
+
+
+/* -----------------------------------------------------------------------
+ * Nav: exactly as on tcnikorodu.org. Transparent over the hero with cream
+ * links; once scrolled, a white 92% bar with a 14px blur and dark links.
+ * The Member portal button is a white pill with an orange outline that fills
+ * orange on hover, and on tap for touch screens.
+ * --------------------------------------------------------------------- */
+.fof-landing .nav{position:fixed;padding:24px 0;background:transparent;transition:background .3s,backdrop-filter .3s,-webkit-backdrop-filter .3s,padding .3s}
+.fof-landing .nav.is-scrolled{padding:12px 0;background:rgba(255,255,255,.92);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.fof-landing .nav.is-hidden{transform:none}
+.fof-landing .nav-in,.fof-landing .nav.is-scrolled .nav-in{max-width:none;height:auto;padding:0 6vw;border-radius:0;border-color:transparent;background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none}
+.fof-landing .brand{gap:8px}
+.fof-landing .brand img{width:auto;height:48px;transition:height .3s}
+.fof-landing .nav.is-scrolled .brand img{height:38px}
+.fof-landing .brand span{font-size:20px !important;font-weight:600 !important;letter-spacing:normal !important;color:#fff;transition:color .3s}
+.fof-landing .nav.is-scrolled .brand span{color:#344054}
+.fof-landing .nav-links{gap:0;margin-left:auto;margin-right:24px}
+.fof-landing .nav-link{padding:8px;margin:0 8px;border-radius:0;font-size:14px;font-weight:500;letter-spacing:.84px;text-transform:uppercase;color:rgba(255,247,237,.9);background:none;transition:color .3s}
+.fof-landing .nav-link:hover{background:none;color:rgba(255,247,237,.9)}
+.fof-landing .nav.is-scrolled .nav-link,.fof-landing .nav.is-scrolled .nav-link:hover{color:#344054}
+.fof-landing .nav-login{height:auto;padding:12px 24px;border-radius:999px;background:#fff;color:#f97316;border:1px solid #f97316;font-size:14px;font-weight:600;letter-spacing:.56px;text-transform:uppercase;transition:transform .3s,background .3s,color .3s,border-color .3s;-webkit-tap-highlight-color:transparent}
+.fof-landing .nav-login:hover,.fof-landing .nav-login:active,.fof-landing .nav-login:focus-visible{background:#f97316;color:#fff;border-color:#f97316}
+.fof-landing .nav-burger{width:48px;height:48px;margin:0 -12px 0 8px;gap:8px}
+.fof-landing .nav-burger span{width:24px;height:2px;border-radius:0;background:#f97316}
+.fof-landing .nav-panel{padding:8px 6vw 20px;background:rgba(10,10,10,.94)}
+.fof-landing .nav.is-scrolled .nav-panel{background:rgba(255,255,255,.96)}
+.fof-landing .nav-panel-link{color:#fff7ed;border-bottom-color:rgba(255,247,237,.14)}
+.fof-landing .nav.is-scrolled .nav-panel-link{color:#344054;border-bottom-color:rgba(52,64,84,.14)}
+.fof-landing .nav-panel-login{margin-top:14px;padding:12px 24px;border:1px solid #f97316;background:#fff;color:#f97316;font-weight:600;letter-spacing:.56px}
+.fof-landing .nav-panel-login:hover,.fof-landing .nav-panel-login:active{background:#f97316;color:#fff}
+@media (max-width:900px){
+  .fof-landing .nav-in{height:auto}
+  .fof-landing .nav-links{display:none}
+  .fof-landing .nav-login{display:none}
+  .fof-landing .nav-burger{display:flex}
+}
+
+/* The About paragraph: every word is black. Words start faint and become black as
+   the visitor scrolls (the highlight); nothing stays grey. */
+.fof-landing .wd,.fof-landing .wd.is-strong{color:#000}
+.fof-landing .wd.is-strong{font-weight:inherit}
+.fof-landing .brand span{white-space:nowrap}
+@media (max-width:640px){
+  .fof-landing .brand span{font-size:18px !important}
+  .fof-landing .brand img{height:42px}
+}
+.fof-landing .nav.is-scrolled .nav-panel-login{color:#f97316;border-bottom-color:#f97316}
+.fof-landing .nav.is-scrolled .nav-panel-login:hover,.fof-landing .nav.is-scrolled .nav-panel-login:active{color:#fff;background:#f97316}

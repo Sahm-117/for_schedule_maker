@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { FollowUpContact, FollowUpRelatedContact } from '../../types';
 import { buildWhatsAppLink } from '../../utils/phone';
+import { useRelatedContacts } from '../../hooks/useRelatedContacts';
 
 const when = (r: FollowUpRelatedContact, first: string): string => {
   if (!r.sameCohort) return r.cohortName ? `in ${r.cohortName}` : 'in an earlier cohort';
@@ -12,7 +13,10 @@ const when = (r: FollowUpRelatedContact, first: string): string => {
 
 interface Props {
   contact: FollowUpContact;
-  related: FollowUpRelatedContact[];
+  /** Supplied by tests and mock-ups; otherwise looked up for the contact. */
+  related?: FollowUpRelatedContact[];
+  /** Leave out the heading when the panel already sits under one. */
+  hideHeader?: boolean;
   /** True once the supporter has chosen to carry on by email. */
   emailInstead?: boolean;
   onEmailInstead?: () => void;
@@ -30,7 +34,9 @@ const Step: React.FC<{ n: number; children: React.ReactNode }> = ({ n, children 
 // Shown when a contact has no usable WhatsApp number. Leads with the problem, then
 // the next steps in order: email them, ask someone who signed up with the same email
 // or number, or enter a number you have been given.
-const NoNumberHelp: React.FC<Props> = ({ contact, related, emailInstead, onEmailInstead, onHaveNumber }) => {
+const NoNumberHelp: React.FC<Props> = ({ contact, related: relatedProp, hideHeader, emailInstead, onEmailInstead, onHaveNumber }) => {
+  const looked = useRelatedContacts(contact.id, relatedProp === undefined);
+  const related = relatedProp ?? looked;
   const first = contact.fullName.split(' ')[0];
   const email = contact.email?.trim();
   const [showAll, setShowAll] = useState(false);
@@ -48,13 +54,15 @@ const NoNumberHelp: React.FC<Props> = ({ contact, related, emailInstead, onEmail
   let step = 0;
   return (
     <div className="mb-3" role="alert">
-      <div className="flex items-start gap-2.5 px-1 pb-2.5">
-        <span className="mt-1.5 h-2 w-2 flex-none rounded-full bg-amber-500" aria-hidden="true" />
-        <div className="min-w-0">
-          <p className="text-[15px] font-semibold leading-tight text-gray-900">{first}'s number isn't valid</p>
-          <p className="mt-0.5 text-[12.5px] leading-snug text-gray-500">{contact.phone?.trim() ? `They wrote “${contact.phone.trim()}”. ` : 'There is no number on file. '}A WhatsApp message can't reach them.</p>
+      {!hideHeader && (
+        <div className="flex items-start gap-2.5 px-1 pb-2.5">
+          <span className="mt-1.5 h-2 w-2 flex-none rounded-full bg-amber-500" aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="text-[15px] font-semibold leading-tight text-gray-900">{first}'s number isn't valid</p>
+            <p className="mt-0.5 text-[12.5px] leading-snug text-gray-500">{contact.phone?.trim() ? `They wrote “${contact.phone.trim()}”. ` : 'There is no number on file. '}A WhatsApp message can't reach them.</p>
+          </div>
         </div>
-      </div>
+      )}
 
       <p className="px-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">What you can do</p>
       <div className="divide-y divide-gray-200/80 overflow-hidden rounded-2xl bg-gray-100">

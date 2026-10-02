@@ -10,6 +10,7 @@ import ModalShell from '../components/followups/ModalShell';
 import FollowUpContactModal from '../components/followups/FollowUpContactModal';
 import FollowUpIssuesPanel from '../components/followups/FollowUpIssuesPanel';
 import MessageTemplatePicker from '../components/followups/MessageTemplatePicker';
+import NoNumberHelp from '../components/followups/NoNumberHelp';
 import NotInterestedPopup from '../components/followups/NotInterestedPopup';
 import LoginIssuePopup from '../components/followups/LoginIssuePopup';
 import FollowUpStatusFlow from '../components/followups/FollowUpStatusFlow';
@@ -967,21 +968,15 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       </button>
                       {helpOpen && (
                         <div className="px-3 pb-3">
-                          <p className="text-[12.5px] leading-normal text-amber-900/80">
-                            {contact.phone?.trim() ? `They wrote “${contact.phone.trim()}” as their WhatsApp number, which isn't a phone number.` : 'They have no phone number on file.'}
+                          <p className="mb-2.5 text-[12.5px] leading-snug text-amber-900/80">
+                            {contact.phone?.trim() ? `They wrote “${contact.phone.trim()}”, which isn't a phone number.` : 'They have no phone number on file.'}
                           </p>
-                          {contact.email?.trim() && (
-                            <div className="mt-2.5 flex items-center gap-2 rounded-[10px] bg-white px-3 py-2.5">
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[11px] font-semibold text-gray-500">Email (from form)</p>
-                                <p className="truncate text-[13.5px] font-semibold text-gray-900">{contact.email.trim()}</p>
-                              </div>
-                              <button type="button" onClick={() => { void sendEmail(contact); }} className="flex-none rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-700">Email</button>
-                            </div>
-                          )}
-                          <button type="button" onClick={() => setEditingContact(contact)} className="mt-2.5 flex min-h-[38px] w-full items-center justify-center rounded-[10px] border border-amber-200 bg-white text-[12.5px] font-semibold text-amber-800">
-                            Add a working number
-                          </button>
+                          <NoNumberHelp
+                            contact={contact}
+                            hideHeader
+                            onEmailInstead={() => { void sendEmail(contact); }}
+                            onHaveNumber={() => setEditingContact(contact)}
+                          />
                         </div>
                       )}
                     </div>
