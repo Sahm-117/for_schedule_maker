@@ -117,6 +117,7 @@ const adminNav: NavItem[] = [
   { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
   { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
   { to: '/feedback', label: 'Feedback', icon: ICONS.feedback, adminOnly: true },
+  { to: '/surveys', label: 'Surveys', icon: ICONS.feedback, adminOnly: true },
   { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
   { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
   { to: '/notifications', label: 'Notifications', icon: ICONS.bell, adminOnly: true },
@@ -156,6 +157,7 @@ const adminNavGroups: NavGroup[] = [
     items: [
       { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
       { to: '/feedback', label: 'Feedback', icon: ICONS.feedback, adminOnly: true },
+      { to: '/surveys', label: 'Surveys', icon: ICONS.feedback, adminOnly: true },
       { to: '/community', label: 'Community', icon: ICONS.hub },
     ],
   },

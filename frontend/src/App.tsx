@@ -31,6 +31,10 @@ const ParticipantProfilePage = lazy(() => import('./pages/ParticipantProfilePage
 const ParticipantFeedbackPage = lazy(() => import('./pages/ParticipantFeedbackPage'));
 const ParticipantCompletePage = lazy(() => import('./pages/ParticipantCompletePage'));
 const AdminFeedbackPage = lazy(() => import('./pages/AdminFeedbackPage'));
+const AdminSurveysPage = lazy(() => import('./pages/AdminSurveysPage'));
+const AdminSurveyResultsPage = lazy(() => import('./pages/AdminSurveyResultsPage'));
+const ParticipantSurveyPage = lazy(() => import('./pages/ParticipantSurveyPage'));
+const SupportSurveyPage = lazy(() => import('./pages/SupportSurveyPage'));
 const AdminSchedulePage = lazy(() => import('./pages/AdminSchedulePage'));
 const AdminApprovalsPage = lazy(() => import('./pages/AdminApprovalsPage'));
 const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage'));
@@ -110,6 +114,7 @@ function App() {
             <Route path="/me/people" element={<Suspense fallback={<RouteFallback />}><ParticipantPeoplePage /></Suspense>} />
             <Route path="/me/profile" element={<Suspense fallback={<RouteFallback />}><ParticipantProfilePage /></Suspense>} />
             <Route path="/me/feedback" element={<Suspense fallback={<RouteFallback />}><ParticipantFeedbackPage /></Suspense>} />
+            <Route path="/me/survey/:id" element={<Suspense fallback={<RouteFallback />}><ParticipantSurveyPage /></Suspense>} />
             <Route path="/me/complete" element={<Suspense fallback={<RouteFallback />}><ParticipantCompletePage /></Suspense>} />
           </Route>
           <Route path="/me/welcome" element={<ErrorBoundary><ProtectedRoute audience="participant"><Suspense fallback={<RouteFallback />}><ParticipantWelcomePage /></Suspense></ProtectedRoute></ErrorBoundary>} />
@@ -154,6 +159,8 @@ function App() {
             <Route path="/faith-projects" element={<Suspense fallback={<RouteFallback />}><AdminFaithProjectsPage /></Suspense>} />
             <Route path="/group-prayers" element={<Suspense fallback={<RouteFallback />}><AdminGroupPrayersPage /></Suspense>} />
             <Route path="/onboarding" element={<Suspense fallback={<RouteFallback />}><AdminOnboardingPage /></Suspense>} />
+            <Route path="/surveys" element={<Suspense fallback={<RouteFallback />}><AdminSurveysPage /></Suspense>} />
+            <Route path="/surveys/:id" element={<Suspense fallback={<RouteFallback />}><AdminSurveyResultsPage /></Suspense>} />
             <Route path="/feedback" element={<Suspense fallback={<RouteFallback />}><AdminFeedbackPage /></Suspense>} />
             <Route path="/support/onboarding" element={<Suspense fallback={<RouteFallback />}><SupportOnboardingPage /></Suspense>} />
             <Route path="/support/follow-ups" element={<Navigate to="/support/mobilisation?tab=follow" replace />} />
@@ -165,6 +172,7 @@ function App() {
             <Route path="/support" element={<Suspense fallback={<RouteFallback />}><SupportHomePage /></Suspense>} />
             <Route path="/support/schedule" element={<Suspense fallback={<RouteFallback />}><SupportSchedulePage /></Suspense>} />
             <Route path="/support/practice" element={<Suspense fallback={<RouteFallback />}><SupportPracticeEntryPage /></Suspense>} />
+            <Route path="/support/survey/:id" element={<Suspense fallback={<RouteFallback />}><SupportSurveyPage /></Suspense>} />
             <Route path="/support/resources" element={<Suspense fallback={<RouteFallback />}><SupportResourcesPage /></Suspense>} />
             <Route path="/support/announcements" element={<Suspense fallback={<RouteFallback />}><AnnouncementsFeedPage /></Suspense>} />
             <Route path="/support/profile" element={<Suspense fallback={<RouteFallback />}><SupportProfilePage /></Suspense>} />

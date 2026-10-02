@@ -9,6 +9,9 @@
  *   feedback-themes      (admin) { cohortId }
  *       → themes from the cohort's anonymous feedback, saved in FeedbackThemes
  *
+ *   survey-summary       (admin) { surveyId, cohortId }
+ *       → a short summary of a survey's answers, saved on the Survey
+ *
  * Principle agreed with leadership: AI summarises, organises and highlights; it
  * never scores faith or judges anyone's spiritual growth.
  *
@@ -104,6 +107,12 @@ const THEMES_SYSTEM = [
   'Use two headings, each on its own line: Working well, Needs attention. Use short bullet points starting with "- ".',
 ].join(' ')
 
+const SURVEY_SYSTEM = [
+  'You help the Foundation of Faith (FOF) programme team at a church read the answers to a survey.',
+  'Summarise the main points in plain British English under 220 words: the overall picture (include averages for rating questions), the common themes in the written answers with a short example in the respondents\' own words, and anything surprising or worth acting on.',
+  'Do not guess who wrote anything, do not invent answers, and never judge anyone\'s faith. Use short bullet points starting with "- " under a heading line for each.',
+].join(' ')
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ ok: false, error: 'Method not allowed' }, 405)
@@ -177,6 +186,34 @@ Deno.serve(async (req) => {
       )
       if (error) throw new Error(error.message)
       return json({ ok: true, themes: result.text, createdAt })
+    }
+
+    if (body.action === 'survey-summary') {
+      await adminFromToken(token)
+      const { data: results, error: resultsError } = await supabase.rpc('survey_admin_results', { p_token: token, p_id: body.surveyId, p_cohort_id: body.cohortId ?? null })
+      if (resultsError) throw new Error(resultsError.message)
+      if (!results?.visible) throw new AiError('FEEDBACK_NOT_VISIBLE', 400)
+      const answers = (results.answers ?? []) as Array<{ answers: Record<string, any> }>
+      if (answers.length === 0) throw new AiError('NO_COMMENTS', 400)
+      const lines: string[] = []
+      for (const q of (results.questions ?? []) as any[]) {
+        const values = answers.map((a) => a.answers?.[q.id]).filter((v) => v !== undefined && v !== null && v !== '')
+        if (values.length === 0) continue
+        if (q.kind === 'RATING' || q.kind === 'NUMBER') {
+          const nums = values.map(Number).filter((n) => !Number.isNaN(n))
+          const avg = nums.length ? (nums.reduce((x, y) => x + y, 0) / nums.length).toFixed(1) : 'n/a'
+          lines.push(`Question: ${q.prompt} (${q.kind.toLowerCase()}${q.kind === 'RATING' ? ` out of ${q.config?.scale ?? 5}` : ''}). ${nums.length} answers, average ${avg}. Answers: ${nums.join(', ')}`)
+        } else if (q.kind === 'FILE') {
+          lines.push(`Question: ${q.prompt}. ${values.length} files were uploaded.`)
+        } else {
+          lines.push(`Question: ${q.prompt}\n${values.map((v) => `- ${String(v).slice(0, 600)}`).join('\n')}`)
+        }
+      }
+      if (lines.length === 0) throw new AiError('NO_COMMENTS', 400)
+      const result = await complete(settings.models, SURVEY_SYSTEM, `Survey: ${results.survey?.title}. ${answers.length} people answered.\n\n${lines.join('\n\n').slice(0, 15000)}`, 1800)
+      const { error: saveError } = await supabase.rpc('survey_admin_save_summary', { p_token: token, p_id: body.surveyId, p_text: result.text })
+      if (saveError) throw new Error(saveError.message)
+      return json({ ok: true, summary: result.text, createdAt: new Date().toISOString() })
     }
 
     throw new AiError('UNKNOWN_ACTION', 400)

@@ -1381,6 +1381,79 @@ window.GUIDE_CONTENT = {
      ]
     },
     {
+     "id": "surveys",
+     "title": "Surveys",
+     "where": "Sidebar → Engagement → Surveys",
+     "summary": "Build surveys, choose who answers, and read the results with an optional AI summary.",
+     "tasks": [
+      {
+       "id": "surveys-new",
+       "popular": true,
+       "q": "How do I create a survey?",
+       "keywords": [
+        "survey",
+        "questions",
+        "form",
+        "ask"
+       ],
+       "steps": [
+        "Open **Surveys** and tap **New survey**.",
+        "Name it, then choose **Who answers it** (participants, supports or everyone) and whether it belongs to this cohort or all cohorts.",
+        "Add questions: text, text area, number, rating (with labels for both ends and your own scale) or image or file (5 MB each).",
+        "Set when it opens and closes, and tick the notification if people should be alerted when it opens.",
+        "Tap **Publish survey**, or **Save draft** to finish later."
+       ],
+       "result": "It appears as a card on the Home screen of everyone it is for, until they answer or it closes.",
+       "tips": [
+        "Turn on **Anonymous** to see who answered but never which answers are theirs. It cannot be changed once people have answered.",
+        "Each person answers once. Submitting is final."
+       ]
+      },
+      {
+       "id": "surveys-wrapup",
+       "q": "How do I change the Your cohort is wrapping up card?",
+       "keywords": [
+        "wrapping up",
+        "wrap-up",
+        "end of cohort",
+        "department",
+        "referral"
+       ],
+       "steps": [
+        "Open **Surveys** and tap **Edit** on **Wrapping up**.",
+        "Change the heading, the line under it and the button text.",
+        "Under **When it appears**, choose weeks before the cohort ends or a fixed date.",
+        "Edit the questions if you need to, then tap **Save**."
+       ],
+       "result": "Participants see your wording when the survey opens. Department and referral answers still go to the follow-up list.",
+       "tips": [
+        "Switch **Show this on participants Home** off to hide it."
+       ]
+      },
+      {
+       "id": "surveys-results",
+       "q": "How do I see the results?",
+       "keywords": [
+        "results",
+        "export",
+        "csv",
+        "pdf",
+        "ai summary"
+       ],
+       "steps": [
+        "Open **Surveys** and tap **Results** on a survey.",
+        "**Summary** shows each question. **All answers** lists every response. **Who answered** shows who is still to do it.",
+        "Tap **Summarise** for an AI summary of the main themes.",
+        "Use **Export CSV** or **Export PDF** to download."
+       ],
+       "result": "You have the answers in the app and as a file.",
+       "tips": [
+        "An anonymous survey shows its answers once five or more people have answered."
+       ]
+      }
+     ]
+    },
+    {
      "id": "community",
      "title": "Community",
      "where": "Sidebar → Engagement → Community",
@@ -2126,6 +2199,27 @@ window.GUIDE_CONTENT = {
         "On their card, tap **I have reached out**."
        ],
        "result": "The alert clears once you've told the app you've reached out."
+      },
+      {
+       "id": "home-answer-survey",
+       "q": "How do I answer a survey?",
+       "keywords": [
+        "survey",
+        "questions",
+        "wrapping up",
+        "feedback"
+       ],
+       "steps": [
+        "When there is a survey for you, a card appears at the top of **Home**.",
+        "Tap its button to open it.",
+        "Answer the questions. Rating questions use the numbers shown, and you can add a photo or file where asked.",
+        "Tap **Submit**."
+       ],
+       "result": "Your answers are sent and the card disappears from Home.",
+       "tips": [
+        "You can answer each survey once, so check your answers before you submit.",
+        "If the survey says it is anonymous, nobody can see which answers are yours."
+       ]
       }
      ]
     },
@@ -3602,6 +3696,27 @@ window.GUIDE_CONTENT = {
         "Tap **Continue** on the \"Your cohort is wrapping up\" card."
        ],
        "result": "It opens **Wrapping up**. See the \"Wrapping up\" topic in this guide."
+      },
+      {
+       "id": "home-answer-survey",
+       "q": "How do I answer a survey?",
+       "keywords": [
+        "survey",
+        "questions",
+        "wrapping up",
+        "feedback"
+       ],
+       "steps": [
+        "When there is a survey for you, a card appears at the top of **Home**.",
+        "Tap its button to open it.",
+        "Answer the questions. Rating questions use the numbers shown, and you can add a photo or file where asked.",
+        "Tap **Submit**."
+       ],
+       "result": "Your answers are sent and the card disappears from Home.",
+       "tips": [
+        "You can answer each survey once, so check your answers before you submit.",
+        "If the survey says it is anonymous, nobody can see which answers are yours."
+       ]
       }
      ]
     },

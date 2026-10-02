@@ -7949,6 +7949,106 @@ export const feedbackApi = {
   },
 };
 
+// Surveys: admins build them, participants and supports answer them. Everything
+// goes through database functions that check who is asking.
+const SURVEY_ERRORS: Record<string, string> = {
+  SESSION_EXPIRED: 'Please sign out and sign in again.',
+  NOT_ALLOWED: 'Only admins can do this.',
+  SURVEY_NOT_AVAILABLE: 'This survey is not open right now.',
+  SURVEY_ALREADY_SENT: 'You have already answered this survey.',
+  TITLE_REQUIRED: 'Give the survey a name.',
+  ADD_A_QUESTION: 'Add at least one question before publishing.',
+  QUESTION_TEXT_REQUIRED: 'Every question needs some text.',
+  SCALE_INVALID: 'A rating scale must be between 2 and 10.',
+  BUILTIN_CANNOT_DELETE: 'This built-in survey cannot be deleted. Turn it off instead.',
+  FEEDBACK_NOT_VISIBLE: 'Answers appear once at least five people have answered.',
+};
+const surveyError = (message: string): Error => {
+  const known = Object.keys(SURVEY_ERRORS).find((code) => message.includes(code));
+  if (known) return new Error(SURVEY_ERRORS[known]);
+  const required = message.match(/ANSWER_REQUIRED: (.+)/);
+  if (required) return new Error(`Please answer: ${required[1]}`);
+  const invalid = message.match(/ANSWER_INVALID: (.+)/);
+  if (invalid) return new Error(`Check your answer to: ${invalid[1]}`);
+  return new Error(message || 'Something went wrong. Please try again.');
+};
+
+export const SURVEY_FILE_MAX_BYTES = 5 * 1024 * 1024;
+
+export const surveyApi = {
+  async pending(): Promise<import('../types').PendingSurvey[]> {
+    const { data, error } = await supabase.rpc('survey_pending', { p_token: getSessionToken() });
+    if (error) throw surveyError(error.message);
+    return (data as import('../types').PendingSurvey[]) ?? [];
+  },
+
+  async get(id: string): Promise<import('../types').SurveyForFilling> {
+    const { data, error } = await supabase.rpc('survey_get', { p_token: getSessionToken(), p_id: id });
+    if (error) throw surveyError(error.message);
+    return data as import('../types').SurveyForFilling;
+  },
+
+  async submit(id: string, answers: Record<string, unknown>, participantName?: string): Promise<void> {
+    const { data, error } = await supabase.rpc('survey_submit', { p_token: getSessionToken(), p_id: id, p_answers: answers });
+    if (error) throw surveyError(error.message);
+    // Wrap-up answers that ask for a referral tell the participant's support, as before.
+    const result = (data as { supportId?: string | null; wantsReferral?: boolean; department?: string } | null) ?? {};
+    if (result.supportId && result.wantsReferral && result.department) {
+      void notify(
+        { userIds: [result.supportId] },
+        `${participantName || 'Someone in your group'} wants to join ${result.department}`,
+        'They asked for a referral in the participant app. Confirm it on their profile once they have joined.',
+        '/support/participants',
+        'GENERAL',
+      );
+    }
+  },
+
+  // A photo or file for a FILE question. Stored with the other app files.
+  async uploadFile(surveyId: string, file: File): Promise<{ url: string; name: string }> {
+    if (file.size > SURVEY_FILE_MAX_BYTES) throw new Error('That file is over 5 MB. Choose a smaller one.');
+    const safe = file.name.replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-60) || 'file';
+    const path = `survey-files/${surveyId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safe}`;
+    const { error } = await supabase.storage.from('resources').upload(path, file, { upsert: false, contentType: file.type || undefined });
+    if (error) throw new Error('Could not upload that file. Please try again.');
+    const { data } = supabase.storage.from('resources').getPublicUrl(path);
+    return { url: data.publicUrl, name: file.name };
+  },
+
+  async adminList(cohortId: string): Promise<import('../types').SurveyListItem[]> {
+    const { data, error } = await supabase.rpc('survey_admin_list', { p_token: getSessionToken(), p_cohort_id: cohortId });
+    if (error) throw surveyError(error.message);
+    return (data as import('../types').SurveyListItem[]) ?? [];
+  },
+
+  async adminGet(id: string): Promise<import('../types').SurveyDetail> {
+    const { data, error } = await supabase.rpc('survey_admin_get', { p_token: getSessionToken(), p_id: id });
+    if (error) throw surveyError(error.message);
+    return data as import('../types').SurveyDetail;
+  },
+
+  async adminSave(survey: Partial<import('../types').SurveyRecord>, questions: import('../types').SurveyQuestion[]): Promise<string> {
+    const { data, error } = await supabase.rpc('survey_admin_save', { p_token: getSessionToken(), p_survey: survey, p_questions: questions });
+    if (error) throw surveyError(error.message);
+    return data as string;
+  },
+
+  async adminDelete(id: string): Promise<void> {
+    const { error } = await supabase.rpc('survey_admin_delete', { p_token: getSessionToken(), p_id: id });
+    if (error) throw surveyError(error.message);
+  },
+
+  async adminResults(id: string, cohortId: string | null): Promise<import('../types').SurveyResults> {
+    const { data, error } = await supabase.rpc('survey_admin_results', { p_token: getSessionToken(), p_id: id, p_cohort_id: cohortId });
+    if (error) throw surveyError(error.message);
+    return data as import('../types').SurveyResults;
+  },
+
+  async summarise(id: string, cohortId: string | null): Promise<{ summary: string; createdAt: string }> {
+    return invokeAi<{ summary: string; createdAt: string }>({ action: 'survey-summary', surveyId: id, cohortId });
+  },
+};
+
 // Post-class feedback, the support side: their own "Anything to flag?" note
 // per week. SupportClassFeedback is a staff-readable/writable table (RLS
 // app_is_staff()), same as SupportHub -- no RPC needed for a support writing

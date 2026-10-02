@@ -1,5 +1,6 @@
 | Date | Summary | Branch | Files Changed |
 | --- | --- | --- | --- |
+| 2026-10-02 | [Surveys, landing restyle, 404, announcement heading](2026-10-02_surveys-landing-404.md): survey module with built-in editable wrap-up card, AI summary and exports; FOF landing page matched to the church site; 404 page; admin-chosen Home announcement heading. | `main` | `frontend/src/pages/AdminSurveysPage.tsx`, `components/surveys/*`, `pages/LandingPage.*`, `supabase/migrations/20261002*` |
 | 2026-09-29 | [HANDOFF: Planner + Group Discussion](2026-09-29_HANDOFF-planner-and-discussion.md): full brief for a new session, covering the agreed specs, mock-ups, the class-date refactor prerequisite, architecture primer, environment gotchas, build order and acceptance checks. | — | — |
 | 2026-09-29 | [Leadership asks](2026-09-29_planner-discussion-onboarding-brief.md): FOF year Planner (17-week cycles, 3 a year, dates ripple, Sunday clashes absorbed by the buffer) and a participant + support Discussion with reports, pins, hub-lead moderation and auto rules. Mock-ups made, awaiting go. Onboarding parked. | — | — |
 | 2026-09-29 | [Jitsi calls brief](2026-09-29_jitsi-calls-brief.md): PARKED, not started. Free public meet.jit.si only; Join must open outside the app (not in the PWA). A JITSI call option with auto-generated room links for groups and hubs. | — | — |

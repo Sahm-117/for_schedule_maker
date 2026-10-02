@@ -20,6 +20,7 @@ import { formatMeetingTime } from '../components/groups/GroupCallCard';
 import Spinner from '../components/Spinner';
 import TrainingLearnedCard from '../components/supports/TrainingLearnedCard';
 import ProfileCompletionStrip from '../components/supports/ProfileCompletionStrip';
+import PendingSurveyCards from '../components/surveys/PendingSurveyCards';
 
 type HomeActivity = {
   id: number;
@@ -475,6 +476,8 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
               </NavLink>
             </section>
           ))}
+
+          <PendingSurveyCards base="/support/survey" />
 
           {homeAnnouncement && (
             <section className="rounded-[18px] border border-[#fecaca] bg-[#fef2f2] px-4 py-3.5">

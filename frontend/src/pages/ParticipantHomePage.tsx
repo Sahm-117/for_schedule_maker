@@ -16,6 +16,7 @@ import { useToast } from '../components/Toast';
 import AppSetupBanner from '../components/participantApp/AppSetupBanner';
 import { useParticipantPush } from '../hooks/useParticipantPush';
 import { buildWhatsAppLink } from '../utils/phone';
+import PendingSurveyCards from '../components/surveys/PendingSurveyCards';
 import { normalizeLink } from '../utils/links';
 import {
   FAITH_PROJECT_PARTICIPANT_LABEL,
@@ -437,14 +438,7 @@ const ParticipantHomePage: React.FC = () => {
           </section>
         )}
 
-        {(finished || home.cohort?.status === 'COMPLETED' || (totalWeeks > 0 && weekNumber === totalWeeks)) && !home.wrapUp.submitted && (
-          <div className="flex flex-wrap items-center gap-3.5 rounded-[14px] border border-[#ffeadb] border-l-4 border-l-primary bg-white px-[18px] py-4">
-            <div className="min-w-0 flex-[1_1_220px]">
-              <p className="text-[15px] font-bold text-gray-900">Your cohort is wrapping up</p>
-            </div>
-            <NavLink to="/me/complete" className="inline-flex min-h-[44px] items-center rounded-xl bg-[#3f4757] px-4 text-[13px] font-semibold text-white">Continue</NavLink>
-          </div>
-        )}
+        <PendingSurveyCards base="/me/survey" />
 
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
           {quickTiles.map((tile) => {

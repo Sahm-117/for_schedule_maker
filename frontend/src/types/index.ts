@@ -1784,3 +1784,112 @@ export interface PracticeStatus {
   online: number;
   walkthroughs: number;
 }
+
+
+// ── Surveys ──────────────────────────────────────────────────────────────────
+export type SurveyAudience = 'PARTICIPANTS' | 'SUPPORTS' | 'EVERYONE';
+export type SurveyQuestionKind = 'TEXT' | 'TEXTAREA' | 'NUMBER' | 'RATING' | 'FILE' | 'DEPARTMENT' | 'YESNO';
+export type SurveyState = 'DRAFT' | 'OFF' | 'SCHEDULED' | 'OPEN' | 'CLOSED';
+
+export interface SurveyQuestionConfig {
+  /** Rating: top of the scale (2 to 10). */
+  scale?: number;
+  lowLabel?: string;
+  highLabel?: string;
+  /** Number: optional limits. */
+  min?: number;
+  max?: number;
+  /** Built-in wrap-up questions that feed the department list. */
+  feeds?: 'department' | 'referral' | 'note';
+}
+
+export interface SurveyQuestion {
+  id?: string;
+  position?: number;
+  kind: SurveyQuestionKind;
+  prompt: string;
+  required: boolean;
+  config: SurveyQuestionConfig;
+}
+
+export interface SurveyListItem {
+  id: string;
+  builtinKey: string | null;
+  title: string;
+  audience: SurveyAudience;
+  scope: 'COHORT' | 'GENERAL';
+  cohortId: string | null;
+  cohortName: string | null;
+  anonymous: boolean;
+  enabled: boolean;
+  status: 'DRAFT' | 'PUBLISHED';
+  timingMode: 'DATES' | 'WEEKS_BEFORE_END';
+  weeksBeforeEnd: number | null;
+  closeDaysAfterEnd: number | null;
+  opensAt: string | null;
+  closesAt: string | null;
+  state: SurveyState;
+  eligible: number;
+  answered: number;
+}
+
+export interface SurveyRecord {
+  id: string;
+  builtinKey: string | null;
+  title: string;
+  description: string | null;
+  audience: SurveyAudience;
+  scope: 'COHORT' | 'GENERAL';
+  cohortId: string | null;
+  targetGroupId: string | null;
+  anonymous: boolean;
+  enabled: boolean;
+  status: 'DRAFT' | 'PUBLISHED';
+  timingMode: 'DATES' | 'WEEKS_BEFORE_END';
+  opensAt: string | null;
+  closesAt: string | null;
+  weeksBeforeEnd: number | null;
+  closeDaysAfterEnd: number | null;
+  notifyOnOpen: boolean;
+  homeHeading: string | null;
+  homeLine: string | null;
+  homeButton: string | null;
+  aiSummary: string | null;
+  aiSummaryAt: string | null;
+}
+
+export interface SurveyDetail {
+  survey: SurveyRecord;
+  questions: SurveyQuestion[];
+}
+
+export type SurveyAnswerValue = string | number | { url: string; name?: string } | null | undefined;
+
+export interface SurveyResults extends SurveyDetail {
+  eligible: number;
+  answered: number;
+  /** An anonymous survey keeps its answers hidden until five people have answered. */
+  visible: boolean;
+  answers: Array<{ name?: string; submittedAt?: string; answers: Record<string, SurveyAnswerValue> }> | null;
+  people: Array<{ name: string; kind: 'PARTICIPANT' | 'SUPPORT'; answered: boolean }>;
+}
+
+export interface PendingSurvey {
+  id: string;
+  title: string;
+  description: string | null;
+  builtinKey: string | null;
+  homeHeading: string | null;
+  homeLine: string | null;
+  homeButton: string | null;
+}
+
+export interface SurveyForFilling {
+  id: string;
+  title: string;
+  description?: string | null;
+  anonymous: boolean;
+  builtinKey?: string | null;
+  submitted: boolean;
+  questions?: SurveyQuestion[];
+}

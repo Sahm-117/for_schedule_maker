@@ -1255,6 +1255,38 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Surveys that have just opened: one announcement per survey and cohort, to
+    // whoever the survey is for. Skipped in the test modes.
+    if (!dryRun && !onlyUserIds && !onlyParticipantIds && !onlyCohortId) {
+      try {
+        const { data: dueSurveys } = await supabase.rpc('survey_notifications_due')
+        for (const due of (dueSurveys ?? []) as any[]) {
+          const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-announcement`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              subject: due.title,
+              body: 'Open the app and tap it on your Home screen to answer. It only takes a couple of minutes.',
+              sentBy: due.created_by,
+              scope: due.cohort_id ? 'ACTIVE_COHORT' : 'ALL_USERS',
+              cohortId: due.cohort_id,
+              audience: due.audience,
+            }),
+          })
+          if (res.ok) {
+            await supabase.rpc('survey_mark_notified', { p_survey: due.survey_id, p_cohort: due.cohort_id })
+          } else {
+            console.error('push-reminders (survey open): send-announcement failed', res.status, (await res.text()).slice(0, 300))
+          }
+        }
+      } catch (surveyError) {
+        console.error('push-reminders (survey open) failed:', String(surveyError))
+      }
+    }
+
     return new Response(
       JSON.stringify({ ok: true, notified: notified.length, ...(dryRun ? { dryRun: true, debug } : {}) }),
       { headers: { 'Content-Type': 'application/json' } }
