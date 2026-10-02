@@ -534,3 +534,12 @@
   .fof-landing .hero-photo--mobile{display:block}
 }
 .fof-landing .hero::before{background:linear-gradient(180deg,rgba(10,10,10,calc(var(--ov,.7) - .1)),rgba(10,10,10,calc(var(--ov,.7) + .06)))}
+
+/* Wiggle on the phone menu items: on hover, and as you tap. */
+@keyframes fof-landing-wiggle{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-4px) rotate(-1.2deg)}40%{transform:translateX(4px) rotate(1.2deg)}60%{transform:translateX(-3px) rotate(-.8deg)}80%{transform:translateX(2px) rotate(.6deg)}}
+@media (prefers-reduced-motion:no-preference){
+  .fof-landing .menu-overlay.is-open .menu-links > a:active,.fof-landing .menu-overlay.is-open .menu-chip:active{animation:fof-landing-wiggle .45s ease-in-out}
+}
+@media (prefers-reduced-motion:no-preference) and (hover:hover){
+  .fof-landing .menu-overlay.is-open .menu-links > a:hover,.fof-landing .menu-overlay.is-open .menu-chip:hover{animation:fof-landing-wiggle .5s ease-in-out}
+}

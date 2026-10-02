@@ -186,3 +186,18 @@ body {
   .fof-glow-ring { animation: none; }
   .fof-live-sonar { animation: none; opacity: 0; }
 }
+
+/* A small wiggle on the phone side menu: on hover (where there is one) and as you tap an item. */
+@keyframes fof-wiggle {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  20% { transform: translateX(-3px) rotate(-1.2deg); }
+  40% { transform: translateX(3px) rotate(1.2deg); }
+  60% { transform: translateX(-2px) rotate(-0.8deg); }
+  80% { transform: translateX(2px) rotate(0.6deg); }
+}
+@media (prefers-reduced-motion: no-preference) and (max-width: 1023px) {
+  .nav-pill:not(.cursor-not-allowed):active { animation: fof-wiggle 0.45s ease-in-out; }
+}
+@media (prefers-reduced-motion: no-preference) and (max-width: 1023px) and (hover: hover) {
+  .nav-pill:not(.cursor-not-allowed):hover { animation: fof-wiggle 0.5s ease-in-out; }
+}
