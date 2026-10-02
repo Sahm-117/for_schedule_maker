@@ -16,3 +16,6 @@
 - Mid-cohort and end-of-cohort feedback are NOT yet converted to built-in surveys (still the old `FeedbackResponse` flow); the old Feedback page is unchanged.
 - Narrowing a support survey to a hub or tag (only "one group" for participants is built).
 - Biodun Bello (contact 454f15b8, phone "00") and Oreoluwa Adegboyega (08066783672) share an owner; a "Hi Biodun" WhatsApp went to Ore's number. Neither is marked messaged, so it was a manual paste, not the app's link (which uses each contact's own number).
+
+## Rule (from the user): a contact with an open issue is never auto-reassigned
+Logging an issue on a contact means it is being looked into. `followup_stale_contacts()` (the list the auto-reassign sweep draws from) now skips any contact with an OPEN issue, whatever its date (migration `20261002310000_*`, applied). Before, only an issue logged after the last assignment counted, which missed Biodun Bello (moved from Kenneth Alonge to Adetunji Adediran on 1 Oct 08:10 with reason NOT_NOW while Kenneth's issue was open; a trigger resets `ownerAssignedAt` whenever the owner changes, which is how the old test missed it). Biodun is still with Adetunji; moving him back is left to the user.
