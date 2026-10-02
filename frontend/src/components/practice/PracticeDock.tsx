@@ -37,7 +37,7 @@ const withChange = (items: PracticeProgressItem[], key: string, done: boolean, s
 interface RolePickerProps {
   cards: typeof ROLE_CARDS;
   seat: PracticeSeat | null;
-  selected: PracticeSeatKey;
+  selected: PracticeSeatKey | null;
   onSelect: (key: PracticeSeatKey) => void;
   groupName?: string | null;
   hubName?: string | null;
@@ -49,7 +49,7 @@ interface RolePickerProps {
 const RolePicker: React.FC<RolePickerProps> = ({ cards, seat, selected, onSelect, groupName, hubName, busy, onStart }) => (
   <div>
     <h3 className="text-[20px] font-extrabold leading-tight text-gray-900">Who do you want to practice as?</h3>
-    <p className="mb-3 mt-1 text-[13.5px] text-gray-500">Pick a role. You can change it any time.</p>
+    <p className="mb-3 mt-1 text-[13.5px] text-gray-500">Tap a role, then press Start. You can change it any time.</p>
     <div className="flex flex-col gap-2.5">
       {cards.map((card) => {
         const on = card.key === selected;
@@ -79,11 +79,11 @@ const RolePicker: React.FC<RolePickerProps> = ({ cards, seat, selected, onSelect
     </div>
     <button
       type="button"
-      disabled={busy !== null}
-      onClick={() => onStart(selected)}
-      className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gray-900 text-[15px] font-bold text-white disabled:opacity-70"
+      disabled={busy !== null || !selected}
+      onClick={() => { if (selected) onStart(selected); }}
+      className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gray-900 text-[15px] font-bold text-white disabled:opacity-60"
     >
-      {busy !== null && <Spinner className="h-4 w-4" />}Start as {PRACTICE_ROLE_LABEL[selected]}
+      {busy !== null && <Spinner className="h-4 w-4" />}{selected ? `Start as ${PRACTICE_ROLE_LABEL[selected]}` : 'Pick a role to start'}
     </button>
   </div>
 );
@@ -315,7 +315,7 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
           <RolePicker
             cards={ROLE_CARDS}
             seat={seat}
-            selected={picked ?? seat ?? 'SUPPORT'}
+            selected={picked}
             onSelect={setPicked}
             groupName={data?.groupName}
             hubName={data?.hubName}

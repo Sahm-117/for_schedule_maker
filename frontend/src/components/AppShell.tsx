@@ -358,6 +358,25 @@ const AppShell: React.FC = () => {
     if (activeCohort?.id !== practiceCohort.id) await setActiveCohort(practiceCohort.id);
     else window.dispatchEvent(new Event(OPEN_PRACTICE_EVENT));
   }, [cohorts, activeCohort?.id, setActiveCohort]);
+  // The cohort to go back to from Test mode: the last real one they were looking at.
+  useEffect(() => {
+    if (activeCohort && !activeCohort.isPractice) { try { localStorage.setItem('fof_last_real_cohort', activeCohort.id); } catch { /* ignore */ } }
+  }, [activeCohort]);
+  const returnCohortId = useMemo(() => {
+    const real = cohorts.filter((c) => !c.isPractice);
+    let last: string | null = null;
+    try { last = localStorage.getItem('fof_last_real_cohort'); } catch { /* ignore */ }
+    const remembered = real.find((c) => c.id === last);
+    if (remembered) return remembered.id;
+    const active = real.filter((c) => c.status !== 'COMPLETED').sort((a, b) => String(b.startDate ?? '').localeCompare(String(a.startDate ?? '')))[0];
+    return (active ?? real[0])?.id ?? null;
+  }, [cohorts, activeCohort?.id]);
+  const [returningToReal, setReturningToReal] = useState(false);
+  const returnToRealCohort = async () => {
+    if (!returnCohortId || returningToReal) return;
+    setReturningToReal(true);
+    try { await setActiveCohort(returnCohortId); navigate('/support'); } finally { setReturningToReal(false); }
+  };
   const practiceEntry = useMemo(() => ({ on: practiceOn, started: realCohortStarted, open: openPractice }), [practiceOn, realCohortStarted, openPractice]);
   // First time a support opens the app after getting a hub job: welcome them
   // to it (once per job, remembered on the server), with a link to the guide.
@@ -552,7 +571,21 @@ const AppShell: React.FC = () => {
         ) : isAdmin ? (
           <div className="sticky top-0 z-40 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white">Practice cohort. Users and Resources are switched off here.</div>
         ) : (
-          <div className="sticky top-0 z-40 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white">Practice mode. Nothing here is real.</div>
+          <button
+            type="button"
+            onClick={() => { if (returnCohortId) void returnToRealCohort(); }}
+            disabled={!returnCohortId || returningToReal}
+            className="sticky top-0 z-40 flex w-full items-center justify-center gap-2 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white disabled:cursor-default"
+          >
+            {returnCohortId ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide">Test mode</span>
+                <span>{returningToReal ? 'Switching…' : 'Tap to return to your real cohort'}</span>
+              </span>
+            ) : (
+              <span>Test mode. Nothing here is real.</span>
+            )}
+          </button>
         )
       )}
       {showAppSetup && <AppSetupSheet audience="staff" enable={enable} onClose={closeAppSetup} />}
