@@ -4103,7 +4103,7 @@ window.GUIDE_CONTENT = {
         "Tap **Yes, refer me** or **Not right now**.",
         "Add anything else you'd like to say, then tap **Submit**."
        ],
-       "result": "🎉 Congratulations on completing FOF. Your support team has your details and will follow up.",
+       "result": "Congratulations on completing FOF. Your support team has your details and will follow up.",
        "shot": "participant-wrapping-up.jpg"
       }
      ]

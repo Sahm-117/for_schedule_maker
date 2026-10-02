@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
       if (participantIds.length > 0) {
         // Participant bell row for everyone targeted, push or not.
         await insertParticipantNotifications(supabase, participantIds.map((participantId) => ({
-          participantId, title: `📢 ${subject}`, body, path: '/me', type: 'ANNOUNCEMENT',
+          participantId, title: subject, body, path: '/me', type: 'ANNOUNCEMENT',
         })))
         const { data: participantSubs } = await supabase
           .from('ParticipantPushSubscription')
@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
         const rows = ((participantSubs ?? []) as any[]).map((row) => ({ userId: row.participantId, endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth }))
         if (rows.length > 0) {
           const result = await sendToSubscriptions(webPush, supabase, rows, JSON.stringify({
-            title: `📢 ${subject}`,
+            title: subject,
             body,
             icon: '/icon-192.png',
             tag: `fof-announcement-${announcement.id}`,

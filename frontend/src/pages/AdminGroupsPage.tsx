@@ -693,7 +693,7 @@ const AdminGroupsContent: React.FC = () => {
         </div>
       ) : displayedGroups.length === 0 ? (
         <div className="rounded-2xl bg-gray-50/80 py-12 text-center">
-          <p className="text-sm text-gray-500">All groups have a support assigned. 🎉</p>
+          <p className="text-sm text-gray-500">All groups have a support assigned.</p>
         </div>
       ) : (
         <div data-wt="groups-grid" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

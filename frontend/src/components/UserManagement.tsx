@@ -434,8 +434,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
     '*If you already have the app:* open it, go to *Profile → Reminders* and tap *Enable on this device*, then tap *Allow*.',
     '',
     "*If you haven't installed the app yet:* watch the video for your phone, then open the app, sign in and tap *Allow* when it asks about notifications.",
-    '📱 Android: https://youtu.be/VaQ8qL11bos',
-    '🍎 iPhone: https://youtu.be/wyXzG3JqndY',
+    'Android: https://youtu.be/VaQ8qL11bos',
+    'iPhone: https://youtu.be/wyXzG3JqndY',
     '',
     'Open the app here: https://fof.tcnikorodu.org',
   ].join('\n');

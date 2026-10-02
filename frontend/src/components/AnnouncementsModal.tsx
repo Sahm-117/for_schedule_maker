@@ -607,7 +607,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
               disabled={sending || !subject.trim() || !body.trim() || homeInvalid}
               className="w-full h-11 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {sending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending...</span>) : '📢 Send Announcement'}
+              {sending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending...</span>) : 'Send Announcement'}
             </button>
         </form>
       )}

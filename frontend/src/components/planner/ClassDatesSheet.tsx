@@ -1,3 +1,4 @@
+import Glyph from '../Glyph';
 import React, { useEffect, useMemo, useState } from 'react';
 import ModalShell from '../followups/ModalShell';
 import Spinner from '../Spinner';
@@ -179,7 +180,7 @@ const ClassDatesSheet: React.FC<ClassDatesSheetProps> = ({ cohort, plan, today, 
         )}
         {warnings.length > 0 && (
           <div className="rounded-2xl bg-amber-100/80 p-3 text-xs text-amber-700">
-            {warnings.map((w) => <p key={w}>⚠️ {w}</p>)}
+            {warnings.map((w) => <p key={w}><Glyph name="warning" className="mr-1 inline h-3.5 w-3.5 align-text-bottom" />{w}</p>)}
           </div>
         )}
       </div>

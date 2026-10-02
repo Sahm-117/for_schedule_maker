@@ -529,7 +529,7 @@ Deno.serve(async (req) => {
           if (!subs || subs.length === 0) continue
 
           const payload = JSON.stringify({
-            title: `🙏 Group meeting reminder: ${minuteLabel} away`,
+            title: `Group meeting reminder: ${minuteLabel} away`,
             body: `${group.name} weekly meeting at ${group.meetingTime}`,
             icon: '/icon-192.png',
             tag: `fof-groupmeeting-${group.id}-${interval}`,
@@ -632,7 +632,7 @@ Deno.serve(async (req) => {
               : ` You're ${jobPhrases.slice(0, -1).join(', ')} and ${jobPhrases[jobPhrases.length - 1]}.`
 
             const payload = JSON.stringify({
-              title: `🙏 Hub meeting reminder: ${minuteLabel} away`,
+              title: `Hub meeting reminder: ${minuteLabel} away`,
               body: `${baseBody}${personalLine}`,
               icon: '/icon-192.png',
               tag: `fof-hubmeeting-${hub.id}-${interval}`,
@@ -829,10 +829,10 @@ Deno.serve(async (req) => {
           const time = minutes === null ? '' : `${((Math.floor(minutes / 60) + 11) % 12) + 1}:${String(minutes % 60).padStart(2, '0')} ${minutes >= 720 ? 'PM' : 'AM'}`
           const topic = String(week.title || '').trim()
           const message = nudge.key === 'SAT_NOON'
-            ? { title: 'See you tomorrow! 🙌', body: `FOF class is at ${time}. We can't wait to see you in church.` }
+            ? { title: 'See you tomorrow!', body: `FOF class is at ${time}. We can't wait to see you in church.` }
             : nudge.key === 'SAT_EVENING'
             ? { title: "Tomorrow's the day", body: topic ? `This week's topic is ${topic}. Get some rest, your seat is waiting.` : 'Get some rest, your seat is waiting.' }
-            : { title: 'Good morning! Church today 🙏', body: `FOF class starts at ${time}. See you soon.` }
+            : { title: 'Good morning! Church today', body: `FOF class starts at ${time}. See you soon.` }
           await pushParticipants([...participantIds], { ...message, path: '/me', tag: `SUNDAY_NUDGE:${week.id}:${nudge.key}` })
         }
 
@@ -852,7 +852,7 @@ Deno.serve(async (req) => {
             // Same wording as the support group meeting reminder above.
             const minuteLabel = interval < 60 ? `${interval} mins` : interval === 60 ? '1 hour' : interval === 1440 ? 'tomorrow' : `${Math.round(interval / 60)} hours`
             await pushParticipants(members, {
-              title: `🙏 Group meeting reminder: ${minuteLabel} away`,
+              title: `Group meeting reminder: ${minuteLabel} away`,
               body: `${group.name} weekly meeting at ${group.meetingTime}`,
               path: '/me/group',
               tag: `GROUP_MEETING:${group.id}:${interval}:${target.isoDate}`,
@@ -1026,7 +1026,7 @@ Deno.serve(async (req) => {
             byBody.set(body, [...(byBody.get(body) ?? []), a.participantId])
           }
           for (const [body, participantIds] of byBody) {
-            await pushParticipants(participantIds, { title: 'Get ready for FOF 🙌', body, path: '/me', tag: `GET_READY:${pToday}` })
+            await pushParticipants(participantIds, { title: 'Get ready for FOF', body, path: '/me', tag: `GET_READY:${pToday}` })
           }
         }
       }

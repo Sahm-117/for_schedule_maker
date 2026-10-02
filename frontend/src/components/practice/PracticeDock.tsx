@@ -10,15 +10,16 @@ import { practiceApi } from '../../services/api';
 import { PRACTICE_ROLE_LABEL, PRACTICE_SCENARIOS, peerSteps, type PracticeScenario, type PracticeSeat } from '../../constants/practiceScenarios';
 import { enterParticipantView, isInParticipantView, leaveParticipantView } from '../../utils/practiceSwap';
 import { useAuth } from '../../hooks/useAuth';
+import Glyph, { type GlyphName } from '../Glyph';
 import type { PracticeMyProgress, PracticePeerActive, PracticeProgressItem, PracticePulse, PracticeRole, PracticeSeatKey } from '../../types';
 
-const ROLE_CARDS: Array<{ key: PracticeSeatKey; emoji: string; description: string; peer: string }> = [
-  { key: 'SUPPORT', emoji: '🙋', description: 'Look after your own group: introduce yourself, take attendance, post and pin.', peer: 'Pair with another support who plays a participant and introduces themselves to you.' },
-  { key: 'HUB_LEAD', emoji: '🧭', description: 'Run the hub: see your supports, take hub attendance, run the meeting to Submit.', peer: 'Another support plays a support while you run the meeting.' },
-  { key: 'ASSISTANT', emoji: '🤝', description: 'Back up the Hub Lead: help with attendance and message the hub.', peer: 'Pair with a Hub Lead and split the meeting.' },
-  { key: 'RECAP_LEAD', emoji: '📖', description: 'Lead the Review and Recap step and read out the discussion prompt.', peer: 'Recap to a Hub Lead, who asks a question back.' },
-  { key: 'PRAYER_LEAD', emoji: '🙏', description: 'Open the Prayer step, pick who to pray for and keep it on time.', peer: 'Take turns: one picks, one prays.' },
-  { key: 'PARTICIPANT', emoji: '🎓', description: 'Play a participant yourself and see the app as they do: Get ready, class, reflection.', peer: 'Pair with another support who runs the group while you play the participant.' },
+const ROLE_CARDS: Array<{ key: PracticeSeatKey; icon: GlyphName; description: string; peer: string }> = [
+  { key: 'SUPPORT', icon: 'user', description: 'Look after your own group: introduce yourself, take attendance, post and pin.', peer: 'Pair with another support who plays a participant and introduces themselves to you.' },
+  { key: 'HUB_LEAD', icon: 'map', description: 'Run the hub: see your supports, take hub attendance, run the meeting to Submit.', peer: 'Another support plays a support while you run the meeting.' },
+  { key: 'ASSISTANT', icon: 'users', description: 'Back up the Hub Lead: help with attendance and message the hub.', peer: 'Pair with a Hub Lead and split the meeting.' },
+  { key: 'RECAP_LEAD', icon: 'book', description: 'Lead the Review and Recap step and read out the discussion prompt.', peer: 'Recap to a Hub Lead, who asks a question back.' },
+  { key: 'PRAYER_LEAD', icon: 'heart', description: 'Open the Prayer step, pick who to pray for and keep it on time.', peer: 'Take turns: one picks, one prays.' },
+  { key: 'PARTICIPANT', icon: 'cap', description: 'Play a participant yourself and see the app as they do: Get ready, class, reflection.', peer: 'Pair with another support who runs the group while you play the participant.' },
 ];
 const chosenKey = (userId?: string) => `fof_practice_seat_chosen_${userId ?? ''}`;
 const readChosen = (userId?: string) => { try { return localStorage.getItem(chosenKey(userId)) === '1'; } catch { return false; } };
@@ -61,7 +62,7 @@ const RolePicker: React.FC<RolePickerProps> = ({ cards, seat, selected, onSelect
             onClick={() => onSelect(card.key)}
             className={`relative flex gap-3 rounded-[20px] border-2 p-3.5 text-left ${on ? 'border-[#ff8f4d] bg-[#fff7f0] shadow-[0_0_0_4px_#ffe2cf]' : 'border-gray-200 bg-white'}`}
           >
-            <span className="grid h-11 w-11 flex-none place-items-center rounded-[14px] bg-[#fff1e6] text-[22px]" aria-hidden="true">{card.emoji}</span>
+            <span className="grid h-11 w-11 flex-none place-items-center rounded-[14px] bg-[#fff1e6] text-[#c2570c]"><Glyph name={card.icon} className="h-6 w-6" /></span>
             <span className="min-w-0 flex-1">
               <span className="block text-[17px] font-extrabold text-gray-900">{PRACTICE_ROLE_LABEL[card.key]}{seat === card.key && <span className="ml-2 text-[11px] font-bold text-emerald-600">Current</span>}</span>
               <span className="mt-0.5 block text-[13px] text-gray-600">{card.description}</span>
@@ -326,7 +327,7 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
         {mode === 'staff' && !peer && !picking && seat && (
           <div ref={bannerRef} className="mb-3 mt-1">
             <div className="flex items-center gap-3 rounded-[20px] border-2 border-[#ffb98a] bg-[#fff7f0] px-3.5 py-3">
-              <span className="grid h-11 w-11 flex-none place-items-center rounded-[14px] bg-[#ff8f4d] text-[22px]" aria-hidden="true">{ROLE_CARDS.find((c) => c.key === seat)?.emoji}</span>
+              <span className="grid h-11 w-11 flex-none place-items-center rounded-[14px] bg-[#ff8f4d] text-white"><Glyph name={ROLE_CARDS.find((c) => c.key === seat)?.icon ?? 'user'} className="h-6 w-6" /></span>
               <div className="min-w-0 flex-1">
                 <p className="whitespace-nowrap text-[17px] font-extrabold text-gray-900">{PRACTICE_ROLE_LABEL[seat]}</p>
                 <p className="truncate text-[12.5px] text-gray-500">{[data?.groupName, data?.hubName].filter(Boolean).map((n) => String(n).replace(/^Practice /, '')).join(' · ') || 'Practising'}</p>

@@ -1,3 +1,4 @@
+import Glyph from '../components/Glyph';
 import React, { useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
@@ -48,7 +49,7 @@ const ParticipantCompletePage: React.FC = () => {
       <section className={CARD}>
         {sent || home.wrapUp.submitted ? (
           <div className="px-2.5 py-5 text-center">
-            <p className="text-2xl" aria-hidden="true">🎉</p>
+            <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-100 text-emerald-600"><Glyph name="check" className="h-7 w-7" /></span>
             <p className="mt-2 text-[15px] font-bold text-gray-900">Congratulations on completing FOF.</p>
             <p className="mt-1.5 text-[13px] text-gray-500">Your support team has your details and will follow up.</p>
           </div>

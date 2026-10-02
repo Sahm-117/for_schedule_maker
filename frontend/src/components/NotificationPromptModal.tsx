@@ -1,3 +1,4 @@
+import Glyph from './Glyph';
 import React from 'react';
 
 interface Props {
@@ -23,13 +24,13 @@ const NotificationPromptModal: React.FC<Props> = ({ onEnable, onDismiss }) => (
       <div className="px-6 py-5">
         <ul className="space-y-3 mb-6">
           {[
-            { icon: '📅', text: 'Know instantly when the programme schedule changes' },
-            { icon: '✅', text: 'Get notified when your change requests are approved' },
-            { icon: '📢', text: 'Receive announcements from the programme team' },
-            { icon: '📎', text: 'Be the first to see new resources in Resources' },
+            { icon: 'calendar' as const, text: 'Know instantly when the programme schedule changes' },
+            { icon: 'check' as const, text: 'Get notified when your change requests are approved' },
+            { icon: 'megaphone' as const, text: 'Receive announcements from the programme team' },
+            { icon: 'clip' as const, text: 'Be the first to see new resources in Resources' },
           ].map(({ icon, text }) => (
             <li key={text} className="flex items-start gap-3 text-sm text-gray-700">
-              <span className="text-base leading-tight">{icon}</span>
+              <span className="mt-0.5 text-[#c2570c]"><Glyph name={icon} className="h-[18px] w-[18px]" /></span>
               <span>{text}</span>
             </li>
           ))}

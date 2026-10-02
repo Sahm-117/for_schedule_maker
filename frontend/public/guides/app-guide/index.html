@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FOF Ops Guide</title>
 <style>
+  svg.gi { width: 1.1em; height: 1.1em; display: block; flex: none; }
+  .eyebrow svg.gi, .hello svg.gi { display: inline-block; vertical-align: -0.15em; }
   /* Poppins (SIL Open Font License, see fonts/Poppins-OFL.txt), bundled so the guide works offline. */
   @font-face { font-family: 'Poppins'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/Poppins-400.woff2') format('woff2'); }
   @font-face { font-family: 'Poppins'; font-style: normal; font-weight: 500; font-display: swap; src: url('fonts/Poppins-500.woff2') format('woff2'); }
@@ -201,10 +203,10 @@
   .note::before { position: absolute; left: 14px; top: 11px; font-size: 17px; }
   .note b.lead { display: block; font-size: 13px; letter-spacing: .02em; margin-bottom: 1px; }
   .note.result { background: rgba(16,185,129,.09); }
-  .note.result::before { content: "✅"; }
+  .note.result::before { content: ""; width: 20px; height: 20px; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23047857' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z'/></svg>") center/contain no-repeat; }
   .note.result b.lead { color: #047857; }
   .note.tips { background: rgba(245,158,11,.10); }
-  .note.tips::before { content: "💡"; }
+  .note.tips::before { content: ""; width: 20px; height: 20px; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23B45309' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z'/></svg>") center/contain no-repeat; }
   .note.tips b.lead { color: #B45309; }
   .note ul { margin: 2px 0 0; padding-left: 18px; }
   .note li { margin: 3px 0; }
@@ -282,7 +284,7 @@
 
 <main class="wrap">
   <section id="picker" class="picker hidden">
-    <div class="eyebrow">👋 Welcome to the FOF Ops guide</div>
+    <div class="eyebrow">Welcome to the FOF Ops guide</div>
     <h1>Who are you?</h1>
     <p>Pick your role and the guide shows only what you can do. You can switch at any time with the button at the top.</p>
     <div class="roles" id="roles"></div>
@@ -307,18 +309,20 @@
 (function () {
   var G = window.GUIDE_CONTENT || { roles: {} };
   var SHOTS = window.GUIDE_SHOTS || null; // filled in only in the single-file download copy
+  var GI = {"user": "M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z", "map": "M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z", "users": "M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z", "book": "M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25", "heart": "M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z", "cap": "M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5", "warning": "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z", "info": "m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z", "calendar": "M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5", "check": "M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z", "megaphone": "M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46", "clip": "m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13", "flag": "M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5", "pin": "M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z", "chat": "M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z", "cog": "M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28ZM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"};
+  function ico(k) { return '<svg class="gi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + (GI[k] || GI.book) + '"/></svg>'; }
   var ROLE_META = {
-    admin: { emoji: '🗂️', tile: 'c0', label: 'Admin', blurb: 'You run the back office: cohorts, participants, supports, groups, follow-ups and settings.' },
-    support: { emoji: '🤝', tile: 'c1', label: 'Support', blurb: 'You lead a group, follow people up, mark attendance and serve in your hub.' },
-    participant: { emoji: '🌱', tile: 'c2', label: 'Participant', blurb: 'You are taking the Foundation of Faith course and want to find your way around.' }
+    admin: { icon: 'cog', tile: 'c0', label: 'Admin', blurb: 'You run the back office: cohorts, participants, supports, groups, follow-ups and settings.' },
+    support: { icon: 'users', tile: 'c1', label: 'Support', blurb: 'You lead a group, follow people up, mark attendance and serve in your hub.' },
+    participant: { icon: 'user', tile: 'c2', label: 'Participant', blurb: 'You are taking the Foundation of Faith course and want to find your way around.' }
   };
   // Topic icons: a section can set its own "icon"; otherwise these defaults (by id, then by word) apply.
   var ICONS = {
-    'getting-started': '🚀', dashboard: '📊', home: '🏠', schedule: '🗓️', approvals: '✅', rota: '🔁', 'activity-overview': '🔭',
-    participants: '👥', attendance: '📋', 'faith-projects': '🙏', 'faith-project': '🙏', onboarding: '🎒', onboard: '🎒', groups: '🫂', 'my-group': '🫂', group: '🫂',
-    allocation: '🧩', 'group-meetings': '📹', supports: '🤝', hubs: '🏘️', 'my-hub': '🏘️', cohorts: '🎓', 'follow-ups': '📞', mobilisation: '📣', registration: '📝',
-    feedback: '💬', community: '🌍', users: '🔑', announcements: '📢', resources: '📚', scriptures: '📖', website: '🌐', settings: '⚙️',
-    troubleshooting: '🛟', help: '🛟', profile: '👤', recaps: '📝', recap: '📝', journey: '🧭', 'this-week': '📅', week: '📅', people: '👋', 'wrapping-up': '🎉', notifications: '🔔', 'class-check-in': '✍️'
+    'getting-started': 'flag', dashboard: 'calendar', home: 'map', schedule: 'calendar', approvals: 'check', rota: 'calendar', 'activity-overview': 'book',
+    participants: 'users', attendance: 'check', 'faith-projects': 'heart', 'faith-project': 'heart', onboarding: 'check', onboard: 'check', groups: 'users', 'my-group': 'users', group: 'users',
+    allocation: 'users', 'group-meetings': 'chat', supports: 'users', hubs: 'users', 'my-hub': 'users', cohorts: 'cap', 'follow-ups': 'chat', mobilisation: 'megaphone', registration: 'clip',
+    feedback: 'chat', community: 'users', users: 'user', announcements: 'megaphone', resources: 'book', scriptures: 'book', website: 'map', settings: 'cog',
+    troubleshooting: 'info', help: 'info', profile: 'user', recaps: 'book', recap: 'book', journey: 'map', 'this-week': 'calendar', week: 'calendar', people: 'users', 'wrapping-up': 'check', notifications: 'megaphone', 'class-check-in': 'check'
   };
   var $ = function (id) { return document.getElementById(id); };
   var state = { role: null, rendered: null };
@@ -334,7 +338,7 @@
     return h;
   }
   function roleData(r) { return G.roles[r] || { sections: [] }; }
-  function iconFor(s) { return s.icon || ICONS[s.id] || ICONS[(s.id || '').split('-')[0]] || '📘'; }
+  function iconFor(s) { return ico(s.icon || ICONS[s.id] || ICONS[(s.id || '').split('-')[0]] || 'book'); }
   function tileFor(i) { return 'c' + (i % 8); }
   function countTasks(r) { return roleData(r).sections.reduce(function (a, s) { return a + (s.tasks || []).length; }, 0); }
   function findTask(r, id) {
@@ -355,7 +359,7 @@
   function renderPicker() {
     $('roles').innerHTML = Object.keys(ROLE_META).map(function (r) {
       var m = ROLE_META[r], n = countTasks(r);
-      return '<button class="role-card" type="button" data-role="' + r + '"><div class="tile ' + m.tile + '">' + m.emoji + '</div><h2>I\'m ' + (r === 'admin' ? 'an ' : 'a ') + m.label.toLowerCase() + '</h2><p>' + m.blurb + '</p>' +
+      return '<button class="role-card" type="button" data-role="' + r + '"><div class="tile ' + m.tile + '">' + ico(m.icon) + '</div><h2>I\'m ' + (r === 'admin' ? 'an ' : 'a ') + m.label.toLowerCase() + '</h2><p>' + m.blurb + '</p>' +
         '<span class="go">Open my guide ' + ARROW + (n ? '<span class="count">· ' + n + ' answers</span>' : '') + '</span></button>';
     }).join('');
     $('roles').onclick = function (e) { var b = e.target.closest('[data-role]'); if (b) location.hash = 'role=' + b.getAttribute('data-role'); };
@@ -372,9 +376,9 @@
     var r = state.role, d = roleData(r), m = ROLE_META[r];
     var pops = popularTasks(r);
     $('home').innerHTML =
-      '<div class="hero"><div class="hello">' + m.emoji + ' ' + m.label + ' guide</div><h1>Hi! What do you need help with?</h1><p>' + esc(m.blurb) + ' Every answer has simple steps and a picture of the screen.</p>' +
+      '<div class="hero"><div class="hello">' + ico(m.icon) + ' ' + m.label + ' guide</div><h1>Hi! What do you need help with?</h1><p>' + esc(m.blurb) + ' Every answer has simple steps and a picture of the screen.</p>' +
       '<button class="ask" type="button" id="heroAsk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="ask-t">Try “' + esc(r === 'participant' ? 'join my group call' : r === 'support' ? 'mark attendance' : 'assign follow-ups') + '”</span></button></div>' +
-      (d.sections.length ? '' : '<div class="none" style="margin-top:24px"><div class="big">🛠️</div><b>This part of the guide is still being written.</b>Check back soon.</div>') +
+      (d.sections.length ? '' : '<div class="none" style="margin-top:24px"><div class="big">' + ico('cog') + '</div><b>This part of the guide is still being written.</b>Check back soon.</div>') +
       (pops.length ? '<div class="block-title"><h2>Popular questions</h2></div><div class="popular">' + pops.map(function (p) {
         return '<button class="pop" type="button" data-task="' + p.t.id + '"><span class="pe ' + tileFor(p.i) + '">' + iconFor(p.s) + '</span><span><span class="pq">' + esc(p.t.q) + '</span><span class="ps">' + esc(p.s.title) + '</span></span></button>';
       }).join('') + '</div>' : '') +
@@ -382,7 +386,7 @@
         var n = (s.tasks || []).length;
         return '<a class="topic" href="' + secHref(r, s.id) + '"><span class="te ' + tileFor(i) + '">' + iconFor(s) + '</span><h3>' + esc(s.title) + '</h3><p>' + fmt(s.summary || '') + '</p><span class="n">' + n + ' question' + (n === 1 ? '' : 's') + ' →</span></a>';
       }).join('') + '</div>' : '') +
-      '<div class="helpcard"><span class="he">💬</span><div><span class="ht">Still stuck?</span><span>Close this guide, tap the <b>?</b> button in the app and choose WhatsApp to message a real person.</span></div></div>' +
+      '<div class="helpcard"><span class="he">' + ico('chat') + '</span><div><span class="ht">Still stuck?</span><span>Close this guide, tap the <b>?</b> button in the app and choose WhatsApp to message a real person.</span></div></div>' +
       (G.updated ? '<p class="foot">Guide last updated ' + esc(G.updated) + '.</p>' : '');
     $('heroAsk').onclick = function () { $('q').focus(); };
     $('home').querySelectorAll('[data-task]').forEach(function (b) { b.onclick = function () { location.hash = 'role=' + r + '&task=' + b.getAttribute('data-task'); }; });
@@ -768,7 +772,7 @@
     if (!keepScroll) { $('q').value = ''; $('searchBox').classList.remove('has'); document.querySelector('.top').classList.remove('searching'); }
     if (!r) { show('picker'); window.scrollTo(0, 0); return; }
     var m = ROLE_META[r];
-    $('roleBtn').innerHTML = m.emoji + ' <span class="long">' + m.label + ' · </span>Switch';
+    $('roleBtn').innerHTML = ico(m.icon) + ' <span class="long">' + m.label + ' · </span>Switch';
     var hit = h.task ? findTask(r, h.task) : null;
     var secId = hit ? hit.s.id : h.section;
     if (!secId || !roleData(r).sections.some(function (s) { return s.id === secId; })) {

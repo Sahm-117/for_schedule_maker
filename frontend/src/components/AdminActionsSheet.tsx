@@ -87,7 +87,7 @@ const AdminActionsSheet: React.FC<AdminActionsSheetProps> = ({
             }}
             className="w-full inline-flex items-center justify-center h-11 px-4 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50"
           >
-            📢 Announcements
+            Announcements
           </button>
         </div>
       </div>

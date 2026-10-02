@@ -1,3 +1,4 @@
+import Glyph from '../Glyph';
 import React, { useRef, useState } from 'react';
 import MentionTextarea, { MentionText, mentionsInText } from './MentionTextarea';
 import { createPortal } from 'react-dom';
@@ -155,7 +156,7 @@ const DiscussionFeedView: React.FC<DiscussionFeedViewProps> = ({ feed, actions, 
     if (canModerate && actions.pin && !post.removed) {
       items.push(post.pinned
         ? { label: 'Unpin', onClick: () => void run(() => actions.pin!(post.id, false)) }
-        : { label: '📌 Pin to top', onClick: () => void run(() => actions.pin!(post.id, true), 'Pinned to the top.') });
+        : { label: 'Pin to top', onClick: () => void run(() => actions.pin!(post.id, true), 'Pinned to the top.') });
     }
     if (canModerate && reported.has(post.id)) {
       items.push({ label: 'Keep post', onClick: () => void run(() => actions.moderate!('POST', post.id, 'KEEP'), 'Kept. The report is closed.') });
@@ -199,7 +200,7 @@ const DiscussionFeedView: React.FC<DiscussionFeedViewProps> = ({ feed, actions, 
           onClick={() => postRefs.current.get(firstReport.postId)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
           className="flex items-center gap-3 rounded-[20px] bg-red-100/80 px-4 py-3.5 text-left text-red-700"
         >
-          <span aria-hidden="true">🚩</span>
+          <Glyph name="flag" className="h-5 w-5" />
           <span className="min-w-0 flex-1 text-[14px]">
             <b>{feed.openReports.length === 1 ? '1 post reported' : `${feed.openReports.length} posts reported`}</b>
             {' · '}“{reasonLabel(firstReport.reasons[0])}”
@@ -356,7 +357,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, feed, actions, canModerate, r
       <SwipeHint dx={swipe.dx} />
       <div style={swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined} className={swipe.dx ? '' : 'transition-transform'}>
       {post.pinned && (
-        <p className="mb-2 text-[12px] font-bold uppercase tracking-[0.04em] text-amber-700">📌 Pinned by {post.pinnedByName || feed.supportName || 'your support'}</p>
+        <p className="mb-2 text-[12px] font-bold uppercase tracking-[0.04em] text-amber-700"><Glyph name="pin" className="mr-1 inline h-3.5 w-3.5 align-text-bottom" />Pinned by {post.pinnedByName || feed.supportName || 'your support'}</p>
       )}
       {isIntro && !post.removed && <p className="mb-2 text-[12px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Introduction</p>}
       <div className="flex items-start gap-3">
@@ -392,7 +393,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, feed, actions, canModerate, r
             <span className="sr-only">{likedNow ? 'Unlike' : 'Like'}</span>
           </button>
           <button type="button" onClick={() => setOpen((v) => !v)} className="inline-flex min-h-[36px] items-center gap-1.5">
-            <span aria-hidden="true">💬</span>
+            <Glyph name="chat" className="h-4 w-4" />
             {replyCount === 0 ? (canInteract ? 'Reply' : 'No replies') : `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`}
           </button>
         </div>

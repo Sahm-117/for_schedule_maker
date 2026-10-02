@@ -1,3 +1,4 @@
+import Glyph from '../Glyph';
 import React, { useEffect, useState } from 'react';
 import ModalShell from '../followups/ModalShell';
 import ConfirmationModal from '../ConfirmationModal';
@@ -127,7 +128,7 @@ const ChurchEventSheet: React.FC<ChurchEventSheetProps> = ({ isOpen, onClose, ev
           <p className="text-xs text-gray-500">Leave it off for events where FOF still holds. They show on the timeline but don’t clash.</p>
           {hits.length > 0 && (
             <div className="rounded-2xl bg-amber-100/80 p-3 text-xs text-amber-700">
-              ⚠️ This falls on {hits.map(({ cohort, cls }) => `${cohort.name}’s class ${cls.weekNumber} (${formatPlannerDate(cls.date, true, today)})`).join(', ')}.
+              <Glyph name="warning" className="mr-1 inline h-3.5 w-3.5 align-text-bottom" />This falls on {hits.map(({ cohort, cls }) => `${cohort.name}’s class ${cls.weekNumber} (${formatPlannerDate(cls.date, true, today)})`).join(', ')}.
               {' '}You’ll choose how to adjust after saving.
             </div>
           )}

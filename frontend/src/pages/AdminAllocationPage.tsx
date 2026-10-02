@@ -529,7 +529,7 @@ const AdminAllocationContent: React.FC = () => {
             >
               {filteredUnassigned.length === 0 ? (
                 <p className="py-4 text-center text-xs text-gray-400">
-                  {unassigned.length === 0 ? 'Everyone is allocated 🎉' : 'No matches'}
+                  {unassigned.length === 0 ? 'Everyone is allocated' : 'No matches'}
                 </p>
               ) : (
                 filteredUnassigned.map((p) => (

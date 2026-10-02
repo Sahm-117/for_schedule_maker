@@ -488,7 +488,7 @@ const ParticipantHomePage: React.FC = () => {
                 <span className="grid h-8 w-8 flex-none place-items-center rounded-full bg-emerald-500 text-white" aria-hidden="true">
                   <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="m5 12 5 5L20 7" /></svg>
                 </span>
-                <h2 className="text-lg font-bold text-gray-900">You're ready for class 🎉</h2>
+                <h2 className="text-lg font-bold text-gray-900">You're ready for class</h2>
               </div>
             ) : (
               <>

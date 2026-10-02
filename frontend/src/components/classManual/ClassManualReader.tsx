@@ -1,3 +1,4 @@
+import Glyph from '../Glyph';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Clarity from '@microsoft/clarity';
@@ -412,7 +413,7 @@ export default function ClassManualReader({ content, onOpenOriginalPdf, renderEn
               aria-label="Reading settings"
               onClick={() => setSettingsOpen((v) => !v)}
             >
-              ⚙
+              <Glyph name="cog" className="h-5 w-5" />
             </button>
             <button type="button" className="cmr-close-button" aria-label="Close reader" onClick={() => onClose?.()}>
               <span aria-hidden="true">✕</span> Close

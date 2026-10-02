@@ -1,3 +1,4 @@
+import Glyph from '../components/Glyph';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SegmentedTabs from '../components/SegmentedTabs';
 import { Navigate, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
@@ -1179,7 +1180,7 @@ const AdminParticipantsContent: React.FC = () => {
                             title={flagsByParticipant.get(p.id)?.map((flag) => flag.reason).join(', ')}
                             className="ml-2 inline-flex items-center rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
                           >
-                            ⚠ Concern
+                            <Glyph name="warning" className="mr-1 h-3 w-3" />Concern
                           </button>
                         )}
                         {(() => {

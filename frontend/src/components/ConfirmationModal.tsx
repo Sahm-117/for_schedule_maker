@@ -1,3 +1,4 @@
+import Glyph from './Glyph';
 import React from 'react';
 import Spinner from './Spinner';
 
@@ -32,19 +33,19 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 
   const typeStyles = {
     danger: {
-      icon: '⚠️',
+      icon: 'warning' as const,
       iconBg: 'bg-red-100',
       iconColor: 'text-red-600',
       confirmBtn: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
     },
     warning: {
-      icon: '⚠️',
+      icon: 'warning' as const,
       iconBg: 'bg-yellow-100',
       iconColor: 'text-yellow-600',
       confirmBtn: 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500',
     },
     info: {
-      icon: 'ℹ️',
+      icon: 'info' as const,
       iconBg: 'bg-blue-100',
       iconColor: 'text-blue-600',
       confirmBtn: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500',
@@ -68,8 +69,8 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         <div className="p-6">
           <div className="flex items-center mb-4">
             <div className={`w-12 h-12 rounded-full ${styles.iconBg} flex items-center justify-center mr-4`}>
-              <span className={`text-2xl ${styles.iconColor}`}>
-                {styles.icon}
+              <span className={`${styles.iconColor}`}>
+                <Glyph name={styles.icon} className="h-6 w-6" />
               </span>
             </div>
             <div>
