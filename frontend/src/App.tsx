@@ -9,6 +9,7 @@ import PullToRefresh from './components/PullToRefresh';
 import { TourProvider } from './context/TourContext';
 import Login from './pages/Login';
 import RootRedirect from './pages/RootRedirect';
+import NotFoundPage from './pages/NotFoundPage';
 
 // Lazy-loaded pages — each becomes its own chunk, so the initial load only
 // ships the shell + the route the user actually lands on.
@@ -174,7 +175,7 @@ function App() {
             <Route path="/hub" element={<Navigate to="/community" replace />} />
             <Route path="/sop-download" element={<Suspense fallback={<RouteFallback />}><SopDownload /></Suspense>} />
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
         </TourProvider>
       </Router>
