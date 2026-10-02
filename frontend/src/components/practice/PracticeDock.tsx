@@ -42,12 +42,10 @@ interface RolePickerProps {
   onSelect: (key: PracticeSeatKey) => void;
   groupName?: string | null;
   hubName?: string | null;
-  busy: PracticeSeatKey | null;
-  onStart: (key: PracticeSeatKey) => void;
 }
 
 // First thing the pop-up shows (and behind "Change role"): pick who to practise as.
-const RolePicker: React.FC<RolePickerProps> = ({ cards, seat, selected, onSelect, groupName, hubName, busy, onStart }) => (
+const RolePicker: React.FC<RolePickerProps> = ({ cards, seat, selected, onSelect, groupName, hubName }) => (
   <div>
     <h3 className="text-[20px] font-extrabold leading-tight text-gray-900">Who do you want to practice as?</h3>
     <p className="mb-3 mt-1 text-[13.5px] text-gray-500">Tap a role, then press Start. You can change it any time.</p>
@@ -78,14 +76,6 @@ const RolePicker: React.FC<RolePickerProps> = ({ cards, seat, selected, onSelect
         );
       })}
     </div>
-    <button
-      type="button"
-      disabled={busy !== null || !selected}
-      onClick={() => { if (selected) onStart(selected); }}
-      className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gray-900 text-[15px] font-bold text-white disabled:opacity-60"
-    >
-      {busy !== null && <Spinner className="h-4 w-4" />}{selected ? `Start as ${PRACTICE_ROLE_LABEL[selected]}` : 'Pick a role to start'}
-    </button>
   </div>
 );
 
@@ -309,6 +299,16 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
         isOpen={open}
         onClose={() => setOpen(false)}
         title="Practice"
+        footer={picking ? (
+          <button
+            type="button"
+            disabled={busySeat !== null || !picked}
+            onClick={() => { if (picked) void startAs(picked); }}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-gray-900 text-[15px] font-bold text-white disabled:opacity-60"
+          >
+            {busySeat !== null && <Spinner className="h-4 w-4" />}{picked ? `Start as ${PRACTICE_ROLE_LABEL[picked]}` : 'Pick a role to start'}
+          </button>
+        ) : undefined}
         subtitle={picking ? 'Nothing here is real' : seat ? `${PRACTICE_ROLE_LABEL[seat]}${peer ? ` · with ${peer.partnerName.split(' ')[0]}` : ''}` : undefined}
       >
         {mode === 'staff' && peer && <p className="mb-1.5 text-[11.5px] text-gray-500">Your seat is set by the walkthrough. End it to switch.</p>}
@@ -320,8 +320,6 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
             onSelect={setPicked}
             groupName={data?.groupName}
             hubName={data?.hubName}
-            busy={busySeat}
-            onStart={(k) => void startAs(k)}
           />
         )}
         {mode === 'staff' && !peer && !picking && seat && (
