@@ -240,6 +240,7 @@ function useLandingScene(rootRef: React.RefObject<HTMLDivElement | null>, reduce
 
 const LandingPage: React.FC = () => {
   const [registrationLink, setRegistrationLink] = useState(DEFAULT_REGISTRATION_LINK);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [nextCohortText, setNextCohortText] = useState('Registration is open');
   const [images, setImages] = useState<{ hero: string | null; group: string | null; class: string | null }>({ hero: null, group: null, class: null });
   const [content, setContent] = useState<LandingContent>(DEFAULT_LANDING_CONTENT);
@@ -324,7 +325,7 @@ const LandingPage: React.FC = () => {
       <header className={navClass}>
         <div className="nav-in">
           <a className="brand" href="#hero" onClick={smoothScrollTo('hero')} aria-label="Foundation of Faith — back to top">
-            <img src="/logo-mark.png" alt="" width={40} height={40} />
+            <img src="/logo-crest.webp" alt="" width={46} height={46} />
             <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em' }}>Foundation of Faith</span>
           </a>
           <nav className="nav-links" aria-label="Sections">
@@ -332,8 +333,19 @@ const LandingPage: React.FC = () => {
               <a key={n.id} className="nav-link" href={`#${n.id}`} onClick={smoothScrollTo(n.id)}>{n.label}</a>
             ))}
           </nav>
-          <Link to="/login" className="nav-login">Members login</Link>
+          <Link to="/login" className="nav-login">Member portal</Link>
+          <button type="button" className="nav-burger" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
+            <span /><span /><span />
+          </button>
         </div>
+        {menuOpen && (
+          <div className="nav-panel">
+            {NAV_ITEMS.map((n) => (
+              <a key={n.id} className="nav-panel-link" href={`#${n.id}`} onClick={(e) => { smoothScrollTo(n.id)(e); setMenuOpen(false); }}>{n.label}</a>
+            ))}
+            <Link to="/login" className="nav-panel-link nav-panel-login">Member portal</Link>
+          </div>
+        )}
       </header>
 
       {/* ================= HERO ================= */}
@@ -359,7 +371,7 @@ const LandingPage: React.FC = () => {
                 <span className="btn-ic"><ArrowIcon /></span>
               </a>
               <Link className="btn btn-ghost" to="/login">
-                <RollBtn>Members login</RollBtn>
+                <RollBtn>Member portal</RollBtn>
               </Link>
             </div>
           </div>
@@ -568,7 +580,7 @@ const LandingPage: React.FC = () => {
               <RollBtn>Register for FOF</RollBtn>
               <span className="btn-ic"><ArrowIcon /></span>
             </a>
-            <p className="cta-login">Already in FOF?<Link to="/login">Members login</Link></p>
+            <p className="cta-login">Already in FOF?<Link to="/login">Member portal</Link></p>
           </div>
         </div>
       </section>
@@ -578,7 +590,7 @@ const LandingPage: React.FC = () => {
         <div className="wrap">
           <div className="foot-top">
             <a className="foot-brand" href="https://www.tcnikorodu.org" target="_blank" rel="noopener noreferrer">
-              <img src="/logo-mark.png" alt="" width={52} height={52} />
+              <img src="/logo-crest.webp" alt="" width={52} height={52} />
               <div>
                 <p className="foot-name">Foundation of Faith · The Covenant Nation, Ikorodu</p>
                 <p className="foot-small">{content.footer.address}<br />{content.footer.serviceTimes}</p>
@@ -598,7 +610,7 @@ const LandingPage: React.FC = () => {
                 {content.footer.social.map((s, i) => (
                   <a key={i} href={s.url} target="_blank" rel="noopener noreferrer">{s.label}</a>
                 ))}
-                <Link to="/login">Members login</Link>
+                <Link to="/login">Member portal</Link>
               </div>
             </div>
           </div>

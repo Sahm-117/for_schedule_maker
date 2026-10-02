@@ -301,3 +301,98 @@
 @media (prefers-reduced-motion:reduce){
   .fof-landing .marquee-track,.fof-landing .dot::after,.fof-landing .scroll-cue-bar::after{animation:none}
 }
+
+/* -----------------------------------------------------------------------
+ * Aligned with the church home page (tcnikorodu.org): full-width nav bar,
+ * centred mixed-case hero over a photo, white-on-orange buttons, two-tone
+ * condensed headings, white / cool-grey / cream sections and a green footer
+ * with an outlined word. Same fonts and orange as before.
+ * --------------------------------------------------------------------- */
+.fof-landing{color:#344054}
+.fof-landing .label-idx{display:none}
+
+/* nav */
+.fof-landing .nav{padding:0}
+.fof-landing .nav.is-scrolled{padding:0}
+.fof-landing .nav-in{max-width:none;height:88px;padding:0 clamp(20px,6vw,88px);border-radius:0;background:rgba(88,90,94,.62);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.fof-landing .nav.is-scrolled .nav-in{background:rgba(40,42,46,.82);border-color:transparent}
+.fof-landing .brand img{width:46px;height:46px;border-radius:0;background:none;padding:0}
+.fof-landing .brand span{font-size:18px !important;font-weight:600 !important}
+.fof-landing .nav-links{margin-left:auto;margin-right:20px;gap:10px}
+.fof-landing .nav-link{padding:10px 14px;font-size:14px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,247,237,.9)}
+.fof-landing .nav-link:hover{background:none;color:#fff}
+.fof-landing .nav-login{height:48px;padding:0 24px;background:#fff;color:#f97316;border:1px solid #ffedd5;font-size:14px;font-weight:600;letter-spacing:.04em}
+.fof-landing .nav-login:hover{background:#fff7ed;color:#ea580c}
+.fof-landing .nav-burger{display:none;width:44px;height:44px;margin-left:8px;border:0;background:none;cursor:pointer;flex-direction:column;justify-content:center;align-items:center;gap:6px;padding:0}
+.fof-landing .nav-burger span{display:block;width:26px;height:2px;border-radius:2px;background:#f97316}
+.fof-landing .nav-panel{display:flex;flex-direction:column;padding:8px clamp(20px,6vw,88px) 20px;background:rgba(40,42,46,.95);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.fof-landing .nav-panel-link{padding:14px 0;font-size:15px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:#fff7ed;border-bottom:1px solid rgba(255,247,237,.12)}
+.fof-landing .nav-panel-login{margin-top:14px;border:0;border-radius:999px;background:#fff;color:#f97316;text-align:center;padding:14px 0}
+
+/* hero */
+.fof-landing .hero{align-items:center;justify-content:center;text-align:center;background:#0a0a0a}
+.fof-landing .hero-photo{opacity:1}
+.fof-landing .hero::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(10,10,10,.5),rgba(10,10,10,.62));pointer-events:none}
+.fof-landing .hero-mark,.fof-landing .hero-grain,.fof-landing .scroll-cue{display:none}
+.fof-landing .hero-glow{opacity:.55}
+.fof-landing .hero-body{display:flex;flex-direction:column;align-items:center;padding-bottom:0;padding-top:88px}
+.fof-landing .pill{border-color:rgba(255,247,237,.3);letter-spacing:.1em}
+.fof-landing .hero-title{font-family:'Host Grotesk',system-ui,sans-serif;font-weight:700;text-transform:none;letter-spacing:-.02em;line-height:1.06;font-size:clamp(44px,7vw,100px);color:#fff7ed;max-width:15ch}
+.fof-landing .hero-title .line{padding-bottom:.12em;margin-bottom:-.04em}
+.fof-landing .line-accent{color:#fff7ed}
+.fof-landing .hero-foot{display:flex;flex-direction:column;align-items:center;gap:32px;border-top:0;margin-top:20px;padding-top:0}
+.fof-landing .hero-lede{max-width:560px;font-size:clamp(16px,1.5vw,20px);font-weight:500;color:#fff7ed}
+.fof-landing .hero-ctas{justify-content:center;gap:20px}
+.fof-landing .hero-meta{justify-content:center;margin-top:32px}
+.fof-landing .hero-meta-list{justify-content:center}
+
+/* buttons */
+.fof-landing .btn{height:70px;padding:0 44px;gap:0;font-size:20px;letter-spacing:0}
+.fof-landing .btn .btn-ic{display:none}
+.fof-landing .btn-primary{background:#f97316;color:#fff}
+.fof-landing .btn-primary:hover{background:#ea580c;color:#fff}
+.fof-landing .btn-ghost{border:1px solid rgba(249,115,22,.65);color:#fff;background:rgba(10,10,10,.2)}
+.fof-landing .btn-ghost:hover{border-color:#f97316;background:rgba(249,115,22,.14);color:#fff}
+
+/* light sections */
+.fof-landing .about,.fof-landing .journey{background:#fff;color:#344054}
+.fof-landing .learn,.fof-landing .photos{background:#fff7ed;color:#344054}
+.fof-landing .faq{background:#f9fafb;color:#344054}
+.fof-landing .wd{color:#98a2b3}
+.fof-landing .wd.is-strong{color:#101828}
+.fof-landing .about-label,.fof-landing .fact-txt,.fof-landing .learn-sub,.fof-landing .lesson-desc,.fof-landing .faq-help,.fof-landing .q-ans,.fof-landing .ph-cap{color:#475467}
+.fof-landing .fact-num{color:#101828}
+.fof-landing .fact-num em,.fof-landing .counter-now,.fof-landing .lesson-num{color:#ea580c}
+.fof-landing .journey .j-dot{background:#fff}
+.fof-landing .q.is-open .q-ic{color:#f9fafb}
+
+/* two-tone condensed headings: lead words soft brown, last word orange */
+.fof-landing .learn-title,.fof-landing .hw-title,.fof-landing .j-title,.fof-landing .faq-title{font-size:clamp(56px,7vw,90px);line-height:.95;color:#8b7466}
+.fof-landing .cta-title{color:#fff7ed}
+.fof-landing .mh .w:last-child > span{color:#f97316}
+.fof-landing .lesson-title{font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:38px;letter-spacing:.01em;text-transform:uppercase;line-height:1;color:#101828}
+.fof-landing .q-btn{color:#101828}
+
+/* footer: green with an outlined word */
+.fof-landing .footer{background:#37461d;color:#fff}
+.fof-landing .foot-top{border-top-color:rgba(255,255,255,.16)}
+.fof-landing .foot-brand img{background:none;padding:0;border-radius:0}
+.fof-landing .foot-small{color:rgba(255,255,255,.72)}
+.fof-landing .foot-col-h{color:rgba(255,255,255,.55)}
+.fof-landing .foot-links a{color:#fff}
+.fof-landing .foot-word{color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.16)}
+.fof-landing .foot-bottom{color:rgba(255,255,255,.6)}
+
+@media (max-width:900px){
+  .fof-landing .nav-in{height:76px}
+  .fof-landing .nav-burger{display:flex}
+  .fof-landing .nav-login{display:none}
+}
+@media (max-width:640px){
+  .fof-landing .nav,.fof-landing .nav.is-scrolled{padding:0}
+  .fof-landing .brand span{display:inline}
+  .fof-landing .btn{height:60px;font-size:17px;width:100%;justify-content:center}
+  .fof-landing .hero-ctas{width:100%;flex-direction:column;gap:14px}
+  .fof-landing .hero-ctas .btn{justify-content:center}
+  .fof-landing .lesson-title{font-size:30px}
+}
