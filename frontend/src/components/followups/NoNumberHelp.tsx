@@ -94,7 +94,10 @@ const NoNumberHelp: React.FC<Props> = ({ contact, related, emailInstead, onEmail
         )}
         {onHaveNumber && (
           <Step n={++step}>
-            <button type="button" onClick={onHaveNumber} className="text-left text-[13.5px] font-semibold text-sky-700">I already have their number</button>
+            <button type="button" onClick={onHaveNumber} className="block text-left">
+              <span className="block text-[13.5px] font-semibold text-sky-700">Got their number? Add it</span>
+              <span className="block text-[12.5px] text-gray-500">Save it on the contact so WhatsApp works.</span>
+            </button>
           </Step>
         )}
       </div>
