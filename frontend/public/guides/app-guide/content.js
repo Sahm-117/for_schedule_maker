@@ -1312,7 +1312,8 @@ window.GUIDE_CONTENT = {
        "result": "The message opens in WhatsApp with the template text and the current registration link filled in.",
        "shot": "admin-follow-ups-message-bank.jpg",
        "tips": [
-        "If the contact has an email, **Send email** in their **⋮** menu (or tapping their email under the **i**) sends the same template by email."
+        "If the contact has an email, **Send email** in their **⋮** menu (or tapping their email under the **i**) sends the same template by email.",
+        "The message window shows who it is going to and their number. If someone has no working number it says so and blocks copying, so a message never lands in the wrong chat. Tap **Add a working number** to fix it."
        ]
       },
       {
@@ -1399,6 +1400,7 @@ window.GUIDE_CONTENT = {
        "steps": [
         "Open **Surveys** and tap **New survey**.",
         "Name it, then choose **Who answers it** (participants, supports or everyone) and whether it belongs to this cohort or all cohorts.",
+        "For supports, you can narrow it to one hub or one tag. For participants, to one group.",
         "Add questions: text, text area, number, rating (with labels for both ends and your own scale) or image or file (5 MB each).",
         "Set when it opens and closes, and tick the notification if people should be alerted when it opens.",
         "Tap **Publish survey**, or **Save draft** to finish later."
@@ -1449,6 +1451,26 @@ window.GUIDE_CONTENT = {
        "result": "You have the answers in the app and as a file.",
        "tips": [
         "An anonymous survey shows its answers once five or more people have answered."
+       ]
+      },
+      {
+       "id": "surveys-builtin",
+       "q": "What are the built-in surveys?",
+       "keywords": [
+        "mid",
+        "end",
+        "wrapping up",
+        "feedback",
+        "built-in"
+       ],
+       "steps": [
+        "**Wrapping up** appears near the end of each cohort.",
+        "**Mid-cohort feedback** and **End-of-cohort feedback** are anonymous and start switched off.",
+        "Tap **Edit** on one to change its Home card, its questions, and when it appears (weeks after the start, weeks before the end, or fixed dates). Turn on **Show this on participants Home** to start using it."
+       ],
+       "result": "The surveys follow each cohort own dates, so you set them up once.",
+       "tips": [
+        "The always-open anonymous feedback on the Feedback page is separate and keeps working as before."
        ]
       }
      ]
@@ -2588,7 +2610,8 @@ window.GUIDE_CONTENT = {
        "result": "WhatsApp opens with the message ready to send, and the app notes that you've contacted them.",
        "tips": [
         "You can also tap **WhatsApp** or **Call** on the card to reach them without a template.",
-        "No WhatsApp? Tap **⋮** on their card, then **Send email** (or tap their email under the **i**). Pick a template the same way and tap **Open email**. Your email app opens with the message ready to send. Once they've registered, Send email opens their login details instead."
+        "No WhatsApp? Tap **⋮** on their card, then **Send email** (or tap their email under the **i**). Pick a template the same way and tap **Open email**. Your email app opens with the message ready to send. Once they've registered, Send email opens their login details instead.",
+        "The message window shows who it is going to and their number. If someone has no working number it says so and blocks copying, so a message never lands in the wrong chat. Tap **Add a working number** to fix it."
        ],
        "shot": "support-follow-up-templates.jpg"
       },

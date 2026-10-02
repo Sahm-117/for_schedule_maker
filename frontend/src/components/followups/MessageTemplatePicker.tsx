@@ -1,9 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import type { FollowUpContact, MessageTemplate } from '../../types';
+import type { FollowUpContact, FollowUpRelatedContact, MessageTemplate } from '../../types';
 import ModalShell from './ModalShell';
 import { fillTemplate } from '../../utils/followUps';
-import { buildWhatsAppLink } from '../../utils/phone';
+import { buildWhatsAppLink, normalizeToIntlPhone } from '../../utils/phone';
+
+// +234 806 678 3672 style, for showing who a message is going to.
+const prettyIntl = (digits: string): string =>
+  digits.startsWith('234') && digits.length === 13 ? `+234 ${digits.slice(3, 6)} ${digits.slice(6, 9)} ${digits.slice(9)}` : `+${digits}`;
 import Spinner from '../Spinner';
+import NoNumberHelp from './NoNumberHelp';
 
 interface MessageTemplatePickerProps {
   isOpen: boolean;
@@ -15,6 +20,10 @@ interface MessageTemplatePickerProps {
   onMessageSent: (contact: FollowUpContact) => Promise<void> | void;
   /** 'email' sends the same personalised message through their email app instead of WhatsApp. */
   channel?: 'whatsapp' | 'email';
+  /** Opens the edit form for a supporter who has got the number from someone else. */
+  onHaveNumber?: (contact: FollowUpContact) => void;
+  /** Other sign-ups that used the same email or number. */
+  related?: FollowUpRelatedContact[];
 }
 
 // Subject line for follow-up emails opened from a template.
@@ -29,10 +38,14 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
   currentUserName,
   onMessageSent,
   channel = 'whatsapp',
+  onHaveNumber,
+  related = [],
 }) => {
   const [selectedId, setSelectedId] = useState('');
   const [marking, setMarking] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Chosen from the no-number warning: carry on by email instead.
+  const [emailInstead, setEmailInstead] = useState(false);
 
   const selected = templates.find((t) => t.id === selectedId) || null;
   const filled = useMemo(
@@ -44,7 +57,13 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
   const mailLink = email && filled
     ? `mailto:${email}?subject=${encodeURIComponent(EMAIL_SUBJECT)}&body=${encodeURIComponent(filled)}`
     : null;
-  const byEmail = channel === 'email';
+  const byEmail = channel === 'email' || emailInstead;
+  const intl = normalizeToIntlPhone(contact?.phone);
+  const numberOk = !!intl;
+  const firstName = contact?.fullName.split(' ')[0] ?? '';
+  // Copying a WhatsApp message for someone with no usable number is how a text
+  // ends up pasted into the wrong chat, so it is blocked until the number is fixed.
+  const copyBlocked = !byEmail && !numberOk;
 
   if (!contact) return null;
 
@@ -60,26 +79,28 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
   return (
     <ModalShell
       isOpen={isOpen}
-      onClose={() => { setSelectedId(''); onClose(); }}
+      onClose={() => { setSelectedId(''); setEmailInstead(false); onClose(); }}
       title={`${byEmail ? 'Email' : 'Message'} ${contact.fullName.split(' ')[0]}`}
       subtitle="Pick a template — placeholders fill automatically."
       wide
       footer={(
         <>
-          <button type="button" onClick={() => { setSelectedId(''); onClose(); }} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">
+          <button type="button" onClick={() => { setSelectedId(''); setEmailInstead(false); onClose(); }} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">
             Close
           </button>
           {filled && (
             <button
               type="button"
+              disabled={copyBlocked}
+              title={copyBlocked ? `${firstName} has no working number, so this message can't be copied` : undefined}
               onClick={() => {
-                void navigator.clipboard?.writeText(filled);
+                void navigator.clipboard?.writeText(filled).catch(() => {});
                 setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
+                setTimeout(() => setCopied(false), 4000);
               }}
-              className="rounded-2xl border border-orange-200 bg-white px-4 py-2.5 text-sm font-semibold text-primary hover:bg-orange-50"
+              className="rounded-2xl border border-orange-200 bg-white px-4 py-2.5 text-sm font-semibold text-primary hover:bg-orange-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:hover:bg-white"
             >
-              {copied ? 'Copied!' : 'Copy text'}
+              {copied ? 'Copied' : byEmail ? 'Copy text' : `Copy for ${firstName}`}
             </button>
           )}
           {byEmail ? (
@@ -115,6 +136,21 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
         </>
       )}
     >
+      {!(channel === 'email') && (numberOk && !emailInstead ? (
+        <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl bg-emerald-50 px-4 py-2.5 text-[13px] text-emerald-900">
+          <span className="font-semibold">To {contact.fullName}</span>
+          <span className="font-semibold text-emerald-700">{prettyIntl(intl as string)}</span>
+          {copied && <span className="w-full text-[12.5px] text-emerald-800">Copied. Paste it only into {firstName}'s chat.</span>}
+        </div>
+      ) : !numberOk ? (
+        <NoNumberHelp
+          contact={contact}
+          related={related}
+          emailInstead={emailInstead}
+          onEmailInstead={() => { setEmailInstead(true); setSelectedId(''); }}
+          onHaveNumber={onHaveNumber ? () => { setSelectedId(''); setEmailInstead(false); onHaveNumber(contact); } : undefined}
+        />
+      ) : null)}
       {templates.length === 0 ? (
         <p className="rounded-2xl bg-orange-50 px-4 py-6 text-center text-sm text-gray-500">
           No message templates yet. Ask an admin to add them in the Message Bank.

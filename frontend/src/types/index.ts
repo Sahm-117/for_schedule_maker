@@ -1787,6 +1787,7 @@ export interface PracticeStatus {
 
 
 // ── Surveys ──────────────────────────────────────────────────────────────────
+export type SurveyTimingMode = 'DATES' | 'WEEKS_BEFORE_END' | 'WEEKS_AFTER_START';
 export type SurveyAudience = 'PARTICIPANTS' | 'SUPPORTS' | 'EVERYONE';
 export type SurveyQuestionKind = 'TEXT' | 'TEXTAREA' | 'NUMBER' | 'RATING' | 'FILE' | 'DEPARTMENT' | 'YESNO';
 export type SurveyState = 'DRAFT' | 'OFF' | 'SCHEDULED' | 'OPEN' | 'CLOSED';
@@ -1823,9 +1824,11 @@ export interface SurveyListItem {
   anonymous: boolean;
   enabled: boolean;
   status: 'DRAFT' | 'PUBLISHED';
-  timingMode: 'DATES' | 'WEEKS_BEFORE_END';
+  timingMode: SurveyTimingMode;
   weeksBeforeEnd: number | null;
   closeDaysAfterEnd: number | null;
+  weeksAfterStart: number | null;
+  openForDays: number | null;
   opensAt: string | null;
   closesAt: string | null;
   state: SurveyState;
@@ -1842,14 +1845,18 @@ export interface SurveyRecord {
   scope: 'COHORT' | 'GENERAL';
   cohortId: string | null;
   targetGroupId: string | null;
+  targetHubId: string | null;
+  targetLabelId: string | null;
   anonymous: boolean;
   enabled: boolean;
   status: 'DRAFT' | 'PUBLISHED';
-  timingMode: 'DATES' | 'WEEKS_BEFORE_END';
+  timingMode: SurveyTimingMode;
   opensAt: string | null;
   closesAt: string | null;
   weeksBeforeEnd: number | null;
   closeDaysAfterEnd: number | null;
+  weeksAfterStart: number | null;
+  openForDays: number | null;
   notifyOnOpen: boolean;
   homeHeading: string | null;
   homeLine: string | null;
@@ -1892,4 +1899,18 @@ export interface SurveyForFilling {
   builtinKey?: string | null;
   submitted: boolean;
   questions?: SurveyQuestion[];
+}
+
+/** Another sign-up in the same cohort that used the same email or number. */
+export interface FollowUpRelatedContact {
+  id: string;
+  fullName: string;
+  phone: string | null;
+  email: string | null;
+  /** 'EMAIL' or 'PHONE': what the two sign-ups share. */
+  sharedBy: 'EMAIL' | 'PHONE';
+  /** Minutes between the two sign-ups (a few minutes usually means one person signed up two people). */
+  minutesApart: number;
+  ownerName: string | null;
+  mine: boolean;
 }

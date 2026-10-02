@@ -1274,6 +1274,9 @@ Deno.serve(async (req) => {
               scope: due.cohort_id ? 'ACTIVE_COHORT' : 'ALL_USERS',
               cohortId: due.cohort_id,
               audience: due.audience,
+              targetHubId: due.hub_id,
+              targetLabelId: due.label_id,
+              targetGroupId: due.group_id,
             }),
           })
           if (res.ok) {

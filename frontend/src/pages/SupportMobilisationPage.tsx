@@ -1180,6 +1180,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
         currentUserName={user?.name}
         onMessageSent={handleMessageSent}
         channel={messageChannel}
+        onHaveNumber={(contact) => { setMessagingContact(null); setEditingContact(contact); }}
       />
 
       {notInterestedContact && (

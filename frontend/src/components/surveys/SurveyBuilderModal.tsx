@@ -3,8 +3,8 @@ import ModalShell from '../followups/ModalShell';
 import AppSelect from '../AppSelect';
 import Spinner from '../Spinner';
 import { useToast } from '../Toast';
-import { groupsApi, surveyApi } from '../../services/api';
-import type { Group, SurveyAudience, SurveyQuestion, SurveyQuestionKind, SurveyRecord } from '../../types';
+import { groupsApi, labelsApi, supportHubsApi, surveyApi } from '../../services/api';
+import type { Group, Label, SupportHub, SurveyAudience, SurveyQuestion, SurveyQuestionKind, SurveyRecord, SurveyTimingMode } from '../../types';
 import { ADDABLE_KINDS, KIND_LABEL, emptyQuestion, lagosEnd, lagosStart, toLagosDay } from './surveyUtils';
 
 const INPUT = 'w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent';
@@ -48,13 +48,17 @@ interface FormState {
   audience: SurveyAudience;
   scope: 'COHORT' | 'GENERAL';
   targetGroupId: string;
+  targetHubId: string;
+  targetLabelId: string;
   anonymous: boolean;
   enabled: boolean;
-  timingMode: 'DATES' | 'WEEKS_BEFORE_END';
+  timingMode: SurveyTimingMode;
   opensDay: string;
   closesDay: string;
   weeksBeforeEnd: string;
   closeDaysAfterEnd: string;
+  weeksAfterStart: string;
+  openForDays: string;
   notifyOnOpen: boolean;
   homeHeading: string;
   homeLine: string;
@@ -62,16 +66,17 @@ interface FormState {
 }
 
 const blank = (): FormState => ({
-  cohortId: null, builtinKey: null, title: '', description: '', audience: 'PARTICIPANTS', scope: 'COHORT', targetGroupId: '', anonymous: false, enabled: true,
-  timingMode: 'DATES', opensDay: toLagosDay(new Date().toISOString()), closesDay: '', weeksBeforeEnd: '1', closeDaysAfterEnd: '14',
+  cohortId: null, builtinKey: null, title: '', description: '', audience: 'PARTICIPANTS', scope: 'COHORT', targetGroupId: '', targetHubId: '', targetLabelId: '', anonymous: false, enabled: true,
+  timingMode: 'DATES', opensDay: toLagosDay(new Date().toISOString()), closesDay: '', weeksBeforeEnd: '1', closeDaysAfterEnd: '14', weeksAfterStart: '4', openForDays: '14',
   notifyOnOpen: false, homeHeading: '', homeLine: '', homeButton: '',
 });
 
 const fromRecord = (s: SurveyRecord): FormState => ({
   id: s.id, cohortId: s.cohortId, builtinKey: s.builtinKey, title: s.title, description: s.description ?? '', audience: s.audience, scope: s.scope,
-  targetGroupId: s.targetGroupId ?? '', anonymous: s.anonymous, enabled: s.enabled, timingMode: s.timingMode,
+  targetGroupId: s.targetGroupId ?? '', targetHubId: s.targetHubId ?? '', targetLabelId: s.targetLabelId ?? '', anonymous: s.anonymous, enabled: s.enabled, timingMode: s.timingMode,
   opensDay: toLagosDay(s.opensAt), closesDay: toLagosDay(s.closesAt),
   weeksBeforeEnd: String(s.weeksBeforeEnd ?? 1), closeDaysAfterEnd: String(s.closeDaysAfterEnd ?? 14),
+  weeksAfterStart: String(s.weeksAfterStart ?? 4), openForDays: String(s.openForDays ?? 14),
   notifyOnOpen: s.notifyOnOpen, homeHeading: s.homeHeading ?? '', homeLine: s.homeLine ?? '', homeButton: s.homeButton ?? '',
 });
 
@@ -83,6 +88,8 @@ const SurveyBuilderModal: React.FC<Props> = ({ isOpen, onClose, onSaved, surveyI
   const [saving, setSaving] = useState<'DRAFT' | 'PUBLISHED' | null>(null);
   const [error, setError] = useState('');
   const [groups, setGroups] = useState<Group[]>([]);
+  const [hubs, setHubs] = useState<SupportHub[]>([]);
+  const [labels, setLabels] = useState<Label[]>([]);
 
   const builtin = !!form.builtinKey;
   const patch = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }));
@@ -113,6 +120,22 @@ const SurveyBuilderModal: React.FC<Props> = ({ isOpen, onClose, onSaved, surveyI
     if (!isOpen || !cohortId) return;
     groupsApi.getAll({ cohortId }).then((res) => setGroups(res.groups)).catch(() => setGroups([]));
   }, [isOpen, cohortId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    labelsApi.getAll().then((res) => setLabels(res.labels)).catch(() => setLabels([]));
+    if (cohortId) supportHubsApi.getAll(cohortId).then((res) => setHubs(res.hubs)).catch(() => setHubs([]));
+  }, [isOpen, cohortId]);
+
+  const hubOptions = useMemo(
+    () => [{ value: '', label: 'All supports' }, ...hubs.map((h) => ({ value: h.id, label: h.name }))],
+    [hubs],
+  );
+  const labelOptions = useMemo(() => {
+    const scoped = labels.filter((l) => !l.cohortId || l.cohortId === cohortId);
+    const sorted = [...scoped].sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name));
+    return [{ value: '', label: 'Any tag' }, ...sorted.map((l) => ({ value: l.id, label: l.name }))];
+  }, [labels, cohortId]);
 
   const groupOptions = useMemo(
     () => [{ value: '', label: 'Everyone in the cohort' }, ...groups.map((g) => ({ value: g.id, label: g.name }))],
@@ -149,6 +172,8 @@ const SurveyBuilderModal: React.FC<Props> = ({ isOpen, onClose, onSaved, surveyI
         scope: form.scope,
         cohortId: form.scope === 'COHORT' ? (form.cohortId || cohortId) : null,
         targetGroupId: form.audience === 'PARTICIPANTS' && form.scope === 'COHORT' ? form.targetGroupId || null : null,
+        targetHubId: form.audience === 'SUPPORTS' ? form.targetHubId || null : null,
+        targetLabelId: form.audience === 'SUPPORTS' ? form.targetLabelId || null : null,
         anonymous: form.anonymous,
         enabled: form.enabled,
         status: builtin ? 'PUBLISHED' : status,
@@ -157,6 +182,8 @@ const SurveyBuilderModal: React.FC<Props> = ({ isOpen, onClose, onSaved, surveyI
         closesAt: form.timingMode === 'DATES' && form.closesDay ? lagosEnd(form.closesDay) : null,
         weeksBeforeEnd: form.timingMode === 'WEEKS_BEFORE_END' ? Math.max(0, Number(form.weeksBeforeEnd) || 1) : null,
         closeDaysAfterEnd: form.timingMode === 'WEEKS_BEFORE_END' ? Math.max(0, Number(form.closeDaysAfterEnd) || 14) : null,
+        weeksAfterStart: form.timingMode === 'WEEKS_AFTER_START' ? Math.max(0, Number(form.weeksAfterStart) || 0) : null,
+        openForDays: form.timingMode === 'WEEKS_AFTER_START' ? Math.max(1, Number(form.openForDays) || 14) : null,
         notifyOnOpen: form.notifyOnOpen,
         homeHeading: form.homeHeading.trim() || null,
         homeLine: form.homeLine.trim() || null,
@@ -175,7 +202,7 @@ const SurveyBuilderModal: React.FC<Props> = ({ isOpen, onClose, onSaved, surveyI
 
   const title = builtin ? form.title : form.id ? 'Edit survey' : 'New survey';
   const subtitle = builtin
-    ? 'Built-in survey · shown on the participant Home near the end'
+    ? 'Built-in survey · shown on the participant Home'
     : form.scope === 'COHORT' ? (cohortName || undefined) : 'All cohorts';
 
   const timing = (
@@ -183,6 +210,7 @@ const SurveyBuilderModal: React.FC<Props> = ({ isOpen, onClose, onSaved, surveyI
       <p className="text-sm font-semibold text-gray-900">{builtin ? 'When it appears' : 'When it is open'}</p>
       {(builtin || form.audience === 'PARTICIPANTS') && !hasAnswers && (
         <div className="flex flex-wrap gap-2">
+          <Chip on={form.timingMode === 'WEEKS_AFTER_START'} onClick={() => patch({ timingMode: 'WEEKS_AFTER_START' })}>Weeks after the start</Chip>
           <Chip on={form.timingMode === 'WEEKS_BEFORE_END'} onClick={() => patch({ timingMode: 'WEEKS_BEFORE_END' })}>Weeks before the end</Chip>
           <Chip on={form.timingMode === 'DATES'} onClick={() => patch({ timingMode: 'DATES' })}>{builtin ? 'A fixed date' : 'Dates'}</Chip>
         </div>
@@ -192,6 +220,12 @@ const SurveyBuilderModal: React.FC<Props> = ({ isOpen, onClose, onSaved, surveyI
           <div><label className={LABEL}>Weeks before the cohort ends</label><input type="number" min={0} max={30} value={form.weeksBeforeEnd} onChange={(e) => patch({ weeksBeforeEnd: e.target.value })} className={INPUT} /></div>
           <div><label className={LABEL}>Keeps showing for (days after it ends)</label><input type="number" min={0} max={730} value={form.closeDaysAfterEnd} onChange={(e) => patch({ closeDaysAfterEnd: e.target.value })} className={INPUT} /></div>
           <p className="text-[12px] text-gray-500 sm:col-span-2">Each cohort follows its own end date.</p>
+        </div>
+      ) : form.timingMode === 'WEEKS_AFTER_START' ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div><label className={LABEL}>Weeks after the cohort starts</label><input type="number" min={0} max={30} value={form.weeksAfterStart} onChange={(e) => patch({ weeksAfterStart: e.target.value })} className={INPUT} /></div>
+          <div><label className={LABEL}>Stays open for (days)</label><input type="number" min={1} max={365} value={form.openForDays} onChange={(e) => patch({ openForDays: e.target.value })} className={INPUT} /></div>
+          <p className="text-[12px] text-gray-500 sm:col-span-2">Each cohort follows its own start date.</p>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -264,7 +298,7 @@ const SurveyBuilderModal: React.FC<Props> = ({ isOpen, onClose, onSaved, surveyI
                   <label className={LABEL}>Who answers it</label>
                   <div className="flex flex-wrap gap-2">
                     {(['PARTICIPANTS', 'SUPPORTS', 'EVERYONE'] as SurveyAudience[]).map((a) => (
-                      <Chip key={a} on={form.audience === a} onClick={() => patch({ audience: a, targetGroupId: '', timingMode: a === 'PARTICIPANTS' ? form.timingMode : 'DATES' })}>
+                      <Chip key={a} on={form.audience === a} onClick={() => patch({ audience: a, targetGroupId: '', targetHubId: '', targetLabelId: '', timingMode: a === 'PARTICIPANTS' ? form.timingMode : 'DATES' })}>
                         {a === 'PARTICIPANTS' ? 'Participants' : a === 'SUPPORTS' ? 'Supports' : 'Everyone'}
                       </Chip>
                     ))}
@@ -280,6 +314,12 @@ const SurveyBuilderModal: React.FC<Props> = ({ isOpen, onClose, onSaved, surveyI
               </div>
               {form.audience === 'PARTICIPANTS' && form.scope === 'COHORT' && (
                 <div><label className={LABEL}>Narrow to one group (optional)</label><AppSelect value={form.targetGroupId} onChange={(v) => patch({ targetGroupId: v })} options={groupOptions} placeholder="Everyone in the cohort" compact /></div>
+              )}
+              {form.audience === 'SUPPORTS' && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div><label className={LABEL}>Narrow to one hub (optional)</label><AppSelect value={form.targetHubId} onChange={(v) => patch({ targetHubId: v })} options={hubOptions} placeholder="All supports" compact /></div>
+                  <div><label className={LABEL}>Narrow to a tag (optional)</label><AppSelect value={form.targetLabelId} onChange={(v) => patch({ targetLabelId: v })} options={labelOptions} placeholder="Any tag" compact /></div>
+                </div>
               )}
               <div className={BOX}>
                 <div className="flex items-center justify-between gap-3">

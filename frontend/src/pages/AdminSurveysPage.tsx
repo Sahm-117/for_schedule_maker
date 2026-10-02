@@ -17,6 +17,10 @@ const CARD = 'surface-card p-4';
 const timingNote = (s: SurveyListItem): string => {
   if (s.state === 'DRAFT') return 'Not published yet';
   if (s.state === 'OFF') return 'Turned off';
+  if (s.timingMode === 'WEEKS_AFTER_START') {
+    const weeks = s.weeksAfterStart ?? 0;
+    return `Opens ${weeks} week${weeks === 1 ? '' : 's'} after the cohort starts, for ${s.openForDays ?? 14} days`;
+  }
   if (s.timingMode === 'WEEKS_BEFORE_END') {
     const weeks = s.weeksBeforeEnd ?? 1;
     return `Appears ${weeks} week${weeks === 1 ? '' : 's'} before the cohort ends`;

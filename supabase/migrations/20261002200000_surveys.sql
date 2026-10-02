@@ -15,14 +15,18 @@ CREATE TABLE IF NOT EXISTS "Survey" (
   scope TEXT NOT NULL DEFAULT 'COHORT' CHECK (scope IN ('COHORT', 'GENERAL')),
   "cohortId" UUID REFERENCES "Cohort"(id) ON DELETE CASCADE,
   "targetGroupId" UUID REFERENCES "Group"(id) ON DELETE SET NULL,
+  "targetHubId" UUID REFERENCES "SupportHub"(id) ON DELETE SET NULL,
+  "targetLabelId" UUID REFERENCES "Label"(id) ON DELETE SET NULL,
   anonymous BOOLEAN NOT NULL DEFAULT FALSE,
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
   status TEXT NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'PUBLISHED')),
-  "timingMode" TEXT NOT NULL DEFAULT 'DATES' CHECK ("timingMode" IN ('DATES', 'WEEKS_BEFORE_END')),
+  "timingMode" TEXT NOT NULL DEFAULT 'DATES',
   "opensAt" TIMESTAMPTZ,
   "closesAt" TIMESTAMPTZ,
   "weeksBeforeEnd" INTEGER,
   "closeDaysAfterEnd" INTEGER,
+  "weeksAfterStart" INTEGER,
+  "openForDays" INTEGER,
   "notifyOnOpen" BOOLEAN NOT NULL DEFAULT FALSE,
   "homeHeading" TEXT,
   "homeLine" TEXT,
@@ -34,6 +38,14 @@ CREATE TABLE IF NOT EXISTS "Survey" (
   "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CHECK (scope = 'GENERAL' OR "cohortId" IS NOT NULL)
 );
+
+-- Added after the first version of this migration was applied (safe to repeat).
+ALTER TABLE "Survey" ADD COLUMN IF NOT EXISTS "targetHubId" UUID REFERENCES "SupportHub"(id) ON DELETE SET NULL;
+ALTER TABLE "Survey" ADD COLUMN IF NOT EXISTS "targetLabelId" UUID REFERENCES "Label"(id) ON DELETE SET NULL;
+ALTER TABLE "Survey" ADD COLUMN IF NOT EXISTS "weeksAfterStart" INTEGER;
+ALTER TABLE "Survey" ADD COLUMN IF NOT EXISTS "openForDays" INTEGER;
+ALTER TABLE "Survey" DROP CONSTRAINT IF EXISTS "Survey_timingMode_check";
+ALTER TABLE "Survey" ADD CONSTRAINT "Survey_timingMode_check" CHECK ("timingMode" IN ('DATES', 'WEEKS_BEFORE_END', 'WEEKS_AFTER_START'));
 
 CREATE TABLE IF NOT EXISTS "SurveyQuestion" (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -85,9 +97,13 @@ REVOKE ALL ON TABLE "Survey", "SurveyQuestion", "SurveySubmission", "SurveyAnswe
 
 -- ── Helpers ──────────────────────────────────────────────────────────────────
 
--- When a survey is open for a cohort. WEEKS_BEFORE_END counts back from that
--- cohort's end date, so the same survey follows each cohort.
-CREATE OR REPLACE FUNCTION public.survey_window(s "Survey", p_end DATE, p_practice BOOLEAN)
+DROP FUNCTION IF EXISTS public.survey_window(public."Survey", DATE, BOOLEAN);
+
+-- When a survey is open for a cohort. The week-based modes follow each cohort's
+-- own dates, so one survey serves every cohort.
+--   WEEKS_BEFORE_END:  opens N weeks before the end, keeps showing M days after it.
+--   WEEKS_AFTER_START: opens N weeks after the start, stays open for M days.
+CREATE OR REPLACE FUNCTION public.survey_window(s "Survey", p_start DATE, p_end DATE, p_practice BOOLEAN)
 RETURNS TABLE (opens TIMESTAMPTZ, closes TIMESTAMPTZ)
 LANGUAGE plpgsql
 STABLE
@@ -100,6 +116,14 @@ BEGIN
       RETURN QUERY SELECT
         ((p_end - COALESCE(s."weeksBeforeEnd", 1) * 7)::TIMESTAMP AT TIME ZONE 'Africa/Lagos'),
         ((p_end + COALESCE(s."closeDaysAfterEnd", 14) + 1)::TIMESTAMP AT TIME ZONE 'Africa/Lagos');
+    END IF;
+  ELSIF s."timingMode" = 'WEEKS_AFTER_START' THEN
+    IF p_practice OR p_start IS NULL THEN
+      RETURN QUERY SELECT NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ;
+    ELSE
+      RETURN QUERY SELECT
+        ((p_start + COALESCE(s."weeksAfterStart", 4) * 7)::TIMESTAMP AT TIME ZONE 'Africa/Lagos'),
+        ((p_start + COALESCE(s."weeksAfterStart", 4) * 7 + COALESCE(s."openForDays", 14))::TIMESTAMP AT TIME ZONE 'Africa/Lagos');
     END IF;
   ELSE
     RETURN QUERY SELECT s."opensAt", s."closesAt";
@@ -123,7 +147,7 @@ BEGIN
   IF s."targetGroupId" IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM "GroupParticipant" gp WHERE gp."groupId" = s."targetGroupId" AND gp."participantId" = person.id
   ) THEN RETURN FALSE; END IF;
-  SELECT * INTO w FROM public.survey_window(s, c."endDate", COALESCE(c."isPractice", FALSE));
+  SELECT * INTO w FROM public.survey_window(s, c."startDate", c."endDate", COALESCE(c."isPractice", FALSE));
   RETURN NOW() >= COALESCE(w.opens, '-infinity'::TIMESTAMPTZ) AND NOW() < COALESCE(w.closes, 'infinity'::TIMESTAMPTZ);
 END;
 $$;
@@ -140,6 +164,12 @@ BEGIN
   IF s.audience NOT IN ('SUPPORTS', 'EVERYONE') THEN RETURN FALSE; END IF;
   IF s.scope = 'COHORT' AND NOT EXISTS (
     SELECT 1 FROM "UserCohort" uc WHERE uc."userId" = uid AND uc."cohortId" = s."cohortId"
+  ) THEN RETURN FALSE; END IF;
+  IF s."targetHubId" IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM "HubMembership" hm WHERE hm."hubId" = s."targetHubId" AND hm."userId" = uid
+  ) THEN RETURN FALSE; END IF;
+  IF s."targetLabelId" IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM "UserLabel" ul WHERE ul."labelId" = s."targetLabelId" AND ul."userId" = uid
   ) THEN RETURN FALSE; END IF;
   RETURN NOW() >= COALESCE(s."opensAt", '-infinity'::TIMESTAMPTZ) AND NOW() < COALESCE(s."closesAt", 'infinity'::TIMESTAMPTZ);
 END;
@@ -173,7 +203,9 @@ BEGIN
              WHEN s.scope = 'COHORT' THEN EXISTS (SELECT 1 FROM "UserCohort" uc WHERE uc."userId" = u.id AND uc."cohortId" = s."cohortId")
              WHEN p_cohort IS NOT NULL THEN EXISTS (SELECT 1 FROM "UserCohort" uc WHERE uc."userId" = u.id AND uc."cohortId" = p_cohort)
              ELSE TRUE
-           END);
+           END)
+      AND (s."targetHubId" IS NULL OR EXISTS (SELECT 1 FROM "HubMembership" hm WHERE hm."hubId" = s."targetHubId" AND hm."userId" = u.id))
+      AND (s."targetLabelId" IS NULL OR EXISTS (SELECT 1 FROM "UserLabel" ul WHERE ul."labelId" = s."targetLabelId" AND ul."userId" = u.id));
   END IF;
 END;
 $$;
@@ -398,6 +430,7 @@ BEGIN
         'cohortId', s."cohortId", 'cohortName', (SELECT name FROM "Cohort" WHERE id = s."cohortId"),
         'anonymous', s.anonymous, 'enabled', s.enabled, 'status', s.status, 'timingMode', s."timingMode",
         'weeksBeforeEnd', s."weeksBeforeEnd", 'closeDaysAfterEnd', s."closeDaysAfterEnd",
+        'weeksAfterStart', s."weeksAfterStart", 'openForDays', s."openForDays",
         'opensAt', w.opens, 'closesAt', w.closes,
         'state', CASE
           WHEN s.status = 'DRAFT' THEN 'DRAFT'
@@ -410,7 +443,7 @@ BEGIN
         'sortKey', (CASE WHEN s."builtinKey" IS NULL THEN '1' ELSE '0' END) || to_char(s."createdAt", 'YYYYMMDDHH24MISS')
       ) AS item
       FROM "Survey" s
-      CROSS JOIN LATERAL public.survey_window(s, c."endDate", COALESCE(c."isPractice", FALSE)) w
+      CROSS JOIN LATERAL public.survey_window(s, c."startDate", c."endDate", COALESCE(c."isPractice", FALSE)) w
       WHERE s.scope = 'GENERAL' OR s."cohortId" = p_cohort_id
     ) t
   ), '[]'::JSON);
@@ -481,16 +514,18 @@ BEGIN
   IF existing.id IS NULL THEN
     sid := gen_random_uuid();
     INSERT INTO "Survey" (
-      id, title, description, audience, scope, "cohortId", "targetGroupId", anonymous, enabled, status, "timingMode",
-      "opensAt", "closesAt", "weeksBeforeEnd", "closeDaysAfterEnd", "notifyOnOpen", "homeHeading", "homeLine", "homeButton", "createdBy"
+      id, title, description, audience, scope, "cohortId", "targetGroupId", "targetHubId", "targetLabelId", anonymous, enabled, status, "timingMode",
+      "opensAt", "closesAt", "weeksBeforeEnd", "closeDaysAfterEnd", "weeksAfterStart", "openForDays", "notifyOnOpen", "homeHeading", "homeLine", "homeButton", "createdBy"
     ) VALUES (
       sid, title_text, NULLIF(trim(COALESCE(p_survey ->> 'description', '')), ''),
       COALESCE(NULLIF(p_survey ->> 'audience', ''), 'PARTICIPANTS'), COALESCE(NULLIF(p_survey ->> 'scope', ''), 'COHORT'),
       NULLIF(p_survey ->> 'cohortId', '')::UUID, NULLIF(p_survey ->> 'targetGroupId', '')::UUID,
+      NULLIF(p_survey ->> 'targetHubId', '')::UUID, NULLIF(p_survey ->> 'targetLabelId', '')::UUID,
       COALESCE((p_survey ->> 'anonymous')::BOOLEAN, FALSE), COALESCE((p_survey ->> 'enabled')::BOOLEAN, TRUE), new_status,
       COALESCE(NULLIF(p_survey ->> 'timingMode', ''), 'DATES'),
       NULLIF(p_survey ->> 'opensAt', '')::TIMESTAMPTZ, NULLIF(p_survey ->> 'closesAt', '')::TIMESTAMPTZ,
       NULLIF(p_survey ->> 'weeksBeforeEnd', '')::INTEGER, NULLIF(p_survey ->> 'closeDaysAfterEnd', '')::INTEGER,
+      NULLIF(p_survey ->> 'weeksAfterStart', '')::INTEGER, NULLIF(p_survey ->> 'openForDays', '')::INTEGER,
       COALESCE((p_survey ->> 'notifyOnOpen')::BOOLEAN, FALSE),
       NULLIF(trim(COALESCE(p_survey ->> 'homeHeading', '')), ''), NULLIF(trim(COALESCE(p_survey ->> 'homeLine', '')), ''),
       NULLIF(trim(COALESCE(p_survey ->> 'homeButton', '')), ''), staff.id
@@ -503,6 +538,8 @@ BEGIN
       scope = CASE WHEN existing."builtinKey" IS NULL THEN COALESCE(NULLIF(p_survey ->> 'scope', ''), scope) ELSE scope END,
       "cohortId" = CASE WHEN existing."builtinKey" IS NULL THEN NULLIF(p_survey ->> 'cohortId', '')::UUID ELSE "cohortId" END,
       "targetGroupId" = CASE WHEN existing."builtinKey" IS NULL THEN NULLIF(p_survey ->> 'targetGroupId', '')::UUID ELSE "targetGroupId" END,
+      "targetHubId" = CASE WHEN existing."builtinKey" IS NULL THEN NULLIF(p_survey ->> 'targetHubId', '')::UUID ELSE "targetHubId" END,
+      "targetLabelId" = CASE WHEN existing."builtinKey" IS NULL THEN NULLIF(p_survey ->> 'targetLabelId', '')::UUID ELSE "targetLabelId" END,
       anonymous = CASE WHEN existing."builtinKey" IS NULL AND NOT EXISTS (SELECT 1 FROM "SurveySubmission" x WHERE x."surveyId" = sid)
                        THEN COALESCE((p_survey ->> 'anonymous')::BOOLEAN, anonymous) ELSE anonymous END,
       enabled = COALESCE((p_survey ->> 'enabled')::BOOLEAN, enabled),
@@ -512,6 +549,8 @@ BEGIN
       "closesAt" = NULLIF(p_survey ->> 'closesAt', '')::TIMESTAMPTZ,
       "weeksBeforeEnd" = NULLIF(p_survey ->> 'weeksBeforeEnd', '')::INTEGER,
       "closeDaysAfterEnd" = NULLIF(p_survey ->> 'closeDaysAfterEnd', '')::INTEGER,
+      "weeksAfterStart" = NULLIF(p_survey ->> 'weeksAfterStart', '')::INTEGER,
+      "openForDays" = NULLIF(p_survey ->> 'openForDays', '')::INTEGER,
       "notifyOnOpen" = COALESCE((p_survey ->> 'notifyOnOpen')::BOOLEAN, "notifyOnOpen"),
       "homeHeading" = NULLIF(trim(COALESCE(p_survey ->> 'homeHeading', '')), ''),
       "homeLine" = NULLIF(trim(COALESCE(p_survey ->> 'homeLine', '')), ''),
@@ -620,8 +659,9 @@ $$;
 
 -- ── Opening notifications (called by the push-reminders job) ─────────────────
 
+DROP FUNCTION IF EXISTS public.survey_notifications_due();
 CREATE OR REPLACE FUNCTION public.survey_notifications_due()
-RETURNS TABLE (survey_id UUID, cohort_id UUID, title TEXT, audience TEXT, created_by UUID)
+RETURNS TABLE (survey_id UUID, cohort_id UUID, title TEXT, audience TEXT, created_by UUID, hub_id UUID, label_id UUID, group_id UUID)
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
@@ -630,7 +670,7 @@ AS $$
 BEGIN
   RETURN QUERY
   -- Dated surveys: once, to their cohort (or everyone when general).
-  SELECT s.id, s."cohortId", COALESCE(s."homeHeading", s.title), s.audience, s."createdBy"
+  SELECT s.id, s."cohortId", COALESCE(s."homeHeading", s.title), s.audience, s."createdBy", s."targetHubId", s."targetLabelId", s."targetGroupId"
   FROM "Survey" s
   WHERE s."notifyOnOpen" AND s.enabled AND s.status = 'PUBLISHED' AND s."timingMode" = 'DATES'
     AND NOW() >= COALESCE(s."opensAt", '-infinity'::TIMESTAMPTZ)
@@ -638,11 +678,11 @@ BEGIN
     AND NOT EXISTS (SELECT 1 FROM "SurveyNotified" n WHERE n."surveyId" = s.id AND n."cohortKey" = COALESCE(s."cohortId"::TEXT, 'ALL'))
   UNION ALL
   -- Weeks-before-end surveys: once per cohort, when that cohort's window opens.
-  SELECT s.id, c.id, COALESCE(s."homeHeading", s.title), s.audience, s."createdBy"
+  SELECT s.id, c.id, COALESCE(s."homeHeading", s.title), s.audience, s."createdBy", s."targetHubId", s."targetLabelId", s."targetGroupId"
   FROM "Survey" s
   JOIN "Cohort" c ON (s.scope = 'GENERAL' OR s."cohortId" = c.id) AND COALESCE(c."isPractice", FALSE) = FALSE
-  CROSS JOIN LATERAL public.survey_window(s, c."endDate", FALSE) w
-  WHERE s."notifyOnOpen" AND s.enabled AND s.status = 'PUBLISHED' AND s."timingMode" = 'WEEKS_BEFORE_END'
+  CROSS JOIN LATERAL public.survey_window(s, c."startDate", c."endDate", FALSE) w
+  WHERE s."notifyOnOpen" AND s.enabled AND s.status = 'PUBLISHED' AND s."timingMode" IN ('WEEKS_BEFORE_END', 'WEEKS_AFTER_START')
     AND NOW() >= COALESCE(w.opens, '-infinity'::TIMESTAMPTZ) AND NOW() < COALESCE(w.closes, 'infinity'::TIMESTAMPTZ)
     AND NOT EXISTS (SELECT 1 FROM "SurveyNotified" n WHERE n."surveyId" = s.id AND n."cohortKey" = c.id::TEXT);
 END;
@@ -657,7 +697,7 @@ AS $$
   INSERT INTO "SurveyNotified" ("surveyId", "cohortKey") VALUES (p_survey, COALESCE(p_cohort::TEXT, 'ALL')) ON CONFLICT DO NOTHING;
 $$;
 
-REVOKE ALL ON FUNCTION public.survey_window(public."Survey", DATE, BOOLEAN) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.survey_window(public."Survey", DATE, DATE, BOOLEAN) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.survey_open_for_participant(public."Survey", public."Participant", public."Cohort") FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.survey_open_for_staff(public."Survey", UUID) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.survey_people(public."Survey", UUID) FROM PUBLIC, anon, authenticated;
@@ -693,4 +733,44 @@ SELECT s.id, v.position, v.kind, v.prompt, v.required, v.config::JSONB FROM s,
   (1, 'DEPARTMENT', 'Which department are you interested in?', TRUE, '{"feeds":"department"}'),
   (2, 'YESNO', 'Would you like a referral to join that department?', TRUE, '{"feeds":"referral"}'),
   (3, 'TEXTAREA', 'Anything else you would like to tell us?', FALSE, '{"feeds":"note"}')
+) AS v(position, kind, prompt, required, config);
+
+
+-- Mid- and end-of-cohort feedback as built-in surveys. They are anonymous and
+-- start switched OFF so nothing new reaches participants until an admin turns
+-- them on (the always-open anonymous feedback on the Feedback page is unchanged).
+WITH s AS (
+  INSERT INTO "Survey" (
+    "builtinKey", title, audience, scope, anonymous, enabled, status, "timingMode",
+    "weeksAfterStart", "openForDays", "notifyOnOpen", "homeHeading", "homeLine", "homeButton"
+  ) VALUES (
+    'MID', 'Mid-cohort feedback', 'PARTICIPANTS', 'GENERAL', TRUE, FALSE, 'PUBLISHED', 'WEEKS_AFTER_START',
+    4, 14, FALSE, 'How is the programme going?', 'Anonymous. It takes two minutes.', 'Give feedback'
+  ) ON CONFLICT ("builtinKey") DO NOTHING
+  RETURNING id
+)
+INSERT INTO "SurveyQuestion" ("surveyId", position, kind, prompt, required, config)
+SELECT s.id, v.position, v.kind, v.prompt, v.required, v.config::JSONB FROM s,
+(VALUES
+  (1, 'RATING', 'How is the programme going so far?', TRUE, '{"scale":3,"lowLabel":"Not great","highLabel":"Great"}'),
+  (2, 'TEXTAREA', 'What is working well?', FALSE, '{}'),
+  (3, 'TEXTAREA', 'What needs attention?', FALSE, '{}')
+) AS v(position, kind, prompt, required, config);
+
+WITH s AS (
+  INSERT INTO "Survey" (
+    "builtinKey", title, audience, scope, anonymous, enabled, status, "timingMode",
+    "weeksBeforeEnd", "closeDaysAfterEnd", "notifyOnOpen", "homeHeading", "homeLine", "homeButton"
+  ) VALUES (
+    'END', 'End-of-cohort feedback', 'PARTICIPANTS', 'GENERAL', TRUE, FALSE, 'PUBLISHED', 'WEEKS_BEFORE_END',
+    1, 7, FALSE, 'Tell us how FOF went', 'Anonymous. It helps us improve the next cohort.', 'Give feedback'
+  ) ON CONFLICT ("builtinKey") DO NOTHING
+  RETURNING id
+)
+INSERT INTO "SurveyQuestion" ("surveyId", position, kind, prompt, required, config)
+SELECT s.id, v.position, v.kind, v.prompt, v.required, v.config::JSONB FROM s,
+(VALUES
+  (1, 'RATING', 'How was your experience of FOF overall?', TRUE, '{"scale":5,"lowLabel":"Poor","highLabel":"Excellent"}'),
+  (2, 'TEXTAREA', 'What did you value most?', FALSE, '{}'),
+  (3, 'TEXTAREA', 'What should we change for the next cohort?', FALSE, '{}')
 ) AS v(position, kind, prompt, required, config);

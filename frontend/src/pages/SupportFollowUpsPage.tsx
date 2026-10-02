@@ -473,6 +473,7 @@ const SupportFollowUpsPage: React.FC = () => {
         currentUserName={user?.name}
         onMessageSent={handleMessageSent}
         channel={messageChannel}
+        onHaveNumber={(contact) => { setMessagingContact(null); setEditingContact(contact); }}
       />
 
       {showFilterPanel && createPortal(
