@@ -1,77 +1,36 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import AppOverflowMenu from '../components/AppOverflowMenu';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import Spinner from '../components/Spinner';
 import { useToast } from '../components/Toast';
 import ChurchEventSheet from '../components/planner/ChurchEventSheet';
 import ClassDatesSheet from '../components/planner/ClassDatesSheet';
+import CohortCard from '../components/planner/CohortCard';
+import CohortSheet from '../components/planner/CohortSheet';
 import PushBackSheet from '../components/planner/PushBackSheet';
+import YearTimeline, { runsInYear } from '../components/planner/YearTimeline';
+import { EXTENSION_STRIPES, KIND_BAR } from '../components/planner/PlannerBits';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { plannerApi } from '../services/api';
 import {
-  CYCLE_WEEKS,
-  PHASE_LABEL,
-  addDays,
   buildPlannerCohorts,
   cohortsStartingIn,
   currentMoment,
   describeMoment,
   findClashes,
   formatPlannerDate,
-  formatPlannerRange,
   nextMoment,
   plannerToday,
   yearPercent,
-  type PhaseKind,
   type PlannerClash,
   type PlannerCohort,
 } from '../utils/planner';
 import type { ChurchEvent, PlannerChange, PublicHoliday, PushBackResult } from '../types';
 
 const SURFACE = 'rounded-[22px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)]';
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const PHASE_BAR: Record<PhaseKind, string> = {
-  rest: 'bg-gray-200',
-  mobilisation: 'bg-amber-300',
-  classes: 'bg-orange-400',
-  spare: 'bg-teal-300',
-};
-const LEGEND: Array<{ kind: PhaseKind; label: string }> = [
-  { kind: 'rest', label: 'Rest (3 wks)' },
-  { kind: 'mobilisation', label: 'Mobilisation (3)' },
-  { kind: 'classes', label: 'Classes (10 Sundays)' },
-  { kind: 'spare', label: 'Spare week (1)' },
-];
-
-type Zoom = 'year' | 'quarter' | 'month';
-const ZOOMS: Array<{ id: Zoom; label: string; factor: number }> = [
-  { id: 'year', label: 'Year', factor: 1 },
-  { id: 'quarter', label: 'Quarter', factor: 4 },
-  { id: 'month', label: 'Month', factor: 12 },
-];
-const ZOOM_KEY = 'fof-planner-zoom';
-const readZoom = (): Zoom => {
-  try {
-    const saved = localStorage.getItem(ZOOM_KEY);
-    return ZOOMS.some((z) => z.id === saved) ? (saved as Zoom) : 'year';
-  } catch {
-    return 'year';
-  }
-};
-// The label column is 112px; the rest of the track is 608px at Year zoom.
-const LABEL_COL = 112;
-const TRACK = 608;
-
-/** Every Monday (dow 1) or Sunday (dow 0) in the year, as YYYY-MM-DD. */
-const weekdaysIn = (year: number, dow: number) => {
-  const out: string[] = [];
-  let d = `${year}-01-01`;
-  while (new Date(`${d}T00:00:00Z`).getUTCDay() !== dow) d = addDays(d, 1);
-  for (; d.startsWith(String(year)); d = addDays(d, 7)) out.push(d);
-  return out;
-};
 
 type ClassWeekRow = { id: number; cohortId: string; weekNumber: number; classDate: string | null };
 
@@ -85,51 +44,14 @@ const updatedAgo = (iso: string) => {
   return unit(Math.round(mins / (60 * 24)), 'day');
 };
 
-// The timeline is at least 608px wide (720px less the name column), and a
-// label letter is about 6px, so a label spans roughly this much of the year.
-const labelSpanPercent = (text: string, factor: number) => ((text.length * 6 + 12) / (TRACK * factor)) * 100;
-
-/**
- * Dots for every holiday; labels laid out on up to three lines so they don't
- * overlap. A second day of the same holiday ("Eid El-Fitr Holiday" after
- * "Eid El-Fitr") gets a dot but no label. Labels near either end are pinned
- * inside the timeline instead of centred on the dot.
- */
-const layoutHolidays = (holidays: PublicHoliday[], year: number, factor: number) => {
-  const lineEnds = [-Infinity, -Infinity, -Infinity];
-  let prev: PublicHoliday | null = null;
-  return holidays.map((holiday) => {
-    const at = yearPercent(holiday.date, year);
-    const repeat = !!prev && holiday.name.startsWith(prev.name) && (Date.parse(holiday.date) - Date.parse(prev.date)) <= 3 * 86400000;
-    if (repeat) return { holiday, at, label: null };
-    prev = holiday;
-    const text = `${holiday.name}${holiday.isEstimate ? '*' : ''}`;
-    const span = labelSpanPercent(text, factor);
-    const align: 'left' | 'center' | 'right' = at < span / 2 ? 'left' : at > 100 - span / 2 ? 'right' : 'center';
-    const from = align === 'left' ? at : align === 'right' ? at - span : at - span / 2;
-    const line = lineEnds.findIndex((end) => end <= from);
-    if (line === -1) return { holiday, at, label: null };
-    lineEnds[line] = from + span;
-    return { holiday, at, label: { text, line, align } };
-  });
-};
-
-const LABEL_LINE_TOP = ['top-4', 'top-8', 'top-12'];
-
-const statusPill = (cohort: PlannerCohort, today: string) => {
-  if (cohort.planned) return { label: 'Planned', className: 'bg-neutral-100 text-neutral-600' };
-  if (cohort.status === 'COMPLETED' || cohort.status === 'ARCHIVED' || cohort.cycleEnd < today) return { label: 'Completed', className: 'bg-emerald-100/80 text-emerald-700' };
-  if (cohort.phases[0].start <= today) return { label: 'Running', className: 'bg-sky-100/80 text-sky-700' };
-  return { label: 'Coming up', className: 'bg-amber-100/80 text-amber-700' };
-};
-
-const StatCard: React.FC<{ eyebrow: string; title: React.ReactNode; detail?: React.ReactNode }> = ({ eyebrow, title, detail }) => (
-  <div className={`${SURFACE} p-4`}>
-    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{eyebrow}</p>
-    <p className="mt-1 text-[17px] font-bold leading-snug text-gray-900">{title}</p>
-    {detail && <p className="mt-0.5 text-[13px] text-gray-500">{detail}</p>}
-  </div>
-);
+const LEGEND: Array<{ label: string; cls: string; stripes?: boolean }> = [
+  { label: 'Rest', cls: KIND_BAR.rest },
+  { label: 'Mobilisation', cls: KIND_BAR.mobilisation },
+  { label: 'Classes', cls: KIND_BAR.classes },
+  { label: 'Spare week', cls: KIND_BAR.spare },
+  { label: 'No FOF (paused)', cls: KIND_BAR.gap },
+  { label: 'Added by a push-back', cls: KIND_BAR.classes, stripes: true },
+];
 
 const AdminPlannerPage: React.FC = () => {
   const { isAdmin } = useAuth();
@@ -148,7 +70,7 @@ const AdminPlannerPage: React.FC = () => {
   const [undoing, setUndoing] = useState(false);
   const [plannedDates, setPlannedDates] = useState<Record<string, string[]>>({});
   const [datesFor, setDatesFor] = useState<PlannerCohort | null>(null);
-  const [zoom, setZoom] = useState<Zoom>(readZoom);
+  const [cohortSheet, setCohortSheet] = useState<{ cohort: PlannerCohort; adding: boolean } | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const toast = useToast();
 
@@ -215,18 +137,13 @@ const AdminPlannerPage: React.FC = () => {
   const firstYear = plan.length > 0 ? Math.min(thisYear, Number(plan[0].phases[0].start.slice(0, 4))) : thisYear;
   const clashes = useMemo(() => findClashes(plan, events, today), [plan, events, today]);
 
-  const factor = ZOOMS.find((z) => z.id === zoom)!.factor;
-  const chooseZoom = (next: Zoom) => {
-    setZoom(next);
-    try { localStorage.setItem(ZOOM_KEY, next); } catch { /* remembered per viewer when possible */ }
-  };
-  // On zoom (or year) change, bring today, or the start of the year, into view.
+  // Bring today, or the start of the year, into view on a phone.
   useLayoutEffect(() => {
     const el = scroller.current;
     if (!el) return;
     const pct = today.startsWith(String(year)) ? yearPercent(today, year) : 0;
-    el.scrollLeft = factor === 1 ? 0 : Math.max(0, (TRACK * factor * pct) / 100 - 44);
-  }, [factor, year, today, weeks]);
+    el.scrollLeft = Math.max(0, (640 * pct) / 100 - 60);
+  }, [year, today, weeks]);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -239,11 +156,7 @@ const AdminPlannerPage: React.FC = () => {
       : { title: `${next.cohort.name} mobilisation`, detail: `Starts ${formatPlannerDate(next.phase.start, true, today)}` }
     : null;
   const startingThisYear = cohortsStartingIn(plan, year);
-  const yearStart = `${year}-01-01`;
-  const yearEnd = `${year}-12-31`;
-  const inYear = plan.filter((c) => c.phases[0].start <= yearEnd && c.cycleEnd >= yearStart);
-  const yearEvents = events.filter((e) => e.startDate <= yearEnd && e.endDate >= yearStart);
-  const firstClash = clashes[0] ?? null;
+  const firstClash = clashes.find((c) => !c.cohort.planned) ?? clashes[0] ?? null;
   const clashIndex = activeClash ? plan.findIndex((c) => c.key === activeClash.cohort.key) : -1;
   const nextCohortName = clashIndex >= 0 ? plan[clashIndex + 1]?.name ?? null : null;
   const latestChange = changes.find((c) => !c.undoneAt) ?? null;
@@ -274,46 +187,36 @@ const AdminPlannerPage: React.FC = () => {
   };
   const todayInYear = today.startsWith(String(year));
   const yearHolidays = (holidays ?? []).filter((h) => h.date.startsWith(String(year)));
-  const lastFetched = (holidays ?? []).reduce<string | null>((latest, h) => (!latest || h.fetchedAt > latest ? h.fetchedAt : latest), null);
-  const refreshButton = (
-    <button type="button" onClick={() => void refreshHolidays()} disabled={refreshing} className="inline-flex items-center gap-1 font-semibold text-primary disabled:opacity-60">
-      {refreshing ? (<><Spinner className="h-3 w-3" />Refreshing…</>) : 'Refresh now'}
-    </button>
-  );
+  const startCount = startingThisYear.length;
+  const yearCohorts = plan.filter((c) => runsInYear(c, year));
 
   const yearSwitcher = (
     <div className={`${SURFACE} flex w-fit items-center gap-1 p-1`} role="group" aria-label="Year">
-      <button
-        type="button"
-        onClick={() => setYear((y) => y - 1)}
-        disabled={year <= firstYear}
-        aria-label="Previous year"
-        className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 disabled:opacity-30"
-      >
+      <button type="button" onClick={() => setYear((y) => y - 1)} disabled={year <= firstYear} aria-label="Previous year" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 disabled:opacity-30">
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
       </button>
       <span className="min-w-[3.5rem] text-center text-[15px] font-bold tabular-nums text-gray-900">{year}</span>
-      <button
-        type="button"
-        onClick={() => setYear((y) => y + 1)}
-        disabled={year >= lastYear}
-        aria-label="Next year"
-        className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 disabled:opacity-30"
-      >
+      <button type="button" onClick={() => setYear((y) => y + 1)} disabled={year >= lastYear} aria-label="Next year" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 disabled:opacity-30">
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
       </button>
     </div>
   );
 
+  // The next cohort that isn't created yet: what "Add cohort" plans.
+  const nextPlanned = plan.find((c) => c.planned) ?? null;
+
   return (
     <div className="page-content">
       <PageHeader
-        title="FOF Planner"
-        subtitle={`3 cohorts a year · each ${CYCLE_WEEKS}-week cycle: 3 weeks rest, 3 mobilisation, 10 classes and 1 spare week`}
+        title="Planner"
+        subtitle="When each cohort runs, and what could get in its way"
         action={(
-          <div className="flex flex-wrap items-center gap-2">
-            {yearSwitcher}
-            <button type="button" onClick={() => setEventSheet({ event: null })} className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white active:scale-95">+ Church event</button>
+          <div className="flex items-center gap-2">
+            {nextPlanned && (
+              <button type="button" onClick={() => setCohortSheet({ cohort: nextPlanned, adding: true })} className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white active:scale-95">Add cohort</button>
+            )}
+            <button type="button" onClick={() => setEventSheet({ event: null })} className="rounded-2xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Add event</button>
+            <AppOverflowMenu items={[{ label: refreshing ? 'Refreshing…' : 'Refresh public holidays', onClick: () => { if (!refreshing) void refreshHolidays(); } }]} />
           </div>
         )}
       />
@@ -326,236 +229,72 @@ const AdminPlannerPage: React.FC = () => {
         <p className={`${SURFACE} p-8 text-center text-sm text-gray-500`}>No cohorts with a start date yet. Add one on the Cohorts page.</p>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard eyebrow="Right now" title={nowText?.title ?? 'Between cycles'} detail={nowText?.detail} />
-            <StatCard eyebrow="Next up" title={nextText?.title ?? 'Nothing planned yet'} detail={nextText?.detail} />
-            <StatCard
-              eyebrow="Public holidays"
-              title={holidays === null ? <Spinner className="h-4 w-4" /> : `${yearHolidays.length} in ${year}`}
-              detail={<>{lastFetched ? `Updated ${updatedAgo(lastFetched)} · ` : 'Not loaded yet · '}{refreshButton}</>}
-            />
-            {firstClash ? (
-              <button type="button" onClick={() => setActiveClash(firstClash)} className="rounded-[22px] bg-red-100/80 p-4 text-left active:scale-[0.99]">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700">Needs a decision</p>
-                <p className="mt-1 text-[17px] font-bold leading-snug text-red-700">{clashes.length} clash{clashes.length === 1 ? '' : 'es'}</p>
-                <p className="mt-0.5 text-[13px] text-red-700">
-                  {firstClash.event.name} stops FOF on {firstClash.cohort.name}’s class {firstClash.cls.weekNumber}{clashes.length > 1 ? ` and ${clashes.length - 1} more` : ''} ›
-                </p>
-              </button>
-            ) : (
-              <StatCard eyebrow="Needs a decision" title="No clashes" detail="Church events that stop FOF show here if they land on a class." />
+          {firstClash ? (
+            <button type="button" onClick={() => setActiveClash(firstClash)} className="block w-full rounded-[22px] bg-red-100/80 p-4 text-left active:scale-[0.99]">
+              <p className="text-[17px] font-bold leading-snug text-red-700">
+                {firstClash.event.name} lands on {firstClash.cohort.name}’s class {firstClash.cls.weekNumber}
+              </p>
+              <p className="mt-0.5 text-[13px] text-red-700">
+                {formatPlannerDate(firstClash.cls.date, true, today)}{clashes.length > 1 ? ` · and ${clashes.length - 1} more` : ''} · Tap to see what moves ›
+              </p>
+            </button>
+          ) : null}
+
+          <div className={`${SURFACE} flex flex-wrap items-center justify-between gap-x-6 gap-y-3 p-4`}>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Right now</p>
+              <p className="text-[17px] font-bold leading-snug text-gray-900">{nowText?.title ?? 'Between cycles'}</p>
+              {nowText?.detail && <p className="text-[13px] text-gray-500">{nowText.detail}</p>}
+            </div>
+            {nextText && (
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Next up</p>
+                <p className="text-[17px] font-bold leading-snug text-gray-900">{nextText.title}</p>
+                <p className="text-[13px] text-gray-500">{nextText.detail}</p>
+              </div>
             )}
           </div>
 
           <section className={`${SURFACE} p-4 sm:p-5`}>
-            <div className="mb-3 flex justify-end">
-              <div className="flex w-fit items-center gap-1 rounded-full bg-gray-100 p-1" role="group" aria-label="Zoom">
-                {ZOOMS.map((z) => (
-                  <button
-                    key={z.id}
-                    type="button"
-                    onClick={() => chooseZoom(z.id)}
-                    aria-pressed={zoom === z.id}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${zoom === z.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                  >
-                    {z.label}
-                  </button>
-                ))}
-              </div>
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+              {yearSwitcher}
+              <p className="text-[13px] text-gray-500">
+                {startCount} cohort{startCount === 1 ? '' : 's'} start{startCount === 1 ? 's' : ''}
+                {startCount === 3 ? ' · on track for 3' : startCount < 3 ? ' · aim is 3' : ' · more than the usual 3'}
+              </p>
             </div>
-            <div ref={scroller} className="-mx-4 overflow-x-auto px-4 sm:-mx-5 sm:px-5">
-              <div style={{ minWidth: `${LABEL_COL + TRACK * factor}px` }}>
-                <div className="ml-[112px] grid grid-cols-12 text-center text-[11px] font-semibold text-gray-400">
-                  {MONTHS.map((m) => <span key={m}>{m}</span>)}
-                </div>
-                {factor > 1 && (
-                  <div className="relative ml-[112px] h-4 text-[10px] font-medium text-gray-400" aria-hidden="true">
-                    {weekdaysIn(year, 0).map((sunday) => (
-                      <span key={sunday} className="absolute -translate-x-1/2" style={{ left: `${yearPercent(sunday, year)}%` }}>{Number(sunday.slice(8))}</span>
-                    ))}
-                  </div>
-                )}
-                <div className="relative mt-2">
-                  <div className="pointer-events-none absolute inset-y-0 left-[112px] right-0 grid grid-cols-12" aria-hidden="true">
-                    {MONTHS.map((m) => <span key={m} className="border-l border-gray-100" />)}
-                  </div>
-                  {factor > 1 && (
-                    <div className="pointer-events-none absolute inset-y-0 left-[112px] right-0" aria-hidden="true">
-                      {weekdaysIn(year, 1).map((monday) => (
-                        <span key={monday} className="absolute inset-y-0 border-l border-gray-100/70" style={{ left: `${yearPercent(monday, year)}%` }} />
-                      ))}
-                    </div>
-                  )}
-                  {todayInYear && (
-                    <div className="pointer-events-none absolute inset-y-0 left-[112px] right-0" aria-hidden="true">
-                      <span className="absolute inset-y-0 w-0.5 -translate-x-1/2 rounded-full bg-primary" style={{ left: `${yearPercent(today, year)}%` }} />
-                    </div>
-                  )}
-                  {inYear.length === 0 && (
-                    <p className="py-6 pl-[112px] text-sm text-gray-500">Nothing planned in {year}.</p>
-                  )}
-                  {inYear.map((cohort) => (
-                    <div key={cohort.key} className="relative flex h-12 items-center">
-                      <span className="sticky left-0 z-10 flex w-[112px] shrink-0 flex-col justify-center self-stretch bg-white pr-2">
-                        <span className="block truncate text-[13px] font-semibold text-gray-900">{cohort.name}</span>
-                        {cohort.planned && <span className="block text-[11px] text-gray-400">planned</span>}
-                      </span>
-                      <div className="relative h-[24px] flex-1">
-                        {cohort.phases.map((phase) => {
-                          if (phase.end < yearStart || phase.start > yearEnd) return null;
-                          const left = yearPercent(phase.start, year);
-                          const right = yearPercent(phase.end, year) + (phase.end <= yearEnd ? (100 / 365) : 0);
-                          return (
-                            <button
-                              key={phase.kind}
-                              type="button"
-                              onClick={() => setDatesFor(cohort)}
-                              title={`${cohort.name} · ${PHASE_LABEL[phase.kind]}: ${formatPlannerRange(phase.start, phase.end, yearStart)}`}
-                              aria-label={`${cohort.name} ${PHASE_LABEL[phase.kind]}: change class dates`}
-                              className={`absolute inset-y-0 rounded-md ${PHASE_BAR[phase.kind]} ${cohort.planned ? 'opacity-55' : ''}`}
-                              style={{ left: `${left}%`, width: `calc(${Math.max(0, right - left)}% - 2px)` }}
-                            />
-                          );
-                        })}
-                        {clashes.filter((cl) => cl.cohort.key === cohort.key && cl.cls.date.startsWith(String(year))).map((cl) => (
-                          <button
-                            key={`${cl.event.id}-${cl.cls.date}`}
-                            type="button"
-                            onClick={() => setActiveClash(cl)}
-                            aria-label={`Clash: ${cl.event.name} on class ${cl.cls.weekNumber}`}
-                            className="absolute -top-2.5 flex h-5 w-5 -translate-x-1/2 items-center justify-center"
-                            style={{ left: `${yearPercent(cl.cls.date, year)}%` }}
-                          >
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-50 motion-reduce:hidden" aria-hidden="true" />
-                            <span className="relative flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">!</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  <div className="relative flex min-h-[40px] items-start py-1">
-                    <span className="sticky left-0 z-10 w-[112px] shrink-0 self-stretch bg-white pr-2 pt-1 text-[13px] font-semibold text-gray-500">Church events</span>
-                    <div className="relative flex-1">
-                      {yearEvents.length === 0 ? (
-                        <button type="button" onClick={() => setEventSheet({ event: null })} className="pt-1 text-[12px] font-semibold text-primary">+ Add one</button>
-                      ) : (
-                        <div className="relative" style={{ height: `${Math.min(yearEvents.length, 3) * 26}px` }}>
-                          {yearEvents.map((event, index) => {
-                            const at = yearPercent(event.startDate < yearStart ? yearStart : event.startDate, year);
-                            const range = event.endDate === event.startDate
-                              ? formatPlannerDate(event.startDate, false, yearStart)
-                              : formatPlannerRange(event.startDate, event.endDate, yearStart);
-                            return (
-                              <button
-                                key={event.id}
-                                type="button"
-                                onClick={() => setEventSheet({ event })}
-                                title={`${event.name} · ${range} · ${event.stopsFof ? 'no FOF' : 'FOF runs'}`}
-                                aria-label={`${event.name}, ${range}, ${event.stopsFof ? 'no FOF' : 'FOF runs'}: see details`}
-                                className={`absolute inline-flex items-center gap-1.5 whitespace-nowrap rounded-full py-0.5 pl-1.5 pr-2 text-[11px] font-semibold ${event.stopsFof ? 'bg-red-100/80 text-red-700' : 'bg-violet-100/80 text-violet-700'}`}
-                                style={{ top: `${(index % 3) * 26}px`, ...(at > 70 ? { right: `${100 - at}%` } : { left: `${at}%` }) }}
-                              >
-                                {/* Just the date: the name and what it does are one tap away. */}
-                                <span className="relative flex h-2 w-2" aria-hidden="true">
-                                  {event.stopsFof && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-60 motion-reduce:hidden" />}
-                                  <span className={`relative inline-flex h-2 w-2 rounded-full ${event.stopsFof ? 'bg-red-500' : 'bg-violet-400'}`} />
-                                </span>
-                                {range}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="relative flex h-[76px] items-start">
-                    <span className="sticky left-0 z-10 w-[112px] shrink-0 self-stretch bg-white pr-2 pt-0.5">
-                      <span className="block text-[13px] font-semibold text-gray-500">Public holidays</span>
-                      <span className="block text-[11px] text-gray-400">info only</span>
-                    </span>
-                    <div className="relative h-full flex-1">
-                      {layoutHolidays(yearHolidays, year, factor).map(({ holiday, at, label }) => (
-                        <React.Fragment key={holiday.id}>
-                          <span
-                            title={`${formatPlannerDate(holiday.date, true, yearStart)} · ${holiday.name}${holiday.isEstimate ? ' (estimate)' : ''}`}
-                            className="absolute top-1.5 block h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-sky-400"
-                            style={{ left: `${at}%` }}
-                          />
-                          {label && (
-                            <span
-                              className={`absolute whitespace-nowrap text-[10.5px] font-semibold text-sky-700 ${LABEL_LINE_TOP[label.line]}`}
-                              style={label.align === 'right' ? { right: `${100 - at}%` } : { left: `${at}%`, transform: label.align === 'center' ? 'translateX(-50%)' : undefined }}
-                            >
-                              {label.text}
-                            </span>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <YearTimeline
+              year={year}
+              plan={plan}
+              events={events}
+              holidays={yearHolidays}
+              clashes={clashes}
+              today={today}
+              scrollRef={scroller}
+              onOpenCohort={(cohort) => setCohortSheet({ cohort, adding: false })}
+              onOpenEvent={(event) => setEventSheet({ event })}
+              onOpenClash={setActiveClash}
+            />
             <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-gray-100 pt-4 text-xs font-semibold text-gray-600">
               {LEGEND.map((item) => (
-                <span key={item.kind} className="flex items-center gap-1.5"><i className={`h-3 w-5 rounded ${PHASE_BAR[item.kind]}`} />{item.label}</span>
+                <span key={item.label} className="flex items-center gap-1.5"><i className={`h-3 w-5 rounded ${item.cls}`} style={item.stripes ? EXTENSION_STRIPES : undefined} />{item.label}</span>
               ))}
-              <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-sky-400" />Public holiday (doesn't clash)</span>
-              {yearEvents.some((e) => e.stopsFof) && <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-red-500" />No FOF (tap for details)</span>}
               {todayInYear && <span className="flex items-center gap-1.5"><i className="h-3 w-0.5 rounded-full bg-primary" />Today</span>}
             </div>
-            {yearHolidays.some((h) => h.isEstimate) && (
-              <p className="mt-2 text-xs text-gray-400">* Eid and other moon-sighted dates are estimates until they're announced. The list refreshes every 2 weeks.</p>
-            )}
+            <p className="mt-2 text-xs text-gray-400">Hover or tap a bar to see its weeks. Red shading is when FOF stops. Holidays are for information.</p>
           </section>
 
-          {inYear.length > 0 && (
-            <section>
-              <div className="mb-2.5 flex items-baseline justify-between gap-3 px-1">
-                <h3 className="text-[13px] font-semibold text-gray-500">Dates in {year}</h3>
-                <span className="text-xs text-gray-500">
-                  {startingThisYear.length} cohort{startingThisYear.length === 1 ? '' : 's'} start{startingThisYear.length === 1 ? 's' : ''} in {year}
-                  {startingThisYear.length === 3 ? ' · on track for 3' : startingThisYear.length < 3 ? ' · fewer than 3' : ' · more than 3'}
-                </span>
-              </div>
-              <ul className={`${SURFACE} divide-y divide-[#f0f0f2] overflow-hidden`}>
-                {inYear.map((cohort) => {
-                  const pill = statusPill(cohort, today);
-                  return (
-                    <li key={cohort.key}>
-                      <button type="button" onClick={() => setDatesFor(cohort)} aria-label={`${cohort.name}: change class dates`} className="block w-full px-4 py-3.5 text-left hover:bg-gray-50 active:bg-gray-50">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-[15px] font-semibold text-gray-900">{cohort.name}</p>
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${pill.className}`}>{pill.label}</span>
-                      </div>
-                      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px] sm:grid-cols-4">
-                        {[...cohort.phases, ...(cohort.phases.some((ph) => ph.kind === 'spare') ? [] : [{ kind: 'spare' as const, start: '', end: '' }])].map((phase) => (
-                          <div key={phase.kind} className="flex items-start gap-2">
-                            <i className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-sm ${PHASE_BAR[phase.kind]}`} aria-hidden="true" />
-                            <div>
-                              <dt className="text-gray-500">{PHASE_LABEL[phase.kind]}</dt>
-                              <dd className="font-medium text-gray-900">
-                                {phase.kind === 'classes'
-                                  ? formatPlannerRange(cohort.classDates[0], cohort.classDates[cohort.classDates.length - 1], yearStart)
-                                  : phase.start ? formatPlannerRange(phase.start, phase.end, yearStart) : 'Used up'}
-                              </dd>
-                            </div>
-                          </div>
-                        ))}
-                      </dl>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
+          <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {yearCohorts.map((cohort) => (
+              <CohortCard key={cohort.key} cohort={cohort} events={events} today={today} onOpen={() => setCohortSheet({ cohort, adding: false })} />
+            ))}
+          </ul>
 
           {changes.length > 0 && (
             <section>
               <h3 className="mb-2.5 px-1 text-[13px] font-semibold text-gray-500">Recent changes</h3>
               <ul className={`${SURFACE} divide-y divide-[#f0f0f2] overflow-hidden`}>
-                {changes.map((change) => (
+                {changes.slice(0, 5).map((change) => (
                   <li key={change.id} className="flex items-center justify-between gap-3 px-4 py-3">
                     <div className="min-w-0">
                       <p className={`text-[14px] ${change.undoneAt ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{change.summary}</p>
@@ -574,29 +313,18 @@ const AdminPlannerPage: React.FC = () => {
         </div>
       )}
 
-      <ChurchEventSheet
-        isOpen={!!eventSheet}
-        onClose={() => setEventSheet(null)}
-        event={eventSheet?.event ?? null}
+      <ChurchEventSheet isOpen={!!eventSheet} onClose={() => setEventSheet(null)} event={eventSheet?.event ?? null} plan={plan} today={today} onSaved={() => void loadEvents()} />
+      <CohortSheet
+        cohort={cohortSheet?.cohort ?? null}
+        adding={cohortSheet?.adding}
         plan={plan}
         today={today}
-        onSaved={() => void loadEvents()}
-      />
-      <ClassDatesSheet
-        cohort={datesFor}
-        plan={plan}
-        today={today}
-        onClose={() => setDatesFor(null)}
+        onClose={() => setCohortSheet(null)}
         onSaved={afterMove}
+        onEditEach={(cohort) => { setCohortSheet(null); setDatesFor(cohort); }}
       />
-      <PushBackSheet
-        clash={activeClash}
-        onClose={() => setActiveClash(null)}
-        today={today}
-        nextCohortName={nextCohortName}
-        yearWarning={yearWarning}
-        onApplied={afterMove}
-      />
+      <ClassDatesSheet cohort={datesFor} plan={plan} today={today} onClose={() => setDatesFor(null)} onSaved={afterMove} />
+      <PushBackSheet clash={activeClash} onClose={() => setActiveClash(null)} today={today} nextCohortName={nextCohortName} yearWarning={yearWarning} onApplied={afterMove} />
     </div>
   );
 };

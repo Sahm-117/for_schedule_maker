@@ -259,3 +259,94 @@ export const findClashes = (cohorts: PlannerCohort[], events: PlannerEvent[], to
 /** Classes an event's dates would land on (for the warning while adding one). */
 export const classesHitBy = (cohorts: PlannerCohort[], start: string, end: string) =>
   cohorts.flatMap((cohort) => cohort.classes.filter((cls) => cls.date >= start && cls.date <= end).map((cls) => ({ cohort, cls })));
+
+export type WeekKind = PhaseKind | 'gap';
+
+/** One Monday–Sunday week of a cohort's cycle, as the Planner draws it. */
+export interface PlannerWeek {
+  /** The Monday. */
+  start: string;
+  /** The Sunday. */
+  end: string;
+  kind: WeekKind;
+  /** 1–10 for a class week. */
+  classNumber?: number;
+  /** For a gap: the church event that took this Sunday, when one is known. */
+  event?: PlannerEvent | null;
+  /** Past the cycle's usual end, because a class was pushed back. */
+  extension?: boolean;
+}
+
+/** Where a cycle would end with nothing pushed back: first class + 9 weeks + the spare week. */
+export const usualEnd = (cohort: PlannerCohort) =>
+  addDays(cohort.classDates[0], 7 * (cohort.classDates.length - 1 + SPARE_WEEKS));
+
+/** Whole weeks the cycle ran past its usual end. */
+export const extensionWeeks = (cohort: PlannerCohort) =>
+  Math.max(0, Math.round(daysBetween(usualEnd(cohort), cohort.cycleEnd) / 7));
+
+/**
+ * The cohort week by week. A Sunday skipped between two classes is a "gap",
+ * labelled with the Stops-FOF event that covers it. Weeks after the usual end
+ * are marked as the extension.
+ */
+export const cohortWeeks = (cohort: PlannerCohort, events: PlannerEvent[]): PlannerWeek[] => {
+  const out: PlannerWeek[] = [];
+  const usual = usualEnd(cohort);
+  const first = cohort.classDates[0];
+  const last = cohort.classDates[cohort.classDates.length - 1];
+  const classAt = new Map(cohort.classDates.map((d, i) => [d, i + 1]));
+  const stops = events.filter((e) => e.stopsFof);
+  for (let start = cohort.phases[0].start; addDays(start, 6) <= cohort.cycleEnd; start = addDays(start, 7)) {
+    const end = addDays(start, 6);
+    const week: PlannerWeek = { start, end, kind: 'rest', extension: end > usual };
+    const number = classAt.get(end);
+    if (number) {
+      week.kind = 'classes';
+      week.classNumber = number;
+    } else if (end > first && end < last) {
+      week.kind = 'gap';
+      week.event = stops.find((e) => e.startDate <= end && e.endDate >= end) ?? null;
+    } else if (end > last) {
+      week.kind = 'spare';
+    } else {
+      week.kind = cohort.phases.find((p) => p.kind !== 'classes' && p.start <= start && p.end >= end)?.kind ?? 'rest';
+    }
+    out.push(week);
+  }
+  return out;
+};
+
+export interface PlannerSegment {
+  kind: WeekKind;
+  start: string;
+  end: string;
+  weeks: number;
+  /** Class numbers this segment holds, e.g. 1–4. */
+  firstClass?: number;
+  lastClass?: number;
+  event?: PlannerEvent | null;
+  extension: boolean;
+}
+
+/** Consecutive weeks of the same kind merged into the bars the year view draws. */
+export const cohortSegments = (cohort: PlannerCohort, events: PlannerEvent[]): PlannerSegment[] => {
+  const out: PlannerSegment[] = [];
+  for (const w of cohortWeeks(cohort, events)) {
+    const prev = out[out.length - 1];
+    if (prev && prev.kind === w.kind && prev.extension === !!w.extension && prev.kind !== 'gap') {
+      prev.end = w.end;
+      prev.weeks += 1;
+      if (w.classNumber) prev.lastClass = w.classNumber;
+    } else if (prev && prev.kind === 'gap' && w.kind === 'gap' && (prev.event?.id ?? null) === (w.event?.id ?? null)) {
+      prev.end = w.end;
+      prev.weeks += 1;
+    } else {
+      out.push({ kind: w.kind, start: w.start, end: w.end, weeks: 1, firstClass: w.classNumber, lastClass: w.classNumber, event: w.event, extension: !!w.extension });
+    }
+  }
+  return out;
+};
+
+/** "1 week" / "10 weeks". */
+export const weeksLabel = (n: number) => `${n} week${n === 1 ? '' : 's'}`;
