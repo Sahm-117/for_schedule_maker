@@ -77,8 +77,25 @@ const sortPrayerItems = (items: HubPrayerListItem[], prayedThisWeekIds: string[]
   return sorted;
 };
 
-/** A hub meeting prays for 3 Faith Projects (or all of them, if fewer have been shared). */
+/** A hub meeting prays for 3 Faith Projects, keeping the meeting moving. */
 const PRAYER_TARGET = 3;
+
+/**
+ * The meeting's 3: anything already prayed for this week stays in, and the rest
+ * of the places go to the ones prayed for least, longest ago. Once everyone has
+ * had a turn the cycle starts over from the oldest. With fewer than 3 shared,
+ * those few are repeated every meeting.
+ */
+const pickMeetingItems = (items: HubPrayerListItem[], prayedThisWeekIds: string[]) => {
+  const prayed = items.filter((item) => prayedThisWeekIds.includes(item.faithProjectId));
+  if (prayed.length >= PRAYER_TARGET) return prayed;
+  const waiting = items
+    .filter((item) => !prayedThisWeekIds.includes(item.faithProjectId))
+    .sort((a, b) => a.timesPrayedFor - b.timesPrayedFor
+      || (a.lastPrayedWeek ?? -Infinity) - (b.lastPrayedWeek ?? -Infinity)
+      || a.fullName.localeCompare(b.fullName));
+  return [...prayed, ...waiting.slice(0, PRAYER_TARGET - prayed.length)];
+};
 
 const prayerTallyLabel = (item: HubPrayerListItem) =>
   item.timesPrayedFor > 0 ? `Prayed for ${item.timesPrayedFor}× · last Week ${item.lastPrayedWeek}` : 'Not prayed for yet';
@@ -347,10 +364,11 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
     }
   };
 
-  const sortedPrayerItems = useMemo(() => sortPrayerItems(prayerItems, prayerFocus.prayedForIds), [prayerItems, prayerFocus.prayedForIds]);
+  const sortedPrayerItems = useMemo(() => sortPrayerItems(pickMeetingItems(prayerItems, prayerFocus.prayedForIds), prayerFocus.prayedForIds), [prayerItems, prayerFocus.prayedForIds]);
+  const laterCount = prayerItems.length - sortedPrayerItems.length;
   const focusIndex = sortedPrayerItems.findIndex((item) => item.faithProjectId === prayerFocus.faithProjectId);
   const prayedCount = sortedPrayerItems.filter((item) => prayerFocus.prayedForIds.includes(item.faithProjectId)).length;
-  const prayerGoal = Math.min(PRAYER_TARGET, sortedPrayerItems.length);
+  const prayerGoal = sortedPrayerItems.length;
   const allPrayedFor = prayerGoal > 0 && prayedCount >= prayerGoal;
   const handleNextFocus = () => {
     if (sortedPrayerItems.length === 0) return;
@@ -511,7 +529,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
     <div className="flex flex-col gap-3">
       <section className={CARD}>
         <h3 className="text-[17px] font-semibold text-gray-900">You’re leading prayer</h3>
-        <p className="mt-0.5 text-[13px] text-gray-500">Pray for 3 Faith Projects. Tap a person to show theirs on everyone’s screen.</p>
+        <p className="mt-0.5 text-[13px] text-gray-500">Three Faith Projects this meeting. Tap a person to show theirs on everyone’s screen.</p>
         <div className="mt-2.5"><LiveDot label="Live · everyone in the meeting sees your pick" /></div>
       </section>
 
@@ -599,6 +617,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
                     </button>
                   );
                 })}
+                {laterCount > 0 && <p className="pt-1 text-center text-xs text-gray-400">{laterCount} more shared. They come up in the next meetings.</p>}
               </div>
             )}
           </section>
