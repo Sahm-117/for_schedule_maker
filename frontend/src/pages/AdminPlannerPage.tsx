@@ -71,6 +71,14 @@ const AdminPlannerPage: React.FC = () => {
   const [plannedDates, setPlannedDates] = useState<Record<string, string[]>>({});
   const [datesFor, setDatesFor] = useState<PlannerCohort | null>(null);
   const [cohortSheet, setCohortSheet] = useState<{ cohort: PlannerCohort; adding: boolean } | null>(null);
+  const [showTest, setShowTest] = useState(() => {
+    try { return localStorage.getItem('fof-planner-show-test') === '1'; } catch { return false; }
+  });
+  const toggleTest = () => {
+    const next = !showTest;
+    setShowTest(next);
+    try { localStorage.setItem('fof-planner-show-test', next ? '1' : '0'); } catch { /* remembered per viewer when possible */ }
+  };
   const scroller = useRef<HTMLDivElement>(null);
   const toast = useToast();
 
@@ -131,8 +139,8 @@ const AdminPlannerPage: React.FC = () => {
     }
   };
   const plan = useMemo(
-    () => (weeks ? buildPlannerCohorts(cohorts, weeks, `${lastYear}-12-31`, plannedDates) : []),
-    [cohorts, weeks, lastYear, plannedDates],
+    () => (weeks ? buildPlannerCohorts(cohorts, weeks, `${lastYear}-12-31`, plannedDates, showTest) : []),
+    [cohorts, weeks, lastYear, plannedDates, showTest],
   );
   const firstYear = plan.length > 0 ? Math.min(thisYear, Number(plan[0].phases[0].start.slice(0, 4))) : thisYear;
   const clashes = useMemo(() => findClashes(plan, events, today), [plan, events, today]);
@@ -216,7 +224,7 @@ const AdminPlannerPage: React.FC = () => {
               <button type="button" onClick={() => setCohortSheet({ cohort: nextPlanned, adding: true })} className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white active:scale-95">Add cohort</button>
             )}
             <button type="button" onClick={() => setEventSheet({ event: null })} className="rounded-2xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Add event</button>
-            <AppOverflowMenu items={[{ label: refreshing ? 'Refreshing…' : 'Refresh public holidays', onClick: () => { if (!refreshing) void refreshHolidays(); } }]} />
+            <AppOverflowMenu items={[{ label: showTest ? 'Hide test cohorts' : 'Show test cohorts', onClick: toggleTest }, { label: refreshing ? 'Refreshing…' : 'Refresh public holidays', onClick: () => { if (!refreshing) void refreshHolidays(); } }]} />
           </div>
         )}
       />

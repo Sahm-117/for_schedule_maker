@@ -13,6 +13,7 @@ import { EXTENSION_STRIPES, KIND_BAR, useTip, weekTip } from './PlannerBits';
 const SURFACE = 'rounded-[22px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)]';
 
 const statusPill = (cohort: PlannerCohort, today: string) => {
+  if (cohort.test) return { label: 'Test', className: 'bg-violet-100/80 text-violet-700' };
   if (cohort.planned) return { label: 'Planned', className: 'bg-neutral-100 text-neutral-600' };
   if (cohort.status === 'COMPLETED' || cohort.status === 'ARCHIVED' || cohort.cycleEnd < today) return { label: 'Completed', className: 'bg-emerald-100/80 text-emerald-700' };
   if (cohort.phases[0].start <= today) return { label: 'Running', className: 'bg-sky-100/80 text-sky-700' };

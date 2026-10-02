@@ -48,6 +48,8 @@ export interface PlannerCohort {
   cycleEnd: string;
   /** Rest, mobilisation, classes, and the spare week while any is left. */
   phases: PlannerPhase[];
+  /** The Practice cohort or a demo cohort (shown only when asked for). */
+  test?: boolean;
   /** A planned cohort whose class dates were set by hand. */
   plannedOverride?: boolean;
 }
@@ -92,18 +94,23 @@ const nextName = (name: string, step: number) => {
   return match ? `${match[1]}${Number(match[2]) + step}` : step === 1 ? 'Next cohort' : `Next cohort + ${step - 1}`;
 };
 
+/** The Practice cohort and demo cohorts (names starting "ZZ"): not part of the real programme. */
+export const isTestCohort = (cohort: Cohort) => !!cohort.isPractice || /^zz\b/i.test(cohort.name.trim());
+
 /**
  * Every real cohort with its phases, followed by planned cohorts until
- * `untilIso`. Test cohorts (names starting "ZZ") are left out.
+ * `untilIso`. Test cohorts (Practice, names starting "ZZ") are left out
+ * unless `includeTest`.
  */
 export const buildPlannerCohorts = (
   cohorts: Cohort[],
   weeks: Array<ClassWeek & { cohortId: string; id?: number }>,
   untilIso: string,
   plannedDates: Record<string, string[]> = {},
+  includeTest = false,
 ): PlannerCohort[] => {
   const real: PlannerCohort[] = cohorts
-    .filter((cohort) => cohort.startDate && !/^zz\b/i.test(cohort.name.trim()))
+    .filter((cohort) => cohort.startDate && (includeTest || !isTestCohort(cohort)))
     .map((cohort) => {
       const start = cohort.startDate!.slice(0, 10);
       const own = weeks.filter((w) => w.cohortId === cohort.id);
@@ -115,7 +122,7 @@ export const buildPlannerCohorts = (
       const last = classDates[classDates.length - 1];
       const end = cohort.endDate ? cohort.endDate.slice(0, 10) : addDays(last, 7 * SPARE_WEEKS);
       const cycleEnd = end > last ? end : last;
-      return { key: cohort.id, name: cohort.name, planned: false, status: cohort.status ?? null, classDates, classes, cycleEnd, phases: phasesFor(classDates, cycleEnd) };
+      return { key: cohort.id, name: cohort.name, planned: false, status: cohort.status ?? null, classDates, classes, cycleEnd, phases: phasesFor(classDates, cycleEnd), ...(isTestCohort(cohort) ? { test: true } : {}) };
     })
     .sort((a, b) => a.classDates[0].localeCompare(b.classDates[0]));
 
