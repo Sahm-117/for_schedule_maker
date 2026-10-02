@@ -351,12 +351,12 @@ const LandingPage: React.FC = () => {
       {/* ================= MOBILE MENU (slides down, like tcnikorodu.org) ================= */}
       <div className={`menu-overlay${menuOpen ? ' is-open' : ''}`} role="dialog" aria-modal="true" aria-label="Menu" aria-hidden={!menuOpen}>
         <nav className="menu-links" aria-label="Menu">
-          <Link to="/login" className="menu-portal" style={vars({ '--i': 0 })} onClick={() => setMenuOpen(false)} tabIndex={menuOpen ? 0 : -1}>Member portal</Link>
           {NAV_ITEMS.map((n, idx) => (
             <a key={n.id} href={`#${n.id}`} style={vars({ '--i': idx + 1 })} tabIndex={menuOpen ? 0 : -1} onClick={(e) => { smoothScrollTo(n.id)(e); setMenuOpen(false); }}>{n.label}</a>
           ))}
+          <Link to="/login" className="menu-portal" style={vars({ '--i': NAV_ITEMS.length + 1 })} onClick={() => setMenuOpen(false)} tabIndex={menuOpen ? 0 : -1}>Member portal</Link>
         </nav>
-        <div className="menu-contact" style={vars({ '--i': NAV_ITEMS.length + 1 })}>
+        <div className="menu-contact" style={vars({ '--i': NAV_ITEMS.length + 2 })}>
           <p className="menu-contact-h">Connect</p>
           <div className="menu-contact-row">
             {content.footer.social.map((link, k) => (
