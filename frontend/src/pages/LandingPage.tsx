@@ -241,6 +241,14 @@ function useLandingScene(rootRef: React.RefObject<HTMLDivElement | null>, reduce
 const LandingPage: React.FC = () => {
   const [registrationLink, setRegistrationLink] = useState(DEFAULT_REGISTRATION_LINK);
   const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
+  }, [menuOpen]);
   const [nextCohortText, setNextCohortText] = useState('Registration is open');
   const [images, setImages] = useState<{ hero: string | null; group: string | null; class: string | null }>({ hero: null, group: null, class: null });
   const [content, setContent] = useState<LandingContent>(DEFAULT_LANDING_CONTENT);
@@ -338,15 +346,36 @@ const LandingPage: React.FC = () => {
             <span /><span />
           </button>
         </div>
-        {menuOpen && (
-          <div className="nav-panel">
-            {NAV_ITEMS.map((n) => (
-              <a key={n.id} className="nav-panel-link" href={`#${n.id}`} onClick={(e) => { smoothScrollTo(n.id)(e); setMenuOpen(false); }}>{n.label}</a>
-            ))}
-            <Link to="/login" className="nav-panel-link nav-panel-login">Member portal</Link>
-          </div>
-        )}
       </header>
+
+      {/* ================= MOBILE MENU (full screen, like tcnikorodu.org) ================= */}
+      {menuOpen && (
+        <div className="menu-overlay" role="dialog" aria-modal="true" aria-label="Menu">
+          <div className="menu-top">
+            <a className="brand" href="#hero" onClick={(e) => { smoothScrollTo('hero')(e); setMenuOpen(false); }} aria-label="Foundation of Faith, back to top">
+              <img src="/logo-crest.webp" alt="" width={46} height={46} />
+              <span>Foundation of Faith</span>
+            </a>
+            <button type="button" className="menu-close" aria-label="Close menu" onClick={() => setMenuOpen(false)}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" /></svg>
+            </button>
+          </div>
+          <nav className="menu-links" aria-label="Menu">
+            {NAV_ITEMS.map((n) => (
+              <a key={n.id} href={`#${n.id}`} onClick={(e) => { smoothScrollTo(n.id)(e); setMenuOpen(false); }}>{n.label}</a>
+            ))}
+            <Link to="/login" onClick={() => setMenuOpen(false)}>Member portal</Link>
+          </nav>
+          <div className="menu-contact">
+            <p className="menu-contact-h">Connect</p>
+            <div className="menu-contact-row">
+              {content.footer.social.map((link, i) => (
+                <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="menu-chip">{link.label}</a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= HERO ================= */}
       <section id="hero" className="hero">
