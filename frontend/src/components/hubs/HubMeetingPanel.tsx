@@ -77,6 +77,9 @@ const sortPrayerItems = (items: HubPrayerListItem[], prayedThisWeekIds: string[]
   return sorted;
 };
 
+/** A hub meeting prays for 3 Faith Projects (or all of them, if fewer have been shared). */
+const PRAYER_TARGET = 3;
+
 const prayerTallyLabel = (item: HubPrayerListItem) =>
   item.timesPrayedFor > 0 ? `Prayed for ${item.timesPrayedFor}× · last Week ${item.lastPrayedWeek}` : 'Not prayed for yet';
 
@@ -346,7 +349,9 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
 
   const sortedPrayerItems = useMemo(() => sortPrayerItems(prayerItems, prayerFocus.prayedForIds), [prayerItems, prayerFocus.prayedForIds]);
   const focusIndex = sortedPrayerItems.findIndex((item) => item.faithProjectId === prayerFocus.faithProjectId);
-  const allPrayedFor = sortedPrayerItems.length > 0 && sortedPrayerItems.every((item) => prayerFocus.prayedForIds.includes(item.faithProjectId));
+  const prayedCount = sortedPrayerItems.filter((item) => prayerFocus.prayedForIds.includes(item.faithProjectId)).length;
+  const prayerGoal = Math.min(PRAYER_TARGET, sortedPrayerItems.length);
+  const allPrayedFor = prayerGoal > 0 && prayedCount >= prayerGoal;
   const handleNextFocus = () => {
     if (sortedPrayerItems.length === 0) return;
     const next = sortedPrayerItems.find((item, index) => index > focusIndex && !prayerFocus.prayedForIds.includes(item.faithProjectId))
@@ -502,12 +507,11 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
   // Prayer step content — the lead/assistant/prayer-lead view. Always
   // interactive: this is only ever rendered for a viewer with
   // canSetPrayerFocus (see the two places it's used below).
-  const prayedCount = sortedPrayerItems.filter((item) => prayerFocus.prayedForIds.includes(item.faithProjectId)).length;
   const prayerStepContent = (
     <div className="flex flex-col gap-3">
       <section className={CARD}>
         <h3 className="text-[17px] font-semibold text-gray-900">You’re leading prayer</h3>
-        <p className="mt-0.5 text-[13px] text-gray-500">Tap a person to show their Faith Project on everyone’s screen.</p>
+        <p className="mt-0.5 text-[13px] text-gray-500">Pray for 3 Faith Projects. Tap a person to show theirs on everyone’s screen.</p>
         <div className="mt-2.5"><LiveDot label="Live · everyone in the meeting sees your pick" /></div>
       </section>
 
@@ -556,7 +560,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-bold text-gray-900">2 · Pray for Faith Projects</p>
               {sortedPrayerItems.length > 0 && (
-                <span className="flex-none rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">{prayedCount} of {sortedPrayerItems.length} prayed for</span>
+                <span className="flex-none rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">{prayedCount} of {prayerGoal} prayed for</span>
               )}
             </div>
             {sortedPrayerItems.length === 0 ? (
