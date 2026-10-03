@@ -927,15 +927,16 @@ const NoLeadSupportCard: React.FC<{
             <button type="button" onClick={onViewProfile} className="min-w-0 truncate text-left text-[15px] font-bold tracking-tight text-gray-900 hover:underline">{user.name}</button>
             {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`flex-none rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
           </div>
-          <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-500">{[hub?.name, KIND_LABEL[kind], subtleLine].filter(Boolean).join(' · ')}</p>
+          <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-500">{[hub?.name, subtleLine].filter(Boolean).join(' · ')}</p>
         </div>
         <div className="flex-none pt-0.5"><AppOverflowMenu align="right" items={[{ label: 'View profile', onClick: onViewProfile }]} /></div>
       </div>
 
-      <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
-        <span className="text-[13px] text-gray-600">{kind === 'PARTICIPANT_SUPPORT' ? 'Not leading a group yet' : KIND_LABEL[kind]}</span>
-        {training.total > 0 && <TrainingPill name={user.name} userId={user.id} sessions={training.sessions} attendance={training.attendance} />}
-      </div>
+      {training.total > 0 && (
+        <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+          <TrainingPill name={user.name} userId={user.id} sessions={training.sessions} attendance={training.attendance} />
+        </div>
+      )}
 
       <div className="mt-3 flex min-h-11 flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2.5">
         <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">

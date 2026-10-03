@@ -5,12 +5,12 @@ import type { User } from '../types';
 export const genderAgeLine = (person: { gender?: string | null; ageRange?: string | null }): string =>
   [person.gender, person.ageRange].filter((part): part is string => !!part && !!part.trim()).join(' · ');
 
-// "Last seen 3 Oct, 3:15 pm" — short relative stamp for support cards.
-// Returns '' when there is nothing to show.
+// "Last seen 3 Oct, 3:15 pm" — short stamp for support cards.
+// Always returns a line; "Last seen: Never" when there is nothing to show.
 export const formatLastSeen = (iso?: string | null): string => {
-  if (!iso) return '';
+  if (!iso) return 'Last seen: Never';
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
+  if (Number.isNaN(date.getTime())) return 'Last seen: Never';
   return `Last seen ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true }).format(date)}`;
 };
 
