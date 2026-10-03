@@ -732,36 +732,9 @@ window.GUIDE_CONTENT = {
      "id": "onboarding",
      "title": "Onboarding",
      "where": "Sidebar → People & groups → Participants → Onboarding tab",
-     "summary": "Track how far along each group is in onboarding its participants, manage the message templates supports use, and set who can help onboard other supports.",
+     "summary": "Track how far along each group is in onboarding its participants.",
      "shot": "admin-onboarding.jpg",
      "tasks": [
-      {
-       "id": "onboarding-coordinators",
-       "q": "How do I make someone a coordinator who can onboard other supports?",
-       "keywords": [
-        "coordinator",
-        "onboard supports"
-       ],
-       "steps": [
-        "Open Onboarding.",
-        "Find the coordinator section, pick a support from the dropdown, and tap to add them."
-       ],
-       "result": "They can now send onboarding prompts to other support users."
-      },
-      {
-       "id": "onboarding-templates",
-       "q": "How do I change the message a support sends when onboarding a participant?",
-       "keywords": [
-        "message template",
-        "onboarding message"
-       ],
-       "steps": [
-        "Open Onboarding, switch to the template type you want to edit.",
-        "Edit the wording (you can use {{full_name}} to personalise it).",
-        "Save."
-       ],
-       "result": "Supports see the updated wording the next time they open onboarding for a participant."
-      },
       {
        "id": "onboarding-progress",
        "q": "How do I see which groups still aren't fully onboarded?",

@@ -1,31 +1,18 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
-import ConfirmationModal from '../components/ConfirmationModal';
-import ModalShell from '../components/followups/ModalShell';
-import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import OnboardingStepPills from '../components/OnboardingStepPills';
 import {
   groupDiscussionApi,
-  messageTemplatesApi,
   onboardingEventsApi,
-  usersApi,
 } from '../services/api';
-import Spinner from '../components/Spinner';
-import { buildTemplatePlaceholderSummary } from '../utils/followUps';
 import { formatDateTime } from '../utils/time';
-import { sortByText } from '../utils/sort';
-import type { MessageTemplate, OnboardingEvent, OnboardingProgress, User } from '../types';
-import { pickableUsers } from '../utils/testUsers';
+import type { OnboardingEvent, OnboardingProgress } from '../types';
 
-const inputClass =
-  'w-full rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20';
-
-type TemplateTab = 'ONBOARDING' | 'COORDINATOR';
 const describeEvent = (event: OnboardingEvent) => {
   switch (event.type) {
     case 'GROUP_ASSIGNED':
@@ -50,57 +37,23 @@ const describeEvent = (event: OnboardingEvent) => {
 const AdminOnboardingPage: React.FC = () => {
   const { user } = useAuth();
   if (!user || user.role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
-  return <AdminOnboardingContent user={user} />;
+  return <AdminOnboardingContent />;
 };
 
-const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
+const AdminOnboardingContent: React.FC = () => {
   const { activeCohort } = useAppData();
-  const [templateTab, setTemplateTab] = useState<TemplateTab>('ONBOARDING');
-  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [cohortProgress, setCohortProgress] = useState<OnboardingProgress>({ groups: [], participants: [] });
   const [events, setEvents] = useState<OnboardingEvent[]>([]);
-  const [supportUsers, setSupportUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<MessageTemplate | null>(null);
-  const [useCase, setUseCase] = useState('');
-  const [body, setBody] = useState('');
-  const [whenToUse, setWhenToUse] = useState('');
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [imageName, setImageName] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [deleting, setDeleting] = useState<MessageTemplate | null>(null);
-  const [updatingCoordinatorId, setUpdatingCoordinatorId] = useState<string | null>(null);
-  const [coordinatorCandidateId, setCoordinatorCandidateId] = useState('');
   const [groupFilter, setGroupFilter] = useState(''); // '' = all groups
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'in_progress'>('all');
   const [eventLimit, setEventLimit] = useState(5); // "Show more" page size
-  const [coordinatorOpen, setCoordinatorOpen] = useState(false); // settings modal
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const placeholderSummary = buildTemplatePlaceholderSummary(user);
-  const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const activeCohortId = activeCohort?.id;
 
   useEffect(() => {
     void (async () => {
       setLoading(true);
       try {
-        const [templateRes, usersRes] = await Promise.all([
-          messageTemplatesApi.getAll(),
-          usersApi.getAll(),
-        ]);
-        setTemplates(sortByText(templateRes.templates, (template) => template.useCase));
-        const supports = sortByText(pickableUsers(usersRes.users.filter((entry) => entry.role === 'SUPPORT')), (entry) => entry.name);
-        setSupportUsers(supports);
-        setCoordinatorCandidateId((current) => {
-          if (current && supports.some((entry) => entry.id === current && !entry.isCoordinator)) return current;
-          return supports.find((entry) => !entry.isCoordinator)?.id ?? '';
-        });
-
         if (activeCohortId) {
           const [progressRes, eventRes] = await Promise.all([
             groupDiscussionApi.cohortOnboardingProgress(activeCohortId).catch(() => ({ groups: [], participants: [] } as OnboardingProgress)),
@@ -119,11 +72,6 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
       }
     })();
   }, [activeCohortId]);
-
-  const filteredTemplates = useMemo(
-    () => templates.filter((template) => template.category === templateTab),
-    [templateTab, templates]
-  );
 
   const groupCollator = useMemo(() => new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }), []);
 
@@ -177,116 +125,11 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
 
   useEffect(() => { setEventLimit(5); }, [groupFilter]);
 
-  const openForm = (template?: MessageTemplate) => {
-    setEditing(template ?? null);
-    setUseCase(template?.useCase ?? '');
-    setBody(template?.body ?? '');
-    setWhenToUse(template?.whenToUse ?? '');
-    setImageUrl(template?.imageUrl ?? null);
-    setImageName(template?.imageName ?? null);
-    setError('');
-    setShowForm(true);
-  };
-
-  const templateTypeLabel = templateTab === 'ONBOARDING' ? 'Support -> Participant' : 'Coordinator -> Support';
-  const templateTypeHint = templateTab === 'ONBOARDING'
-    ? 'This template appears when a support opens a participant inside onboarding.'
-    : 'This template is reserved for coordinators sending onboarding prompts to other support users.';
-  const labelPlaceholder = templateTab === 'ONBOARDING' ? 'e.g. Day 1 - Intro message' : 'e.g. Coordinator welcome message';
-  const timingPlaceholder = templateTab === 'ONBOARDING' ? 'e.g. Day 1 - first contact' : 'e.g. Send when assigning a new support';
-  const messagePlaceholder = templateTab === 'ONBOARDING'
-    ? 'Hi {{first_name}}!\n\nMy name is {{user.name}}...'
-    : 'Hi {{full_name}}!\n\nYou will be onboarding support users for this cohort...';
-  const coordinatorUsers = supportUsers.filter((entry) => !!entry.isCoordinator);
-  const availableCoordinatorCandidates = supportUsers.filter((entry) => !entry.isCoordinator);
-  const coordinatorOptions = availableCoordinatorCandidates.map((entry) => ({
-    value: entry.id,
-    label: entry.name,
-    meta: entry.email || entry.phone || 'Support user',
-  }));
-
-  const addCoordinator = async () => {
-    if (!coordinatorCandidateId) return;
-    const target = supportUsers.find((entry) => entry.id === coordinatorCandidateId);
-    if (!target) return;
-    await handleCoordinatorToggle(target);
-    setCoordinatorCandidateId('');
-  };
-
-  const handleImagePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const { url, name } = await messageTemplatesApi.uploadTemplateImage(file);
-      setImageUrl(url);
-      setImageName(name);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
-    }
-  };
-
-  const handleSave = async () => {
-    if (!useCase.trim() || !body.trim()) {
-      setError('Label and message body are required.');
-      return;
-    }
-    setSaving(true);
-    setError('');
-    try {
-      const input = {
-        useCase: useCase.trim(),
-        body,
-        whenToUse: whenToUse.trim() || null,
-        imageUrl: imageUrl || null,
-        imageName: imageName || null,
-      };
-      if (editing) {
-        const { template } = await messageTemplatesApi.update(editing.id, input);
-        setTemplates((prev) => sortByText(prev.map((entry) => (entry.id === template.id ? template : entry)), (entry) => entry.useCase));
-      } else {
-        const { template } = await messageTemplatesApi.create({ ...input, category: templateTab });
-        setTemplates((prev) => sortByText([...prev, template], (entry) => entry.useCase));
-      }
-      setShowForm(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deleting) return;
-    try {
-      await messageTemplatesApi.delete(deleting.id);
-      setTemplates((prev) => prev.filter((entry) => entry.id !== deleting.id));
-    } finally {
-      setDeleting(null);
-    }
-  };
-
-  const handleCoordinatorToggle = async (supportUser: User) => {
-    setUpdatingCoordinatorId(supportUser.id);
-    try {
-      const { user: updated } = await usersApi.update(supportUser.id, { isCoordinator: !supportUser.isCoordinator });
-      setSupportUsers((prev) => sortByText(
-        prev.map((entry) => (entry.id === supportUser.id ? { ...entry, isCoordinator: updated.isCoordinator } : entry)),
-        (entry) => entry.name
-      ));
-    } finally {
-      setUpdatingCoordinatorId(null);
-    }
-  };
-
   return (
     <div className="page-content">
       <PageHeader
         title="Onboarding"
-        subtitle="Track onboarding progress, manage message templates, and set up coordinator access."
+        subtitle="Track how far each group is in onboarding its participants."
       />
 
       <div className="space-y-6">
@@ -303,24 +146,6 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
                   : 'Progress cards fill in when an active cohort is selected.'}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <TabButton label="Support -> Participant" active={templateTab === 'ONBOARDING'} onClick={() => setTemplateTab('ONBOARDING')} />
-              <TabButton label="Coordinator -> Support" active={templateTab === 'COORDINATOR'} onClick={() => setTemplateTab('COORDINATOR')} />
-              {templateTab === 'COORDINATOR' && (
-                <button
-                  type="button"
-                  onClick={() => setCoordinatorOpen(true)}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-primary"
-                  title="Manage coordinators"
-                  aria-label="Manage coordinators"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065Z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                  </svg>
-                </button>
-              )}
-            </div>
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -329,63 +154,6 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
             <MetricCard label="Groups in progress" value={Math.max(progress.totalGroups - progress.completedGroups, 0)} tone="bg-amber-50 text-amber-700" />
             <MetricCard label="Completion rate" value={`${progress.pct}%`} tone="bg-violet-50 text-violet-700" />
           </div>
-        </section>
-
-        {/* Template library — placed above group status for quicker access. */}
-        <section className="surface-card p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-500">Template library</p>
-              <h3 className="mt-1 text-lg font-bold text-gray-900">
-                {templateTab === 'ONBOARDING' ? 'Support -> Participant templates' : 'Coordinator -> Support templates'}
-              </h3>
-            </div>
-            <button
-              type="button"
-              onClick={() => openForm()}
-              className="shrink-0 rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark"
-            >
-              {templateTab === 'ONBOARDING' ? '+ Add support template' : '+ Add coordinator template'}
-            </button>
-          </div>
-
-          {filteredTemplates.length === 0 ? (
-            <div className="mt-4 rounded-3xl border border-dashed border-gray-200 py-16 text-center">
-              <p className="text-sm text-gray-500">No templates in this section yet.</p>
-              <p className="mt-1 text-xs text-gray-400">Add your first template to get started.</p>
-            </div>
-          ) : (
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredTemplates.map((template) => (
-                <div key={template.id} className="surface-card flex flex-col overflow-hidden rounded-2xl shadow-sm">
-                  {template.imageUrl ? (
-                    <img src={template.imageUrl} alt={template.imageName ?? ''} loading="lazy" className="h-28 w-full object-cover" />
-                  ) : (
-                    <div className="flex h-28 w-full items-center justify-center bg-primary/5">
-                      <svg className="h-7 w-7 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5l-3 3v-3Z" />
-                      </svg>
-                    </div>
-                  )}
-                  <div className="flex flex-1 items-start justify-between gap-2 p-4">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900">{template.useCase}</p>
-                      {template.whenToUse && (
-                        <span className="mt-1.5 inline-block rounded-full bg-amber-100/80 px-2.5 py-0.5 text-xs font-semibold text-amber-700">{template.whenToUse}</span>
-                      )}
-                    </div>
-                    <AppOverflowMenu
-                      align="right"
-                      items={[
-                        { label: 'Edit', onClick: () => openForm(template) },
-                        { label: 'Delete', onClick: () => setDeleting(template), tone: 'danger' },
-                      ]}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </section>
 
         {/* Recent activity — full width above so group status can use more columns. */}
@@ -484,168 +252,9 @@ const AdminOnboardingContent: React.FC<{ user: User }> = ({ user }) => {
         </section>
       </div>
 
-      <ModalShell
-        isOpen={showForm}
-        onClose={() => setShowForm(false)}
-        title={editing ? 'Edit template' : 'Add template'}
-        wide
-        footer={(
-          <>
-            <button type="button" onClick={() => setShowForm(false)} className="rounded-2xl border border-gray-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
-            <button type="button" onClick={() => { void handleSave(); }} disabled={saving || uploading} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60">
-              {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save template'}
-            </button>
-          </>
-        )}
-      >
-        <div className="space-y-4">
-          {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-          <div className="rounded-2xl bg-gray-50 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Template type</p>
-            <div className="mt-2 flex items-center gap-3">
-              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${templateTab === 'ONBOARDING' ? 'bg-primary text-white' : 'bg-violet-100 text-violet-700'}`}>
-                {templateTypeLabel}
-              </span>
-              <span className="text-sm text-gray-500">{templateTypeHint}</span>
-            </div>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Label</label>
-            <input className={inputClass} value={useCase} onChange={(e) => setUseCase(e.target.value)} placeholder={labelPlaceholder} />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">When to send (optional)</label>
-            <input className={inputClass} value={whenToUse} onChange={(e) => setWhenToUse(e.target.value)} placeholder={timingPlaceholder} />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Message</label>
-            <textarea className={`${inputClass} min-h-[160px]`} value={body} onChange={(e) => setBody(e.target.value)} placeholder={messagePlaceholder} />
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {placeholderSummary.map((token) => {
-                const bare = token.split(' =')[0];
-                return (
-                  <button
-                    key={bare}
-                    type="button"
-                    onClick={() => {
-                      void navigator.clipboard?.writeText(bare);
-                      setCopiedToken(bare);
-                      setTimeout(() => setCopiedToken(null), 1500);
-                    }}
-                    title="Click to copy"
-                    className="rounded-lg bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-700 hover:bg-gray-200 active:scale-95"
-                  >
-                    {copiedToken === bare ? 'Copied!' : token}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Graphic / image (optional)</label>
-            {imageUrl ? (
-              <div className="flex items-center gap-3 rounded-2xl bg-gray-50 p-3">
-                <img src={imageUrl} alt={imageName ?? ''} loading="lazy" className="h-16 w-16 rounded-xl object-cover" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-800">{imageName}</p>
-                  <button type="button" onClick={() => { setImageUrl(null); setImageName(null); }} className="mt-1 text-xs text-red-600 hover:underline">Remove</button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl bg-gray-50/80 py-8 transition hover:bg-gray-50" onClick={() => fileRef.current?.click()}>
-                {uploading ? (
-                  <p className="flex items-center gap-1.5 text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Uploading…</p>
-                ) : (
-                  <>
-                    <svg className="h-8 w-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4-4m0 0 4 4m-4-4v9M8 7a4 4 0 0 1 8 0M12 3v4" />
-                    </svg>
-                    <p className="text-sm text-gray-500">Click to upload image</p>
-                    <p className="text-xs text-gray-400">PNG, JPG, WEBP</p>
-                  </>
-                )}
-              </div>
-            )}
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { void handleImagePick(e); }} />
-          </div>
-        </div>
-      </ModalShell>
-
-      <ModalShell
-        isOpen={coordinatorOpen}
-        onClose={() => setCoordinatorOpen(false)}
-        title="Coordinators"
-        subtitle="Support users who can onboard other supports"
-        footer={(
-          <button type="button" onClick={() => setCoordinatorOpen(false)} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white">Done</button>
-        )}
-      >
-        <div className="space-y-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end">
-            <div className="flex-1">
-              <AppSelect
-                value={coordinatorCandidateId}
-                onChange={setCoordinatorCandidateId}
-                options={coordinatorOptions}
-                placeholder="Select a support user"
-                label="Add coordinator"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => { void addCoordinator(); }}
-              disabled={!coordinatorCandidateId}
-              className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              Add coordinator
-            </button>
-          </div>
-
-          {coordinatorUsers.length === 0 ? (
-            <div className="rounded-2xl bg-gray-50/80 py-10 text-center text-sm text-gray-500">
-              No coordinators selected yet.
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-3">
-              {coordinatorUsers.map((supportUser) => (
-                <button
-                  key={supportUser.id}
-                  type="button"
-                  onClick={() => { void handleCoordinatorToggle(supportUser); }}
-                  disabled={updatingCoordinatorId === supportUser.id}
-                  className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-800 disabled:opacity-60"
-                >
-                  <span>{supportUser.name}</span>
-                  <span className="text-xs text-gray-500">{supportUser.email || supportUser.phone}</span>
-                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-red-500">Remove</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </ModalShell>
-
-      <ConfirmationModal
-        isOpen={!!deleting}
-        onClose={() => setDeleting(null)}
-        onConfirm={() => { void handleDelete(); }}
-        title="Delete template"
-        message={`Delete "${deleting?.useCase}"? This cannot be undone.`}
-        confirmText="Delete"
-      />
     </div>
   );
 };
-
-const TabButton: React.FC<{ label: string; active: boolean; onClick: () => void }> = ({ label, active, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${active ? 'bg-primary text-white' : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
-  >
-    {label}
-  </button>
-);
 
 const MetricCard: React.FC<{ label: string; value: React.ReactNode; tone: string }> = ({ label, value, tone }) => (
   <div className={`rounded-2xl px-4 py-3 ${tone}`}>
