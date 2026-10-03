@@ -515,7 +515,6 @@ const SupportMyHubPage: React.FC = () => {
                     {!isLead && leadWhatsAppLink && <a href={leadWhatsAppLink} target="_blank" rel="noreferrer" className={callHref ? SECONDARY : PRIMARY}>Message {hub.leadName?.split(' ')[0] || 'the lead'}</a>}
                   </div>
                 )}
-                {slot && <p className="mt-4 text-[13px] text-gray-400">Your admin sets the time and link.</p>}
               </section>
 
               <section data-wt="hub-members" className={`${SURFACE} px-6 py-5 sm:px-8`}>
