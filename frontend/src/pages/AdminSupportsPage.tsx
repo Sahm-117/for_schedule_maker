@@ -362,7 +362,7 @@ const AdminSupportsPage: React.FC = () => {
             </div>
             <div className="mt-4">
               <SegmentedTabs
-                wrap
+                scrollable
                 tabs={[
                   { key: 'all', label: `All ${model.total}` },
                   { key: 'critical', label: `Needs attention ${model.counts.critical}` },

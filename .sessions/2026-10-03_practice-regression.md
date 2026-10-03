@@ -6,7 +6,7 @@ User requested a Practice-first app regression pass and authorized pushing fixes
 
 Batch 1 fixes Practice participant class links (`/me/week/1`), account return (`/support/schedule`), a legacy schedule alias, cold-entry readiness/retry and disabled-entry redirect, failed checklist save reconciliation/confirmed-state rollback with a visible error, and the Practice participant Active stage label. Independent review caught and resolved the rapid double-failure rollback case.
 
-Batch 1 is pushed as `63dbe6f`; both Vercel statuses succeeded and production entry/lazy chunks were verified. Batch 2 contains the two database migrations described below, both applied and recorded in deployed migration history before publication.
+Batch 1 is pushed as `63dbe6f`; both Vercel statuses succeeded and production entry/lazy chunks were verified. Batch 2 is pushed as `0418771`; both Vercel statuses succeeded. It contains the two database migrations described below, both applied and recorded in deployed migration history before publication.
 
 ## Files Changed
 
@@ -28,10 +28,11 @@ The trigger is now enabled live and its direct execution remains private. Playwr
 
 ## Pending Tasks
 
-- Publish verified database batch; record commit/deployment result here.
-- QA fixtures remain until final verification: two synthetic supports, admin, control cohort/contact/participant, dedicated Practice hubs, generated Practice groups/participants, QA sessions/notifications/peers. Cleanup script is under `/private/tmp/fof-practice-regression`; check fixture ownership and zero residue before ending.
-- Temporary harnesses, screenshots and credential-bearing fixture JSON remain outside the repository; never commit them.
+- No required regression-fix publishing work remains. Both batches are on main and deployed. The Practice pass covered detailed workflows; the broader 45-route pass is a route smoke check, not exhaustive CRUD/export testing in every module.
+- All synthetic fixtures were cleaned after ownership/test guards: zero remaining QA users, participants, groups, hubs, cohort, peers, contacts, sessions, notifications and PracticeMember rows verified. Cleanup included recorded unassigned QA groups left by the deletion test. No real recipient was messaged.
+- Existing project lint/TypeScript issues were not repaired in this scoped pass. Ordinary production build passes.
+- Temporary harnesses, screenshots and credential-bearing fixture JSON remain outside the repository; never commit them. Original checkout still has only its pre-existing modified session index and untracked dev-dist. This final deployment/cleanup note and index update are saved locally after batch 2; no separate documentation-only push.
 
 ## Errors Hit & Fixes
 
-Browser harness overlay timing and initial fixed waits caused false negatives; use actual modal/route readiness. A rapid alias navigation during account restoration initially bounced to login; settled restoration and peer account-return checks passed. No speculative auth change was made. Build warnings and baseline TypeScript/lint errors were not expanded into unrelated cleanup.
+Browser harness overlay timing and initial fixed waits caused false negatives; use actual modal/route readiness. A rapid alias navigation during account restoration initially bounced to login; settled restoration, peer account-return and a deliberately delayed participant identity-read test passed. No speculative auth change was made. Build warnings and baseline TypeScript/lint errors were not expanded into unrelated cleanup. The first restrictive-FK trial used a temporary table, which Postgres cannot link to a permanent User table; retried with a transaction-scoped ordinary table and rolled back the whole trial.
