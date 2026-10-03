@@ -24,7 +24,7 @@ import SupportsExportPopup from '../components/supports/SupportsExportPopup';
 import { PERSON_OF_INTEREST_INFO } from '../components/hubs/hubJobs';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
-import { genderAgeLine, isSupportProfileComplete } from '../utils/people';
+import { formatLastSeen, genderAgeLine, isSupportProfileComplete } from '../utils/people';
 import { openLoadByOwner } from '../utils/followUps';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import {
@@ -105,6 +105,8 @@ const AdminSupportsPage: React.FC = () => {
   const [notedIds, setNotedIds] = useState<Set<string>>(new Set());
   // Open follow-ups each support holds (load ring against the Settings max).
   const [followUpLoad, setFollowUpLoad] = useState<Map<string, number>>(new Map());
+  // Last app use per support (admin-only RPC). Missing entries simply hide the line.
+  const [lastSeenById, setLastSeenById] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     if (!activeCohort?.id) { setLoading(false); return; }
@@ -143,6 +145,21 @@ const AdminSupportsPage: React.FC = () => {
   }, [activeCohort?.id]);
 
   useEffect(() => { void load(); }, [load, liveRevision]);
+
+  useEffect(() => {
+    const supports = users.filter((u) => u.role === 'SUPPORT');
+    if (supports.length === 0) return;
+    let cancelled = false;
+    void Promise.allSettled(supports.map(async (u) => ({ id: u.id, seen: await usersApi.getLastActive(u.id) }))).then((results) => {
+      if (cancelled) return;
+      const map: Record<string, string> = {};
+      results.forEach((r) => {
+        if (r.status === 'fulfilled' && r.value.seen) map[r.value.id] = r.value.seen;
+      });
+      setLastSeenById(map);
+    });
+    return () => { cancelled = true; };
+  }, [users]);
 
   const model = useMemo(() => {
     if (!health || !people || !rules || !activeCohort) return null;
@@ -449,6 +466,7 @@ const AdminSupportsPage: React.FC = () => {
                   onNoteAdded={() => markNoted(evaluation.supportId)}
                   followUps={followUpLoad.get(evaluation.supportId) ?? 0}
                   onViewProfile={() => setProfileUserId(evaluation.supportId)}
+                  lastSeen={lastSeenById[evaluation.supportId] ?? null}
                 />
               ))}
               {notLeadingCards.map((u) => (
@@ -465,6 +483,7 @@ const AdminSupportsPage: React.FC = () => {
                   followUps={followUpLoad.get(u.id) ?? 0}
                   maxFollowUps={rules.maxFollowUpsPerSupport}
                   onViewProfile={() => setProfileUserId(u.id)}
+                  lastSeen={lastSeenById[u.id] ?? null}
                 />
               ))}
             </ul>
@@ -557,7 +576,8 @@ const SupportCard: React.FC<{
   onNoteAdded: () => void;
   followUps: number;
   onViewProfile: () => void;
-}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, onViewProfile }) => {
+  lastSeen: string | null;
+}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, onViewProfile, lastSeen }) => {
   const [open, setOpen] = useState(false);
   const [openReport, setOpenReport] = useState<number | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -599,6 +619,8 @@ const SupportCard: React.FC<{
       ? `Recorded all ${judgedCount} week${judgedCount === 1 ? '' : 's'}`
       : `Missing records for week${evaluation.missedWeeks.length === 1 ? '' : 's'} ${evaluation.missedWeeks.join(', ')}`;
 
+  const subtleLine = [user ? genderAgeLine(user) : '', formatLastSeen(lastSeen)].filter(Boolean).join(' · ');
+
   return (
     <li className="surface-card rounded-[24px] p-[18px] sm:p-[22px]">
       <div className="flex min-w-0 items-start gap-2.5">
@@ -613,6 +635,11 @@ const SupportCard: React.FC<{
           <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-500">
             {[groupName, hub?.name, `${evaluation.members} participant${evaluation.members === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}
           </p>
+          {subtleLine && (
+            <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-400">
+              {subtleLine}
+            </p>
+          )}
         </div>
         <div className="flex-none pt-0.5"><AppOverflowMenu align="right" items={[{ label: 'View profile', onClick: onViewProfile }]} /></div>
       </div>
@@ -814,13 +841,15 @@ const NoLeadSupportCard: React.FC<{
   followUps: number;
   maxFollowUps: number;
   onViewProfile: () => void;
-}> = ({ user, hub, training, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, maxFollowUps, onViewProfile }) => {
+  lastSeen: string | null;
+}> = ({ user, hub, training, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, maxFollowUps, onViewProfile, lastSeen }) => {
   const [open, setOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState<SupportNote[] | null>(null);
   const [noteBody, setNoteBody] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
   const whatsapp = buildWhatsAppLink(user.phone, `Hi ${user.name.split(' ')[0]}`);
+  const subtleLine = [genderAgeLine(user), formatLastSeen(lastSeen)].filter(Boolean).join(' · ');
 
   const toggleNotes = () => {
     const next = !notesOpen;
@@ -854,6 +883,11 @@ const NoLeadSupportCard: React.FC<{
             {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`flex-none rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
           </div>
           <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-500">{[hub?.name, KIND_LABEL[kind]].filter(Boolean).join(' · ')}</p>
+          {subtleLine && (
+            <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-400">
+              {subtleLine}
+            </p>
+          )}
         </div>
         <div className="flex-none pt-0.5"><AppOverflowMenu align="right" items={[{ label: 'View profile', onClick: onViewProfile }]} /></div>
       </div>
