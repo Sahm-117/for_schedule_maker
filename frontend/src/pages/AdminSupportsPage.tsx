@@ -14,10 +14,11 @@ import {
 import Spinner from '../components/Spinner';
 import InfoTip from '../components/InfoTip';
 import Avatar from '../components/Avatar';
+import LoadRing from '../components/LoadRing';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { cohortsApi, followUpContactsApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
-import type { HubMembership, ParticipantNote, SupportHub, SupportKind, SupportNote, SupportSession, User } from '../types';
+import { cohortsApi, followUpContactsApi, participantNotesApi, participantOnboardingStatusApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
+import type { HubMembership, ParticipantNote, ParticipantOnboardingStatus, SupportHub, SupportKind, SupportNote, SupportSession, User } from '../types';
 import AppSelect from '../components/AppSelect';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import SupportsExportPopup from '../components/supports/SupportsExportPopup';
@@ -107,12 +108,14 @@ const AdminSupportsPage: React.FC = () => {
   const [followUpLoad, setFollowUpLoad] = useState<Map<string, number>>(new Map());
   // Last app use per support (admin-only RPC). Missing entries simply hide the line.
   const [lastSeenById, setLastSeenById] = useState<Record<string, string>>({});
+  // Onboarding stage roll-up per group (one extra cohort fetch; missing data falls back to the sentence).
+  const [stagesByGroup, setStagesByGroup] = useState<Record<string, StageSummary>>({});
 
   const load = useCallback(async () => {
     if (!activeCohort?.id) { setLoading(false); return; }
     try {
       setError('');
-      const [h, p, r, u, hb, ms, ts, k, cm] = await Promise.all([
+      const [h, p, r, u, hb, ms, ts, k, cm, ob] = await Promise.all([
         cohortsApi.getHealth(activeCohort.id),
         cohortsApi.getPeople(activeCohort.id),
         settingsApi.getProgrammeRules(),
@@ -122,6 +125,7 @@ const AdminSupportsPage: React.FC = () => {
         supportSessionsApi.getForCohort(activeCohort.id, ['PRE_COHORT_TRAINING']).catch(() => ({ sessions: [] as SupportSession[], attendance: [] as Array<{ sessionId: string; userId: string; status: string }> })),
         supportKindApi.getForCohort(activeCohort.id).then((res) => res.kinds).catch(() => ({} as Record<string, SupportKind>)),
         cohortsApi.getMembers(activeCohort.id).then((res) => res.users.map((x) => x.id)).catch(() => [] as string[]),
+        participantOnboardingStatusApi.getForCohort(activeCohort.id).then((res) => res.statuses).catch(() => [] as ParticipantOnboardingStatus[]),
       ]);
       setHealth(h);
       setPeople(p);
@@ -133,6 +137,16 @@ const AdminSupportsPage: React.FC = () => {
       setTrainingSessions(ts.sessions);
       setKinds(k);
       setTrainingAttendance(ts.attendance);
+      const byGroup = new Map<string, ParticipantOnboardingStatus[]>();
+      ob.forEach((s) => {
+        if (!s.groupId) return;
+        const arr = byGroup.get(s.groupId) ?? [];
+        arr.push(s);
+        byGroup.set(s.groupId, arr);
+      });
+      const stageMap: Record<string, StageSummary> = {};
+      byGroup.forEach((statuses, groupId) => { stageMap[groupId] = summarizeStages(statuses); });
+      setStagesByGroup(stageMap);
       followUpContactsApi.getAll().then((res) => setFollowUpLoad(openLoadByOwner(res.contacts, activeCohort.id))).catch(() => {});
       setNotedIds(new Set(await supportNotesApi.getSupportIdsWithNotes(hb.map((x) => x.id)).then((res) => res.supportIds).catch(() => [] as string[])));
       const groupIds = h.groups.map((g) => g.id);
@@ -467,6 +481,7 @@ const AdminSupportsPage: React.FC = () => {
                   followUps={followUpLoad.get(evaluation.supportId) ?? 0}
                   onViewProfile={() => setProfileUserId(evaluation.supportId)}
                   lastSeen={lastSeenById[evaluation.supportId] ?? null}
+                  stages={stagesByGroup[evaluation.groupId] ?? null}
                 />
               ))}
               {notLeadingCards.map((u) => (
@@ -551,13 +566,41 @@ const AdminSupportsPage: React.FC = () => {
   );
 };
 
-const FollowUpSummary: React.FC<{ value: number; max: number }> = ({ value, max }) => (
-  <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-gray-500">
-    <span>{value} open follow-ups{max > 0 ? ` · limit ${max}` : ''}</span>
-    {max > 0 && value > max && <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[10px] font-semibold text-red-700">Over limit</span>}
-    {max > 0 && value === max && <span className="rounded-full bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold text-amber-700">At limit</span>}
-  </span>
-);
+// Per-group onboarding roll-up: every member past each step.
+interface StageSummary {
+  contacted: boolean;
+  addedToGroup: boolean;
+  introductionDone: boolean;
+  venueAcknowledged: boolean;
+}
+
+const summarizeStages = (statuses: ParticipantOnboardingStatus[]): StageSummary => ({
+  contacted: statuses.length > 0 && statuses.every((s) => s.contacted),
+  addedToGroup: statuses.length > 0 && statuses.every((s) => s.addedToGroup),
+  introductionDone: statuses.length > 0 && statuses.every((s) => s.introductionDone),
+  venueAcknowledged: statuses.length > 0 && statuses.every((s) => s.venueAcknowledged),
+});
+
+// Four-segment onboarding bar + short label. Falls back to the sentence when
+// stage data is missing.
+const OnboardingBar: React.FC<{ stages: StageSummary | null; fallback: string; late: boolean }> = ({ stages, fallback, late }) => {
+  if (!stages) return <span>{fallback}</span>;
+  const steps = [stages.contacted, stages.addedToGroup, stages.introductionDone, stages.venueAcknowledged];
+  const done = steps.filter(Boolean).length;
+  const all = done === 4;
+  return (
+    <span className="flex min-w-0 flex-1 items-center gap-2">
+      <span className="flex min-w-0 flex-1 gap-1" aria-hidden="true">
+        {steps.map((hit, i) => (
+          <span key={i} className={`h-1.5 min-w-0 flex-1 rounded-full ${hit ? 'bg-emerald-500' : 'bg-gray-200'}`} />
+        ))}
+      </span>
+      <span className={`flex-none text-[11px] font-semibold ${all ? 'text-emerald-700' : late ? 'text-red-600' : 'text-gray-500'}`}>
+        {all ? 'Onboarded' : done === 0 ? 'Not started' : `${done}/4`}
+      </span>
+    </span>
+  );
+};
 
 const SupportCard: React.FC<{
   evaluation: SupportEvaluation;
@@ -577,7 +620,8 @@ const SupportCard: React.FC<{
   followUps: number;
   onViewProfile: () => void;
   lastSeen: string | null;
-}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, onViewProfile, lastSeen }) => {
+  stages: StageSummary | null;
+}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, onViewProfile, lastSeen, stages }) => {
   const [open, setOpen] = useState(false);
   const [openReport, setOpenReport] = useState<number | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -633,13 +677,8 @@ const SupportCard: React.FC<{
             {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`flex-none rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
           </div>
           <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-500">
-            {[groupName, hub?.name, `${evaluation.members} participant${evaluation.members === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}
+            {[groupName, subtleLine].filter(Boolean).join(' · ')}
           </p>
-          {subtleLine && (
-            <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-400">
-              {subtleLine}
-            </p>
-          )}
         </div>
         <div className="flex-none pt-0.5"><AppOverflowMenu align="right" items={[{ label: 'View profile', onClick: onViewProfile }]} /></div>
       </div>
@@ -651,12 +690,17 @@ const SupportCard: React.FC<{
         <span className={`flex-none rounded-full px-2.5 py-1 text-[11px] font-semibold ${HEALTH_PILL[evaluation.health]}`}>{PERSON_HEALTH_LABEL[evaluation.health]}</span>
       </div>
       <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
-        <span className={onboarding.late || !onboarding.allOnboarded ? 'font-medium text-gray-700' : ''}>{onboardingText}</span>
+        <OnboardingBar stages={stages} fallback={onboardingText} late={onboarding.late || !onboarding.allOnboarded} />
         {training.total > 0 && <TrainingPill name={supportName} userId={evaluation.supportId} sessions={training.sessions} attendance={training.attendance} />}
       </div>
 
       <div className="mt-3 flex min-h-11 flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2.5">
-        <FollowUpSummary value={followUps} max={rules.maxFollowUpsPerSupport} />
+        <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
+          <LoadRing value={followUps} max={rules.maxFollowUpsPerSupport} />
+          {rules.maxFollowUpsPerSupport > 0 && followUps > rules.maxFollowUpsPerSupport && (
+            <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[10px] font-semibold text-red-700">Over limit</span>
+          )}
+        </span>
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="inline-flex min-h-11 flex-none items-center gap-1.5 rounded-xl bg-gray-100 px-3 text-xs font-semibold text-gray-700 hover:bg-gray-200">
           {open ? 'Hide details' : 'Details'}
           <svg className={`h-3.5 w-3.5 transition-transform motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true"><path d="m5 7.5 5 5 5-5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -666,9 +710,10 @@ const SupportCard: React.FC<{
       {open && <div className="mt-2 border-t border-gray-100 pt-3">
         <SupportTagRow tags={[
           user && <ProfileTag key="profile" user={user} />,
+          hub?.name && <span key="hub" className="text-[11px] text-gray-500">{hub.name}</span>,
+          <span key="members" className="text-[11px] text-gray-500">{evaluation.members} participant{evaluation.members === 1 ? '' : 's'}</span>,
           hub?.isLead && <span key="lead" className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>,
           KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
-          user && genderAgeLine(user) && <span key="demographics" className="text-[11px] text-gray-500">{genderAgeLine(user)}</span>,
         ]} />
         <div className="mt-3 w-full sm:w-56">
           <AppSelect value={kind} onChange={(v) => onKindChange(v as SupportKind)} options={KIND_OPTIONS} placeholder="Participant support" disabled={kindSaving} loading={kindSaving} compact label="Kind" />
@@ -882,12 +927,7 @@ const NoLeadSupportCard: React.FC<{
             <button type="button" onClick={onViewProfile} className="min-w-0 truncate text-left text-[15px] font-bold tracking-tight text-gray-900 hover:underline">{user.name}</button>
             {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`flex-none rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
           </div>
-          <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-500">{[hub?.name, KIND_LABEL[kind]].filter(Boolean).join(' · ')}</p>
-          {subtleLine && (
-            <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-400">
-              {subtleLine}
-            </p>
-          )}
+          <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-500">{[hub?.name, KIND_LABEL[kind], subtleLine].filter(Boolean).join(' · ')}</p>
         </div>
         <div className="flex-none pt-0.5"><AppOverflowMenu align="right" items={[{ label: 'View profile', onClick: onViewProfile }]} /></div>
       </div>
@@ -898,7 +938,12 @@ const NoLeadSupportCard: React.FC<{
       </div>
 
       <div className="mt-3 flex min-h-11 flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2.5">
-        <FollowUpSummary value={followUps} max={maxFollowUps} />
+        <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
+          <LoadRing value={followUps} max={maxFollowUps} />
+          {maxFollowUps > 0 && followUps > maxFollowUps && (
+            <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[10px] font-semibold text-red-700">Over limit</span>
+          )}
+        </span>
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="inline-flex min-h-11 flex-none items-center gap-1.5 rounded-xl bg-gray-100 px-3 text-xs font-semibold text-gray-700 hover:bg-gray-200">
           {open ? 'Hide details' : 'Details'}
           <svg className={`h-3.5 w-3.5 transition-transform motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true"><path d="m5 7.5 5 5 5-5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -910,7 +955,6 @@ const NoLeadSupportCard: React.FC<{
           <ProfileTag key="profile" user={user} />,
           hub?.isLead && <span key="lead" className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>,
           KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
-          genderAgeLine(user) && <span key="demographics" className="text-[11px] text-gray-500">{genderAgeLine(user)}</span>,
         ]} />
         <div className="mt-3 w-full sm:w-56">
           <AppSelect value={kind} onChange={(v) => onKindChange(v as SupportKind)} options={KIND_OPTIONS} placeholder="Participant support" disabled={kindSaving} loading={kindSaving} compact label="Kind" />
