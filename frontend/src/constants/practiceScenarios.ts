@@ -66,7 +66,7 @@ export const PRACTICE_SCENARIOS: Record<PracticeSeat, PracticeScenario[]> = {
     { key: 'pt-profile', title: 'Complete your profile', hint: 'Fill in your details.' },
     { key: 'pt-intro', title: 'Post your introduction to your group', hint: 'In your group discussion, say hello.' },
     { key: 'pt-ready', title: 'Confirm you are ready', hint: 'Tell your support you are set for the first class.' },
-    { key: 'pt-class', title: 'Open this week’s class and see the attendance countdown', hint: 'Find this week’s class on your home page.', to: '/me/week', visit: true },
+    { key: 'pt-class', title: 'Open this week’s class and see the attendance countdown', hint: 'Find this week’s class on your home page.', to: '/me/week/1', visit: true },
     { key: 'pt-reflect', title: 'Write this week’s reflection', hint: 'Save a short reflection and one thing you will do.' },
     { key: 'pt-discuss', title: 'Post and like something in the group discussion', hint: 'Take part in the conversation.' },
   ],
@@ -85,7 +85,7 @@ const HUB_JOB_STEP: Partial<Record<PracticeSeat, PracticeScenario>> = {
 export const peerSteps = (role: PracticeSeat, other: PracticeSeat): PracticeScenario[] => {
   if (role === 'PARTICIPANT') {
     return [
-      { key: 'peer-PARTICIPANT-1', title: 'Open this week and read it', hint: 'From Home, open the current week.', to: '/me/week', visit: true },
+      { key: 'peer-PARTICIPANT-1', title: 'Open this week and read it', hint: 'From Home, open the current week.', to: '/me/week/1', visit: true },
       { key: 'peer-PARTICIPANT-2', title: 'Post in your group discussion', hint: 'Say something your support can reply to.' },
       { key: 'peer-PARTICIPANT-3', title: 'Find the message your support pinned', hint: 'Pinned messages sit at the top of the discussion.', to: '/me/group', visit: true },
       { key: 'peer-PARTICIPANT-4', title: 'Check in for the class', hint: 'Use the check-in on Home.' },

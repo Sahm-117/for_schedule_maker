@@ -35,6 +35,11 @@ const withChange = (items: PracticeProgressItem[], key: string, done: boolean, s
   return [...items.filter((item) => item.key !== key), { key, doneAt: done ? now : null, stuckAt: stuck ? now : null }];
 };
 
+const withItem = (items: PracticeProgressItem[], key: string, item: PracticeProgressItem | null): PracticeProgressItem[] => [
+  ...items.filter((entry) => entry.key !== key),
+  ...(item ? [item] : []),
+];
+
 interface RolePickerProps {
   cards: typeof ROLE_CARDS;
   seat: PracticeSeat | null;
@@ -122,15 +127,37 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
   // Letting it land would un-tick the box they just ticked, so it is dropped (a fresh one follows the save).
   const pendingSaves = useRef(0);
   const lastChangeAt = useRef(0);
+  const changeRevision = useRef(0);
+  const saveSequence = useRef(new Map<string, number>());
+  const confirmedSequence = useRef(new Map<string, number>());
+  const confirmedItems = useRef(new Map<string, PracticeProgressItem | null>());
+  const confirmedPeerItems = useRef(new Map<string, PracticeProgressItem | null>());
+
+  const rememberConfirmedItems = (target: Map<string, PracticeProgressItem | null>, next: PracticeProgressItem[]) => {
+    target.forEach((_item, key) => target.set(key, null));
+    next.forEach((item) => target.set(item.key, item));
+  };
+  const confirmOwnItem = (key: string, sequence: number, item: PracticeProgressItem | null) => {
+    if (sequence < (confirmedSequence.current.get(key) ?? 0)) return;
+    confirmedSequence.current.set(key, sequence);
+    confirmedItems.current.set(key, item);
+  };
 
   const load = useCallback(() => {
     const startedAt = Date.now();
+    const revisionAtStart = changeRevision.current;
     const request = mode === 'staff' ? practiceApi.getMine() : practiceApi.getForParticipant();
     request.then((next) => {
-      if (pendingSaves.current > 0 || lastChangeAt.current > startedAt) return;
+      if (pendingSaves.current > 0 || changeRevision.current !== revisionAtStart || lastChangeAt.current > startedAt) return;
+      rememberConfirmedItems(confirmedItems.current, next.items);
+      saveSequence.current.forEach((sequence, key) => confirmedSequence.current.set(key, sequence));
       setData(next);
     }).catch(() => {});
-    if (mode === 'participant') practiceApi.participantPeer().then(setPartner).catch(() => {});
+    if (mode === 'participant') practiceApi.participantPeer().then((next) => {
+      if (pendingSaves.current > 0 || changeRevision.current !== revisionAtStart) return;
+      rememberConfirmedItems(confirmedPeerItems.current, next.myProgress);
+      setPartner(next);
+    }).catch(() => {});
   }, [mode]);
 
   useEffect(() => {
@@ -146,22 +173,57 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
   const scenarios = useMemo(() => (seat ? PRACTICE_SCENARIOS[seat] : []), [seat]);
   const items = data?.items ?? [];
 
-  const changeOwn = (key: string, done: boolean, stuck: boolean) => {
+  const changeOwn = (key: string, done: boolean, stuck: boolean, updatePeerProgress = false) => {
+    const sequence = (saveSequence.current.get(key) ?? 0) + 1;
+    saveSequence.current.set(key, sequence);
+    changeRevision.current += 1;
     if (!done && !stuck) { unticked.current.add(key); visited.current.delete(key); }
     if (done) unticked.current.delete(key);
     lastChangeAt.current = Date.now();
     pendingSaves.current += 1;
     setData((prev) => (prev ? { ...prev, items: withChange(prev.items, key, done, stuck) } : prev));
+    const submittedItem = withChange([], key, done, stuck)[0];
     const save = mode === 'staff' ? practiceApi.setMine(key, done, stuck) : practiceApi.setForParticipant(key, done, stuck);
     save
-      .then(() => { pendingSaves.current -= 1; lastChangeAt.current = Date.now(); void refreshPulse?.(); load(); })
-      .catch(() => { pendingSaves.current -= 1; lastChangeAt.current = 0; load(); });
+      .then(() => {
+        pendingSaves.current -= 1;
+        confirmOwnItem(key, sequence, submittedItem);
+        if (updatePeerProgress && sequence >= (confirmedSequence.current.get(key) ?? 0)) confirmedPeerItems.current.set(key, submittedItem);
+        lastChangeAt.current = Date.now();
+        void refreshPulse?.();
+        load();
+      })
+      .catch(async () => {
+        pendingSaves.current -= 1;
+        if (saveSequence.current.get(key) !== sequence) return;
+        lastChangeAt.current = 0;
+        try {
+          const current = mode === 'staff' ? await practiceApi.getMine() : await practiceApi.getForParticipant();
+          if (saveSequence.current.get(key) !== sequence) return;
+          const savedItem = current.items.find((item) => item.key === key) ?? null;
+          confirmOwnItem(key, sequence, savedItem);
+          if (updatePeerProgress) confirmedPeerItems.current.set(key, savedItem);
+          setData((prev) => (prev ? { ...prev, items: withItem(prev.items, key, savedItem) } : current));
+          if (updatePeerProgress) {
+            setPartner((prev) => prev ? { ...prev, myProgress: withItem(prev.myProgress, key, savedItem) } : prev);
+          }
+        } catch {
+          if (saveSequence.current.get(key) !== sequence) return;
+          const baseline = confirmedItems.current.get(key) ?? null;
+          setData((prev) => prev ? { ...prev, items: withItem(prev.items, key, baseline) } : prev);
+          if (updatePeerProgress) {
+            const peerBaseline = confirmedPeerItems.current.get(key) ?? null;
+            setPartner((prev) => prev ? { ...prev, myProgress: withItem(prev.myProgress, key, peerBaseline) } : prev);
+          }
+        }
+        toast({ tone: 'error', message: 'Could not save this checklist step. It was restored to its last saved state.' });
+      });
   };
 
   const changePeer = (key: string, done: boolean, stuck: boolean) => {
     // Show it straight away, then let the next pulse confirm it.
     setPartner((prev) => (prev ? { ...prev, myProgress: withChange(prev.myProgress, key, done, stuck) } : prev));
-    changeOwn(key, done, stuck);
+    changeOwn(key, done, stuck, true);
   };
 
   // Steps the data can't see are ticked when the person opens the screen.

@@ -42,5 +42,5 @@ export const leaveParticipantView = async (): Promise<void> => {
   if (participantToken) {
     try { await authApi.signOut(participantToken); } catch { /* it expires on its own */ }
   }
-  window.location.assign('/support/my-schedule');
+  window.location.assign('/support/schedule');
 };

@@ -125,7 +125,7 @@ const ParticipantHomePage: React.FC = () => {
   const week = home.weeks.find((w) => w.weekNumber === shownWeekNumber) ?? null;
   const reflection = week ? reflectionFor(home.reflections, week.id) : null;
 
-  const stageLabel = home.cohort?.status === 'COMPLETED' || finished ? 'Completed' : started ? 'Active' : 'Starting soon';
+  const stageLabel = isPractice ? (started ? 'Active' : 'Starting soon') : home.cohort?.status === 'COMPLETED' || finished ? 'Completed' : started ? 'Active' : 'Starting soon';
 
   // Next Sunday class: this week's if it hasn't started yet today, else next week's.
   const nextClass = (() => {

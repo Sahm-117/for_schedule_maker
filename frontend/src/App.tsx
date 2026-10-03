@@ -173,6 +173,7 @@ function App() {
             <Route path="/support/recap" element={<Suspense fallback={<RouteFallback />}><SupportRecapPage /></Suspense>} />
             <Route path="/support" element={<Suspense fallback={<RouteFallback />}><SupportHomePage /></Suspense>} />
             <Route path="/support/schedule" element={<Suspense fallback={<RouteFallback />}><SupportSchedulePage /></Suspense>} />
+            <Route path="/support/my-schedule" element={<Navigate to="/support/schedule" replace />} />
             <Route path="/support/practice" element={<Suspense fallback={<RouteFallback />}><SupportPracticeEntryPage /></Suspense>} />
             <Route path="/support/survey/:id" element={<Suspense fallback={<RouteFallback />}><SupportSurveyPage /></Suspense>} />
             <Route path="/support/resources" element={<Suspense fallback={<RouteFallback />}><SupportResourcesPage /></Suspense>} />

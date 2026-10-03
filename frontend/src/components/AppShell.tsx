@@ -329,8 +329,10 @@ const AppShell: React.FC = () => {
   const { user, isAdmin, logout, refreshUserCohorts, switchRole } = useAuth();
   const {
     cohorts,
+    loading: appDataLoading,
     activeCohort,
     setActiveCohort,
+    reloadCohorts,
     globalPendingChanges,
     newResourceCount,
     hasNewHubActivity,
@@ -352,6 +354,7 @@ const AppShell: React.FC = () => {
   // walkthrough requests show up by themselves with no reload.
   const { pulse: practicePulse, refresh: refreshPracticePulse } = usePracticePulse(isSupport, () => { void refreshUserCohorts(); }, !!activeCohort?.isPractice);
   const practiceOn = !!practicePulse?.member && !!practicePulse.on;
+  const practiceEntryReady = !appDataLoading && practicePulse !== null;
   // Before a real cohort starts, Practice takes the Resources spot in the quick actions; once one
   // has started it moves under More. Either way it switches to the Practice cohort and opens the pop-up.
   const realCohortStarted = useMemo(() => {
@@ -360,11 +363,19 @@ const AppShell: React.FC = () => {
   }, [cohorts]);
   const openPractice = React.useCallback(async () => {
     const practiceCohort = cohorts.find((c) => c.isPractice);
-    if (!practiceCohort) return;
+    if (!practiceCohort) throw new Error('Practice is not available yet. Refresh and try again.');
     try { sessionStorage.setItem(OPEN_PRACTICE_FLAG, '1'); } catch { /* ignore */ }
-    if (activeCohort?.id !== practiceCohort.id) await setActiveCohort(practiceCohort.id);
-    else window.dispatchEvent(new Event(OPEN_PRACTICE_EVENT));
+    try {
+      if (activeCohort?.id !== practiceCohort.id) await setActiveCohort(practiceCohort.id);
+      else window.dispatchEvent(new Event(OPEN_PRACTICE_EVENT));
+    } catch (error) {
+      try { sessionStorage.removeItem(OPEN_PRACTICE_FLAG); } catch { /* ignore */ }
+      throw error;
+    }
   }, [cohorts, activeCohort?.id, setActiveCohort]);
+  const retryPracticeEntry = React.useCallback(async () => {
+    await Promise.all([reloadCohorts(), refreshPracticePulse()]);
+  }, [reloadCohorts, refreshPracticePulse]);
   // The cohort to go back to from Test mode: the last real one they were looking at.
   useEffect(() => {
     if (activeCohort && !activeCohort.isPractice) { try { localStorage.setItem('fof_last_real_cohort', activeCohort.id); } catch { /* ignore */ } }
@@ -384,7 +395,7 @@ const AppShell: React.FC = () => {
     setReturningToReal(true);
     try { await setActiveCohort(returnCohortId); navigate('/support'); } finally { setReturningToReal(false); }
   };
-  const practiceEntry = useMemo(() => ({ on: practiceOn, started: realCohortStarted, open: openPractice }), [practiceOn, realCohortStarted, openPractice]);
+  const practiceEntry = useMemo(() => ({ ready: practiceEntryReady, on: practiceOn, started: realCohortStarted, open: openPractice, retry: retryPracticeEntry }), [practiceEntryReady, practiceOn, realCohortStarted, openPractice, retryPracticeEntry]);
   // First time a support opens the app after getting a hub job: welcome them
   // to it (once per job, remembered on the server), with a link to the guide.
   const [introDoneJobs, setIntroDoneJobs] = useState<HubJob[]>([]);

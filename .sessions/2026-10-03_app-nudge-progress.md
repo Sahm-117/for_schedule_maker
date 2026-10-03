@@ -4,7 +4,7 @@
 
 Finished the three additions proposed in the Claude cloud conversation: refresh the support Home app-nudge card on return/online and every two minutes while visible; show a dated Sent tag and sort messaged people last; write a one-time support bell notification when a participant has installed the app and saved a push subscription. The support guide explains this flow.
 
-Implementation is on `codex/finish-app-nudge`, based on cloud main `438afba`, in managed worktree `/Users/olamide/.codex/worktrees/finish-app-nudge/fof_schedule`. User reviewed the result and explicitly approved committing/pushing to main. Original checkout `/Users/olamide/fof_schedule` retains its pre-existing modified `.sessions/INDEX.md` and untracked `frontend/dev-dist/`; those were not changed.
+Implementation was committed as `28e449a11f5553456e80780f28f4fdd32feaa162` on `codex/finish-app-nudge` and pushed to main with explicit user confirmation. Managed worktree: `/Users/olamide/.codex/worktrees/finish-app-nudge/fof_schedule`. Original checkout `/Users/olamide/fof_schedule` retains its pre-existing modified `.sessions/INDEX.md` and untracked `frontend/dev-dist/`; those were not changed.
 
 ## Files Changed
 
@@ -26,7 +26,7 @@ Implementation is on `codex/finish-app-nudge`, based on cloud main `438afba`, in
 
 ## Backend / Handoff Notes
 
-Migration **has already been applied and verified** on deployed Supabase project `vnmeeqvwqaeczjlvzoul`. Do not blindly re-run its CREATE TABLE/FUNCTION statements. Frontend has NOT been published; production still deploys from main via Vercel.
+Migration **has already been applied and verified** on deployed Supabase project `vnmeeqvwqaeczjlvzoul`. Do not blindly re-run its CREATE TABLE/FUNCTION statements. Frontend is published at `https://for-schedule-maker.vercel.app`. Both GitHub Vercel statuses succeeded for `28e449a`. Verified the production entry contains the new RPC, the lazy support Home bundle contains the Sent save/retry feature, and the updated support guide is served. Production login browser smoke had zero runtime/console errors.
 
 Verification passed: frontend build; targeted AppNudgeCard lint; `git diff --check`; 25 rollback-only deployed DB checks for ownership, exclusions, ordering, invalid tokens, both setup orders, one-time notifications and private grants; actual support-role Playwright against local frontend/deployed backend for failed save/retry, Sent persistence/sort, focus refresh, real two-minute refresh, bell activity, last-person card hiding and concurrent deduplication. Successful UI flow had zero console/runtime errors. Independent explorer review found no blocking issues after the owner guard fix.
 
@@ -36,10 +36,8 @@ Temporary test harnesses/screenshots/logs are under `/private/tmp/fof-app-nudge-
 
 ## Pending Tasks
 
-- Publishing approved by user on 2026-10-03; this changeset is ready for main. Verify the resulting Vercel production deployment.
-- Verified GitHub credential actor: `Sahm-117`; use established commit author `Sam <tisnotaname@gmail.com>`; proposed destination is `Sahm-117/for_schedule_maker` branch `main`.
-- Remote refreshed immediately before committing; origin/main remains `438afba`. Publish this scoped feature only, preserve original checkout changes, and verify production after Vercel deploy.
-- Update this summary with the actual pushed commit and deployment result after publishing.
+- No feature/publishing work remains. Verified GitHub actor was `Sahm-117`; commit author `Sam <tisnotaname@gmail.com>`; destination `Sahm-117/for_schedule_maker` branch `main`.
+- This post-deploy summary and index update are saved locally after the authorized push; no second documentation-only push was attempted.
 
 ## Errors Hit & Fixes
 
