@@ -6,11 +6,12 @@ export const genderAgeLine = (person: { gender?: string | null; ageRange?: strin
   [person.gender, person.ageRange].filter((part): part is string => !!part && !!part.trim()).join(' · ');
 
 // "Active 2 weeks ago" with a tone for the presence dot:
-// green = seen in the last week, grey = longer ago, red = never.
+// green = seen in the last week, grey = older/unknown, red = no recorded activity.
 export const activeStatus = (iso?: string | null): { label: string; tone: 'green' | 'grey' | 'red' } => {
-  if (!iso) return { label: 'Never active', tone: 'red' };
+  if (iso === undefined) return { label: 'Activity unavailable', tone: 'grey' };
+  if (!iso) return { label: 'No recorded activity', tone: 'red' };
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return { label: 'Never active', tone: 'red' };
+  if (Number.isNaN(date.getTime())) return { label: 'Activity unavailable', tone: 'grey' };
   const mins = Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
   let rel: string;
   if (mins < 1) {

@@ -1,10 +1,12 @@
 import React from 'react';
 import {
+  addDays,
   cohortSegments,
   formatPlannerDate,
   formatPlannerRange,
   weeksLabel,
   yearPercent,
+  stoppedSundays,
   type PlannerClash,
   type PlannerCohort,
   type PlannerEvent,
@@ -61,11 +63,11 @@ const YearTimeline: React.FC<YearTimelineProps> = ({ year, plan, events, holiday
           <div className="pointer-events-none absolute inset-y-0 right-0 grid grid-cols-12" style={{ left: LABEL_COL }} aria-hidden="true">
             {MONTHS.map((m) => <span key={m} className="border-l border-gray-100" />)}
           </div>
-          {/* Dates when FOF stops, running down through every cohort. */}
+          {/* Only the Sunday class is affected, even when the event spans several days. */}
           <div className="pointer-events-none absolute inset-y-0 right-0" style={{ left: LABEL_COL }} aria-hidden="true">
-            {yearEvents.filter((e) => e.stopsFof).map((e) => {
-              const { left, width } = span(e.startDate, e.endDate);
-              return <span key={e.id} className="absolute inset-y-0 bg-red-500/10" style={{ left: `${left}%`, width: `${width}%` }} />;
+            {stoppedSundays(yearEvents, yearStart, yearEnd).map((date) => {
+              const { left, width } = span(date, date);
+              return <span key={date} className="absolute inset-y-0 bg-red-500/10" style={{ left: `${left}%`, width: `${width}%` }} />;
             })}
             {todayInYear && <span className="absolute inset-y-0 w-0.5 -translate-x-1/2 rounded-full bg-primary" style={{ left: `${yearPercent(today, year)}%` }} />}
           </div>
@@ -84,7 +86,9 @@ const YearTimeline: React.FC<YearTimelineProps> = ({ year, plan, events, holiday
                 <span className="block text-[11px] text-gray-400">{weeksLabel(cohort.classDates.length)}</span>
               </button>
               <div className="relative h-7 flex-1">
-                {cohortSegments(cohort, events).map((seg) => {
+                {cohortSegments(cohort, events).flatMap((seg) => seg.kind === 'gap'
+                  ? Array.from({ length: seg.weeks }, (_, i) => ({ ...seg, start: addDays(seg.start, 6 + i * 7), end: addDays(seg.start, 6 + i * 7), weeks: 1 }))
+                  : [seg]).map((seg) => {
                   if (seg.end < yearStart || seg.start > yearEnd) return null;
                   const { left, width } = span(seg.start, seg.end);
                   const wide = (width / 100) * TRACK >= 22;
@@ -95,10 +99,10 @@ const YearTimeline: React.FC<YearTimelineProps> = ({ year, plan, events, holiday
                       type="button"
                       aria-label={lines.join('. ')}
                       {...bind(lines)}
-                      className={`absolute inset-y-0 flex items-center justify-center overflow-hidden rounded-md text-[11px] font-bold ${KIND_BAR[seg.kind]} ${cohort.planned && seg.kind !== 'gap' ? 'opacity-60' : ''}`}
-                      style={{ left: `${left}%`, width: `calc(${width}% - 2px)`, ...(seg.extension && seg.kind !== 'gap' ? EXTENSION_STRIPES : {}) }}
+                      className={`absolute inset-y-0 flex items-center justify-center overflow-hidden rounded-md text-[11px] font-bold ${seg.kind === 'gap' ? '-translate-x-1/2 bg-transparent' : KIND_BAR[seg.kind]} ${cohort.planned && seg.kind !== 'gap' ? 'opacity-60' : ''}`}
+                      style={{ left: `${left}%`, width: seg.kind === 'gap' ? '12px' : `calc(${width}% - 2px)`, ...(seg.extension && seg.kind !== 'gap' ? EXTENSION_STRIPES : {}) }}
                     >
-                      {wide && (seg.kind === 'gap' ? '' : seg.weeks)}
+                      {seg.kind === 'gap' ? <span aria-hidden="true" className={`h-full w-[3px] rounded-sm ${KIND_BAR.gap}`} /> : wide && seg.weeks}
                     </button>
                   );
                 })}

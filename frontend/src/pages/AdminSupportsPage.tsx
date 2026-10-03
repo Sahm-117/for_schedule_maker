@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, NavLink, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import SegmentedTabs from '../components/SegmentedTabs';
@@ -17,8 +17,8 @@ import Avatar from '../components/Avatar';
 import LoadRing from '../components/LoadRing';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { cohortsApi, followUpContactsApi, participantNotesApi, participantOnboardingStatusApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
-import type { HubMembership, ParticipantNote, ParticipantOnboardingStatus, SupportHub, SupportKind, SupportNote, SupportSession, User } from '../types';
+import { cohortsApi, followUpContactsApi, groupDiscussionApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
+import type { HubMembership, OnboardingProgressParticipant, ParticipantNote, SupportHub, SupportKind, SupportNote, SupportSession, User } from '../types';
 import AppSelect from '../components/AppSelect';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import SupportsExportPopup from '../components/supports/SupportsExportPopup';
@@ -106,8 +106,33 @@ const AdminSupportsPage: React.FC = () => {
   const [notedIds, setNotedIds] = useState<Set<string>>(new Set());
   // Open follow-ups each support holds (load ring against the Settings max).
   const [followUpLoad, setFollowUpLoad] = useState<Map<string, number>>(new Map());
-  // Last app use per support (admin-only RPC). Missing entries simply hide the line.
-  const [lastSeenById, setLastSeenById] = useState<Record<string, string>>({});
+  // Undefined means unavailable; only a successful null response means no recorded activity.
+  const [lastSeenById, setLastSeenById] = useState<Record<string, string | null | undefined>>({});
+  const lastSeenCache = useRef(new Map<string, { seen: string | null; at: number }>());
+  const lastSeenRequests = useRef(new Map<string, Promise<string | null>>());
+  const lastSeenWork = useRef({ running: 0, queue: [] as Array<() => void> });
+  const fetchLastSeen = useCallback((id: string): Promise<string | null> => {
+    const existing = lastSeenRequests.current.get(id);
+    if (existing) return existing;
+    let start!: () => void;
+    const request = new Promise<string | null>((resolve, reject) => {
+      start = () => {
+        lastSeenWork.current.running += 1;
+        void usersApi.getLastActive(id).then((seen) => {
+          lastSeenCache.current.set(id, { seen, at: Date.now() });
+          resolve(seen);
+        }, reject).finally(() => {
+          lastSeenRequests.current.delete(id);
+          lastSeenWork.current.running -= 1;
+          lastSeenWork.current.queue.shift()?.();
+        });
+      };
+    });
+    lastSeenRequests.current.set(id, request);
+    if (lastSeenWork.current.running < 4) start();
+    else lastSeenWork.current.queue.push(start);
+    return request;
+  }, []);
   // Onboarding stage roll-up per group (one extra cohort fetch; missing data falls back to the sentence).
   const [stagesByGroup, setStagesByGroup] = useState<Record<string, StageSummary>>({});
 
@@ -125,7 +150,7 @@ const AdminSupportsPage: React.FC = () => {
         supportSessionsApi.getForCohort(activeCohort.id, ['PRE_COHORT_TRAINING']).catch(() => ({ sessions: [] as SupportSession[], attendance: [] as Array<{ sessionId: string; userId: string; status: string }> })),
         supportKindApi.getForCohort(activeCohort.id).then((res) => res.kinds).catch(() => ({} as Record<string, SupportKind>)),
         cohortsApi.getMembers(activeCohort.id).then((res) => res.users.map((x) => x.id)).catch(() => [] as string[]),
-        participantOnboardingStatusApi.getForCohort(activeCohort.id).then((res) => res.statuses).catch(() => [] as ParticipantOnboardingStatus[]),
+        groupDiscussionApi.cohortOnboardingProgress(activeCohort.id).then((res) => res.participants).catch(() => [] as OnboardingProgressParticipant[]),
       ]);
       setHealth(h);
       setPeople(p);
@@ -137,9 +162,10 @@ const AdminSupportsPage: React.FC = () => {
       setTrainingSessions(ts.sessions);
       setKinds(k);
       setTrainingAttendance(ts.attendance);
-      const byGroup = new Map<string, ParticipantOnboardingStatus[]>();
+      const participantIds = new Set(p.participants.filter((person) => person.status === 'ACTIVE').map((person) => person.id));
+      const byGroup = new Map<string, OnboardingProgressParticipant[]>();
       ob.forEach((s) => {
-        if (!s.groupId) return;
+        if (!s.groupId || !participantIds.has(s.participantId)) return;
         const arr = byGroup.get(s.groupId) ?? [];
         arr.push(s);
         byGroup.set(s.groupId, arr);
@@ -161,19 +187,22 @@ const AdminSupportsPage: React.FC = () => {
   useEffect(() => { void load(); }, [load, liveRevision]);
 
   useEffect(() => {
-    const supports = users.filter((u) => u.role === 'SUPPORT');
-    if (supports.length === 0) return;
+    const leadingIds = new Set(health?.groups.map((g) => g.supportId));
+    const supports = users.filter((u) => u.role === 'SUPPORT' && (leadingIds.has(u.id) || (u.isActive !== false && cohortMemberIds.has(u.id))));
+    const cached: Record<string, string | null | undefined> = {};
+    supports.forEach((u) => { cached[u.id] = lastSeenCache.current.get(u.id)?.seen; });
+    setLastSeenById(cached);
+    const pending = supports.filter((u) => Date.now() - (lastSeenCache.current.get(u.id)?.at ?? 0) >= 120000);
     let cancelled = false;
-    void Promise.allSettled(supports.map(async (u) => ({ id: u.id, seen: await usersApi.getLastActive(u.id) }))).then((results) => {
-      if (cancelled) return;
-      const map: Record<string, string> = {};
-      results.forEach((r) => {
-        if (r.status === 'fulfilled' && r.value.seen) map[r.value.id] = r.value.seen;
+    pending.forEach((support) => {
+      void fetchLastSeen(support.id).then((seen) => {
+        if (!cancelled) setLastSeenById((prev) => ({ ...prev, [support.id]: seen }));
+      }, () => {
+        if (!cancelled) setLastSeenById((prev) => ({ ...prev, [support.id]: undefined }));
       });
-      setLastSeenById(map);
     });
     return () => { cancelled = true; };
-  }, [users]);
+  }, [users, cohortMemberIds, health, fetchLastSeen]);
 
   const model = useMemo(() => {
     if (!health || !people || !rules || !activeCohort) return null;
@@ -480,7 +509,7 @@ const AdminSupportsPage: React.FC = () => {
                   onNoteAdded={() => markNoted(evaluation.supportId)}
                   followUps={followUpLoad.get(evaluation.supportId) ?? 0}
                   onViewProfile={() => setProfileUserId(evaluation.supportId)}
-                  lastSeen={lastSeenById[evaluation.supportId] ?? null}
+                  lastSeen={lastSeenById[evaluation.supportId]}
                   stages={stagesByGroup[evaluation.groupId] ?? null}
                 />
               ))}
@@ -498,7 +527,7 @@ const AdminSupportsPage: React.FC = () => {
                   followUps={followUpLoad.get(u.id) ?? 0}
                   maxFollowUps={rules.maxFollowUpsPerSupport}
                   onViewProfile={() => setProfileUserId(u.id)}
-                  lastSeen={lastSeenById[u.id] ?? null}
+                  lastSeen={lastSeenById[u.id]}
                 />
               ))}
             </ul>
@@ -568,24 +597,24 @@ const AdminSupportsPage: React.FC = () => {
 
 // Per-group onboarding roll-up: every member past each step.
 interface StageSummary {
-  contacted: boolean;
-  addedToGroup: boolean;
-  introductionDone: boolean;
-  venueAcknowledged: boolean;
+  introPosted: boolean;
+  introGuideRead: boolean;
+  profileComplete: boolean;
+  readyConfirmed: boolean;
 }
 
-const summarizeStages = (statuses: ParticipantOnboardingStatus[]): StageSummary => ({
-  contacted: statuses.length > 0 && statuses.every((s) => s.contacted),
-  addedToGroup: statuses.length > 0 && statuses.every((s) => s.addedToGroup),
-  introductionDone: statuses.length > 0 && statuses.every((s) => s.introductionDone),
-  venueAcknowledged: statuses.length > 0 && statuses.every((s) => s.venueAcknowledged),
+const summarizeStages = (statuses: OnboardingProgressParticipant[]): StageSummary => ({
+  introPosted: statuses.length > 0 && statuses.every((s) => s.completed || s.introPosted),
+  introGuideRead: statuses.length > 0 && statuses.every((s) => s.completed || s.introGuideRead),
+  profileComplete: statuses.length > 0 && statuses.every((s) => s.completed || s.profileComplete),
+  readyConfirmed: statuses.length > 0 && statuses.every((s) => s.completed || s.readyConfirmed),
 });
 
 // Four-segment onboarding bar + short label. Falls back to the sentence when
 // stage data is missing.
 const OnboardingBar: React.FC<{ stages: StageSummary | null; fallback: string; late: boolean }> = ({ stages, fallback, late }) => {
   if (!stages) return <span>{fallback}</span>;
-  const steps = [stages.contacted, stages.addedToGroup, stages.introductionDone, stages.venueAcknowledged];
+  const steps = [stages.introPosted, stages.introGuideRead, stages.profileComplete, stages.readyConfirmed];
   const done = steps.filter(Boolean).length;
   const all = done === 4;
   return (
@@ -619,7 +648,7 @@ const SupportCard: React.FC<{
   onNoteAdded: () => void;
   followUps: number;
   onViewProfile: () => void;
-  lastSeen: string | null;
+  lastSeen: string | null | undefined;
   stages: StageSummary | null;
 }> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, onViewProfile, lastSeen, stages }) => {
   const [open, setOpen] = useState(false);
@@ -892,7 +921,7 @@ const NoLeadSupportCard: React.FC<{
   followUps: number;
   maxFollowUps: number;
   onViewProfile: () => void;
-  lastSeen: string | null;
+  lastSeen: string | null | undefined;
 }> = ({ user, hub, training, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, maxFollowUps, onViewProfile, lastSeen }) => {
   const [open, setOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);

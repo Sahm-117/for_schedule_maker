@@ -25,15 +25,15 @@ export const EXTENSION_STRIPES = {
   backgroundImage: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.55) 0 3px, transparent 3px 7px)',
 };
 
-export const KIND_NAME: Record<WeekKind, string> = { ...PHASE_LABEL, gap: 'No FOF' };
+export const KIND_NAME: Record<WeekKind, string> = { ...PHASE_LABEL, gap: 'No Sunday class' };
 
 /** The lines a tooltip shows for one bar segment. */
 export const segmentTip = (cohort: PlannerCohort, seg: PlannerSegment, today: string): string[] => {
   const range = formatPlannerRange(seg.start, seg.end, today);
   if (seg.kind === 'gap') {
     return [
-      `${seg.event?.name ?? 'No class'} · ${weeksLabel(seg.weeks)} paused`,
-      `${cohort.name} pauses, then carries on`,
+      `${seg.event?.name ?? 'No class'} · ${seg.weeks} Sunday${seg.weeks === 1 ? '' : 's'} skipped`,
+      `${cohort.name} · No Sunday class`,
       range,
     ];
   }
@@ -51,7 +51,7 @@ export const segmentTip = (cohort: PlannerCohort, seg: PlannerSegment, today: st
 /** The lines a tooltip shows for one week cell. */
 export const weekTip = (cohort: PlannerCohort, week: PlannerWeek, today: string): string[] => {
   const when = `${formatPlannerDate(week.start, false, today)} – ${formatPlannerDate(week.end, false, today)}`;
-  if (week.kind === 'gap') return [`${week.event?.name ?? 'No class'}`, `No FOF this week · ${when}`];
+  if (week.kind === 'gap') return [`${week.event?.name ?? 'No class'}`, `No class on ${formatPlannerDate(week.end, true, today)}`];
   if (week.kind === 'classes') {
     return [`${cohort.name} · Class ${week.classNumber} of ${cohort.classDates.length}`, week.extension ? `${when} · added by a push-back` : `Sunday ${formatPlannerDate(week.end, false, today)}`];
   }

@@ -246,6 +246,20 @@ export interface PlannerClash {
   cls: PlannerClass;
 }
 
+/** Only Sundays covered by Stops-FOF events, clipped to the visible range. */
+export const stoppedSundays = (events: PlannerEvent[], from: string, to: string): string[] => {
+  const dates = new Set<string>();
+  for (const event of events) {
+    if (!event.stopsFof) continue;
+    const start = event.startDate > from ? event.startDate : from;
+    const end = event.endDate < to ? event.endDate : to;
+    if (start > end) continue;
+    const day = new Date(`${start}T00:00:00Z`).getUTCDay();
+    for (let sunday = addDays(start, (7 - day) % 7); sunday <= end; sunday = addDays(sunday, 7)) dates.add(sunday);
+  }
+  return [...dates].sort();
+};
+
 /**
  * Class Sundays from today on that fall inside a Stops-FOF event. Planned
  * cohorts are included (they can't be pushed until they're created).

@@ -64,10 +64,12 @@ const CohortCard: React.FC<CohortCardProps> = ({ cohort, events, today, onOpen }
             role="listitem"
             aria-label={weekTip(cohort, week, today).join('. ')}
             {...bind(weekTip(cohort, week, today))}
-            className={`flex h-8 min-w-0 flex-1 items-center justify-center rounded-md text-[10px] font-bold ${KIND_BAR[week.kind]} ${cohort.planned ? 'opacity-60' : ''}`}
+            className={`relative flex h-8 min-w-0 flex-1 items-center justify-center rounded-md text-[10px] font-bold ${week.kind === 'gap' ? 'bg-gray-50' : KIND_BAR[week.kind]} ${cohort.planned ? 'opacity-60' : ''}`}
             style={week.extension && week.kind !== 'gap' ? EXTENSION_STRIPES : undefined}
           >
-            {week.classNumber ?? ''}
+            {week.kind === 'gap'
+              ? <span aria-hidden="true" className={`absolute inset-y-0 right-0 w-[14.2857%] min-w-[3px] rounded-sm ${KIND_BAR.gap}`} />
+              : week.classNumber ?? ''}
           </button>
         ))}
       </div>
@@ -76,7 +78,7 @@ const CohortCard: React.FC<CohortCardProps> = ({ cohort, events, today, onOpen }
         <ul className="mt-3 space-y-1 text-[13px]">
           {gaps.length > 0 && (
             <li className="text-red-700">
-              {weeksLabel(gaps.length)} paused for{' '}
+              {gaps.length} Sunday class{gaps.length === 1 ? '' : 'es'} skipped for{' '}
               {[...new Set(gaps.map((g) => g.event?.name ?? 'a church event'))].join(', ')}
               {' '}({gaps.map((g) => formatPlannerDate(g.end, false, today)).join(', ')})
             </li>
