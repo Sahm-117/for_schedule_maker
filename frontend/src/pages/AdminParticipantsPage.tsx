@@ -1016,6 +1016,87 @@ const AdminParticipantsContent: React.FC = () => {
 
   const activeCount = counted.filter((p) => p.status === 'ACTIVE').length;
 
+  // The little status chips beside a name, shared by the table row and the phone card.
+  const renderChips = (p: Participant) => (
+    <>
+                        <RetakingChip participant={p} matches={retakeMatches.get(p.id)} onUpdate={(patch) => handleRetakeUpdate(p, patch)} className="ml-2" />
+                        {flagsByParticipant.has(p.id) && (
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/participants/${p.id}`)}
+                            title={flagsByParticipant.get(p.id)?.map((flag) => flag.reason).join(', ')}
+                            className="ml-2 inline-flex items-center rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+                          >
+                            <Glyph name="warning" className="mr-1 h-3 w-3" />Concern
+                          </button>
+                        )}
+                        {(() => {
+                          const status = healthById.get(p.id);
+                          if (!status || status.health === 'good') return null;
+                          return (
+                            <span
+                              title={status.detail}
+                              className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.health === 'critical' ? 'bg-red-100/80 text-red-700' : 'bg-amber-100/80 text-amber-700'}`}
+                            >
+                              {PERSON_HEALTH_LABEL[status.health]}
+                            </span>
+                          );
+                        })()}
+                        {p.isTest && (
+                          <span
+                            title="Test participant: works as normal but is left out of counts."
+                            className="ml-2 inline-flex items-center whitespace-nowrap rounded-full border border-dashed border-gray-300 bg-gray-50 px-2 py-0.5 text-[11px] font-semibold text-gray-500"
+                          >
+                            Test · not counted
+                          </span>
+                        )}
+                        {notInstalledIds.has(p.id) && (
+                          <span
+                            title="They have signed in but have never opened the app from their Home Screen."
+                            className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600"
+                          >
+                            Not installed
+                          </span>
+                        )}
+                        {noAlertsIds.has(p.id) && (
+                          <span
+                            title="They have an app login but can't receive push notifications on any device."
+                            className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600"
+                          >
+                            No alerts
+                          </span>
+                        )}
+    </>
+  );
+
+  const renderMenu = (p: Participant) => (
+    <>
+                          {p.status === 'ACTIVE' ? (
+                            <AppOverflowMenu
+                              align="right"
+                              items={[
+                                { label: 'View profile', onClick: () => navigate(`/participants/${p.id}`) },
+                                { label: 'Edit', onClick: () => { setEditing(p); setAddOpen(true); } },
+                                { label: 'Assign to group', onClick: () => setAssigning(p) },
+                                { label: 'Mark as retaking', onClick: () => setRetakeMarking(p) },
+                                { label: 'Reset first-time experience', onClick: () => setFirstTimeTarget(p) },
+                                { label: p.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => void handleSetTest(p, !p.isTest) },
+                                { label: 'Archive', onClick: () => setArchiveTarget(p), tone: 'danger' },
+                              ]}
+                            />
+                          ) : (
+                            <AppOverflowMenu
+                              align="right"
+                              items={[
+                                { label: 'Unarchive', onClick: () => void handleUnarchive(p) },
+                                { label: p.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => void handleSetTest(p, !p.isTest) },
+                                { label: 'Delete permanently', onClick: () => setDeleteTarget(p), tone: 'danger' },
+                              ]}
+                            />
+                          )}
+    </>
+  );
+
   return (
     <div className="page-content">
       <PageHeader
@@ -1153,7 +1234,36 @@ const AdminParticipantsContent: React.FC = () => {
               <p className="text-sm text-gray-500">{participants.length === 0 ? 'No participants yet. Add one or import a list.' : 'No participants match these filters.'}</p>
             </div>
           ) : (
-            <div data-wt="participants-table" className="overflow-x-auto surface-card">
+            <>
+            {/* Phones: one card per person. From tablet size up, the table below. */}
+            <ul data-wt="participants-cards" className="space-y-3 md:hidden">
+              {displayed.map((p) => {
+                const completion = completionById.get(p.id);
+                const registration = p.followUpStatus ? REGISTRATION_STATUS_META[p.followUpStatus] : null;
+                const support = p.groupId ? supportByGroupId.get(p.groupId) : null;
+                return (
+                  <li key={p.id} className="rounded-[22px] bg-white p-4 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)]">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <NavLink to={`/participants/${p.id}`} className="block truncate text-[16px] font-bold leading-snug text-gray-900">{p.fullName}</NavLink>
+                        <p className="mt-0.5 truncate text-[13px] text-gray-500">{[p.phone, p.groupName].filter(Boolean).join(' · ') || 'No phone or group yet'}</p>
+                      </div>
+                      <div className="-mr-1 -mt-1 flex-none">{renderMenu(p)}</div>
+                    </div>
+                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5 [&>*]:!ml-0">
+                      {renderChips(p)}
+                      {completion && (
+                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${completion.percent === 100 ? 'bg-emerald-100/80 text-emerald-700' : 'bg-neutral-100 text-neutral-600'}`}>Profile {completion.percent}%</span>
+                      )}
+                      {registration && <span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${registration.tone}`}>{registration.label}</span>}
+                      <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">{SOURCE_LABEL[p.source] ?? p.source}</span>
+                      {support && <span className="rounded-full bg-violet-100/80 px-2.5 py-0.5 text-xs font-semibold text-violet-700">{support}</span>}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            <div data-wt="participants-table" className="hidden overflow-x-auto surface-card md:block">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-primary/5">
@@ -1172,53 +1282,7 @@ const AdminParticipantsContent: React.FC = () => {
                     <tr key={p.id} className="hover:bg-gray-50/30">
                       <td className="px-4 py-3 font-medium text-gray-900">
                         <NavLink to={`/participants/${p.id}`} className="hover:text-primary hover:underline">{p.fullName}</NavLink>
-                        <RetakingChip participant={p} matches={retakeMatches.get(p.id)} onUpdate={(patch) => handleRetakeUpdate(p, patch)} className="ml-2" />
-                        {flagsByParticipant.has(p.id) && (
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/participants/${p.id}`)}
-                            title={flagsByParticipant.get(p.id)?.map((flag) => flag.reason).join(', ')}
-                            className="ml-2 inline-flex items-center rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
-                          >
-                            <Glyph name="warning" className="mr-1 h-3 w-3" />Concern
-                          </button>
-                        )}
-                        {(() => {
-                          const status = healthById.get(p.id);
-                          if (!status || status.health === 'good') return null;
-                          return (
-                            <span
-                              title={status.detail}
-                              className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.health === 'critical' ? 'bg-red-100/80 text-red-700' : 'bg-amber-100/80 text-amber-700'}`}
-                            >
-                              {PERSON_HEALTH_LABEL[status.health]}
-                            </span>
-                          );
-                        })()}
-                        {p.isTest && (
-                          <span
-                            title="Test participant: works as normal but is left out of counts."
-                            className="ml-2 inline-flex items-center whitespace-nowrap rounded-full border border-dashed border-gray-300 bg-gray-50 px-2 py-0.5 text-[11px] font-semibold text-gray-500"
-                          >
-                            Test · not counted
-                          </span>
-                        )}
-                        {notInstalledIds.has(p.id) && (
-                          <span
-                            title="They have signed in but have never opened the app from their Home Screen."
-                            className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600"
-                          >
-                            Not installed
-                          </span>
-                        )}
-                        {noAlertsIds.has(p.id) && (
-                          <span
-                            title="They have an app login but can't receive push notifications on any device."
-                            className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600"
-                          >
-                            No alerts
-                          </span>
-                        )}
+                        {renderChips(p)}
                       </td>
                       <td className="px-4 py-3 text-gray-500">{p.phone ?? '—'}</td>
                       <td className="px-4 py-3 text-gray-500">{p.groupName ?? '—'}</td>
@@ -1252,29 +1316,7 @@ const AdminParticipantsContent: React.FC = () => {
                       </td>
                       <td className="sticky right-0 bg-white px-4 py-3 text-right">
                         <div className="flex justify-end">
-                          {p.status === 'ACTIVE' ? (
-                            <AppOverflowMenu
-                              align="right"
-                              items={[
-                                { label: 'View profile', onClick: () => navigate(`/participants/${p.id}`) },
-                                { label: 'Edit', onClick: () => { setEditing(p); setAddOpen(true); } },
-                                { label: 'Assign to group', onClick: () => setAssigning(p) },
-                                { label: 'Mark as retaking', onClick: () => setRetakeMarking(p) },
-                                { label: 'Reset first-time experience', onClick: () => setFirstTimeTarget(p) },
-                                { label: p.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => void handleSetTest(p, !p.isTest) },
-                                { label: 'Archive', onClick: () => setArchiveTarget(p), tone: 'danger' },
-                              ]}
-                            />
-                          ) : (
-                            <AppOverflowMenu
-                              align="right"
-                              items={[
-                                { label: 'Unarchive', onClick: () => void handleUnarchive(p) },
-                                { label: p.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => void handleSetTest(p, !p.isTest) },
-                                { label: 'Delete permanently', onClick: () => setDeleteTarget(p), tone: 'danger' },
-                              ]}
-                            />
-                          )}
+                          {renderMenu(p)}
                         </div>
                       </td>
                     </tr>
@@ -1282,6 +1324,7 @@ const AdminParticipantsContent: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </>
       )}
