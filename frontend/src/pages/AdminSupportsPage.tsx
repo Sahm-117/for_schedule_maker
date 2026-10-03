@@ -25,7 +25,7 @@ import SupportsExportPopup from '../components/supports/SupportsExportPopup';
 import { PERSON_OF_INTEREST_INFO } from '../components/hubs/hubJobs';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
-import { formatLastSeen, genderAgeLine, isSupportProfileComplete } from '../utils/people';
+import { activeDot, activeStatus, genderAgeLine, isSupportProfileComplete } from '../utils/people';
 import { openLoadByOwner } from '../utils/followUps';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import {
@@ -663,7 +663,8 @@ const SupportCard: React.FC<{
       ? `Recorded all ${judgedCount} week${judgedCount === 1 ? '' : 's'}`
       : `Missing records for week${evaluation.missedWeeks.length === 1 ? '' : 's'} ${evaluation.missedWeeks.join(', ')}`;
 
-  const subtleLine = [user ? genderAgeLine(user) : '', formatLastSeen(lastSeen)].filter(Boolean).join(' · ');
+  const subtleLine = [user ? genderAgeLine(user) : ''].filter(Boolean).join(' · ');
+  const active = activeStatus(lastSeen);
 
   return (
     <li className="surface-card rounded-[24px] p-[18px] sm:p-[22px]">
@@ -678,6 +679,10 @@ const SupportCard: React.FC<{
           </div>
           <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-500">
             {[groupName, subtleLine].filter(Boolean).join(' · ')}
+          </p>
+          <p className="mt-0.5 flex items-center gap-1.5 text-[11px] leading-4 text-gray-500">
+            <span className={`h-2 w-2 flex-none rounded-full ${activeDot(active.tone)}`} aria-hidden="true" />
+            {active.label}
           </p>
         </div>
         <div className="flex-none pt-0.5"><AppOverflowMenu align="right" items={[{ label: 'View profile', onClick: onViewProfile }]} /></div>
@@ -894,7 +899,8 @@ const NoLeadSupportCard: React.FC<{
   const [noteBody, setNoteBody] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
   const whatsapp = buildWhatsAppLink(user.phone, `Hi ${user.name.split(' ')[0]}`);
-  const subtleLine = [genderAgeLine(user), formatLastSeen(lastSeen)].filter(Boolean).join(' · ');
+  const subtleLine = genderAgeLine(user);
+  const active = activeStatus(lastSeen);
 
   const toggleNotes = () => {
     const next = !notesOpen;
@@ -928,6 +934,10 @@ const NoLeadSupportCard: React.FC<{
             {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`flex-none rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
           </div>
           <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-500">{[hub?.name, subtleLine].filter(Boolean).join(' · ')}</p>
+          <p className="mt-0.5 flex items-center gap-1.5 text-[11px] leading-4 text-gray-500">
+            <span className={`h-2 w-2 flex-none rounded-full ${activeDot(active.tone)}`} aria-hidden="true" />
+            {active.label}
+          </p>
         </div>
         <div className="flex-none pt-0.5"><AppOverflowMenu align="right" items={[{ label: 'View profile', onClick: onViewProfile }]} /></div>
       </div>

@@ -5,14 +5,38 @@ import type { User } from '../types';
 export const genderAgeLine = (person: { gender?: string | null; ageRange?: string | null }): string =>
   [person.gender, person.ageRange].filter((part): part is string => !!part && !!part.trim()).join(' · ');
 
-// "Last seen 3 Oct, 3:15 pm" — short stamp for support cards.
-// Always returns a line; "Last seen: Never" when there is nothing to show.
-export const formatLastSeen = (iso?: string | null): string => {
-  if (!iso) return 'Last seen: Never';
+// "Active 2 weeks ago" with a tone for the presence dot:
+// green = seen in the last week, grey = longer ago, red = never.
+export const activeStatus = (iso?: string | null): { label: string; tone: 'green' | 'grey' | 'red' } => {
+  if (!iso) return { label: 'Never active', tone: 'red' };
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return 'Last seen: Never';
-  return `Last seen ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true }).format(date)}`;
+  if (Number.isNaN(date.getTime())) return { label: 'Never active', tone: 'red' };
+  const mins = Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
+  let rel: string;
+  if (mins < 1) {
+    rel = 'just now';
+  } else if (mins < 60) {
+    rel = `${mins} min ago`;
+  } else if (mins < 60 * 24) {
+    const h = Math.floor(mins / 60);
+    rel = `${h} hour${h === 1 ? '' : 's'} ago`;
+  } else if (mins < 60 * 24 * 7) {
+    const d = Math.floor(mins / (60 * 24));
+    rel = d === 1 ? 'yesterday' : `${d} days ago`;
+  } else if (mins < 60 * 24 * 30) {
+    const w = Math.floor(mins / (60 * 24 * 7));
+    rel = `${w} week${w === 1 ? '' : 's'} ago`;
+  } else if (mins < 60 * 24 * 365) {
+    const m = Math.floor(mins / (60 * 24 * 30));
+    rel = `${m} month${m === 1 ? '' : 's'} ago`;
+  } else {
+    rel = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+  }
+  return { label: `Active ${rel}`, tone: mins < 60 * 24 * 7 ? 'green' : 'grey' };
 };
+
+export const activeDot = (tone: 'green' | 'grey' | 'red'): string =>
+  tone === 'green' ? 'bg-emerald-500' : tone === 'red' ? 'bg-red-500' : 'bg-gray-300';
 
 // What a support's profile needs before it counts as complete.
 export const supportProfileChecklist = (user: Pick<User, 'avatarUrl' | 'gender' | 'ageRange' | 'phone'>) => [
