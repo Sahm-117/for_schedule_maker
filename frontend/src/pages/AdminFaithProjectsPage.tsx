@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import SegmentedTabs from '../components/SegmentedTabs';
 import { Navigate, useSearchParams } from 'react-router-dom';
+import Avatar from '../components/Avatar';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
@@ -626,29 +627,24 @@ const AdminFaithProjectsContent: React.FC = () => {
           ) : (
             <>
             {/* Phones: one card per person. From tablet size up, the table below. */}
-            <ul className="space-y-3 md:hidden">
+            <ul className="divide-y divide-gray-100 overflow-hidden rounded-[22px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)] md:hidden">
               {displayed.map((p) => {
                 const fp = projectByParticipant.get(p.id) ?? null;
                 const s: FaithProjectStatus = fp?.status ?? 'NOT_DRAFTED';
                 const newMessages = !!user && unreadTrails(p.id, fp, officeNotes, user.id, threadReads).has('office');
                 return (
-                  <li key={p.id} className="rounded-[22px] bg-white p-4 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)]">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[16px] font-bold leading-snug text-gray-900">{p.fullName}</p>
-                        <p className="mt-0.5 truncate text-[13px] text-gray-500">{p.groupName ?? 'No group yet'}</p>
-                      </div>
-                      <span className={`inline-flex flex-none items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCls(s)}`}>
+                  <li key={p.id}>
+                    <button type="button" onClick={() => openReview(p, fp, newMessages)} className="flex w-full items-center gap-3 py-2.5 pl-4 pr-3 text-left active:bg-gray-50">
+                      <Avatar name={p.fullName} avatarUrl={p.avatarUrl} size="md" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block line-clamp-2 text-[15px] font-semibold leading-tight text-gray-900">{p.fullName}</span>
+                        <span className="block truncate text-[12.5px] text-gray-500">{p.groupName ?? 'No group yet'}</span>
+                      </span>
+                      <span className={`inline-flex flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusCls(s)}`}>
                         {statusLabel(s)}
                         {newMessages && <span className="h-2 w-2 rounded-full bg-red-500" aria-label="New message from the support" />}
                       </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => openReview(p, fp, newMessages)}
-                      className="mt-3 w-full rounded-2xl bg-gray-100 py-2.5 text-sm font-semibold text-gray-700 active:scale-[0.98]"
-                    >
-                      Review
+                      <svg className="h-4 w-4 flex-none text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
                     </button>
                   </li>
                 );

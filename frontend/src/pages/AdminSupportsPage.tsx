@@ -708,18 +708,22 @@ const SupportCard: React.FC<{
           {evaluation.weeks.map((w) => {
             const report = reportFor(w.weekNumber);
             const showing = openReport === w.weekNumber;
-            const chip = (ok: boolean, label: string) => (
-              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${ok ? 'bg-emerald-100/80 text-emerald-700' : 'bg-red-100/80 text-red-700'}`}>{ok ? '✓' : '×'} {label}</span>
-            );
+            const problems = [
+              !w.reportSubmitted && 'Report',
+              !w.meetingMarked && 'Meeting',
+              w.recapMissed && 'Recap',
+            ].filter(Boolean) as string[];
             return (
               <li key={w.weekNumber} className="py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[13px] font-bold text-gray-900">Week {w.weekNumber}</span>
-                  <span className="flex flex-wrap justify-end gap-1">
-                    {chip(w.reportSubmitted, 'Report')}
-                    {chip(w.meetingMarked, 'Meeting')}
-                    {chip(!w.recapMissed, 'Recap')}
-                  </span>
+                  {problems.length === 0 ? (
+                    <span className="rounded-full bg-emerald-100/80 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">All done</span>
+                  ) : (
+                    <span className="flex flex-wrap justify-end gap-1">
+                      {problems.map((label) => <span key={label} className="rounded-full bg-red-100/80 px-2 py-0.5 text-[11px] font-semibold text-red-700">{label} missing</span>)}
+                    </span>
+                  )}
                 </div>
                 {report ? (
                   <button

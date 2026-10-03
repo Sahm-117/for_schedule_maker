@@ -2,6 +2,7 @@ import Glyph from '../components/Glyph';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SegmentedTabs from '../components/SegmentedTabs';
 import { Navigate, NavLink, useNavigate, useSearchParams } from 'react-router-dom';
+import Avatar from '../components/Avatar';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
@@ -1236,29 +1237,26 @@ const AdminParticipantsContent: React.FC = () => {
           ) : (
             <>
             {/* Phones: one card per person. From tablet size up, the table below. */}
-            <ul data-wt="participants-cards" className="space-y-3 md:hidden">
+            <ul data-wt="participants-cards" className="divide-y divide-gray-100 overflow-hidden rounded-[22px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)] md:hidden">
               {displayed.map((p) => {
-                const completion = completionById.get(p.id);
                 const registration = p.followUpStatus ? REGISTRATION_STATUS_META[p.followUpStatus] : null;
                 const support = p.groupId ? supportByGroupId.get(p.groupId) : null;
+                const line = [p.groupName, support].filter(Boolean).join(' · ') || p.phone || 'No group yet';
                 return (
-                  <li key={p.id} className="rounded-[22px] bg-white p-4 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)]">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <NavLink to={`/participants/${p.id}`} className="block truncate text-[16px] font-bold leading-snug text-gray-900">{p.fullName}</NavLink>
-                        <p className="mt-0.5 truncate text-[13px] text-gray-500">{[p.phone, p.groupName].filter(Boolean).join(' · ') || 'No phone or group yet'}</p>
-                      </div>
-                      <div className="-mr-1 -mt-1 flex-none">{renderMenu(p)}</div>
+                  <li key={p.id} className="py-2.5 pl-4 pr-2">
+                    <div className="flex items-center gap-3">
+                      <NavLink to={`/participants/${p.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                        <Avatar name={p.fullName} avatarUrl={p.avatarUrl} size="md" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block line-clamp-2 text-[15px] font-semibold leading-tight text-gray-900">{p.fullName}</span>
+                          <span className="block truncate text-[12.5px] text-gray-500">{line}</span>
+                        </span>
+                      </NavLink>
+                      {registration && <span className={`flex-none whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${registration.tone}`}>{registration.label}</span>}
+                      <div className="flex-none">{renderMenu(p)}</div>
                     </div>
-                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5 [&>*]:!ml-0">
-                      {renderChips(p)}
-                      {completion && (
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${completion.percent === 100 ? 'bg-emerald-100/80 text-emerald-700' : 'bg-neutral-100 text-neutral-600'}`}>Profile {completion.percent}%</span>
-                      )}
-                      {registration && <span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${registration.tone}`}>{registration.label}</span>}
-                      <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">{SOURCE_LABEL[p.source] ?? p.source}</span>
-                      {support && <span className="rounded-full bg-violet-100/80 px-2.5 py-0.5 text-xs font-semibold text-violet-700">{support}</span>}
-                    </div>
+                    {/* Only what needs a look: concerns, retaking, test and so on. */}
+                    <div className="flex flex-wrap items-center gap-1 pl-[52px] pr-2 empty:hidden [&>*]:!ml-0 [&>*]:mt-1">{renderChips(p)}</div>
                   </li>
                 );
               })}
