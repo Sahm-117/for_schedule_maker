@@ -701,6 +701,7 @@ const SupportCard: React.FC<{
 
       <div className="mt-3 flex min-h-11 flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2.5">
         <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-gray-500">Follow-ups</span>
           <LoadRing value={followUps} max={rules.maxFollowUpsPerSupport} />
           {rules.maxFollowUpsPerSupport > 0 && followUps > rules.maxFollowUpsPerSupport && (
             <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[10px] font-semibold text-red-700">Over limit</span>
@@ -950,6 +951,7 @@ const NoLeadSupportCard: React.FC<{
 
       <div className="mt-3 flex min-h-11 flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2.5">
         <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
+          <span className="text-[11px] text-gray-500">Follow-ups</span>
           <LoadRing value={followUps} max={maxFollowUps} />
           {maxFollowUps > 0 && followUps > maxFollowUps && (
             <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[10px] font-semibold text-red-700">Over limit</span>
