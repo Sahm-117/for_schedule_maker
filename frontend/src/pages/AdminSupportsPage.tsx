@@ -719,7 +719,7 @@ const SupportCard: React.FC<{
           <AppSelect value={kind} onChange={(v) => onKindChange(v as SupportKind)} options={KIND_OPTIONS} placeholder="Participant support" disabled={kindSaving} loading={kindSaving} compact label="Kind" />
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded-xl bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/15">WhatsApp</a>}
+          {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">WhatsApp</a>}
           <NavLink to={`/groups?group=${evaluation.groupId}`} className="inline-flex min-h-11 items-center rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-200">Open group</NavLink>
           {evaluation.weeks.length > 0 && <NavLink to="/group-prayers" className="inline-flex min-h-11 items-center rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-200">See records</NavLink>}
           <button type="button" onClick={toggleNotes} aria-expanded={notesOpen} className="min-h-11 rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-200">
@@ -961,7 +961,7 @@ const NoLeadSupportCard: React.FC<{
           <AppSelect value={kind} onChange={(v) => onKindChange(v as SupportKind)} options={KIND_OPTIONS} placeholder="Participant support" disabled={kindSaving} loading={kindSaving} compact label="Kind" />
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded-xl bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/15">WhatsApp</a>}
+          {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">WhatsApp</a>}
           <button type="button" onClick={toggleNotes} aria-expanded={notesOpen} className="min-h-11 rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-200">
             {notesOpen ? 'Hide notes' : 'Notes'}
             {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
