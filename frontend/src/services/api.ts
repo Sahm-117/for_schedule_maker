@@ -79,6 +79,7 @@ import {
   surveyApi as supabaseSurveyApi,
   birthdaysApi as supabaseBirthdaysApi,
   announcementPopupsApi as supabaseAnnouncementPopupsApi,
+  appNudgeApi as supabaseAppNudgeApi,
   followUpRelatedApi as supabaseFollowUpRelatedApi,
   aiApi as supabaseAiApi,
   profileFieldsApi as supabaseProfileFieldsApi,
@@ -1056,6 +1057,7 @@ export const feedbackApi = USE_SUPABASE ? supabaseFeedbackApi : {
 export const surveyApi = supabaseSurveyApi;
 export const birthdaysApi = supabaseBirthdaysApi;
 export const announcementPopupsApi = supabaseAnnouncementPopupsApi;
+export const appNudgeApi = supabaseAppNudgeApi;
 export const followUpRelatedApi = supabaseFollowUpRelatedApi;
 
 export const participantPushApi = USE_SUPABASE ? supabaseParticipantPushApi : {

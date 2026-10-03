@@ -1345,6 +1345,46 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Get-the-app nudge: once a day (9am to 7pm Lagos), tell each support which of their
+    // participants have signed in but not installed the app, or installed it with alerts off.
+    // Ends the day the cohort starts. The database claims each support once per day.
+    if (!dryRun && !onlyUserIds && !onlyParticipantIds && !onlyCohortId) {
+      try {
+        const lagosNow = getLagosDateParts(new Date())
+        if (lagosNow.hour >= 9 && lagosNow.hour < 19) {
+          const { data: dueNudges } = await supabase.rpc('app_nudge_due')
+          const nudges = (dueNudges ?? []) as Array<{ ownerId: string; notInstalled: number; noAlerts: number; names: string[] }>
+          for (const nudge of nudges) {
+            const total = nudge.notInstalled + nudge.noAlerts
+            if (total === 0) continue
+            const shown = (nudge.names ?? []).slice(0, 3).map((n) => n.split(' ')[0]).join(', ')
+            const more = total > 3 ? ` +${total - 3}` : ''
+            const what = nudge.notInstalled > 0 && nudge.noAlerts > 0
+              ? 'have not installed the app or have alerts off'
+              : nudge.notInstalled > 0 ? 'have signed in but not installed the app' : 'have the app but alerts are off'
+            const title = total === 1 ? '1 participant still needs the app' : `${total} participants still need the app`
+            const body = `${shown}${more} ${what}. Send them the install video. You can also send it to anyone you follow up from Message templates on Follow-ups.`
+            const path = '/support'
+            await insertNotifications(supabase, [{ userId: nudge.ownerId, title, body, path, type: 'REMINDER' }])
+            const { data: nudgeSubs } = await supabase
+              .from('PushSubscription')
+              .select('userId, endpoint, p256dh, auth')
+              .eq('userId', nudge.ownerId)
+            const r = await sendToSubscriptions(webPush, supabase, (nudgeSubs || []) as any[], JSON.stringify({
+              title,
+              body,
+              icon: '/icon-192.png',
+              tag: `fof-app-nudge-${nudge.ownerId}-${lagosNow.isoDate}`,
+              data: { path },
+            }), notified)
+            if (r.failed > 0) console.error(`push-reminders (app nudge): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
+          }
+        }
+      } catch (nudgeError) {
+        console.error('push-reminders (app nudge) failed:', String(nudgeError))
+      }
+    }
+
     return new Response(
       JSON.stringify({ ok: true, notified: notified.length, ...(dryRun ? { dryRun: true, debug } : {}) }),
       { headers: { 'Content-Type': 'application/json' } }

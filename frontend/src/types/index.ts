@@ -158,6 +158,14 @@ export interface Week {
   days: Day[];
 }
 
+/** A participant who has signed in but still needs the app (shown to their support). */
+export interface AppNudgePerson {
+  participantId: string;
+  name: string;
+  phone: string | null;
+  reason: 'NOT_INSTALLED' | 'NO_ALERTS';
+}
+
 /** An announcement shown as a popup until the person taps Got it. */
 export interface AnnouncementPopupItem {
   id: string;

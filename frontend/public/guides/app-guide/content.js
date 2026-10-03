@@ -2752,6 +2752,28 @@ window.GUIDE_CONTENT = {
      "shot": "support-follow-ups.jpg",
      "tasks": [
       {
+       "id": "s-fu-app-videos",
+       "q": "How do I get my participants to install the app and turn on alerts?",
+       "keywords": [
+        "install",
+        "video",
+        "alerts",
+        "notifications",
+        "not installed",
+        "no alerts",
+        "template"
+       ],
+       "steps": [
+        "On **Home**, the **Get them on the app** card lists your participants who have signed in but have not installed the app, or have alerts off. Tap **Send video** next to a name. WhatsApp opens with the message and the install videos ready.",
+        "For anyone you follow up, open the contact, tap **Message** and pick a template: **After login shared: install the app and turn on alerts**, **Signed in, but the app is not on the Home Screen**, or **App installed, but alerts are off**. There is also **After login shared: no response**.",
+        "The messages include the Android and iPhone videos, so they can watch the one for their phone."
+       ],
+       "result": "People who install the app and allow notifications get their class and group reminders.",
+       "tips": [
+        "The card and the daily reminder stop when the cohort starts, and a name drops off as soon as they finish."
+       ]
+      },
+      {
        "id": "s-my-followups",
        "popular": true,
        "q": "Where are the people I need to follow up?",

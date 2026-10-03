@@ -2877,6 +2877,15 @@ export const notificationSettingsApi = {
   },
 };
 
+// Supports: their participants who have signed in but still need the app (not installed, or alerts off).
+export const appNudgeApi = {
+  async mine(): Promise<import('../types').AppNudgePerson[]> {
+    const { data, error } = await supabase.rpc('my_app_nudge', { p_token: getSessionToken() });
+    if (error) throw new Error(error.message);
+    return (data as import('../types').AppNudgePerson[]) ?? [];
+  },
+};
+
 // Announcement popups: shown until the person taps Got it. See 20261003130000_announcement_popups.sql.
 export const announcementPopupsApi = {
   async pending(): Promise<import('../types').AnnouncementPopupItem[]> {
