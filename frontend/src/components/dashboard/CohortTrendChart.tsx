@@ -75,7 +75,20 @@ const CohortTrendChart: React.FC<{ stats: WeekStat[]; lastWeek: number }> = ({ s
       </div>
 
       {showTable ? (
-        <div className="overflow-x-auto">
+        <>
+        <ul className="divide-y divide-gray-100 sm:hidden">
+          {shown.map((s) => (
+            <li key={s.weekId} className="py-2.5">
+              <p className="text-[13px] font-bold text-gray-900">Week {s.weekNumber}</p>
+              <dl className="mt-1 grid grid-cols-1 gap-y-0.5 text-xs text-gray-600">
+                <div className="flex justify-between gap-3"><dt>Participants marked</dt><dd className="tabular-nums text-gray-900">{s.recordingRate === null ? 'Unavailable' : `${s.marked} of ${s.expected} (${pct(s.recordingRate)})`}</dd></div>
+                <div className="flex justify-between gap-3"><dt>Present or late</dt><dd className="tabular-nums text-gray-900">{s.marked ? `${pct(s.attendanceRate)} of ${s.marked}` : '–'}</dd></div>
+                <div className="flex justify-between gap-3"><dt>Meeting reports</dt><dd className="tabular-nums text-gray-900">{s.meetingsSubmitted} of {s.groupsWithMembers} ({pct(s.meetingRate)})</dd></div>
+              </dl>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto sm:block">
           <table className="w-full text-left text-xs">
             <thead className="text-gray-500">
               <tr>
@@ -97,6 +110,7 @@ const CohortTrendChart: React.FC<{ stats: WeekStat[]; lastWeek: number }> = ({ s
             </tbody>
           </table>
         </div>
+        </>
       ) : (
         <div ref={wrapRef} className="relative">
           <svg width={width} height={HEIGHT} role="img" aria-label="Weekly participant marking coverage and group report completion" className="block overflow-visible">

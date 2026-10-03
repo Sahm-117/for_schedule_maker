@@ -185,7 +185,16 @@ const ContactImportModal: React.FC<ContactImportModalProps> = ({
               {result.skipped > 0 && <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">{result.skipped} unparseable skipped</span>}
             </div>
             {rows.length > 0 && (
-              <div className="max-h-56 overflow-y-auto rounded-2xl border border-orange-100">
+              <>
+              <ul className="max-h-56 divide-y divide-orange-50 overflow-y-auto rounded-2xl border border-orange-100 sm:hidden">
+                {rows.map((r, i) => (
+                  <li key={`${r.phone}-${i}`} className="px-4 py-2.5">
+                    <p className="text-sm font-semibold text-gray-900">{r.fullName}</p>
+                    <p className="text-xs text-gray-500">{r.phone} · {r.source || source || 'No source'}</p>
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden max-h-56 overflow-y-auto rounded-2xl border border-orange-100 sm:block">
                 <table className="w-full text-left text-sm">
                   <thead className="sticky top-0 bg-orange-50/80 text-xs uppercase tracking-wide text-gray-500">
                     <tr>
@@ -205,6 +214,7 @@ const ContactImportModal: React.FC<ContactImportModalProps> = ({
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         )}

@@ -704,7 +704,51 @@ const SupportCard: React.FC<{
       )}
 
       {open && (
-        <div className="mt-3 overflow-x-auto">
+        <ul className="mt-3 divide-y divide-gray-100 sm:hidden">
+          {evaluation.weeks.map((w) => {
+            const report = reportFor(w.weekNumber);
+            const showing = openReport === w.weekNumber;
+            const chip = (ok: boolean, label: string) => (
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${ok ? 'bg-emerald-100/80 text-emerald-700' : 'bg-red-100/80 text-red-700'}`}>{ok ? '✓' : '×'} {label}</span>
+            );
+            return (
+              <li key={w.weekNumber} className="py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-bold text-gray-900">Week {w.weekNumber}</span>
+                  <span className="flex flex-wrap justify-end gap-1">
+                    {chip(w.reportSubmitted, 'Report')}
+                    {chip(w.meetingMarked, 'Meeting')}
+                    {chip(!w.recapMissed, 'Recap')}
+                  </span>
+                </div>
+                {report ? (
+                  <button
+                    type="button"
+                    onClick={() => setOpenReport(showing ? null : w.weekNumber)}
+                    aria-expanded={showing}
+                    className="mt-1.5 rounded-lg bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-700"
+                  >
+                    {showing ? 'Hide notes' : 'Read notes'}
+                  </button>
+                ) : w.reportSubmitted ? (
+                  <p className="mt-1 text-[11px] text-gray-400">Report has no notes</p>
+                ) : null}
+                {showing && report && (
+                  <div className="mt-2 rounded-xl bg-gray-50 px-3 py-2.5">
+                    <p className="whitespace-pre-line text-[13px] leading-normal text-gray-800">{report.body}</p>
+                    <p className="mt-1.5 text-[11px] text-gray-500">
+                      {report.authorName || 'A support'} · {new Date(report.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {open && (
+        <div className="mt-3 hidden overflow-x-auto sm:block">
           <table className="w-full min-w-[320px] text-left text-xs">
             <thead className="text-gray-500">
               <tr>

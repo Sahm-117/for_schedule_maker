@@ -514,6 +514,14 @@ const AdminFaithProjectsContent: React.FC = () => {
     return c;
   }, [participants, projectByParticipant]);
 
+  const openReview = (p: Participant, fp: FaithProject | null, newMessages: boolean) => {
+    setReviewTarget({ participant: p, project: fp });
+    if (newMessages && user) {
+      setThreadReads((prev) => new Map(prev).set(`${p.id}:office`, new Date().toISOString()));
+      void faithThreadReadsApi.markRead(user.id, p.id, 'office').catch(() => undefined);
+    }
+  };
+
   return (
     <div className="page-content">
       <PageHeader
@@ -616,7 +624,37 @@ const AdminFaithProjectsContent: React.FC = () => {
               <p className="text-sm text-gray-500">No participants match your filter.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto surface-card">
+            <>
+            {/* Phones: one card per person. From tablet size up, the table below. */}
+            <ul className="space-y-3 md:hidden">
+              {displayed.map((p) => {
+                const fp = projectByParticipant.get(p.id) ?? null;
+                const s: FaithProjectStatus = fp?.status ?? 'NOT_DRAFTED';
+                const newMessages = !!user && unreadTrails(p.id, fp, officeNotes, user.id, threadReads).has('office');
+                return (
+                  <li key={p.id} className="rounded-[22px] bg-white p-4 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[16px] font-bold leading-snug text-gray-900">{p.fullName}</p>
+                        <p className="mt-0.5 truncate text-[13px] text-gray-500">{p.groupName ?? 'No group yet'}</p>
+                      </div>
+                      <span className={`inline-flex flex-none items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCls(s)}`}>
+                        {statusLabel(s)}
+                        {newMessages && <span className="h-2 w-2 rounded-full bg-red-500" aria-label="New message from the support" />}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openReview(p, fp, newMessages)}
+                      className="mt-3 w-full rounded-2xl bg-gray-100 py-2.5 text-sm font-semibold text-gray-700 active:scale-[0.98]"
+                    >
+                      Review
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="hidden overflow-x-auto surface-card md:block">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-primary/5">
@@ -644,13 +682,7 @@ const AdminFaithProjectsContent: React.FC = () => {
                         <td className="sticky right-0 bg-white px-4 py-3 text-right">
                           <button
                             type="button"
-                            onClick={() => {
-                              setReviewTarget({ participant: p, project: fp });
-                              if (newMessages && user) {
-                                setThreadReads((prev) => new Map(prev).set(`${p.id}:office`, new Date().toISOString()));
-                                void faithThreadReadsApi.markRead(user.id, p.id, 'office').catch(() => undefined);
-                              }
-                            }}
+                            onClick={() => openReview(p, fp, newMessages)}
                             className="rounded-xl bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-200 active:scale-95"
                           >
                             Review
@@ -662,6 +694,7 @@ const AdminFaithProjectsContent: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            </>
           )}
           </>
           )}

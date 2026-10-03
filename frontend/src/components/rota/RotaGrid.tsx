@@ -26,7 +26,41 @@ const RotaGrid: React.FC<RotaGridProps> = ({
   applying,
   blockedDutyIds,
 }) => (
-  <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
+  <>
+  {/* Phones: one card per week, a row per duty. From tablet size up, the grid below. */}
+  <ul className="space-y-3 md:hidden">
+    {weeks.map((week) => (
+      <li key={week.id} className="rounded-[22px] bg-white p-4 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)]">
+        <p className="text-[16px] font-bold text-gray-900">Week {week.weekNumber}</p>
+        <ul className="mt-2 divide-y divide-gray-100">
+          {ROTA_DUTIES.map((duty) => {
+            const blocked = blockedDutyIds?.has(duty.id);
+            const key = cellKey(duty.id, week.id);
+            const cell = grid.get(key);
+            return (
+              <li key={duty.id} className="py-3">
+                <p className="text-[13px] font-bold text-gray-900">{duty.name}{duty.subLabel && <span className="ml-1.5 text-[11px] font-medium text-gray-500">{duty.subLabel}</span>}</p>
+                {blocked && <p className="text-[11px] font-semibold text-red-600">Overlaps another duty. Editing disabled</p>}
+                {cell && (
+                  <div className="mt-1.5">
+                    <RotaCell
+                      cell={cell}
+                      groupLabels={groupLabels}
+                      labelOwners={labelOwners}
+                      staged={staged.get(key)}
+                      onStage={(value) => onStage(key, value)}
+                      disabled={applying || blocked}
+                    />
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </li>
+    ))}
+  </ul>
+  <div className="hidden overflow-x-auto rounded-2xl bg-white shadow-sm md:block">
     <table className="w-full border-separate border-spacing-0 text-sm">
       <thead>
         <tr>
@@ -83,6 +117,7 @@ const RotaGrid: React.FC<RotaGridProps> = ({
       </tbody>
     </table>
   </div>
+  </>
 );
 
 export default RotaGrid;

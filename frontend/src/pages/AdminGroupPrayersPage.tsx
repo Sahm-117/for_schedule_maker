@@ -157,8 +157,35 @@ const AdminGroupPrayersContent: React.FC = () => {
             />
           </div>
 
+          {/* Phones: one card per group, a row per week. From tablet size up, the grid below. */}
+          <ul className="space-y-3 md:hidden">
+            {visibleGroups.map((g) => (
+              <li key={g.id} className="rounded-[22px] bg-white p-4 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)]">
+                <p className="text-[16px] font-bold leading-snug text-gray-900">{g.name}</p>
+                <p className="mt-0.5 text-[13px] text-gray-500">{[g.supportName, formatMeetingSlot(g) ?? 'No meeting set'].filter(Boolean).join(' · ')}</p>
+                <ul className="mt-2 divide-y divide-gray-100">
+                  {cohortWeeks.map((w) => {
+                    const done = isDone(g.id, w.id);
+                    const focus = getFocus(g.id, w.id);
+                    return (
+                      <li key={w.id}>
+                        <button type="button" onClick={() => setMarkTarget({ group: g, week: w })} className="flex w-full items-center justify-between gap-3 py-2.5 text-left active:bg-gray-50">
+                          <span className="min-w-0">
+                            <span className="block text-[13px] font-semibold text-gray-900">Week {w.weekNumber}</span>
+                            <span className="block truncate text-xs text-gray-500">{focus?.participantName || 'No one picked yet'} · {joinedCount(g.id, w.id)}/{g.participantCount ?? 0} joined</span>
+                          </span>
+                          <span className={`flex-none rounded-full px-2.5 py-0.5 text-xs font-semibold ${done ? 'bg-emerald-100/80 text-emerald-700' : 'bg-neutral-100 text-neutral-600'}`}>{done ? 'Done' : 'Not done'}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </li>
+            ))}
+          </ul>
+
           {/* Status grid */}
-          <div className="overflow-x-auto surface-card">
+          <div className="hidden overflow-x-auto surface-card md:block">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-primary/5">
