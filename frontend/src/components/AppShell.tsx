@@ -38,6 +38,8 @@ import { OPEN_PRACTICE_EVENT, OPEN_PRACTICE_FLAG } from './practice/PracticeDock
 import { PracticeEntryProvider } from '../context/PracticeEntryContext';
 import { practiceApi } from '../services/api';
 import { PRACTICE_ROLE_LABEL } from '../constants/practiceScenarios';
+import AnnouncementPopupHost from './AnnouncementPopupHost';
+import { POPUP_PRIORITY, usePopupSlot, useSettled } from '../utils/popupQueue';
 
 type NavItem = {
   to: string;
@@ -418,6 +420,11 @@ const AppShell: React.FC = () => {
   useEffect(() => {
     if (user) void recordAppState(appSetup.installed, appSetup.device, appSetup.notifications, 'staff');
   }, [user?.id, appSetup.installed, appSetup.device, appSetup.notifications]); // eslint-disable-line react-hooks/exhaustive-deps
+  // One popup at a time (see utils/popupQueue): each popup asks for its place.
+  const popupsSettled = useSettled();
+  const introSlot = usePopupSlot('hub-intro', POPUP_PRIORITY.hubIntro, !tourBusy && !classFeedbackDueWeek && !!pendingIntroJob, 'required');
+  const classFeedbackSlot = usePopupSlot('class-feedback', POPUP_PRIORITY.classFeedback, popupsSettled && !tourBusy && !!user && !!activeCohort && !!classFeedbackDueWeek);
+  const appSetupSlot = usePopupSlot('get-the-app', POPUP_PRIORITY.getTheApp, popupsSettled && showAppSetup);
   const shownCounted = React.useRef(false);
   useEffect(() => {
     if (showAppSetup && !shownCounted.current) { shownCounted.current = true; noteSheetShown(); }
@@ -593,8 +600,8 @@ const AppShell: React.FC = () => {
           </button>
         )
       )}
-      {showAppSetup && <AppSetupSheet audience="staff" enable={enable} onClose={closeAppSetup} />}
-      {!tourBusy && user && activeCohort && classFeedbackDueWeek && (
+      {showAppSetup && appSetupSlot && <AppSetupSheet audience="staff" enable={enable} onClose={closeAppSetup} />}
+      {!tourBusy && user && activeCohort && classFeedbackDueWeek && classFeedbackSlot && (
         <ClassFeedbackModal
           weekNumber={classFeedbackDueWeek.weekNumber}
           onSend={async (note) => {
@@ -640,11 +647,12 @@ const AppShell: React.FC = () => {
           }}
         />
       )}
+      {user && !user.mustChangePassword && <AnnouncementPopupHost enabled={!tourBusy} />}
       {user && <FollowUpCheckPrompt enabled={isSupport && !tourBusy && !classFeedbackDueWeek && !pendingIntroJob && !showAppSetup} />}
-      {OPEN_GUIDE_AS_WELCOME && !tourBusy && !classFeedbackDueWeek && pendingIntroJob && (
+      {OPEN_GUIDE_AS_WELCOME && !tourBusy && !classFeedbackDueWeek && pendingIntroJob && introSlot && (
         <RoleGuideModal job={pendingIntroJob} onClose={() => finishIntro(pendingIntroJob)} />
       )}
-      {!OPEN_GUIDE_AS_WELCOME && !tourBusy && !classFeedbackDueWeek && pendingIntroJob && (
+      {!OPEN_GUIDE_AS_WELCOME && !tourBusy && !classFeedbackDueWeek && pendingIntroJob && introSlot && (
         <HubRoleIntroModal
           job={pendingIntroJob}
           onGotIt={() => finishIntro(pendingIntroJob)}

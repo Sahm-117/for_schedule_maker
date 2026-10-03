@@ -158,6 +158,24 @@ export interface Week {
   days: Day[];
 }
 
+/** An announcement shown as a popup until the person taps Got it. */
+export interface AnnouncementPopupItem {
+  id: string;
+  subject: string;
+  body: string;
+  heading: string | null;
+  linkUrl: string | null;
+  linkLabel: string | null;
+  sentAt: string;
+}
+
+/** Admin view of a popup announcement: how many have acknowledged it, and who has not. */
+export interface AnnouncementPopupStatus {
+  total: number;
+  acknowledged: number;
+  waiting: string[];
+}
+
 /** A church event on the Planner. Only Stops-FOF ones can clash with a class. */
 export interface ChurchEvent {
   id: string;
@@ -333,6 +351,8 @@ export interface Announcement {
   linkLabel?: string | null;
   /** Small heading above the pinned Home card, chosen by the admin. */
   homeLabel?: string | null;
+  /** Shown as a popup until each person taps Got it. */
+  requirePopup?: boolean;
   /** Who it is for: supports (default), participants, or everyone. */
   audience?: AnnouncementAudience;
 }

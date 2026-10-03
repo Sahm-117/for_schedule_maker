@@ -17,6 +17,8 @@
  *   targetHubJobs?: HubJob[] | null (supports only: narrows to people holding these hub roles)
  *   targetUserId?: string | null (send to a single support/admin only)
  *   targetParticipantId?: string | null (send to a single participant only)
+ *   audience?: 'SUPPORTS' | 'PARTICIPANTS' | 'EVERYONE'
+ *   popup?: boolean (a popup each recipient must acknowledge; recorded in AnnouncementPopup)
  * }
  *
  * Required Supabase secrets:
@@ -64,7 +66,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, targetGroupId = null, targetHubId = null, targetHubJobs = null, targetUserId = null, targetParticipantId = null, audience = 'SUPPORTS' } = await req.json() as {
+    const { subject, body, sentBy, scope = 'ACTIVE_COHORT', cohortId = null, targetLabelId = null, targetGroupId = null, targetHubId = null, targetHubJobs = null, targetUserId = null, targetParticipantId = null, audience = 'SUPPORTS', popup = false } = await req.json() as {
       subject: string
       body: string
       sentBy?: string
@@ -82,6 +84,8 @@ Deno.serve(async (req) => {
       targetParticipantId?: string | null
       // SUPPORTS (default), PARTICIPANTS (participant app only) or EVERYONE.
       audience?: 'SUPPORTS' | 'PARTICIPANTS' | 'EVERYONE'
+      // A popup: stays on screen for each recipient until they tap Got it (see AnnouncementPopup).
+      popup?: boolean
     }
 
     if (!subject || !body) {
@@ -113,6 +117,7 @@ Deno.serve(async (req) => {
         targetUserId: audience === 'PARTICIPANTS' ? null : targetUserId,
         targetParticipantId: audience === 'SUPPORTS' ? null : targetParticipantId,
         audience,
+        requirePopup: !!popup,
       }])
       .select('id')
       .single()
@@ -150,6 +155,12 @@ Deno.serve(async (req) => {
         }
       }
       if (participantIds.length > 0) {
+        if (popup) {
+          const { error: popupError } = await supabase.from('AnnouncementPopup').insert(
+            Array.from(new Set(participantIds)).map((participantId) => ({ announcementId: announcement.id, participantId })),
+          )
+          if (popupError) console.error('send-announcement: could not record participant popups', popupError.message)
+        }
         // Participant bell row for everyone targeted, push or not.
         await insertParticipantNotifications(supabase, participantIds.map((participantId) => ({
           participantId, title: subject, body, path: '/me', type: 'ANNOUNCEMENT',
@@ -303,6 +314,14 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, sent: 0, announcementId: announcement.id }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
+    }
+
+    // 2b. A popup: remember who it was sent to, so each person sees it until they tap Got it.
+    if (popup) {
+      const { error: popupError } = await supabase.from('AnnouncementPopup').insert(
+        recipientIds.map((userId) => ({ announcementId: announcement.id, userId })),
+      )
+      if (popupError) console.error('send-announcement: could not record popups', popupError.message)
     }
 
     // 3. Record an in-app notification for EVERY targeted recipient — even

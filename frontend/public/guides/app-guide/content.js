@@ -1760,6 +1760,29 @@ window.GUIDE_CONTENT = {
      "shot": "admin-announcements-list.jpg",
      "tasks": [
       {
+       "id": "announcements-popup",
+       "q": "How do I send an announcement as a popup?",
+       "keywords": [
+        "popup",
+        "pop up",
+        "must read",
+        "acknowledge",
+        "got it",
+        "announcement"
+       ],
+       "steps": [
+        "Open **Announcements** and write your message as usual.",
+        "Switch on **Show as a popup**. Add a link or a video button if you want one.",
+        "Send it. Each person sees it on their screen until they tap **Got it** (or the button).",
+        "In the history, tap the purple **Popup** chip to see how many have tapped Got it and who is still waiting."
+       ],
+       "result": "People can't dismiss it without reading it, and you can see who has.",
+       "tips": [
+        "Use popups sparingly. Only one popup shows at a time, and the app holds back the optional ones (weekly question, Get the app) so nobody is buried.",
+        "A popup stops showing after 14 days, or on the \"Show until\" date if you also pinned it to Home."
+       ]
+      },
+      {
        "id": "announcements-send",
        "q": "How do I send an announcement?",
        "keywords": [

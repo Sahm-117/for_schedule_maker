@@ -2877,6 +2877,25 @@ export const notificationSettingsApi = {
   },
 };
 
+// Announcement popups: shown until the person taps Got it. See 20261003130000_announcement_popups.sql.
+export const announcementPopupsApi = {
+  async pending(): Promise<import('../types').AnnouncementPopupItem[]> {
+    const { data, error } = await supabase.rpc('announcement_popups_pending', { p_token: getSessionToken() });
+    if (error) throw new Error(error.message);
+    return (data as import('../types').AnnouncementPopupItem[]) ?? [];
+  },
+  async acknowledge(announcementId: string): Promise<void> {
+    const { error } = await supabase.rpc('announcement_popup_ack', { p_token: getSessionToken(), p_announcement: announcementId });
+    if (error) throw new Error(error.message);
+  },
+  /** Admin: who has and has not acknowledged a popup. */
+  async status(announcementId: string): Promise<import('../types').AnnouncementPopupStatus> {
+    const { data, error } = await supabase.rpc('announcement_popup_status', { p_token: getSessionToken(), p_announcement: announcementId });
+    if (error) throw new Error(error.message);
+    return data as import('../types').AnnouncementPopupStatus;
+  },
+};
+
 export const announcementsApi = {
   async send(
     subject: string,
@@ -2893,6 +2912,10 @@ export const announcementsApi = {
       targetParticipantId?: string | null;
       home?: { homeUntil: string; homeLabel?: string | null; linkUrl?: string | null; linkLabel?: string | null } | null;
       audience?: import('../types').AnnouncementAudience;
+      /** A popup each recipient must acknowledge. */
+      popup?: boolean;
+      /** A button on the popup when it is not also pinned to Home. */
+      link?: { linkUrl: string; linkLabel?: string | null } | null;
     }
   ): Promise<{ sent: number }> {
     const { data, error } = await supabase.functions.invoke('send-announcement', {
@@ -2909,6 +2932,7 @@ export const announcementsApi = {
         targetUserId: options?.targetUserId || null,
         targetParticipantId: options?.targetParticipantId || null,
         audience: options?.audience || 'SUPPORTS',
+        popup: !!options?.popup,
       },
     });
     if (error) throw new Error(error.message);
@@ -2922,6 +2946,13 @@ export const announcementsApi = {
         linkLabel: options.home.linkUrl?.trim() ? (options.home.linkLabel?.trim() || 'Open') : null,
       }).eq('id', announcementId);
       if (homeError) throw new Error(homeError.message);
+    }
+    if (!options?.home && options?.link?.linkUrl?.trim() && announcementId) {
+      const { error: linkError } = await supabase.from('Announcement').update({
+        linkUrl: options.link.linkUrl.trim(),
+        linkLabel: options.link.linkLabel?.trim() || 'Open',
+      }).eq('id', announcementId);
+      if (linkError) throw new Error(linkError.message);
     }
     return { sent: (data as any)?.sent ?? 0 };
   },
@@ -2981,6 +3012,7 @@ export const announcementsApi = {
       linkUrl: row.linkUrl ?? null,
       linkLabel: row.linkLabel ?? null,
       homeLabel: row.homeLabel ?? null,
+      requirePopup: !!row.requirePopup,
       audience: (row.audience ?? 'SUPPORTS') as import('../types').AnnouncementAudience,
     }));
 

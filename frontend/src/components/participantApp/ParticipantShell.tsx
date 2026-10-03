@@ -21,6 +21,8 @@ import LiveNavDot from '../LiveNavDot';
 import ProfileMenu from '../ProfileMenu';
 import NeedSupportButton from '../NeedSupportButton';
 import PracticeDock from '../practice/PracticeDock';
+import AnnouncementPopupHost from '../AnnouncementPopupHost';
+import { POPUP_PRIORITY, usePopupSlot, useSettled } from '../../utils/popupQueue';
 
 // Layout for the participant app: sidebar on desktop, floating bar on mobile, the
 // same look as the support app. Also asks "are you okay?" when their attendance
@@ -80,7 +82,8 @@ const CheckInPrompt: React.FC<{ checkIn: ReturnType<typeof useCheckInState> }> =
   // Waits for the Welcome + Home tour on first sign-in.
   const { busy: tourBusy } = useTourState();
   const { decision, dismissed, later } = checkIn;
-  if (tourBusy || !home || !decision?.ask || dismissed) return null;
+  const slot = usePopupSlot('check-in', POPUP_PRIORITY.checkIn, !tourBusy && !!home && !!decision?.ask && !dismissed, 'required');
+  if (tourBusy || !home || !decision?.ask || dismissed || !slot) return null;
 
   return (
     <CheckInModal
@@ -137,6 +140,11 @@ const ShellLayout: React.FC = () => {
   const notifReady = !otherPromptDue && !tourBusy && !checkIn.pending && !classFeedbackPending && !departmentPending;
 
   const showAppSetup = notifReady && !appSetupDismiss.dismissed && appSetupSheetDue(appSetup);
+  // One popup at a time (see utils/popupQueue): each popup asks for its place.
+  const popupsSettled = useSettled();
+  const classFeedbackSlot = usePopupSlot('class-feedback', POPUP_PRIORITY.classFeedback, popupsSettled && classFeedbackPending);
+  const departmentSlot = usePopupSlot('department', POPUP_PRIORITY.department, popupsSettled && departmentPending);
+  const appSetupSlot = usePopupSlot('get-the-app', POPUP_PRIORITY.getTheApp, popupsSettled && showAppSetup);
   // Counted once per app launch, not on every re-render.
   const shownCounted = useRef(false);
   useEffect(() => {
@@ -272,7 +280,8 @@ const ShellLayout: React.FC = () => {
       )}
 
       <CheckInPrompt checkIn={checkIn} />
-      {classFeedbackPending && home?.classFeedbackDue && (
+      <AnnouncementPopupHost enabled={!tourBusy && !checkIn.pending} />
+      {classFeedbackPending && classFeedbackSlot && home?.classFeedbackDue && (
         <ClassFeedbackModal
           weekId={home.classFeedbackDue.weekId}
           weekNumber={home.classFeedbackDue.weekNumber}
@@ -280,14 +289,14 @@ const ShellLayout: React.FC = () => {
           onLater={classFeedbackDismiss.dismiss}
         />
       )}
-      {departmentPending && home && (
+      {departmentPending && departmentSlot && home && (
         <DepartmentPromptModal
           participantName={home.participant.name}
           onAnswered={() => { departmentDismiss.dismiss(); void reload(); }}
           onLater={departmentDismiss.dismiss}
         />
       )}
-      {showAppSetup && <AppSetupSheet enable={enable} onClose={() => { noteSheetDismissed(); appSetupDismiss.dismiss(); }} />}
+      {showAppSetup && appSetupSlot && <AppSetupSheet enable={enable} onClose={() => { noteSheetDismissed(); appSetupDismiss.dismiss(); }} />}
       <NeedSupportButton className="lg:hidden" />
     </div>
   );

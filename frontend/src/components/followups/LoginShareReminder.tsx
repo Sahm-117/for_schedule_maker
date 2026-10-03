@@ -4,6 +4,7 @@ import { followUpContactsApi, participantAccountsApi } from '../../services/api'
 import { buildStatusPatch } from '../../utils/followUps';
 import { useToast } from '../Toast';
 import type { FollowUpContact, FollowUpContactUpdate } from '../../types';
+import { POPUP_PRIORITY, usePopupSlot, useSettled } from '../../utils/popupQueue';
 
 // A support opens someone's login, which makes their code, and then sends it
 // outside the app (WhatsApp, email, a paste). The app can't see that, so the
@@ -91,7 +92,9 @@ const LoginShareReminder: React.FC<{ userId: string; enabled: boolean }> = ({ us
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [enabled, check]);
 
-  if (!enabled || pending.length === 0) return null;
+  const settled = useSettled();
+  const slot = usePopupSlot('login-reminder', POPUP_PRIORITY.loginReminder, enabled && settled && pending.length > 0);
+  if (!enabled || pending.length === 0 || !slot) return null;
 
   const answer = async (item: Pending, sent: boolean) => {
     setBusyId(item.contact.id);

@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
         for (const p of (re.prompted ?? []) as Array<{ ownerId: string; count: number; names: string[] }>) {
           await tellUser(
             p.ownerId,
-            'Quick check-in on your people',
+            'Quick check-in on your participants',
             `How is it going with ${listNames(p.names ?? [], p.count)}? Let us know you are on it, or we will hand ${p.count === 1 ? 'them' : 'them'} to someone who can help.`,
             followPath,
             'followup-check',

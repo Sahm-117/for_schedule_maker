@@ -2,10 +2,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { followUpChecksApi } from '../../services/api';
 import { useToast } from '../Toast';
+import { POPUP_PRIORITY, usePopupSlot } from '../../utils/popupQueue';
 import type { FollowUpCheck } from '../../types';
 
 // A support who has held people for a day without moving any of them is asked, once:
-// "Are you following up your people?" It can't be closed without answering.
+// "Are you following up your participants?" It can't be closed without answering.
 //   Yes, I'm on it  -> one more 24 hours.
 //   Not right now   -> those people are reassigned.
 // No answer within 24 hours counts as not right now. (The sweep runs on the server.)
@@ -49,7 +50,8 @@ const FollowUpCheckPrompt: React.FC<{ enabled: boolean }> = ({ enabled }) => {
     return () => window.clearTimeout(timer);
   }, [checkId]);
 
-  if (!enabled || !check || !ready) return null;
+  const slot = usePopupSlot('followup-check', POPUP_PRIORITY.followUpCheck, enabled && !!check && ready, 'required');
+  if (!enabled || !check || !ready || !slot) return null;
 
   const answer = async (value: 'YES' | 'NOT_NOW') => {
     setBusy(value);
@@ -68,13 +70,13 @@ const FollowUpCheckPrompt: React.FC<{ enabled: boolean }> = ({ enabled }) => {
   const more = check.people.length - first.length;
 
   return createPortal(
-    <div className="fixed inset-0 z-[140] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label="How is it going with your people?">
+    <div className="fixed inset-0 z-[140] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label="How is it going with your participants?">
       <div className="absolute inset-0 bg-slate-900/50" />
       <div className={`${SURFACE} relative max-h-[88vh] w-full max-w-md overflow-y-auto rounded-b-none px-6 pb-7 pt-7 sm:rounded-[28px]`}>
         <p className="text-[13px] font-semibold text-primary">Quick check-in</p>
-        <h2 className="mt-1.5 text-[26px] font-bold leading-[1.12] tracking-[-0.025em] text-gray-900">How’s it going with your people?</h2>
+        <h2 className="mt-1.5 text-[26px] font-bold leading-[1.12] tracking-[-0.025em] text-gray-900">How’s it going with your participants?</h2>
         <p className="mt-3 text-[15px] leading-[1.55] text-gray-600">
-          {check.people.length === 1 ? 'This person was' : `These ${check.people.length} people were`} given to you a day ago. Are you following up with {check.people.length === 1 ? 'them' : 'them'}?
+          {check.people.length === 1 ? 'This participant was' : `These ${check.people.length} participants were`} given to you a day ago. Are you following up with them?
         </p>
         <ul className="mt-3 flex flex-wrap gap-2">
           {first.map((name) => <li key={name} className="rounded-full bg-[#f2f2f4] px-3.5 py-1.5 text-[14px] font-semibold text-gray-900">{name}</li>)}

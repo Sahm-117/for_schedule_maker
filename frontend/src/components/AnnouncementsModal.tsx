@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { announcementsApi, labelsApi, groupsApi, supportHubsApi, usersApi, participantsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
+import { announcementPopupsApi } from '../services/api';
+import type { AnnouncementPopupStatus } from '../types';
 import type { Announcement, Label, Group, SupportHub, User, Participant, HubJob } from '../types';
 import { HUB_JOB_INFO } from './hubs/hubJobs';
 import AppSelect from './AppSelect';
@@ -53,6 +55,28 @@ interface AnnouncementsModalProps {
   onSent?: () => void;
 }
 
+// "Popup" pill with who has tapped Got it, for admins in the history list.
+const PopupStatusRow: React.FC<{ announcementId: string }> = ({ announcementId }) => {
+  const [status, setStatus] = useState<AnnouncementPopupStatus | null>(null);
+  const [open, setOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    announcementPopupsApi.status(announcementId).then(setStatus).catch(() => setFailed(true));
+  }, [announcementId]);
+  return (
+    <div className="mt-2">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="inline-flex items-center gap-1.5 rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">
+        Popup{status ? ` · ${status.acknowledged} of ${status.total} said Got it` : failed ? '' : ' · …'}
+      </button>
+      {open && status && (
+        <p className="mt-1.5 text-[11px] leading-snug text-gray-500">
+          {status.waiting.length === 0 ? 'Everyone has seen it.' : `Still waiting: ${status.waiting.join(', ')}`}
+        </p>
+      )}
+    </div>
+  );
+};
+
 const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   isOpen,
   onClose,
@@ -82,6 +106,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [audience, setAudience] = useState<AnnouncementAudience>('SUPPORTS');
   const [showOnHome, setShowOnHome] = useState(false);
+  const [popupOn, setPopupOn] = useState(false);
   const [homeUntil, setHomeUntil] = useState('');
   const [linkTarget, setLinkTarget] = useState('');
   const [externalUrl, setExternalUrl] = useState('');
@@ -220,7 +245,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     ]).filter(Boolean) as string[];
 
   const homeLinkUrl = linkTarget === EXTERNAL_LINK ? externalUrl.trim() : linkTarget;
-  const homeInvalid = showOnHome && (!homeUntil || !homeLabel.trim() || (linkTarget === EXTERNAL_LINK && !/^https?:\/\//i.test(externalUrl.trim())));
+  const linkInvalid = (showOnHome || popupOn) && linkTarget === EXTERNAL_LINK && !/^https?:\/\//i.test(externalUrl.trim());
+  const homeInvalid = (showOnHome && (!homeUntil || !homeLabel.trim())) || linkInvalid;
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,6 +265,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
         targetUserId,
         targetParticipantId,
         audience,
+        popup: popupOn,
+        link: popupOn && !showOnHome && homeLinkUrl ? { linkUrl: homeLinkUrl, linkLabel: linkLabel.trim() || null } : null,
         home: showOnHome
           ? { homeUntil: new Date(`${homeUntil}T23:59:59`).toISOString(), linkUrl: homeLinkUrl || null, linkLabel: linkLabel.trim() || null, homeLabel: homeLabel.trim() }
           : null,
@@ -263,6 +291,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
       setNarrowOpen(false);
       setAudience('SUPPORTS');
       setShowOnHome(false);
+      setPopupOn(false);
       setHomeUntil('');
       setLinkTarget('');
       setExternalUrl('');
@@ -591,6 +620,22 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                       className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     />
                   </div>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-gray-200 p-3">
+              <label className="flex cursor-pointer items-center justify-between gap-3">
+                <span>
+                  <span className="block text-sm font-medium text-gray-700">Show as a popup</span>
+                  <span className="block text-[11px] text-gray-500">It stays on screen for each person until they tap Got it. Use it only for things everyone must see.</span>
+                </span>
+                <input type="checkbox" checked={popupOn} onChange={(e) => setPopupOn(e.target.checked)} className="h-5 w-5 accent-[var(--color-primary)]" />
+              </label>
+            </div>
+
+            {(showOnHome || popupOn) && (
+              <div className="space-y-3 rounded-xl border border-gray-200 p-3">
                   <div>
                     <label className="mb-1 block text-sm font-medium text-gray-700">Link (optional)</label>
                     <AppSelect value={linkTarget} onChange={setLinkTarget} options={audience === 'PARTICIPANTS' ? PARTICIPANT_HOME_LINK_OPTIONS : HOME_LINK_OPTIONS} placeholder="No link" compact />
@@ -616,9 +661,8 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                       />
                     </div>
                   )}
-                </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <button
               type="submit"
@@ -699,6 +743,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                       </div>
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{a.body}</p>
+                    {a.requirePopup && isAdmin && <PopupStatusRow announcementId={a.id} />}
                     {a.showOnHome && a.homeUntil && new Date(a.homeUntil).getTime() > Date.now() && (
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[11px] font-semibold text-red-700">
