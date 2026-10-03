@@ -103,7 +103,7 @@ const AppSetupSteps: React.FC<Props> = ({ setup, audience = 'participant', enabl
           <div className="mt-3 rounded-xl bg-sky-50 px-3 py-2.5 text-[13.5px] leading-snug text-sky-900">
             <p className="font-semibold">You already have the app on this phone.</p>
             <p className="mt-0.5">Close this page and open <b>{APP}</b> from your Home Screen. You do not need to add it again.</p>
-            <button type="button" onClick={() => setStepsAnyway(true)} className="mt-2 text-[13px] font-semibold text-sky-700 underline underline-offset-2">It is not on this phone. Show me the steps.</button>
+            <button type="button" onClick={() => setStepsAnyway(true)} className="mt-2 text-[13px] font-semibold text-sky-700 underline underline-offset-2">If you have never installed this app, tap here.</button>
           </div>
         )}
 
