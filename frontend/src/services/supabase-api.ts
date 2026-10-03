@@ -2884,6 +2884,13 @@ export const appNudgeApi = {
     if (error) throw new Error(error.message);
     return (data as import('../types').AppNudgePerson[]) ?? [];
   },
+  async markSent(participantId: string): Promise<string> {
+    const { data, error } = await supabase.rpc('mark_app_nudge_sent', {
+      p_token: getSessionToken(), p_participant_id: participantId,
+    });
+    if (error) throw new Error(error.message);
+    return data as string;
+  },
 };
 
 // Announcement popups: shown until the person taps Got it. See 20261003130000_announcement_popups.sql.

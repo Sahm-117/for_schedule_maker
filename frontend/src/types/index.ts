@@ -164,6 +164,7 @@ export interface AppNudgePerson {
   name: string;
   phone: string | null;
   reason: 'NOT_INSTALLED' | 'NO_ALERTS';
+  sentAt?: string | null;
 }
 
 /** An announcement shown as a popup until the person taps Got it. */

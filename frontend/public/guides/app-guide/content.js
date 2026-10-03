@@ -2738,6 +2738,8 @@ window.GUIDE_CONTENT = {
        ],
        "steps": [
         "On **Home**, the **Get them on the app** card lists your participants who have signed in but have not installed the app, or have alerts off. Tap **Send video** next to a name. WhatsApp opens with the message and the install videos ready.",
+        "After you tap **Send video**, a **Sent** tag shows the day and their row moves below people you have not messaged. The tag records when you opened the message; it does not confirm WhatsApp delivery.",
+        "Home re-checks when you return to the app and every two minutes while it is visible. Once they have installed the app and enabled alerts, their name leaves the card and you get a one-time notification in your bell.",
         "For anyone you follow up, open the contact, tap **Message** and pick a template: **After login shared: install the app and turn on alerts**, **Signed in, but the app is not on the Home Screen**, or **App installed, but alerts are off**. There is also **After login shared: no response**.",
         "The messages include the Android and iPhone videos, so they can watch the one for their phone."
        ],
