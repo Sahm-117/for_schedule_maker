@@ -740,12 +740,13 @@ const AssignGroupModal: React.FC<AssignGroupModalProps> = ({ participant, groups
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const AdminParticipantsPage: React.FC = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin } = useAuth();
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
   return <AdminParticipantsContent />;
 };
 
 const AdminParticipantsContent: React.FC = () => {
+  const { user } = useAuth();
   const { activeCohort, cohorts, liveRevision } = useAppData();
 
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -1397,12 +1398,12 @@ const AdminParticipantsContent: React.FC = () => {
       <RetakeMarkModal
         participant={retakeMarking}
         onClose={() => setRetakeMarking(null)}
-        onSave={(note) => retakeMarking && handleRetakeUpdate(retakeMarking, {
+        onSave={(note) => retakeMarking ? handleRetakeUpdate(retakeMarking, {
           retakeStatus: 'CONFIRMED',
           retakeNote: note,
           retakeCheckedById: user?.id ?? null,
           retakeCheckedAt: new Date().toISOString(),
-        })}
+        }) : undefined}
       />
 
       {exportOpen && (
