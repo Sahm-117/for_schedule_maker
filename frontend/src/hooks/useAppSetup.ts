@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { isInStandaloneMode, usePWAInstall } from './usePWAInstall';
 import { useAppServerState } from './useAppServerState';
 
@@ -76,11 +76,22 @@ export const useAppSetup = () => {
   const refresh = refreshAppSetup;
 
   const isInstalled = installed || pwa.isStandalone;
+
+  // The server remembers "opened from a Home Screen" for the person, not for this
+  // phone. On Android, Chrome only offers its install prompt when the app is NOT
+  // on this phone, so wait a moment for it before saying "you already have it".
+  const [promptWaited, setPromptWaited] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setPromptWaited(true), 2500);
+    return () => window.clearTimeout(timer);
+  }, []);
+  const androidSure = device !== 'android' || (promptWaited && !pwa.hasNativePrompt);
+
   return {
     device,
     installed: isInstalled,
     // Already opened from the Home Screen at some point, but this is a browser tab.
-    installedElsewhere: !isInstalled && device !== 'desktop' && !!server?.installedBefore,
+    installedElsewhere: !isInstalled && device !== 'desktop' && !!server?.installedBefore && androidSure,
     sheetDismissed: server?.sheetDismissed ?? 0,
     // The server has answered, so "already installed" and the put-off count are known.
     serverReady: server !== null,

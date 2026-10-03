@@ -17,11 +17,16 @@ const PasswordField: React.FC<{
   onChange: (value: string) => void;
   placeholder: string;
   error?: string;
-}> = ({ label, value, onChange, placeholder, error }) => {
+  /** A small live note beside the label, e.g. "✓ Matches". */
+  note?: { text: string; tone: 'good' | 'warn' } | null;
+}> = ({ label, value, onChange, placeholder, error, note }) => {
   const [visible, setVisible] = useState(false);
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">{label}</span>
+      <span className="mb-1.5 flex items-center justify-between gap-2 text-[13px] font-semibold text-gray-900">
+        {label}
+        {note && <span className={`text-xs font-semibold ${note.tone === 'good' ? 'text-emerald-600' : 'text-amber-600'}`} aria-live="polite">{note.text}</span>}
+      </span>
       <div className="relative">
         <input
           type={visible ? 'text' : 'password'}
@@ -48,6 +53,9 @@ const PasswordField: React.FC<{
   );
 };
 
+// Any length from this up; there is no maximum.
+const MIN_LENGTH = 5;
+
 const ParticipantWelcomePage: React.FC = () => {
   const { user, refreshUser, logout } = useAuth();
   const [password, setPassword] = useState('');
@@ -61,12 +69,17 @@ const ParticipantWelcomePage: React.FC = () => {
   if (!user) return null;
   if (!user.mustChangePassword) return <Navigate to={justSet ? '/me/setup' : '/me'} replace />;
 
-  const passwordError = touched && password.length < 8 ? 'Use at least 8 characters.' : '';
-  const confirmError = touched && !passwordError && password !== confirm ? 'These do not match.' : '';
+  const tooShort = password.length > 0 && password.length < MIN_LENGTH;
+  const passwordError = touched && password.length < MIN_LENGTH ? `Use at least ${MIN_LENGTH} characters.` : '';
+  // A quiet live check, so a typo shows before they tap Save.
+  const passwordNote = tooShort ? { text: `${MIN_LENGTH}+ characters`, tone: 'warn' as const } : password.length >= MIN_LENGTH ? { text: '✓', tone: 'good' as const } : null;
+  // Stay quiet while they are still typing the same start; flag once it differs or is the same length.
+  const stillTyping = confirm.length < password.length && password.startsWith(confirm);
+  const confirmNote = confirm.length === 0 || stillTyping ? null : confirm === password ? { text: '✓ Matches', tone: 'good' as const } : { text: 'Does not match', tone: 'warn' as const };
 
   const submit = async () => {
     setTouched(true);
-    if (password.length < 8 || password !== confirm) return;
+    if (password.length < MIN_LENGTH || password !== confirm) return;
     setSaving(true);
     setError('');
     try {
@@ -108,8 +121,8 @@ const ParticipantWelcomePage: React.FC = () => {
           </div>
 
           <div className="mt-4 flex flex-col gap-3">
-            <PasswordField label="New password" value={password} onChange={setPassword} placeholder="At least 8 characters" error={passwordError} />
-            <PasswordField label="Confirm password" value={confirm} onChange={setConfirm} placeholder="Type it again" error={confirmError} />
+            <PasswordField label="New password" value={password} onChange={setPassword} placeholder={`At least ${MIN_LENGTH} characters`} error={passwordError} note={passwordNote} />
+            <PasswordField label="Confirm password" value={confirm} onChange={setConfirm} placeholder="Type it again" note={confirmNote} />
             {error && <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{error}</p>}
             <button
               type="button"

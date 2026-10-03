@@ -168,7 +168,7 @@ const ParticipantProfilePage: React.FC = () => {
   };
 
   const changePassword = async () => {
-    if (next.length < 8) { setPasswordError('Use at least 8 characters.'); return; }
+    if (next.length < 5) { setPasswordError('Use at least 5 characters.'); return; }
     setChanging(true);
     setPasswordError('');
     try {
@@ -449,7 +449,7 @@ const ParticipantProfilePage: React.FC = () => {
         <Fold title="Password" summary="Change your password">
           <div className="flex flex-col gap-2.5">
             <PasswordInput autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="Current password" className={FIELD} />
-            <PasswordInput autoComplete="new-password" value={next} onChange={(e) => { setNext(e.target.value); setPasswordError(''); }} placeholder="New password (at least 8 characters)" className={FIELD} />
+            <PasswordInput autoComplete="new-password" value={next} onChange={(e) => { setNext(e.target.value); setPasswordError(''); }} placeholder="New password (at least 5 characters)" className={FIELD} />
             {passwordError && <p className="text-xs font-medium text-red-700">{passwordError}</p>}
             <button type="button" onClick={() => { void changePassword(); }} disabled={changing || !current || !next} className="min-h-[44px] rounded-xl bg-[#3f4757] px-4 text-sm font-semibold text-white disabled:opacity-50">
               {changing ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Change password'}

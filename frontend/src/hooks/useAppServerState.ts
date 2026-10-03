@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { participantAppApi, pushSubscriptionsApi } from '../services/api';
+import { getSessionToken, participantAppApi, pushSubscriptionsApi } from '../services/api';
 
 export type AppAudience = 'participant' | 'staff';
 
@@ -14,6 +14,9 @@ export interface AppServerState {
 }
 
 let state: AppServerState | null = null;
+// Whose sign-in the answer belongs to. Signing out and in as someone else (or a new
+// session) must not show the last person's "you already have the app".
+let stateToken = '';
 let audience: AppAudience = 'participant';
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((listener) => listener());
@@ -21,10 +24,14 @@ const emit = () => listeners.forEach((listener) => listener());
 /** Tells the server what this device is, and keeps what it answers. */
 export const recordAppState = async (installed: boolean, device: string, notifications: string, who: AppAudience = 'participant') => {
   audience = who;
+  const token = getSessionToken();
   try {
-    state = who === 'staff'
+    const answer = who === 'staff'
       ? await pushSubscriptionsApi.recordAppState(installed, device, notifications)
       : await participantAppApi.recordAppState(installed, device, notifications);
+    if (getSessionToken() !== token) return; // signed out or switched while the answer was on its way
+    state = answer;
+    stateToken = token;
     emit();
   } catch { /* offline or signed out: nothing is lost, it is sent next time */ }
 };
@@ -41,5 +48,5 @@ export const noteSheetDismissed = () => {
 export const useAppServerState = (): AppServerState | null =>
   useSyncExternalStore(
     (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
-    () => state,
+    () => (state && stateToken === getSessionToken() ? state : null),
   );

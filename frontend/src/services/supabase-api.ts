@@ -3184,7 +3184,7 @@ const accountError = (rawMessage: string | undefined, fallback: string): Error =
   if (msg.includes('SESSION_EXPIRED')) return new Error('SESSION_EXPIRED');
   if (msg.includes('NOT_ALLOWED')) return new Error("You can only see login details for your own participants.");
   if (msg.includes('NO_PHONE')) return new Error('Add a valid phone number for this person first. It is their username.');
-  if (msg.includes('at least 8')) return new Error('Use at least 8 characters.');
+  if (msg.includes('at least 5')) return new Error('Use at least 5 characters.');
   return new Error(friendlyUserError(msg, fallback));
 };
 
@@ -3227,7 +3227,7 @@ const participantAppError = (rawMessage: string | undefined, fallback: string): 
   if (msg.includes('DEPARTMENT_REQUIRED')) return new Error('Choose a department.');
   if (msg.includes('PROJECT_REQUIRED')) return new Error('Write your project before submitting.');
   if (msg.includes('PROJECT_LOCKED')) return new Error('Your faith project is with your support right now.');
-  if (msg.includes('at least 8')) return new Error('Use at least 8 characters.');
+  if (msg.includes('at least 5')) return new Error('Use at least 5 characters.');
   return new Error(friendlyUserError(msg, fallback));
 };
 
