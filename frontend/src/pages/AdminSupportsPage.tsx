@@ -26,7 +26,6 @@ import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
 import { genderAgeLine, isSupportProfileComplete } from '../utils/people';
 import { openLoadByOwner } from '../utils/followUps';
-import LoadRing from '../components/LoadRing';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import {
   PERSON_HEALTH_LABEL,
@@ -533,20 +532,11 @@ const AdminSupportsPage: React.FC = () => {
   );
 };
 
-// Load ring for a support's open follow-ups against the max in Settings, plus
-// a plain pill once they've reached or gone past it.
-const FollowUpLoad: React.FC<{ value: number; max: number }> = ({ value, max }) => (
-  <span className="flex flex-col items-end gap-1">
-    <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
-      <LoadRing value={value} max={max} />
-      follow-ups
-    </span>
-    {max > 0 && value > max && (
-      <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[10px] font-semibold text-red-700">Over limit</span>
-    )}
-    {max > 0 && value === max && (
-      <span className="rounded-full bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold text-amber-700">At limit</span>
-    )}
+const FollowUpSummary: React.FC<{ value: number; max: number }> = ({ value, max }) => (
+  <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-gray-500">
+    <span>{value} open follow-ups{max > 0 ? ` · limit ${max}` : ''}</span>
+    {max > 0 && value > max && <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[10px] font-semibold text-red-700">Over limit</span>}
+    {max > 0 && value === max && <span className="rounded-full bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold text-amber-700">At limit</span>}
   </span>
 );
 
@@ -610,62 +600,61 @@ const SupportCard: React.FC<{
       : `Missing records for week${evaluation.missedWeeks.length === 1 ? '' : 's'} ${evaluation.missedWeeks.join(', ')}`;
 
   return (
-    <li className="surface-card p-4 sm:p-5">
-      <div className="flex flex-wrap items-start gap-3">
-        <button type="button" onClick={onViewProfile} aria-label={`View ${supportName}'s profile`} className="mt-0.5 flex-none rounded-full">
-          <Avatar name={supportName} avatarUrl={user?.avatarUrl} size="sm" />
+    <li className="surface-card rounded-[24px] p-[18px] sm:p-[22px]">
+      <div className="flex min-w-0 items-start gap-2.5">
+        <button type="button" onClick={onViewProfile} aria-label={`View ${supportName}'s profile`} className="flex-none rounded-full">
+          <Avatar name={supportName} avatarUrl={user?.avatarUrl} size="md" />
         </button>
         <div className="min-w-0 flex-1">
-          <button type="button" onClick={onViewProfile} className="block max-w-full truncate text-left text-base font-semibold text-gray-900 hover:underline">{supportName}</button>
-          <p className="text-sm text-gray-500">
-            {[groupName, `${evaluation.members} participant${evaluation.members === 1 ? '' : 's'}`, user ? genderAgeLine(user) : ''].filter(Boolean).join(' · ')}
+          <div className="flex min-w-0 items-center gap-1.5">
+            <button type="button" onClick={onViewProfile} className="min-w-0 truncate text-left text-[15px] font-bold tracking-tight text-gray-900 hover:underline">{supportName}</button>
+            {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`flex-none rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
+          </div>
+          <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-500">
+            {[groupName, hub?.name, `${evaluation.members} participant${evaluation.members === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}
           </p>
-          <SupportTagRow tags={[
-            user && <ProfileTag key="profile" user={user} />,
-            training.total > 0 && <TrainingPill key="training" name={supportName} userId={evaluation.supportId} sessions={training.sessions} attendance={training.attendance} />,
-            hub?.isLead && <span key="lead" className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>,
-            KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
-            hub && <span key="hub" className="rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>,
-          ]} />
         </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${HEALTH_PILL[evaluation.health]}`}>{PERSON_HEALTH_LABEL[evaluation.health]}</span>
-          <FollowUpLoad value={followUps} max={rules.maxFollowUpsPerSupport} />
-        </div>
-        <AppOverflowMenu items={[{ label: 'View profile', onClick: onViewProfile }]} />
+        <div className="flex-none pt-0.5"><AppOverflowMenu align="right" items={[{ label: 'View profile', onClick: onViewProfile }]} /></div>
       </div>
 
-      <div className="mt-3 w-full sm:w-56">
-        <AppSelect value={kind} onChange={(v) => onKindChange(v as SupportKind)} options={KIND_OPTIONS} placeholder="Participant support" disabled={kindSaving} loading={kindSaving} compact label="Kind" />
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-        <span className={evaluation.missedWeeks.length ? 'font-medium text-gray-900' : 'text-gray-600'}>
+      <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+        <span className={`min-w-0 flex-1 text-[13px] leading-5 ${evaluation.missedWeeks.length ? 'font-medium text-gray-900' : 'text-gray-600'}`}>
           {recordsText}
-          {evaluation.weeks.length > 0 && (
-            <NavLink to="/group-prayers" className="ml-2 text-xs font-semibold text-primary hover:text-primary-dark">See records</NavLink>
-          )}
         </span>
-        <span className={onboarding.late || !onboarding.allOnboarded ? 'font-medium text-gray-900' : 'text-gray-600'}>
-          {onboardingText}
-        </span>
+        <span className={`flex-none rounded-full px-2.5 py-1 text-[11px] font-semibold ${HEALTH_PILL[evaluation.health]}`}>{PERSON_HEALTH_LABEL[evaluation.health]}</span>
+      </div>
+      <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
+        <span className={onboarding.late || !onboarding.allOnboarded ? 'font-medium text-gray-700' : ''}>{onboardingText}</span>
+        {training.total > 0 && <TrainingPill name={supportName} userId={evaluation.supportId} sessions={training.sessions} attendance={training.attendance} />}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {evaluation.weeks.length > 0 && (
-          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">
-            {open ? 'Hide weeks' : 'Week by week'}
-          </button>
-        )}
-        {whatsapp && (
-          <a href={whatsapp} target="_blank" rel="noreferrer" className="rounded-xl bg-emerald-100/80 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">WhatsApp</a>
-        )}
-        <NavLink to={`/groups?group=${evaluation.groupId}`} className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">Open group</NavLink>
-        <button type="button" onClick={toggleNotes} aria-expanded={notesOpen} className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">
-          {notesOpen ? 'Hide notes' : 'Notes'}
-          {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
+      <div className="mt-3 flex min-h-11 flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2.5">
+        <FollowUpSummary value={followUps} max={rules.maxFollowUpsPerSupport} />
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="inline-flex min-h-11 flex-none items-center gap-1.5 rounded-xl bg-gray-100 px-3 text-xs font-semibold text-gray-700 hover:bg-gray-200">
+          {open ? 'Hide details' : 'Details'}
+          <svg className={`h-3.5 w-3.5 transition-transform motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true"><path d="m5 7.5 5 5 5-5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
       </div>
+
+      {open && <div className="mt-2 border-t border-gray-100 pt-3">
+        <SupportTagRow tags={[
+          user && <ProfileTag key="profile" user={user} />,
+          hub?.isLead && <span key="lead" className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>,
+          KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
+          user && genderAgeLine(user) && <span key="demographics" className="text-[11px] text-gray-500">{genderAgeLine(user)}</span>,
+        ]} />
+        <div className="mt-3 w-full sm:w-56">
+          <AppSelect value={kind} onChange={(v) => onKindChange(v as SupportKind)} options={KIND_OPTIONS} placeholder="Participant support" disabled={kindSaving} loading={kindSaving} compact label="Kind" />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded-xl bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/15">WhatsApp</a>}
+          <NavLink to={`/groups?group=${evaluation.groupId}`} className="inline-flex min-h-11 items-center rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-200">Open group</NavLink>
+          {evaluation.weeks.length > 0 && <NavLink to="/group-prayers" className="inline-flex min-h-11 items-center rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-200">See records</NavLink>}
+          <button type="button" onClick={toggleNotes} aria-expanded={notesOpen} className="min-h-11 rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-200">
+            {notesOpen ? 'Hide notes' : 'Notes'}
+            {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
+          </button>
+        </div>
 
       {notesOpen && (
         <div className="mt-3 rounded-xl bg-gray-50 p-3">
@@ -805,6 +794,7 @@ const SupportCard: React.FC<{
           </table>
         </div>
       )}
+      </div>}
     </li>
   );
 };
@@ -825,6 +815,7 @@ const NoLeadSupportCard: React.FC<{
   maxFollowUps: number;
   onViewProfile: () => void;
 }> = ({ user, hub, training, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, maxFollowUps, onViewProfile }) => {
+  const [open, setOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState<SupportNote[] | null>(null);
   const [noteBody, setNoteBody] = useState('');
@@ -852,41 +843,51 @@ const NoLeadSupportCard: React.FC<{
   };
 
   return (
-    <li className="surface-card p-4 sm:p-5">
-      <div className="flex flex-wrap items-start gap-3">
-        <button type="button" onClick={onViewProfile} aria-label={`View ${user.name}'s profile`} className="mt-0.5 flex-none rounded-full">
-          <Avatar name={user.name} avatarUrl={user.avatarUrl} size="sm" />
+    <li className="surface-card rounded-[24px] p-[18px] sm:p-[22px]">
+      <div className="flex min-w-0 items-start gap-2.5">
+        <button type="button" onClick={onViewProfile} aria-label={`View ${user.name}'s profile`} className="flex-none rounded-full">
+          <Avatar name={user.name} avatarUrl={user.avatarUrl} size="md" />
         </button>
         <div className="min-w-0 flex-1">
-          <button type="button" onClick={onViewProfile} className="block max-w-full truncate text-left text-base font-semibold text-gray-900 hover:underline">{user.name}</button>
-          {genderAgeLine(user) && <p className="text-sm text-gray-500">{genderAgeLine(user)}</p>}
-          <SupportTagRow tags={[
-            <ProfileTag key="profile" user={user} />,
-            training.total > 0 && <TrainingPill key="training" name={user.name} userId={user.id} sessions={training.sessions} attendance={training.attendance} />,
-            hub?.isLead && <span key="lead" className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>,
-            KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
-            hub && <span key="hub" className="rounded-full bg-indigo-100/80 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">{hub.name}</span>,
-          ]} />
+          <div className="flex min-w-0 items-center gap-1.5">
+            <button type="button" onClick={onViewProfile} className="min-w-0 truncate text-left text-[15px] font-bold tracking-tight text-gray-900 hover:underline">{user.name}</button>
+            {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`flex-none rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
+          </div>
+          <p className="mt-0.5 break-words text-[11px] leading-4 text-gray-500">{[hub?.name, KIND_LABEL[kind]].filter(Boolean).join(' · ')}</p>
         </div>
-        <FollowUpLoad value={followUps} max={maxFollowUps} />
-        <AppOverflowMenu items={[{ label: 'View profile', onClick: onViewProfile }]} />
+        <div className="flex-none pt-0.5"><AppOverflowMenu align="right" items={[{ label: 'View profile', onClick: onViewProfile }]} /></div>
       </div>
 
-      {kind === 'PARTICIPANT_SUPPORT' && <p className="mt-3 text-sm text-gray-600">Not leading a group yet</p>}
-
-      <div className="mt-3 w-full sm:w-56">
-        <AppSelect value={kind} onChange={(v) => onKindChange(v as SupportKind)} options={KIND_OPTIONS} placeholder="Participant support" disabled={kindSaving} loading={kindSaving} compact label="Kind" />
+      <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+        <span className="text-[13px] text-gray-600">{kind === 'PARTICIPANT_SUPPORT' ? 'Not leading a group yet' : KIND_LABEL[kind]}</span>
+        {training.total > 0 && <TrainingPill name={user.name} userId={user.id} sessions={training.sessions} attendance={training.attendance} />}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {whatsapp && (
-          <a href={whatsapp} target="_blank" rel="noreferrer" className="rounded-xl bg-emerald-100/80 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">WhatsApp</a>
-        )}
-        <button type="button" onClick={toggleNotes} aria-expanded={notesOpen} className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">
-          {notesOpen ? 'Hide notes' : 'Notes'}
-          {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
+      <div className="mt-3 flex min-h-11 flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2.5">
+        <FollowUpSummary value={followUps} max={maxFollowUps} />
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="inline-flex min-h-11 flex-none items-center gap-1.5 rounded-xl bg-gray-100 px-3 text-xs font-semibold text-gray-700 hover:bg-gray-200">
+          {open ? 'Hide details' : 'Details'}
+          <svg className={`h-3.5 w-3.5 transition-transform motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true"><path d="m5 7.5 5 5 5-5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
       </div>
+
+      {open && <div className="mt-2 border-t border-gray-100 pt-3">
+        <SupportTagRow tags={[
+          <ProfileTag key="profile" user={user} />,
+          hub?.isLead && <span key="lead" className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Lead</span>,
+          KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
+          genderAgeLine(user) && <span key="demographics" className="text-[11px] text-gray-500">{genderAgeLine(user)}</span>,
+        ]} />
+        <div className="mt-3 w-full sm:w-56">
+          <AppSelect value={kind} onChange={(v) => onKindChange(v as SupportKind)} options={KIND_OPTIONS} placeholder="Participant support" disabled={kindSaving} loading={kindSaving} compact label="Kind" />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded-xl bg-primary/10 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/15">WhatsApp</a>}
+          <button type="button" onClick={toggleNotes} aria-expanded={notesOpen} className="min-h-11 rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-200">
+            {notesOpen ? 'Hide notes' : 'Notes'}
+            {hasNotes && <span title={PERSON_OF_INTEREST_INFO.description} className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${PERSON_OF_INTEREST_INFO.pill}`}>{PERSON_OF_INTEREST_INFO.label}</span>}
+          </button>
+        </div>
 
       {notesOpen && (
         <div className="mt-3 rounded-xl bg-gray-50 p-3">
@@ -923,6 +924,7 @@ const NoLeadSupportCard: React.FC<{
           )}
         </div>
       )}
+      </div>}
     </li>
   );
 };
