@@ -1,5 +1,6 @@
 import { participantAccountsApi, participantsApi } from '../services/api';
 import type { FollowUpContact, ParticipantLoginDetails } from '../types';
+import { installVideoLines } from '../constants/installVideos';
 
 // Login details by email, for when calls and WhatsApp don't get through. Used by
 // "Their login details" (Send by email) and by Send email on a registered follow-up.
@@ -35,6 +36,7 @@ export const buildLoginEmailBody = (details: ParticipantLoginDetails, sender: Se
     + `App link: https://fof.tcnikorodu.org/login\n`
     + `Username: ${details.phone}\n`
     + `First-time password: ${details.setupCode}\n\n`
+    + `${installVideoLines()}\n\n`
     + 'You will be asked to set your own password when you first sign in.\n\n'
     + (senderPhone
       ? `If you have any questions, reply to this email or reach me on ${senderPhone}. `

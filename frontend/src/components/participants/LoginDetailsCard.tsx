@@ -3,6 +3,7 @@ import { buildWhatsAppLink } from '../../utils/phone';
 import { buildLoginEmailBody, buildLoginMailLink, fetchLoginDetails, firstClassText } from '../../utils/loginEmail';
 import { useAuth } from '../../hooks/useAuth';
 import type { ParticipantLoginDetails } from '../../types';
+import { installVideoLines } from '../../constants/installVideos';
 
 // "Their login details" card from the V2 design. Shown to a support once they mark
 // a prospect as Registered, and to admins on a participant. Opening it creates the
@@ -73,6 +74,7 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
       + `App link: https://fof.tcnikorodu.org/login\n`
       + `Username: ${details.phone}\n`
       + `First-time password: ${details.setupCode}\n\n`
+      + `${installVideoLines()}\n\n`
       + `You will be asked to set your own password when you first sign in. If you have any questions, just ask me. See you on ${firstClassText(startDate)}.`
     : '';
   const waLink = message ? buildWhatsAppLink(details?.phone, message) : null;

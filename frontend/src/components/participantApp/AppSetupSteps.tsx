@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { AppSetup, DeviceKind } from '../../hooks/useAppSetup';
 import Spinner from '../Spinner';
+import { INSTALL_VIDEO_ANDROID, INSTALL_VIDEO_IOS } from '../../constants/installVideos';
 
 // Two steps, with the instructions for the person's own phone: add FOF Ops to the
 // Home Screen, then turn notifications on. On iPhone, notifications only work from
@@ -109,6 +110,17 @@ const AppSetupSteps: React.FC<Props> = ({ setup, audience = 'participant', enabl
 
         {!installed && !installedElsewhere && (
           <div className="mt-3">
+            {shown !== 'desktop' && (
+              <a
+                href={shown === 'iphone' ? INSTALL_VIDEO_IOS : INSTALL_VIDEO_ANDROID}
+                target="_blank"
+                rel="noreferrer"
+                className="mb-3 inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-orange-50 px-3.5 text-[13.5px] font-semibold text-orange-700"
+              >
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14l12-7z" /></svg>
+                Watch the video for {DEVICE_LABEL[shown]}
+              </a>
+            )}
             {iphone ? (
               <>
                 {inAppBrowser && (

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { buildWhatsAppLink } from '../utils/phone';
+import { installVideoLines } from '../constants/installVideos';
 
 // Shown after an admin creates an account or resets a password: a ready-to-send
 // message with the person's login details, to copy or send straight on WhatsApp.
@@ -24,7 +25,8 @@ export const buildInviteMessage = ({ name, email, phone, password, kind = 'invit
     + `Login: ${login}\n`
     + `${kind === 'reset' ? 'Temporary password' : 'First-time password'}: ${password}\n`
     + `App link: https://fof.tcnikorodu.org/login\n\n`
-    + `You will be asked to choose your own password when you ${kind === 'reset' ? 'next' : 'first'} sign in.`;
+    + `You will be asked to choose your own password when you ${kind === 'reset' ? 'next' : 'first'} sign in.`
+    + (kind === 'reset' ? '' : `\n\n${installVideoLines()}`);
 };
 
 const InviteMessageCard: React.FC<{ details: InviteDetails; onDismiss: () => void }> = ({ details, onDismiss }) => {

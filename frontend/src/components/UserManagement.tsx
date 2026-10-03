@@ -12,6 +12,7 @@ import { useAuth } from '../hooks/useAuth';
 import Spinner from './Spinner';
 import InviteMessageCard, { type InviteDetails } from './InviteMessageCard';
 import { toLocalNigerianPhone } from '../utils/phone';
+import { INSTALL_VIDEO_ANDROID, INSTALL_VIDEO_IOS } from '../constants/installVideos';
 
 const ROLE_BADGE: Record<User['role'], string> = {
   ADMIN: 'bg-orange-100/80 text-orange-700',
@@ -434,8 +435,8 @@ const UserManagement: React.FC<UserManagementProps> = ({
     '*If you already have the app:* open it, go to *Profile → Reminders* and tap *Enable on this device*, then tap *Allow*.',
     '',
     "*If you haven't installed the app yet:* watch the video for your phone, then open the app, sign in and tap *Allow* when it asks about notifications.",
-    'Android: https://youtu.be/VaQ8qL11bos',
-    'iPhone: https://youtu.be/wyXzG3JqndY',
+    `Android: ${INSTALL_VIDEO_ANDROID}`,
+    `iPhone: ${INSTALL_VIDEO_IOS}`,
     '',
     'Open the app here: https://fof.tcnikorodu.org',
   ].join('\n');
