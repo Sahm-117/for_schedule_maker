@@ -3192,49 +3192,34 @@ window.GUIDE_CONTENT = {
      "id": "onboard",
      "title": "Onboard",
      "where": "More → Onboard",
-     "summary": "Welcome each new participant step by step, with ready-made messages.",
+     "summary": "See which of your participants are ready, and start the group introductions.",
      "shot": "support-onboard.jpg",
      "tasks": [
       {
        "id": "s-onboard-steps",
-       "q": "How do I track onboarding my group?",
+       "popular": true,
+       "q": "How do I see how my group is getting on with onboarding?",
        "keywords": [
         "onboard",
         "onboarding",
-        "talked to",
-        "added to group",
-        "introduced",
-        "knows venue",
-        "group set up"
+        "intro",
+        "introductions",
+        "guide",
+        "profile",
+        "ready",
+        "progress"
        ],
        "steps": [
-        "Open **More** → **Onboard**.",
-        "Tap **Group set up** once your WhatsApp group is ready.",
-        "For each person, tick the steps as you do them: **Talked to**, **Added to group**, **Introduced**, **Knows venue**."
+        "Open **More** → **Onboard**. The bar at the top shows how many of your group are ready.",
+        "Tap **Start introductions** to post your own introduction first. Your group can't introduce themselves until you have.",
+        "Under **People**, each person shows four steps: **Intro** (they posted their introduction), **Guide** (they read the intro guide), **Profile** (their profile is complete) and **Ready** (they confirmed they are ready)."
        ],
-       "result": "The steps at the top show how far along your group is. Each person shows **Complete** when all four are ticked.",
+       "result": "A person shows **Onboarded** when all four steps are done.",
        "tips": [
-        "You can do the steps in any order."
+        "The steps tick by themselves as people use the app. You don't mark anything.",
+        "Tap the phone number under a name to copy it if you want to reach someone who is behind."
        ],
        "shot": "support-onboard.jpg"
-      },
-      {
-       "id": "s-onboard-message",
-       "q": "How do I send a welcome message to a new participant?",
-       "keywords": [
-        "welcome message",
-        "intro dm",
-        "venue directions",
-        "template",
-        "onboarding message"
-       ],
-       "steps": [
-        "On **Onboard**, tap the person's name.",
-        "Pick a message, for example **Day 1 — Intro DM** or **Day 3 — Venue directions**.",
-        "Tap **Open WhatsApp** to send it. You can also **Copy text**, **Copy number** or **Download image**."
-       ],
-       "result": "WhatsApp opens with the message ready to send.",
-       "shot": "support-onboard-message.jpg"
       }
      ]
     },
