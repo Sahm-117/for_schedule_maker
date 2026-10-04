@@ -1,5 +1,7 @@
 # Planner gaps and clash clarity
 
+Published `382159a` to main; Vercel frontend/backend deployment statuses succeeded.
+
 User found thin gap markers, striped spare weeks and the blinking clash/push-back popup confusing. Explained that gaps are unscheduled Sundays, extension stripes indicated dates beyond the usual cycle end, and the warning indicates a still-scheduled class overlapping a blocking church event.
 
 Changes: restored pale full-week gap blocks while marking only Sunday red (including period-boundary clipping); spare blocks remain solid teal; extension stripes apply only to classes and use accurate legend wording. Quarter warns with a static Clash label; Year keeps a compact static ! with explanatory text. Gap summaries no longer invent a church-event explanation when none is recorded. Popup states preview-only, names the conflict, lists Current/Proposed dates and uses Keep current dates / Apply new dates. Async preview responses are ignored after closing/replacing the clash.

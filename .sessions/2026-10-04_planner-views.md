@@ -1,5 +1,7 @@
 # Planner Year / Quarter / Month
 
+Published as `41d58e8` to main; Vercel frontend and backend deployment statuses succeeded. Production planner bundle verified with the new Month/Quarter markers.
+
 User approved the redesign plan with “go”; Year must remain the default. Standing instruction is to push completed fixes in batches.
 
 Implemented in `codex/planner-sunday-clashes` on top of `7a32f40`:

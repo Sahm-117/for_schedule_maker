@@ -44,7 +44,7 @@ const CohortCard: React.FC<CohortCardProps> = ({ cohort, events, today, onOpen }
         <div className="min-w-0">
           <p className="text-[17px] font-bold leading-tight text-gray-900">{cohort.name}</p>
           <p className="mt-0.5 text-[13px] text-gray-500">
-            <span className="font-semibold text-gray-700">{weeksLabel(classWeeks)} of classes</span>
+            <span className="font-semibold text-gray-700">{classWeeks} classes</span>
           </p>
           <p className="text-[13px] text-gray-500">{formatPlannerRange(cohort.classDates[0], last, today)}</p>
         </div>

@@ -17,7 +17,7 @@ Frontend build, focused ESLint and git diff --check passed. Actual ADMIN role Pl
 No migrations or deployment changes. Git actor Sahm-117, author Sam <tisnotaname@gmail.com>, destination Sahm-117/for_schedule_maker main, explicitly approved. Production deploys automatically through Vercel.
 
 ## Pending Tasks
-Push this verified batch and check Vercel status.
+Pushed df6db86 to main. Vercel reported deployment pending at the post-push check. This post-push status update is saved locally; the committed summary contains verification and cleanup evidence.
 
 ## Errors Hit & Fixes
 Browser harness selectors needed to distinguish hidden desktop/mobile notes and include the training answer label. Role persistence assertion now waits for asynchronous save. These were harness issues, no app failures found.

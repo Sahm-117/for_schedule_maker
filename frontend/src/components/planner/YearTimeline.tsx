@@ -6,7 +6,6 @@ import {
   formatPlannerDate,
   formatPlannerRange,
   periodPercent,
-  weeksLabel,
   stoppedSundays,
   type PlannerClash,
   type PlannerCohort,
@@ -100,7 +99,7 @@ const YearTimeline: React.FC<YearTimelineProps> = ({ start, end, view, plan, eve
                 style={{ width: LABEL_COL }}
               >
                 <span className="block truncate text-[13px] font-semibold text-gray-900">{cohort.name}</span>
-                <span className="block text-[11px] text-gray-400">{weeksLabel(cohort.classDates.length)}</span>
+                <span className="block text-[11px] text-gray-400">{cohort.classDates.length} classes</span>
               </button>
               <div className="relative h-7 flex-1">
                 {cohortSegments(cohort, events).flatMap((seg) => seg.kind === 'gap'
@@ -121,7 +120,7 @@ const YearTimeline: React.FC<YearTimelineProps> = ({ start, end, view, plan, eve
                       className={`absolute inset-y-0 flex items-center justify-center overflow-hidden rounded-md text-[11px] font-bold ${seg.kind === 'gap' ? 'border border-gray-200 bg-gray-100 text-gray-500' : KIND_BAR[seg.kind]} ${cohort.planned && seg.kind !== 'gap' ? 'opacity-60' : ''}`}
                       style={{ left: `${left}%`, width: `calc(${width}% - 2px)`, ...(seg.extension && seg.kind === 'classes' ? EXTENSION_STRIPES : {}) }}
                     >
-                      {seg.kind === 'gap' ? <><span aria-hidden="true">{wide ? '—' : ''}</span>{sundayVisible && <span aria-hidden="true" className={`absolute inset-y-0 right-0 min-w-[3px] ${KIND_BAR.gap}`} style={{ width: `${Math.min(100, sundayWidth / width * 100)}%` }} />}</> : wide && seg.weeks}
+                      {seg.kind === 'gap' ? <><span aria-hidden="true">{wide ? '—' : ''}</span>{sundayVisible && <span aria-hidden="true" className={`absolute inset-y-0 right-0 min-w-[3px] ${KIND_BAR.gap}`} style={{ width: `${Math.min(100, sundayWidth / width * 100)}%` }} />}</> : wide && seg.kind === 'classes' && <>{(width / 100) * TRACK >= 85 ? (seg.firstClass === seg.lastClass ? 'Class ' : 'Classes ') : ''}{seg.firstClass}{seg.firstClass !== seg.lastClass ? `–${seg.lastClass}` : ''}</>}
                     </button>
                   );
                 })}
