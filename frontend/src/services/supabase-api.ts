@@ -410,6 +410,12 @@ export const weeksApi = {
 };
 
 export const cohortsApi = {
+  async getCurrentProgrammeCohortId(): Promise<string | null> {
+    const { data, error } = await supabase.rpc('current_programme_cohort_id');
+    if (error) throw new Error(error.message);
+    return data ? String(data) : null;
+  },
+
   async getPeople(cohortId: string): Promise<import('../utils/programmeRules').CohortPeoplePayload> {
     const { data, error } = await supabase.rpc('cohort_people', { p_cohort_id: cohortId });
     if (error) throw new Error(error.message);

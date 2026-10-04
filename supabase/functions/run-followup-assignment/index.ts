@@ -45,6 +45,12 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
+const getCurrentProgrammeCohortId = async (): Promise<string | null> => {
+  const { data, error } = await supabase.rpc('current_programme_cohort_id')
+  if (error) throw new Error(error.message)
+  return data ? String(data) : null
+}
+
 const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY')!
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')!
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@fof.com'
@@ -163,13 +169,11 @@ Deno.serve(async (req) => {
 
     if (alertsEnabled) {
       // Same people the Follow-ups page shows as "Waiting to be assigned"
-      // (isWaitingForAssignment), in the current cohort only: the running
-      // ACTIVE cohort with the latest start, plus contacts with no cohort yet,
-      // which the app treats as belonging to it. Test contacts, closed
+      // (isWaitingForAssignment), in the database-selected current cohort
+      // plus contacts with no cohort yet, which the app treats as belonging
+      // to it. Test contacts, closed
       // outcomes and wrong numbers are never waiting.
-      const { data: currentCohort } = await supabase
-        .from('Cohort').select('id').eq('status', 'ACTIVE')
-        .order('startDate', { ascending: false, nullsFirst: false }).limit(1).maybeSingle()
+      const currentCohortId = await getCurrentProgrammeCohortId()
       let waitingQuery = supabase
         .from('FollowUpContact')
         .select('id', { count: 'exact', head: true })
@@ -180,8 +184,8 @@ Deno.serve(async (req) => {
         .neq('replyStatus', 'INCORRECT_NUMBER')
         .neq('callStatus', 'INCORRECT_NUMBER')
         .lte('createdAt', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString())
-      waitingQuery = currentCohort?.id
-        ? waitingQuery.or(`cohortId.eq.${currentCohort.id},cohortId.is.null`)
+      waitingQuery = currentCohortId
+        ? waitingQuery.or(`cohortId.eq.${currentCohortId},cohortId.is.null`)
         : waitingQuery.is('cohortId', null)
       const { count } = await waitingQuery
       waitingCount = count ?? 0

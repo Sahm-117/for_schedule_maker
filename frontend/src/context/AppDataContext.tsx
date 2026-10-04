@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { cohortsApi, hubApi, myHubApi, notificationsApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, usersApi, weeksApi } from '../services/api';
+import { cohortsApi as supabaseCohortsApi } from '../services/supabase-api';
 import type { Cohort, MyHubPayload, Notification, PendingChange, RejectedChange, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 
@@ -91,14 +92,16 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return allCohorts.filter((cohort) => userCohortIds.includes(cohort.id));
   }, [isAdmin, userCohortIds]);
 
-  const applyActiveCohort = useCallback((allCohorts: Cohort[]) => {
+  const applyActiveCohort = useCallback((allCohorts: Cohort[], automaticCurrentCohortId?: string | null) => {
     const accessible = getAccessibleCohorts(allCohorts);
     const persistedId = localStorage.getItem(ACTIVE_COHORT_KEY);
     const persisted = persistedId ? accessible.find((cohort) => cohort.id === persistedId) ?? null : null;
-    // The running cohort: ACTIVE, most recent start first.
-    const running = accessible
-      .filter((cohort) => cohort.status === 'ACTIVE')
-      .sort((a, b) => String(b.startDate ?? '').localeCompare(String(a.startDate ?? '')))[0] ?? null;
+    // The database owns the automatic-current rule (dates, practice exclusion,
+    // and stable tie-breaking). Keep the local list only as the presentation
+    // source and never re-derive that rule here.
+    const running = automaticCurrentCohortId
+      ? accessible.find((cohort) => cohort.id === automaticCurrentCohortId) ?? null
+      : null;
     // On first load, a remembered cohort that has finished gives way to the
     // running one; after that the remembered pick sticks, so an admin who
     // switches to an old cohort isn't moved off it by background refreshes.
@@ -133,8 +136,11 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [getAccessibleCohorts]);
 
   const loadCohorts = useCallback(async () => {
-    const response = await cohortsApi.getAll();
-    return applyActiveCohort(response.cohorts);
+    const [response, automaticCurrentCohortId] = await Promise.all([
+      cohortsApi.getAll(),
+      supabaseCohortsApi.getCurrentProgrammeCohortId().catch(() => null),
+    ]);
+    return applyActiveCohort(response.cohorts, automaticCurrentCohortId);
   }, [applyActiveCohort]);
 
   const loadWeeksForCohort = useCallback(async (cohortId?: string | null, cohortForDate?: Cohort | null) => {

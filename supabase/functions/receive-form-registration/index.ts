@@ -69,32 +69,46 @@ const normalisePhone = (raw: string | null | undefined): string | null => {
 
 /** Mirrors participantsApi.upsertFromFollowUpContact, which lives in the browser. */
 const upsertParticipant = async (contact: Record<string, unknown>) => {
-  const { data: existing } = await supabase
+  if (!contact.id) throw new Error('Cannot create a participant without a follow-up contact')
+
+  const { data: existing, error: existingError } = await supabase
     .from('Participant')
     .select('id')
     .eq('followUpContactId', contact.id)
     .maybeSingle()
+  if (existingError) throw new Error(existingError.message)
+
+  const participantFields: Record<string, unknown> = {
+    fullName: contact.fullName,
+    phone: contact.phone,
+    cohortId: contact.cohortId,
+    updatedAt: new Date().toISOString(),
+  }
+  if ('email' in contact) participantFields.email = contact.email
 
   if (existing) {
-    await supabase
+    const { error: updateError } = await supabase
       .from('Participant')
-      .update({ fullName: contact.fullName, phone: contact.phone, cohortId: contact.cohortId, updatedAt: new Date().toISOString() })
+      .update(participantFields)
       .eq('id', existing.id)
+    if (updateError) throw new Error(updateError.message)
     return existing.id
   }
 
-  const { data: created } = await supabase
+  const { data: created, error: createError } = await supabase
     .from('Participant')
     .insert([{
       fullName: contact.fullName,
       phone: contact.phone,
       cohortId: contact.cohortId ?? null,
+      ...(contact.email !== undefined ? { email: contact.email } : {}),
       source: 'FOLLOW_UP',
       followUpContactId: contact.id,
     }])
     .select('id')
     .single()
-  return created?.id ?? null
+  if (createError || !created?.id) throw new Error(createError?.message || 'Failed to create participant')
+  return created.id
 }
 
 /**
@@ -102,35 +116,34 @@ const upsertParticipant = async (contact: Record<string, unknown>) => {
  * plus anyone in the current cohort whose follow-up has closed (logged in,
  * say), so a second form from someone already signed up -- often to correct
  * their name -- finds their record instead of creating a duplicate. A match in
- * the current cohort wins over an older one.
+ * the target cohort wins over an unscoped open contact; contacts belonging to
+ * another cohort are ignored so a retaker gets a new target-cohort record.
  */
-const findContact = async (normalised: string | null, activeCohortId: string | null) => {
+const findContact = async (normalised: string | null, targetCohortId: string | null) => {
   if (!normalised) return null
   // Numbers are stored as typed, so this compares in code rather than SQL;
   // with tens of active contacts that is cheaper than it looks, but it is the
   // thing to revisit if the table ever grows into the thousands.
   let query = supabase
     .from('FollowUpContact')
-    .select('id, fullName, phone, email, cohortId, registrationStatus')
+    .select('id, fullName, phone, email, cohortId, registrationStatus, archivedAt, nextAction, createdAt')
     .limit(5000)
-  query = activeCohortId
-    ? query.or(`archivedAt.is.null,cohortId.eq.${activeCohortId}`)
-    : query.is('archivedAt', null)
-  const { data: candidates } = await query
+  query = targetCohortId ? query.or(`cohortId.eq.${targetCohortId},cohortId.is.null`) : query.is('cohortId', null)
+  const { data: candidates, error } = await query
+  if (error) throw new Error(error.message)
   const matches = ((candidates ?? []) as Array<Record<string, unknown>>)
     .filter((c) => normalisePhone(String(c.phone ?? '')) === normalised)
-  return matches.find((c) => activeCohortId && c.cohortId === activeCohortId) ?? matches[0] ?? null
+  const targetMatch = matches.find((c) => targetCohortId && c.cohortId === targetCohortId)
+  const unscopedOpenMatch = matches.find((c) =>
+    c.cohortId == null && c.archivedAt == null && c.nextAction !== 'CLOSE'
+  )
+  return targetMatch ?? unscopedOpenMatch ?? null
 }
 
-const activeCohortId = async () => {
-  const { data } = await supabase
-    .from('Cohort')
-    .select('id')
-    .eq('status', 'ACTIVE')
-    .order('startDate', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  return (data?.id as string | undefined) ?? null
+const currentProgrammeCohortId = async () => {
+  const { data, error } = await supabase.rpc('current_programme_cohort_id')
+  if (error) throw new Error(error.message)
+  return data ? String(data) : null
 }
 
 const tellAdmins = async (title: string, body: string) => {
@@ -201,7 +214,7 @@ Deno.serve(async (req) => {
       if (already) return json({ ok: true, outcome: 'DUPLICATE', wouldDo: 'Already imported; nothing would change.' })
     }
 
-    const match = await findContact(normalised, await activeCohortId())
+    const match = await findContact(normalised, await currentProgrammeCohortId())
     return json({
       ok: true,
       outcome: match ? 'MATCHED' : 'CREATED',
@@ -253,19 +266,27 @@ Deno.serve(async (req) => {
 
   try {
     // Which cohort a new prospect belongs to.
-    const cohortId = await activeCohortId()
+    const cohortId = await currentProgrammeCohortId()
 
     // Match on the normalised number rather than the raw text, so formatting
     // differences between the form and the app don't hide an existing prospect.
     const contact = await findContact(normalised, cohortId)
 
     if (contact) {
+      const adoptingUnscopedContact = contact.cohortId == null && cohortId != null
       if (!SIGNED_UP_STATUSES.has(String(contact.registrationStatus))) {
-        await supabase
+        const { data: updatedContact, error: updateError } = await supabase
           .from('FollowUpContact')
-          .update({ registrationStatus: 'REGISTERED', updatedAt: new Date().toISOString() })
+          .update({
+            ...(adoptingUnscopedContact ? { cohortId } : {}),
+            registrationStatus: 'REGISTERED',
+            updatedAt: new Date().toISOString(),
+          })
           .eq('id', contact.id)
-        await upsertParticipant(contact)
+          .select('id, fullName, phone, email, cohortId, registrationStatus, archivedAt, nextAction, createdAt')
+          .single()
+        if (updateError || !updatedContact) throw new Error(updateError?.message || 'Failed to update contact')
+        await upsertParticipant({ ...contact, ...updatedContact })
         return await finish('MATCHED', `Matched ${contact.fullName} and marked them registered.`, String(contact.id))
       }
       // Already signed up and filling the form again, usually to correct their
@@ -274,10 +295,22 @@ Deno.serve(async (req) => {
       const changes: Record<string, unknown> = {}
       if (contact.fullName !== fullName) changes.fullName = fullName
       if (email && contact.email !== email) changes.email = email
+      if (adoptingUnscopedContact) changes.cohortId = cohortId
+      let effectiveContact = contact
       if (Object.keys(changes).length) {
         const updatedAt = new Date().toISOString()
-        await supabase.from('FollowUpContact').update({ ...changes, updatedAt }).eq('id', contact.id)
-        await supabase.from('Participant').update({ ...changes, updatedAt }).eq('followUpContactId', contact.id)
+        const { data: updatedContact, error: updateError } = await supabase
+          .from('FollowUpContact')
+          .update({ ...changes, updatedAt })
+          .eq('id', contact.id)
+          .select('id, fullName, phone, email, cohortId, registrationStatus, archivedAt, nextAction, createdAt')
+          .single()
+        if (updateError || !updatedContact) throw new Error(updateError?.message || 'Failed to update contact')
+        effectiveContact = { ...contact, ...updatedContact }
+      }
+      await upsertParticipant(effectiveContact)
+      const profileChanged = Boolean(changes.fullName || changes.email)
+      if (profileChanged) {
         const what = [changes.fullName ? `name to ${fullName}` : null, changes.email ? `email to ${email}` : null].filter(Boolean).join(' and ')
         return await finish('MATCHED', `${contact.fullName} filled the form again; updated their ${what}.`, String(contact.id))
       }
@@ -319,6 +352,7 @@ Deno.serve(async (req) => {
       id: created.id,
       fullName,
       phone,
+      email: payload.email ? String(payload.email).trim() : null,
       cohortId: cohortId,
     })
 
