@@ -32,9 +32,9 @@ export const segmentTip = (cohort: PlannerCohort, seg: PlannerSegment, today: st
   const range = formatPlannerRange(seg.start, seg.end, today);
   if (seg.kind === 'gap') {
     return [
-      `${seg.event?.name ?? 'No class'} · ${seg.weeks} Sunday${seg.weeks === 1 ? '' : 's'} skipped`,
       `${cohort.name} · No Sunday class`,
-      range,
+      seg.weeks === 1 ? `No class on ${formatPlannerDate(seg.end, true, today)}` : `${seg.weeks} Sundays skipped · ${range}`,
+      seg.event?.name ?? 'No class scheduled; no matching church event recorded',
     ];
   }
   if (seg.kind === 'classes') {
@@ -42,7 +42,7 @@ export const segmentTip = (cohort: PlannerCohort, seg: PlannerSegment, today: st
     return [
       `${cohort.name} · ${weeksLabel(total)} of classes`,
       seg.firstClass === seg.lastClass ? `Class ${seg.firstClass} of ${total}` : `Classes ${seg.firstClass}–${seg.lastClass} of ${total} (${weeksLabel(seg.weeks)})`,
-      seg.extension ? `${range} · added by a push-back` : range,
+      seg.extension ? `${range} · beyond the original cycle end` : range,
     ];
   }
   return [`${cohort.name} · ${KIND_NAME[seg.kind]}`, `${weeksLabel(seg.weeks)} · ${range}`];
@@ -53,7 +53,7 @@ export const weekTip = (cohort: PlannerCohort, week: PlannerWeek, today: string)
   const when = `${formatPlannerDate(week.start, false, today)} – ${formatPlannerDate(week.end, false, today)}`;
   if (week.kind === 'gap') return [`${week.event?.name ?? 'No class'}`, `No class on ${formatPlannerDate(week.end, true, today)}`];
   if (week.kind === 'classes') {
-    return [`${cohort.name} · Class ${week.classNumber} of ${cohort.classDates.length}`, week.extension ? `${when} · added by a push-back` : `Sunday ${formatPlannerDate(week.end, false, today)}`];
+    return [`${cohort.name} · Class ${week.classNumber} of ${cohort.classDates.length}`, week.extension ? `${when} · beyond the original cycle end` : `Sunday ${formatPlannerDate(week.end, false, today)}`];
   }
   return [`${cohort.name} · ${KIND_NAME[week.kind]}`, when];
 };

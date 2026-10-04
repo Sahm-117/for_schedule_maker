@@ -104,10 +104,12 @@ const YearTimeline: React.FC<YearTimelineProps> = ({ start, end, view, plan, eve
               </button>
               <div className="relative h-7 flex-1">
                 {cohortSegments(cohort, events).flatMap((seg) => seg.kind === 'gap'
-                  ? Array.from({ length: seg.weeks }, (_, i) => ({ ...seg, start: addDays(seg.start, 6 + i * 7), end: addDays(seg.start, 6 + i * 7), weeks: 1 }))
+                  ? Array.from({ length: seg.weeks }, (_, i) => ({ ...seg, start: addDays(seg.start, i * 7), end: addDays(seg.start, 6 + i * 7), weeks: 1 }))
                   : [seg]).map((seg) => {
                   if (seg.end < start || seg.start > end) return null;
                   const { left, width } = span(seg.start, seg.end);
+                  const sundayVisible = seg.end >= start && seg.end <= end;
+                  const sundayWidth = periodPercent(addDays(seg.end, 1), start, end) - periodPercent(seg.end, start, end);
                   const wide = (width / 100) * TRACK >= 22;
                   const lines = segmentTip(cohort, seg, today);
                   return (
@@ -116,10 +118,10 @@ const YearTimeline: React.FC<YearTimelineProps> = ({ start, end, view, plan, eve
                       type="button"
                       aria-label={lines.join('. ')}
                       {...bind(lines)}
-                      className={`absolute inset-y-0 flex items-center justify-center overflow-hidden rounded-md text-[11px] font-bold ${seg.kind === 'gap' ? '-translate-x-1/2 bg-transparent' : KIND_BAR[seg.kind]} ${cohort.planned && seg.kind !== 'gap' ? 'opacity-60' : ''}`}
-                      style={{ left: `${left}%`, width: seg.kind === 'gap' ? '12px' : `calc(${width}% - 2px)`, ...(seg.extension && seg.kind !== 'gap' ? EXTENSION_STRIPES : {}) }}
+                      className={`absolute inset-y-0 flex items-center justify-center overflow-hidden rounded-md text-[11px] font-bold ${seg.kind === 'gap' ? 'border border-gray-200 bg-gray-100 text-gray-500' : KIND_BAR[seg.kind]} ${cohort.planned && seg.kind !== 'gap' ? 'opacity-60' : ''}`}
+                      style={{ left: `${left}%`, width: `calc(${width}% - 2px)`, ...(seg.extension && seg.kind === 'classes' ? EXTENSION_STRIPES : {}) }}
                     >
-                      {seg.kind === 'gap' ? <span aria-hidden="true" className={`h-full w-[3px] rounded-sm ${KIND_BAR.gap}`} /> : wide && seg.weeks}
+                      {seg.kind === 'gap' ? <><span aria-hidden="true">{wide ? '—' : ''}</span>{sundayVisible && <span aria-hidden="true" className={`absolute inset-y-0 right-0 min-w-[3px] ${KIND_BAR.gap}`} style={{ width: `${Math.min(100, sundayWidth / width * 100)}%` }} />}</> : wide && seg.weeks}
                     </button>
                   );
                 })}
@@ -128,12 +130,12 @@ const YearTimeline: React.FC<YearTimelineProps> = ({ start, end, view, plan, eve
                     key={`${cl.event.id}-${cl.cls.date}`}
                     type="button"
                     onClick={() => onOpenClash(cl)}
-                    aria-label={`Clash: ${cl.event.name} on class ${cl.cls.weekNumber}. Open to adjust.`}
-                    className="absolute -top-2.5 z-10 flex h-5 w-5 -translate-x-1/2 items-center justify-center"
+                    aria-label={`Class ${cl.cls.weekNumber} clashes with ${cl.event.name} on ${formatPlannerDate(cl.cls.date, true, start)}. Review proposed dates.`}
+                    title={`Class ${cl.cls.weekNumber} is still scheduled during ${cl.event.name}. Review proposed dates.`}
+                    className={`absolute -top-3 z-10 flex h-5 -translate-x-1/2 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white ring-2 ring-white ${view === 'year' ? 'w-4' : 'px-1.5'}`}
                     style={{ left: `${periodPercent(cl.cls.date, start, end)}%` }}
                   >
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-50 motion-reduce:hidden" aria-hidden="true" />
-                    <span className="relative flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">!</span>
+                    {view === 'year' ? '!' : 'Clash'}
                   </button>
                 ))}
               </div>

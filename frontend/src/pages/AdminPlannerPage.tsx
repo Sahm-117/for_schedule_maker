@@ -55,8 +55,9 @@ const LEGEND: Array<{ label: string; cls: string; stripes?: boolean }> = [
   { label: 'Mobilisation', cls: KIND_BAR.mobilisation },
   { label: 'Classes', cls: KIND_BAR.classes },
   { label: 'Spare week', cls: KIND_BAR.spare },
-  { label: 'No Sunday class', cls: KIND_BAR.gap },
-  { label: 'Added by a push-back', cls: KIND_BAR.classes, stripes: true },
+  { label: 'Skipped week', cls: 'border border-gray-200 bg-gray-100' },
+  { label: 'Sunday skipped', cls: KIND_BAR.gap },
+  { label: 'Classes beyond original end', cls: KIND_BAR.classes, stripes: true },
 ];
 
 const AdminPlannerPage: React.FC = () => {
@@ -314,7 +315,7 @@ const AdminPlannerPage: React.FC = () => {
               ))}
               {todayInPeriod && <span className="flex items-center gap-1.5"><i className="h-3 w-0.5 rounded-full bg-primary" />Today</span>}
             </div>
-            <p className="mt-2 text-xs text-gray-400">Hover or tap a bar to see its weeks. Red markers show Sundays when no class can hold. Holidays are for information.</p></>}
+            <p className="mt-2 text-xs text-gray-400">Pale blocks keep skipped weeks visible; their red edge marks Sunday. A red {view === 'year' ? '!' : 'Clash'} warning means a scheduled class still needs attention. Tap it to preview new dates.</p></>}
           </section>
 
           <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">

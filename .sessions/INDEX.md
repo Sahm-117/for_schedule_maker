@@ -1,5 +1,6 @@
 | Date | Summary | Branch | Files Changed |
 | --- | --- | --- | --- |
+| 2026-10-04 | [Planner clarity](2026-10-04_planner-clarity.md): visible skipped-week blocks, solid spare, static clash warnings and explicit current/proposed preview. Build/browser checks passed; QA cleaned. | `codex/planner-sunday-clashes` → `main` | Planner timeline, cards, tooltip/legend, clash sheet |
 | 2026-10-04 | [Resource preview cards](2026-10-04_resource-preview-cards.md): image thumbnails, file illustrations, in-app PDF/image viewer and download states. Frontend build passed; QA records cleaned. | `codex/planner-sunday-clashes` → `main` | ResourceHubModal, DocumentViewerSheet, ResourceArtwork |
 | 2026-10-04 | [Planner views](2026-10-04_planner-views.md): Year default, Quarter timeline, Month calendar, Today/navigation and Sunday details; build and admin browser checks passed. | `codex/planner-sunday-clashes` → `main` | Planner page, timeline, month calendar, date helpers |
 | 2026-10-04 | [Remote review + planner Sundays](2026-10-04_remote-review-planner-sundays.md): current onboarding/activity reads corrected; Sunday-only clash markers; browser/build checks and QA cleanup passed. Legacy health timing backend follow-up recorded. | `codex/planner-sunday-clashes` → `main` | Supports, planner, people helpers, session notes |
