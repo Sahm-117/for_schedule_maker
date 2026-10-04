@@ -40,15 +40,28 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 )
 
-// Meeting reminders (group, hub, Hub Leads) only run inside a cohort that is
-// ACTIVE and has started (Lagos date on or after its start date). A cohort that
-// has not started, has finished, or is Practice sends none; with no running
-// cohort, nothing is sent.
+const getCurrentProgrammeCohortId = async (): Promise<string | null> => {
+  const { data, error } = await supabase.rpc('current_programme_cohort_id')
+  if (error) throw new Error(error.message)
+  return data ? String(data) : null
+}
+
+// Meeting reminders use the one cohort selected by the database's
+// automatic-current rule, then retain their existing safeguard of sending
+// only while that selected programme is actually running. Do not cache the
+// helper across edge requests: its date-based answer can change at midnight.
 const getRunningCohortIds = async (todayISO: string): Promise<Set<string>> => {
-  const { data } = await supabase.from('Cohort').select('id, startDate, isPractice').eq('status', 'ACTIVE')
-  return new Set(((data ?? []) as any[])
-    .filter((c) => !c.isPractice && c.startDate && String(c.startDate).slice(0, 10) <= todayISO)
-    .map((c) => c.id as string))
+  const currentId = await getCurrentProgrammeCohortId()
+  if (!currentId) return new Set<string>()
+  const { data, error } = await supabase
+    .from('Cohort')
+    .select('id, startDate, endDate')
+    .eq('id', currentId)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!data?.startDate || String(data.startDate).slice(0, 10) > todayISO) return new Set<string>()
+  if (data.endDate && String(data.endDate).slice(0, 10) < todayISO) return new Set<string>()
+  return new Set([currentId])
 }
 
 const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY')!
@@ -219,7 +232,7 @@ interface LiveWeek {
 }
 
 /**
- * Which week is currently "live" for each ACTIVE, published cohort.
+ * Which week is currently "live" for the automatic current, published cohort.
  *
  * Mirrors getIdealWeekNumberForCohort/getIdealWeekForCohort in
  * frontend/src/utils/weekFocus.ts, evaluated in Lagos time. Without this the
@@ -230,9 +243,12 @@ interface LiveWeek {
  * app at all, so reminding them about one would be incoherent.
  */
 const resolveLiveWeeks = async (todayIso: string, hour: number): Promise<LiveWeek[]> => {
+  const currentCohortId = await getCurrentProgrammeCohortId()
+  if (!currentCohortId) return []
   const { data: cohorts } = await supabase
     .from('Cohort')
     .select('id, startDate, endDate, schedulePublished, status')
+    .eq('id', currentCohortId)
     .eq('status', 'ACTIVE')
     .eq('schedulePublished', true)
 
@@ -243,6 +259,9 @@ const resolveLiveWeeks = async (todayIso: string, hour: number): Promise<LiveWee
     // A null startDate would otherwise pin the cohort to week 1 forever.
     if (!cohort.startDate) continue
     const startIso = String(cohort.startDate).slice(0, 10)
+    // The helper may select the next upcoming programme when nothing is
+    // running; activity reminders keep their pre-existing start-date gate.
+    if (todayIso < startIso) continue
     if (cohort.endDate && todayIso > String(cohort.endDate).slice(0, 10)) continue
 
     const { data: weeks } = await supabase
@@ -782,9 +801,10 @@ Deno.serve(async (req) => {
         if (r.failed > 0) console.error(`push-reminders (participants ${message.tag}): ${r.sent} sent, ${r.failed} failed, ${r.removed} removed`, JSON.stringify(r.errors))
       }
 
-      const { data: pCohorts } = onlyCohortId
-        ? await supabase.from('Cohort').select('id, startDate, endDate, status').eq('id', onlyCohortId)
-        : await supabase.from('Cohort').select('id, startDate, endDate, status').eq('status', 'ACTIVE')
+      const participantCohortId = onlyCohortId ?? await getCurrentProgrammeCohortId()
+      const { data: pCohorts } = participantCohortId
+        ? await supabase.from('Cohort').select('id, startDate, endDate, status').eq('id', participantCohortId)
+        : { data: [] }
       for (const cohort of (pCohorts ?? []) as any[]) {
         if (!cohort.startDate) continue
         const startIso = String(cohort.startDate).slice(0, 10)
@@ -982,9 +1002,10 @@ Deno.serve(async (req) => {
       //    Tag is per day and the 10-minute window is narrow, so a missed run never
       //    turns into a backlog. Lists only what each person still has to do.
       if (pNowMinutes >= 19 * 60 && pNowMinutes < 19 * 60 + 10) {
-        const { data: readyCohorts } = onlyCohortId
-          ? await supabase.from('Cohort').select('id, startDate, status').eq('id', onlyCohortId)
-          : await supabase.from('Cohort').select('id, startDate, status').neq('status', 'COMPLETED')
+        const readyCohortId = onlyCohortId ?? await getCurrentProgrammeCohortId()
+        const { data: readyCohorts } = readyCohortId
+          ? await supabase.from('Cohort').select('id, startDate, status').eq('id', readyCohortId)
+          : { data: [] }
         for (const cohort of (readyCohorts ?? []) as any[]) {
           if (!cohort.startDate || cohort.status === 'COMPLETED') continue
           const startIso = String(cohort.startDate).slice(0, 10)
@@ -1090,10 +1111,8 @@ Deno.serve(async (req) => {
         .not('ownerId', 'is', null)
 
       // Only the current cohort: supports can't see past-cohort people, so nudging about them is noise.
-      const { data: currentCohortRow } = await supabase
-        .from('Cohort').select('id').eq('status', 'ACTIVE').order('startDate', { ascending: false, nullsFirst: false }).limit(1).maybeSingle()
-      const currentCohortId = (currentCohortRow as any)?.id ?? null
-      const inCurrentCohort = (contact: any) => !contact.cohortId || !currentCohortId || contact.cohortId === currentCohortId
+      const currentCohortId = await getCurrentProgrammeCohortId()
+      const inCurrentCohort = (contact: any) => !contact.cohortId || contact.cohortId === currentCohortId
 
       const eligibleContacts = ((openContacts || []) as any[]).filter((contact) =>
         contact.nextAction !== 'CLOSE' && !TERMINAL_REGISTRATION_STATUSES.has(contact.registrationStatus)
@@ -1162,9 +1181,7 @@ Deno.serve(async (req) => {
       if (naSlot) {
         const naKind = `NO_ACTIVITY_${naSlot[1]}`
         const cutoffIso = new Date(naClock.getTime() - 24 * 60 * 60 * 1000).toISOString()
-        const { data: naCohortRow } = await supabase
-          .from('Cohort').select('id').eq('status', 'ACTIVE').order('startDate', { ascending: false, nullsFirst: false }).limit(1).maybeSingle()
-        const naCurrentCohortId = (naCohortRow as any)?.id ?? null
+        const naCurrentCohortId = await getCurrentProgrammeCohortId()
         const { data: assigned } = await supabase
           .from('FollowUpContact')
           .select('id, ownerId, fullName, nextAction, registrationStatus, ownerAssignedAt, statusChangedAt, cohortId')
@@ -1179,7 +1196,7 @@ Deno.serve(async (req) => {
           && !TERMINAL_REGISTRATION_STATUSES.has(contact.registrationStatus)
           && (!contact.statusChangedAt || contact.statusChangedAt < contact.ownerAssignedAt)
           && (!onlyUserIds || onlyUserIds.includes(contact.ownerId))
-          && (!contact.cohortId || !naCurrentCohortId || contact.cohortId === naCurrentCohortId)
+          && (!contact.cohortId || contact.cohortId === naCurrentCohortId)
         )
 
         // An issue logged on the contact since it was assigned (any status) also stops the nudge.
