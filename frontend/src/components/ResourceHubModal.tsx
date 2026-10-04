@@ -5,6 +5,7 @@ import { useAppData } from '../context/AppDataContext';
 import type { Resource, SupportHub } from '../types';
 import { downloadFile } from '../utils/download';
 import DocumentViewerSheet from './DocumentViewerSheet';
+import ResourceArtwork from './resources/ResourceArtwork';
 import { sortByText } from '../utils/sort';
 import AppOverflowMenu from './AppOverflowMenu';
 import ResourceEditorModal from './resources/ResourceEditorModal';
@@ -21,55 +22,11 @@ interface ResourceHubModalProps {
   layout?: 'list' | 'grid';
 }
 
-const TYPE_ICONS: Record<Resource['type'], React.ReactNode> = {
-  link: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-    </svg>
-  ),
-  pdf: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-    </svg>
-  ),
-  doc: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-  ),
-  image: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-  ),
-  file: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-    </svg>
-  ),
-};
-
-const TYPE_COLORS: Record<Resource['type'], string> = {
-  link: 'bg-blue-50 text-blue-600',
-  pdf: 'bg-red-50 text-red-600',
-  doc: 'bg-indigo-50 text-indigo-600',
-  image: 'bg-purple-50 text-purple-600',
-  file: 'bg-gray-100 text-gray-600',
-};
-
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
-
-const TYPE_KIND: Record<Resource['type'], string> = {
-  link: 'LINK',
-  pdf: 'PDF',
-  doc: 'DOC',
-  image: 'IMG',
-  file: 'FILE',
-};
 
 const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, onViewed, embedded = false, layout = 'list' }) => {
   const { isAdmin } = useAuth();
@@ -179,19 +136,24 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
               {isAdmin && <p className="text-xs text-gray-400 mt-1">Tap Add to upload files or add links</p>}
             </div>
           ) : layout === 'grid' ? (
-            <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
+            <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 210px), 1fr))' }}>
               {resources.map((r) => {
-                const meta = r.fileName && r.fileSize ? `${r.fileName} · ${formatBytes(r.fileSize)}` : r.description || (r.type === 'link' ? r.url : '');
+                const meta = [r.type === 'image' ? 'Image' : r.type === 'pdf' ? 'PDF document' : r.type === 'link' ? 'Web link' : 'Document', r.fileSize ? formatBytes(r.fileSize) : null].filter(Boolean).join(' · ');
                 const inner = (
                   <>
-                    <span className={`grid h-12 w-12 place-items-center rounded-full text-[11px] font-bold ${TYPE_COLORS[r.type]}`}>{TYPE_KIND[r.type]}</span>
-                    <span className="min-w-0">
-                      <span className="block text-[15px] font-bold text-gray-800">{r.title}</span>
-                      {meta && <span className="mt-1 block truncate text-xs text-gray-400">{meta}</span>}
+                    <ResourceArtwork resource={r} />
+                    <span className="flex min-w-0 flex-1 flex-col p-4">
+                      <span className="block text-[15px] font-semibold leading-snug text-gray-900 [overflow-wrap:anywhere]">{r.title}</span>
+                      <span className="mt-1.5 block text-xs text-gray-500">{meta}</span>
+                      {r.description && <span className="mt-2 line-clamp-2 text-xs leading-relaxed text-gray-500">{r.description}</span>}
+                      <span className="mt-auto flex items-center justify-between gap-2 pt-4 text-xs font-semibold text-gray-600">
+                        {r.type === 'link' ? 'Open link' : r.type === 'pdf' || r.type === 'image' ? 'View in app' : 'Download file'}
+                        <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path strokeLinecap="round" strokeLinejoin="round" d={r.type === 'link' ? 'M7 17 17 7M7 7h10v10' : 'm9 5 7 7-7 7'} /></svg>
+                      </span>
                     </span>
                   </>
                 );
-                const cardCls = 'flex flex-col gap-3.5 rounded-[20px] border border-[#eef0f4] bg-white p-5 text-left shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)] transition hover:border-[#ffdeca]';
+                const cardCls = 'group flex min-w-0 flex-col overflow-hidden rounded-[20px] border border-[#e9ebef] bg-white text-left shadow-sm transition hover:border-[#d3d7df] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2';
                 return r.type === 'link' ? (
                   <a key={r.id} href={r.url} target="_blank" rel="noopener noreferrer" className={cardCls}>{inner}</a>
                 ) : (
@@ -205,21 +167,12 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
                   </button>
                 );
               })}
-              <DocumentViewerSheet
-                open={!!viewing}
-                url={viewing?.url ?? null}
-                title={viewing?.title ?? ''}
-                fileName={viewing?.fileName}
-                onClose={() => setViewing(null)}
-              />
             </div>
           ) : (
             <div className="space-y-2">
               {resources.map((r) => (
                 <div key={r.id} className="flex items-start gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
-                  <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${TYPE_COLORS[r.type]}`}>
-                    {TYPE_ICONS[r.type]}
-                  </div>
+                  <ResourceArtwork resource={r} compact />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">{r.title}</p>
                     {r.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{r.description}</p>}
@@ -264,9 +217,9 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
                     ) : (
                       <button
                         type="button"
-                        onClick={() => { void downloadFile(r.url, r.fileName ?? r.title); }}
+                        onClick={() => { if (r.type === 'pdf' || r.type === 'image') setViewing(r); else void downloadFile(r.url, r.fileName ?? r.title); }}
                         className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                        title="Download"
+                        title={r.type === 'pdf' || r.type === 'image' ? 'View in app' : 'Download'}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -289,6 +242,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
             </div>
           )}
       </div>
+      <DocumentViewerSheet open={!!viewing} url={viewing?.url ?? null} title={viewing?.title ?? ''} fileName={viewing?.fileName} fileType={viewing?.type} onClose={() => setViewing(null)} />
     </>
   );
 
