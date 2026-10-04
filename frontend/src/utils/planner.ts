@@ -64,6 +64,31 @@ export const addDays = (iso: string, days: number) =>
 const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
 
+export type PlannerView = 'year' | 'quarter' | 'month';
+
+/** Visible dates for the selected planner scale. Cursor stays on the first of a month. */
+export const plannerPeriod = (cursor: string, view: PlannerView) => {
+  const year = Number(cursor.slice(0, 4));
+  const month = Number(cursor.slice(5, 7));
+  const firstMonth = view === 'year' ? 1 : view === 'quarter' ? Math.floor((month - 1) / 3) * 3 + 1 : month;
+  const months = view === 'year' ? 12 : view === 'quarter' ? 3 : 1;
+  const start = `${year}-${String(firstMonth).padStart(2, '0')}-01`;
+  const end = addDays(new Date(Date.UTC(year, firstMonth - 1 + months, 1)).toISOString().slice(0, 10), -1);
+  return { start, end, year, month: firstMonth, view };
+};
+
+export const movePlannerPeriod = (cursor: string, view: PlannerView, steps: number) => {
+  const months = view === 'year' ? 12 : view === 'quarter' ? 3 : 1;
+  return new Date(Date.UTC(Number(cursor.slice(0, 4)), Number(cursor.slice(5, 7)) - 1 + months * steps, 1)).toISOString().slice(0, 10);
+};
+
+/** A date's position in a selected period, with an extra day for inclusive end dates. */
+export const periodPercent = (iso: string, start: string, end: string) =>
+  Math.min(100, Math.max(0, (daysBetween(start, iso) / daysBetween(start, addDays(end, 1))) * 100));
+
+export const cohortOverlapsPeriod = (cohort: PlannerCohort, start: string, end: string) =>
+  cohort.phases[0].start <= end && cohort.cycleEnd >= start;
+
 /**
  * Phases worked out from the class Sundays: rest and mobilisation before, the
  * spare week after until the cycle ends. Once a pushed-back class has used the

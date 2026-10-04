@@ -4,12 +4,14 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import Spinner from '../components/Spinner';
+import SegmentedTabs from '../components/SegmentedTabs';
 import { useToast } from '../components/Toast';
 import ChurchEventSheet from '../components/planner/ChurchEventSheet';
 import ClassDatesSheet from '../components/planner/ClassDatesSheet';
 import CohortCard from '../components/planner/CohortCard';
 import CohortSheet from '../components/planner/CohortSheet';
 import PushBackSheet from '../components/planner/PushBackSheet';
+import MonthCalendar from '../components/planner/MonthCalendar';
 import YearTimeline, { runsInYear } from '../components/planner/YearTimeline';
 import { EXTENSION_STRIPES, KIND_BAR } from '../components/planner/PlannerBits';
 import { useAuth } from '../hooks/useAuth';
@@ -18,13 +20,17 @@ import { plannerApi } from '../services/api';
 import {
   buildPlannerCohorts,
   cohortsStartingIn,
+  cohortOverlapsPeriod,
   currentMoment,
   describeMoment,
   findClashes,
   formatPlannerDate,
   nextMoment,
+  movePlannerPeriod,
+  periodPercent,
+  plannerPeriod,
   plannerToday,
-  yearPercent,
+  type PlannerView,
   type PlannerClash,
   type PlannerCohort,
 } from '../utils/planner';
@@ -58,7 +64,11 @@ const AdminPlannerPage: React.FC = () => {
   const { cohorts, reloadCohorts } = useAppData();
   const today = plannerToday();
   const thisYear = Number(today.slice(0, 4));
-  const [year, setYear] = useState(thisYear);
+  const [view, setView] = useState<PlannerView>('year');
+  const [cursor, setCursor] = useState(`${today.slice(0, 7)}-01`);
+  const [todayRequest, setTodayRequest] = useState(0);
+  const period = plannerPeriod(cursor, view);
+  const year = period.year;
   const [weeks, setWeeks] = useState<ClassWeekRow[] | null>(null);
   const [error, setError] = useState('');
   const [holidays, setHolidays] = useState<PublicHoliday[] | null>(null);
@@ -145,13 +155,13 @@ const AdminPlannerPage: React.FC = () => {
   const firstYear = plan.length > 0 ? Math.min(thisYear, Number(plan[0].phases[0].start.slice(0, 4))) : thisYear;
   const clashes = useMemo(() => findClashes(plan, events, today), [plan, events, today]);
 
-  // Bring today, or the start of the year, into view on a phone.
+  // Bring today, or the start of the selected period, into view on a phone.
   useLayoutEffect(() => {
     const el = scroller.current;
     if (!el) return;
-    const pct = today.startsWith(String(year)) ? yearPercent(today, year) : 0;
+    const pct = today >= period.start && today <= period.end ? periodPercent(today, period.start, period.end) : 0;
     el.scrollLeft = Math.max(0, (640 * pct) / 100 - 60);
-  }, [year, today, weeks]);
+  }, [period.start, period.end, view, today, todayRequest, weeks]);
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -163,7 +173,6 @@ const AdminPlannerPage: React.FC = () => {
       ? { title: `${next.cohort.name} classes`, detail: `First class ${formatPlannerDate(next.cohort.classDates[0], true, today)}` }
       : { title: `${next.cohort.name} mobilisation`, detail: `Starts ${formatPlannerDate(next.phase.start, true, today)}` }
     : null;
-  const startingThisYear = cohortsStartingIn(plan, year);
   const firstClash = clashes.find((c) => !c.cohort.planned) ?? clashes[0] ?? null;
   const clashIndex = activeClash ? plan.findIndex((c) => c.key === activeClash.cohort.key) : -1;
   const nextCohortName = clashIndex >= 0 ? plan[clashIndex + 1]?.name ?? null : null;
@@ -193,18 +202,19 @@ const AdminPlannerPage: React.FC = () => {
     }
     return null;
   };
-  const todayInYear = today.startsWith(String(year));
-  const yearHolidays = (holidays ?? []).filter((h) => h.date.startsWith(String(year)));
-  const startCount = startingThisYear.length;
-  const yearCohorts = plan.filter((c) => runsInYear(c, year));
+  const todayInPeriod = today >= period.start && today <= period.end;
+  const periodHolidays = (holidays ?? []).filter((h) => h.date >= period.start && h.date <= period.end);
+  const startCount = plan.filter((c) => c.classDates[0] >= period.start && c.classDates[0] <= period.end).length;
+  const periodCohorts = plan.filter((c) => view === 'year' ? runsInYear(c, year) : cohortOverlapsPeriod(c, period.start, period.end));
+  const periodTitle = view === 'year' ? String(year) : view === 'quarter' ? `Q${Math.ceil(period.month / 3)} ${year}` : new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${period.start}T00:00:00Z`));
 
-  const yearSwitcher = (
-    <div className={`${SURFACE} flex w-fit items-center gap-1 p-1`} role="group" aria-label="Year">
-      <button type="button" onClick={() => setYear((y) => y - 1)} disabled={year <= firstYear} aria-label="Previous year" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 disabled:opacity-30">
+  const periodSwitcher = (
+    <div className="flex min-w-0 items-center gap-1" role="group" aria-label="Planner period">
+      <button type="button" onClick={() => setCursor((date) => movePlannerPeriod(date, view, -1))} disabled={period.start <= `${firstYear}-01-01`} aria-label={`Previous ${view}`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 disabled:opacity-30">
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
       </button>
-      <span className="min-w-[3.5rem] text-center text-[15px] font-bold tabular-nums text-gray-900">{year}</span>
-      <button type="button" onClick={() => setYear((y) => y + 1)} disabled={year >= lastYear} aria-label="Next year" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 disabled:opacity-30">
+      <h2 className="min-w-0 text-center text-[17px] font-bold tabular-nums tracking-tight text-gray-900" aria-live="polite">{periodTitle}</h2>
+      <button type="button" onClick={() => setCursor((date) => movePlannerPeriod(date, view, 1))} disabled={period.end >= `${lastYear}-12-31`} aria-label={`Next ${view}`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 disabled:opacity-30">
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
       </button>
     </div>
@@ -263,37 +273,52 @@ const AdminPlannerPage: React.FC = () => {
             )}
           </div>
 
-          <section className={`${SURFACE} p-4 sm:p-5`}>
-            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-              {yearSwitcher}
-              <p className="text-[13px] text-gray-500">
-                {startCount} cohort{startCount === 1 ? '' : 's'} start{startCount === 1 ? 's' : ''}
-                {startCount === 3 ? ' · on track for 3' : startCount < 3 ? ' · aim is 3' : ' · more than the usual 3'}
-              </p>
+          <section className={`${SURFACE} p-4 sm:p-5`} aria-label="Planner calendar">
+            <div className="mb-4 flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center justify-between gap-1 sm:justify-start">
+                {periodSwitcher}
+                <button type="button" onClick={() => { setCursor(`${today.slice(0, 7)}-01`); setTodayRequest((value) => value + 1); }} className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-200">Today</button>
+              </div>
+              <SegmentedTabs tabs={[{ key: 'year', label: 'Year' }, { key: 'quarter', label: 'Quarter' }, { key: 'month', label: 'Month' }]} active={view} onChange={(key) => setView(key as PlannerView)} className="sm:w-64" />
             </div>
-            <YearTimeline
-              year={year}
+            <p className="mb-4 text-xs text-gray-500">{startCount} cohort{startCount === 1 ? '' : 's'} start{startCount === 1 ? 's' : ''} this {view}{view === 'year' ? (startCount === 3 ? ' · on track for 3' : startCount < 3 ? ' · aim is 3' : ' · more than the usual 3') : ''}</p>
+            {view === 'month' ? <MonthCalendar
+              key={`${period.start}-${todayRequest}`}
+              start={period.start}
+              end={period.end}
+              today={today}
+              plan={periodCohorts}
+              events={events}
+              holidays={periodHolidays}
+              clashes={clashes}
+              onOpenCohort={(cohort) => setCohortSheet({ cohort, adding: false })}
+              onOpenEvent={(event) => setEventSheet({ event })}
+              onOpenClash={setActiveClash}
+            /> : <YearTimeline
+              start={period.start}
+              end={period.end}
+              view={view}
               plan={plan}
               events={events}
-              holidays={yearHolidays}
+              holidays={periodHolidays}
               clashes={clashes}
               today={today}
               scrollRef={scroller}
               onOpenCohort={(cohort) => setCohortSheet({ cohort, adding: false })}
               onOpenEvent={(event) => setEventSheet({ event })}
               onOpenClash={setActiveClash}
-            />
-            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-gray-100 pt-4 text-xs font-semibold text-gray-600">
+            />}
+            {view !== 'month' && <><div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-gray-100 pt-4 text-xs font-semibold text-gray-600">
               {LEGEND.map((item) => (
                 <span key={item.label} className="flex items-center gap-1.5"><i className={`h-3 w-5 rounded ${item.cls}`} style={item.stripes ? EXTENSION_STRIPES : undefined} />{item.label}</span>
               ))}
-              {todayInYear && <span className="flex items-center gap-1.5"><i className="h-3 w-0.5 rounded-full bg-primary" />Today</span>}
+              {todayInPeriod && <span className="flex items-center gap-1.5"><i className="h-3 w-0.5 rounded-full bg-primary" />Today</span>}
             </div>
-            <p className="mt-2 text-xs text-gray-400">Hover or tap a bar to see its weeks. Red markers show Sundays when no class can hold. Holidays are for information.</p>
+            <p className="mt-2 text-xs text-gray-400">Hover or tap a bar to see its weeks. Red markers show Sundays when no class can hold. Holidays are for information.</p></>}
           </section>
 
           <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            {yearCohorts.map((cohort) => (
+            {periodCohorts.map((cohort) => (
               <CohortCard key={cohort.key} cohort={cohort} events={events} today={today} onOpen={() => setCohortSheet({ cohort, adding: false })} />
             ))}
           </ul>

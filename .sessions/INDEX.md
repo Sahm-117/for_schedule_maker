@@ -1,5 +1,6 @@
 | Date | Summary | Branch | Files Changed |
 | --- | --- | --- | --- |
+| 2026-10-04 | [Planner views](2026-10-04_planner-views.md): Year default, Quarter timeline, Month calendar, Today/navigation and Sunday details; build and admin browser checks passed. | `codex/planner-sunday-clashes` → `main` | Planner page, timeline, month calendar, date helpers |
 | 2026-10-04 | [Remote review + planner Sundays](2026-10-04_remote-review-planner-sundays.md): current onboarding/activity reads corrected; Sunday-only clash markers; browser/build checks and QA cleanup passed. Legacy health timing backend follow-up recorded. | `codex/planner-sunday-clashes` → `main` | Supports, planner, people helpers, session notes |
 | 2026-10-03 | [Compact support cards](2026-10-03_compact-support-cards.md): compact summary + Details, existing controls retained; build, admin browser checks and QA cleanup passed. | `codex/practice-regression-fixes` → `main` | AdminSupportsPage, session notes |
 | 2026-10-03 | [Supports tabs](2026-10-03_supports-scroll-tabs.md): status filters stay on one horizontally scrollable row; mobile/tablet/desktop checks passed. | `codex/practice-regression-fixes` → `main` | AdminSupportsPage, session notes |
