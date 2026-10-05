@@ -99,6 +99,7 @@ export const useAppSetup = () => {
     canInstallNatively: pwa.hasNativePrompt,
     install: pwa.install,
     isInstalling: pwa.isInstalling,
+    installPhase: pwa.installPhase,
     refresh,
   };
 };

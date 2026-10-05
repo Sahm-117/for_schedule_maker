@@ -66,6 +66,10 @@ const AppSetupSteps: React.FC<Props> = ({ setup, audience = 'participant', enabl
   const { installed, notifications } = setup;
   const installedElsewhere = setup.installedElsewhere && !stepsAnyway;
   const notifLocked = iphone && !installed && !override;
+  // Android: notifications stay locked until the app is on the Home Screen and
+  // opened from there. Otherwise the permission lands in a browser tab and the
+  // person believes a browser tab is the app.
+  const needInstallFirst = shown === 'android' && !installed;
 
   const copyLink = async () => {
     try {
@@ -142,10 +146,26 @@ const AppSetupSteps: React.FC<Props> = ({ setup, audience = 'participant', enabl
             ) : shown === 'android' ? (
               setup.canInstallNatively ? (
                 <>
-                  <p className="text-[14px] leading-snug text-gray-700">Tap the button. Your phone will ask you to confirm.</p>
-                  <button type="button" onClick={() => { void setup.install(); }} disabled={setup.isInstalling} className="mt-3 min-h-[48px] w-full rounded-xl bg-primary text-[15px] font-semibold text-white disabled:opacity-60">
-                    {setup.isInstalling ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-4 w-4" />Opening…</span>) : 'Install the app'}
-                  </button>
+                  <p className="mt-2 flex items-start gap-1.5 rounded-xl bg-gray-100 px-3 py-2 text-[13px] leading-snug text-gray-600"><svg className="mt-0.5 h-4 w-4 flex-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" strokeWidth="1.8" /><path strokeLinecap="round" d="M12 11v5" strokeWidth="1.8" /><circle cx="12" cy="8" r="1.1" fill="currentColor" stroke="none" /></svg><span>No space needed. This only adds a small icon.</span></p>
+                  {setup.installPhase === 'installing' ? (
+                    <div className="mt-3 rounded-xl border border-orange-200 bg-orange-50 px-3.5 py-3">
+                      <p className="inline-flex items-center gap-2 text-[14px] font-bold text-gray-900"><Spinner className="h-4 w-4" />Installing.</p>
+                      <p className="mt-1 text-[13.5px] leading-snug text-gray-700">Keep this screen open.</p>
+                    </div>
+                  ) : setup.installPhase === 'installed' && !installed ? (
+                    <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3">
+                      <p className="text-[14px] font-bold text-emerald-800">Installed. Open the app from your Home Screen to continue.</p>
+                    </div>
+                  ) : setup.installPhase === 'dismissed' ? (
+                    <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3">
+                      <p className="text-[14px] font-bold text-gray-900">Not installed. You closed the box.</p>
+                      <p className="mt-1 text-[13.5px] leading-snug text-gray-700">Reload the page and try again.</p>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => { void setup.install(); }} disabled={setup.isInstalling} className="mt-3 min-h-[48px] w-full rounded-xl bg-primary text-[15px] font-semibold text-white disabled:opacity-60">
+                      {setup.isInstalling ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-4 w-4" />Opening…</span>) : 'Install the app'}
+                    </button>
+                  )}
                 </>
               ) : (
                 <ol className="space-y-2.5">
@@ -209,7 +229,10 @@ const AppSetupSteps: React.FC<Props> = ({ setup, audience = 'participant', enabl
             ) : (
               <>
                 <p className="text-[14px] leading-snug text-gray-700">{audience === 'staff' ? 'You will get schedule changes, approvals, reminders and announcements.' : 'You will get your class and group call reminders, and messages from the team.'} When your phone asks, tap <b>Allow</b>.</p>
-                <button type="button" onClick={() => { void enableNotifications(); }} disabled={enabling} className="mt-3 min-h-[48px] w-full rounded-xl bg-primary text-[15px] font-semibold text-white disabled:opacity-60">
+                {needInstallFirst && (
+                  <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[13px] font-semibold leading-snug text-amber-900">Do step 1 first, then turn this on inside the app.</p>
+                )}
+                <button type="button" onClick={() => { void enableNotifications(); }} disabled={enabling || needInstallFirst} className="mt-3 min-h-[48px] w-full rounded-xl bg-primary text-[15px] font-semibold text-white disabled:opacity-60">
                   {enabling ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-4 w-4" />Turning on…</span>) : 'Turn on notifications'}
                 </button>
               </>

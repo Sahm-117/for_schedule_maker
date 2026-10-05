@@ -7,7 +7,7 @@ const APP_SHORT_NAME = 'FOF Ops';
 const APP_ICON_SRC = '/icon-192.png';
 
 const PWAInstallBanner: React.FC = () => {
-  const { canInstall, install, dismiss, isIOSDevice, isAndroidDevice, isInstalling, isStandalone, hasNativePrompt } = usePWAInstall();
+  const { canInstall, install, dismiss, isIOSDevice, isAndroidDevice, isInstalling, isStandalone, hasNativePrompt, installPhase } = usePWAInstall();
 
   if (!canInstall || isStandalone) return null;
 
@@ -76,14 +76,18 @@ const PWAInstallBanner: React.FC = () => {
                 {isIOSDevice ? 'Dismiss' : 'Cancel'}
               </button>
               {!isIOSDevice && (
-                <button
-                  type="button"
-                  onClick={() => { void install(); }}
-                  disabled={isInstalling}
-                  className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isInstalling ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Opening…</span>) : 'Install'}
-                </button>
+                installPhase === 'dismissed' ? (
+                  <span className="px-4 py-2 text-sm font-semibold text-gray-500">Reload the page to try again</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { void install(); }}
+                    disabled={isInstalling}
+                    className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isInstalling ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Opening…</span>) : 'Install'}
+                  </button>
+                )
               )}
             </div>
           </div>
