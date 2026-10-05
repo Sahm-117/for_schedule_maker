@@ -7,6 +7,9 @@ import LoadRing from '../LoadRing';
 import { genderAgeLine } from '../../utils/people';
 import AppOverflowMenu from '../AppOverflowMenu';
 import NotInterestedPopup from './NotInterestedPopup';
+import ModalShell from './ModalShell';
+import LoginDetailsCard from '../participants/LoginDetailsCard';
+import { hasLoginToSend } from '../../utils/loginEmail';
 import LoginIssuePopup from './LoginIssuePopup';
 import PriorCohortChip from './PriorCohortChip';
 import {
@@ -118,6 +121,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const [savingFields, setSavingFields] = useState<Set<string>>(new Set());
   const [notInterestedContact, setNotInterestedContact] = useState<FollowUpContact | null>(null);
   const [loginIssueContact, setLoginIssueContact] = useState<FollowUpContact | null>(null);
+  const [resetLoginContact, setResetLoginContact] = useState<FollowUpContact | null>(null);
   const [pendingClose, setPendingClose] = useState<{ contact: FollowUpContact; status: 'REGISTERED' | 'WRONG_NUMBER' } | null>(null);
   const [closeNotes, setCloseNotes] = useState('');
   const [copiedPhoneId, setCopiedPhoneId] = useState<string | null>(null);
@@ -321,6 +325,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         ...(contact.email ? [{ label: 'Send email', onClick: () => { if (onEmail) onEmail(contact); else window.location.href = `mailto:${contact.email}`; }, icon: EmailIcon }] : []),
         ...(canAssign ? [{ label: 'Assign a support', onClick: () => { setOwnerSearch(''); setAssigningOwner(contact); } }] : []),
         { label: 'Edit contact', onClick: () => onEdit(contact) },
+        ...(hasLoginToSend(contact) ? [{ label: 'Reset password', onClick: () => setResetLoginContact(contact) }] : []),
         { label: `Due date: ${contact.dueDate ? dateLabel(contact.dueDate) : 'none'}`, onClick: () => { setDueDateValue(contact.dueDate || ''); setEditingDueDate(contact); } },
         { label: contact.notes ? `View note` : `Add note`, onClick: () => { setNotesValue(contact.notes || ''); setEditingNotes(contact); } },
         ...(canAssign ? [{ label: contact.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => onFieldChange(contact, { isTest: !contact.isTest }) }] : []),
@@ -695,6 +700,15 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
           }}
         />
       )}
+
+      <ModalShell
+        isOpen={!!resetLoginContact}
+        onClose={() => setResetLoginContact(null)}
+        title="Reset password"
+        subtitle={resetLoginContact ? `They get a new first-time code. Send it to ${resetLoginContact.fullName.split(' ')[0]} straight after.` : undefined}
+      >
+        {resetLoginContact && <LoginDetailsCard followUpContactId={resetLoginContact.id} email={resetLoginContact.email} defaultOpen />}
+      </ModalShell>
 
       {pendingClose && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[140] flex items-end justify-center sm:items-center" onClick={() => setPendingClose(null)}>

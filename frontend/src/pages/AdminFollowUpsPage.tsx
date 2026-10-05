@@ -51,6 +51,7 @@ import {
   contactMatchesSearch,
 } from '../utils/followUps';
 import { DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
+import { AGE_RANGE_OPTIONS } from '../constants/departments';
 import { compareText, sortByText } from '../utils/sort';
 import { normalizeToIntlPhone } from '../utils/phone';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -64,10 +65,11 @@ interface FilterState {
   next: string;
   archived: boolean;
   gender: string;
+  age: string;
   assignment: string;
 }
 
-const EMPTY_FILTERS: FilterState = { reply: '', call: '', reg: '', next: '', archived: false, gender: '', assignment: '' };
+const EMPTY_FILTERS: FilterState = { reply: '', call: '', reg: '', next: '', archived: true, gender: '', age: '', assignment: '' };
 
 const ASSIGNMENT_TAG_KEY: Record<string, string> = {
   'Waiting to be assigned': 'waiting',
@@ -81,6 +83,7 @@ const statusGroups: Array<{ key: keyof FilterState; label: string; options: Arra
   { key: 'reg', label: 'Registration', options: Object.entries(REGISTRATION_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
   { key: 'next', label: 'Next action', options: Object.entries(NEXT_ACTION_META).map(([v, m]) => ({ value: v, label: m.label })) },
   { key: 'gender', label: 'Gender', options: [{ value: 'Male', label: 'Male' }, { value: 'Female', label: 'Female' }] },
+  { key: 'age', label: 'Age', options: [...AGE_RANGE_OPTIONS.map((range) => ({ value: range, label: range })), { value: '__unknown', label: 'Age not known' }] },
   { key: 'assignment', label: 'Assignment', options: [
     { value: 'all', label: 'Everyone waiting' },
     { value: 'waiting', label: 'Ready to assign' },
@@ -108,6 +111,7 @@ function activeFilterCount(f: FilterState): number {
   if (f.next) n++;
   if (f.archived) n++;
   if (f.gender) n++;
+  if (f.age) n++;
   if (f.assignment) n++;
   return n;
 }
@@ -267,6 +271,8 @@ const AdminFollowUpsPage: React.FC = () => {
       if (filters.reg && c.registrationStatus !== filters.reg) return false;
       if (filters.next && c.nextAction !== filters.next) return false;
       if (filters.gender && c.gender !== filters.gender) return false;
+      if (filters.age === '__unknown' && c.ageRange) return false;
+      if (filters.age && filters.age !== '__unknown' && (c.ageRange || '') !== filters.age) return false;
       if (filters.assignment) {
         const tag = unassignedFollowUpTag(c, owners, ownerLoad, maxLoad);
         // "all": everyone waiting, whatever the reason.

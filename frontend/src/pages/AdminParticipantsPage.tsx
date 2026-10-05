@@ -769,6 +769,7 @@ const AdminParticipantsContent: React.FC = () => {
   const [archiveTarget, setArchiveTarget] = useState<Participant | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Participant | null>(null);
   const [firstTimeTarget, setFirstTimeTarget] = useState<Participant | null>(null);
+  const [resetFor, setResetFor] = useState<Participant | null>(null);
   const toast = useToast();
   const navigate = useNavigate();
   const [flags, setFlags] = useState<ParticipantFlag[]>([]);
@@ -1082,6 +1083,7 @@ const AdminParticipantsContent: React.FC = () => {
                                 { label: 'Assign to group', onClick: () => setAssigning(p) },
                                 { label: 'Mark as retaking', onClick: () => setRetakeMarking(p) },
                                 { label: 'Reset first-time experience', onClick: () => setFirstTimeTarget(p) },
+                                { label: 'Reset password', onClick: () => setResetFor(p) },
                                 { label: p.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => void handleSetTest(p, !p.isTest) },
                                 { label: 'Archive', onClick: () => setArchiveTarget(p), tone: 'danger' },
                               ]}
@@ -1350,6 +1352,15 @@ const AdminParticipantsContent: React.FC = () => {
         subtitle={loginFor ? `${loginFor.fullName} was added. Send them their login for the app.` : undefined}
       >
         {loginFor && <LoginDetailsCard participantId={loginFor.id} email={loginFor.email} startDate={cohorts.find((c) => c.id === loginFor.cohortId)?.startDate} defaultOpen />}
+      </ModalShell>
+
+      <ModalShell
+        isOpen={!!resetFor}
+        onClose={() => setResetFor(null)}
+        title="Reset password"
+        subtitle={resetFor ? `They get a new first-time code. Send it to ${resetFor.fullName.split(' ')[0]} straight after.` : undefined}
+      >
+        {resetFor && <LoginDetailsCard participantId={resetFor.id} email={resetFor.email} startDate={cohorts.find((c) => c.id === resetFor.cohortId)?.startDate} defaultOpen />}
       </ModalShell>
 
       <RequestInfoModal isOpen={requestInfoOpen} onClose={() => setRequestInfoOpen(false)} />
