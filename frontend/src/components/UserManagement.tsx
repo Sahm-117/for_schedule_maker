@@ -436,6 +436,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
     '',
     "*If you haven't installed the app yet:* watch the video for your phone, then open the app, sign in and tap *Allow* when it asks about notifications.",
     `Android: ${INSTALL_VIDEO_ANDROID}`,
+    '',
     `iPhone: ${INSTALL_VIDEO_IOS}`,
     '',
     'Open the app here: https://fof.tcnikorodu.org',
