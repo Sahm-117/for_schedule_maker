@@ -2,7 +2,8 @@
 -- "18 and below". Both age mappers dropped the form wording, so every
 -- under-18 kept a blank age and the "18 and below" filter found nobody.
 -- Map the form wording going forward and backfill the rows it missed.
--- NOT APPLIED YET: review first, then apply to the live database.
+-- Applied live 2026-10-05: 12 contacts and 12 participants set to
+-- "18 and below"; the mapper now accepts the form wording going forward.
 
 -- 1. Going forward: fill_profile_from_form accepts the form's wording.
 CREATE OR REPLACE FUNCTION public.fill_profile_from_form(p_registration_id UUID)
