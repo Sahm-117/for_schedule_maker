@@ -47,7 +47,6 @@ import {
   FOLLOW_UP_STATUS_META,
   openLoadByOwner,
   unassignedFollowUpTag,
-  genderCapacityOutlook,
   contactMatchesSearch,
 } from '../utils/followUps';
 import { DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
@@ -741,15 +740,6 @@ const AdminFollowUpsPage: React.FC = () => {
             </section>
           )}
           {tab === 'overview' && <FollowUpDashboard contacts={dashboardContacts} cohortId={cohortFilter || null} cohortName={cohorts.find((c) => c.id === cohortFilter)?.name} onShowUnassigned={showUnassigned} />}
-          {tab === 'contacts' && (
-            <FollowUpAssignmentSummary
-              contacts={dashboardContacts}
-              owners={realOwners}
-              ownerLoad={ownerLoad}
-              maxLoad={maxLoad}
-              onSetAssignmentFilter={(value) => setFilters((f) => ({ ...f, assignment: f.assignment === value ? '' : value }))}
-            />
-          )}
           {tab === 'contacts' && statusParam && (
             <div className="mb-3 flex items-center gap-2">
               <span className="text-xs text-gray-500">Showing</span>
@@ -986,85 +976,6 @@ const AdminFollowUpsPage: React.FC = () => {
         confirmText="Assign now"
         type="warning"
       />
-    </div>
-  );
-};
-
-// Contacts tab summary cards: per-gender capacity outlook, supports at the
-// limit, and how many are waiting / stuck. Tapping a number filters the list
-// below via the same Assignment filter the drawer uses.
-const FollowUpAssignmentSummary: React.FC<{
-  contacts: FollowUpContact[];
-  owners: User[];
-  ownerLoad: Map<string, number>;
-  maxLoad: number;
-  onSetAssignmentFilter: (value: string) => void;
-}> = ({ contacts, owners, ownerLoad, maxLoad, onSetAssignmentFilter }) => {
-  const [showAtLimit, setShowAtLimit] = useState(false);
-  const waitingContacts = useMemo(() => contacts.filter(isWaitingForAssignment), [contacts]);
-  const tagCounts = useMemo(() => {
-    const counts = { waiting: 0, no_gender: 0, unknown_gender: 0 };
-    waitingContacts.forEach((c) => {
-      const key = ASSIGNMENT_TAG_KEY[unassignedFollowUpTag(c, owners, ownerLoad, maxLoad)?.label ?? ''];
-      if (key) counts[key as keyof typeof counts]++;
-    });
-    return counts;
-  }, [waitingContacts, owners, ownerLoad, maxLoad]);
-  const atLimitOwners = useMemo(() => owners.filter((o) => (ownerLoad.get(o.id) ?? 0) >= maxLoad), [owners, ownerLoad, maxLoad]);
-  const outlooks = useMemo(
-    () => (['Male', 'Female'] as const).map((g) => genderCapacityOutlook(g, waitingContacts, owners, ownerLoad, maxLoad)),
-    [waitingContacts, owners, ownerLoad, maxLoad]
-  );
-
-  return (
-    <div data-wt="fu-assignment-summary" className="mb-5 rounded-[20px] border border-gray-100 bg-white p-5 shadow-[0_2px_10px_-4px_rgba(17,24,39,0.08)]">
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-[auto_repeat(4,minmax(0,1fr))]">
-        <p className="text-[15px] font-bold text-gray-900 xl:pt-1">Capacity</p>
-        {outlooks.map((o, i) => (
-          <div key={o.gender} className={i > 0 ? 'sm:border-l sm:border-gray-100 sm:pl-5' : ''}>
-            <div className="flex items-center gap-2.5">
-              <span className={`grid h-9 w-9 flex-none place-items-center rounded-full text-[15px] font-bold ${o.gender === 'Male' ? 'bg-sky-100 text-sky-600' : 'bg-rose-100 text-rose-500'}`} aria-hidden="true">
-                {o.gender === 'Male' ? '♂' : '♀'}
-              </span>
-              <p className="text-[13px] text-gray-500">{o.gender}</p>
-            </div>
-            <p className="mt-2 text-[17px] font-bold text-gray-900">{o.waiting} waiting</p>
-            <p className="mt-0.5 text-[12.5px] leading-snug text-gray-500">{o.spare} spare place{o.spare === 1 ? '' : 's'} among {o.gender.toLowerCase()} supports</p>
-            {o.shortfall > 0 && (
-              <p className="mt-1.5 text-[12px] font-semibold leading-snug text-orange-700">
-                Short {o.shortfall}: raise the limit to {o.limitNeeded ?? '—'}, or add {o.supportsNeeded} more support{o.supportsNeeded === 1 ? '' : 's'}.
-              </p>
-            )}
-          </div>
-        ))}
-        <button type="button" onClick={() => setShowAtLimit((v) => !v)} className="border-t border-gray-100 pt-5 text-left sm:border-l sm:border-t-0 sm:pl-5">
-          <div className="flex items-center gap-2.5">
-            <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-violet-100 text-violet-600" aria-hidden="true">
-              <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 9.888 9.888 0 0 0-7.938-3.975 9.888 9.888 0 0 0-7.938 3.975 9.337 9.337 0 0 0 4.121.952 9.38 9.38 0 0 0 2.625-.372v3.292a3 3 0 0 0 1.035 2.274A2.999 2.999 0 0 0 18 18.722V15.43Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-            </span>
-            <p className="text-[13px] text-gray-500">Supports at the limit</p>
-          </div>
-          <p className="mt-2 text-[17px] font-bold text-gray-900">{atLimitOwners.length}</p>
-          {showAtLimit && <p className="mt-1 text-[12px] leading-snug text-gray-500">{atLimitOwners.map((o) => o.name).join(', ') || 'None right now.'}</p>}
-        </button>
-        <div className="border-t border-gray-100 pt-5 sm:border-l sm:border-t-0 sm:pl-5">
-          <div className="flex items-center gap-2.5">
-            <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-orange-100 text-orange-500" aria-hidden="true">
-              <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" /></svg>
-            </span>
-            <p className="text-[13px] text-gray-500">Waiting to be assigned</p>
-          </div>
-          {/* Everyone with nobody assigned (what the alert and Assign now count), then why. */}
-          <button type="button" onClick={() => onSetAssignmentFilter('all')} className="mt-2 block text-[17px] font-bold text-gray-900 hover:underline">{waitingContacts.length}</button>
-          {tagCounts.waiting > 0 && (
-            <button type="button" onClick={() => onSetAssignmentFilter('waiting')} className="mt-1 block text-[12px] font-semibold text-amber-700 hover:underline">{tagCounts.waiting} ready to assign</button>
-          )}
-          <button type="button" onClick={() => onSetAssignmentFilter('no_gender')} className="mt-1 block text-[12px] font-semibold text-orange-700 hover:underline">{tagCounts.no_gender} no same gender to follow up</button>
-          {tagCounts.unknown_gender > 0 && (
-            <button type="button" onClick={() => onSetAssignmentFilter('unknown_gender')} className="mt-0.5 block text-[12px] font-semibold text-neutral-600 hover:underline">{tagCounts.unknown_gender} gender not known</button>
-          )}
-        </div>
-      </div>
     </div>
   );
 };
