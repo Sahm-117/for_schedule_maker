@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { followUpContactsApi, participantAccountsApi } from '../../services/api';
-import { buildStatusPatch } from '../../utils/followUps';
+import { buildStatusPatch, isNoFormRegistrationError, NO_FORM_MESSAGE } from '../../utils/followUps';
 import { useToast } from '../Toast';
 import type { FollowUpContact, FollowUpContactUpdate } from '../../types';
 import { POPUP_PRIORITY, usePopupSlot, useSettled } from '../../utils/popupQueue';
@@ -106,8 +106,8 @@ const LoginShareReminder: React.FC<{ userId: string; enabled: boolean }> = ({ us
         writeSnooze(userId, item.contact.id);
       }
       setPending((prev) => prev.filter((entry) => entry.contact.id !== item.contact.id));
-    } catch {
-      toast({ tone: 'error', message: "That didn't save. Please try again." });
+    } catch (err) {
+      toast({ tone: 'error', message: isNoFormRegistrationError(err) ? `Not saved. ${NO_FORM_MESSAGE}` : "That didn't save. Please try again." });
     } finally {
       setBusyId(null);
     }

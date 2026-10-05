@@ -751,3 +751,11 @@ export const computeFollowUpHeadline = (contacts: FollowUpContact[]): FollowUpHe
     loggedIn: all.accessConfirmed,
   };
 };
+
+// No-form-no-progress gate: the database raises NO_FORM_REGISTRATION when a
+// contact is moved to Registered, Login shared or Access confirmed without a
+// registration form. Plain wording for every place that save can fail.
+export const NO_FORM_MESSAGE = 'No registration form found for this person. They need to fill the form first.';
+
+export const isNoFormRegistrationError = (err: unknown): boolean =>
+  err instanceof Error && err.message.includes('NO_FORM_REGISTRATION');

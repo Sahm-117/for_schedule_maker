@@ -13,12 +13,14 @@ import { hasOpenFormQuestion } from '../components/followups/FormQuestionBox';
 import { pickableUsers } from '../utils/testUsers';
 import TestSupportsToggle from '../components/TestSupportsToggle';
 import FollowUpContactModal from '../components/followups/FollowUpContactModal';
+import ModalShell from '../components/followups/ModalShell';
 import ContactImportModal from '../components/followups/ContactImportModal';
 import MessageTemplatePicker from '../components/followups/MessageTemplatePicker';
 import MessageBankPanel from '../components/followups/MessageBankPanel';
 import FollowUpIssuesPanel from '../components/followups/FollowUpIssuesPanel';
 import SheetSyncBanner from '../components/followups/SheetSyncBanner';
 import ExportContactsPopup from '../components/followups/ExportContactsPopup';
+import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import {
@@ -39,6 +41,8 @@ import {
   isClosedRegistrationStatus,
   computeFollowUpStatus,
   contactInCohortScope,
+  isNoFormRegistrationError,
+  NO_FORM_MESSAGE,
   FOLLOW_UP_STAGE,
   FOLLOW_UP_STATUS_META,
   openLoadByOwner,
@@ -166,6 +170,12 @@ const AdminFollowUpsPage: React.FC = () => {
   const [messageChannel, setMessageChannel] = useState<'whatsapp' | 'email'>('whatsapp');
   const [deletingContact, setDeletingContact] = useState<FollowUpContact | null>(null);
   const [showExport, setShowExport] = useState(false);
+  const toast = useToast();
+  // No-form gate: the status change the admin picked, held while they approve.
+  const [blocked, setBlocked] = useState<{ contact: FollowUpContact; patch: FollowUpContactUpdate } | null>(null);
+  const [approveReason, setApproveReason] = useState('');
+  const [approving, setApproving] = useState(false);
+  const [approveError, setApproveError] = useState('');
 
   // A change just saved must not be undone by a refresh that was already on its way.
   const lastEditAt = useRef(0);
@@ -351,8 +361,39 @@ const AdminFollowUpsPage: React.FC = () => {
       }
       const { contact: updated } = await followUpContactsApi.update(contact.id, patch);
       replaceContact(updated);
-    } catch {
+    } catch (err) {
+      if (isNoFormRegistrationError(err)) {
+        // Held, not lost: the modal offers the admin approve path.
+        setBlocked({ contact, patch });
+        setApproveReason('');
+        setApproveError('');
+        return;
+      }
       void loadAll();
+    }
+  };
+
+  const handleApproveBlocked = async () => {
+    if (!blocked || approving) return;
+    setApproving(true);
+    setApproveError('');
+    try {
+      await followUpContactsApi.approveManualRegistration(blocked.contact.id, approveReason);
+      const { contact: updated } = await followUpContactsApi.update(blocked.contact.id, blocked.patch);
+      replaceContact(updated);
+      setBlocked(null);
+      toast({ message: 'Approved. The change is now applied.' });
+    } catch (err) {
+      if (err instanceof Error && err.message === 'Write a short reason first.') {
+        setApproveError(err.message);
+      } else {
+        setApproveError('');
+        setBlocked(null);
+        toast({ tone: 'error', message: err instanceof Error ? err.message : 'Approval did not save. Please try again.' });
+        void loadAll();
+      }
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -761,6 +802,49 @@ const AdminFollowUpsPage: React.FC = () => {
         cohorts={cohorts}
         defaultCohortId={activeCohort?.id}
       />
+
+      <ModalShell
+        isOpen={!!blocked}
+        onClose={() => { if (!approving) setBlocked(null); }}
+        title="No registration form found"
+        footer={(
+          <>
+            <button
+              type="button"
+              disabled={approving}
+              onClick={() => setBlocked(null)}
+              className="min-h-[44px] rounded-xl border border-gray-200 bg-white px-4 text-[14px] font-semibold text-gray-700 disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={approving || approveReason.trim().length < 3}
+              onClick={() => void handleApproveBlocked()}
+              className="min-h-[44px] rounded-xl bg-primary px-4 text-[14px] font-semibold text-white disabled:opacity-60"
+            >
+              {approving ? 'Approving…' : 'Approve and apply change'}
+            </button>
+          </>
+        )}
+      >
+        <p className="text-[14px] leading-snug text-gray-700">
+          {blocked ? `${blocked.contact.fullName} has no registration form, so this change was not saved.` : NO_FORM_MESSAGE}
+        </p>
+        <p className="mt-2 text-[14px] leading-snug text-gray-700">
+          If you are sure they registered, write the reason and approve. The change you picked will apply at once.
+        </p>
+        <label htmlFor="approve-reason" className="mt-3 block text-[13px] font-semibold text-gray-700">Reason</label>
+        <textarea
+          id="approve-reason"
+          value={approveReason}
+          onChange={(e) => setApproveReason(e.target.value)}
+          rows={3}
+          placeholder="For example, paper form seen at training"
+          className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-[14px] text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none"
+        />
+        {approveError && <p className="mt-2 text-[13px] font-semibold text-red-600">{approveError}</p>}
+      </ModalShell>
 
       <MessageTemplatePicker
         isOpen={!!messagingContact}

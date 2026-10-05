@@ -3238,6 +3238,7 @@ const accountError = (rawMessage: string | undefined, fallback: string): Error =
   if (msg.includes('SESSION_EXPIRED')) return new Error('SESSION_EXPIRED');
   if (msg.includes('NOT_ALLOWED')) return new Error("You can only see login details for your own participants.");
   if (msg.includes('NO_PHONE')) return new Error('Add a valid phone number for this person first. It is their username.');
+  if (msg.includes('NO_FORM_REGISTRATION')) return new Error('No registration form found for this person. They need to fill the form first.');
   if (msg.includes('at least 5')) return new Error('Use at least 5 characters.');
   return new Error(friendlyUserError(msg, fallback));
 };
@@ -4006,6 +4007,23 @@ export const followUpContactsApi = {
     }
 
     return { contact };
+  },
+
+  // Admin override for the no-form gate: records who approved and why, so the
+  // blocked status change can go through on retry.
+  async approveManualRegistration(contactId: string, reason: string): Promise<void> {
+    const { error } = await supabase.rpc('approve_manual_registration', {
+      p_token: getSessionToken(),
+      p_contact_id: contactId,
+      p_reason: reason,
+    });
+    if (!error) return;
+    const msg = error.message || '';
+    if (msg.includes('SESSION_EXPIRED')) throw new Error('SESSION_EXPIRED');
+    if (msg.includes('NOT_ALLOWED')) throw new Error('Only admins can approve.');
+    if (msg.includes('REASON_REQUIRED')) throw new Error('Write a short reason first.');
+    if (msg.includes('CONTACT_NOT_FOUND')) throw new Error('This contact no longer exists.');
+    throw new Error(friendlyUserError(msg, 'Approval did not save. Please try again.'));
   },
 
   async assignMany(contactIds: string[], ownerId: string | null, dueDate?: string | null): Promise<{ contacts: import('../types').FollowUpContact[] }> {

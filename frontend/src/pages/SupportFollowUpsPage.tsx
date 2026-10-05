@@ -25,6 +25,8 @@ import {
   isClosedContact,
   isClosedRegistrationStatus,
   contactInCohortScope,
+  isNoFormRegistrationError,
+  NO_FORM_MESSAGE,
   contactMatchesSearch,
 } from '../utils/followUps';
 import ExportContactsPopup from '../components/followups/ExportContactsPopup';
@@ -122,8 +124,9 @@ const SupportFollowUpsPage: React.FC = () => {
       const result = await emailLoginDetails(contact, user);
       if (result === 'password-set') toast({ message: `${contact.fullName.split(' ')[0]} has set their own password, so there's no login to send.` });
       if (result !== 'opened') openTemplates();
-    } catch {
-      toast({ message: 'Could not load their login details. Choose a message instead.' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      toast({ tone: 'error', message: message === NO_FORM_MESSAGE ? message : 'Could not load their login details. Choose a message instead.' });
       openTemplates();
     }
   };
@@ -253,7 +256,10 @@ const SupportFollowUpsPage: React.FC = () => {
       }
       const { contact: updated } = await followUpContactsApi.update(contact.id, patch);
       replaceContact(updated);
-    } catch {
+    } catch (err) {
+      if (isNoFormRegistrationError(err)) {
+        toast({ tone: 'error', message: `Not saved. ${NO_FORM_MESSAGE}` });
+      }
       void loadAll();
     }
   };

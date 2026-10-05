@@ -26,6 +26,8 @@ import {
   computeFollowUpFunnel,
   computeFollowUpStatus,
   contactInCohortScope,
+  isNoFormRegistrationError,
+  NO_FORM_MESSAGE,
   isClosedContact,
   isClosedRegistrationStatus,
   supportStatusOptions,
@@ -182,8 +184,9 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
       const result = await emailLoginDetails(contact, user);
       if (result === 'password-set') toast({ message: `${contact.fullName.split(' ')[0]} has set their own password, so there's no login to send.` });
       if (result !== 'opened') openTemplates(contact, 'email');
-    } catch {
-      toast({ message: 'Could not load their login details. Choose a message instead.' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      toast({ tone: 'error', message: message === NO_FORM_MESSAGE ? message : 'Could not load their login details. Choose a message instead.' });
       openTemplates(contact, 'email');
     }
   };
@@ -453,8 +456,12 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
           },
         });
       }
-    } catch {
-      toast({ tone: 'error', message: "That change didn't save. Please try again." });
+    } catch (err) {
+      if (isNoFormRegistrationError(err)) {
+        toast({ tone: 'error', message: `Not saved. ${NO_FORM_MESSAGE}` });
+      } else {
+        toast({ tone: 'error', message: "That change didn't save. Please try again." });
+      }
       void loadAll();
     }
   };
