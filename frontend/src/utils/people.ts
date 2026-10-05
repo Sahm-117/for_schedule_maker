@@ -1,5 +1,18 @@
 import type { User } from '../types';
 
+// Greeting names skip titles ("Mrs Ogunyomi" greets as "Ogunyomi", not
+// "Mrs"). If the whole name is titles, the first word is kept as fallback.
+const TITLE_WORDS = new Set([
+  'mr', 'mrs', 'ms', 'miss', 'dr', 'prof', 'pastor', 'pst', 'rev',
+  'elder', 'deacon', 'deaconess', 'daddy', 'mummy', 'alhaji', 'alhaja',
+  'chief', 'sir', 'madam', 'brother', 'sister', 'bro', 'sis',
+]);
+
+export const firstNameOf = (fullName: string | null | undefined): string => {
+  const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
+  return parts.find((part) => !TITLE_WORDS.has(part.replace(/\./g, '').toLowerCase())) || parts[0] || '';
+};
+
 // "Female · 25 - 34" — the short line under a person's name wherever supports
 // are matched with the people they follow up.
 export const genderAgeLine = (person: { gender?: string | null; ageRange?: string | null }): string =>

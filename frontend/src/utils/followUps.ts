@@ -9,6 +9,7 @@ import type {
   FollowUpStatus,
   IssueStatus,
 } from '../types';
+import { firstNameOf } from './people';
 
 type StatusMeta = { label: string; tone: string; description?: string };
 
@@ -578,7 +579,7 @@ export const fillTemplate = (
   senderName?: string | null
 ): string =>
   body
-    .replaceAll('{{first_name}}', contact.fullName.trim().split(/\s+/)[0] || 'there')
+    .replaceAll('{{first_name}}', firstNameOf(contact.fullName) || 'there')
     .replaceAll('{{full_name}}', contact.fullName.trim())
     .replaceAll('{{registration_link}}', registrationLink || '')
     .replaceAll('{{user.name}}', senderName?.trim() || '')

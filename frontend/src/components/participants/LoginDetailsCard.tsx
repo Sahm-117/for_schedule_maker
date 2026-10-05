@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import type { ParticipantLoginDetails } from '../../types';
 import LinkText from '../LinkText';
 import { installVideoLines } from '../../constants/installVideos';
+import { firstNameOf } from '../../utils/people';
 
 // "Their login details" card from the V2 design. Shown to a support once they mark
 // a prospect as Registered, and to admins on a participant. Opening it creates the
@@ -67,7 +68,7 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
     if (next && (!details || details.status === 'NONE' || details.status === 'NO_PARTICIPANT')) void load({ issue: true });
   };
 
-  const firstName = (details?.name || '').split(' ')[0];
+  const firstName = firstNameOf(details?.name);
   const message = details?.setupCode
     ? `Hello ${firstName}, well done on registering for Foundation Of Faith!\n\n`
       + (user?.name ? `My name is ${user.name}, from TCN Ikorodu, here to get you onboarded on to the FOF App.\n\n` : '')

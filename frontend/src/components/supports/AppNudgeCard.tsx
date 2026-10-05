@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useAppData } from '../../context/AppDataContext';
 import { appNudgeMessage } from '../../constants/installVideos';
 import { buildWhatsAppLink } from '../../utils/phone';
+import { firstNameOf } from '../../utils/people';
 import type { AppNudgePerson } from '../../types';
 
 // Home card for supports: participants who have signed in but still need the app
@@ -101,8 +102,8 @@ const AppNudgeCard: React.FC = () => {
       </p>
       <ul className="mt-2 divide-y divide-gray-100">
         {sorted.map((person) => {
-          const first = person.name.split(' ')[0];
-          const link = buildWhatsAppLink(person.phone, appNudgeMessage(first, person.reason, user?.name?.split(' ')[0]));
+          const first = firstNameOf(person.name);
+          const link = buildWhatsAppLink(person.phone, appNudgeMessage(first, person.reason, firstNameOf(user?.name)));
           return (
             <li key={person.participantId} className="flex items-center gap-3 py-2.5">
               <Avatar name={person.name} size="sm" />

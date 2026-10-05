@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { buildWhatsAppLink } from '../utils/phone';
 import { installVideoLines } from '../constants/installVideos';
+import { firstNameOf } from '../utils/people';
 import LinkText from './LinkText';
 
 // Shown after an admin creates an account or resets a password: a ready-to-send
@@ -16,7 +17,7 @@ export interface InviteDetails {
 }
 
 export const buildInviteMessage = ({ name, email, phone, password, kind = 'invite' }: InviteDetails): string => {
-  const firstName = name.trim().split(/\s+/)[0] || name.trim();
+  const firstName = firstNameOf(name) || name.trim();
   const login = email && phone ? `${email} (or ${phone})` : email || phone;
   const opening = kind === 'reset'
     ? `Hello ${firstName}, your FOF app password has been reset.\n\n`

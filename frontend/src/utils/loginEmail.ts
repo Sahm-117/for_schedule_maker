@@ -1,6 +1,7 @@
 import { participantAccountsApi, participantsApi } from '../services/api';
 import type { FollowUpContact, ParticipantLoginDetails } from '../types';
 import { installVideoLines } from '../constants/installVideos';
+import { firstNameOf } from './people';
 
 // Login details by email, for when calls and WhatsApp don't get through. Used by
 // "Their login details" (Send by email) and by Send email on a registered follow-up.
@@ -26,7 +27,7 @@ type Sender = { name?: string | null; phone?: string | null } | null | undefined
 // Says why they're getting an email, who is writing, and how to reply.
 export const buildLoginEmailBody = (details: ParticipantLoginDetails, sender: Sender, startDate?: string | null) => {
   if (!details.setupCode) return '';
-  const firstName = (details.name || '').split(' ')[0];
+  const firstName = firstNameOf(details.name);
   const senderName = sender?.name?.trim() || '';
   const senderPhone = sender?.phone?.trim() || '';
   return `Hello ${firstName},\n\n`
