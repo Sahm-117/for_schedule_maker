@@ -109,7 +109,7 @@ function activeFilterCount(f: FilterState): number {
   if (f.call) n++;
   if (f.reg) n++;
   if (f.next) n++;
-  if (f.archived) n++;
+  // Archived is hidden by default, so it never counts toward the badge.
   if (f.gender) n++;
   if (f.age) n++;
   if (f.assignment) n++;
@@ -467,6 +467,18 @@ const AdminFollowUpsPage: React.FC = () => {
     setDraft((prev) => ({ ...prev, [group]: prev[group] === value ? '' : value }));
   };
 
+  // Chips under the search row: every filter that is on, except archived
+  // (hidden-by-default, so it would just sit there). Tapping × clears one.
+  const activeChips = useMemo(
+    () => (['reply', 'call', 'reg', 'next', 'gender', 'age', 'assignment'] as const)
+      .filter((key) => filters[key])
+      .map((key) => ({
+        key,
+        label: statusGroups.find((g) => g.key === key)?.options.find((o) => o.value === filters[key])?.label ?? filters[key],
+      })),
+    [filters],
+  );
+
   // Runs the same rule the 2-hour scheduled sweep uses, right now, for
   // everyone currently waiting -- see followUpContactsApi.assignPendingNow.
   const handleAssignNow = async () => {
@@ -702,6 +714,22 @@ const AdminFollowUpsPage: React.FC = () => {
             {hasTestSupports && (
               <div className="mt-2">
                 <TestSupportsToggle checked={showTestSupports} onChange={setShowTestSupports} />
+              </div>
+            )}
+            {activeChips.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {activeChips.map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={() => setFilters((prev) => ({ ...prev, [chip.key]: '' }))}
+                    title={`Clear ${chip.label} filter`}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[#3f4757] py-1.5 pl-3 pr-2 text-xs font-semibold text-white transition hover:bg-[#333a49] active:scale-95"
+                  >
+                    {chip.label}
+                    <span aria-hidden="true" className="grid h-4 w-4 place-items-center rounded-full bg-white/20 text-[10px] leading-none">×</span>
+                  </button>
+                ))}
               </div>
             )}
           </div>
