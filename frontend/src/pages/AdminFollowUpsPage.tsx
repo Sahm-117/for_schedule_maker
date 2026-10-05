@@ -793,6 +793,9 @@ const AdminFollowUpsPage: React.FC = () => {
               <span className="text-xs text-gray-500">{filteredContacts.length} contact{filteredContacts.length === 1 ? '' : 's'}</span>
             </div>
           )}
+          {tab === 'contacts' && !statusParam && (activeChips.length > 0 || questionsOnly) && (
+            <p className="mb-3 px-1 text-xs text-gray-500">{filteredContacts.length} contact{filteredContacts.length === 1 ? '' : 's'} match{filteredContacts.length === 1 ? 'es' : ''} these filters</p>
+          )}
           {tab === 'contacts' && (
             <FollowUpContactsTable
               contacts={filteredContacts}
@@ -1070,7 +1073,7 @@ const FollowUpAssignmentSummary: React.FC<{
         <button type="button" onClick={() => setShowAtLimit((v) => !v)} className="rounded-2xl border border-gray-200 bg-white p-4 text-left">
           <div className="flex items-start gap-3">
             <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-violet-100 text-violet-600" aria-hidden="true">
-              <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 9.888 9.888 0 0 0-7.938-3.975 9.888 9.888 0 0 0-7.938 3.975 9.337 9.337 0 0 0 4.121.952 9.38 9.38 0 0 0 2.625-.372v3.292a3 3 0 0 0 1.035 2.274A2.999 2.999 0 0 0 18 18.722V15.43Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+              <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" d="M4 15a8 8 0 0 1 16 0" /><path strokeLinecap="round" d="M3 19h18" /><path strokeLinecap="round" d="M12 15l4.5-4.5" /><circle cx="12" cy="15" r="1.3" fill="currentColor" stroke="none" /></svg>
             </span>
             <div className="min-w-0">
               <p className="text-[13px] text-gray-500">Supports at the limit</p>
