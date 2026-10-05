@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import LinkText from '../components/LinkText';
 import PageLoader from '../components/PageLoader';
 import Avatar from '../components/Avatar';
 import AttendanceCountdownCard from '../components/participantApp/AttendanceCountdownCard';
@@ -426,7 +427,7 @@ const ParticipantHomePage: React.FC = () => {
           <section className="rounded-[18px] border border-[#ffdeca] bg-[#fff8f3] px-4 py-3.5">
             <p className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#c2410c]">{home.announcement.homeLabel || 'From the FOF team'}</p>
             <p className="mt-1.5 text-[15px] font-bold text-gray-900">{home.announcement.subject}</p>
-            <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-gray-600">{home.announcement.body}</p>
+            <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-gray-600"><LinkText text={home.announcement.body} /></p>
             {home.announcement.linkUrl && (/^https?:\/\//i.test(home.announcement.linkUrl) ? (
               <a href={home.announcement.linkUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-[38px] items-center rounded-[10px] bg-primary px-3.5 text-[13px] font-semibold text-white">
                 {home.announcement.linkLabel || 'Open'}

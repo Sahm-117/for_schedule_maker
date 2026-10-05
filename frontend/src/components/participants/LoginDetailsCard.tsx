@@ -3,6 +3,7 @@ import { buildWhatsAppLink } from '../../utils/phone';
 import { buildLoginEmailBody, buildLoginMailLink, fetchLoginDetails, firstClassText } from '../../utils/loginEmail';
 import { useAuth } from '../../hooks/useAuth';
 import type { ParticipantLoginDetails } from '../../types';
+import LinkText from '../LinkText';
 import { installVideoLines } from '../../constants/installVideos';
 
 // "Their login details" card from the V2 design. Shown to a support once they mark
@@ -122,7 +123,7 @@ const LoginDetailsCard: React.FC<LoginDetailsCardProps> = ({ participantId, foll
             <p className="rounded-[10px] bg-white px-3 py-2.5 text-[13px] text-gray-500">Getting their login ready…</p>
           ) : message ? (
             <>
-              <div className="whitespace-pre-line rounded-[10px] border border-[#d9f2e2] bg-white p-3 text-[13px] leading-[1.65] text-gray-700">{message}</div>
+              <div className="whitespace-pre-line rounded-[10px] border border-[#d9f2e2] bg-white p-3 text-[13px] leading-[1.65] text-gray-700"><LinkText text={message} /></div>
               <div className="mt-2.5 flex flex-wrap gap-2">
                 <button type="button" onClick={() => { void copy(); }} className="min-h-[44px] flex-[1_1_120px] rounded-[10px] border border-gray-200 bg-white px-3.5 py-2.5 text-[13px] font-semibold text-gray-700">
                   {copied ? 'Copied' : 'Copy message'}

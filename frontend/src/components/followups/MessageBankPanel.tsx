@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { MessageTemplate, User } from '../../types';
 import ModalShell from './ModalShell';
+import LinkText from '../LinkText';
 import ConfirmationModal from '../ConfirmationModal';
 import AppOverflowMenu from '../AppOverflowMenu';
 import { messageTemplatesApi, settingsApi } from '../../services/api';
@@ -166,7 +167,7 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
                 )}
               </div>
               {t.whenToUse && <p className="mt-1 text-xs font-medium text-amber-700">{t.whenToUse}</p>}
-              <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-gray-600">{t.body}</p>
+              <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-gray-600"><LinkText text={t.body} /></p>
             </div>
           ))}
         </div>

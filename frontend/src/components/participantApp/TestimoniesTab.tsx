@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { participantAppApi } from '../../services/api';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../Toast';
+import LinkText from '../LinkText';
 import { shortMoment } from '../../utils/participantApp';
 import Avatar from '../Avatar';
 import PageLoader from '../PageLoader';
@@ -219,7 +220,7 @@ const TestimoniesTab: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                  <p className="mt-1 whitespace-pre-wrap text-[14px] leading-relaxed text-gray-600">{t.body}</p>
+                  <p className="mt-1 whitespace-pre-wrap text-[14px] leading-relaxed text-gray-600"><LinkText text={t.body} /></p>
                   <div className="mt-2.5 flex items-center gap-2">
                     <span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${chip.cls}`}>{chip.label}</span>
                     <span className="text-[12.5px] text-gray-400">{shortMoment(t.createdAt)}</span>
@@ -246,7 +247,7 @@ const TestimoniesTab: React.FC = () => {
                     <span className="text-[12.5px] text-gray-400">{shortMoment(t.createdAt)}</span>
                   </div>
                   {t.title && <p className="mt-0.5 text-[14.5px] font-semibold text-gray-800">{t.title}</p>}
-                  <p className="mt-1 whitespace-pre-wrap text-[14px] leading-relaxed text-gray-600">{t.body}</p>
+                  <p className="mt-1 whitespace-pre-wrap text-[14px] leading-relaxed text-gray-600"><LinkText text={t.body} /></p>
                 </div>
               </li>
             ))}

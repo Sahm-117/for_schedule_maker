@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { announcementPopupsApi } from '../services/api';
 import type { AnnouncementPopupItem } from '../types';
+import LinkText from './LinkText';
 import { POPUP_PRIORITY, usePopupSlot } from '../utils/popupQueue';
 
 // Announcements sent as a popup. One at a time, oldest first, and it stays until the
@@ -72,7 +73,7 @@ const AnnouncementPopupHost: React.FC<{ enabled: boolean }> = ({ enabled }) => {
       <div className={`${SURFACE} relative w-full max-w-md max-h-[88vh] overflow-y-auto px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-7 sm:mx-4`}>
         <p className="text-[13px] font-semibold text-primary">{current.heading || 'Announcement'}</p>
         <h2 className="mt-1.5 text-[26px] font-bold leading-[1.12] tracking-[-0.025em] text-gray-900">{current.subject}</h2>
-        <p className="mt-3 whitespace-pre-line text-[15.5px] leading-[1.65] text-gray-600">{current.body}</p>
+        <p className="mt-3 whitespace-pre-line text-[15.5px] leading-[1.65] text-gray-600"><LinkText text={current.body} /></p>
         <div className="mt-6 flex flex-col gap-2.5">
           {current.linkUrl ? (
             <>

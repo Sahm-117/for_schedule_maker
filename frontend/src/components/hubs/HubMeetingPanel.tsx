@@ -4,6 +4,7 @@ import CompactAttendanceRow from '../CompactAttendanceRow';
 import DocumentViewerSheet from '../DocumentViewerSheet';
 import SaveStatus, { type SaveState } from '../SaveStatus';
 import Spinner from '../Spinner';
+import LinkText from '../LinkText';
 import { useToast } from '../Toast';
 import { supabase } from '../../lib/supabase';
 import { myHubApi, practiceApi, supportSessionsApi } from '../../services/api';
@@ -149,7 +150,7 @@ const FollowAlongPrayerCard: React.FC<{ focus: HubPrayerFocus; prayerLeadNames?:
         <>
           <p className="mt-2 text-2xl font-bold leading-snug text-gray-900">{focus.participantName}</p>
           <p className="mt-1 text-sm text-gray-500">{focus.groupName || 'No group'}</p>
-          {focus.projectText && <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-gray-700">{focus.projectText}</p>}
+          {focus.projectText && <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-gray-700"><LinkText text={focus.projectText} /></p>}
         </>
       ) : (
         <p className="mt-3 animate-pulse text-sm text-gray-500">Waiting for {prayerLeadNames.length > 0 ? joinNames(prayerLeadNames) : 'the Prayer Lead'} to pick someone…</p>
@@ -973,7 +974,7 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
               <>
                 <p className="text-xs font-bold uppercase tracking-[0.04em] text-gray-500">Latest message to the hub</p>
                 <p className="mt-1.5 text-sm font-semibold text-gray-900">{latestMessage.subject}</p>
-                <p className="mt-1 whitespace-pre-line text-sm text-gray-700">{latestMessage.body}</p>
+                <p className="mt-1 whitespace-pre-line text-sm text-gray-700"><LinkText text={latestMessage.body} /></p>
               </>
             ) : (
               <p className="text-sm text-gray-500">No messages sent to the hub yet.</p>

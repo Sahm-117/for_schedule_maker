@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { FollowUpContact, FollowUpIssue, User } from '../../types';
 import AppSelect from '../AppSelect';
+import LinkText from '../LinkText';
 import AppOverflowMenu from '../AppOverflowMenu';
 import ModalShell from './ModalShell';
 import FollowUpStatusPill from './FollowUpStatusPill';
@@ -234,7 +235,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
                       )}
                       <span className="text-xs text-gray-400">Opened {issue.openedAt}</span>
                     </div>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">{issue.issue}</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800"><LinkText text={issue.issue} /></p>
                     <p className="mt-1 text-xs text-gray-500">
                       {issue.reportedByName ? `Reported by: ${issue.reportedByName} • ` : ''}
                       {issue.ownerName ? `Owner: ${issue.ownerName}` : 'No owner'}

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import Avatar from '../Avatar';
+import { linkifyText } from '../LinkText';
 import type { DiscussionMember, DiscussionMention } from '../../types';
 
 // A textarea that offers the group's people when you type "@". Picking one
@@ -22,14 +23,14 @@ const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\
 export const MentionText: React.FC<{ text: string; mentions?: DiscussionMention[] }> = ({ text, mentions }) => {
   const names = Array.from(new Set((mentions ?? []).map((m) => m.name).filter((n): n is string => !!n)))
     .sort((a, b) => b.length - a.length);
-  if (names.length === 0) return <>{text}</>;
+  if (names.length === 0) return <>{linkifyText(text)}</>;
   const pattern = new RegExp(`(@(?:${names.map(escapeRegExp).join('|')}))`, 'g');
   return (
     <>
       {text.split(pattern).map((part, i) => (
         i % 2 === 1
           ? <span key={i} className="font-semibold text-primary">{part}</span>
-          : <React.Fragment key={i}>{part}</React.Fragment>
+          : <React.Fragment key={i}>{linkifyText(part)}</React.Fragment>
       ))}
     </>
   );

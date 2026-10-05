@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import PageHeader from '../components/PageHeader';
+import LinkText from '../components/LinkText';
 import PageLoader from '../components/PageLoader';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
 import Spinner from '../components/Spinner';
@@ -147,7 +148,7 @@ const WeekBody: React.FC<{
   const canOpenManual = !!week.manual?.documentUrl || hasIntroGuide(week);
   return (
     <>
-      {summary && <p className="whitespace-pre-line text-[15px] leading-[1.7] text-gray-600">{summary}</p>}
+      {summary && <p className="whitespace-pre-line text-[15px] leading-[1.7] text-gray-600"><LinkText text={summary} /></p>}
       {prompt && (
         <figure className="mt-5 rounded-2xl bg-[#f5f5f7] px-5 py-4">
           <figcaption className="text-[12px] font-semibold text-gray-400">Something to think about</figcaption>

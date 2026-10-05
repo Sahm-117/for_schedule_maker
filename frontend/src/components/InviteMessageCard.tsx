@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { buildWhatsAppLink } from '../utils/phone';
 import { installVideoLines } from '../constants/installVideos';
+import LinkText from './LinkText';
 
 // Shown after an admin creates an account or resets a password: a ready-to-send
 // message with the person's login details, to copy or send straight on WhatsApp.
@@ -50,7 +51,7 @@ const InviteMessageCard: React.FC<{ details: InviteDetails; onDismiss: () => voi
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
-      <pre className="mt-2 whitespace-pre-wrap break-words rounded-xl border border-emerald-100 bg-white p-3 text-xs leading-relaxed text-gray-700">{message}</pre>
+      <pre className="mt-2 whitespace-pre-wrap break-words rounded-xl border border-emerald-100 bg-white p-3 text-xs leading-relaxed text-gray-700"><LinkText text={message} /></pre>
       <div className="mt-3 flex flex-wrap gap-2">
         <button type="button" onClick={() => { void copy(); }} className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
           {copied ? 'Copied!' : 'Copy message'}

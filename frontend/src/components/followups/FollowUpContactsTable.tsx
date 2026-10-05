@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Cohort, FollowUpContact, FollowUpNoteEntry, FollowUpStatus, User } from '../../types';
 import AppSelect from '../AppSelect';
+import LinkText from '../LinkText';
 import LoadRing from '../LoadRing';
 import { genderAgeLine } from '../../utils/people';
 import AppOverflowMenu from '../AppOverflowMenu';
@@ -753,7 +754,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                       <p className="text-[11px] font-semibold text-gray-500">
                         {entry.authorName || 'Unknown'} · {entry.imported ? `around ${formatDate(entry.notedAt)}` : formatDateTime(entry.notedAt)}
                       </p>
-                      <p className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-gray-700">{entry.body}</p>
+                      <p className="mt-0.5 whitespace-pre-wrap text-xs leading-relaxed text-gray-700"><LinkText text={entry.body} /></p>
                     </li>
                   ))}
                 </ul>

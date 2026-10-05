@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import LinkText from '../components/LinkText';
 import PageLoader from '../components/PageLoader';
 import Avatar from '../components/Avatar';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
@@ -139,7 +140,7 @@ const ParticipantGroupPage: React.FC = () => {
                 <>
                   <p className="mt-2 text-2xl font-bold leading-snug text-gray-900">{prayerFocus.participantName}</p>
                   {prayerFocus.projectText?.trim() && (
-                    <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-gray-700">{prayerFocus.projectText.trim()}</p>
+                    <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-gray-700"><LinkText text={prayerFocus.projectText.trim()} /></p>
                   )}
                 </>
               ) : (
@@ -176,7 +177,7 @@ const ParticipantGroupPage: React.FC = () => {
               <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Week {liveRecap.weekNumber} recap</span>
               <h2 className="mt-2 text-xl font-bold tracking-[-0.01em] text-gray-900">{liveRecap.title || `Week ${liveRecap.weekNumber}`}</h2>
               {liveRecap.recapSummary?.trim() && (
-                <p className="mt-2 whitespace-pre-line text-[14.5px] leading-[1.65] text-gray-700">{liveRecap.recapSummary.trim()}</p>
+                <p className="mt-2 whitespace-pre-line text-[14.5px] leading-[1.65] text-gray-700"><LinkText text={liveRecap.recapSummary.trim()} /></p>
               )}
               {liveRecap.discussionPrompt?.trim() && (
                 <div className="mt-3 rounded-[14px] border border-[#f1f2f5] p-3.5">

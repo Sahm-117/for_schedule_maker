@@ -4,6 +4,7 @@ import { supportNotesApi } from '../../services/api';
 import type { SupportNote } from '../../types';
 import { PERSON_OF_INTEREST_INFO } from './hubJobs';
 import Spinner from '../Spinner';
+import LinkText from '../LinkText';
 
 // The ★ on a hub member card. Tapping it opens that support's note history,
 // where notes can be read, edited and added (filed under this hub).
@@ -137,7 +138,7 @@ const SupportNotesStar: React.FC<{ supportId: string; name: string; hubId: strin
                         </>
                       ) : (
                         <>
-                          <p className="whitespace-pre-line text-sm text-gray-800">{n.body}</p>
+                          <p className="whitespace-pre-line text-sm text-gray-800"><LinkText text={n.body} /></p>
                           <div className="mt-1 flex items-center justify-between gap-2">
                             <p className="text-[11px] text-gray-400">{n.authorName || 'Admin'} · {dateLabel(n.createdAt)}</p>
                             <button type="button" onClick={() => { setEditingId(n.id); setEditBody(n.body); setError(''); }} className="text-xs font-semibold text-primary hover:text-primary-dark">Edit</button>

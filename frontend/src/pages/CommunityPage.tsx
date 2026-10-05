@@ -14,6 +14,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import type { HubTopic } from '../types';
 import Spinner from '../components/Spinner';
+import LinkText, { linkifyText } from '../components/LinkText';
 
 const formatDate = (iso: string) =>
   new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(iso));
@@ -170,7 +171,7 @@ const BodyText: React.FC<{ text: string; users?: MentionUser[] }> = ({ text, use
     // accumulate a plain run up to the next '@'
     const nextAt = text.indexOf('@', i + 1);
     const end = nextAt === -1 ? text.length : nextAt;
-    nodes.push(text.slice(i, end));
+    nodes.push(<React.Fragment key={key++}>{linkifyText(text.slice(i, end))}</React.Fragment>);
     i = end;
   }
   return <p className="whitespace-pre-wrap text-sm text-gray-700">{nodes}</p>;
@@ -276,7 +277,7 @@ const TopicCard: React.FC<{ topic: HubTopic; onClick: () => void; onToggleLike: 
       )}
     </div>
     <p className="mb-1 mt-2.5 text-[15px] font-semibold text-gray-900">{topic.title}</p>
-    <p className="line-clamp-3 text-sm text-gray-600">{topic.body}</p>
+    <p className="line-clamp-3 text-sm text-gray-600"><LinkText text={topic.body} /></p>
     <div className="mt-2.5 flex items-center">
       <span className="ml-auto flex items-center gap-3 text-xs text-gray-400">
         {/* Thumbs-up: nested inside the card's <button>, so use a role="button"

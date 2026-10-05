@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import LinkText from '../components/LinkText';
 import PageLoader from '../components/PageLoader';
 import FaithProjectGuide from '../components/FaithProjectGuide';
 import SegmentedTabs from '../components/SegmentedTabs';
@@ -304,7 +305,7 @@ const ParticipantFaithPage: React.FC = () => {
             <>
               <figure className="mt-5 rounded-2xl bg-[#f5f5f7] px-5 py-4">
                 <figcaption className="text-[12px] font-semibold text-gray-400">What you are believing God for</figcaption>
-                <blockquote className="mt-1 whitespace-pre-wrap text-[16px] font-medium leading-[1.55] text-gray-900">{faith.project?.body || '—'}</blockquote>
+                <blockquote className="mt-1 whitespace-pre-wrap text-[16px] font-medium leading-[1.55] text-gray-900"><LinkText text={faith.project?.body || '—'} /></blockquote>
               </figure>
               {faith.project?.status !== 'APPROVED' && <p className="mt-3 text-[14px] leading-[1.6] text-gray-500">With {supportFirst} for now. Their replies show below.</p>}
               <div className="mt-6 flex">
@@ -334,7 +335,7 @@ const ParticipantFaithPage: React.FC = () => {
                       <span className="text-[13.5px] font-semibold text-gray-900">{entry.byParticipant ? 'You' : entry.authorName || 'Your support'}</span>
                       <span className="ml-auto text-[12px] text-gray-400">{shortMoment(entry.createdAt)}</span>
                     </div>
-                    <p className="mt-1 whitespace-pre-wrap text-[14px] leading-relaxed text-gray-700">{entry.body}</p>
+                    <p className="mt-1 whitespace-pre-wrap text-[14px] leading-relaxed text-gray-700"><LinkText text={entry.body} /></p>
                   </li>
                 ))}
               </ul>

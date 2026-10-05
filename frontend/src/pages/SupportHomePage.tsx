@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, NavLink } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import LinkText from '../components/LinkText';
 import ActivityText from '../components/ActivityText';
 import { useAuth } from '../hooks/useAuth';
 import { usePracticeEntry } from '../context/PracticeEntryContext';
@@ -487,7 +488,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                 {homeAnnouncement.homeLabel || 'Urgent'}
               </div>
               <p className="mt-1.5 text-[15px] font-bold text-gray-900">{homeAnnouncement.subject}</p>
-              <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-gray-600">{homeAnnouncement.body}</p>
+              <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-gray-600"><LinkText text={homeAnnouncement.body} /></p>
               {homeAnnouncement.linkUrl && (/^https?:\/\//i.test(homeAnnouncement.linkUrl) ? (
                 <a href={homeAnnouncement.linkUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-[38px] items-center rounded-[10px] bg-[#b91c1c] px-3.5 text-[13px] font-semibold text-white">
                   {homeAnnouncement.linkLabel || 'Open'}

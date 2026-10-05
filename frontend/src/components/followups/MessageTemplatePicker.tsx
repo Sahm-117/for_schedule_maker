@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { FollowUpContact, MessageTemplate } from '../../types';
 import ModalShell from './ModalShell';
+import LinkText from '../LinkText';
 import { fillTemplate } from '../../utils/followUps';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../../utils/phone';
 
@@ -156,7 +157,7 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
           <div className="max-h-[40%] shrink-0 overflow-y-auto rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Preview</p>
             {filled ? (
-              <p className="whitespace-pre-wrap text-sm text-gray-800">{filled}</p>
+              <p className="whitespace-pre-wrap text-sm text-gray-800"><LinkText text={filled} /></p>
             ) : (
               <p className="text-sm text-gray-400">Select a template to preview the personalised message.</p>
             )}

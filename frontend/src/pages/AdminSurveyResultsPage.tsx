@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import LinkText from '../components/LinkText';
 import SegmentedTabs from '../components/SegmentedTabs';
 import Spinner from '../components/Spinner';
 import Glyph from '../components/Glyph';
@@ -145,7 +146,7 @@ const AdminSurveyResultsPage: React.FC = () => {
     return (
       <div key={q.id}>{header}
         {texts.length === 0 ? <p className="mt-1 text-sm text-gray-500">No answers yet.</p> : (
-          <ul className="mt-2 space-y-2">{texts.map((t, i) => <li key={i} className="rounded-2xl bg-gray-50 px-4 py-2.5 text-sm text-gray-700 whitespace-pre-line">{t}</li>)}</ul>
+          <ul className="mt-2 space-y-2">{texts.map((t, i) => <li key={i} className="rounded-2xl bg-gray-50 px-4 py-2.5 text-sm text-gray-700 whitespace-pre-line"><LinkText text={t} /></li>)}</ul>
         )}
       </div>
     );
