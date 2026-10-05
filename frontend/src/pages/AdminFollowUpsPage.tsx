@@ -509,7 +509,7 @@ const AdminFollowUpsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => { setEditingContact(null); setShowContactModal(true); }}
-              className="inline-flex h-11 items-center justify-center rounded-2xl bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark"
+              className="inline-flex h-11 items-center justify-center rounded-2xl bg-[#3f4757] px-4 text-sm font-semibold text-white transition hover:bg-[#333a49] active:scale-95"
             >
               Add Contact
             </button>
@@ -518,7 +518,7 @@ const AdminFollowUpsPage: React.FC = () => {
               onClick={() => setShowAssignSettings(true)}
               aria-label="Assignment settings"
               title="Assignment settings"
-              className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.06)] hover:text-gray-900"
+              className="grid h-11 w-11 place-items-center rounded-2xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-800 active:scale-95"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M10.3 4.3c.4-1.7 3-1.7 3.4 0a1.7 1.7 0 0 0 2.6 1.1c1.5-.9 3.3.8 2.4 2.4a1.7 1.7 0 0 0 1 2.5c1.8.4 1.8 3 0 3.4a1.7 1.7 0 0 0-1 2.6c.9 1.5-.9 3.3-2.4 2.4a1.7 1.7 0 0 0-2.6 1c-.4 1.8-3 1.8-3.4 0a1.7 1.7 0 0 0-2.6-1c-1.5.9-3.3-.9-2.4-2.4a1.7 1.7 0 0 0-1-2.6c-1.8-.4-1.8-3 0-3.4a1.7 1.7 0 0 0 1-2.5c-.9-1.6.9-3.3 2.4-2.4a1.7 1.7 0 0 0 2.6-1.1Z" />
@@ -549,8 +549,11 @@ const AdminFollowUpsPage: React.FC = () => {
       )}
 
       {registrationLink && (
-        <div data-wt="fu-link" className="mb-5 flex flex-wrap items-center gap-3 rounded-3xl border border-sky-100 bg-sky-50/60 px-4 py-3">
-          <span className="text-xs font-semibold uppercase tracking-[0.08em] text-sky-700">Registration link</span>
+        <div data-wt="fu-link" className="mb-5 flex flex-wrap items-center gap-3 rounded-[20px] border border-gray-100 bg-white px-4 py-3 shadow-[0_2px_10px_-4px_rgba(17,24,39,0.08)]">
+          <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-sky-100 text-sky-600" aria-hidden="true">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" /></svg>
+          </span>
+          <span className="text-xs font-bold uppercase tracking-[0.08em] text-[#2563eb]">Registration link</span>
           <div className="relative inline-flex">
             <button
               type="button"
@@ -574,7 +577,7 @@ const AdminFollowUpsPage: React.FC = () => {
             <button
               type="button"
               onClick={handleCopyLink}
-              className="rounded-2xl border border-sky-200 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 transition hover:bg-sky-100 active:scale-95"
+              className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-[13px] font-semibold text-[#2563eb] transition hover:bg-gray-50 active:scale-95"
             >
               {copied ? 'Copied!' : 'Copy'}
             </button>
@@ -582,7 +585,7 @@ const AdminFollowUpsPage: React.FC = () => {
               href={registrationLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-2xl bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-700 active:scale-95"
+              className="rounded-2xl bg-[#2563eb] px-5 py-2 text-[13px] font-semibold text-white transition hover:bg-[#1d4ed8] active:scale-95"
             >
               Open
             </a>
@@ -636,6 +639,7 @@ const AdminFollowUpsPage: React.FC = () => {
                 </div>
               )}
             </div>
+            {tab === 'overview' && (
             <button
               type="button"
               onPointerDown={openFilterPanel}
@@ -648,32 +652,52 @@ const AdminFollowUpsPage: React.FC = () => {
                 </span>
               )}
             </button>
+            )}
           </div>
         )}
         {tab === 'contacts' && (
           <div>
-            <input
-              type="search"
-              value={contactSearch}
-              onChange={(e) => setContactSearch(e.target.value)}
-              placeholder="Search by name, number or email"
-              aria-label="Search contacts"
-              className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="relative min-w-[200px] flex-1">
+                <svg className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+                <input
+                  type="search"
+                  value={contactSearch}
+                  onChange={(e) => setContactSearch(e.target.value)}
+                  placeholder="Search by name, number or email"
+                  aria-label="Search contacts"
+                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm shadow-[0_2px_10px_-4px_rgba(17,24,39,0.08)] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <button
+                type="button"
+                onPointerDown={openFilterPanel}
+                className={`relative inline-flex h-[46px] flex-none items-center gap-2 rounded-2xl border bg-white px-4 text-sm font-semibold shadow-[0_2px_10px_-4px_rgba(17,24,39,0.08)] transition hover:bg-gray-50 active:scale-95 ${activeFilterCount(filters) > 0 ? 'border-primary/40 text-primary' : 'border-gray-200 text-gray-600'}`}
+              >
+                <span className="h-[18px] w-[18px]">{FilterIcon}</span>
+                Filters
+                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                {activeFilterCount(filters) > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-white shadow-sm">
+                    {activeFilterCount(filters)}
+                  </span>
+                )}
+              </button>
+              {(openQuestionCount > 0 || questionsOnly) && (
+                <button
+                  type="button"
+                  onClick={() => setQuestionsOnly((value) => !value)}
+                  aria-pressed={questionsOnly}
+                  className={`inline-flex h-[46px] flex-none items-center whitespace-nowrap rounded-2xl px-4 text-[13px] font-semibold transition active:scale-95 ${questionsOnly ? 'bg-[#2563eb] text-white' : 'bg-sky-100/80 text-[#1d4ed8] hover:bg-sky-100'}`}
+                >
+                  Questions to answer ({openQuestionCount})
+                </button>
+              )}
+            </div>
             {searching && (
               <p className="mt-1.5 px-1 text-xs text-gray-500">
                 {filteredContacts.length} match{filteredContacts.length === 1 ? '' : 'es'} across all cohorts
               </p>
-            )}
-            {(openQuestionCount > 0 || questionsOnly) && (
-              <button
-                type="button"
-                onClick={() => setQuestionsOnly((value) => !value)}
-                aria-pressed={questionsOnly}
-                className={`mt-2 inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold ${questionsOnly ? 'bg-sky-600 text-white' : 'bg-sky-100/80 text-sky-800'}`}
-              >
-                Questions to answer ({openQuestionCount})
-              </button>
             )}
             {hasTestSupports && (
               <div className="mt-2">
@@ -993,35 +1017,53 @@ const FollowUpAssignmentSummary: React.FC<{
   );
 
   return (
-    <div data-wt="fu-assignment-summary" className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {outlooks.map((o) => (
-        <div key={o.gender} className="surface-card p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{o.gender} capacity</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{o.waiting} waiting</p>
-          <p className="mt-0.5 text-xs text-gray-500">{o.spare} spare place{o.spare === 1 ? '' : 's'} among {o.gender.toLowerCase()} supports</p>
-          {o.shortfall > 0 && (
-            <p className="mt-1.5 text-xs font-semibold text-orange-700">
-              Short {o.shortfall}: raise the limit to {o.limitNeeded ?? '—'}, or add {o.supportsNeeded} more support{o.supportsNeeded === 1 ? '' : 's'}.
-            </p>
+    <div data-wt="fu-assignment-summary" className="mb-5 rounded-[20px] border border-gray-100 bg-white p-5 shadow-[0_2px_10px_-4px_rgba(17,24,39,0.08)]">
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-[auto_repeat(4,minmax(0,1fr))]">
+        <p className="text-[15px] font-bold text-gray-900 xl:pt-1">Capacity</p>
+        {outlooks.map((o, i) => (
+          <div key={o.gender} className={i > 0 ? 'sm:border-l sm:border-gray-100 sm:pl-5' : ''}>
+            <div className="flex items-center gap-2.5">
+              <span className={`grid h-9 w-9 flex-none place-items-center rounded-full text-[15px] font-bold ${o.gender === 'Male' ? 'bg-sky-100 text-sky-600' : 'bg-rose-100 text-rose-500'}`} aria-hidden="true">
+                {o.gender === 'Male' ? '♂' : '♀'}
+              </span>
+              <p className="text-[13px] text-gray-500">{o.gender}</p>
+            </div>
+            <p className="mt-2 text-[17px] font-bold text-gray-900">{o.waiting} waiting</p>
+            <p className="mt-0.5 text-[12.5px] leading-snug text-gray-500">{o.spare} spare place{o.spare === 1 ? '' : 's'} among {o.gender.toLowerCase()} supports</p>
+            {o.shortfall > 0 && (
+              <p className="mt-1.5 text-[12px] font-semibold leading-snug text-orange-700">
+                Short {o.shortfall}: raise the limit to {o.limitNeeded ?? '—'}, or add {o.supportsNeeded} more support{o.supportsNeeded === 1 ? '' : 's'}.
+              </p>
+            )}
+          </div>
+        ))}
+        <button type="button" onClick={() => setShowAtLimit((v) => !v)} className="border-t border-gray-100 pt-5 text-left sm:border-l sm:border-t-0 sm:pl-5">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-violet-100 text-violet-600" aria-hidden="true">
+              <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 9.888 9.888 0 0 0-7.938-3.975 9.888 9.888 0 0 0-7.938 3.975 9.337 9.337 0 0 0 4.121.952 9.38 9.38 0 0 0 2.625-.372v3.292a3 3 0 0 0 1.035 2.274A2.999 2.999 0 0 0 18 18.722V15.43Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+            </span>
+            <p className="text-[13px] text-gray-500">Supports at the limit</p>
+          </div>
+          <p className="mt-2 text-[17px] font-bold text-gray-900">{atLimitOwners.length}</p>
+          {showAtLimit && <p className="mt-1 text-[12px] leading-snug text-gray-500">{atLimitOwners.map((o) => o.name).join(', ') || 'None right now.'}</p>}
+        </button>
+        <div className="border-t border-gray-100 pt-5 sm:border-l sm:border-t-0 sm:pl-5">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-orange-100 text-orange-500" aria-hidden="true">
+              <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" /></svg>
+            </span>
+            <p className="text-[13px] text-gray-500">Waiting to be assigned</p>
+          </div>
+          {/* Everyone with nobody assigned (what the alert and Assign now count), then why. */}
+          <button type="button" onClick={() => onSetAssignmentFilter('all')} className="mt-2 block text-[17px] font-bold text-gray-900 hover:underline">{waitingContacts.length}</button>
+          {tagCounts.waiting > 0 && (
+            <button type="button" onClick={() => onSetAssignmentFilter('waiting')} className="mt-1 block text-[12px] font-semibold text-amber-700 hover:underline">{tagCounts.waiting} ready to assign</button>
+          )}
+          <button type="button" onClick={() => onSetAssignmentFilter('no_gender')} className="mt-1 block text-[12px] font-semibold text-orange-700 hover:underline">{tagCounts.no_gender} no same gender to follow up</button>
+          {tagCounts.unknown_gender > 0 && (
+            <button type="button" onClick={() => onSetAssignmentFilter('unknown_gender')} className="mt-0.5 block text-[12px] font-semibold text-neutral-600 hover:underline">{tagCounts.unknown_gender} gender not known</button>
           )}
         </div>
-      ))}
-      <button type="button" onClick={() => setShowAtLimit((v) => !v)} className="surface-card p-4 text-left">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Supports at the limit</p>
-        <p className="mt-1 text-2xl font-bold text-gray-900">{atLimitOwners.length}</p>
-        {showAtLimit && <p className="mt-1 text-xs text-gray-500">{atLimitOwners.map((o) => o.name).join(', ') || 'None right now.'}</p>}
-      </button>
-      <div className="surface-card p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Waiting to be assigned</p>
-        {/* Everyone with nobody assigned (what the alert and Assign now count), then why. */}
-        <button type="button" onClick={() => onSetAssignmentFilter('all')} className="mt-1 block text-2xl font-bold text-gray-900 hover:underline">{waitingContacts.length}</button>
-        {tagCounts.waiting > 0 && (
-          <button type="button" onClick={() => onSetAssignmentFilter('waiting')} className="mt-1.5 block text-xs font-semibold text-amber-700 hover:underline">{tagCounts.waiting} ready to assign</button>
-        )}
-        <button type="button" onClick={() => onSetAssignmentFilter('no_gender')} className="mt-1.5 block text-xs font-semibold text-orange-700 hover:underline">{tagCounts.no_gender} no same gender to follow up</button>
-        {tagCounts.unknown_gender > 0 && (
-          <button type="button" onClick={() => onSetAssignmentFilter('unknown_gender')} className="mt-0.5 block text-xs font-semibold text-neutral-600 hover:underline">{tagCounts.unknown_gender} gender not known</button>
-        )}
       </div>
     </div>
   );
