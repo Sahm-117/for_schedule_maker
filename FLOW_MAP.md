@@ -128,6 +128,27 @@ duplicating the logic anywhere else is a bug waiting to happen.
 10. **Notifications fan out two ways.** Most edge functions write an in-app
     row (`insertNotifications`) and push via `sendToSubscriptions`. Keep both
     or the bell and the phone disagree.
+11. **Database closed by default.** Staff tables sit behind RLS with no open
+    policies; every write path is a `SECURITY DEFINER` RPC that resolves
+    staff from `p_token` (`app_staff`) and raises `SESSION_EXPIRED` or
+    `NOT_ALLOWED` otherwise. New tables are born locked, service-role RPCs
+    only, test-flag aware from day one.
+12. **Attendance windows shut themselves.** The per-minute cron closes Sunday
+    and meeting windows; late counts as missed unless an admin excuses it,
+    and records lock after close (`attendance_record_lock`). Never
+    back-date attendance around a closed window.
+13. **Deleting a support hands over first.** Group support links clear and
+    follow-ups hand over before a user row can go
+    (`user_clear_group_support_before_delete`, support-delete handover
+    order). Handover notes are written by triggers on group membership
+    changes, not by hand.
+14. **Practice never mixes with live.** Practice cohorts and the ZZ Demo
+    rows are flagged and excluded from assignment, counts, and reminders
+    exactly like test rows. Resetting practice must not touch live data.
+15. **Writes fan out inside the database too.** Post, reply, and report
+    alerts, hub role assignments, retake notes, and the access-confirmed
+    close are triggers, not UI code. Before editing any of these flows,
+    read the trigger first; the edge function is only half the story.
 
 ## 5. Edge functions and schedules
 
