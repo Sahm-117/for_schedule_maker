@@ -1019,9 +1019,9 @@ const FollowUpAssignmentSummary: React.FC<{
   return (
     <div data-wt="fu-assignment-summary" className="mb-5 rounded-[20px] border border-gray-100 bg-white p-5 shadow-[0_2px_10px_-4px_rgba(17,24,39,0.08)]">
       <p className="px-1 text-[15px] font-bold text-gray-900">Capacity</p>
-      <div className="mt-3 grid grid-cols-1 gap-px overflow-hidden rounded-2xl bg-gray-100 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {outlooks.map((o) => (
-          <div key={o.gender} className="bg-white p-4">
+          <div key={o.gender} className="rounded-2xl border border-gray-200 bg-white p-4">
             <div className="flex items-center gap-2.5">
               <span className={`grid h-9 w-9 flex-none place-items-center rounded-full text-[15px] font-bold ${o.gender === 'Male' ? 'bg-sky-100 text-sky-600' : 'bg-rose-100 text-rose-500'}`} aria-hidden="true">
                 {o.gender === 'Male' ? '♂' : '♀'}
@@ -1037,7 +1037,7 @@ const FollowUpAssignmentSummary: React.FC<{
             )}
           </div>
         ))}
-        <button type="button" onClick={() => setShowAtLimit((v) => !v)} className="bg-white p-4 text-left">
+        <button type="button" onClick={() => setShowAtLimit((v) => !v)} className="rounded-2xl border border-gray-200 bg-white p-4 text-left">
           <div className="flex items-center gap-2.5">
             <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-violet-100 text-violet-600" aria-hidden="true">
               <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 9.888 9.888 0 0 0-7.938-3.975 9.888 9.888 0 0 0-7.938 3.975 9.337 9.337 0 0 0 4.121.952 9.38 9.38 0 0 0 2.625-.372v3.292a3 3 0 0 0 1.035 2.274A2.999 2.999 0 0 0 18 18.722V15.43Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
@@ -1047,7 +1047,7 @@ const FollowUpAssignmentSummary: React.FC<{
           <p className="mt-2 text-[17px] font-bold text-gray-900">{atLimitOwners.length}</p>
           {showAtLimit && <p className="mt-1 text-[12px] leading-snug text-gray-500">{atLimitOwners.map((o) => o.name).join(', ') || 'None right now.'}</p>}
         </button>
-        <div className="bg-white p-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-2.5">
             <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-orange-100 text-orange-500" aria-hidden="true">
               <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" /></svg>
