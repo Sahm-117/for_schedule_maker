@@ -3,6 +3,7 @@ import SegmentedTabs from '../components/SegmentedTabs';
 import { createPortal } from 'react-dom';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import { firstNameOf } from '../utils/people';
 import Spinner from '../components/Spinner';
 import FollowUpContactsTable from '../components/followups/FollowUpContactsTable';
 import FollowUpContactModal from '../components/followups/FollowUpContactModal';
@@ -122,7 +123,7 @@ const SupportFollowUpsPage: React.FC = () => {
     if (!hasLoginToSend(contact)) { openTemplates(); return; }
     try {
       const result = await emailLoginDetails(contact, user);
-      if (result === 'password-set') toast({ message: `${contact.fullName.split(' ')[0]} has set their own password, so there's no login to send.` });
+      if (result === 'password-set') toast({ message: `${firstNameOf(contact.fullName)} has set their own password, so there's no login to send.` });
       if (result !== 'opened') openTemplates();
     } catch (err) {
       const message = err instanceof Error ? err.message : '';

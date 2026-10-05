@@ -4,6 +4,7 @@ import AppGuideModal from './AppGuideModal';
 import { settingsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { buildWhatsAppLink } from '../utils/phone';
+import { firstNameOf } from '../utils/people';
 
 // Floating, non-intrusive round "Need Support" (?) button shown app-wide. Tapping it opens
 // a small "How can we help?" sheet: the app guide (opens on the viewer's role), or
@@ -37,7 +38,7 @@ const NeedSupportButton: React.FC<{ inline?: boolean; className?: string; cohort
     return () => { cancelled = true; };
   }, [user?.id, user?.role, cohortId]);
 
-  const contactFirstName = contact ? (contact.name.trim().split(/\s+/)[0] || contact.name) : '';
+  const contactFirstName = contact ? (firstNameOf(contact.name) || contact.name) : '';
   const contactLabel = isItContact ? `${contactFirstName} (IT Support)` : contact?.name ?? '';
 
   const waLink = contact ? buildWhatsAppLink(contact.phone, `Hello ${contact.name}, I need help with `) : null;

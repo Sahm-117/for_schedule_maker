@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import { firstNameOf } from '../utils/people';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
 import SegmentedTabs from '../components/SegmentedTabs';
@@ -185,7 +186,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     if (!hasLoginToSend(contact)) { openTemplates(contact, 'email'); return; }
     try {
       const result = await emailLoginDetails(contact, user);
-      if (result === 'password-set') toast({ message: `${contact.fullName.split(' ')[0]} has set their own password, so there's no login to send.` });
+      if (result === 'password-set') toast({ message: `${firstNameOf(contact.fullName)} has set their own password, so there's no login to send.` });
       if (result !== 'opened') openTemplates(contact, 'email');
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
@@ -353,7 +354,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     setResolveSaving(true);
     try {
       const { registrationStatus } = await followUpLoginIssuesApi.resolve(resolvingIssue.id, resolveNote);
-      const firstName = resolvingIssue.contactName.split(' ')[0];
+      const firstName = firstNameOf(resolvingIssue.contactName);
       toast({
         tone: 'success',
         message: registrationStatus === 'ACCESS_CONFIRMED'
@@ -438,7 +439,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
       const wasClosed = !!contact.archivedAt;
       const nowClosed = !!updated.archivedAt;
       if (wasClosed !== nowClosed) {
-        const firstName = contact.fullName.split(' ')[0];
+        const firstName = firstNameOf(contact.fullName);
         const reason = FOLLOW_UP_STATUS_META[computeFollowUpStatus(updated)].label;
         const previous: FollowUpContactUpdate = {
           messageStatus: contact.messageStatus,

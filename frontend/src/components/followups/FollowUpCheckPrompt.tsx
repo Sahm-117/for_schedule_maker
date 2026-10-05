@@ -4,6 +4,7 @@ import { followUpChecksApi } from '../../services/api';
 import { useToast } from '../Toast';
 import { POPUP_PRIORITY, usePopupSlot } from '../../utils/popupQueue';
 import type { FollowUpCheck } from '../../types';
+import { firstNameOf } from '../../utils/people';
 
 // A support who has held people for a day without moving any of them is asked, once:
 // "Are you following up your participants?" It can't be closed without answering.
@@ -66,7 +67,7 @@ const FollowUpCheckPrompt: React.FC<{ enabled: boolean }> = ({ enabled }) => {
     }
   };
 
-  const first = check.people.slice(0, 3).map((p) => p.name.split(' ')[0]);
+  const first = check.people.slice(0, 3).map((p) => firstNameOf(p.name));
   const more = check.people.length - first.length;
 
   return createPortal(

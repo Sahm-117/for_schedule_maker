@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { FollowUpContact, FollowUpRelatedContact } from '../../types';
 import { buildWhatsAppLink } from '../../utils/phone';
+import { firstNameOf } from '../../utils/people';
 import { useRelatedContacts } from '../../hooks/useRelatedContacts';
 
 const when = (r: FollowUpRelatedContact, first: string): string => {
@@ -37,7 +38,7 @@ const Step: React.FC<{ n: number; children: React.ReactNode }> = ({ n, children 
 const NoNumberHelp: React.FC<Props> = ({ contact, related: relatedProp, hideHeader, emailInstead, onEmailInstead, onHaveNumber }) => {
   const looked = useRelatedContacts(contact.id, relatedProp === undefined);
   const related = relatedProp ?? looked;
-  const first = contact.fullName.split(' ')[0];
+  const first = firstNameOf(contact.fullName);
   const email = contact.email?.trim();
   const [showAll, setShowAll] = useState(false);
   const shown = showAll ? related : related.slice(0, 1);
@@ -79,7 +80,7 @@ const NoNumberHelp: React.FC<Props> = ({ contact, related: relatedProp, hideHead
         )}
         {shown.map((r) => {
           const wa = buildWhatsAppLink(r.phone, '');
-          const rFirst = r.fullName.split(' ')[0];
+          const rFirst = firstNameOf(r.fullName);
           return (
             <Step key={r.id} n={++step}>
               <div className="flex items-center gap-3">
@@ -88,7 +89,7 @@ const NoNumberHelp: React.FC<Props> = ({ contact, related: relatedProp, hideHead
                   <p className="text-[12.5px] leading-snug text-gray-500">
                     Signed up with the same {r.sharedBy === 'EMAIL' ? 'email' : 'number'} {when(r, first)}. They may know each other, so it's worth asking {rFirst}.
                   </p>
-                  {r.phone && wa && <p className="mt-0.5 text-[12px] text-gray-400">{r.phone}{r.mine ? ' · on your list' : r.ownerName ? ` · with ${r.ownerName.split(' ')[0]}` : ''}</p>}
+                  {r.phone && wa && <p className="mt-0.5 text-[12px] text-gray-400">{r.phone}{r.mine ? ' · on your list' : r.ownerName ? ` · with ${firstNameOf(r.ownerName)}` : ''}</p>}
                 </div>
                 {wa && <a href={wa} target="_blank" rel="noreferrer" className="flex-none rounded-full bg-emerald-600 px-3.5 py-1.5 text-[12.5px] font-semibold text-white">WhatsApp</a>}
               </div>

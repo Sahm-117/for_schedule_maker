@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { followUpContactsApi, participantAccountsApi } from '../../services/api';
 import { buildStatusPatch, isNoFormRegistrationError, NO_FORM_MESSAGE } from '../../utils/followUps';
+import { firstNameOf } from '../../utils/people';
 import { useToast } from '../Toast';
 import type { FollowUpContact, FollowUpContactUpdate } from '../../types';
 import { POPUP_PRIORITY, usePopupSlot, useSettled } from '../../utils/popupQueue';
@@ -101,7 +102,7 @@ const LoginShareReminder: React.FC<{ userId: string; enabled: boolean }> = ({ us
     try {
       if (sent) {
         await followUpContactsApi.update(item.contact.id, buildStatusPatch('LOGIN_SHARED') as FollowUpContactUpdate);
-        toast({ message: `${item.contact.fullName.split(' ')[0]} is now Login shared.` });
+        toast({ message: `${firstNameOf(item.contact.fullName)} is now Login shared.` });
       } else {
         writeSnooze(userId, item.contact.id);
       }

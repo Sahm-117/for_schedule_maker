@@ -3,6 +3,7 @@ import AppMultiSelect from '../AppMultiSelect';
 import ModalShell from './ModalShell';
 import { followUpContactsApi } from '../../services/api';
 import type { FollowUpContact, User } from '../../types';
+import { firstNameOf } from '../../utils/people';
 import Spinner from '../Spinner';
 
 // People marked "Will join next cohort" get moved into the new cohort's
@@ -19,7 +20,7 @@ interface Props {
   onDone: (message: string) => void;
 }
 
-const firstName = (name: string) => name.trim().split(/\s+/)[0];
+const firstName = (name: string) => firstNameOf(name);
 
 const NextCohortAssignModal: React.FC<Props> = ({ isOpen, contacts, targetCohortId, targetCohortName, supports, onClose, onDone }) => {
   const [supportIds, setSupportIds] = useState<string[]>([]);

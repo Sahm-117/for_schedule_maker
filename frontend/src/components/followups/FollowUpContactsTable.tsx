@@ -4,7 +4,7 @@ import type { Cohort, FollowUpContact, FollowUpNoteEntry, FollowUpStatus, User }
 import AppSelect from '../AppSelect';
 import LinkText from '../LinkText';
 import LoadRing from '../LoadRing';
-import { genderAgeLine } from '../../utils/people';
+import { genderAgeLine, firstNameOf } from '../../utils/people';
 import AppOverflowMenu from '../AppOverflowMenu';
 import NotInterestedPopup from './NotInterestedPopup';
 import ModalShell from './ModalShell';
@@ -229,7 +229,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
           onClick={() => assignToAdder(contact)}
           className="ml-2 font-semibold text-primary-dark hover:underline"
         >
-          Assign to {contact.registeredByName?.split(' ')[0]}
+          Assign to {firstNameOf(contact.registeredByName)}
         </button>
       )}
     </p>
@@ -705,7 +705,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         isOpen={!!resetLoginContact}
         onClose={() => setResetLoginContact(null)}
         title="Reset password"
-        subtitle={resetLoginContact ? `They get a new first-time code. Send it to ${resetLoginContact.fullName.split(' ')[0]} straight after.` : undefined}
+        subtitle={resetLoginContact ? `They get a new first-time code. Send it to ${firstNameOf(resetLoginContact.fullName)} straight after.` : undefined}
       >
         {resetLoginContact && <LoginDetailsCard followUpContactId={resetLoginContact.id} email={resetLoginContact.email} defaultOpen />}
       </ModalShell>
