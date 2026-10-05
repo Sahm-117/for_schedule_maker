@@ -153,6 +153,9 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [signUpSearch, setSignUpSearch] = useState('');
   // Follow-up stages ticked in the filter (empty = everyone).
   const [signUpStages, setSignUpStages] = useState<string[]>([]);
+  const [signUpFrom, setSignUpFrom] = useState('');
+  const [signUpTo, setSignUpTo] = useState('');
+  const signUpDateOn = !!(signUpFrom || signUpTo);
   // On a phone the keyboard covers the list under the search box. When it's
   // tapped, bring the box up under the header so the names show as they filter.
   const signUpSearchRef = useRef<HTMLInputElement | null>(null);
@@ -501,11 +504,17 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     const digits = needle.replace(/\D/g, '');
     return signUpPeople.filter((row) => {
       if (signUpStages.length > 0 && !signUpStages.some((stage) => signUpInStage(row, stage))) return false;
+      if (signUpFrom || signUpTo) {
+        const day = (row.signedUpAt || '').slice(0, 10);
+        if (!day) return false;
+        if (signUpFrom && day < signUpFrom) return false;
+        if (signUpTo && day > signUpTo) return false;
+      }
       if (!needle) return true;
       return row.allNames.some((name) => name.toLowerCase().includes(needle))
         || (digits.length >= 3 && row.phone.replace(/\D/g, '').includes(digits));
     });
-  }, [signUpPeople, signUpSearch, signUpStages]);
+  }, [signUpPeople, signUpSearch, signUpStages, signUpFrom, signUpTo]);
   const signUpStageOptions = useMemo(
     () => SIGN_UP_FILTERS.map((option) => ({ ...option, count: signUpPeople.filter((row) => signUpInStage(row, option.value)).length })),
     [signUpPeople],
@@ -716,7 +725,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
             <section className={`${CARD} p-[18px]`}>
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-sm font-bold text-gray-900">Registered on the form</h3>
-                <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-bold text-neutral-600">{signUpPeople.length}</span>
+                <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-bold text-neutral-600">{signUpDateOn ? `${visibleSignUps.length} of ${signUpPeople.length}` : signUpPeople.length}</span>
                 <button
                   type="button"
                   onClick={() => { void refreshSignUps(); }}
@@ -757,17 +766,17 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                     </button>
                   )}
                 </div>
-                <SignUpStageFilter options={signUpStageOptions} values={signUpStages} onChange={setSignUpStages} />
+                <SignUpStageFilter options={signUpStageOptions} values={signUpStages} onChange={setSignUpStages} dateFrom={signUpFrom} dateTo={signUpTo} onDateChange={(from, to) => { setSignUpFrom(from); setSignUpTo(to); }} />
                 </div>
               )}
 
               {/* While searching, hold this area's height so the page doesn't shrink
                   (and jump) as fewer names match. */}
-              <div className={signUpSearch.trim() || signUpStages.length > 0 ? 'min-h-[min(60vh,32rem)]' : ''}>
+              <div className={signUpSearch.trim() || signUpStages.length > 0 || signUpDateOn ? 'min-h-[min(60vh,32rem)]' : ''}>
               {signUps.length === 0 ? (
                 <p className="mt-3 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">Nobody has registered on the form yet.</p>
               ) : visibleSignUps.length === 0 ? (
-                <p className="mt-3 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">{signUpSearch.trim() ? `Nobody matching “${signUpSearch.trim()}”` : 'Nobody'}{signUpStages.length > 0 ? ' at those stages' : ''} has registered.</p>
+                <p className="mt-3 rounded-[14px] bg-[#f6f7f9] px-3.5 py-3 text-[13px] text-gray-500">{signUpSearch.trim() ? `Nobody matching “${signUpSearch.trim()}”` : 'Nobody'}{signUpStages.length > 0 ? ' at those stages' : ''}{signUpDateOn ? ' in those dates' : ''} has registered.</p>
               ) : (
                 // Everyone who ever signed up lives here, so the list is capped at
                 // roughly five cards and scrolls. The fade tells you there's more.
