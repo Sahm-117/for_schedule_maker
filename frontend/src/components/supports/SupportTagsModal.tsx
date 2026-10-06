@@ -142,7 +142,7 @@ const SupportTagsModal: React.FC<SupportTagsModalProps> = ({ isOpen, onClose, su
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') void add(); }}
-              placeholder="New tag, e.g. Teen support"
+              placeholder="New tag, e.g. Men only"
               aria-label="New tag name"
               maxLength={40}
               className={inputClass}

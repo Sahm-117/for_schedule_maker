@@ -479,6 +479,20 @@ const AdminFollowUpsPage: React.FC = () => {
     [filters],
   );
 
+  // What the Export copies: exactly the people the table is showing, with the filters named.
+  const exportContacts = useMemo(() => filteredContacts.filter((c) => !c.isTest), [filteredContacts]);
+  const exportFilters = useMemo(() => {
+    const out: string[] = [];
+    if (searching) out.push(`Search "${contactSearch.trim()}"`);
+    else if (cohortFilter && cohortFilter !== activeCohort?.id) out.push(cohorts.find((c) => c.id === cohortFilter)?.name ?? 'One cohort');
+    if (ownerFilter === '__unassigned__') out.push('Unassigned');
+    else if (ownerFilter) out.push(owners.find((o) => o.id === ownerFilter)?.name ?? 'One support');
+    if (statusParam) out.push(statusParam === 'open' ? 'Still open' : FOLLOW_UP_STATUS_META[statusParam as FollowUpStatus]?.label ?? statusParam);
+    activeChips.forEach((chip) => out.push(chip.label));
+    if (questionsOnly) out.push('Questions to answer');
+    return out;
+  }, [searching, contactSearch, cohortFilter, activeCohort?.id, cohorts, ownerFilter, owners, statusParam, activeChips, questionsOnly]);
+
   // Runs the same rule the 2-hour scheduled sweep uses, right now, for
   // everyone currently waiting -- see followUpContactsApi.assignPendingNow.
   const handleAssignNow = async () => {
@@ -922,7 +936,9 @@ const AdminFollowUpsPage: React.FC = () => {
 
       {showExport && (
         <ExportContactsPopup
-          contacts={realContacts}
+          contacts={exportContacts}
+          title={`${activeCohort?.name ?? 'FOF'} Follow-ups`}
+          filters={exportFilters}
           onClose={() => setShowExport(false)}
         />
       )}

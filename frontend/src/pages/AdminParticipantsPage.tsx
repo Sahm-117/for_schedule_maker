@@ -966,6 +966,24 @@ const AdminParticipantsContent: React.FC = () => {
     return sortByText(ps, (participant) => participant.fullName);
   }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant, healthFilter, healthById, incompleteOnly, completionById, noAlertsOnly, noAlertsIds, departmentFilter, genderFilter, ageFilter, wrapUpDeptById]);
 
+  // Names what is filtered on screen, so the WhatsApp export says which people it holds.
+  const exportSubtitle = useMemo(() => {
+    const out: string[] = [];
+    if (showArchived) out.push('Archived');
+    if (groupFilter === '__UNASSIGNED__') out.push('Not in a group');
+    else if (groupFilter) out.push(groups.find((g) => g.id === groupFilter)?.name ?? 'One group');
+    if (supportFilter) out.push(`Support: ${supportOptions.find((o) => o.value === supportFilter)?.label ?? 'one support'}`);
+    if (genderFilter) out.push(genderFilter);
+    if (ageFilter) out.push(`Age ${ageFilter}`);
+    if (flaggedOnly) out.push('Flagged');
+    if (incompleteOnly) out.push('Profile incomplete');
+    if (healthFilter) out.push(PERSON_HEALTH_LABEL[healthFilter]);
+    if (noAlertsOnly) out.push('No alerts');
+    if (departmentFilter) out.push(`Wants to join ${departmentFilter}`);
+    if (search.trim()) out.push(`Search "${search.trim()}"`);
+    return out.length ? `Filter: ${out.join(' · ')}` : undefined;
+  }, [showArchived, groupFilter, groups, supportFilter, supportOptions, genderFilter, ageFilter, flaggedOnly, incompleteOnly, healthFilter, noAlertsOnly, departmentFilter, search]);
+
   const unassignedCount = useMemo(
     () => counted.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
     [counted]
@@ -1428,7 +1446,7 @@ const AdminParticipantsContent: React.FC = () => {
       />
 
       {exportOpen && (
-        <ParticipantsExportPopup participants={displayed} cohortName={activeCohort?.name ?? 'Cohort'} subtitle={departmentFilter ? `Wants to join ${departmentFilter}` : undefined} onClose={() => setExportOpen(false)} />
+        <ParticipantsExportPopup participants={displayed} cohortName={activeCohort?.name ?? 'Cohort'} subtitle={exportSubtitle} onClose={() => setExportOpen(false)} />
       )}
 
       <AssignGroupModal

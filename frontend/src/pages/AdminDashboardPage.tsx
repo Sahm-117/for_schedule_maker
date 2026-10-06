@@ -32,7 +32,7 @@ import { announcementsApi, cohortsApi, followUpContactsApi, settingsApi, support
 import { DEFAULT_PROGRAMME_RULES, type CohortPeoplePayload, type ProgrammeRules } from '../utils/programmeRules';
 import type { Announcement, FollowUpContact, SupportActivityCompletion, User } from '../types';
 import { sortByText } from '../utils/sort';
-import { computeFollowUpHeadline, contactInCohortScope, type FollowUpHeadline } from '../utils/followUps';
+import { computeFollowUpHeadline, computeTeenOverview, contactInCohortScope, type FollowUpHeadline, type TeenOverview } from '../utils/followUps';
 import { hasSupportRole } from '../utils/people';
 
 // Admin home: where the cohort is, whether it's healthy, what needs attention
@@ -66,6 +66,7 @@ const AdminDashboardPage: React.FC = () => {
   const [signUpTarget, setSignUpTarget] = useState<number | null>(null);
   // Sign-up numbers, worked out the same way as Follow-ups → Overview.
   const [followUpHeadline, setFollowUpHeadline] = useState<FollowUpHeadline | null>(null);
+  const [teenOverview, setTeenOverview] = useState<TeenOverview | null>(null);
   const [healthError, setHealthError] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -99,6 +100,9 @@ const AdminDashboardPage: React.FC = () => {
       setSignUpTarget(nextTarget.target);
       setFollowUpHeadline(nextContacts
         ? computeFollowUpHeadline(nextContacts.contacts.filter((c) => !c.isTest && contactInCohortScope(c, cohortId, cohortId)))
+        : null);
+      setTeenOverview(nextContacts
+        ? computeTeenOverview(nextContacts.contacts.filter((c) => contactInCohortScope(c, cohortId, cohortId)))
         : null);
     } catch (error) {
       setHealthError(error instanceof Error ? error.message : 'Could not load cohort health.');
@@ -213,6 +217,8 @@ const AdminDashboardPage: React.FC = () => {
               <VitalSigns health={health} model={model} />
             )}
           </div>
+
+          {teenOverview && teenOverview.total > 0 && <TeenOverviewCard overview={teenOverview} />}
 
           <div data-wt="dash-attention" className={openingAssign ? 'pointer-events-none opacity-70' : ''}>
             <AttentionList items={model.attention} onAction={(item) => { void handleAttentionAction(item); }} />
@@ -480,6 +486,36 @@ const ParticipantsTile: React.FC<{ health: CohortHealthPayload; model: Dashboard
 };
 
 // Before the cohort starts: the same five numbers as Follow-ups → Overview.
+const TeenOverviewCard: React.FC<{ overview: TeenOverview }> = ({ overview }) => {
+  const tiles = [
+    { title: 'Teens', value: overview.total, detail: 'signed up', to: '/follow-ups?tab=contacts&status=TEENAGER' },
+    { title: 'With a Teen Support', value: overview.matched, detail: 'not onboarded yet', to: '/follow-ups?tab=contacts&status=TEENAGER' },
+    { title: 'Onboarded', value: overview.onboarded, detail: 'reached and in their group', to: '/follow-ups?tab=contacts&status=TEEN_ONBOARDED' },
+    { title: 'Waiting', value: overview.waiting, detail: 'no Teen Support with room', to: '/follow-ups?tab=contacts&status=TEENAGER' },
+  ];
+  return (
+    <section className="surface-card p-5">
+      <div className="flex items-center gap-2">
+        <h3 className="text-base font-semibold text-gray-900">Teens</h3>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-4 xl:grid-cols-4">
+        {tiles.map((tile) => (
+          <NavLink key={tile.title} to={tile.to} className="block rounded-2xl bg-gray-50/80 p-4 transition hover:-translate-y-0.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{tile.title}</p>
+            <p className={`mt-2 text-3xl font-bold tracking-tight tabular-nums ${tile.title === 'Waiting' && tile.value > 0 ? 'text-amber-700' : 'text-gray-900'}`}>{tile.value}</p>
+            <p className="mt-1 text-sm text-gray-600">{tile.detail}</p>
+          </NavLink>
+        ))}
+      </div>
+      {overview.perSupport.length > 0 && (
+        <p className="mt-3 text-xs text-gray-500">
+          {overview.perSupport.map((row) => `${row.name} ${row.count}`).join(' · ')}
+        </p>
+      )}
+    </section>
+  );
+};
+
 const RegistrationFunnel: React.FC<{ headline: FollowUpHeadline | null; target: number | null }> = ({ headline, target }) => {
   if (!headline) return null;
   const steps = [

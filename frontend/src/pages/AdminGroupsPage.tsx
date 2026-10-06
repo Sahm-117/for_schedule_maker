@@ -494,6 +494,9 @@ const AdminGroupsContent: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [groups, setGroups] = useState<Group[]>([]);
+  // A Teen Support's teens, kept apart: no meetings or recaps, Sunday attendance only.
+  const [teenGroups, setTeenGroups] = useState<Group[]>([]);
+  const [teenFlowOn, setTeenFlowOn] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
   // Every support; test accounts are hidden from the pickers unless asked for.
   const [allSupportUsers, setAllSupportUsers] = useState<User[]>([]);
@@ -536,13 +539,17 @@ const AdminGroupsContent: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     if (!silent) setLoading(true);
     try {
-      const [{ groups: gs }, { participants: ps }, { users }, { sessions: ts, attendance: ta }, rules] = await Promise.all([
-        groupsApi.getAll({ cohortId: activeCohort.id, includeArchived: showArchived }),
+      const [{ groups: allGs }, { participants: ps }, { users }, { sessions: ts, attendance: ta }, rules, teenOn] = await Promise.all([
+        groupsApi.getAll({ cohortId: activeCohort.id, includeArchived: showArchived, includeTeenGroups: true }),
         participantsApi.getAll({ cohortId: activeCohort.id }),
         usersApi.getAll(),
         supportSessionsApi.getForCohort(activeCohort.id, ['PRE_COHORT_TRAINING']),
         settingsApi.getProgrammeRules(),
+        settingsApi.getTeenFlowEnabled().catch(() => false),
       ]);
+      const gs = allGs.filter((g) => !g.isTeenGroup);
+      const sortedTeenGs = sortGroupsByName(allGs.filter((g) => g.isTeenGroup));
+      setTeenFlowOn(teenOn);
       const sortedGs = sortGroupsByName(gs);
       const sortedPs = sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName);
       const sortedUsers = sortByText(users.filter((u) => hasSupportRole(u)), (user) => user.name);
@@ -550,10 +557,12 @@ const AdminGroupsContent: React.FC = () => {
         // Merge by id so unchanged rows keep their reference — avoids the
         // full-grid re-render / scroll-jump on every realtime refresh.
         setGroups((prev) => reconcileById(prev, sortedGs));
+        setTeenGroups((prev) => reconcileById(prev, sortedTeenGs));
         setParticipants((prev) => reconcileById(prev, sortedPs));
         setAllSupportUsers((prev) => reconcileById(prev, sortedUsers));
       } else {
         setGroups(sortedGs);
+        setTeenGroups(sortedTeenGs);
         setParticipants(sortedPs);
         setAllSupportUsers(sortedUsers);
       }
@@ -619,6 +628,13 @@ const AdminGroupsContent: React.FC = () => {
     });
     return map;
   }, [participants]);
+
+  // Teens (18 and below) are grouped by their Teen Support, never by the builder, so
+  // once teen handling is on they are left out of the "not in a group yet" counts.
+  const groupablePeople = useMemo(
+    () => (teenFlowOn ? participants.filter((p) => p.ageRange !== '18 and below') : participants),
+    [participants, teenFlowOn]
+  );
 
   return (
     <div className="page-content">
@@ -752,6 +768,47 @@ const AdminGroupsContent: React.FC = () => {
         </div>
       )}
 
+      {activeCohort && !loading && teenGroups.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-sm font-bold text-gray-900">Teen groups</h2>
+          <p className="mb-3 text-xs text-gray-500">Each Teen Support's teens. No meetings or recaps; Sunday attendance only.</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {teenGroups.map((g) => {
+              const members = membersByGroupId.get(g.id) ?? [];
+              return (
+                <div key={g.id} className="flex flex-col gap-3 surface-card p-5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="truncate font-bold text-gray-900">{g.name}</h3>
+                      <p className="truncate text-xs text-gray-500">{g.supportName || 'No support assigned'}</p>
+                    </div>
+                    <div className="flex flex-shrink-0 items-center gap-1.5">
+                      <span className="rounded-full bg-pink-100/80 px-2.5 py-0.5 text-xs font-semibold text-pink-700">Teen</span>
+                      <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">{g.participantCount ?? members.length}</span>
+                    </div>
+                  </div>
+                  {members.length === 0 ? (
+                    <p className="rounded-xl bg-gray-50/80 px-3 py-4 text-center text-xs text-gray-400">No teens yet</p>
+                  ) : (
+                    <div className="flex flex-col">
+                      {members.map((p) => (
+                        <div key={p.id} className="flex items-center gap-2.5 rounded-2xl px-1 py-1.5">
+                          <Avatar name={p.fullName} avatarUrl={p.avatarUrl} size="sm" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold leading-tight text-gray-900">{p.fullName}</p>
+                            <p className="truncate text-xs text-gray-400">{[p.guardianPhone ?? p.phone, genderAgeLine(p)].filter(Boolean).join(' · ')}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <GroupFormModal
         isOpen={formOpen}
         onClose={() => { setFormOpen(false); setEditing(null); }}
@@ -825,7 +882,7 @@ const AdminGroupsContent: React.FC = () => {
       <NewGroupChooser
         isOpen={chooserOpen}
         onClose={() => setChooserOpen(false)}
-        ungroupedCount={participants.filter((p) => !p.groupId).length}
+        ungroupedCount={groupablePeople.filter((p) => !p.groupId).length}
         onEngine={() => { setChooserOpen(false); setEngineOpen(true); }}
         onManual={() => { setChooserOpen(false); setEditing(null); setFormOpen(true); }}
         onEmpty={async (count) => {
@@ -846,7 +903,7 @@ const AdminGroupsContent: React.FC = () => {
           onCreated={() => void load(true)}
           cohortId={activeCohort.id}
           cohortName={activeCohort.name}
-          participants={participants}
+          participants={groupablePeople}
           groups={groups}
           // The automatic builder never places a test support.
           supportUsers={pickableUsers(allSupportUsers)}
@@ -861,7 +918,13 @@ const AdminGroupsContent: React.FC = () => {
           groups={displayedGroups}
           membersByGroupId={membersByGroupId}
           cohortName={activeCohort?.name ?? 'Cohort'}
-          unassignedParticipants={participants.filter((p) => !p.groupId).length}
+          unassignedParticipants={groupablePeople.filter((p) => !p.groupId).length}
+          filters={[
+            groupFilter ? groups.find((g) => g.id === groupFilter)?.name ?? 'One group' : '',
+            !groupFilter && supportFilter ? `Support: ${groups.find((g) => g.supportId === supportFilter)?.supportName ?? 'one support'}` : '',
+            !groupFilter && !supportFilter && noSupportOnly ? 'No support assigned' : '',
+            showArchived ? 'Including archived' : '',
+          ].filter(Boolean)}
           onClose={() => setExportOpen(false)}
         />
       )}

@@ -209,6 +209,17 @@ const SupportFollowUpsPage: React.FC = () => {
       .sort((a, b) => ((isClosedContact(a) ? 1 : 0) - (isClosedContact(b) ? 1 : 0)) || compareText(a.fullName, b.fullName));
   }, [searching, visibleContacts, contacts, contactSearch]);
 
+  // What the Export copies: exactly the people shown, with the filters named.
+  const exportFilters = useMemo(() => {
+    const out: string[] = [];
+    if (searching) out.push(`Search "${contactSearch.trim()}"`);
+    else if (showPastCohorts) out.push('Including past cohorts');
+    (['reply', 'call', 'reg', 'next'] as const).forEach((key) => {
+      if (filters[key]) out.push(statusGroups.find((g) => g.key === key)?.options.find((o) => o.value === filters[key])?.label ?? filters[key]);
+    });
+    return out;
+  }, [searching, contactSearch, showPastCohorts, filters]);
+
   const visibleIssues = useMemo(() => {
     const contactIds = new Set(contacts.map((contact) => contact.id));
     return issues.filter((issue) => issue.reportedById === user?.id || (issue.contactId ? contactIds.has(issue.contactId) : false));
@@ -526,7 +537,9 @@ const SupportFollowUpsPage: React.FC = () => {
 
       {showExport && (
         <ExportContactsPopup
-          contacts={contacts}
+          contacts={searchedContacts}
+          title={`${activeCohort?.name ?? 'My'} Follow-ups`}
+          filters={exportFilters}
           onClose={() => setShowExport(false)}
         />
       )}

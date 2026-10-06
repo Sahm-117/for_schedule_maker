@@ -8,16 +8,18 @@ interface GroupsExportPopupProps {
   membersByGroupId: Map<string, Participant[]>;
   cohortName: string;
   unassignedParticipants: number;
+  /** What is filtered on screen, in plain words; named in the copied header. */
+  filters?: string[];
   onClose: () => void;
 }
 
-const GroupsExportPopup: React.FC<GroupsExportPopupProps> = ({ groups, membersByGroupId, cohortName, unassignedParticipants, onClose }) => {
+const GroupsExportPopup: React.FC<GroupsExportPopupProps> = ({ groups, membersByGroupId, cohortName, unassignedParticipants, filters, onClose }) => {
   const [copiedAll, setCopiedAll] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const copyAll = async () => {
     try {
-      const header = buildGroupsHeader(cohortName, groups, membersByGroupId, unassignedParticipants);
+      const header = buildGroupsHeader(cohortName, groups, membersByGroupId, unassignedParticipants, filters);
       await navigator.clipboard.writeText(buildAllGroupsText(groups, membersByGroupId, header));
       setCopiedAll(true);
       setTimeout(() => setCopiedAll(false), 2000);

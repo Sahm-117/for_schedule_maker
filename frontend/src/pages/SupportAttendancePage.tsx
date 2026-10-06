@@ -7,7 +7,7 @@ import PageLoader from '../components/PageLoader';
 import { useToast } from '../components/Toast';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { attendanceApi, participantsApi, settingsApi } from '../services/api';
+import { attendanceApi, groupsApi, participantsApi, settingsApi } from '../services/api';
 import TrainingAttendancePanel from '../components/TrainingAttendancePanel';
 import type { AttendanceRecord, AttendanceSession, AttendanceStatus, Participant, User, Week } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
@@ -97,7 +97,10 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
     [activeCohort, weeks]
   );
   const [selectedWeekId, setSelectedWeekId] = useState<number | 'ALL' | null>(null);
-  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [allParticipants, setParticipants] = useState<Participant[]>([]);
+  // A Teen Support takes attendance for their own teens by default; a switch brings back everyone.
+  const [teenGroupId, setTeenGroupId] = useState<string | null>(null);
+  const [showEveryone, setShowEveryone] = useState(false);
   const [records, setRecords] = useState<Map<string, AttendanceRecord>>(new Map());
   const [session, setSession] = useState<AttendanceSession | null>(null);
   const [weekResults, setWeekResults] = useState<AttendanceWeekResult[]>([]);
@@ -107,6 +110,19 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [starting, setStarting] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const participants = useMemo(
+    () => (teenGroupId && !showEveryone ? allParticipants.filter((person) => person.groupId === teenGroupId) : allParticipants),
+    [allParticipants, teenGroupId, showEveryone]
+  );
+
+  useEffect(() => {
+    if (!activeCohort) { setTeenGroupId(null); return; }
+    let cancelled = false;
+    groupsApi.getTeenGroupForSupport(user.id, activeCohort.id)
+      .then(({ group }) => { if (!cancelled) setTeenGroupId(group?.id ?? null); })
+      .catch(() => { if (!cancelled) setTeenGroupId(null); });
+    return () => { cancelled = true; };
+  }, [activeCohort, user.id]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -262,7 +278,7 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
 
   return (
     <div className="page-content max-w-4xl">
-      <PageHeader title="Attendance" subtitle={allWeeks ? 'Attendance results for this cohort' : selectedWeek ? `Week ${selectedWeek.weekNumber} · everyone in ${activeCohort?.name ?? 'this cohort'}` : 'Everyone in this cohort'} />
+      <PageHeader title="Attendance" subtitle={allWeeks ? 'Attendance results for this cohort' : selectedWeek ? `Week ${selectedWeek.weekNumber} · ${teenGroupId && !showEveryone ? 'your teens' : `everyone in ${activeCohort?.name ?? 'this cohort'}`}` : 'Everyone in this cohort'} />
       {switcher}
       {!activeCohort ? <p className="text-sm text-gray-500">Choose a cohort first.</p> : cohortWeeks.length === 0 ? <p className="text-sm text-gray-500">No weeks are set up yet.</p> : (
         <>
@@ -285,8 +301,14 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
               <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or phone…" className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:flex-1" />
               {groupOptions.length > 1 && <div className="w-full sm:w-56"><AppSelect value={selectedGroupId} onChange={setSelectedGroupId} options={groupOptions} placeholder="All groups" compact /></div>}
             </div>}
+            {!allWeeks && !beforeClassDay && teenGroupId && (
+              <label className="mt-3 flex cursor-pointer items-center gap-2.5 text-[13px] font-medium text-gray-600">
+                <input type="checkbox" checked={showEveryone} onChange={(e) => { setShowEveryone(e.target.checked); setSelectedGroupId(''); }} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30" />
+                Show everyone, not just my teens
+              </label>
+            )}
             {!allWeeks && finalised && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance report sent.</p>}
-            {!allWeeks && !finalised && allMarked && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance taken.{activeSession.autoFinalizeAtNoon ? ' It will be sent automatically at noon on Sunday.' : ' Waiting for the admin to send the report.'}</p>}
+            {!allWeeks && !finalised && allMarked && !(teenGroupId && !showEveryone) && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance taken.{activeSession.autoFinalizeAtNoon ? ' It will be sent automatically at noon on Sunday.' : ' Waiting for the admin to send the report.'}</p>}
             {!allWeeks && locked && <p className="mt-2 text-[13px] font-medium text-gray-500">The register is locked. You can still move an Absent mark to Late or Left early.</p>}
           </section>
           {allWeeks ? (loading ? <PageLoader /> : <section className="overflow-hidden rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">{weekResults.map((result) => {

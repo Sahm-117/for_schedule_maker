@@ -211,6 +211,30 @@ duplicating the logic anywhere else is a bug waiting to happen.
     SECURITY INVOKER; the admin RPCs run as owner and pass). Supports are resolved
     when the task is added: people who join later do not get it. Source:
     `20261006210000_support_admin_checklist_tasks.sql`.
+22. **A teen's group follows who holds them.** `Group.isTeenGroup` marks a Teen
+    Support's group ("Teens - <name>"). `teen_group_sync` (triggers on
+    `FollowUpContact` owner/status/archive/cohort and on `Participant.followUpContactId`)
+    keeps the linked participant in exactly one group, the owner's teen group (leaving any adult group), while the
+    contact is TEENAGER / TEEN_ONBOARDED, owned and not archived; out of all of them
+    otherwise. Teen groups never have meetings, recaps, prayer or onboarding:
+    `groupsApi.getAll` (unless `includeTeenGroups`), `getForSupport` and
+    `resolveSupportScopedGroups` leave them out. A Teen Support's Attendance page
+    lists only their teens (switch for everyone). Source:
+    `20261007100000_teen_groups.sql`, `20261007120000_teen_group_sync_fixes.sql`.
+23. **A teen can only be handed to a same-gender Teen Support, by anyone.**
+    `teen_owner_guard` rejects any owner change on a teen to someone who is not a
+    Teen Support of the teen's gender (clearing the owner is allowed); editing a held teen's gender is checked the same way (`20261007130000_teen_owner_guard_gender.sql`). Admin "This
+    person is not a teen" returns the contact to REGISTERED with no owner. Source:
+    `20261007110000_teen_owner_guard.sql`.
+24. **Switching teen handling on for the first time moves the existing teens.** The
+    `teen_enable_move` trigger on `AppSetting` runs `teen_move_existing()` once (marker
+    `teen_move_done`): every current-cohort participant aged 18 and below becomes a TEENAGER
+    contact (created if they had none) with no adult owner, and the adult who held them is told.
+    They then wait for the normal teen assignment (sweep or admin "Assign now"), which gives them
+    a same-gender Teen Support and a teen group. For the first 48 hours after that switch-on, teen assignment does not skip
+    "quiet" Teen Supports (`teen_quiet_bypass_until`, read by `teen_quiet_bypass()`); then the
+    normal quiet check returns by itself. Source: `20261007140000_teen_enable_move.sql`,
+    `20261007150000_teen_assignment_ignore_quiet.sql`, `20261007160000_teen_quiet_bypass_once.sql`.
 
 ## 5. Edge functions and schedules
 

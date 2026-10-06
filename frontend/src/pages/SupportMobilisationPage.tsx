@@ -1315,7 +1315,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
         />
       </ModalShell>
 
-      {showExport && <ExportContactsPopup contacts={cohortScopedContacts} closedToggle onClose={() => setShowExport(false)} />}
+      {showExport && <ExportContactsPopup contacts={cohortScopedContacts} title={`${activeCohort?.name ?? 'My'} Follow-ups`} closedToggle onClose={() => setShowExport(false)} />}
     </div>
   );
 };

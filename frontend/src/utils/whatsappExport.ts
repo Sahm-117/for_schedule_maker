@@ -1,5 +1,6 @@
-import type { Group, Participant, User } from '../types';
+import type { FollowUpContact, Group, Participant, User } from '../types';
 import { supportProfileChecklist } from './people';
+import { contactReachPhone } from './followUps';
 
 // Phone display matches the existing ExportContactsPopup convention: keep a
 // leading 0 / + as-is, otherwise prefix a 0 so the number is dialable.
@@ -43,13 +44,14 @@ export const buildGroupsHeader = (
   groups: Group[],
   membersByGroupId: Map<string, Participant[]>,
   unassignedParticipants: number,
+  filters: string[] = [],
 ): string => {
   const participantCount = groups.reduce((sum, g) => sum + (membersByGroupId.get(g.id)?.length ?? 0), 0);
   const groupsWithoutSupport = groups.filter((g) => !g.supportId).length;
   const parts = [pluralize(groups.length, 'group'), pluralize(participantCount, 'participant')];
   if (groupsWithoutSupport > 0) parts.push(`${groupsWithoutSupport} groups without support`);
   if (unassignedParticipants > 0) parts.push(pluralize(unassignedParticipants, 'unassigned participant'));
-  return `*${cohortName} Groups & Supports*\n${parts.join(' · ')}`;
+  return [`*${cohortName} Groups & Supports*`, filters.length ? `Filter: ${filters.join(' · ')}` : '', parts.join(' · ')].filter(Boolean).join('\n');
 };
 
 // All groups, one block each, separated by a blank line. A header line is
@@ -123,4 +125,22 @@ export const buildSupportsList = (supports: User[], missingAlertsIds: Set<string
     return `${i + 1}. ${s.name}${phone ? ` - ${phone}` : ' - no number'}${missingAlertsIds.has(s.id) ? ' *' : ''}`;
   });
   return `${header}\n\n${lines.join('\n')}`;
+};
+
+// Follow-up contacts, exactly as filtered on screen, e.g.
+//   *FOF Cohort 10 Follow-ups*
+//   Filter: Registered · Female
+//   Total: 2
+//
+//   1. Ada Obi - 08012345678
+//   2. Bola Ade - 08023456789
+// A teen shows the number we reach them on (a parent's first).
+export const formatContactLine = (index: number, c: FollowUpContact): string => {
+  const phone = normalizePhone(contactReachPhone(c));
+  return `${index}. ${c.fullName} - ${phone || 'no number'}`;
+};
+
+export const buildContactsList = (title: string, filters: string[], contacts: FollowUpContact[]): string => {
+  const header = [`*${title}*`, filters.length ? `Filter: ${filters.join(' · ')}` : '', `Total: ${contacts.length}`].filter(Boolean).join('\n');
+  return `${header}\n\n${contacts.map((c, i) => formatContactLine(i + 1, c)).join('\n')}`;
 };

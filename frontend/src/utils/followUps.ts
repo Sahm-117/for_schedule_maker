@@ -784,6 +784,35 @@ export interface FollowUpHeadline {
   loggedIn: number;
 }
 
+export interface TeenOverview {
+  total: number;
+  /** Held by a Teen Support but not yet onboarded. */
+  matched: number;
+  onboarded: number;
+  /** No Teen Support yet (no same-gender room, or not assigned yet). */
+  waiting: number;
+  perSupport: Array<{ ownerId: string; name: string; count: number }>;
+}
+
+/** Counts for the admin Teen overview card; pass the contacts already scoped to the cohort. */
+export const computeTeenOverview = (contacts: FollowUpContact[]): TeenOverview => {
+  const teens = contacts.filter((c) => isTeenContact(c) && !c.isTest && !c.archivedAt);
+  const load = new Map<string, { name: string; count: number }>();
+  teens.forEach((c) => {
+    if (!c.ownerId) return;
+    const row = load.get(c.ownerId) ?? { name: c.ownerName ?? 'Support', count: 0 };
+    row.count += 1;
+    load.set(c.ownerId, row);
+  });
+  return {
+    total: teens.length,
+    matched: teens.filter((c) => c.ownerId && c.registrationStatus === 'TEENAGER').length,
+    onboarded: teens.filter((c) => c.registrationStatus === 'TEEN_ONBOARDED').length,
+    waiting: teens.filter((c) => !c.ownerId).length,
+    perSupport: Array.from(load, ([ownerId, v]) => ({ ownerId, ...v })).sort((a, b) => a.name.localeCompare(b.name)),
+  };
+};
+
 export const computeFollowUpHeadline = (contacts: FollowUpContact[]): FollowUpHeadline => {
   const all = computeFollowUpFunnel(contacts);
   // A wrong number was never a prospect we could reach. "Signed up" counts this

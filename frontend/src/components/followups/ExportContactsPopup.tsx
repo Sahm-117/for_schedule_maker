@@ -1,30 +1,31 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { FollowUpContact } from '../../types';
+import { buildContactsList, formatContactLine, normalizePhone } from '../../utils/whatsappExport';
+import { contactReachPhone } from '../../utils/followUps';
 
 interface ExportContactsPopupProps {
   contacts: FollowUpContact[];
   onClose: () => void;
   /** Adds an "Include closed" switch (off by default) that brings archived contacts into the list. */
   closedToggle?: boolean;
+  /** Heading of the copied list, e.g. "FOF Cohort 10 Follow-ups". */
+  title?: string;
+  /** What is filtered on screen, in plain words. The copied list names these and holds only those people. */
+  filters?: string[];
 }
 
-const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: allContacts, onClose, closedToggle = false }) => {
+const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: allContacts, onClose, closedToggle = false, title = 'Follow-ups', filters = [] }) => {
   const [includeClosed, setIncludeClosed] = useState(false);
   const closedCount = closedToggle ? allContacts.filter((c) => !!c.archivedAt).length : 0;
   const contacts = closedToggle && !includeClosed ? allContacts.filter((c) => !c.archivedAt) : allContacts;
   const [copiedAll, setCopiedAll] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const normalizePhone = (p?: string | null) => {
-    if (!p) return '';
-    return p.startsWith('0') || p.startsWith('+') ? p : `0${p}`;
-  };
-
-  const formatLine = (c: FollowUpContact) => `${c.fullName}\t${normalizePhone(c.phone)}`;
+  const allFilters = closedToggle && includeClosed ? [...filters, 'Including closed'] : filters;
 
   const copyAll = async () => {
-    const text = contacts.map(formatLine).join('\n');
+    const text = buildContactsList(title, allFilters, contacts);
     try {
       await navigator.clipboard.writeText(text);
       setCopiedAll(true);
@@ -34,7 +35,7 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: all
 
   const copyOne = async (c: FollowUpContact) => {
     try {
-      await navigator.clipboard.writeText(`${c.fullName}\t${normalizePhone(c.phone)}`);
+      await navigator.clipboard.writeText(formatContactLine(1, c).replace(/^1\. /, ''));
       setCopiedId(c.id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch { /* ignore */ }
@@ -51,6 +52,10 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: all
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
+
+        {allFilters.length > 0 && (
+          <p className="px-5 pt-3 text-[13px] text-gray-500">Only what is filtered on screen: <span className="font-semibold text-gray-700">{allFilters.join(' · ')}</span></p>
+        )}
 
         {closedToggle && (
           <label className="flex items-center justify-between gap-3 px-5 pt-3 text-[13px] font-semibold text-gray-700">
@@ -87,7 +92,7 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: all
                 <div key={c.id} className="flex items-center justify-between py-2.5">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-gray-900">{c.fullName}</p>
-                    <p className="truncate text-xs text-gray-500">{normalizePhone(c.phone) || '—'}</p>
+                    <p className="truncate text-xs text-gray-500">{normalizePhone(contactReachPhone(c)) || '—'}</p>
                   </div>
                   <button
                     type="button"

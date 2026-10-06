@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import type { Cohort, FollowUpContact, User } from '../../types';
 import AppSelect from '../AppSelect';
 import ModalShell from './ModalShell';
-import { followUpContactsApi } from '../../services/api';
+import { followUpContactsApi, supportTagsApi } from '../../services/api';
+import { isTeenContact } from '../../utils/followUps';
 import { normalizeToIntlPhone } from '../../utils/phone';
 import { sortByText } from '../../utils/sort';
 import Spinner from '../Spinner';
@@ -55,9 +56,25 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [teenSupportIds, setTeenSupportIds] = useState<Set<string> | null>(null);
+  const [confirmNotTeen, setConfirmNotTeen] = useState(false);
+  const [teenSupportsFailed, setTeenSupportsFailed] = useState(false);
+  const isTeen = !!contact && isTeenContact(contact);
+
+  // A teen can only be handed to a same-gender Teen Support, so the picker is limited to those.
+  useEffect(() => {
+    if (!isOpen || !isTeen) { setTeenSupportIds(null); setTeenSupportsFailed(false); return; }
+    let cancelled = false;
+    setTeenSupportsFailed(false);
+    supportTagsApi.getAll()
+      .then(({ tags }) => { if (!cancelled) setTeenSupportIds(new Set(tags.find((t) => t.systemKey === 'TEEN_SUPPORT')?.userIds ?? [])); })
+      .catch(() => { if (!cancelled) { setTeenSupportIds(new Set()); setTeenSupportsFailed(true); } });
+    return () => { cancelled = true; };
+  }, [isOpen, isTeen]);
 
   useEffect(() => {
     if (!isOpen) return;
+    setConfirmNotTeen(false);
     setFullName(contact?.fullName || '');
     setPhone(contact?.phone || '');
     setSource(contact?.source || '');
@@ -75,6 +92,33 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
     setError('');
     setSaving(false);
   }, [isOpen, contact, defaultCohortId]);
+
+  const ownerChoices = isTeen
+    ? owners.filter((o) => o.id === contact?.ownerId || (teenSupportIds?.has(o.id) && !!contact?.gender && o.gender === contact.gender))
+    : owners;
+
+  // Back to the normal flow: registered, no owner, so adult follow-up picks them up. The database
+  // takes them out of the teen group.
+  const handleNotTeen = async () => {
+    if (!contact) return;
+    setSaving(true);
+    setError('');
+    try {
+      const { contact: updated } = await followUpContactsApi.update(contact.id, {
+        registrationStatus: 'REGISTERED',
+        ownerId: null,
+        previousOwnerId: contact.ownerId || null,
+        replyStatus: 'REPLIED',
+        nextAction: 'SEND_MESSAGE',
+      });
+      onSaved(updated);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not change this contact.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const phoneInvalid = phone.trim() !== '' && !normalizeToIntlPhone(phone);
 
@@ -187,7 +231,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
             label="Assigned to"
             value={ownerId}
             onChange={setOwnerId}
-            options={[{ value: '', label: 'Unassigned' }, ...sortByText(owners, (o) => o.name).map((o) => ({
+            options={[{ value: '', label: 'Unassigned' }, ...sortByText(ownerChoices, (o) => o.name).map((o) => ({
               value: o.id,
               label: o.name,
               meta: genderAgeLine(o) || undefined,
@@ -195,6 +239,11 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
             }))]}
             placeholder="Unassigned"
           />
+        )}
+        {canEditOwner && isTeen && (
+          <p className={`-mt-2 text-xs ${teenSupportsFailed ? 'font-medium text-red-600' : 'text-gray-500'}`}>
+            {teenSupportsFailed ? 'Could not load the Teen Supports. Close this and open it again.' : 'Teens go only to a Teen Support of the same gender.'}
+          </p>
         )}
         {canEditOwner && ownerId && ownerId !== (contact?.ownerId || '') && maxLoad && (ownerLoad?.get(ownerId) ?? 0) >= maxLoad && (
           <p className="-mt-2 rounded-2xl bg-amber-100/80 px-4 py-2.5 text-xs font-medium text-amber-700">
@@ -283,7 +332,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
                   <AppSelect
                     value={ageRange}
                     onChange={setAgeRange}
-                    options={[{ value: '', label: 'Not set' }, ...['18 - 24', '25 - 34', '35 - 44', '45 - 59', '60 and above'].map((value) => ({ value, label: value }))]}
+                    options={[{ value: '', label: 'Not set' }, ...[...(ageRange === '18 and below' ? ['18 and below'] : []), '18 - 24', '25 - 34', '35 - 44', '45 - 59', '60 and above'].map((value) => ({ value, label: value }))]}
                     placeholder="Not set"
                     compact
                   />
@@ -301,6 +350,21 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</label>
           <textarea className={`${inputClass} min-h-[80px]`} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything worth remembering" />
         </div>
+        {canEditOwner && isTeen && (
+          <div className="rounded-2xl bg-pink-50/70 p-4">
+            {confirmNotTeen ? (
+              <>
+                <p className="text-sm text-gray-700">Move {contact?.fullName} back to the normal follow-up? They leave the Teen Support and the teen group, and wait to be assigned to a support.</p>
+                <div className="mt-3 flex gap-2">
+                  <button type="button" disabled={saving} onClick={() => void handleNotTeen()} className="rounded-full bg-primary px-4 py-2 text-xs font-bold text-white disabled:opacity-50">Yes, not a teen</button>
+                  <button type="button" disabled={saving} onClick={() => setConfirmNotTeen(false)} className="rounded-full px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-white">Cancel</button>
+                </div>
+              </>
+            ) : (
+              <button type="button" onClick={() => setConfirmNotTeen(true)} className="text-xs font-semibold text-pink-700">This person is not a teen</button>
+            )}
+          </div>
+        )}
       </div>
     </ModalShell>
   );

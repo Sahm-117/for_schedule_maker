@@ -4472,6 +4472,7 @@ const resolveSupportScopedGroups = async (supportId: string, cohortId?: string |
     .from('Group')
     .select(GROUP_SELECT)
     .eq('supportId', supportId)
+    .eq('isTeenGroup', false)
     .is('archivedAt', null)
     .order('name', { ascending: true });
 
@@ -4486,6 +4487,7 @@ const resolveSupportScopedGroups = async (supportId: string, cohortId?: string |
   let fallbackQuery = supabase
     .from('Group')
     .select(GROUP_SELECT)
+    .eq('isTeenGroup', false)
     .is('archivedAt', null)
     .order('name', { ascending: true });
 
@@ -4973,6 +4975,7 @@ const mapGroup = (row: any): import('../types').Group => ({
   callLink: row.callLink ?? null,
   archivedAt: row.archivedAt ?? null,
   archivedById: row.archivedById ?? null,
+  isTeenGroup: row.isTeenGroup === true,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
@@ -5237,7 +5240,9 @@ const syncGroupTag = async (
 };
 
 export const groupsApi = {
-  async getAll(options?: { cohortId?: string; includeArchived?: boolean }): Promise<{ groups: import('../types').Group[] }> {
+  // Teen groups (a Teen Support's teens, Sunday attendance only) stay out unless asked for,
+  // so meetings, recaps, prayer and the group builder never see them.
+  async getAll(options?: { cohortId?: string; includeArchived?: boolean; includeTeenGroups?: boolean }): Promise<{ groups: import('../types').Group[] }> {
     let query = supabase
       .from('Group')
       .select(GROUP_SELECT)
@@ -5245,6 +5250,7 @@ export const groupsApi = {
 
     if (options?.cohortId) query = query.eq('cohortId', options.cohortId);
     if (!options?.includeArchived) query = query.is('archivedAt', null);
+    if (!options?.includeTeenGroups) query = query.eq('isTeenGroup', false);
 
     const { data, error } = await query;
     if (error) throw new Error(error.message);
@@ -5262,6 +5268,7 @@ export const groupsApi = {
       .from('Group')
       .select(GROUP_SELECT)
       .eq('supportId', userId)
+      .eq('isTeenGroup', false)
       .is('archivedAt', null);
     if (cohortId) query = query.eq('cohortId', cohortId);
     const { data, error } = await query
@@ -5269,6 +5276,21 @@ export const groupsApi = {
       .limit(1)
       .maybeSingle();
 
+    if (error) throw new Error(error.message);
+    return { group: data ? mapGroup(data as any) : null };
+  },
+
+  // The Teen Support's own teen group for a cohort (null if they hold no teens yet).
+  async getTeenGroupForSupport(userId: string, cohortId: string): Promise<{ group: import('../types').Group | null }> {
+    const { data, error } = await supabase
+      .from('Group')
+      .select(GROUP_SELECT)
+      .eq('supportId', userId)
+      .eq('cohortId', cohortId)
+      .eq('isTeenGroup', true)
+      .is('archivedAt', null)
+      .limit(1)
+      .maybeSingle();
     if (error) throw new Error(error.message);
     return { group: data ? mapGroup(data as any) : null };
   },
@@ -5501,6 +5523,7 @@ export const groupOnboardingStatusApi = {
       .from('Group')
       .select(GROUP_SELECT)
       .eq('cohortId', cohortId)
+      .eq('isTeenGroup', false)
       .order('name', { ascending: true });
     if (groupError) throw new Error(groupError.message);
 

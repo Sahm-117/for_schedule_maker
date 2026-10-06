@@ -664,6 +664,8 @@ export interface Group {
   callLink?: string | null;
   archivedAt?: string | null;
   archivedById?: string | null;
+  /** A Teen Support's teen group: no meetings, recaps or prayer; Sunday attendance only. */
+  isTeenGroup?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

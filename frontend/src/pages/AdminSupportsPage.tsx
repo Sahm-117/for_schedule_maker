@@ -368,6 +368,7 @@ const AdminSupportsPage: React.FC = () => {
     kindFilter ? KIND_LABEL[kindFilter] : '',
     hubFilter ? hubs.find((h) => h.id === hubFilter)?.name ?? '' : '',
     notesOnly ? 'With notes' : '',
+    search.trim() ? `Search "${search.trim()}"` : '',
   ].filter(Boolean).join(' · ');
 
   return (
