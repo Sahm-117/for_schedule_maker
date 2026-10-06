@@ -8,9 +8,10 @@
 --      Teen Supports (SupportTag systemKey TEEN_SUPPORT). Same gender first,
 --      fewest teens first, never above programme_rules.maxTeensPerTeenSupport
 --      (default 4) counting ALL of a support's teens (onboarded too: they are one
---      group). The other gender only when no same-gender Teen Support has room,
---      and that is flagged (teenGenderFallback) and reported. Nothing here ever
---      moves a teen who already has a support.
+--      group). HARD RULE: a teen only ever goes to a same-gender Teen Support. If
+--      none has room the teen waits (reported as stuck, admins are told); there is
+--      no opposite-gender fallback. Nothing here ever moves a teen who already has
+--      a support. ("teenGenderFallback" below is never set; the column is unused.)
 --   4. teen_add_prospect(): a support adds a teen from Mobilisation. Staff only,
 --      refused while teen_flow_enabled is off. It sets the manual-registration
 --      columns in the same statement so the form gate (FLOW_MAP rule 1) passes,
@@ -63,20 +64,17 @@ DECLARE
   v_max INT;
   v_load JSONB := '{}'::jsonb;      -- "<cohortId|''>|<ownerId>" -> teens held
   v_batches JSONB := '{}'::jsonb;   -- ownerId -> {"count": n, "names": [...]}
-  v_fallbacks JSONB := '[]'::jsonb;
   v_stuck JSONB := '[]'::jsonb;
   v_assigned INT := 0;
   rec RECORD;
   v_target UUID;
-  v_target_name TEXT;
-  v_fallback BOOLEAN;
   v_key TEXT;
   v_batch JSONB;
   v_names JSONB;
 BEGIN
   SELECT value INTO v_enabled FROM "AppSetting" WHERE "settingKey" = 'teen_flow_enabled';
   IF v_enabled IS DISTINCT FROM to_jsonb(true) THEN
-    RETURN jsonb_build_object('enabled', false, 'assigned', 0, 'batches', '{}'::jsonb, 'fallbacks', '[]'::jsonb, 'stuck', '[]'::jsonb);
+    RETURN jsonb_build_object('enabled', false, 'assigned', 0, 'batches', '{}'::jsonb, 'stuck', '[]'::jsonb);
   END IF;
 
   SELECT id INTO v_tag FROM "SupportTag" WHERE "systemKey" = 'TEEN_SUPPORT';
@@ -112,7 +110,6 @@ BEGIN
     END IF;
 
     v_target := NULL;
-    v_fallback := FALSE;
 
     -- Whoever added them, if they are a same-gender Teen Support with room.
     IF rec."registeredById" IS NOT NULL THEN
@@ -139,30 +136,15 @@ BEGIN
       LIMIT 1;
     END IF;
 
-    -- Only when nobody of the same gender has room: the other gender, flagged.
     IF v_target IS NULL THEN
-      SELECT u.id INTO v_target
-      FROM "User" u
-      JOIN "SupportTagMember" m ON m."userId" = u.id AND m."tagId" = v_tag
-      WHERE u.role IN ('SUPPORT', 'ADMIN') AND u."isActive" IS NOT FALSE AND u."isTest" IS NOT TRUE
-        AND u.gender IN ('Male', 'Female') AND u.gender <> rec.gender
-        AND NOT public.followup_owner_is_quiet(u.id)
-        AND COALESCE((v_load->>(COALESCE(rec."cohortId"::text, '') || '|' || u.id::text))::int, 0) < v_max
-      ORDER BY COALESCE((v_load->>(COALESCE(rec."cohortId"::text, '') || '|' || u.id::text))::int, 0) ASC, u.name ASC
-      LIMIT 1;
-      IF v_target IS NOT NULL THEN v_fallback := TRUE; END IF;
-    END IF;
-
-    IF v_target IS NULL THEN
-      v_stuck := v_stuck || jsonb_build_array(jsonb_build_object('contactId', rec.id, 'name', rec."fullName", 'reason', 'NO_ROOM', 'createdAt', rec."createdAt"));
+      v_stuck := v_stuck || jsonb_build_array(jsonb_build_object('contactId', rec.id, 'name', rec."fullName", 'reason', 'NO_SAME_GENDER_ROOM', 'createdAt', rec."createdAt"));
       CONTINUE;
     END IF;
 
     UPDATE "FollowUpContact"
-    SET "ownerId" = v_target, "teenGenderFallback" = v_fallback, "updatedAt" = now()
+    SET "ownerId" = v_target, "updatedAt" = now()
     WHERE id = rec.id;
 
-    SELECT name INTO v_target_name FROM "User" WHERE id = v_target;
     v_key := COALESCE(rec."cohortId"::text, '') || '|' || v_target::text;
     v_load := jsonb_set(v_load, ARRAY[v_key], to_jsonb(COALESCE((v_load->>v_key)::int, 0) + 1));
 
@@ -173,14 +155,10 @@ BEGIN
     v_batch := jsonb_set(v_batch, ARRAY['names'], v_names);
     v_batches := jsonb_set(v_batches, ARRAY[v_target::text], v_batch);
 
-    IF v_fallback THEN
-      v_fallbacks := v_fallbacks || jsonb_build_array(jsonb_build_object(
-        'contactId', rec.id, 'name', rec."fullName", 'gender', rec.gender, 'ownerId', v_target, 'ownerName', v_target_name));
-    END IF;
     v_assigned := v_assigned + 1;
   END LOOP;
 
-  RETURN jsonb_build_object('enabled', true, 'assigned', v_assigned, 'batches', v_batches, 'fallbacks', v_fallbacks, 'stuck', v_stuck);
+  RETURN jsonb_build_object('enabled', true, 'assigned', v_assigned, 'batches', v_batches, 'stuck', v_stuck);
 END;
 $function$;
 REVOKE ALL ON FUNCTION public.assign_teen_contacts(uuid) FROM PUBLIC, anon, authenticated;
@@ -368,7 +346,6 @@ BEGIN
     'participantId', v_part_id,
     'ownerId', v_contact."ownerId",
     'ownerName', v_owner_name,
-    'fallback', v_contact."teenGenderFallback",
     'waiting', v_contact."ownerId" IS NULL
   );
 END;

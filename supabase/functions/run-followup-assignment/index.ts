@@ -119,9 +119,9 @@ Deno.serve(async (req) => {
       await notifyOwner(ownerId, batches[ownerId].count, batches[ownerId].names ?? [])
     }
 
-    // Teens go only to Teen Supports (assign_teen_contacts checks the teen switch itself and
-    // reads its own limit). Same notifications to the supports; admins hear about the
-    // opposite-gender fallbacks, and about teens nobody can take (once per 2 hours).
+    // Teens go only to a same-gender Teen Support (assign_teen_contacts checks the teen switch
+    // itself and reads its own limit; there is no opposite-gender fallback). Same notifications
+    // to the supports; admins hear about teens nobody can take (once per 2 hours).
     let teenSummary: Record<string, unknown> = { enabled: false }
     try {
       const { data: teen, error: teenError } = await supabase.rpc('assign_teen_contacts', { p_only_contact: null })
@@ -143,13 +143,6 @@ Deno.serve(async (req) => {
             await sendToSubscriptions(webPush, supabase, subs as any[], payload)
           }
         }
-        const fallbacks = (teen.fallbacks ?? []) as Array<{ name: string; ownerName: string }>
-        if (fallbacks.length) {
-          await tellAdmins(
-            'A teen was given to an opposite-gender support',
-            fallbacks.map((f) => `${f.name} → ${f.ownerName}`).slice(0, 3).join(', ') + (fallbacks.length > 3 ? ` +${fallbacks.length - 3}` : '') + '. No same-gender Teen Support had room.',
-          )
-        }
         const stuck = (teen.stuck ?? []) as Array<{ name: string; reason: string; createdAt: string }>
         const waitingLong = stuck.filter((s) => Date.now() - new Date(s.createdAt).getTime() > 2 * 60 * 60 * 1000)
         if (waitingLong.length) {
@@ -159,11 +152,11 @@ Deno.serve(async (req) => {
           if (!recent?.length) {
             await tellAdmins(
               'Teens waiting for a Teen Support',
-              `${waitingLong.length} ${waitingLong.length === 1 ? 'teen is' : 'teens are'} waiting: no Teen Support has room, or a number or gender is missing.`,
+              `${waitingLong.length} ${waitingLong.length === 1 ? 'teen is' : 'teens are'} waiting: no same-gender Teen Support has room, or a number or gender is missing.`,
             )
           }
         }
-        teenSummary = { enabled: true, assigned: teen.assigned ?? 0, fallbacks: fallbacks.length, stuck: stuck.length }
+        teenSummary = { enabled: true, assigned: teen.assigned ?? 0, stuck: stuck.length }
       }
     } catch (err) {
       console.error('run-followup-assignment: teen assignment failed', String(err))
