@@ -42,7 +42,7 @@ This file is project-specific. Keep changes here limited to guidance for this re
 - For user-facing changes, also verify the affected flow in Playwright against the local frontend and the existing deployed backend. Use the role that actually uses the feature, check browser console/runtime errors, and clean up or flag any test data created.
 - Be careful not to commit local inspection artifacts such as `.playwright-mcp/` unless explicitly requested.
 - Before committing, run the relevant checks and `git diff --check`.
-- Before every push, re-read `FLOW_MAP.md` section 4 and confirm the change set violates none of the numbered rules. If the work adds or changes a rule, register it there first with its source migration or function.
+- Before every push, re-read `FLOW_MAP.md` section 4 and confirm the change set violates none of the numbered rules. If the work adds or changes a rule, register it there first with its source migration or function. A git pre-push hook (`.githooks/pre-push`, enabled per clone with `scripts/setup-git-hooks.sh`) blocks the push unless every commit message has a `Flow-Map: checked` line (or `Flow-Map: n/a <reason>` when nothing in section 4 applies). Add that line only after you have re-read section 4; `scripts/flow-map-check.sh` prints the rule list. Never use `--no-verify` to get round it.
 
 ## Session and git workflow
 

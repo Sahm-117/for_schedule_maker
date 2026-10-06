@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Blocks a push unless every commit being pushed says it was checked against the
+# rules in FLOW_MAP.md section 4. Add one line to each commit message:
+#
+#   Flow-Map: checked          (re-read section 4; no rule is violated)
+#   Flow-Map: n/a <reason>     (docs/tests only, nothing in section 4 applies)
+#
+# It cannot judge the change itself: the line is a written statement that the
+# author (human or agent) did the check. Install once per clone with
+# scripts/setup-git-hooks.sh. `git push --no-verify` skips it.
+zero=0000000000000000000000000000000000000000
+root="$(git rev-parse --show-toplevel)"
+missing=()
+total=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  if [ "$remote_sha" = "$zero" ]; then
+    shas="$(git rev-list --no-merges "$local_sha" --not --remotes)"
+  else
+    shas="$(git rev-list --no-merges "$remote_sha..$local_sha" 2>/dev/null || git rev-list --no-merges "$local_sha" --not --remotes)"
+  fi
+  for sha in $shas; do
+    total=$((total + 1))
+    git log -1 --format=%B "$sha" | grep -qiE '^Flow-Map:[[:space:]]*(checked|n/a)' \
+      || missing+=("$(git log -1 --format='%h %s' "$sha")")
+  done
+done
+
+if [ "${#missing[@]}" -gt 0 ]; then
+  echo "" >&2
+  echo "push blocked: ${#missing[@]} of $total commit(s) have no Flow-Map line:" >&2
+  printf '  %s\n' "${missing[@]}" >&2
+  echo "" >&2
+  "$root/scripts/flow-map-check.sh" >&2 || true
+  echo "" >&2
+  echo "Re-read FLOW_MAP.md section 4 against these commits. If a rule is added or" >&2
+  echo "changed, register it in FLOW_MAP.md first. Then add 'Flow-Map: checked' (or" >&2
+  echo "'Flow-Map: n/a <reason>') to each message (git commit --amend, or rebase -i" >&2
+  echo "reword for several) and push again." >&2
+  exit 1
+fi
+
+if [ "$total" -gt 0 ]; then
+  echo "flow-map check: $total commit(s) carry a Flow-Map line."
+fi
+exit 0
