@@ -25,7 +25,7 @@ import SupportsExportPopup from '../components/supports/SupportsExportPopup';
 import { PERSON_OF_INTEREST_INFO } from '../components/hubs/hubJobs';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
-import { activeDot, activeStatus, genderAgeLine, isSupportProfileComplete } from '../utils/people';
+import { activeDot, activeStatus, genderAgeLine, isSupportProfileComplete, hasSupportRole } from '../utils/people';
 import { openLoadByOwner } from '../utils/followUps';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import {
@@ -188,7 +188,7 @@ const AdminSupportsPage: React.FC = () => {
 
   useEffect(() => {
     const leadingIds = new Set(health?.groups.map((g) => g.supportId));
-    const supports = users.filter((u) => u.role === 'SUPPORT' && (leadingIds.has(u.id) || (u.isActive !== false && cohortMemberIds.has(u.id))));
+    const supports = users.filter((u) => hasSupportRole(u) && (leadingIds.has(u.id) || (u.isActive !== false && cohortMemberIds.has(u.id))));
     const cached: Record<string, string | null | undefined> = {};
     supports.forEach((u) => { cached[u.id] = lastSeenCache.current.get(u.id)?.seen; });
     setLastSeenById(cached);
@@ -223,7 +223,7 @@ const AdminSupportsPage: React.FC = () => {
     bySupport.forEach((h) => { counts[h] += 1; });
     const unsupported = health.groups.filter((g) => !g.supportId && g.members > 0);
     const leading = new Set(health.groups.map((g) => g.supportId).filter(Boolean));
-    const notLeading = users.filter((u) => u.role === 'SUPPORT' && u.isActive !== false && cohortMemberIds.has(u.id) && !leading.has(u.id));
+    const notLeading = users.filter((u) => hasSupportRole(u) && u.isActive !== false && cohortMemberIds.has(u.id) && !leading.has(u.id));
     const weekIdByNumber = new Map(health.weeks.map((w) => [w.weekNumber, w.id]));
     return { mode, judged, evaluations, counts, total: bySupport.size, unsupported, notLeading, weekIdByNumber };
   }, [health, people, rules, users, cohortMemberIds, activeCohort]);

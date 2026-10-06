@@ -5,6 +5,7 @@ import { cohortsApi, settingsApi } from '../services/api';
 import { sortByText } from '../utils/sort';
 import type { User } from '../types';
 import { pickableUsers } from '../utils/testUsers';
+import { hasSupportRole } from '../utils/people';
 
 // Admin setting: which supports can mark trainings & get-togethers attendance
 // (they get a Trainings switch on their Attendance page).
@@ -29,7 +30,7 @@ const TrainingMarkersModal: React.FC<{ isOpen: boolean; onClose: () => void; coh
       .then(([{ userIds }, users]) => {
         if (cancelled) return;
         setSelected(new Set(userIds));
-        setSupports(sortByText(pickableUsers(users.filter((u) => u.role === 'SUPPORT' && u.isActive !== false), { keepIds: userIds }), (u) => u.name));
+        setSupports(sortByText(pickableUsers(users.filter((u) => hasSupportRole(u) && u.isActive !== false), { keepIds: userIds }), (u) => u.name));
       })
       .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load supports'); })
       .finally(() => { if (!cancelled) setLoading(false); });

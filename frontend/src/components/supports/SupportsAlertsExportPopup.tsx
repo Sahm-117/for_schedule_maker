@@ -4,6 +4,7 @@ import { pushSubscriptionsApi, usersApi } from '../../services/api';
 import { sortByText } from '../../utils/sort';
 import { buildSupportsList } from '../../utils/whatsappExport';
 import type { User } from '../../types';
+import { hasSupportRole } from '../../utils/people';
 
 // Users → ⋮ → Export supports: every active support with their number, ready
 // to paste into WhatsApp. A * marks anyone without a saved notification.
@@ -20,7 +21,7 @@ const SupportsAlertsExportPopup: React.FC<{ onClose: () => void }> = ({ onClose 
     Promise.all([usersApi.getAll(), pushSubscriptionsApi.listSubscribedUserIds()])
       .then(([users, ids]) => {
         if (cancelled) return;
-        setSupports(sortByText(users.users.filter((u) => u.role === 'SUPPORT' && u.isActive !== false && !u.isTest), (u) => u.name));
+        setSupports(sortByText(users.users.filter((u) => hasSupportRole(u) && u.isActive !== false && !u.isTest), (u) => u.name));
         setSubscribed(new Set(ids));
       })
       .catch(() => { if (!cancelled) setError('Could not load the supports. Please try again.'); });

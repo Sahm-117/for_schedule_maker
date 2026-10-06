@@ -12,6 +12,7 @@ import { labelsApi, supportActivityCompletionsApi, usersApi } from '../services/
 import type { Activity, Label, SupportActivityCompletion, User } from '../types';
 import { sortByText } from '../utils/sort';
 import { pickableUsers } from '../utils/testUsers';
+import { hasSupportRole } from '../utils/people';
 
 type EnrichedActivity = Activity & { dayName: string };
 
@@ -34,7 +35,7 @@ const ActivityOverviewPage: React.FC = () => {
 
     usersApi.getAll()
       .then(async (response) => {
-        const onlySupportUsers = pickableUsers(response.users.filter((member) => member.role === 'SUPPORT'));
+        const onlySupportUsers = pickableUsers(response.users.filter((member) => hasSupportRole(member)));
         const usersWithLabels = await Promise.all(
           onlySupportUsers.map(async (member) => {
             try {
@@ -150,7 +151,7 @@ const ActivityOverviewPage: React.FC = () => {
       const activityLabelIds = new Set((activity.labels || []).map((label) => label.id));
       const assignedSupports = supportUsers
         .filter((member) =>
-          member.role === 'SUPPORT' && member.labels?.some((label) => activityLabelIds.has(label.id))
+          hasSupportRole(member) && member.labels?.some((label) => activityLabelIds.has(label.id))
         )
         .filter((member) => !selectedSupportUserId || member.id === selectedSupportUserId);
       const completedUserIds = new Set((completionsByActivity.get(activity.id) || []).map((completion) => completion.userId));

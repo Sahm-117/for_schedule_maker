@@ -33,6 +33,7 @@ import { DEFAULT_PROGRAMME_RULES, type CohortPeoplePayload, type ProgrammeRules 
 import type { Announcement, FollowUpContact, SupportActivityCompletion, User } from '../types';
 import { sortByText } from '../utils/sort';
 import { computeFollowUpHeadline, contactInCohortScope, type FollowUpHeadline } from '../utils/followUps';
+import { hasSupportRole } from '../utils/people';
 
 // Admin home: where the cohort is, whether it's healthy, what needs attention
 // and which groups need help. Switches to a registration view before a cohort
@@ -115,7 +116,7 @@ const AdminDashboardPage: React.FC = () => {
     if (!isAdmin) return;
     usersApi.getAll()
       .then(async (res) => {
-        const supportUsers = res.users.filter((member) => member.role === 'SUPPORT');
+        const supportUsers = res.users.filter((member) => hasSupportRole(member));
         const withLabels = await Promise.all(supportUsers.map(async (member) => {
           try {
             return { ...member, labels: (await usersApi.getUserLabels(member.id)).labels };

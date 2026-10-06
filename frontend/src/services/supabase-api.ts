@@ -6661,6 +6661,18 @@ export const plannerApi = {
     return data as any;
   },
 
+  /** Moves a cohort's classes earlier into freed Sundays; the end date comes back by the weeks recovered. */
+  async pullForward(cohortId: string, dates: Array<{ weekId: number; date: string }>, apply: boolean): Promise<{ moves: Array<{ weekNumber: number; from: string; to: string }>; endBefore: string; endAfter: string; applied: boolean }> {
+    const { data, error } = await supabase.rpc('planner_pull_forward', {
+      p_token: getSessionToken(),
+      p_cohort_id: cohortId,
+      p_dates: dates,
+      p_apply: apply,
+    });
+    if (error) throw new Error(error.message === 'NOT_AUTHORISED' ? 'Only admins can change class dates.' : error.message);
+    return data as any;
+  },
+
   /** A planned cohort's class dates, or null to go back to automatic. */
   async setPlannedDates(name: string, dates: string[] | null): Promise<void> {
     const { error } = await supabase.rpc('planner_set_planned_dates', { p_token: getSessionToken(), p_name: name, p_dates: dates });

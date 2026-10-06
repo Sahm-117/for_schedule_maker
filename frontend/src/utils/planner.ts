@@ -306,6 +306,60 @@ export const findClashes = (cohorts: PlannerCohort[], events: PlannerEvent[], to
 export const classesHitBy = (cohorts: PlannerCohort[], start: string, end: string) =>
   cohorts.flatMap((cohort) => cohort.classes.filter((cls) => cls.date >= start && cls.date <= end).map((cls) => ({ cohort, cls })));
 
+/** True when a Stops-FOF event covers this date. */
+const isBlockedSunday = (events: PlannerEvent[], date: string) =>
+  events.some((e) => e.stopsFof && date >= e.startDate && date <= e.endDate);
+
+/** A Sunday inside a church event that no longer stops FOF (the event was unticked). */
+const isFreedSunday = (events: PlannerEvent[], date: string) =>
+  !isBlockedSunday(events, date) && events.some((e) => !e.stopsFof && date >= e.startDate && date <= e.endDate);
+
+export interface PlannerPullForward {
+  cohort: PlannerCohort;
+  /** Only the classes that move earlier, as the database wants them. */
+  dates: Array<{ weekId: number; date: string }>;
+  /** The event whose Sunday is free again. */
+  event: PlannerEvent;
+}
+
+/**
+ * A cohort whose classes skipped a Sunday that an event used to block, and that
+ * Sunday is free again (the event no longer stops FOF). From the first such gap,
+ * each class moves to the first open Sunday after the one before it, never into
+ * the past and never later than it is now; Sundays other events still block stay skipped.
+ */
+export const findPullForwards = (cohorts: PlannerCohort[], events: PlannerEvent[], today: string): PlannerPullForward[] => {
+  const out: PlannerPullForward[] = [];
+  const todaySunday = addDays(today, (7 - new Date(`${today}T00:00:00Z`).getUTCDay()) % 7);
+  for (const cohort of cohorts) {
+    if (cohort.planned || cohort.classes.some((cls) => cls.weekId === null)) continue;
+    const { classes } = cohort;
+    let freed: PlannerEvent | null = null;
+    let start = -1;
+    for (let i = 1; i < classes.length && start < 0; i++) {
+      for (let day = addDays(classes[i - 1].date, 7); day < classes[i].date; day = addDays(day, 7)) {
+        if (day < today || !isFreedSunday(events, day)) continue;
+        freed = events.find((e) => !e.stopsFof && day >= e.startDate && day <= e.endDate) ?? null;
+        start = i;
+        break;
+      }
+    }
+    if (start < 0 || !freed) continue;
+    const dates: Array<{ weekId: number; date: string }> = [];
+    let previous = classes[start - 1].date;
+    for (let i = start; i < classes.length; i++) {
+      let next = addDays(previous, 7);
+      if (next < todaySunday) next = todaySunday;
+      while (isBlockedSunday(events, next)) next = addDays(next, 7);
+      const date = next < classes[i].date ? next : classes[i].date;
+      if (date !== classes[i].date) dates.push({ weekId: classes[i].weekId as number, date });
+      previous = date;
+    }
+    if (dates.length > 0) out.push({ cohort, dates, event: freed });
+  }
+  return out;
+};
+
 export type WeekKind = PhaseKind | 'gap';
 
 /** One Monday–Sunday week of a cohort's cycle, as the Planner draws it. */

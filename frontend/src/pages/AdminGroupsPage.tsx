@@ -24,7 +24,7 @@ import { reconcileById } from '../utils/reconcile';
 import { buildTrainingCounts, trainingCountFor, DEFAULT_PROGRAMME_RULES } from '../utils/programmeRules';
 import { normalizeLink } from '../utils/links';
 import Spinner from '../components/Spinner';
-import { genderAgeLine } from '../utils/people';
+import { genderAgeLine, hasSupportRole } from '../utils/people';
 
 // ── Training eligibility (Phase 4) ────────────────────────────────────────────
 // Shared by GroupFormModal and AssignSupportModal: a support who attended
@@ -545,7 +545,7 @@ const AdminGroupsContent: React.FC = () => {
       ]);
       const sortedGs = sortGroupsByName(gs);
       const sortedPs = sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName);
-      const sortedUsers = sortByText(users.filter((u) => u.role === 'SUPPORT'), (user) => user.name);
+      const sortedUsers = sortByText(users.filter((u) => hasSupportRole(u)), (user) => user.name);
       if (silent) {
         // Merge by id so unchanged rows keep their reference — avoids the
         // full-grid re-render / scroll-jump on every realtime refresh.

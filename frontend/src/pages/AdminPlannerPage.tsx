@@ -11,9 +11,10 @@ import ClassDatesSheet from '../components/planner/ClassDatesSheet';
 import CohortCard from '../components/planner/CohortCard';
 import CohortSheet from '../components/planner/CohortSheet';
 import PushBackSheet from '../components/planner/PushBackSheet';
+import PullForwardSheet from '../components/planner/PullForwardSheet';
 import MonthCalendar from '../components/planner/MonthCalendar';
 import YearTimeline, { runsInYear } from '../components/planner/YearTimeline';
-import { EXTENSION_STRIPES, KIND_BAR } from '../components/planner/PlannerBits';
+import { EXTENSION_STRIPES, KIND_BAR, SKIPPED_WEEK } from '../components/planner/PlannerBits';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { plannerApi } from '../services/api';
@@ -24,6 +25,7 @@ import {
   currentMoment,
   describeMoment,
   findClashes,
+  findPullForwards,
   formatPlannerDate,
   nextMoment,
   movePlannerPeriod,
@@ -33,6 +35,7 @@ import {
   type PlannerView,
   type PlannerClash,
   type PlannerCohort,
+  type PlannerPullForward,
 } from '../utils/planner';
 import type { ChurchEvent, PlannerChange, PublicHoliday, PushBackResult } from '../types';
 
@@ -50,13 +53,12 @@ const updatedAgo = (iso: string) => {
   return unit(Math.round(mins / (60 * 24)), 'day');
 };
 
-const LEGEND: Array<{ label: string; cls: string; stripes?: boolean }> = [
+const LEGEND: Array<{ label: string; cls: string; stripes?: boolean; sunday?: boolean }> = [
   { label: 'Rest', cls: KIND_BAR.rest },
   { label: 'Mobilisation', cls: KIND_BAR.mobilisation },
   { label: 'Classes', cls: KIND_BAR.classes },
   { label: 'Spare week', cls: KIND_BAR.spare },
-  { label: 'Skipped week', cls: 'border border-gray-200 bg-gray-100' },
-  { label: 'Sunday skipped', cls: KIND_BAR.gap },
+  { label: 'Sunday skipped', cls: SKIPPED_WEEK, sunday: true },
   { label: 'Classes beyond original end', cls: KIND_BAR.classes, stripes: true },
 ];
 
@@ -78,6 +80,7 @@ const AdminPlannerPage: React.FC = () => {
   const [changes, setChanges] = useState<PlannerChange[]>([]);
   const [eventSheet, setEventSheet] = useState<{ event: ChurchEvent | null } | null>(null);
   const [activeClash, setActiveClash] = useState<PlannerClash | null>(null);
+  const [activePull, setActivePull] = useState<PlannerPullForward | null>(null);
   const [undoing, setUndoing] = useState(false);
   const [plannedDates, setPlannedDates] = useState<Record<string, string[]>>({});
   const [datesFor, setDatesFor] = useState<PlannerCohort | null>(null);
@@ -155,6 +158,7 @@ const AdminPlannerPage: React.FC = () => {
   );
   const firstYear = plan.length > 0 ? Math.min(thisYear, Number(plan[0].phases[0].start.slice(0, 4))) : thisYear;
   const clashes = useMemo(() => findClashes(plan, events, today), [plan, events, today]);
+  const pullForwards = useMemo(() => findPullForwards(plan, events, today), [plan, events, today]);
 
   // Bring today, or the start of the selected period, into view on a phone.
   useLayoutEffect(() => {
@@ -259,6 +263,17 @@ const AdminPlannerPage: React.FC = () => {
             </button>
           ) : null}
 
+          {pullForwards.length > 0 ? (
+            <button type="button" onClick={() => setActivePull(pullForwards[0])} className="block w-full rounded-[22px] bg-emerald-100/80 p-4 text-left active:scale-[0.99]">
+              <p className="text-[17px] font-bold leading-snug text-emerald-700">
+                {pullForwards[0].event.name} no longer stops FOF
+              </p>
+              <p className="mt-0.5 text-[13px] text-emerald-700">
+                {pullForwards[0].cohort.name} can move {pullForwards[0].dates.length} class{pullForwards[0].dates.length === 1 ? '' : 'es'} back up{pullForwards.length > 1 ? ` · and ${pullForwards.length - 1} more cohort${pullForwards.length === 2 ? '' : 's'}` : ''} · Tap to see what moves ›
+              </p>
+            </button>
+          ) : null}
+
           <div className={`${SURFACE} flex flex-wrap items-center justify-between gap-x-6 gap-y-3 p-4`}>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Right now</p>
@@ -311,11 +326,11 @@ const AdminPlannerPage: React.FC = () => {
             />}
             {view !== 'month' && <><div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-gray-100 pt-4 text-xs font-semibold text-gray-600">
               {LEGEND.map((item) => (
-                <span key={item.label} className="flex items-center gap-1.5"><i className={`h-3 w-5 rounded ${item.cls}`} style={item.stripes ? EXTENSION_STRIPES : undefined} />{item.label}</span>
+                <span key={item.label} className="flex items-center gap-1.5"><i className={`relative h-3 w-5 overflow-hidden rounded ${item.cls}`} style={item.stripes ? EXTENSION_STRIPES : undefined}>{item.sunday && <b className={`absolute inset-y-0 right-0 w-1.5 ${KIND_BAR.gap}`} />}</i>{item.label}</span>
               ))}
               {todayInPeriod && <span className="flex items-center gap-1.5"><i className="h-3 w-0.5 rounded-full bg-primary" />Today</span>}
             </div>
-            <p className="mt-2 text-xs text-gray-400">Pale blocks keep skipped weeks visible; their red edge marks Sunday. A red {view === 'year' ? '!' : 'Clash'} warning means a scheduled class still needs attention. Tap it to preview new dates.</p></>}
+            <p className="mt-2 text-xs text-gray-400">A skipped Sunday shows its whole week in light red, with the Sunday itself in deeper red. A red {view === 'year' ? '!' : 'Clash'} warning means a scheduled class still needs attention. Tap it to preview new dates.</p></>}
           </section>
 
           <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -358,6 +373,7 @@ const AdminPlannerPage: React.FC = () => {
         onEditEach={(cohort) => { setCohortSheet(null); setDatesFor(cohort); }}
       />
       <ClassDatesSheet cohort={datesFor} plan={plan} today={today} onClose={() => setDatesFor(null)} onSaved={afterMove} />
+      <PullForwardSheet pull={activePull} onClose={() => setActivePull(null)} today={today} onApplied={afterMove} />
       <PushBackSheet clash={activeClash} onClose={() => setActiveClash(null)} today={today} nextCohortName={nextCohortName} yearWarning={yearWarning} onApplied={afterMove} />
     </div>
   );

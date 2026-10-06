@@ -17,8 +17,11 @@ export const KIND_BAR: Record<WeekKind, string> = {
   mobilisation: 'bg-amber-300 text-amber-900',
   classes: 'bg-orange-400 text-white',
   spare: 'bg-teal-300 text-teal-900',
-  gap: 'border border-dashed border-red-300 bg-red-50 text-red-500',
+  gap: 'border border-dashed border-red-500 bg-red-300 text-red-700',
 };
+
+/** The skipped weeks around a skipped Sunday: pale red, so they never read as the grey Rest block. */
+export const SKIPPED_WEEK = 'border border-red-300 bg-red-200 text-red-600';
 
 /** White diagonal stripes over a bar: the weeks added by a push-back. */
 export const EXTENSION_STRIPES = {

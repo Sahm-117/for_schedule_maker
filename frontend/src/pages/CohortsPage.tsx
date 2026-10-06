@@ -13,6 +13,7 @@ import { sortByText } from '../utils/sort';
 import { DEFAULT_RECAP_RELEASE_TIMES, formatRecapReleaseAt, recapReleaseAt, type RecapReleaseTimes } from '../utils/recapReleaseTimes';
 import Spinner from '../components/Spinner';
 import InfoTip from '../components/InfoTip';
+import { hasSupportRole } from '../utils/people';
 
 type CohortFormState = {
   name: string;
@@ -204,7 +205,7 @@ const CohortsPage: React.FC = () => {
   useEffect(() => {
     if (!isAdmin) return;
     usersApi.getAll()
-      .then((response) => setSupportUsers(sortByText(response.users.filter((user) => user.role === 'SUPPORT' && user.isActive !== false), (user) => user.name)))
+      .then((response) => setSupportUsers(sortByText(response.users.filter((user) => hasSupportRole(user) && user.isActive !== false), (user) => user.name)))
       .catch(() => {});
   }, [isAdmin]);
 
@@ -227,7 +228,7 @@ const CohortsPage: React.FC = () => {
         ]);
         if (cancelled) return;
         // Supports = those switched on for this cohort in the members list.
-        const supports = members.filter((u) => u.role === 'SUPPORT' && u.isActive !== false).length;
+        const supports = members.filter((u) => hasSupportRole(u) && u.isActive !== false).length;
         setActiveSummary({ groups: groups.length, hubs: hubs.length, supports, participants: participants.length });
       } catch {
         if (!cancelled) setActiveSummary(null);

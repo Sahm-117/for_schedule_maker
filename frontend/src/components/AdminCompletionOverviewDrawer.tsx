@@ -3,6 +3,7 @@ import type { Activity, SupportActivityCompletion, User } from '../types';
 import ActivityText from './ActivityText';
 import LabelChip from './LabelChip';
 import { PeriodBadge } from './PeriodIcon';
+import { hasSupportRole } from '../utils/people';
 
 interface AdminCompletionOverviewDrawerProps {
   open: boolean;
@@ -39,7 +40,7 @@ const AdminCompletionOverviewDrawer: React.FC<AdminCompletionOverviewDrawerProps
     const activitySummaries = activities.map((activity) => {
       const activityLabelIds = new Set((activity.labels || []).map((label) => label.id));
       const assignedSupports = users.filter((member) =>
-        member.role === 'SUPPORT' && member.labels?.some((label) => activityLabelIds.has(label.id))
+        hasSupportRole(member) && member.labels?.some((label) => activityLabelIds.has(label.id))
       ).filter((member) => !selectedUserId || member.id === selectedUserId);
       const completedUserIds = new Set((completionsByActivity.get(activity.id) || []).map((item) => item.userId));
 

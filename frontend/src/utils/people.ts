@@ -62,3 +62,7 @@ export const supportProfileChecklist = (user: Pick<User, 'avatarUrl' | 'gender' 
 
 export const isSupportProfileComplete = (user: Pick<User, 'avatarUrl' | 'gender' | 'ageRange' | 'phone'>): boolean =>
   supportProfileChecklist(user).every((item) => item.done);
+
+/** A support in every list that needs supports: the Support role, or an admin who also carries the Support tag. */
+export const hasSupportRole = (user: { role?: string; roles?: string[] | null }): boolean =>
+  user.role === 'SUPPORT' || !!user.roles?.includes('SUPPORT');

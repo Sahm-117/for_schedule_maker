@@ -12,7 +12,7 @@ import {
   type PlannerEvent,
 } from '../../utils/planner';
 import type { PublicHoliday } from '../../types';
-import { EXTENSION_STRIPES, KIND_BAR, segmentTip, useTip } from './PlannerBits';
+import { EXTENSION_STRIPES, KIND_BAR, SKIPPED_WEEK, segmentTip, useTip } from './PlannerBits';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const LABEL_COL = 96;
@@ -117,7 +117,7 @@ const YearTimeline: React.FC<YearTimelineProps> = ({ start, end, view, plan, eve
                       type="button"
                       aria-label={lines.join('. ')}
                       {...bind(lines)}
-                      className={`absolute inset-y-0 flex items-center justify-center overflow-hidden rounded-md text-[11px] font-bold ${seg.kind === 'gap' ? 'border border-gray-200 bg-gray-100 text-gray-500' : KIND_BAR[seg.kind]} ${cohort.planned && seg.kind !== 'gap' ? 'opacity-60' : ''}`}
+                      className={`absolute inset-y-0 flex items-center justify-center overflow-hidden rounded-md text-[11px] font-bold ${seg.kind === 'gap' ? SKIPPED_WEEK : KIND_BAR[seg.kind]} ${cohort.planned && seg.kind !== 'gap' ? 'opacity-60' : ''}`}
                       style={{ left: `${left}%`, width: `calc(${width}% - 2px)`, ...(seg.extension && seg.kind === 'classes' ? EXTENSION_STRIPES : {}) }}
                     >
                       {seg.kind === 'gap' ? <><span aria-hidden="true">{wide ? '—' : ''}</span>{sundayVisible && <span aria-hidden="true" className={`absolute inset-y-0 right-0 min-w-[3px] ${KIND_BAR.gap}`} style={{ width: `${Math.min(100, sundayWidth / width * 100)}%` }} />}</> : wide && seg.kind === 'classes' && <>{(width / 100) * TRACK >= 85 ? (seg.firstClass === seg.lastClass ? 'Class ' : 'Classes ') : ''}{seg.firstClass}{seg.firstClass !== seg.lastClass ? `–${seg.lastClass}` : ''}</>}

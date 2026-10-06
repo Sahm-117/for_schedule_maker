@@ -1124,11 +1124,11 @@ Deno.serve(async (req) => {
       if (ownerIds.length > 0) {
         const { data: owners } = await supabase
           .from('User')
-          .select('id, role')
+          .select('id, role, roles')
           .in('id', ownerIds)
-          .neq('role', 'ADMIN')
 
-        const eligibleOwnerIds = new Set((owners || []).map((owner: any) => owner.id))
+        // Admins who also carry the Support tag are supports here too.
+        const eligibleOwnerIds = new Set((owners || []).filter(isSupportOrTagged).map((owner: any) => owner.id))
 
         for (const ownerId of ownerIds) {
           if (!eligibleOwnerIds.has(ownerId)) continue
@@ -1223,11 +1223,10 @@ Deno.serve(async (req) => {
         if (staleByOwner.size > 0) {
           const { data: owners } = await supabase
             .from('User')
-            .select('id, role')
+            .select('id, role, roles')
             .in('id', [...staleByOwner.keys()])
-            .neq('role', 'ADMIN')
 
-          for (const owner of (owners || []) as any[]) {
+          for (const owner of ((owners || []) as any[]).filter(isSupportOrTagged)) {
             const stale = staleByOwner.get(owner.id) ?? []
             if (stale.length === 0) continue
             const ending = 'Any challenge? Tap ⋮ on the person and Log an issue, and these reminders stop.'

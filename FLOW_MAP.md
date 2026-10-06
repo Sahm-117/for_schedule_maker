@@ -149,6 +149,12 @@ duplicating the logic anywhere else is a bug waiting to happen.
     alerts, hub role assignments, retake notes, and the access-confirmed
     close are triggers, not UI code. Before editing any of these flows,
     read the trigger first; the edge function is only half the story.
+16. **A support is `role = SUPPORT` or `roles` contains SUPPORT.** Admins who
+    carry the Support tag lead groups and own follow-ups, so every list,
+    count and job that means "supports" must include them. Frontend:
+    `hasSupportRole` in `frontend/src/utils/people.ts`. Database and
+    `push-reminders` use the same test. Source:
+    `20261006120000_admin_support_tag_in_jobs.sql`.
 
 ## 5. Edge functions and schedules
 

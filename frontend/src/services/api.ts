@@ -843,6 +843,7 @@ export const plannerApi = USE_SUPABASE ? supabasePlannerApi : {
   async pushBack(_weekId: number, _eventId: string | null, _apply: boolean): Promise<import('../types').PushBackResult> { throw new Error('The Planner is only available in Supabase mode.'); },
   async getChanges(): Promise<{ changes: import('../types').PlannerChange[] }> { return { changes: [] }; },
   async undoChange(_changeId: string): Promise<void> { throw new Error('The Planner is only available in Supabase mode.'); },
+  async pullForward(_cohortId: string, _dates: Array<{ weekId: number; date: string }>, _apply: boolean): Promise<{ moves: Array<{ weekNumber: number; from: string; to: string }>; endBefore: string; endAfter: string; applied: boolean }> { throw new Error('The Planner is only available in Supabase mode.'); },
   async getPlannedDates(): Promise<{ dates: Record<string, string[]> }> { return { dates: {} }; },
   async setClassDates(_cohortId: string, _dates: Array<{ weekId: number; date: string }>, _apply: boolean): Promise<{ moves: Array<{ weekNumber: number; from: string; to: string }>; endBefore: string; endAfter: string; applied: boolean }> { throw new Error('The Planner is only available in Supabase mode.'); },
   async setPlannedDates(_name: string, _dates: string[] | null): Promise<void> { throw new Error('The Planner is only available in Supabase mode.'); },

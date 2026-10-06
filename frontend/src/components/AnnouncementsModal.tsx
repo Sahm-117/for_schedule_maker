@@ -24,6 +24,7 @@ const HOME_LINK_OPTIONS = [
 ];
 import ConfirmationModal from './ConfirmationModal';
 import { pickableUsers } from '../utils/testUsers';
+import { hasSupportRole } from '../utils/people';
 
 // Home-screen link targets inside the participant app.
 const PARTICIPANT_HOME_LINK_OPTIONS = [
@@ -184,7 +185,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   // Supports, for the "one person" picker (SUPPORTS/EVERYONE audience).
   useEffect(() => {
     if (!shouldRender) { setSupports([]); return; }
-    usersApi.getAll().then((res) => setSupports(pickableUsers(res.users.filter((u) => u.role === 'SUPPORT')))).catch(() => setSupports([]));
+    usersApi.getAll().then((res) => setSupports(pickableUsers(res.users.filter((u) => hasSupportRole(u))))).catch(() => setSupports([]));
   }, [shouldRender]);
 
   // Participants, for the "one person" picker (PARTICIPANTS/EVERYONE audience).

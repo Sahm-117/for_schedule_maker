@@ -11,6 +11,7 @@ import type { SupportAttendanceStatus, SupportSession, User } from '../types';
 import MarkCounter from './supports/MarkCounter';
 import MarkRestAbsentButton from './supports/MarkRestAbsentButton';
 import { pickableUsers } from '../utils/testUsers';
+import { hasSupportRole } from '../utils/people';
 
 // Trainings & get-togethers register, for the supports an admin picked on the
 // Attendance page. Lists every active support (trainings are open to all, not
@@ -62,7 +63,7 @@ const TrainingAttendancePanel: React.FC = () => {
         attendance.forEach((a) => { (byMap[a.sessionId] ??= {})[a.userId] = a.status; });
         setSessions(ss);
         setMarks(byMap);
-        const everyone = sortByText(pickableUsers(users.filter((u) => u.role === 'SUPPORT' && u.isActive !== false)), (u) => u.name);
+        const everyone = sortByText(pickableUsers(users.filter((u) => hasSupportRole(u) && u.isActive !== false)), (u) => u.name);
         setSupportsByCohort(Object.fromEntries(cohortIds.map((id) => [id, everyone])));
         setSessionId((prev) => prev || ss[0]?.id || '');
       })

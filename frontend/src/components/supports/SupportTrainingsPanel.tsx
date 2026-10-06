@@ -16,6 +16,7 @@ import { cohortMode } from '../dashboard/healthModel';
 import MarkCounter from './MarkCounter';
 import MarkRestAbsentButton from './MarkRestAbsentButton';
 import { pickableUsers } from '../../utils/testUsers';
+import { hasSupportRole } from '../../utils/people';
 
 // Trainings & get-togethers tab on the admin Supports page (moved from Hubs,
 // which now keeps only Sunday recaps). Admins create sessions and mark
@@ -405,9 +406,9 @@ const SupportTrainingsPanel: React.FC<{ onChanged?: () => void }> = ({ onChanged
       ]);
       setSupportIdsByCohort(new Map(trainingListCohortIds.map((id, i) => [
         id,
-        new Set(cohortMembers[i].users.filter((u) => u.role === 'SUPPORT').map((u) => u.id)),
+        new Set(cohortMembers[i].users.filter((u) => hasSupportRole(u)).map((u) => u.id)),
       ])));
-      setSupportUsers(sortByText(pickableUsers(users.filter((u) => u.role === 'SUPPORT' && u.isActive !== false)), (u) => u.name));
+      setSupportUsers(sortByText(pickableUsers(users.filter((u) => hasSupportRole(u) && u.isActive !== false)), (u) => u.name));
       setSessions(ss);
       setSessionAttendance(sa);
     } catch { /* ignore */ }
