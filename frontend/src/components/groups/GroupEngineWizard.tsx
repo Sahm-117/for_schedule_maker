@@ -14,6 +14,7 @@ import { DEFAULT_GROUPING_RULES, type GroupingRules, type RuleStrength, type Tag
 import {
   buildDraft,
   evaluateGroup,
+  groupTagRule,
   toEnginePerson,
   type DraftGroup,
   type SeedGroup,
@@ -205,6 +206,11 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const tagNames = useMemo(() => Object.fromEntries(tags.map((t) => [t.id, t.name])), [tags]);
   // Rules for tags that still exist (a deleted tag's rule is ignored).
   const effectiveRules = useMemo<GroupingRules>(() => ({ ...rules, tagRules: rules.tagRules.filter((r) => tagNames[r.tagId]) }), [rules, tagNames]);
+  // The tag a whole group is for (so it's obvious which tag fits which group), or null.
+  const groupTagName = (memberIds: string[]) => {
+    const rule = groupTagRule(memberIds.map((id) => people.get(id)).filter((p): p is EnginePerson => !!p), effectiveRules);
+    return rule ? tagNames[rule.tagId] ?? null : null;
+  };
   // Tags in priority order: saved rules first, then any tag without a rule yet.
   const orderedTags = useMemo(() => {
     const known = rules.tagRules.map((r) => tags.find((t) => t.id === r.tagId)).filter((t): t is SupportTag => !!t);
@@ -884,6 +890,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                         <p className="flex items-center gap-1.5 font-bold text-gray-900">
                           {g.name}
                           {g.existingGroupId && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Your group</span>}
+                          {groupTagName(g.memberIds) && <span className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">{groupTagName(g.memberIds)}</span>}
                         </p>
                         <div className="flex items-center gap-1.5">
                           {moveHere(g.key, g.memberIds)}
@@ -964,7 +971,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   return (
                     <div key={g.key} className="flex items-center gap-3 px-4 py-3">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-gray-900">{g.name} <span className="font-normal text-gray-500">· {g.memberIds.length} people</span></p>
+                        <p className="text-sm font-semibold text-gray-900">{g.name} <span className="font-normal text-gray-500">· {g.memberIds.length} people</span>{groupTagName(g.memberIds) && <span className="ml-1.5 rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">{groupTagName(g.memberIds)}</span>}</p>
                         <p className="truncate text-xs text-gray-500">{support ? support.name : 'No support'}</p>
                       </div>
                       {s === 'creating' ? <Spinner className="h-4 w-4" /> : (
