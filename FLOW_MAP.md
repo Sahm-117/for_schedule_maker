@@ -96,9 +96,11 @@ duplicating the logic anywhere else is a bug waiting to happen.
    `frontend/src/utils/followUps.ts`.
 2. **Single current cohort.** One DB-owned definition of the current cohort;
    consumed by frontend scope, assignment, and reminders. Do not re-derive it.
-3. **One phone per cohort, one named exception.** `uniq_participant_phone_per_cohort`
-   exempts exactly two rows (Funmilayo Ewayenikan / Jeremiah Williams, who
-   share a number and an email). Sign-in tries the password across every
+3. **One phone per cohort, two exceptions.** `uniq_participant_phone_per_cohort`
+   exempts two named rows (Funmilayo Ewayenikan / Jeremiah Williams, who
+   share a number and an email) and every participant aged "18 and below":
+   teens may share a number, usually a parent's
+   (`20261006170000_teens_share_phone_and_abimbola.sql`). Sign-in tries the password across every
    same-number row, newest cohort first. Never add email login: duplicate
    emails exist. Source: `20261004180000_shared_phone_signin.sql`.
 4. **Same-gender assignment with a load cap.** Unassigned contacts go to a
