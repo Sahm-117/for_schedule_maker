@@ -1031,6 +1031,7 @@ export const participantAccountsApi = USE_SUPABASE ? supabaseParticipantAccounts
 };
 
 export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
+  async getTeenInfo(): Promise<import('../types').ParticipantTeenInfo> { return { isTeen: false }; },
   async getHome(): Promise<never> { return peopleUnavailable(); },
   async getPeople(): Promise<never> { return peopleUnavailable(); },
   async getReadySteps(): Promise<string[]> { return []; },

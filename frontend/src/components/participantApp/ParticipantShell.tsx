@@ -24,6 +24,8 @@ import PracticeDock from '../practice/PracticeDock';
 import AnnouncementPopupHost from '../AnnouncementPopupHost';
 import { POPUP_PRIORITY, usePopupSlot, useSettled } from '../../utils/popupQueue';
 import { applyTheme } from '../../utils/theme';
+import PageLoader from '../PageLoader';
+import TeenWelcomePage, { useTeenGate } from './TeenWelcomePage';
 
 // Layout for the participant app: sidebar on desktop, floating bar on mobile, the
 // same look as the support app. Also asks "are you okay?" when their attendance
@@ -316,12 +318,18 @@ const ShellLayout: React.FC = () => {
   );
 };
 
-const ParticipantShell: React.FC = () => (
-  <ParticipantAppProvider>
-    <ToastProvider>
-      <ShellLayout />
-    </ToastProvider>
-  </ParticipantAppProvider>
-);
+// A teen (18 and below, while teen handling is on) gets only the Teen Welcome page, never the app.
+const ParticipantShell: React.FC = () => {
+  const gate = useTeenGate();
+  if (gate.status === 'loading') return <PageLoader />;
+  if (gate.status === 'teen') return <TeenWelcomePage info={gate.info} />;
+  return (
+    <ParticipantAppProvider>
+      <ToastProvider>
+        <ShellLayout />
+      </ToastProvider>
+    </ParticipantAppProvider>
+  );
+};
 
 export default ParticipantShell;

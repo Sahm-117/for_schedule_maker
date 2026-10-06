@@ -1060,6 +1060,13 @@ export interface ParticipantNotification {
   createdAt: string;
 }
 
+/** Whether the signed-in participant is a teen looked after on WhatsApp, and by whom. */
+export interface ParticipantTeenInfo {
+  isTeen: boolean;
+  supportName?: string | null;
+  supportPhone?: string | null;
+}
+
 export interface ParticipantHome {
   now: string;
   participant: { id: string; name: string; phone: string | null };

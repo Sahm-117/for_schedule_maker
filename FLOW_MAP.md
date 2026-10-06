@@ -235,6 +235,18 @@ duplicating the logic anywhere else is a bug waiting to happen.
     "quiet" Teen Supports (`teen_quiet_bypass_until`, read by `teen_quiet_bypass()`); then the
     normal quiet check returns by itself. Source: `20261007140000_teen_enable_move.sql`,
     `20261007150000_teen_assignment_ignore_quiet.sql`, `20261007160000_teen_quiet_bypass_once.sql`.
+25. **A teen with an app login only sees the Teen Welcome page.** While teen handling is on,
+    `participant_teen_info` returns `isTeen` for a participant whose follow-up contact is
+    TEENAGER / TEEN_ONBOARDED; `ParticipantShell` then renders `TeenWelcomePage` (their Teen
+    Support's name and a WhatsApp link, what happens next, Log out) instead of the app, on every
+    sign-in and every `/me` route. Admin "not a teen" releases them. If the check fails the normal
+    app opens. Source: `20261007170000_participant_teen_info.sql`.
+26. **Age brackets refresh every night.** `refresh_age_brackets()` (pg_cron
+    `refresh_age_brackets_daily`, 01:30 Lagos) moves participants with a believable date of
+    birth, and supports with a birth year, to the bracket their age now gives. A participant whose
+    bracket is "18 and below" stays there until their cohort is COMPLETED or past its end date, so
+    a teen keeps their Teen Support and teen group for the programme. People without a date of
+    birth or birth year are never touched. Source: `20261007180000_age_bracket_daily_refresh.sql`.
 
 ## 5. Edge functions and schedules
 

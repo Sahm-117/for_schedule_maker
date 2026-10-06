@@ -3336,6 +3336,13 @@ const participantAppError = (rawMessage: string | undefined, fallback: string): 
 
 // The signed-in participant's own data. Every call carries their session token.
 export const participantAppApi = {
+  // Teens (18 and below, teen handling on) get a page explaining their Teen Support instead of the app.
+  async getTeenInfo(): Promise<import('../types').ParticipantTeenInfo> {
+    const { data, error } = await supabase.rpc('participant_teen_info', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not load your FOF space. Please try again.');
+    return data as import('../types').ParticipantTeenInfo;
+  },
+
   async getHome(): Promise<import('../types').ParticipantHome> {
     const { data, error } = await supabase.rpc('participant_home', { p_token: getSessionToken() });
     if (error) throw participantAppError(error.message, 'Could not load your FOF space. Please try again.');
