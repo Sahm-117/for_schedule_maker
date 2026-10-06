@@ -166,7 +166,15 @@ const SupportTagsModal: React.FC<SupportTagsModalProps> = ({ isOpen, onClose, su
                   ) : (
                     <>
                       <div className="flex items-center justify-between gap-2">
-                        <p className="min-w-0 truncate text-sm font-semibold text-gray-900">{tag.name}</p>
+                        <p className="flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold text-gray-900">
+                          {tag.name}
+                          {tag.systemKey && (
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">
+                              <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3" aria-hidden="true"><path fillRule="evenodd" d="M10 2a4 4 0 00-4 4v2H5a1 1 0 00-1 1v7a1 1 0 001 1h10a1 1 0 001-1V9a1 1 0 00-1-1h-1V6a4 4 0 00-4-4zm2 6V6a2 2 0 10-4 0v2h4z" clipRule="evenodd" /></svg>
+                              Built in
+                            </span>
+                          )}
+                        </p>
                         <span className="rounded-full bg-violet-100/80 px-2.5 py-0.5 text-[11px] font-semibold text-violet-700">{tag.userIds.length} {tag.userIds.length === 1 ? 'support' : 'supports'}</span>
                       </div>
                       {tag.userIds.length > 0 && (
@@ -174,8 +182,10 @@ const SupportTagsModal: React.FC<SupportTagsModalProps> = ({ isOpen, onClose, su
                       )}
                       <div className="mt-2.5 flex flex-wrap gap-2">
                         <button type="button" onClick={() => openMembers(tag)} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-gray-700 shadow-[0_1px_2px_rgba(17,24,39,0.10)]">Choose supports</button>
-                        <button type="button" onClick={() => setRenaming({ id: tag.id, name: tag.name })} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-gray-700 shadow-[0_1px_2px_rgba(17,24,39,0.10)]">Rename</button>
-                        {confirmDelete === tag.id ? (
+                        {!tag.systemKey && (
+                          <button type="button" onClick={() => setRenaming({ id: tag.id, name: tag.name })} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-gray-700 shadow-[0_1px_2px_rgba(17,24,39,0.10)]">Rename</button>
+                        )}
+                        {tag.systemKey ? null : confirmDelete === tag.id ? (
                           <>
                             <button type="button" onClick={() => void remove(tag.id)} disabled={busy} className="rounded-full bg-red-100/80 px-3 py-1 text-[12px] font-semibold text-red-700">Yes, delete</button>
                             <button type="button" onClick={() => setConfirmDelete(null)} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-gray-600">Keep</button>

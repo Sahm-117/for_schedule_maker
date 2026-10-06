@@ -6547,14 +6547,14 @@ const tagAdminError = (message: string) => (message === 'NOT_AUTHORISED' ? 'Only
 export const supportTagsApi = {
   async getAll(): Promise<{ tags: import('../types').SupportTag[] }> {
     const [tags, members] = await Promise.all([
-      supabase.from('SupportTag').select('id, name').order('name'),
+      supabase.from('SupportTag').select('id, name, systemKey').order('name'),
       supabase.from('SupportTagMember').select('tagId, userId'),
     ]);
     if (tags.error) throw new Error(tags.error.message);
     if (members.error) throw new Error(members.error.message);
     const byTag = new Map<string, string[]>();
     ((members.data || []) as any[]).forEach((row) => byTag.set(row.tagId, [...(byTag.get(row.tagId) ?? []), row.userId]));
-    return { tags: ((tags.data || []) as any[]).map((t) => ({ id: t.id, name: t.name, userIds: byTag.get(t.id) ?? [] })) };
+    return { tags: ((tags.data || []) as any[]).map((t) => ({ id: t.id, name: t.name, userIds: byTag.get(t.id) ?? [], systemKey: t.systemKey ?? null })) };
   },
 
   /** Create (id null) or rename. */

@@ -176,6 +176,16 @@ duplicating the logic anywhere else is a bug waiting to happen.
     is ever moved, so a kind chosen by hand stays. The builder and the Supports
     page read `UserCohort.supportKind`; never keep a second list of hub leads.
     Source: `20261006140000_support_kind_follows_hub_roles.sql`.
+19. **Teens are looked after by Teen Supports, off the app.** A registered
+    contact whose age is "18 and below" becomes TEENAGER (then TEEN_ONBOARDED)
+    inside `fill_profile_from_form`, only while `AppSetting.teen_flow_enabled`
+    is true (off until teen assignment and groups exist). Adult assignment,
+    reassignment, stale sweeps and load counts skip both teen statuses, and the
+    form gate (rule 1) treats them like REGISTERED. The Teen Support tag is built
+    in (`SupportTag.systemKey = 'TEEN_SUPPORT'`): it cannot be renamed or
+    deleted, and it replaced the old "Teen" tag in place so group rules keep
+    their id. Source: `20261006160000_teen_status_values.sql`,
+    `20261006161000_teen_support_tag.sql`.
 
 ## 5. Edge functions and schedules
 

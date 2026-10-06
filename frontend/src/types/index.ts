@@ -403,9 +403,9 @@ export interface Notification {
 export type FollowUpMessageStatus = 'NOT_SENT' | 'SENT';
 export type FollowUpReplyStatus = 'NO_REPLY' | 'REPLIED' | 'NEEDS_REMINDER' | 'INCORRECT_NUMBER';
 export type FollowUpCallStatus = 'NOT_CALLED' | 'CALLED' | 'MISSED_CALL' | 'CALL_BACK_LATER' | 'NOT_APPLICABLE' | 'INCORRECT_NUMBER';
-export type FollowUpRegistrationStatus = 'NOT_REGISTERED' | 'PENDING_CONFIRMATION' | 'REGISTERED' | 'STILL_THINKING' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'NO_RESPONSE' | 'NEXT_COHORT' | 'LOGIN_SHARED' | 'LOGIN_ISSUE' | 'ACCESS_CONFIRMED' | 'ATTENDED';
+export type FollowUpRegistrationStatus = 'NOT_REGISTERED' | 'PENDING_CONFIRMATION' | 'REGISTERED' | 'STILL_THINKING' | 'NOT_INTERESTED' | 'NOT_A_TCN_MEMBER' | 'NOT_A_GOOD_TIME' | 'NO_RESPONSE' | 'NEXT_COHORT' | 'LOGIN_SHARED' | 'LOGIN_ISSUE' | 'ACCESS_CONFIRMED' | 'ATTENDED' | 'TEENAGER' | 'TEEN_ONBOARDED';
 export type FollowUpNextAction = 'SEND_MESSAGE' | 'SEND_REMINDER' | 'CALL' | 'CLOSE';
-export type FollowUpStatus = 'TO_CONTACT' | 'WAITING' | 'NEEDS_REMINDER' | 'REPLIED' | 'CALL_BACK_LATER' | 'REGISTERED' | 'WRONG_NUMBER' | 'NOT_INTERESTED' | 'NO_RESPONSE' | 'NEXT_COHORT' | 'LOGIN_SHARED' | 'LOGIN_ISSUE' | 'ACCESS_CONFIRMED' | 'ATTENDED';
+export type FollowUpStatus = 'TO_CONTACT' | 'WAITING' | 'NEEDS_REMINDER' | 'REPLIED' | 'CALL_BACK_LATER' | 'REGISTERED' | 'WRONG_NUMBER' | 'NOT_INTERESTED' | 'NO_RESPONSE' | 'NEXT_COHORT' | 'LOGIN_SHARED' | 'LOGIN_ISSUE' | 'ACCESS_CONFIRMED' | 'ATTENDED' | 'TEENAGER' | 'TEEN_ONBOARDED';
 export type IssueStatus = 'OPEN' | 'RESOLVED';
 
 /** One saved version of a contact's note, with who wrote it and when. */
@@ -1328,11 +1328,12 @@ export interface SupportHub {
   createdAt?: string;
 }
 
-/** A label admins put on supports ("Teen support"); the group builder reads it. */
+/** A label admins put on supports ("Men only"); the group builder reads it. A tag with a systemKey (Teen Support) is built in and can't be renamed or deleted. */
 export interface SupportTag {
   id: string;
   name: string;
   userIds: string[];
+  systemKey?: string | null;
 }
 
 export interface HubMembership {

@@ -17,6 +17,8 @@ const STEP_INDEX: Record<FollowUpStatus, number | null> = {
   LOGIN_ISSUE: 2,
   ACCESS_CONFIRMED: 3,
   ATTENDED: null,
+  TEENAGER: null,
+  TEEN_ONBOARDED: null,
   NEXT_COHORT: null,
   WRONG_NUMBER: null,
   NOT_INTERESTED: null,
@@ -28,7 +30,9 @@ const FollowUpStatusFlow: React.FC<{ status: FollowUpStatus; className?: string 
   const current = STEP_INDEX[status];
 
   if (current === null) {
-    const label = status === 'NEXT_COHORT' ? 'Moved to next cohort' : `Closed: ${FOLLOW_UP_STATUS_META[status].label}`;
+    const label = status === 'NEXT_COHORT' ? 'Moved to next cohort'
+      : status === 'TEENAGER' || status === 'TEEN_ONBOARDED' ? `Teen: ${FOLLOW_UP_STATUS_META[status].label}`
+        : `Closed: ${FOLLOW_UP_STATUS_META[status].label}`;
     return (
       <div className={className}>
         <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600">{label}</span>

@@ -50,6 +50,8 @@ export const REGISTRATION_STATUS_META: Record<FollowUpRegistrationStatus, Status
   LOGIN_ISSUE: { label: 'Login Issue', tone: 'bg-orange-100/80 text-orange-700' },
   ACCESS_CONFIRMED: { label: 'Access Confirmed', tone: 'bg-emerald-100/80 text-emerald-700' },
   ATTENDED: { label: 'Attended', tone: 'bg-teal-100/80 text-teal-700' },
+  TEENAGER: { label: 'Teenager', tone: 'bg-pink-100/80 text-pink-700' },
+  TEEN_ONBOARDED: { label: 'Onboarded', tone: 'bg-emerald-100/80 text-emerald-700' },
 };
 
 export const NEXT_ACTION_META: Record<FollowUpNextAction, StatusMeta> = {
@@ -79,6 +81,8 @@ export const FOLLOW_UP_STATUS_META: Record<FollowUpStatus, StatusMeta> = {
   NO_RESPONSE: { label: 'No response', description: 'They did not reply after multiple follow-ups.', tone: 'bg-neutral-100 text-neutral-600' },
   NEXT_COHORT: { label: 'Will join next cohort', description: 'They are interested but will join the next cohort.', tone: 'bg-sky-100/80 text-sky-700' },
   ATTENDED: { label: 'Attended', description: 'From a prior cohort and already attended one. Filed under that cohort.', tone: 'bg-teal-100/80 text-teal-700' },
+  TEENAGER: { label: 'Teenager', description: 'A teen. Their Teen Support makes contact and adds them to the WhatsApp group.', tone: 'bg-pink-100/80 text-pink-700' },
+  TEEN_ONBOARDED: { label: 'Onboarded', description: 'Contact made and they are in the WhatsApp group.', tone: 'bg-emerald-100/80 text-emerald-700' },
 };
 
 export const statusOptions = <T extends string>(meta: Record<T, StatusMeta>) =>
@@ -90,6 +94,7 @@ const FOLLOW_UP_STATUS_GROUPS: Array<{ group: string; statuses: FollowUpStatus[]
   { group: 'Still open', statuses: ['TO_CONTACT', 'WAITING', 'NEEDS_REMINDER', 'REPLIED', 'CALL_BACK_LATER', 'REGISTERED', 'LOGIN_SHARED', 'LOGIN_ISSUE'] },
   { group: 'Moved to next cohort', statuses: ['NEXT_COHORT'] },
   { group: 'Closed', statuses: ['ACCESS_CONFIRMED', 'WRONG_NUMBER', 'NOT_INTERESTED', 'NO_RESPONSE'] },
+  { group: 'Teens', statuses: ['TEENAGER', 'TEEN_ONBOARDED'] },
 ];
 
 export const followUpStatusOptions = FOLLOW_UP_STATUS_GROUPS.flatMap(({ group, statuses }) =>
@@ -100,6 +105,11 @@ export const followUpStatusOptions = FOLLOW_UP_STATUS_GROUPS.flatMap(({ group, s
     group,
   }))
 );
+
+/** Teens are looked after off the app by a Teen Support, so they have their own two statuses. */
+export const TEEN_STATUSES: FollowUpStatus[] = ['TEENAGER', 'TEEN_ONBOARDED'];
+export const isTeenContact = (c: Pick<FollowUpContact, 'registrationStatus'>): boolean =>
+  c.registrationStatus === 'TEENAGER' || c.registrationStatus === 'TEEN_ONBOARDED';
 
 /** Where a signed-up contact can be, from registering to getting into the app. */
 export const AFTER_SIGN_UP_STATUSES: FollowUpStatus[] = ['REGISTERED', 'LOGIN_SHARED', 'LOGIN_ISSUE', 'ACCESS_CONFIRMED'];
@@ -115,8 +125,11 @@ const SUPPORT_AFTER_SIGN_UP_OPTIONS: FollowUpStatus[] = ['LOGIN_SHARED', 'ACCESS
  * value so the select can show it.
  */
 export const supportStatusOptions = (current: FollowUpStatus) => {
+  if (TEEN_STATUSES.includes(current)) {
+    return TEEN_STATUSES.map((value) => ({ value, label: FOLLOW_UP_STATUS_META[value].label, meta: FOLLOW_UP_STATUS_META[value].description }));
+  }
   if (!AFTER_SIGN_UP_STATUSES.includes(current)) {
-    return followUpStatusOptions.filter((option) => option.value !== 'LOGIN_ISSUE' && option.value !== 'ACCESS_CONFIRMED');
+    return followUpStatusOptions.filter((option) => option.value !== 'LOGIN_ISSUE' && option.value !== 'ACCESS_CONFIRMED' && !TEEN_STATUSES.includes(option.value));
   }
   const values: FollowUpStatus[] = current === 'REGISTERED' ? ['REGISTERED', ...SUPPORT_AFTER_SIGN_UP_OPTIONS] : SUPPORT_AFTER_SIGN_UP_OPTIONS;
   return values.map((value) => ({ value, label: FOLLOW_UP_STATUS_META[value].label, meta: FOLLOW_UP_STATUS_META[value].description }));
@@ -144,6 +157,8 @@ export const isFiledLoginShared = (c: FollowUpContact): boolean =>
 export const computeFollowUpStatus = (c: FollowUpContact): FollowUpStatus => {
   if (c.registrationStatus === 'ACCESS_CONFIRMED') return 'ACCESS_CONFIRMED';
   if (c.registrationStatus === 'ATTENDED') return 'ATTENDED';
+  if (c.registrationStatus === 'TEENAGER') return 'TEENAGER';
+  if (c.registrationStatus === 'TEEN_ONBOARDED') return 'TEEN_ONBOARDED';
   if (c.registrationStatus === 'LOGIN_ISSUE') return 'LOGIN_ISSUE';
   if (c.registrationStatus === 'LOGIN_SHARED') return 'LOGIN_SHARED';
   if (c.registrationStatus === 'REGISTERED') return 'REGISTERED';
@@ -165,7 +180,7 @@ export const computeFollowUpStatus = (c: FollowUpContact): FollowUpStatus => {
  */
 export const isClosedContact = (c: FollowUpContact): boolean => {
   const status = computeFollowUpStatus(c);
-  return status === 'ACCESS_CONFIRMED' || status === 'ATTENDED' || status === 'WRONG_NUMBER' || status === 'NOT_INTERESTED' || status === 'NO_RESPONSE';
+  return status === 'ACCESS_CONFIRMED' || status === 'ATTENDED' || status === 'TEEN_ONBOARDED' || status === 'WRONG_NUMBER' || status === 'NOT_INTERESTED' || status === 'NO_RESPONSE';
 };
 
 /**
@@ -187,7 +202,7 @@ export const contactMatchesSearch = (c: FollowUpContact, query: string): boolean
 
 /** Unassigned and still open, i.e. what run_followup_assignment would hand out. */
 export const isWaitingForAssignment = (c: FollowUpContact): boolean =>
-  !c.ownerId && !c.isTest && !c.archivedAt && !isClosedContact(c) && c.registrationStatus !== 'NEXT_COHORT';
+  !c.ownerId && !c.isTest && !c.archivedAt && !isClosedContact(c) && c.registrationStatus !== 'NEXT_COHORT' && !isTeenContact(c);
 
 /**
  * Open (not closed, not archived) follow-ups each support holds in the given
@@ -197,7 +212,7 @@ export const openLoadByOwner = (contacts: FollowUpContact[], cohortId: string | 
   const map = new Map<string, number>();
   if (!cohortId) return map;
   for (const c of contacts) {
-    if (!c.ownerId || c.isTest || c.archivedAt || isClosedContact(c) || !contactInCohortScope(c, cohortId, cohortId)) continue;
+    if (!c.ownerId || c.isTest || c.archivedAt || isClosedContact(c) || isTeenContact(c) || !contactInCohortScope(c, cohortId, cohortId)) continue;
     map.set(c.ownerId, (map.get(c.ownerId) ?? 0) + 1);
   }
   return map;
@@ -222,9 +237,9 @@ export const unassignedFollowUpTag = (
   ownerLoad: Map<string, number> | undefined,
   maxLoad: number | undefined,
 ): UnassignedFollowUpTag | null => {
-  // Attended people were filed away, and test contacts are never handed out,
-  // so neither is waiting for anyone.
-  if (contact.ownerId || contact.isTest || contact.registrationStatus === 'ATTENDED') return null;
+  // Attended people were filed away, test contacts are never handed out, and
+  // teens go only to Teen Supports, so none of them is waiting for an adult.
+  if (contact.ownerId || contact.isTest || contact.registrationStatus === 'ATTENDED' || isTeenContact(contact)) return null;
   if (contact.gender !== 'Male' && contact.gender !== 'Female') {
     return { label: 'Gender not known', tone: 'bg-neutral-100 text-neutral-600' };
   }
@@ -276,7 +291,7 @@ export const genderCapacityOutlook = (
 };
 
 export const isClosedRegistrationStatus = (status: FollowUpRegistrationStatus): boolean =>
-  status === 'ACCESS_CONFIRMED' || status === 'ATTENDED' || status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME' || status === 'NO_RESPONSE';
+  status === 'ACCESS_CONFIRMED' || status === 'ATTENDED' || status === 'TEEN_ONBOARDED' || status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME' || status === 'NO_RESPONSE';
 
 /**
  * Whether a contact belongs to `cohortId` for filtering purposes. Contacts
@@ -334,6 +349,8 @@ export const computeFollowUpMetrics = (contacts: FollowUpContact[]): FollowUpMet
     }
     else if (status === 'ACCESS_CONFIRMED') { m.loginShared++; m.accessConfirmed++; m.contacted++; m.closed++; }
     else if (status === 'ATTENDED') { m.contacted++; m.closed++; }
+    else if (status === 'TEENAGER') { m.contacted++; m.registered++; }
+    else if (status === 'TEEN_ONBOARDED') { m.contacted++; m.closed++; }
     else if (status === 'WRONG_NUMBER') { m.wrongNumber++; m.contacted++; m.closed++; }
     else if (status === 'NOT_INTERESTED') { m.notInterested++; m.contacted++; m.closed++; }
     else if (status === 'NO_RESPONSE') { m.closed++; }
@@ -419,6 +436,8 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       case 'NOT_INTERESTED': row.notInterested++; break;
       case 'NO_RESPONSE': row.noResponse++; break;
       case 'NEXT_COHORT': row.nextCohort++; break;
+      case 'TEENAGER': row.registered++; break;
+      case 'TEEN_ONBOARDED':
       case 'ATTENDED': break;
     }
   }
@@ -474,7 +493,7 @@ export const computeIntroducerBreakdown = (contacts: FollowUpContact[]): Introdu
     }
     row.met++;
     const status = computeFollowUpStatus(c);
-    if (AFTER_SIGN_UP_STATUSES.includes(status)) row.signedUp++;
+    if (AFTER_SIGN_UP_STATUSES.includes(status) || TEEN_STATUSES.includes(status)) row.signedUp++;
     if (status === 'LOGIN_SHARED' || status === 'LOGIN_ISSUE' || status === 'ACCESS_CONFIRMED' || isPreAppRegistered(c)) row.loginShared++;
     if (status === 'ACCESS_CONFIRMED') row.loggedIn++;
     if (FOLLOW_UP_STAGE[status] === 'open') row.stillOpen++;
@@ -551,6 +570,18 @@ export const buildStatusPatch = (status: FollowUpStatus, subReason?: string): Re
       base.nextAction = 'CLOSE';
       base.archivedAt = now;
       break;
+    case 'TEENAGER':
+      base.replyStatus = 'REPLIED';
+      base.registrationStatus = 'TEENAGER';
+      base.nextAction = 'SEND_MESSAGE';
+      break;
+    case 'TEEN_ONBOARDED':
+      // Closed for the queue but not archived: a Teen Support's teens all count
+      // towards their limit and their group, onboarded or not.
+      base.replyStatus = 'REPLIED';
+      base.registrationStatus = 'TEEN_ONBOARDED';
+      base.nextAction = 'CLOSE';
+      break;
     case 'NEXT_COHORT':
       base.registrationStatus = 'NEXT_COHORT';
       base.nextAction = 'CLOSE';
@@ -626,6 +657,8 @@ export const FOLLOW_UP_STAGE: Record<FollowUpStatus, FollowUpStage> = {
   LOGIN_ISSUE: 'loginShared',
   ACCESS_CONFIRMED: 'done',
   ATTENDED: 'done',
+  TEENAGER: 'registered',
+  TEEN_ONBOARDED: 'done',
   NEXT_COHORT: 'nextCohort',
   WRONG_NUMBER: 'stopped',
   NOT_INTERESTED: 'stopped',
@@ -679,7 +712,7 @@ export interface FollowUpFunnel {
 
 const FUNNEL_ORDER: FollowUpStatus[] = [
   'TO_CONTACT', 'WAITING', 'NEEDS_REMINDER', 'REPLIED', 'CALL_BACK_LATER',
-  'REGISTERED', 'LOGIN_SHARED', 'LOGIN_ISSUE', 'ACCESS_CONFIRMED', 'ATTENDED', 'NEXT_COHORT', 'WRONG_NUMBER', 'NOT_INTERESTED', 'NO_RESPONSE',
+  'REGISTERED', 'LOGIN_SHARED', 'LOGIN_ISSUE', 'ACCESS_CONFIRMED', 'ATTENDED', 'TEENAGER', 'TEEN_ONBOARDED', 'NEXT_COHORT', 'WRONG_NUMBER', 'NOT_INTERESTED', 'NO_RESPONSE',
 ];
 
 export const computeFollowUpFunnel = (contacts: FollowUpContact[]): FollowUpFunnel => {

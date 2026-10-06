@@ -180,7 +180,7 @@ Deno.serve(async (req) => {
         .is('ownerId', null)
         .is('archivedAt', null)
         .eq('isTest', false)
-        .not('registrationStatus', 'in', '(ACCESS_CONFIRMED,ATTENDED,NEXT_COHORT,NOT_INTERESTED,NOT_A_GOOD_TIME,NOT_A_TCN_MEMBER,NO_RESPONSE)')
+        .not('registrationStatus', 'in', '(ACCESS_CONFIRMED,ATTENDED,TEENAGER,TEEN_ONBOARDED,NEXT_COHORT,NOT_INTERESTED,NOT_A_GOOD_TIME,NOT_A_TCN_MEMBER,NO_RESPONSE)')
         .neq('replyStatus', 'INCORRECT_NUMBER')
         .neq('callStatus', 'INCORRECT_NUMBER')
         .lte('createdAt', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString())

@@ -19,6 +19,8 @@ const STATUS_COLOR: Record<FollowUpStatus, string> = {
   LOGIN_ISSUE: '#fb923c',
   ACCESS_CONFIRMED: '#10b981',
   ATTENDED: '#5eead4',
+  TEENAGER: '#f9a8d4',
+  TEEN_ONBOARDED: '#34d399',
   NEXT_COHORT: '#38bdf8',
   WRONG_NUMBER: '#fb7185',
   NOT_INTERESTED: '#f43f5e',
