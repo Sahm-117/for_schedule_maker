@@ -64,8 +64,34 @@ export interface DraftOptions {
   tagNames?: Record<string, string>;
 }
 
-export type NoteTone = 'relaxed' | 'broken';
-export interface GroupNote { tone: NoteTone; text: string }
+/** 'info' is only a heads-up (nothing was bent); 'relaxed' a Prefer rule that was bent; 'broken' a Must rule. */
+export type NoteTone = 'relaxed' | 'broken' | 'info';
+/** `hint` is the plain-words explanation shown behind the ⓘ on the pill. */
+export interface GroupNote { tone: NoteTone; text: string; hint?: string }
+
+const ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'];
+
+/** Where a support's age range sits in the Rules list ("second"), or null when it isn't listed. */
+const agePlace = (range: string | null, rules: GroupingRules) => {
+  const i = range ? rules.supportAgeOrder.indexOf(range) : -1;
+  return i >= 0 ? ORDINALS[i] ?? `${i + 1}th` : null;
+};
+
+/** Why a support wasn't given a group, in plain words (for the tip on "Supports without a group"). */
+export const unusedSupportHint = (support: EngineSupport, rules: GroupingRules, tagNames: Record<string, string>): string => {
+  if (!support.gender && rules.supportGender === 'SAME_AS_GROUP' && rules.supportGenderStrength === 'MUST') {
+    return "Their gender isn't on their profile yet, and your rules ask for a support of the group's gender, so the engine couldn't match them to a group. Add it on the Supports page, then rebuild.";
+  }
+  if (!support.ageRange) {
+    return "Their age range isn't on their profile yet, so the engine had less to go on. Add it on the Supports page, then rebuild. You can still place them yourself from any group's menu.";
+  }
+  const tags = restrictedTagIds(support, rules).map((id) => tagNames[id]).filter(Boolean);
+  if (tags.length > 0) {
+    return `They're on the ${tags.join(' / ')} tag, which is kept for the groups that tag is for. There weren't enough of those groups for everyone on it. You can still place them yourself from any group's menu.`;
+  }
+  const place = agePlace(support.ageRange, rules);
+  return `There were more supports than groups, so not everyone was needed. When the engine chooses, it goes through the age ranges in the order set under Rules → Support's age${place ? ` (${support.ageRange} comes ${place})` : ''}. That's only an order of choosing, not a verdict on anyone. You can place them yourself from any group's menu, or change the order under Rules.`;
+};
 
 export const toEnginePerson = (p: { id: string; name: string; gender?: string | null; ageRange?: string | null }): EnginePerson => ({
   id: p.id,
@@ -439,13 +465,20 @@ export const evaluateGroup = (
       const own = restrictedTagIds(support, rules);
       if (own.length > 0) notes.push({ tone: 'relaxed', text: `${tagName(own[0])} support on a regular group` });
     }
-    if (!support.gender || !support.ageRange) notes.push({ tone: 'relaxed', text: "Support's gender/age not on file" });
+    if (!support.gender || !support.ageRange) {
+      notes.push({ tone: 'relaxed', text: "Support's gender/age not on file", hint: "Their gender or age isn't on their profile, so the engine couldn't compare them with this group. Add it on the Supports page and rebuild." });
+    }
     const gender = groupGender(members);
     if (rules.supportGender === 'SAME_AS_GROUP' && gender && support.gender && support.gender !== gender) {
       notes.push({ tone: toneFor(rules.supportGenderStrength), text: 'Support is a different gender' });
     }
     if (support.ageRange && !rules.preferredSupportAges.includes(support.ageRange)) {
-      notes.push({ tone: toneFor(rules.supportAgeStrength), text: `Support aged ${shortAge(support.ageRange)}` });
+      const place = agePlace(support.ageRange, rules);
+      notes.push({
+        tone: rules.supportAgeStrength === 'MUST' ? 'broken' : 'info',
+        text: `${shortAge(support.ageRange)} support`,
+        hint: `Every support is a good choice here. This one is in the ${support.ageRange} range. When picking, your rules go through the age ranges in a set order${place ? ` and ${support.ageRange} comes ${place}` : ''}, so this is just a note about that order, not a concern. To treat ranges equally, tick "Middle age" for them under Rules → Support's age.`,
+      });
     }
   }
   return notes;

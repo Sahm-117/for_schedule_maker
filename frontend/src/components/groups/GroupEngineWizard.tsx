@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import AppSelect from '../AppSelect';
 import Avatar from '../Avatar';
+import InfoTip from '../InfoTip';
 import Spinner from '../Spinner';
 import SupportTagsModal from '../supports/SupportTagsModal';
 import { useAuth } from '../../hooks/useAuth';
@@ -15,6 +16,7 @@ import {
   buildDraft,
   evaluateGroup,
   groupTagRule,
+  unusedSupportHint,
   toEnginePerson,
   type DraftGroup,
   type SeedGroup,
@@ -908,7 +910,10 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                             <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">Missed training</span>
                           )}
                           {notes.map((n) => (
-                            <span key={n.text} className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${n.tone === 'broken' ? 'bg-red-100/80 text-red-700' : 'bg-amber-100/80 text-amber-700'}`}>{n.text}</span>
+                            <span key={n.text} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${n.tone === 'broken' ? 'bg-red-100/80 text-red-700' : n.tone === 'info' ? 'bg-sky-100/80 text-sky-700' : 'bg-amber-100/80 text-amber-700'}`}>
+                              {n.text}
+                              {n.hint && <InfoTip label={`About: ${n.text}`}>{n.hint}</InfoTip>}
+                            </span>
                           ))}
                         </div>
                       )}
@@ -947,13 +952,13 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                             <div key={s.id} className="flex items-center gap-2.5 rounded-2xl px-2 py-1.5">
                               <Avatar name={s.name} avatarUrl={supportUsers.find((u) => u.id === s.id)?.avatarUrl} size="sm" />
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-[13px] font-medium text-gray-900">{s.name}</p>
+                                <p className="flex items-center gap-1.5 text-[13px] font-medium text-gray-900"><span className="truncate">{s.name}</span><InfoTip label={`Why ${s.name} has no group`}>{unusedSupportHint(s, effectiveRules, tagNames)}</InfoTip></p>
                                 <p className="truncate text-[11px] text-gray-500">{[s.gender, s.ageRange ? shortAge(s.ageRange) : null, ...(s.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean)].filter(Boolean).join(' · ') || 'Details missing'}</p>
                               </div>
                             </div>
                           ))}
                         </div>
-                        <p className="mt-2 text-[11px] text-gray-400">Available to the engine but not given a group in this draft. Pick one on any group above to use them.</p>
+                        <p className="mt-2 text-[11px] text-gray-400">Available to the engine but not given a group in this draft. Tap ⓘ for the reason, or pick one on any group above to use them.</p>
                       </>
                     )}
                   </div>
