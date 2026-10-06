@@ -440,13 +440,13 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   });
 
   // Tag rules: one row per tag, in priority order (saved rules first, then any tag without a rule yet).
-  const tagRuleFor = (tagId: string): TagRule => rules.tagRules.find((r) => r.tagId === tagId) ?? { tagId, enabled: false, ageRanges: [], gender: null };
+  const tagRuleFor = (tagId: string): TagRule => rules.tagRules.find((r) => r.tagId === tagId) ?? { tagId, enabled: false, ageRanges: [], gender: null, minSize: null, targetSize: null, maxSize: null };
   const updateTagRule = (tagId: string, patch: Partial<TagRule>) => setRules((prev) => {
     const order = orderedTags.map((t) => t.id);
     const byId = new Map(prev.tagRules.map((r) => [r.tagId, r]));
-    const current = byId.get(tagId) ?? { tagId, enabled: false, ageRanges: [], gender: null };
+    const current = byId.get(tagId) ?? { tagId, enabled: false, ageRanges: [], gender: null, minSize: null, targetSize: null, maxSize: null };
     byId.set(tagId, { ...current, ...patch });
-    return { ...prev, tagRules: order.map((id) => byId.get(id) ?? { tagId: id, enabled: false, ageRanges: [], gender: null }) };
+    return { ...prev, tagRules: order.map((id) => byId.get(id) ?? { tagId: id, enabled: false, ageRanges: [], gender: null, minSize: null, targetSize: null, maxSize: null }) };
   });
   const moveTagRule = (tagId: string, dir: -1 | 1) => setRules((prev) => {
     const order = orderedTags.map((t) => t.id);
@@ -455,7 +455,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     if (i < 0 || j < 0 || j >= order.length) return prev;
     [order[i], order[j]] = [order[j], order[i]];
     const byId = new Map(prev.tagRules.map((r) => [r.tagId, r]));
-    return { ...prev, tagRules: order.map((id) => byId.get(id) ?? { tagId: id, enabled: false, ageRanges: [], gender: null }) };
+    return { ...prev, tagRules: order.map((id) => byId.get(id) ?? { tagId: id, enabled: false, ageRanges: [], gender: null, minSize: null, targetSize: null, maxSize: null }) };
   });
   const toggleIgnoredAge = (range: string) => setIgnoredAges((prev) => {
     const next = new Set(prev);
@@ -817,6 +817,28 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                                   <p className="mb-1 text-[11px] font-medium text-gray-500">And groups that are</p>
                                   <Segmented value={rule.gender ?? ''} onChange={(v) => updateTagRule(tag.id, { gender: v === 'Female' || v === 'Male' || v === 'SAME' ? v : null })} options={[{ value: 'Male', label: 'Men' }, { value: 'Female', label: 'Women' }, { value: 'SAME', label: 'Same gender' }, { value: '', label: 'Any' }]} />
                                   <p className="mt-1 text-[11px] text-gray-400">Men or Women: only all-men or all-women groups. Same gender: any group that is all one gender. Any: mixed groups too.</p>
+                                </div>
+                                <div>
+                                  <div className="mb-1 flex items-center justify-between gap-2">
+                                    <p className="text-[11px] font-medium text-gray-500">Group size for {tag.name}</p>
+                                    {rule.minSize !== null && (
+                                      <button type="button" onClick={() => updateTagRule(tag.id, { minSize: null, targetSize: null, maxSize: null })} className="text-[11px] font-semibold text-primary">Use the cohort's sizes</button>
+                                    )}
+                                  </div>
+                                  {(() => {
+                                    const min = rule.minSize ?? rules.minSize;
+                                    const aim = rule.targetSize ?? rules.targetSize;
+                                    const max = rule.maxSize ?? rules.maxSize;
+                                    const setSizes = (next: { min: number; aim: number; max: number }) => updateTagRule(tag.id, { minSize: next.min, targetSize: next.aim, maxSize: next.max });
+                                    return (
+                                      <div className="grid grid-cols-3 gap-2">
+                                        <Stepper label="Smallest" value={min} min={1} max={max} onChange={(v) => setSizes({ min: v, aim: Math.max(v, aim), max })} />
+                                        <Stepper label="Aim" value={aim} min={min} max={max} onChange={(v) => setSizes({ min, aim: v, max })} />
+                                        <Stepper label="Largest" value={max} min={min} max={50} onChange={(v) => setSizes({ min, aim: Math.min(v, aim), max: v })} />
+                                      </div>
+                                    );
+                                  })()}
+                                  {rule.minSize === null && <p className="mt-1 text-[11px] text-gray-400">Using the cohort's sizes. Change any number to give these groups their own.</p>}
                                 </div>
                                 {noCriteria && <p className="text-[11px] font-semibold text-amber-700">Pick an age range or a gender, or this tag has nothing to match.</p>}
                               </div>

@@ -192,6 +192,12 @@ const ruleMatches = (rule: TagRule, person: EnginePerson) =>
   (rule.ageRanges.length === 0 || (!!person.ageRange && rule.ageRanges.includes(person.ageRange)))
   && (!rule.gender || rule.gender === 'SAME' || person.gender === rule.gender);
 
+/** The rules a tag's own groups follow: the cohort's, with the tag's sizes when it has them. */
+export const rulesForTag = (rules: GroupingRules, tag: TagRule | null): GroupingRules =>
+  tag && tag.minSize !== null && tag.targetSize !== null && tag.maxSize !== null
+    ? { ...rules, minSize: tag.minSize, targetSize: tag.targetSize, maxSize: tag.maxSize }
+    : rules;
+
 /** An enabled rule with nothing to match on would fit every group, so it is ignored. */
 const activeTagRules = (rules: GroupingRules) => rules.tagRules.filter((r) => r.enabled && (r.ageRanges.length > 0 || !!r.gender));
 
@@ -300,7 +306,7 @@ export const buildDraft = (
   // Split into pools: by gender when groups are one gender, then by age range
   // when similar ages are a Must (a group never crosses a range).
   const splitGender = rules.genderMix === 'SAME';
-  const splitPools = (list: EnginePerson[], forceGenderSplit = false): EnginePerson[][] => {
+  const splitPools = (list: EnginePerson[], poolRules: GroupingRules, forceGenderSplit = false): EnginePerson[][] => {
     let pools: EnginePerson[][] = [list];
     if (splitGender || forceGenderSplit) pools = ['Female', 'Male'].map((g) => list.filter((p) => p.gender === g));
     if (rules.ageMix === 'SIMILAR' && rules.ageStrength === 'MUST') {
@@ -312,9 +318,9 @@ export const buildDraft = (
     // fold it into the other gender's pool (shows as "Mixed genders") rather than
     // leaving a tiny group; with a Must size it would otherwise be unplaced.
     if (splitGender && !forceGenderSplit && rules.genderStrength === 'PREFER' && pools.length > 1) {
-      const small = pools.filter((pool) => pool.length < rules.minSize);
+      const small = pools.filter((pool) => pool.length < poolRules.minSize);
       if (small.length > 0 && small.length < pools.length) {
-        const big = pools.filter((pool) => pool.length >= rules.minSize).sort((a, b) => b.length - a.length);
+        const big = pools.filter((pool) => pool.length >= poolRules.minSize).sort((a, b) => b.length - a.length);
         big[0] = [...big[0], ...small.flat()];
         pools = big;
       }
@@ -327,24 +333,25 @@ export const buildDraft = (
   // fewer people match than the smallest group, they join everyone else.
   const tagNotes: string[] = [];
   let rest = ready;
-  const pools: EnginePerson[][] = [];
+  const pools: Array<{ list: EnginePerson[]; rules: GroupingRules }> = [];
   activeTagRules(rules).forEach((rule) => {
+    const tagRules = rulesForTag(rules, rule);
     const matching = rest.filter((p) => ruleMatches(rule, p));
     if (matching.length === 0) return;
-    if (matching.length < rules.minSize) {
+    if (matching.length < tagRules.minSize) {
       tagNotes.push(`Only ${matching.length} ${matching.length === 1 ? 'person fits' : 'people fit'} “${options.tagNames?.[rule.tagId] ?? 'tag'}”, fewer than the smallest group, so they were grouped with everyone else.`);
       return;
     }
     const taken = new Set(matching.map((p) => p.id));
     rest = rest.filter((p) => !taken.has(p.id));
-    pools.push(...splitPools(matching, rule.gender === 'SAME'));
+    pools.push(...splitPools(matching, tagRules, rule.gender === 'SAME').map((list) => ({ list, rules: tagRules })));
   });
-  pools.push(...splitPools(rest));
+  pools.push(...splitPools(rest, rules).map((list) => ({ list, rules })));
 
   const memberLists: string[][] = [];
   const unplaced: string[] = [];
   pools.forEach((pool) => {
-    const result = groupPool(pool, rules, splitGender || new Set(pool.map((p) => p.gender)).size === 1);
+    const result = groupPool(pool.list, pool.rules, splitGender || new Set(pool.list.map((p) => p.gender)).size === 1);
     memberLists.push(...result.groups.filter((g) => g.length > 0));
     unplaced.push(...result.unplaced);
   });
@@ -397,8 +404,10 @@ export const evaluateGroup = (
   const n = members.length;
   const toneFor = (s: 'MUST' | 'PREFER'): NoteTone => (s === 'MUST' ? 'broken' : 'relaxed');
 
-  if (n < rules.minSize) notes.push({ tone: toneFor(rules.sizeStrength), text: `Only ${n} ${n === 1 ? 'person' : 'people'}` });
-  if (n > rules.maxSize) notes.push({ tone: toneFor(rules.sizeStrength), text: `${n} people (over ${rules.maxSize})` });
+  // A tag's groups follow the tag's own sizes when it has them.
+  const sizeRules = rulesForTag(rules, groupTagRule(members, rules));
+  if (n < sizeRules.minSize) notes.push({ tone: toneFor(rules.sizeStrength), text: `Only ${n} ${n === 1 ? 'person' : 'people'}` });
+  if (n > sizeRules.maxSize) notes.push({ tone: toneFor(rules.sizeStrength), text: `${n} people (over ${sizeRules.maxSize})` });
 
   const women = members.filter((m) => m.gender === 'Female').length;
   if (rules.genderMix === 'SAME' && women > 0 && women < n) {

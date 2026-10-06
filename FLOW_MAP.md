@@ -167,6 +167,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
     resort for a regular group. Tags and rules: `SupportTag`/`SupportTagMember`
     (written only by `support_tag_*` RPCs), `tagRules` in the cohort's grouping
     rules, `supportCost`/`groupTagRule` in `frontend/src/utils/groupingEngine.ts`.
+    A tag may carry its own smallest/aim/largest group size (`rulesForTag`);
+    without one its groups use the cohort's sizes.
     Source: `20261006130000_support_tags.sql`.
 18. **A support's kind follows the hub roles.** The lead of a hub is HUB_LEAD
     and an IT support is OPERATIONAL in that hub's cohort (triggers on

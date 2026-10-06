@@ -27,6 +27,10 @@ export interface TagRule {
   ageRanges: string[];
   /** 'Female' / 'Male' = only all-women / all-men groups; 'SAME' = any group that is all one gender; null = any gender (mixed groups too). */
   gender: 'Female' | 'Male' | 'SAME' | null;
+  /** Group sizes for this tag's groups; null = the cohort's sizes. Set together (smallest <= aim <= largest). */
+  minSize: number | null;
+  targetSize: number | null;
+  maxSize: number | null;
 }
 
 export interface GroupingRules {
@@ -111,6 +115,15 @@ const oneOf = <T extends string>(value: unknown, allowed: readonly T[], fallback
   (allowed as readonly string[]).includes(value as string) ? (value as T) : fallback;
 const strength = (value: unknown, fallback: RuleStrength) => oneOf(value, ['MUST', 'PREFER'] as const, fallback);
 
+/** The three sizes together or not at all, so a half-set override can't happen. */
+const tagSizes = (row: Record<string, unknown>) => {
+  const min = Math.round(Number(row.minSize));
+  const target = Math.round(Number(row.targetSize));
+  const max = Math.round(Number(row.maxSize));
+  const ok = [min, target, max].every((n) => Number.isFinite(n) && n >= 1 && n <= 50) && min <= target && target <= max;
+  return ok ? { minSize: min, targetSize: target, maxSize: max } : { minSize: null, targetSize: null, maxSize: null };
+};
+
 const normaliseTagRules = (value: unknown): TagRule[] => {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
@@ -124,6 +137,7 @@ const normaliseTagRules = (value: unknown): TagRule[] => {
       enabled: row.enabled === true,
       ageRanges: Array.isArray(row.ageRanges) ? [...new Set(row.ageRanges.filter((r): r is string => typeof r === 'string' && AGE_RANGE_OPTIONS.includes(r)))] : [],
       gender: row.gender === 'Female' || row.gender === 'Male' || row.gender === 'SAME' ? row.gender : null,
+      ...tagSizes(row),
     });
   }
   return out;
