@@ -55,6 +55,11 @@ export interface GroupingRules {
   excludedSupportIds: string[];
   /** Support tag rules, highest priority first. */
   tagRules: TagRule[];
+  /**
+   * Groups made mostly of people in these age ranges prefer a support from the
+   * same range (or the nearest), ahead of the supportAgeOrder list. Empty = always use the list.
+   */
+  ageMatchRanges: string[];
 }
 
 export const DEFAULT_GROUPING_RULES: GroupingRules = {
@@ -74,6 +79,7 @@ export const DEFAULT_GROUPING_RULES: GroupingRules = {
   supportAgeStrength: 'PREFER',
   excludedSupportIds: [],
   tagRules: [],
+  ageMatchRanges: [],
 };
 
 // ── Normalising saved answers ────────────────────────────────────────────────
@@ -178,5 +184,8 @@ export const normaliseGroupingRules = (value: unknown): GroupingRules => {
       ? [...new Set(source.excludedSupportIds.filter((id): id is string => typeof id === 'string' && id.length > 0))]
       : [],
     tagRules: normaliseTagRules(source.tagRules),
+    ageMatchRanges: Array.isArray(source.ageMatchRanges)
+      ? [...new Set(source.ageMatchRanges.filter((r): r is string => typeof r === 'string' && AGE_RANGE_OPTIONS.includes(r)))]
+      : [],
   };
 };

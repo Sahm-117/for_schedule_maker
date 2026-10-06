@@ -772,6 +772,20 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                       );
                     })}
                   </div>
+                  <div className="mt-4 rounded-2xl bg-gray-50 p-3">
+                    <p className="text-sm font-semibold text-gray-900">Match the group's own age</p>
+                    <p className="mt-0.5 text-[11px] text-gray-500">For groups made mostly of people in these ranges, prefer a support from the same range, or the nearest one free, ahead of the order above. Leave all off to always follow the order above.</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {AGE_RANGE_OPTIONS.map((range) => {
+                        const on = rules.ageMatchRanges.includes(range);
+                        return (
+                          <button key={range} type="button" aria-pressed={on} onClick={() => set('ageMatchRanges', on ? rules.ageMatchRanges.filter((r) => r !== range) : [...rules.ageMatchRanges, range])} className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${on ? 'bg-violet-100/80 text-violet-700' : 'bg-white text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.10)]'}`}>
+                            {range}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </RuleCard>
               </div>
               <div className="sm:col-span-2">

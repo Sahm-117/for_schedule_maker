@@ -69,14 +69,6 @@ export type NoteTone = 'relaxed' | 'broken' | 'info';
 /** `hint` is the plain-words explanation shown behind the ⓘ on the pill. */
 export interface GroupNote { tone: NoteTone; text: string; hint?: string }
 
-const ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'];
-
-/** Where a support's age range sits in the Rules list ("second"), or null when it isn't listed. */
-const agePlace = (range: string | null, rules: GroupingRules) => {
-  const i = range ? rules.supportAgeOrder.indexOf(range) : -1;
-  return i >= 0 ? ORDINALS[i] ?? `${i + 1}th` : null;
-};
-
 /** Why a support wasn't given a group, in plain words (for the tip on "Supports without a group"). */
 export const unusedSupportHint = (support: EngineSupport, rules: GroupingRules, tagNames: Record<string, string>): string => {
   if (!support.gender && rules.supportGender === 'SAME_AS_GROUP' && rules.supportGenderStrength === 'MUST') {
@@ -89,8 +81,7 @@ export const unusedSupportHint = (support: EngineSupport, rules: GroupingRules, 
   if (tags.length > 0) {
     return `They're on the ${tags.join(' / ')} tag, which is kept for the groups that tag is for. There weren't enough of those groups for everyone on it. You can still place them yourself from any group's menu.`;
   }
-  const place = agePlace(support.ageRange, rules);
-  return `There were more supports than groups, so not everyone was needed. When the engine chooses, it goes through the age ranges in the order set under Rules → Support's age${place ? ` (${support.ageRange} comes ${place})` : ''}. That's only an order of choosing, not a verdict on anyone. You can place them yourself from any group's menu, or change the order under Rules.`;
+  return `There were more supports than groups. Your rules pick ${rules.preferredSupportAges.join(' or ')} first, so ${support.ageRange} wasn't needed this time. You can still add them to any group from its menu.`;
 };
 
 export const toEnginePerson = (p: { id: string; name: string; gender?: string | null; ageRange?: string | null }): EnginePerson => ({
@@ -212,6 +203,20 @@ const groupGender = (members: EnginePerson[]): string | null => {
   return genders.size === 1 ? [...genders][0] : null;
 };
 
+// ── Matching a support's age to the group's age ──────────────────────────────
+
+/** The age range most of a group sits in (the middle person's), or null when nobody has one. */
+const groupRange = (members: EnginePerson[]): string | null => {
+  const idx = members.map((m) => ageIndex(m.ageRange)).filter((i) => i >= 0).sort((a, b) => a - b);
+  return idx.length > 0 ? AGE_RANGE_OPTIONS[idx[Math.floor((idx.length - 1) / 2)]] : null;
+};
+
+/** The group's own range when the cohort asked for groups like it to be age-matched, else null. */
+export const groupMatchRange = (members: EnginePerson[], rules: GroupingRules): string | null => {
+  const range = groupRange(members);
+  return range && rules.ageMatchRanges.includes(range) ? range : null;
+};
+
 // ── Support tags ─────────────────────────────────────────────────────────────
 
 const ruleMatches = (rule: TagRule, person: EnginePerson) =>
@@ -263,9 +268,16 @@ export const supportCost = (support: EngineSupport, members: EnginePerson[], rul
   }
   const rank = support.ageRange ? rules.supportAgeOrder.indexOf(support.ageRange) : -1;
   const preferred = !!support.ageRange && rules.preferredSupportAges.includes(support.ageRange);
+  const listRank = preferred ? 0 : rank >= 0 ? rank + 1 : rules.supportAgeOrder.length + 1;
+  // Age-matched groups prefer the nearest range to their own (always a preference, never a bar);
+  // the list order only breaks ties.
+  const matchRange = groupMatchRange(members, rules);
+  if (matchRange) {
+    const distance = support.ageRange ? Math.abs(ageIndex(support.ageRange) - ageIndex(matchRange)) : AGE_RANGE_OPTIONS.length;
+    return [tagPenalty, genderMiss, distance * 10 + listRank];
+  }
   if (rules.supportAgeStrength === 'MUST' && !preferred) return null;
-  const ageRank = preferred ? 0 : rank >= 0 ? rank + 1 : rules.supportAgeOrder.length + 1;
-  return [tagPenalty, genderMiss, ageRank];
+  return [tagPenalty, genderMiss, listRank];
 };
 
 const compareCost = (a: Cost, b: Cost) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
@@ -472,12 +484,26 @@ export const evaluateGroup = (
     if (rules.supportGender === 'SAME_AS_GROUP' && gender && support.gender && support.gender !== gender) {
       notes.push({ tone: toneFor(rules.supportGenderStrength), text: 'Support is a different gender' });
     }
-    if (support.ageRange && !rules.preferredSupportAges.includes(support.ageRange)) {
-      const place = agePlace(support.ageRange, rules);
+    const matchRange = groupMatchRange(members, rules);
+    if (matchRange && support.ageRange) {
+      if (support.ageRange === matchRange) {
+        notes.push({
+          tone: 'info',
+          text: 'Age-matched',
+          hint: `Same age range as this group (${matchRange}), as your rules prefer.`,
+        });
+      } else {
+        notes.push({
+          tone: 'info',
+          text: `${shortAge(support.ageRange)} support`,
+          hint: `This group is mostly ${matchRange}, so your rules prefer a support from that range. This support is ${support.ageRange}, the closest one free.`,
+        });
+      }
+    } else if (support.ageRange && !rules.preferredSupportAges.includes(support.ageRange)) {
       notes.push({
         tone: rules.supportAgeStrength === 'MUST' ? 'broken' : 'info',
         text: `${shortAge(support.ageRange)} support`,
-        hint: `Every support is a good choice here. This one is in the ${support.ageRange} range. When picking, your rules go through the age ranges in a set order${place ? ` and ${support.ageRange} comes ${place}` : ''}, so this is just a note about that order, not a concern. To treat ranges equally, tick "Middle age" for them under Rules → Support's age.`,
+        hint: `Your rules pick supports aged ${rules.preferredSupportAges.join(' or ')} first. This support is ${support.ageRange}, the next best fit. Nothing is wrong.`,
       });
     }
   }
