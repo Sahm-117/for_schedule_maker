@@ -144,3 +144,49 @@ export const buildContactsList = (title: string, filters: string[], contacts: Fo
   const header = [`*${title}*`, filters.length ? `Filter: ${filters.join(' · ')}` : '', `Total: ${contacts.length}`].filter(Boolean).join('\n');
   return `${header}\n\n${contacts.map((c, i) => formatContactLine(i + 1, c)).join('\n')}`;
 };
+
+// Contacts grouped by the support who holds them, for following up with supports, e.g.
+//   *Cohort 10 Follow-ups*
+//   Filter: Registered
+//   Total: 18
+//
+//   *Aderounmu Dayo* - 08012345678
+//   1. Olufimihan Onatola
+//   2. Eniola Oyatogun
+// A participant's number is added only when asked for (a teen shows a parent's number).
+export interface SupportRef { name: string; phone?: string | null }
+
+export const supportOfContact = (c: FollowUpContact, supportById: Map<string, SupportRef>): SupportRef | null =>
+  c.ownerId ? supportById.get(c.ownerId) ?? { name: c.ownerName || 'Support', phone: null } : null;
+
+export const formatContactForSupportCopy = (c: FollowUpContact, supportById: Map<string, SupportRef>, includeNumbers: boolean): string => {
+  const support = supportOfContact(c, supportById);
+  const own = includeNumbers ? ` - ${normalizePhone(contactReachPhone(c)) || 'no number'}` : '';
+  const who = support ? `${support.name}${support.phone ? ` ${normalizePhone(support.phone)}` : ' (no number)'}` : 'No support yet';
+  return `${c.fullName}${own} | Support: ${who}`;
+};
+
+export const buildContactsBySupport = (
+  title: string,
+  filters: string[],
+  contacts: FollowUpContact[],
+  supportById: Map<string, SupportRef>,
+  includeNumbers: boolean,
+): string => {
+  const groups = new Map<string, { label: string; phone: string; items: FollowUpContact[] }>();
+  contacts.forEach((c) => {
+    const support = supportOfContact(c, supportById);
+    const key = c.ownerId ?? '__none';
+    const group = groups.get(key) ?? { label: support?.name ?? 'No support yet', phone: normalizePhone(support?.phone), items: [] };
+    group.items.push(c);
+    groups.set(key, group);
+  });
+  const ordered = Array.from(groups.entries()).sort(([ka, a], [kb, b]) => (ka === '__none' ? 1 : 0) - (kb === '__none' ? 1 : 0) || a.label.localeCompare(b.label));
+  const header = [`*${title}*`, filters.length ? `Filter: ${filters.join(' · ')}` : '', `Total: ${contacts.length}`].filter(Boolean).join('\n');
+  const blocks = ordered.map(([key, g]) => {
+    const head = key === '__none' ? `*${g.label}*` : `*${g.label}*${g.phone ? ` - ${g.phone}` : ' - no number'}`;
+    const lines = g.items.map((c, i) => `${i + 1}. ${c.fullName}${includeNumbers ? ` - ${normalizePhone(contactReachPhone(c)) || 'no number'}` : ''}`);
+    return [head, ...lines].join('\n');
+  });
+  return `${header}\n\n${blocks.join('\n\n')}`;
+};

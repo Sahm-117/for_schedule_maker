@@ -937,6 +937,7 @@ const AdminFollowUpsPage: React.FC = () => {
       {showExport && (
         <ExportContactsPopup
           contacts={exportContacts}
+          owners={owners}
           title={`${activeCohort?.name ?? 'FOF'} Follow-ups`}
           filters={exportFilters}
           onClose={() => setShowExport(false)}

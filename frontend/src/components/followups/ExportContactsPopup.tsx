@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { FollowUpContact } from '../../types';
-import { buildContactsList, formatContactLine, normalizePhone } from '../../utils/whatsappExport';
+import { buildContactsBySupport, buildContactsList, formatContactForSupportCopy, formatContactLine, normalizePhone, supportOfContact, type SupportRef } from '../../utils/whatsappExport';
 import { contactReachPhone } from '../../utils/followUps';
 
 interface ExportContactsPopupProps {
@@ -13,19 +13,25 @@ interface ExportContactsPopupProps {
   title?: string;
   /** What is filtered on screen, in plain words. The copied list names these and holds only those people. */
   filters?: string[];
+  /** When given, the list shows and copies each person's support (name and number), grouped by support. */
+  owners?: Array<{ id: string; name: string; phone?: string | null }>;
 }
 
-const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: allContacts, onClose, closedToggle = false, title = 'Follow-ups', filters = [] }) => {
+const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: allContacts, onClose, closedToggle = false, title = 'Follow-ups', filters = [], owners }) => {
   const [includeClosed, setIncludeClosed] = useState(false);
   const closedCount = closedToggle ? allContacts.filter((c) => !!c.archivedAt).length : 0;
   const contacts = closedToggle && !includeClosed ? allContacts.filter((c) => !c.archivedAt) : allContacts;
   const [copiedAll, setCopiedAll] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  // Participants' own numbers are left out unless asked for; the supports' numbers are always there.
+  const [includeNumbers, setIncludeNumbers] = useState(false);
+  const supportById = useMemo(() => new Map<string, SupportRef>((owners ?? []).map((o) => [o.id, { name: o.name, phone: o.phone }])), [owners]);
+  const bySupport = !!owners;
 
   const allFilters = closedToggle && includeClosed ? [...filters, 'Including closed'] : filters;
 
   const copyAll = async () => {
-    const text = buildContactsList(title, allFilters, contacts);
+    const text = bySupport ? buildContactsBySupport(title, allFilters, contacts, supportById, includeNumbers) : buildContactsList(title, allFilters, contacts);
     try {
       await navigator.clipboard.writeText(text);
       setCopiedAll(true);
@@ -35,7 +41,7 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: all
 
   const copyOne = async (c: FollowUpContact) => {
     try {
-      await navigator.clipboard.writeText(formatContactLine(1, c).replace(/^1\. /, ''));
+      await navigator.clipboard.writeText(bySupport ? formatContactForSupportCopy(c, supportById, includeNumbers) : formatContactLine(1, c).replace(/^1\. /, ''));
       setCopiedId(c.id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch { /* ignore */ }
@@ -55,6 +61,21 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: all
 
         {allFilters.length > 0 && (
           <p className="px-5 pt-3 text-[13px] text-gray-500">Only what is filtered on screen: <span className="font-semibold text-gray-700">{allFilters.join(' · ')}</span></p>
+        )}
+
+        {bySupport && (
+          <label className="flex items-center justify-between gap-3 px-5 pt-3 text-[13px] font-semibold text-gray-700">
+            <span>Include participants' numbers</span>
+            <button
+              type="button"
+              onClick={() => setIncludeNumbers((v) => !v)}
+              aria-pressed={includeNumbers}
+              aria-label="Include participants' numbers"
+              className={`relative h-6 w-11 rounded-full transition ${includeNumbers ? 'bg-primary' : 'bg-gray-300'}`}
+            >
+              <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${includeNumbers ? 'translate-x-5' : ''}`} />
+            </button>
+          </label>
         )}
 
         {closedToggle && (
@@ -92,7 +113,14 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: all
                 <div key={c.id} className="flex items-center justify-between py-2.5">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-gray-900">{c.fullName}</p>
-                    <p className="truncate text-xs text-gray-500">{normalizePhone(contactReachPhone(c)) || '—'}</p>
+                    {bySupport ? (
+                      <p className="truncate text-xs text-gray-500">
+                        {(() => { const sp = supportOfContact(c, supportById); return sp ? `${sp.name}${sp.phone ? ` · ${normalizePhone(sp.phone)}` : ' · no number'}` : 'No support yet'; })()}
+                        {includeNumbers ? ` — ${normalizePhone(contactReachPhone(c)) || 'no number'}` : ''}
+                      </p>
+                    ) : (
+                      <p className="truncate text-xs text-gray-500">{normalizePhone(contactReachPhone(c)) || '—'}</p>
+                    )}
                   </div>
                   <button
                     type="button"
