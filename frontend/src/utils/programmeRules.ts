@@ -26,6 +26,8 @@ export interface ProgrammeRules {
   minTrainingsAttended: number;
   /** Most open follow-ups one support should hold. Past it, assigning warns (it isn't blocked). */
   maxFollowUpsPerSupport: number;
+  /** Most teens one Teen Support looks after (all of them, onboarded or not: they are one group). */
+  maxTeensPerTeenSupport: number;
 }
 
 export const DEFAULT_PROGRAMME_RULES: ProgrammeRules = {
@@ -39,6 +41,7 @@ export const DEFAULT_PROGRAMME_RULES: ProgrammeRules = {
   attendanceWindowMinutes: 15,
   minTrainingsAttended: 1,
   maxFollowUpsPerSupport: 15,
+  maxTeensPerTeenSupport: 4,
 };
 
 export const COMPLETION_SCORE_ALL_MEETINGS = 100;

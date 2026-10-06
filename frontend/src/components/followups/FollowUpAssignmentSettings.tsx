@@ -5,7 +5,7 @@ import Spinner from '../Spinner';
 import { followUpChecksApi, settingsApi } from '../../services/api';
 import type { FollowUpReassignmentSummary } from '../../types';
 
-const ToggleRow: React.FC<{
+export const ToggleRow: React.FC<{
   label: string;
   description: string;
   checked: boolean;

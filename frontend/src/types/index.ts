@@ -457,9 +457,15 @@ export interface FollowUpContact {
   formQuestion?: string | null;
   formQuestionAnsweredAt?: string | null;
   formQuestionAnsweredById?: string | null;
+  /** A teen's parent or guardian number. Teen messages and calls go to it first. */
+  guardianPhone?: string | null;
+  /** What warranted marking a teen Onboarded. */
+  teenOnboardedHow?: TeenOnboardedHow | null;
   createdAt?: string;
   updatedAt?: string;
 }
+
+export type TeenOnboardedHow = 'WHATSAPP_GROUP' | 'PARENT_REACHED' | 'PHONE_CALL';
 
 export type FollowUpContactUpdate = Partial<Pick<
   FollowUpContact,
@@ -486,6 +492,8 @@ export type FollowUpContactUpdate = Partial<Pick<
   | 'isTest'
   | 'formQuestionAnsweredAt'
   | 'formQuestionAnsweredById'
+  | 'guardianPhone'
+  | 'teenOnboardedHow'
 >> & {
   previousOwnerId?: string | null;
 };
@@ -497,7 +505,7 @@ export interface MessageTemplate {
   whenToUse?: string | null;
   imageUrl?: string | null;
   imageName?: string | null;
-  category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR';
+  category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR' | 'TEEN';
   createdAt?: string;
   updatedAt?: string;
 }
@@ -578,6 +586,8 @@ export interface Participant {
   avatarUrl?: string | null;
   /** Test participant (e.g. a demo login): works as normal, left out of counts. */
   isTest?: boolean;
+  /** A teen's parent or guardian number. */
+  guardianPhone?: string | null;
   /** A support/admin's answer to the Retaking chip: same person, or not. */
   retakeStatus?: 'CONFIRMED' | 'NOT_SAME' | null;
   /** Why they were marked as retaking by hand (e.g. "Was in FOF 8"). */

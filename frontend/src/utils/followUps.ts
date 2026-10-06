@@ -10,6 +10,7 @@ import type {
   IssueStatus,
 } from '../types';
 import { firstNameOf } from './people';
+import { normalizeToIntlPhone } from './phone';
 
 type StatusMeta = { label: string; tone: string; description?: string };
 
@@ -291,7 +292,7 @@ export const genderCapacityOutlook = (
 };
 
 export const isClosedRegistrationStatus = (status: FollowUpRegistrationStatus): boolean =>
-  status === 'ACCESS_CONFIRMED' || status === 'ATTENDED' || status === 'TEEN_ONBOARDED' || status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME' || status === 'NO_RESPONSE';
+  status === 'ACCESS_CONFIRMED' || status === 'ATTENDED' || status === 'NOT_INTERESTED' || status === 'NOT_A_TCN_MEMBER' || status === 'NOT_A_GOOD_TIME' || status === 'NO_RESPONSE';
 
 /**
  * Whether a contact belongs to `cohortId` for filtering purposes. Contacts
@@ -574,13 +575,16 @@ export const buildStatusPatch = (status: FollowUpStatus, subReason?: string): Re
       base.replyStatus = 'REPLIED';
       base.registrationStatus = 'TEENAGER';
       base.nextAction = 'SEND_MESSAGE';
+      base.teenOnboardedHow = null;
       break;
     case 'TEEN_ONBOARDED':
-      // Closed for the queue but not archived: a Teen Support's teens all count
-      // towards their limit and their group, onboarded or not.
+      // Closed for the queue (isClosedContact) but never archived or set to CLOSE:
+      // a Teen Support's teens all count towards their limit and their group,
+      // onboarded or not. subReason is what warranted it (TeenOnboardedHow).
       base.replyStatus = 'REPLIED';
       base.registrationStatus = 'TEEN_ONBOARDED';
-      base.nextAction = 'CLOSE';
+      base.nextAction = 'SEND_MESSAGE';
+      base.teenOnboardedHow = subReason || null;
       break;
     case 'NEXT_COHORT':
       base.registrationStatus = 'NEXT_COHORT';
@@ -603,13 +607,22 @@ export const formatTemplateDate = (value?: string | null): string => {
   }).format(date);
 };
 
+/**
+ * The number to reach a contact on. A teen's parent or guardian comes first
+ * (safeguarding), then the teen's own; everyone else just has `phone`.
+ */
+export const contactReachPhone = (c: Pick<FollowUpContact, 'phone' | 'guardianPhone' | 'registrationStatus'>): string | null | undefined =>
+  isTeenContact(c) && normalizeToIntlPhone(c.guardianPhone) ? c.guardianPhone : c.phone;
+
 export const fillTemplate = (
   body: string,
   contact: FollowUpContact,
   registrationLink: string,
-  senderName?: string | null
+  senderName?: string | null,
+  senderGroupLink?: string | null
 ): string =>
   body
+    .replaceAll('{{group_link}}', senderGroupLink?.trim() || '')
     .replaceAll('{{first_name}}', firstNameOf(contact.fullName) || 'there')
     .replaceAll('{{full_name}}', contact.fullName.trim())
     .replaceAll('{{registration_link}}', registrationLink || '')
@@ -624,8 +637,10 @@ export const buildTemplatePlaceholderSummary = (user?: User | null): string[] =>
   '{{user.name}}',
   '{{venue}}',
   '{{start date}}',
+  '{{group_link}}',
 ].map((token) => {
   if (token === '{{user.name}}' && user?.name) return `${token} = ${user.name}`;
+  if (token === '{{group_link}}' && user?.whatsappGroupUrl) return `${token} = your WhatsApp group link`;
   return token;
 });
 

@@ -19,7 +19,7 @@ import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { followUpContactsApi, followUpIssuesApi, followUpLoginIssuesApi, formRegistrationsApi, messageTemplatesApi, settingsApi } from '../services/api';
-import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, FollowUpRegistrationStatus, FollowUpStatus, ItLoginIssue, MessageTemplate, User } from '../types';
+import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, FollowUpRegistrationStatus, FollowUpStatus, ItLoginIssue, MessageTemplate, TeenOnboardedHow, User } from '../types';
 import type { FormRegistration } from '../services/supabase-api';
 import {
   FOLLOW_UP_STATUS_META,
@@ -31,12 +31,16 @@ import {
   NO_FORM_MESSAGE,
   isClosedContact,
   isClosedRegistrationStatus,
+  isTeenContact,
+  contactReachPhone,
   supportStatusOptions,
 } from '../utils/followUps';
 import Spinner from '../components/Spinner';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
 import { compareText, sortByText } from '../utils/sort';
 import LoginDetailsCard from '../components/participants/LoginDetailsCard';
+import TeenOnboardedPopup, { teenOnboardedLabel } from '../components/followups/TeenOnboardedPopup';
+import TeenAddFields, { CHURCH_FOF_EMAIL, EMPTY_TEEN, type TeenAddState } from '../components/followups/TeenAddFields';
 import FormQuestionBox from '../components/followups/FormQuestionBox';
 import SignUpStageFilter from '../components/followups/SignUpStageFilter';
 import { emailLoginDetails, hasLoginToSend } from '../utils/loginEmail';
@@ -167,6 +171,15 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [prospectSaving, setProspectSaving] = useState(false);
   const [prospectError, setProspectError] = useState('');
   const [prospectSaved, setProspectSaved] = useState('');
+  // Teens: the switch only exists once teen handling is turned on in Settings.
+  const [teenFlow, setTeenFlow] = useState(false);
+  const [teen, setTeen] = useState<TeenAddState>(EMPTY_TEEN);
+  useEffect(() => {
+    let cancelled = false;
+    settingsApi.getTeenFlowEnabled().then((on) => { if (!cancelled) setTeenFlow(on); }).catch(() => { /* stays off */ });
+    return () => { cancelled = true; };
+  }, []);
+  const teenMode = teenFlow && teen.on;
 
   const [showClosed, setShowClosed] = useState(false);
   const [showPastCohorts, setShowPastCohorts] = useState(false);
@@ -195,6 +208,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     }
   };
   const [notInterestedContact, setNotInterestedContact] = useState<FollowUpContact | null>(null);
+  const [teenOnboardedContact, setTeenOnboardedContact] = useState<FollowUpContact | null>(null);
   const [showIssues, setShowIssues] = useState(false);
   // Set when "Log an issue" is picked on a contact's own menu: the Issues form opens with them ticked.
   const [issueStartContactId, setIssueStartContactId] = useState<string | null>(null);
@@ -473,6 +487,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const handleStatusChange = (contact: FollowUpContact, status: FollowUpStatus) => {
     if (status === 'NOT_INTERESTED') { setNotInterestedContact(contact); return; }
     if (status === 'LOGIN_ISSUE') { setLoginIssueContact(contact); return; }
+    if (status === 'TEEN_ONBOARDED') { setTeenOnboardedContact(contact); return; }
     void handleFieldChange(contact, buildStatusPatch(status) as FollowUpContactUpdate);
   };
 
@@ -522,16 +537,50 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   );
 
   const prospectNameError = prospectTouched && !prospect.fullName.trim();
-  const prospectPhoneError = prospectTouched && !prospect.phone.trim()
-    ? 'A WhatsApp number is required.'
-    : prospectTouched && prospect.phone.trim() && !normalizeToIntlPhone(prospect.phone)
-      ? 'Enter a valid WhatsApp number.'
-      : '';
+  const teenGuardianValid = !!teen.guardianPhone.trim() && !!normalizeToIntlPhone(teen.guardianPhone);
+  const prospectPhoneError = teenMode
+    ? (prospectTouched && !prospect.phone.trim() && !teenGuardianValid ? 'Add their number or a parent’s number.'
+      : prospectTouched && prospect.phone.trim() && !normalizeToIntlPhone(prospect.phone) ? 'Enter a valid WhatsApp number.'
+        : prospectTouched && teen.guardianPhone.trim() && !teenGuardianValid ? 'Enter a valid parent or guardian number.'
+          : '')
+    : prospectTouched && !prospect.phone.trim()
+      ? 'A WhatsApp number is required.'
+      : prospectTouched && prospect.phone.trim() && !normalizeToIntlPhone(prospect.phone)
+        ? 'Enter a valid WhatsApp number.'
+        : '';
 
   const submitProspect = async () => {
     if (!user) return;
     setProspectSaved('');
     setProspectError('');
+    if (teenMode) {
+      const ownOk = !!prospect.phone.trim() && !!normalizeToIntlPhone(prospect.phone);
+      if (!prospect.fullName.trim() || !teen.gender || prospectPhoneError || (!ownOk && !teenGuardianValid)) { setProspectTouched(true); return; }
+      setProspectSaving(true);
+      try {
+        const fullName = prospect.fullName.trim();
+        const res = await followUpContactsApi.addTeen({
+          fullName,
+          phone: ownOk ? prospect.phone.trim() : undefined,
+          guardianPhone: teenGuardianValid ? teen.guardianPhone.trim() : undefined,
+          gender: teen.gender,
+          email: teen.churchEmail ? CHURCH_FOF_EMAIL : teen.email.trim() || undefined,
+          cohortId: activeCohort?.id ?? null,
+        });
+        setProspect(EMPTY_PROSPECT);
+        setTeen(EMPTY_TEEN);
+        setProspectTouched(false);
+        setProspectSaved(res.ownerName
+          ? `${fullName} was added and given to ${res.ownerName}.`
+          : `${fullName} was added. They are waiting for a same-gender Teen Support with room.`);
+        void loadAll();
+      } catch (err) {
+        setProspectError(err instanceof Error ? err.message : 'Could not add this teen.');
+      } finally {
+        setProspectSaving(false);
+      }
+      return;
+    }
     if (!prospect.fullName.trim() || !prospect.phone.trim() || !normalizeToIntlPhone(prospect.phone)) { setProspectTouched(true); return; }
     const normalized = normalizeToIntlPhone(prospect.phone);
 
@@ -582,9 +631,21 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
+  // The same list shape as the other WhatsApp exports: a heading, then a numbered list.
+  const copyTeensForWhatsApp = async () => {
+    const teens = contacts.filter(isTeenContact);
+    const cohortNumber = (activeCohort?.name ?? '').replace(/^cohort\s*/i, '').trim();
+    const lines = teens.map((t, i) => `${i + 1}. ${t.fullName} — ${(t.phone || t.guardianPhone || '').trim() || 'no number'}`);
+    try {
+      await navigator.clipboard.writeText([`FOF ${cohortNumber} – PARTICIPANTS *(BELOW 18)*`, '', ...lines].join('\n\n'));
+      toast({ message: `${teens.length} ${teens.length === 1 ? 'teen' : 'teens'} copied` });
+    } catch { toast({ tone: 'error', message: 'Could not copy. Please try again.' }); }
+  };
+
   const overflowItems = [
     { label: unread > 0 ? `Issues (${unread} new)` : 'Issues', onClick: () => { setShowIssues(true); markIssuesRead(visibleIssues); } },
     { label: 'Export contacts', onClick: () => setShowExport(true) },
+    ...(contacts.some(isTeenContact) ? [{ label: 'Copy my teens for WhatsApp', onClick: () => { void copyTeensForWhatsApp(); } }] : []),
   ];
 
   const copyRegistrationLink = () => {
@@ -648,8 +709,9 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   <input value={prospect.fullName} onChange={(e) => setProspect((prev) => ({ ...prev, fullName: e.target.value }))} placeholder="Full name" className={INPUT} />
                   {prospectNameError && <span className="mt-1 block text-xs font-medium text-red-700">Enter their full name.</span>}
                 </label>
+                {teenFlow && <TeenAddFields teen={teen} onChange={(patch) => setTeen((prev) => ({ ...prev, ...patch }))} genderError={prospectTouched && teenMode && !teen.gender} />}
                 <label className="block">
-                  <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">WhatsApp number</span>
+                  <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">{teenMode ? <>Their WhatsApp number <span className="font-normal text-gray-500">(optional if you add a parent’s)</span></> : 'WhatsApp number'}</span>
                   <input type="tel" value={prospect.phone} onChange={(e) => setProspect((prev) => ({ ...prev, phone: e.target.value }))} placeholder="0803 000 0000" className={INPUT} />
                   {prospectPhoneError && <span className="mt-1 block text-xs font-medium text-red-700">{prospectPhoneError}</span>}
                 </label>
@@ -922,8 +984,11 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               const status = computeFollowUpStatus(contact);
               const meta = FOLLOW_UP_STATUS_META[status];
               // "00" and the like came in from the form: WhatsApp and Call can't work.
-              const phoneOk = !!normalizeToIntlPhone(contact.phone);
-              const waLink = phoneOk ? buildWhatsAppLink(contact.phone, '') : null;
+              // A teen's parent or guardian is reached first, then the teen's own number.
+              const teenContact = isTeenContact(contact);
+              const reachPhone = contactReachPhone(contact);
+              const phoneOk = !!normalizeToIntlPhone(reachPhone);
+              const waLink = phoneOk ? buildWhatsAppLink(reachPhone, '') : null;
               const helpOpen = !!numberHelpOpen[contact.id];
               const assigned = shortDate(contact.createdAt);
               return (
@@ -931,6 +996,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   <div className="flex items-center gap-2">
                     <div className="flex min-w-0 flex-1 items-center gap-1.5">
                       <p className="min-w-0 truncate text-[15px] font-bold text-gray-900">{contact.fullName}</p>
+                      {teenContact && <span className="flex-none rounded-full bg-pink-100/80 px-2 py-0.5 text-[11px] font-bold text-pink-700">Teen</span>}
                       <button
                         type="button"
                         onClick={() => setInfoOpenId(infoOpenId === contact.id ? null : contact.id)}
@@ -944,7 +1010,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                     <span className={`flex-none whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.tone}`}>{meta.label}</span>
                     <AppOverflowMenu
                       items={[
-                        ...(contact.phone?.trim() ? [{ label: 'Copy number', onClick: () => { void copyText(contact.phone!.trim()); } }] : []),
+                        ...(reachPhone?.trim() ? [{ label: 'Copy number', onClick: () => { void copyText(reachPhone.trim()); } }] : []),
                         ...(waLink ? [{ label: 'Send message', onClick: () => { window.open(waLink, '_blank', 'noopener,noreferrer'); } }] : []),
                         ...(contact.email?.trim() ? [{ label: 'Send email', onClick: () => { void sendEmail(contact); } }] : []),
                         { label: 'Log an issue', onClick: () => { setIssueStartContactId(contact.id); setShowIssues(true); } },
@@ -954,7 +1020,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   </div>
                   {infoOpenId === contact.id && (
                     <div className="mt-1.5 inline-block max-w-full rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
-                      <p>{contact.phone || 'No phone'}</p>
+                      {teenContact && contact.guardianPhone?.trim() && <p>Parent or guardian: {contact.guardianPhone.trim()}</p>}
+                      <p>{teenContact && contact.guardianPhone?.trim() ? `Teen: ${contact.phone || 'No phone'}` : (contact.phone || 'No phone')}</p>
                       {contact.email?.trim() && (
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                           <button type="button" onClick={() => { void sendEmail(contact); }} className="max-w-full break-words text-left text-sky-200 underline">{contact.email.trim()}</button>
@@ -969,7 +1036,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       )}
                     </div>
                   )}
-                  <p className="mt-1 text-[12.5px] text-gray-500">{contact.phone || 'No phone'}{assigned ? ` · assigned ${assigned}` : ''}</p>
+                  <p className="mt-1 text-[12.5px] text-gray-500">{teenContact && contact.guardianPhone?.trim() ? `Parent ${contact.guardianPhone.trim()}` : (contact.phone || 'No phone')}{assigned ? ` · assigned ${assigned}` : ''}</p>
                   {!phoneOk && (
                     <div className="mt-2.5 rounded-[12px] bg-amber-50 text-amber-800">
                       <button
@@ -1011,8 +1078,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                     ) : (
                       <span className="inline-flex min-h-[40px] items-center justify-center rounded-[10px] border border-gray-100 bg-gray-50 px-2 py-2 text-[12.5px] font-semibold text-gray-400">WhatsApp</span>
                     )}
-                    {contact.phone && phoneOk ? (
-                      <a href={`tel:${contact.phone.replace(/[^\d+]/g, '')}`} className="inline-flex min-h-[40px] items-center justify-center rounded-[10px] border border-gray-200 bg-white px-2 py-2 text-[12.5px] font-semibold text-gray-700">Call</a>
+                    {reachPhone && phoneOk ? (
+                      <a href={`tel:${reachPhone.replace(/[^\d+]/g, '')}`} className="inline-flex min-h-[40px] items-center justify-center rounded-[10px] border border-gray-200 bg-white px-2 py-2 text-[12.5px] font-semibold text-gray-700">Call</a>
                     ) : (
                       <span className="inline-flex min-h-[40px] items-center justify-center rounded-[10px] border border-gray-100 bg-gray-50 px-2 py-2 text-[12.5px] font-semibold text-gray-400">Call</span>
                     )}
@@ -1026,6 +1093,9 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       options={supportStatusOptions(status)}
                       placeholder="Choose status"
                     />
+                    {status === 'TEEN_ONBOARDED' && contact.teenOnboardedHow && (
+                      <p className="mt-1.5 text-[12.5px] text-gray-500">{teenOnboardedLabel(contact.teenOnboardedHow)}</p>
+                    )}
                   </div>
                   {(status === 'REGISTERED' || status === 'LOGIN_SHARED' || status === 'LOGIN_ISSUE') && <LoginDetailsCard followUpContactId={contact.id} startDate={contact.cohortStartDate} email={contact.email} className="mt-3" />}
                 </section>
@@ -1190,10 +1260,23 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
         templates={templates}
         registrationLink={registrationLink}
         currentUserName={user?.name}
+        senderGroupLink={user?.whatsappGroupUrl}
         onMessageSent={handleMessageSent}
         channel={messageChannel}
         onHaveNumber={(contact) => { setMessagingContact(null); setEditingContact(contact); }}
       />
+
+      {teenOnboardedContact && (
+        <TeenOnboardedPopup
+          contactName={teenOnboardedContact.fullName}
+          onCancel={() => setTeenOnboardedContact(null)}
+          onSave={(how: TeenOnboardedHow) => {
+            const target = teenOnboardedContact;
+            setTeenOnboardedContact(null);
+            void handleFieldChange(target, buildStatusPatch('TEEN_ONBOARDED', how) as FollowUpContactUpdate);
+          }}
+        />
+      )}
 
       {notInterestedContact && (
         <NotInterestedPopup

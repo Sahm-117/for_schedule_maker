@@ -1825,6 +1825,28 @@ export const settingsApi = {
     return enabled;
   },
 
+  // Whether teens (18 and below) are looked after by Teen Supports. Missing row means off.
+  async getTeenFlowEnabled(): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'teen_flow_enabled')
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as any)?.value === true;
+  },
+
+  async setTeenFlowEnabled(enabled: boolean): Promise<boolean> {
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert(
+        [{ settingKey: 'teen_flow_enabled', value: enabled, updatedAt: new Date().toISOString() }],
+        { onConflict: 'settingKey' }
+      );
+    if (error) throw new Error(error.message);
+    return enabled;
+  },
+
   // Whether a support who hasn't moved anyone in 24 hours is asked if they are following
   // up, and their people are handed to an active support if they don't answer. Missing row means on.
   async getFollowUpAutoReassignEnabled(): Promise<boolean> {
@@ -3776,6 +3798,8 @@ const mapFollowUpContact = (row: any): import('../types').FollowUpContact => ({
   formQuestion: row.formQuestion ?? null,
   formQuestionAnsweredAt: row.formQuestionAnsweredAt ?? null,
   formQuestionAnsweredById: row.formQuestionAnsweredById ?? null,
+  guardianPhone: row.guardianPhone ?? null,
+  teenOnboardedHow: row.teenOnboardedHow ?? null,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
@@ -4064,6 +4088,38 @@ export const followUpContactsApi = {
     throw new Error(friendlyUserError(msg, 'Approval did not save. Please try again.'));
   },
 
+  /**
+   * A support adds a teen in full. The database registers them, makes them a
+   * Teenager and gives them to a Teen Support straight away (teen_add_prospect).
+   * The support who now holds them is told, like any new follow-up.
+   */
+  async addTeen(input: { fullName: string; phone?: string; guardianPhone?: string; gender: 'Male' | 'Female'; email?: string; cohortId?: string | null }): Promise<{ contactId: string; ownerId: string | null; ownerName: string | null; waiting: boolean }> {
+    const { data, error } = await supabase.rpc('teen_add_prospect', {
+      p_token: getSessionToken(),
+      p_full_name: input.fullName,
+      p_phone: input.phone ?? null,
+      p_guardian_phone: input.guardianPhone ?? null,
+      p_gender: input.gender,
+      p_email: input.email ?? null,
+      p_cohort_id: input.cohortId ?? null,
+    });
+    if (error) {
+      const msg = error.message || '';
+      if (msg.includes('SESSION_EXPIRED')) throw new Error('SESSION_EXPIRED');
+      if (msg.includes('NOT_AUTHORISED')) throw new Error('You are not allowed to add a teen.');
+      if (/^(Teen handling|Enter the teen|Choose Male|There is no current|Add their number)/.test(msg)) throw new Error(msg);
+      throw new Error(friendlyUserError(msg, 'The teen was not saved. Please try again.'));
+    }
+    const row = (data ?? {}) as any;
+    if (row.ownerId) notifyFollowUpAssignment(row.ownerId, [input.fullName]);
+    return {
+      contactId: row.contactId,
+      ownerId: row.ownerId ?? null,
+      ownerName: row.ownerName ?? null,
+      waiting: !!row.waiting,
+    };
+  },
+
   async assignMany(contactIds: string[], ownerId: string | null, dueDate?: string | null): Promise<{ contacts: import('../types').FollowUpContact[] }> {
     if (contactIds.length === 0) return { contacts: [] };
     const patch: Record<string, unknown> = { ownerId, updatedAt: new Date().toISOString() };
@@ -4195,15 +4251,17 @@ export const followUpContactsApi = {
 };
 
 export const messageTemplatesApi = {
-  async getAll(options?: { category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR' }): Promise<{ templates: import('../types').MessageTemplate[] }> {
+  async getAll(options?: { category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR' | 'TEEN' }): Promise<{ templates: import('../types').MessageTemplate[] }> {
     let q = supabase.from('MessageTemplate').select('*').order('createdAt', { ascending: true });
-    if (options?.category) q = q.eq('category', options.category);
+    // Follow-up screens also get the TEEN templates; the message picker shows each person the right kind.
+    if (options?.category === 'FOLLOW_UP') q = q.in('category', ['FOLLOW_UP', 'TEEN']);
+    else if (options?.category) q = q.eq('category', options.category);
     const { data, error } = await q;
     if (error) throw new Error(error.message);
     return { templates: (data as any[]) || [] };
   },
 
-  async create(input: { useCase: string; body: string; whenToUse?: string | null; imageUrl?: string | null; imageName?: string | null; category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR' }): Promise<{ template: import('../types').MessageTemplate }> {
+  async create(input: { useCase: string; body: string; whenToUse?: string | null; imageUrl?: string | null; imageName?: string | null; category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR' | 'TEEN' }): Promise<{ template: import('../types').MessageTemplate }> {
     const { data, error } = await supabase
       .from('MessageTemplate')
       .insert([input])
@@ -4467,6 +4525,7 @@ const mapParticipant = (row: any): import('../types').Participant => {
     groupId: gp?.group?.id ?? null,
     groupName: gp?.group?.name ?? null,
     isTest: !!row.isTest,
+    guardianPhone: row.guardianPhone ?? null,
     retakeStatus: row.retakeStatus ?? null,
     retakeNote: row.retakeNote ?? null,
     retakeCheckedAt: row.retakeCheckedAt ?? null,

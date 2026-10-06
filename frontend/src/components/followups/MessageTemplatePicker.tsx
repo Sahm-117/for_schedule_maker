@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { FollowUpContact, MessageTemplate } from '../../types';
 import ModalShell from './ModalShell';
 import LinkText from '../LinkText';
-import { fillTemplate } from '../../utils/followUps';
+import { contactReachPhone, fillTemplate, isTeenContact } from '../../utils/followUps';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../../utils/phone';
 
 // +234 806 678 3672 style, for showing who a message is going to.
@@ -18,6 +18,8 @@ interface MessageTemplatePickerProps {
   templates: MessageTemplate[];
   registrationLink: string;
   currentUserName?: string | null;
+  /** The sender's own WhatsApp group link, for {{group_link}} in teen messages. */
+  senderGroupLink?: string | null;
   onMessageSent: (contact: FollowUpContact) => Promise<void> | void;
   /** 'email' sends the same personalised message through their email app instead of WhatsApp. */
   channel?: 'whatsapp' | 'email';
@@ -35,6 +37,7 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
   templates,
   registrationLink,
   currentUserName,
+  senderGroupLink,
   onMessageSent,
   channel = 'whatsapp',
   onHaveNumber,
@@ -45,18 +48,25 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
   // Chosen from the no-number warning: carry on by email instead.
   const [emailInstead, setEmailInstead] = useState(false);
 
-  const selected = templates.find((t) => t.id === selectedId) || null;
-  const filled = useMemo(
-    () => (selected && contact ? fillTemplate(selected.body, contact, registrationLink, currentUserName) : ''),
-    [selected, contact, registrationLink, currentUserName]
+  // A teen is shown only the TEEN templates, and nobody else sees them.
+  const teen = contact ? isTeenContact(contact) : false;
+  const shownTemplates = useMemo(
+    () => templates.filter((t) => (t.category === 'TEEN') === teen),
+    [templates, teen]
   );
-  const waLink = contact && filled ? buildWhatsAppLink(contact.phone, filled) : null;
+  const reachPhone = contact ? contactReachPhone(contact) : null;
+  const selected = shownTemplates.find((t) => t.id === selectedId) || null;
+  const filled = useMemo(
+    () => (selected && contact ? fillTemplate(selected.body, contact, registrationLink, currentUserName, senderGroupLink) : ''),
+    [selected, contact, registrationLink, currentUserName, senderGroupLink]
+  );
+  const waLink = contact && filled ? buildWhatsAppLink(reachPhone, filled) : null;
   const email = contact?.email?.trim() || '';
   const mailLink = email && filled
     ? `mailto:${email}?subject=${encodeURIComponent(EMAIL_SUBJECT)}&body=${encodeURIComponent(filled)}`
     : null;
   const byEmail = channel === 'email' || emailInstead;
-  const intl = normalizeToIntlPhone(contact?.phone);
+  const intl = normalizeToIntlPhone(reachPhone);
   const numberOk = !!intl;
   const firstName = contact?.fullName.split(' ')[0] ?? '';
   // Copying a WhatsApp message for someone with no usable number is how a text
@@ -148,7 +158,7 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
           onHaveNumber={onHaveNumber ? () => { setSelectedId(''); setEmailInstead(false); onHaveNumber(contact); } : undefined}
         />
       ) : null)}
-      {templates.length === 0 ? (
+      {shownTemplates.length === 0 ? (
         <p className="rounded-2xl bg-orange-50 px-4 py-6 text-center text-sm text-gray-500">
           No message templates yet. Ask an admin to add them in the Message Bank.
         </p>
@@ -163,7 +173,7 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
             )}
           </div>
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1" aria-label="Message templates">
-            {templates.map((t) => (
+            {shownTemplates.map((t) => (
               <button
                 key={t.id}
                 type="button"

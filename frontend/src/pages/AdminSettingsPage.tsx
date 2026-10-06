@@ -14,6 +14,7 @@ import { setChurchDepartmentsCache } from '../hooks/useChurchDepartments';
 import { useAppData } from '../context/AppDataContext';
 import Spinner from '../components/Spinner';
 import FollowUpAssignmentSettings from '../components/followups/FollowUpAssignmentSettings';
+import TeenSettingsCard from '../components/followups/TeenSettingsCard';
 import PracticeModeCard from '../components/settings/PracticeModeCard';
 
 // Every section on this page reads the same way: a compact summary of what is
@@ -228,6 +229,7 @@ const RULE_FIELDS: Array<{ section: string; fields: Array<{ key: keyof Programme
       { key: 'onboardingMaxDays', label: 'Days a support has to onboard their group', shortLabel: 'Days to onboard group', unit: 'days', max: 60 },
       { key: 'minTrainingsAttended', label: 'Pre-cohort trainings a support must attend to get a group', shortLabel: 'Trainings to get a group', unit: 'trainings', max: 20 },
       { key: 'maxFollowUpsPerSupport', label: 'Most open follow-ups one support should be given', shortLabel: 'Max follow-ups per support', unit: 'follow-ups', max: 200 },
+      { key: 'maxTeensPerTeenSupport', label: 'Most teens one Teen Support looks after', shortLabel: 'Max teens per Teen Support', unit: 'teens', max: 20 },
     ],
   },
   {
@@ -864,6 +866,7 @@ const AdminSettingsPage: React.FC = () => {
         <div data-wt="settings-departments" className="mb-4 break-inside-avoid"><ChurchDepartmentsCard /></div>
         <div data-wt="settings-contact" className="mb-4 break-inside-avoid"><SupportContactCard /></div>
         <div data-wt="settings-followup-assignment" className="mb-4 break-inside-avoid"><FollowUpAssignmentSettings /></div>
+        <div data-wt="settings-teens" className="mb-4 break-inside-avoid"><TeenSettingsCard /></div>
         <div className="mb-4 break-inside-avoid"><PracticeModeCard /></div>
       </div>
 
