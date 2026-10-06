@@ -6,6 +6,8 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import AppSelect from './AppSelect';
+import PracticeExitConfirm, { type PracticeExitKind } from './practice/PracticeExitConfirm';
+import { useToast } from './Toast';
 import AppSetupSheet from './participantApp/AppSetupSheet';
 import AppSetupBanner from './participantApp/AppSetupBanner';
 import { useAppSetup, appSetupSheetDue } from '../hooks/useAppSetup';
@@ -390,6 +392,10 @@ const AppShell: React.FC = () => {
     return (active ?? real[0])?.id ?? null;
   }, [cohorts, activeCohort?.id]);
   const [returningToReal, setReturningToReal] = useState(false);
+  // Leaving practice from the top bar is asked about first.
+  const [confirmPracticeExit, setConfirmPracticeExit] = useState<PracticeExitKind | null>(null);
+  const [endingWalkthrough, setEndingWalkthrough] = useState(false);
+  const toast = useToast();
   const returnToRealCohort = async () => {
     if (!returnCohortId || returningToReal) return;
     setReturningToReal(true);
@@ -585,7 +591,8 @@ const AppShell: React.FC = () => {
             <span className="min-w-0 truncate text-[12.5px] font-semibold">With {practicePulse.active.partnerName.split(' ')[0]} · {PRACTICE_ROLE_LABEL[practicePulse.active.myRole]}</span>
             <button
               type="button"
-              onClick={() => { const id = practicePulse.active!.id; void practiceApi.peerEnd(id).then(() => refreshPracticePulse()); }}
+              onClick={() => setConfirmPracticeExit('end')}
+              disabled={endingWalkthrough}
               className="flex-none rounded-full bg-white px-4 py-1.5 text-[12.5px] font-bold text-violet-800 shadow-sm active:scale-[0.97]"
             >
               End walkthrough
@@ -596,7 +603,7 @@ const AppShell: React.FC = () => {
         ) : (
           <button
             type="button"
-            onClick={() => { if (returnCohortId) void returnToRealCohort(); }}
+            onClick={() => { if (returnCohortId) setConfirmPracticeExit('return'); }}
             disabled={!returnCohortId || returningToReal}
             className="sticky top-0 z-40 flex w-full items-center justify-center gap-2 bg-[#3f4757] px-4 py-1.5 text-center text-[12px] font-semibold text-white disabled:cursor-default"
           >
@@ -611,6 +618,21 @@ const AppShell: React.FC = () => {
           </button>
         )
       )}
+      <PracticeExitConfirm
+        kind={confirmPracticeExit}
+        onClose={() => setConfirmPracticeExit(null)}
+        onConfirm={(kind) => {
+          setConfirmPracticeExit(null);
+          if (kind === 'return') void returnToRealCohort();
+          else if (kind === 'end' && practicePulse?.active && !endingWalkthrough) {
+            setEndingWalkthrough(true);
+            practiceApi.peerEnd(practicePulse.active.id)
+              .then(() => refreshPracticePulse())
+              .catch(() => toast({ tone: 'error', message: 'Could not end it. Please try again.' }))
+              .finally(() => setEndingWalkthrough(false));
+          }
+        }}
+      />
       {showAppSetup && appSetupSlot && <AppSetupSheet audience="staff" enable={enable} onClose={closeAppSetup} />}
       {!tourBusy && user && activeCohort && classFeedbackDueWeek && classFeedbackSlot && (
         <ClassFeedbackModal

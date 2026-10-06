@@ -5,6 +5,7 @@ import PracticeChecklist from './PracticeChecklist';
 import PracticeTogether from './PracticeTogether';
 import PeerWalkthroughSheet from './PeerWalkthroughSheet';
 import Spinner from '../Spinner';
+import PracticeExitConfirm, { type PracticeExitKind } from './PracticeExitConfirm';
 import { useToast } from '../Toast';
 import { practiceApi } from '../../services/api';
 import { PRACTICE_ROLE_LABEL, PRACTICE_SCENARIOS, peerSteps, type PracticeScenario, type PracticeSeat } from '../../constants/practiceScenarios';
@@ -233,6 +234,8 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
       if (suppressVisit.current === `${location.pathname}${location.search}`) return;
       suppressVisit.current = null;
     }
+    // Arrived through a "Go there" link (?ready=1 / ?reflect=1): that is not the person opening the screen by themselves.
+    if (/[?&](ready|reflect)=1/.test(location.search)) return;
     const candidates: PracticeScenario[] = [...(peer ? peerSteps(peer.myRole, peer.partnerRole) : []), ...scenarios].filter((step) => step.visit && step.to);
     const doneNow = new Set([...items, ...(peer?.myProgress ?? [])].filter((item) => item.doneAt).map((item) => item.key));
     candidates.forEach((step) => {
@@ -308,6 +311,8 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
   };
 
   const [ending, setEnding] = useState(false);
+  // Leaving practice is asked about first: 'leave' = back to my account, 'end' = end the walkthrough.
+  const [confirmExit, setConfirmExit] = useState<PracticeExitKind | null>(null);
   const endWalkthrough = async (id: string) => {
     if (ending) return;
     setEnding(true);
@@ -338,14 +343,23 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
 
   return (
     <>
+      <PracticeExitConfirm
+        kind={confirmExit}
+        onClose={() => setConfirmExit(null)}
+        onConfirm={(kind) => {
+          setConfirmExit(null);
+          if (kind === 'leave') void leaveParticipantView();
+          else if (kind === 'end' && peer) void endWalkthrough(peer.id);
+        }}
+      />
       {mode === 'participant' && (
         <div className="fixed inset-x-0 top-0 z-40 flex items-center justify-center gap-3 bg-[#3f4757] px-4 py-1 text-center text-[11px] font-semibold text-white">
           <span>{swapped ? 'Practice participant' : 'Practice mode. Nothing here is real.'}</span>
           {swapped && (
-            <button type="button" onClick={() => void leaveParticipantView()} className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-bold text-white">Back to my account</button>
+            <button type="button" onClick={() => setConfirmExit('leave')} className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-bold text-white">Back to my account</button>
           )}
           {peer && (
-            <button type="button" onClick={() => void endWalkthrough(peer.id)} disabled={ending} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-0.5 text-[11px] font-bold text-violet-800 disabled:opacity-70">{ending && <Spinner className="h-3 w-3" />}End walkthrough</button>
+            <button type="button" onClick={() => setConfirmExit('end')} disabled={ending} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-0.5 text-[11px] font-bold text-violet-800 disabled:opacity-70">{ending && <Spinner className="h-3 w-3" />}End walkthrough</button>
           )}
         </div>
       )}
@@ -413,7 +427,7 @@ const PracticeDock: React.FC<DockProps> = ({ mode, active = true, pulse, refresh
             {mode === 'staff' && peer.iAmParticipant && (
               <button type="button" onClick={() => void pickSeat('PARTICIPANT')} disabled={busySeat !== null} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full bg-violet-700 px-4 py-2.5 text-[13.5px] font-semibold text-white disabled:opacity-70">{busySeat === 'PARTICIPANT' && <Spinner className="h-4 w-4" />}Switch to participant view</button>
             )}
-            <button type="button" onClick={() => void endWalkthrough(peer.id)} disabled={ending} className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-rose-600 px-4 text-[14px] font-bold text-white shadow-sm active:scale-[0.98] disabled:opacity-70">{ending && <Spinner className="h-4 w-4" />}End walkthrough</button>
+            <button type="button" onClick={() => setConfirmExit('end')} disabled={ending} className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-rose-600 px-4 text-[14px] font-bold text-white shadow-sm active:scale-[0.98] disabled:opacity-70">{ending && <Spinner className="h-4 w-4" />}End walkthrough</button>
           </div>
         ) : mode === 'staff' && !picking && (
           <div className="mt-4">

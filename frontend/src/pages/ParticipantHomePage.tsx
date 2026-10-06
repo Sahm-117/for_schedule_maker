@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import LinkText from '../components/LinkText';
 import PageLoader from '../components/PageLoader';
@@ -105,6 +105,17 @@ const ParticipantHomePage: React.FC = () => {
       .catch(() => { /* ignore */ });
     return () => { cancelled = true; };
   }, [readyId, readyPreStart]);
+
+  // Arrived from a practice "Go there" link: bring the Get ready card into view.
+  const [searchParams] = useSearchParams();
+  const wantsReady = searchParams.get('ready') === '1';
+  const readyScrolled = useRef(false);
+  const onboardingLoaded = !!onboarding;
+  useEffect(() => {
+    if (!wantsReady || !onboardingLoaded || readyScrolled.current) return;
+    readyScrolled.current = true;
+    window.setTimeout(() => document.querySelector('[data-wt="ph-get-ready"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+  }, [wantsReady, onboardingLoaded]);
 
   if (loading) {
     return <PageLoader label="Loading your FOF space…" />;
@@ -559,13 +570,13 @@ const ParticipantHomePage: React.FC = () => {
         ) : null}
 
         {week?.manual && (
-          <section className="rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
-            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">This week&apos;s manual</p>
-            <p className="mt-2 text-base font-semibold leading-[1.45] text-gray-900">{week.title || `Week ${week.weekNumber}`}</p>
-            <NavLink to={`/me/week/${week.weekNumber}`} className="mt-3.5 flex min-h-[46px] w-full items-center justify-center rounded-xl bg-primary p-3 text-sm font-semibold text-white">
-              Open the manual
-            </NavLink>
-          </section>
+          <NavLink to={`/me/week/${week.weekNumber}`} className="flex items-center gap-3 rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">This week&apos;s manual</p>
+              <p className="mt-2 text-base font-semibold leading-[1.45] text-gray-900">{week.title || `Week ${week.weekNumber}`}</p>
+            </div>
+            <svg className="h-4 w-4 flex-none text-[#9a6a4b]" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" /></svg>
+          </NavLink>
         )}
 
         {scripture && todayScriptureDay && scriptureDay && (

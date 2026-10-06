@@ -32,15 +32,17 @@ const PracticeChecklist: React.FC<{
             <div className="min-w-0 flex-1">
               <p className={`text-[14px] font-semibold leading-snug ${done ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{scenario.title}</p>
               <p className="mt-0.5 text-[12px] leading-snug text-gray-500">{scenario.hint}</p>
-              <div className="mt-1.5 flex items-center gap-3">
-                {scenario.to && (
-                  <NavLink to={scenario.to} onClick={onNavigate} className="text-[12px] font-semibold text-primary">Go there</NavLink>
+              <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2">
+                {scenario.to ? (
+                  <NavLink to={scenario.to} onClick={onNavigate} className="text-[12.5px] font-semibold text-primary">Go there</NavLink>
+                ) : (
+                  <span className="text-[12px] leading-snug text-gray-500">No shortcut for this one. Find it yourself in the app.</span>
                 )}
                 <button
                   type="button"
                   onClick={() => onChange(scenario.key, false, !stuck)}
                   aria-pressed={stuck}
-                  className={`text-[12px] font-semibold ${stuck ? 'text-rose-600' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={`rounded-full border px-2.5 py-0.5 text-[12px] font-semibold ${stuck ? 'border-rose-200 bg-rose-50 text-rose-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
                 >
                   {stuck ? 'Stuck. Tap to clear' : 'I am stuck'}
                 </button>

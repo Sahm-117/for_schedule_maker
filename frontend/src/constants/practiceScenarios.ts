@@ -63,12 +63,12 @@ export const PRACTICE_SCENARIOS: Record<PracticeSeat, PracticeScenario[]> = {
   PARTICIPANT: [
     { key: 'pt-signin', title: 'Sign in and choose your own password', hint: 'Use your phone number and the code you were given.' },
     { key: 'pt-guide', title: 'Read the Intro Class guide', hint: 'Open it from your home page.', to: '/me', visit: true },
-    { key: 'pt-profile', title: 'Complete your profile', hint: 'Fill in your details.' },
-    { key: 'pt-intro', title: 'Post your introduction to your group', hint: 'In your group discussion, say hello.' },
-    { key: 'pt-ready', title: 'Confirm you are ready', hint: 'Tell your support you are set for the first class.' },
+    { key: 'pt-profile', title: 'Complete your profile', hint: 'Fill in your details.', to: '/me/profile' },
+    { key: 'pt-intro', title: 'Post your introduction to your group', hint: 'In your group discussion, say hello.', to: '/me/group' },
+    { key: 'pt-ready', title: 'Confirm you are ready', hint: 'Tell your support you are set for the first class.', to: '/me?ready=1' },
     { key: 'pt-class', title: 'Open this week’s class and see the attendance countdown', hint: 'Find this week’s class on your home page.', to: '/me/week/1', visit: true },
-    { key: 'pt-reflect', title: 'Write this week’s reflection', hint: 'Save a short reflection and one thing you will do.' },
-    { key: 'pt-discuss', title: 'Post and like something in the group discussion', hint: 'Take part in the conversation.' },
+    { key: 'pt-reflect', title: 'Write this week’s reflection', hint: 'Save a short reflection and one thing you will do.', to: '/me/week/1?reflect=1' },
+    { key: 'pt-discuss', title: 'Post and like something in the group discussion', hint: 'Take part in the conversation.', to: '/me/group' },
   ],
 };
 
@@ -86,9 +86,8 @@ export const peerSteps = (role: PracticeSeat, other: PracticeSeat): PracticeScen
   if (role === 'PARTICIPANT') {
     return [
       { key: 'peer-PARTICIPANT-1', title: 'Open this week and read it', hint: 'From Home, open the current week.', to: '/me/week/1', visit: true },
-      { key: 'peer-PARTICIPANT-2', title: 'Post in your group discussion', hint: 'Say something your support can reply to.' },
+      { key: 'peer-PARTICIPANT-2', title: 'Post in your group discussion', hint: 'Say something your support can reply to.', to: '/me/group' },
       { key: 'peer-PARTICIPANT-3', title: 'Find the message your support pinned', hint: 'Pinned messages sit at the top of the discussion.', to: '/me/group', visit: true },
-      { key: 'peer-PARTICIPANT-4', title: 'Check in for the class', hint: 'Use the check-in on Home.' },
     ];
   }
   if (other === 'PARTICIPANT') {

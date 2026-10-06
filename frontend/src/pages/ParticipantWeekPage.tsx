@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Clarity from '@microsoft/clarity';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
@@ -101,6 +101,7 @@ const LockNote: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 
 const ParticipantWeekPage: React.FC = () => {
   const { weekNumber: weekParam } = useParams();
+  const [searchParams] = useSearchParams();
   const { home, loading, applyReflection, applyManualQuestion, applyManualNote } = useParticipantApp();
   const toast = useToast();
   const [docOpen, setDocOpen] = useState(false);
@@ -151,6 +152,24 @@ const ParticipantWeekPage: React.FC = () => {
     if (!week || reflection) return;
     saveReflectionDraft(participantId, week.id, { stoodOut, goal, goalCheck });
   }, [week, reflection, participantId, stoodOut, goal, goalCheck]);
+
+  // Arrived from a "Go there" link: open the reflection and bring it into view.
+  const wantsReflection = searchParams.get('reflect') === '1';
+  const reflectOpenedFor = useRef<number | null>(null);
+  useEffect(() => {
+    if (!wantsReflection || !week?.released || reflectOpenedFor.current === week.id) return;
+    reflectOpenedFor.current = week.id;
+    setReflectionOpen(true);
+    // The section mounts a moment after the week loads: wait for it, then scroll.
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      tries += 1;
+      if (reflectionRef.current) {
+        reflectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        window.clearInterval(timer);
+      } else if (tries >= 20) window.clearInterval(timer);
+    }, 100);
+  }, [wantsReflection, week?.id, week?.released]);
 
   useEffect(() => {
     if (week?.manual) Clarity.event('manual_opened');
