@@ -2,8 +2,8 @@
 --
 -- Supports keep a weekly checklist (SupportChecklistItem) they write themselves.
 -- An admin can now put a task on the checklist of chosen supports from the
--- Schedule page. Such a row is "from admin": createdById is set and differs from
--- userId. Rows of one task share a taskGroupId.
+-- Schedule page. Such a row is "from admin" when taskGroupId is set (only the
+-- admin RPC sets it, one id for all copies of a task); createdById records who.
 --
 --   Columns: createdById, taskGroupId, dueDay (a weekday name), completionNote,
 --   completedAt.
@@ -35,6 +35,9 @@ ALTER TABLE public."SupportChecklistItem"
   ADD COLUMN IF NOT EXISTS "dueDay" TEXT,
   ADD COLUMN IF NOT EXISTS "completionNote" TEXT,
   ADD COLUMN IF NOT EXISTS "completedAt" TIMESTAMPTZ;
+ALTER TABLE public."SupportChecklistItem" DROP CONSTRAINT IF EXISTS "SupportChecklistItem_note_check";
+ALTER TABLE public."SupportChecklistItem" ADD CONSTRAINT "SupportChecklistItem_note_check"
+  CHECK ("completionNote" IS NULL OR char_length("completionNote") <= 500);
 ALTER TABLE public."SupportChecklistItem" DROP CONSTRAINT IF EXISTS "SupportChecklistItem_dueDay_check";
 ALTER TABLE public."SupportChecklistItem" ADD CONSTRAINT "SupportChecklistItem_dueDay_check"
   CHECK ("dueDay" IS NULL OR "dueDay" IN ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'));
@@ -49,8 +52,7 @@ LANGUAGE plpgsql
 SET search_path TO 'public', 'extensions'
 AS $function$
 BEGIN
-  IF OLD."createdById" IS NOT NULL
-     AND OLD."createdById" IS DISTINCT FROM OLD."userId"
+  IF OLD."taskGroupId" IS NOT NULL
      AND current_user IN ('anon', 'authenticated')
      AND NOT public.app_is_admin() THEN
     IF TG_OP = 'DELETE' THEN
@@ -194,7 +196,7 @@ BEGIN
                'note', i."completionNote", 'at', i."completedAt") ORDER BY u.name) AS people
       FROM "SupportChecklistItem" i
       JOIN "User" u ON u.id = i."userId"
-      WHERE i."taskGroupId" IS NOT NULL AND i."createdById" IS NOT NULL AND i."createdById" IS DISTINCT FROM i."userId"
+      WHERE i."taskGroupId" IS NOT NULL
         AND i."weekId" = p_week_id
       GROUP BY i."taskGroupId"
     ) t

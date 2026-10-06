@@ -844,9 +844,9 @@ export interface SupportChecklistItem {
   label: string;
   done: boolean;
   position: number;
-  /** Who set it. A task is "from admin" when this is set and isn't the support themself. */
+  /** The admin who set it. */
   createdById?: string | null;
-  /** All copies of one admin task share this. */
+  /** All copies of one admin task share this; set only for tasks an admin added. */
   taskGroupId?: string | null;
   /** Weekday name, e.g. "Friday". */
   dueDay?: string | null;

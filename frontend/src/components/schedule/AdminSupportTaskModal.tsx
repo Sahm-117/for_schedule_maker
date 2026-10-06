@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import AppMultiSelect from '../AppMultiSelect';
 import AppSelect from '../AppSelect';
 import ModalShell from '../followups/ModalShell';
@@ -49,10 +49,22 @@ const AdminSupportTaskModal: React.FC<AdminSupportTaskModalProps> = ({ isOpen, o
   const [openTask, setOpenTask] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
+  const [tasksError, setTasksError] = useState('');
+  // Only the latest load may update the list, so a slow earlier one can't overwrite it.
+  const loadSeq = useRef(0);
   const reloadTasks = async () => {
     if (!selectedWeek) { setTasks([]); return; }
+    const seq = ++loadSeq.current;
     setTasksLoading(true);
-    try { setTasks(await adminChecklistApi.listTasks(selectedWeek.id)); } catch { setTasks([]); } finally { setTasksLoading(false); }
+    setTasksError('');
+    try {
+      const list = await adminChecklistApi.listTasks(selectedWeek.id);
+      if (seq === loadSeq.current) setTasks(list);
+    } catch (err) {
+      if (seq === loadSeq.current) setTasksError(err instanceof Error && err.message === 'SESSION_EXPIRED' ? 'Your session ended. Sign in again to see the tasks.' : 'Could not load the tasks. Close and reopen to try again.');
+    } finally {
+      if (seq === loadSeq.current) setTasksLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -94,10 +106,10 @@ const AdminSupportTaskModal: React.FC<AdminSupportTaskModalProps> = ({ isOpen, o
       const weekIds = [selectedWeek.id, ...(moreWeeks ? pickedWeeks : [])];
       const res = await adminChecklistApi.addTask({ label: label.trim(), weekIds, dueDay: dueDay || null, target: target() });
       toast({
-        tone: 'success',
+        tone: res.supports > 0 ? 'success' : 'info',
         message: res.supports > 0
-          ? `Added for ${res.supports} ${res.supports === 1 ? 'support' : 'supports'}${res.skipped > 0 ? ` (${res.skipped} already had it)` : ''}.`
-          : 'Nobody new to add it to: they already have it.',
+          ? `Added for ${res.supports} ${res.supports === 1 ? 'support' : 'supports'}${res.skipped > 0 ? '. Some already had a task with that name.' : '.'}`
+          : 'Nothing was added: they already have a task with that name in the chosen weeks.',
       });
       setLabel('');
       setDueDay('');
@@ -202,6 +214,8 @@ const AdminSupportTaskModal: React.FC<AdminSupportTaskModalProps> = ({ isOpen, o
           <h3 className="text-[13px] font-semibold text-gray-900">Already added{selectedWeek ? ` · Week ${selectedWeek.weekNumber}` : ''}</h3>
           {tasksLoading ? (
             <p className="mt-2 flex items-center gap-1.5 text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading…</p>
+          ) : tasksError ? (
+            <p className="mt-2 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700">{tasksError}</p>
           ) : tasks.length === 0 ? (
             <p className="mt-2 text-sm text-gray-500">Nothing added for this week yet.</p>
           ) : (

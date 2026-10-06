@@ -7839,7 +7839,7 @@ export const supportChecklistApi = {
 
   async remove(itemId: string): Promise<void> {
     const { error } = await supabase.from('SupportChecklistItem').delete().eq('id', itemId);
-    if (error) throw new Error(error.code === 'P0001' || /ADMIN_TASK_LOCKED/.test(error.message) ? 'This task was set by an admin, so it can only be ticked.' : error.message);
+    if (error) throw new Error(/ADMIN_TASK_LOCKED/.test(error.message) ? 'This task was set by an admin, so it can only be ticked.' : error.message);
   },
 };
 

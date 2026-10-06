@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 interface TaskNoteSheetProps {
@@ -11,12 +11,14 @@ interface TaskNoteSheetProps {
 // works with the box empty. It is there in case they need to add context.
 const TaskNoteSheet: React.FC<TaskNoteSheetProps> = ({ taskLabel, onSave, onCancel }) => {
   const [note, setNote] = useState('');
+  const cancelRef = useRef(onCancel);
+  cancelRef.current = onCancel;
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') cancelRef.current(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onCancel]);
+  }, []);
 
   return createPortal(
     <div className="fixed inset-0 z-[140] flex items-end justify-center sm:items-center">
@@ -29,6 +31,7 @@ const TaskNoteSheet: React.FC<TaskNoteSheetProps> = ({ taskLabel, onSave, onCanc
           onChange={(e) => setNote(e.target.value)}
           placeholder="Add context if it helps. You can leave this empty."
           maxLength={500}
+          autoFocus
           className="min-h-[96px] w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-orange-300"
         />
         <div className="mt-4 flex justify-end gap-2">

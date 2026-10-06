@@ -14,7 +14,8 @@ import { nextClassWeek, weekDayDate } from '../utils/participantApp';
 import { normalizeLink } from '../utils/links';
 import ChecklistTaskMeta from '../components/schedule/ChecklistTaskMeta';
 import TaskNoteSheet from '../components/schedule/TaskNoteSheet';
-import { isAdminChecklistTask, sortChecklistForHome } from '../utils/checklist';
+import { sortChecklistForHome } from '../utils/checklist';
+import { useChecklistTick } from '../hooks/useChecklistTick';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import { useGroupMeetingLive } from '../hooks/useGroupMeetingLive';
 import { GROUP_MEETING_CHANGED_EVENT } from '../utils/meetingLiveEvents';
@@ -87,7 +88,6 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const [completionSavingIds, setCompletionSavingIds] = useState<number[]>([]);
   // null = not touched: the box is open whenever there is something on the list.
   const [checklistToggled, setChecklistToggled] = useState<boolean | null>(null);
-  const [noteTask, setNoteTask] = useState<SupportChecklistItem | null>(null);
   const [checklist, setChecklist] = useState<SupportChecklistItem[]>([]);
   const [homeAnnouncement, setHomeAnnouncement] = useState<Announcement | null>(null);
   const [newQuestionCount, setNewQuestionCount] = useState(0);
@@ -322,19 +322,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
-  const toggleChecklistItem = async (item: SupportChecklistItem, note?: string) => {
-    // Ticking an admin task asks for an optional note first; unticking and own duties don't.
-    if (!item.done && isAdminChecklistTask(item) && note === undefined) { setNoteTask(item); return; }
-    const savedNote = !item.done ? (note?.trim() || null) : null;
-    setChecklist((prev) => prev.map((entry) => entry.id === item.id ? { ...entry, done: !item.done, completionNote: savedNote } : entry));
-    if (item.done) autoHide.cancel(item.id); else autoHide.start(item.id);
-    try {
-      await supportChecklistApi.setDone(item.id, !item.done, savedNote);
-    } catch {
-      autoHide.cancel(item.id);
-      setChecklist((prev) => prev.map((entry) => entry.id === item.id ? { ...entry, done: item.done, completionNote: item.completionNote ?? null } : entry));
-    }
-  };
+  const tick = useChecklistTick(setChecklist, autoHide);
 
   // Next Group Prayer: computed from the group's locked meeting slot
   const myGroup = myGroups[0] ?? null;
@@ -366,7 +354,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const checkedCount = checklist.filter((item) => item.done).length;
   // The box is open by default when there is anything on the list; Home shows the first 3.
   const checklistOpen = checklistToggled ?? checklist.length > 0;
-  const homeChecklist = useMemo(() => sortChecklistForHome(checklist.filter((item) => autoHide.isVisible(item))), [checklist, autoHide]);
+  const homeChecklist = sortChecklistForHome(checklist.filter((item) => autoHide.isVisible(item)), new Set(Object.keys(autoHide.countdowns)));
   const checklistPct = checklist.length > 0 ? Math.round((checkedCount / checklist.length) * 100) : 0;
   const todayEmptyText = !schedulePublished
     ? 'Schedule not published yet. Check back once your coordinator publishes it.'
@@ -650,7 +638,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => { void toggleChecklistItem(item); }}
+                    onClick={() => { void tick.toggle(item); }}
                     className="flex w-full items-center gap-[11px] py-2 text-left"
                   >
                     <span className={`grid h-[19px] w-[19px] flex-none place-items-center rounded-md border-[1.5px] text-[11px] text-white ${item.done ? 'border-primary bg-primary' : 'border-gray-300 bg-white'}`}>
@@ -704,13 +692,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
         </aside>
       </div>
 
-      {noteTask && (
-        <TaskNoteSheet
-          taskLabel={noteTask.label}
-          onCancel={() => setNoteTask(null)}
-          onSave={(note) => { const target = noteTask; setNoteTask(null); void toggleChecklistItem(target, note); }}
-        />
-      )}
+      {tick.noteTask && <TaskNoteSheet taskLabel={tick.noteTask.label} onCancel={tick.cancelNote} onSave={tick.saveNote} />}
     </div>
   );
 };
