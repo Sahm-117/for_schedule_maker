@@ -637,11 +637,13 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
 
   // The same list shape as the other WhatsApp exports: a heading, then a numbered list.
   const copyTeensForWhatsApp = async () => {
-    const teens = contacts.filter(isTeenContact);
+    // This cohort's teens only, still open (not archived), each on the number we reach them on
+    // (a parent's first), so the list can be used to start their WhatsApp group.
+    const teens = contacts.filter((c) => isTeenContact(c) && !c.archivedAt && !!activeCohort && contactInCohortScope(c, activeCohort.id, activeCohort.id));
     const cohortNumber = (activeCohort?.name ?? '').replace(/^cohort\s*/i, '').trim();
-    const lines = teens.map((t, i) => `${i + 1}. ${t.fullName} — ${(t.phone || t.guardianPhone || '').trim() || 'no number'}`);
+    const lines = teens.map((t, i) => `${i + 1}. ${t.fullName} — ${(contactReachPhone(t) || '').trim() || 'no number'}`);
     try {
-      await navigator.clipboard.writeText([`FOF ${cohortNumber} – PARTICIPANTS *(BELOW 18)*`, '', ...lines].join('\n\n'));
+      await navigator.clipboard.writeText([`FOF${cohortNumber ? ` ${cohortNumber}` : ''} – PARTICIPANTS *(BELOW 18)*`, '', ...lines].join('\n\n'));
       toast({ message: `${teens.length} ${teens.length === 1 ? 'teen' : 'teens'} copied` });
     } catch { toast({ tone: 'error', message: 'Could not copy. Please try again.' }); }
   };

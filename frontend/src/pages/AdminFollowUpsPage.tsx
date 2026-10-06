@@ -914,6 +914,7 @@ const AdminFollowUpsPage: React.FC = () => {
         templates={templates}
         registrationLink={registrationLink}
         currentUserName={user?.name}
+        senderGroupLink={user?.whatsappGroupUrl}
         onMessageSent={handleMessageSent}
         channel={messageChannel}
         onHaveNumber={(contact) => { setMessagingContact(null); setEditingContact(contact); }}

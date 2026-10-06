@@ -77,6 +77,10 @@ BEGIN
     RETURN jsonb_build_object('enabled', false, 'assigned', 0, 'batches', '{}'::jsonb, 'stuck', '[]'::jsonb);
   END IF;
 
+  -- One run at a time: the cron, "Assign now" and teen_add_prospect must not each
+  -- read the same loads and then all give a support their 4th teen.
+  PERFORM pg_advisory_xact_lock(hashtext('assign_teen_contacts'));
+
   SELECT id INTO v_tag FROM "SupportTag" WHERE "systemKey" = 'TEEN_SUPPORT';
   SELECT COALESCE((value->>'maxTeensPerTeenSupport')::int, 4) INTO v_max
   FROM "AppSetting" WHERE "settingKey" = 'programme_rules';
@@ -98,6 +102,9 @@ BEGIN
     WHERE c."ownerId" IS NULL AND c."archivedAt" IS NULL AND c."isTest" IS NOT TRUE
       AND c."registrationStatus" = 'TEENAGER'
       AND (p_only_contact IS NULL OR c.id = p_only_contact)
+      -- The sweep only looks at the current cohort (or contacts with none yet), so an
+      -- old cohort's leftover teen never takes a slot.
+      AND (p_only_contact IS NOT NULL OR c."cohortId" IS NULL OR c."cohortId" = public.current_programme_cohort_id())
     ORDER BY c."createdAt" ASC
   LOOP
     IF NOT (public.followup_phone_is_valid(rec.phone) OR public.followup_phone_is_valid(rec."guardianPhone")) THEN
@@ -250,6 +257,8 @@ DECLARE
   v_is_test BOOLEAN;
   v_reason TEXT;
   v_on_tag BOOLEAN;
+  v_prev_owner UUID;
+  v_prev_owner_name TEXT;
 BEGIN
   IF actor.id IS NULL OR actor.role::text NOT IN ('SUPPORT', 'ADMIN') THEN
     RAISE EXCEPTION 'NOT_AUTHORISED';
@@ -268,6 +277,7 @@ BEGIN
     RAISE EXCEPTION 'Add their number or a parent''s number';
   END IF;
   v_phone := COALESCE(v_own, v_guard);
+  -- The church FOF email. The same address is in frontend/src/components/followups/TeenAddFields.tsx.
   v_email := COALESCE(v_email, 'tcn.fof.ikd@gmail.com');
   v_is_test := actor."isTest" IS TRUE;
   v_reason := 'Added as a teen by ' || actor.name;
@@ -287,6 +297,11 @@ BEGIN
       SELECT 1 FROM "SupportTagMember" m JOIN "SupportTag" t ON t.id = m."tagId" AND t."systemKey" = 'TEEN_SUPPORT'
       WHERE m."userId" = v_contact."ownerId"
     ) INTO v_on_tag;
+    -- An adult who holds them now loses them: remember who, so they are told.
+    IF v_contact."ownerId" IS NOT NULL AND NOT v_on_tag AND v_contact."registrationStatus" NOT IN ('TEENAGER', 'TEEN_ONBOARDED') THEN
+      v_prev_owner := v_contact."ownerId";
+      SELECT name INTO v_prev_owner_name FROM "User" WHERE id = v_prev_owner;
+    END IF;
     UPDATE "FollowUpContact" SET
       "registrationStatus" = CASE WHEN "registrationStatus" IN ('TEENAGER', 'TEEN_ONBOARDED') THEN "registrationStatus" ELSE 'TEENAGER'::"FollowUpRegistrationStatus" END,
       "ageRange" = '18 and below',
@@ -297,6 +312,7 @@ BEGIN
       "replyStatus" = CASE WHEN "registrationStatus" IN ('TEENAGER', 'TEEN_ONBOARDED') THEN "replyStatus" ELSE 'REPLIED'::"FollowUpReplyStatus" END,
       "ownerId" = CASE WHEN "ownerId" IS NOT NULL AND NOT v_on_tag THEN NULL ELSE "ownerId" END,
       "archivedAt" = NULL,
+      "registeredById" = COALESCE("registeredById", actor.id),
       "manualRegistrationAt" = COALESCE("manualRegistrationAt", now()),
       "manualRegistrationBy" = COALESCE("manualRegistrationBy", actor.id),
       "manualRegistrationReason" = COALESCE("manualRegistrationReason", v_reason),
@@ -337,6 +353,13 @@ BEGIN
     WHERE id = v_part_id;
   END IF;
 
+  IF v_prev_owner IS NOT NULL THEN
+    INSERT INTO "Notification" ("userId", title, body, path, type)
+    VALUES (v_prev_owner, 'A teen moved to a Teen Support',
+            v_name || ' was added as a teen, so they now go to a Teen Support and are off your list.',
+            '/support/mobilisation?tab=follow', 'FOLLOWUP_ASSIGNMENT');
+  END IF;
+
   PERFORM public.assign_teen_contacts(v_contact.id);
   SELECT * INTO v_contact FROM "FollowUpContact" WHERE id = v_contact.id;
   SELECT name INTO v_owner_name FROM "User" WHERE id = v_contact."ownerId";
@@ -346,6 +369,7 @@ BEGIN
     'participantId', v_part_id,
     'ownerId', v_contact."ownerId",
     'ownerName', v_owner_name,
+    'previousOwnerName', v_prev_owner_name,
     'waiting', v_contact."ownerId" IS NULL
   );
 END;

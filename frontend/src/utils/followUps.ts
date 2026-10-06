@@ -351,7 +351,7 @@ export const computeFollowUpMetrics = (contacts: FollowUpContact[]): FollowUpMet
     else if (status === 'ACCESS_CONFIRMED') { m.loginShared++; m.accessConfirmed++; m.contacted++; m.closed++; }
     else if (status === 'ATTENDED') { m.contacted++; m.closed++; }
     else if (status === 'TEENAGER') { m.contacted++; m.registered++; }
-    else if (status === 'TEEN_ONBOARDED') { m.contacted++; m.closed++; }
+    else if (status === 'TEEN_ONBOARDED') { m.contacted++; m.registered++; m.closed++; }
     else if (status === 'WRONG_NUMBER') { m.wrongNumber++; m.contacted++; m.closed++; }
     else if (status === 'NOT_INTERESTED') { m.notInterested++; m.contacted++; m.closed++; }
     else if (status === 'NO_RESPONSE') { m.closed++; }
@@ -504,7 +504,8 @@ export const computeIntroducerBreakdown = (contacts: FollowUpContact[]): Introdu
 
 export const buildStatusPatch = (status: FollowUpStatus, subReason?: string): Record<string, unknown> => {
   const now = new Date().toISOString();
-  const base = { archivedAt: null, messageStatus: 'NOT_SENT', replyStatus: 'NO_REPLY', callStatus: 'NOT_CALLED', registrationStatus: 'NOT_REGISTERED', nextAction: 'SEND_MESSAGE' as string } as Record<string, unknown>;
+  // teenOnboardedHow is cleared by every status; only TEEN_ONBOARDED sets it again.
+  const base = { archivedAt: null, messageStatus: 'NOT_SENT', replyStatus: 'NO_REPLY', callStatus: 'NOT_CALLED', registrationStatus: 'NOT_REGISTERED', nextAction: 'SEND_MESSAGE' as string, teenOnboardedHow: null } as Record<string, unknown>;
 
   switch (status) {
     case 'TO_CONTACT':

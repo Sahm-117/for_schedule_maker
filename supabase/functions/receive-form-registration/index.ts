@@ -130,7 +130,7 @@ const upsertParticipant = async (contact: Record<string, unknown>) => {
  * the target cohort wins over an unscoped open contact; contacts belonging to
  * another cohort are ignored so a retaker gets a new target-cohort record.
  */
-const findContact = async (normalised: string | null, targetCohortId: string | null, teenName: string | null = null) => {
+const findContact = async (normalised: string | null, targetCohortId: string | null, formName: string, teenForm: boolean) => {
   if (!normalised) return null
   // Numbers are stored as typed, so this compares in code rather than SQL;
   // with tens of active contacts that is cheaper than it looks, but it is the
@@ -147,7 +147,15 @@ const findContact = async (normalised: string | null, targetCohortId: string | n
   // same person; anyone else on that number is a new teen, not a correction.
   const matches = ((candidates ?? []) as Array<Record<string, unknown>>)
     .filter((c) => normalisePhone(String(c.phone ?? '')) === normalised)
-    .filter((c) => !teenName || nameKey(String(c.fullName ?? '')) === nameKey(teenName))
+    // A teen form needs the same name. An adult form must not take over a teen's
+    // contact just because they share a phone (a parent's number): teens match only
+    // on the same name, whoever is filling the form.
+    .filter((c) => {
+      const sameName = nameKey(String(c.fullName ?? '')) === nameKey(formName)
+      if (teenForm) return sameName
+      const isTeen = c.registrationStatus === 'TEENAGER' || c.registrationStatus === 'TEEN_ONBOARDED'
+      return !isTeen || sameName
+    })
   const targetMatch = matches.find((c) => targetCohortId && c.cohortId === targetCohortId)
   const unscopedOpenMatch = matches.find((c) =>
     c.cohortId == null && c.archivedAt == null && c.nextAction !== 'CLOSE'
@@ -229,7 +237,7 @@ Deno.serve(async (req) => {
       if (already) return json({ ok: true, outcome: 'DUPLICATE', wouldDo: 'Already imported; nothing would change.' })
     }
 
-    const match = await findContact(normalised, await currentProgrammeCohortId(), isBelow18(answers) ? fullName : null)
+    const match = await findContact(normalised, await currentProgrammeCohortId(), fullName, isBelow18(answers))
     return json({
       ok: true,
       outcome: match ? 'MATCHED' : 'CREATED',
@@ -285,7 +293,7 @@ Deno.serve(async (req) => {
 
     // Match on the normalised number rather than the raw text, so formatting
     // differences between the form and the app don't hide an existing prospect.
-    const contact = await findContact(normalised, cohortId, isBelow18(answers) ? fullName : null)
+    const contact = await findContact(normalised, cohortId, fullName, isBelow18(answers))
 
     if (contact) {
       const adoptingUnscopedContact = contact.cohortId == null && cohortId != null
@@ -374,7 +382,9 @@ Deno.serve(async (req) => {
 
     // An import of old sign-ups would otherwise raise one alert per row.
     if (!backfill) {
-      if (isBelow18(answers)) {
+      // Only say "they go to a Teen Support" when teen handling is actually on.
+      const { data: teenSetting } = await supabase.from('AppSetting').select('value').eq('settingKey', 'teen_flow_enabled').maybeSingle()
+      if (isBelow18(answers) && teenSetting?.value === true) {
         await tellAdmins('New teen sign-up from the form', `${fullName} signed up on the registration form as a teen. They go to a Teen Support.`)
       } else if (normalised) {
         await tellAdmins('New sign-up from the form', `${fullName} signed up on the registration form. They're waiting to be assigned their login.`)

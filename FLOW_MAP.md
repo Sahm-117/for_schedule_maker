@@ -186,8 +186,11 @@ duplicating the logic anywhere else is a bug waiting to happen.
     form gate (rule 1) treats them like REGISTERED. The Teen Support tag is built
     in (`SupportTag.systemKey = 'TEEN_SUPPORT'`): it cannot be renamed or
     deleted, and it replaced the old "Teen" tag in place so group rules keep
-    their id. Source: `20261006160000_teen_status_values.sql`,
-    `20261006161000_teen_support_tag.sql`.
+    their id. A teen who fills the form while an adult support already holds them
+    is released from that support (who is told on the bell) so a Teen Support can
+    take them; adult forms never take over a teen's contact on a shared phone.
+    Source: `20261006160000_teen_status_values.sql`,
+    `20261006161000_teen_support_tag.sql`, `20261006200000_teen_form_owner_handover.sql`.
 20. **Teens go only to a same-gender Teen Support, one each, up to a limit.**
     `assign_teen_contacts` (read by the 10-minute `run-followup-assignment`, the
     admin "Assign now", and `teen_add_prospect`) gives an unowned TEENAGER to a

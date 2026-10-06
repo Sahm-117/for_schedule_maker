@@ -1,5 +1,6 @@
 import React from 'react';
 
+// The church FOF email. The same address is in teen_add_prospect (supabase/migrations/20261006180000_teen_assignment.sql).
 export const CHURCH_FOF_EMAIL = 'tcn.fof.ikd@gmail.com';
 
 export interface TeenAddState {

@@ -145,7 +145,8 @@ Deno.serve(async (req) => {
         }
         const stuck = (teen.stuck ?? []) as Array<{ name: string; reason: string; createdAt: string }>
         const waitingLong = stuck.filter((s) => Date.now() - new Date(s.createdAt).getTime() > 2 * 60 * 60 * 1000)
-        if (waitingLong.length) {
+        const { data: alertsRow } = await supabase.from('AppSetting').select('value').eq('settingKey', 'followup_admin_alerts_enabled').maybeSingle()
+        if (waitingLong.length && alertsRow?.value !== false) {
           const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
           const { data: recent } = await supabase
             .from('Notification').select('id').eq('title', 'Teens waiting for a Teen Support').gte('createdAt', since).limit(1)

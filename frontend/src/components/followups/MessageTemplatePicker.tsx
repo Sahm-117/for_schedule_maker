@@ -56,9 +56,11 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
   );
   const reachPhone = contact ? contactReachPhone(contact) : null;
   const selected = shownTemplates.find((t) => t.id === selectedId) || null;
+  // A template that carries the sender's WhatsApp group link can't go out without one.
+  const missingGroupLink = !!selected?.body.includes('{{group_link}}') && !senderGroupLink?.trim();
   const filled = useMemo(
-    () => (selected && contact ? fillTemplate(selected.body, contact, registrationLink, currentUserName, senderGroupLink) : ''),
-    [selected, contact, registrationLink, currentUserName, senderGroupLink]
+    () => (selected && contact && !missingGroupLink ? fillTemplate(selected.body, contact, registrationLink, currentUserName, senderGroupLink) : ''),
+    [selected, contact, missingGroupLink, registrationLink, currentUserName, senderGroupLink]
   );
   const waLink = contact && filled ? buildWhatsAppLink(reachPhone, filled) : null;
   const email = contact?.email?.trim() || '';
@@ -166,7 +168,9 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
         <div className="flex h-[min(60vh,520px)] min-h-0 flex-col gap-4">
           <div className="max-h-[40%] shrink-0 overflow-y-auto rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Preview</p>
-            {filled ? (
+            {missingGroupLink ? (
+              <p className="text-sm font-medium text-amber-800">This message includes your WhatsApp group link, but you have not added one yet. Add it on your profile, then come back to this message.</p>
+            ) : filled ? (
               <p className="whitespace-pre-wrap text-sm text-gray-800"><LinkText text={filled} /></p>
             ) : (
               <p className="text-sm text-gray-400">Select a template to preview the personalised message.</p>
