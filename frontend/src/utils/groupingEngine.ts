@@ -13,7 +13,7 @@
 // Every relaxation shows on the group as a note (evaluateGroup).
 
 import { AGE_RANGE_OPTIONS } from '../constants/departments';
-import { ageIndex, normaliseAgeRange, normaliseGender, type GroupingRules } from './groupingRules';
+import { ageIndex, normaliseAgeRange, normaliseGender, type GroupingRules, type TagRule } from './groupingRules';
 
 export interface EnginePerson {
   id: string;
@@ -25,6 +25,8 @@ export interface EnginePerson {
 export interface EngineSupport extends EnginePerson {
   /** Pre-cohort trainings attended — breaks ties between equal matches. */
   trainingsAttended: number;
+  /** Support tags this support is on (see TagRule in groupingRules.ts). */
+  tagIds?: string[];
 }
 
 export interface DraftGroup {
@@ -49,6 +51,17 @@ export interface GroupDraft {
   needsInfo: string[];
   /** Couldn't be placed without breaking a Must rule. */
   unplaced: string[];
+  /** Left out on purpose: in an age range the admin chose to ignore for this build. */
+  ignored: string[];
+  /** Tag rules that couldn't make their own groups (too few people matched). */
+  tagNotes: string[];
+}
+
+export interface DraftOptions {
+  /** Age ranges to leave out of this build only (nothing is saved). */
+  ignoredAgeRanges?: string[];
+  /** Tag names by id, for the notes. */
+  tagNames?: Record<string, string>;
 }
 
 export type NoteTone = 'relaxed' | 'broken';
@@ -173,12 +186,41 @@ const groupGender = (members: EnginePerson[]): string | null => {
   return genders.size === 1 ? [...genders][0] : null;
 };
 
+// ── Support tags ─────────────────────────────────────────────────────────────
+
+const ruleMatches = (rule: TagRule, person: EnginePerson) =>
+  (rule.ageRanges.length === 0 || (!!person.ageRange && rule.ageRanges.includes(person.ageRange)))
+  && (!rule.gender || person.gender === rule.gender);
+
+/** An enabled rule with nothing to match on would fit every group, so it is ignored. */
+const activeTagRules = (rules: GroupingRules) => rules.tagRules.filter((r) => r.enabled && (r.ageRanges.length > 0 || !!r.gender));
+
+/** The first (highest priority) tag rule a whole group fits, or null. */
+export const groupTagRule = (members: EnginePerson[], rules: GroupingRules): TagRule | null =>
+  members.length === 0 ? null : activeTagRules(rules).find((r) => members.every((m) => ruleMatches(r, m))) ?? null;
+
+/** Tags on this support that have an active rule: they belong with matching groups. */
+const restrictedTagIds = (support: EngineSupport, rules: GroupingRules) => {
+  const own = new Set(support.tagIds ?? []);
+  return activeTagRules(rules).filter((r) => own.has(r.tagId)).map((r) => r.tagId);
+};
+
+/** [tagPenalty, genderMiss, ageRank]: lower is better. */
+type Cost = [number, number, number];
+
 /**
- * How well a support suits a group: [genderMiss, ageRank], lower is better, or
- * null when a Must rule rules them out. Gender outranks age, so the ladder uses
- * the next age range before it ever uses the other gender.
+ * How well a support suits a group, or null when a Must rule rules them out.
+ * A group that fits a tag rule takes only supports on that tag (never anyone
+ * else). A support on a tag with an active rule is a last resort for a regular
+ * group (penalty first), so they stay free for the groups their tag is for.
+ * Gender outranks age, so the ladder uses the next age range before it ever
+ * uses the other gender.
  */
-export const supportCost = (support: EngineSupport, members: EnginePerson[], rules: GroupingRules): [number, number] | null => {
+export const supportCost = (support: EngineSupport, members: EnginePerson[], rules: GroupingRules): Cost | null => {
+  const tagRule = groupTagRule(members, rules);
+  if (tagRule && !(support.tagIds ?? []).includes(tagRule.tagId)) return null;
+  const tagPenalty = !tagRule && restrictedTagIds(support, rules).length > 0 ? 1 : 0;
+
   const gender = groupGender(members);
   let genderMiss = 0;
   if (rules.supportGender === 'SAME_AS_GROUP' && gender) {
@@ -191,10 +233,10 @@ export const supportCost = (support: EngineSupport, members: EnginePerson[], rul
   const preferred = !!support.ageRange && rules.preferredSupportAges.includes(support.ageRange);
   if (rules.supportAgeStrength === 'MUST' && !preferred) return null;
   const ageRank = preferred ? 0 : rank >= 0 ? rank + 1 : rules.supportAgeOrder.length + 1;
-  return [genderMiss, ageRank];
+  return [tagPenalty, genderMiss, ageRank];
 };
 
-const compareCost = (a: [number, number], b: [number, number]) => a[0] - b[0] || a[1] - b[1];
+const compareCost = (a: Cost, b: Cost) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
 
 const assignSupports = (allGroups: DraftGroup[], people: Map<string, EnginePerson>, supports: EngineSupport[], rules: GroupingRules) => {
   const free = new Set(supports.map((s) => s.id));
@@ -203,10 +245,12 @@ const assignSupports = (allGroups: DraftGroup[], people: Map<string, EnginePerso
   const membersOf = (g: DraftGroup) => g.memberIds.map((id) => people.get(id)!).filter(Boolean);
   // Hardest groups first: the fewest ideal (zero-cost) supports.
   const idealCount = (g: DraftGroup) =>
-    supports.filter((s) => { const c = supportCost(s, membersOf(g), rules); return c && c[0] === 0 && c[1] === 0; }).length;
-  const order = [...groups].sort((a, b) => idealCount(a) - idealCount(b));
+    supports.filter((s) => { const c = supportCost(s, membersOf(g), rules); return c && c[0] === 0 && c[1] === 0 && c[2] === 0; }).length;
+  // Groups that fit a tag rule go first, so no regular group can take their supports.
+  const tagged = (g: DraftGroup) => (groupTagRule(membersOf(g), rules) ? 0 : 1);
+  const order = [...groups].sort((a, b) => tagged(a) - tagged(b) || idealCount(a) - idealCount(b));
   order.forEach((g) => {
-    let best: { s: EngineSupport; cost: [number, number] } | null = null;
+    let best: { s: EngineSupport; cost: Cost } | null = null;
     supports.forEach((s) => {
       if (!free.has(s.id)) return;
       const cost = supportCost(s, membersOf(g), rules);
@@ -242,32 +286,60 @@ export const buildDraft = (
   rules: GroupingRules,
   existingGroupNames: string[],
   seeds: SeedGroup[] = [],
+  options: DraftOptions = {},
 ): GroupDraft => {
-  const needsInfo = participants.filter((p) => !p.gender || !p.ageRange).map((p) => p.id);
-  const ready = participants.filter((p) => p.gender && p.ageRange);
+  // Ranges the admin chose to ignore for this build are dropped first, whole.
+  const ignoredRanges = new Set(options.ignoredAgeRanges ?? []);
+  const ignored = participants.filter((p) => p.ageRange && ignoredRanges.has(p.ageRange)).map((p) => p.id);
+  const ignoredSet = new Set(ignored);
+  const considered = participants.filter((p) => !ignoredSet.has(p.id));
+  const needsInfo = considered.filter((p) => !p.gender || !p.ageRange).map((p) => p.id);
+  const ready = considered.filter((p) => p.gender && p.ageRange);
   const people = new Map(ready.map((p) => [p.id, p]));
 
   // Split into pools: by gender when groups are one gender, then by age range
   // when similar ages are a Must (a group never crosses a range).
-  let pools: EnginePerson[][] = [ready];
   const splitGender = rules.genderMix === 'SAME';
-  if (splitGender) pools = ['Female', 'Male'].map((g) => ready.filter((p) => p.gender === g));
-  if (rules.ageMix === 'SIMILAR' && rules.ageStrength === 'MUST') {
-    pools = pools.flatMap((pool) => AGE_RANGE_OPTIONS.map((range) => pool.filter((p) => p.ageRange === range)));
-  }
-  pools = pools.filter((pool) => pool.length > 0);
-
-  // A one-gender pool too small for a group: if gender is only a preference,
-  // fold it into the other gender's pool (shows as "Mixed genders") rather than
-  // leaving a tiny group; with a Must size it would otherwise be unplaced.
-  if (splitGender && rules.genderStrength === 'PREFER' && pools.length > 1) {
-    const small = pools.filter((pool) => pool.length < rules.minSize);
-    if (small.length > 0 && small.length < pools.length) {
-      const big = pools.filter((pool) => pool.length >= rules.minSize).sort((a, b) => b.length - a.length);
-      big[0] = [...big[0], ...small.flat()];
-      pools = big;
+  const splitPools = (list: EnginePerson[]): EnginePerson[][] => {
+    let pools: EnginePerson[][] = [list];
+    if (splitGender) pools = ['Female', 'Male'].map((g) => list.filter((p) => p.gender === g));
+    if (rules.ageMix === 'SIMILAR' && rules.ageStrength === 'MUST') {
+      pools = pools.flatMap((pool) => AGE_RANGE_OPTIONS.map((range) => pool.filter((p) => p.ageRange === range)));
     }
-  }
+    pools = pools.filter((pool) => pool.length > 0);
+
+    // A one-gender pool too small for a group: if gender is only a preference,
+    // fold it into the other gender's pool (shows as "Mixed genders") rather than
+    // leaving a tiny group; with a Must size it would otherwise be unplaced.
+    if (splitGender && rules.genderStrength === 'PREFER' && pools.length > 1) {
+      const small = pools.filter((pool) => pool.length < rules.minSize);
+      if (small.length > 0 && small.length < pools.length) {
+        const big = pools.filter((pool) => pool.length >= rules.minSize).sort((a, b) => b.length - a.length);
+        big[0] = [...big[0], ...small.flat()];
+        pools = big;
+      }
+    }
+    return pools;
+  };
+
+  // People a tag rule is for (e.g. 18 and below) are grouped among themselves,
+  // highest priority rule first, so there are groups its supports can take. If
+  // fewer people match than the smallest group, they join everyone else.
+  const tagNotes: string[] = [];
+  let rest = ready;
+  const pools: EnginePerson[][] = [];
+  activeTagRules(rules).forEach((rule) => {
+    const matching = rest.filter((p) => ruleMatches(rule, p));
+    if (matching.length === 0) return;
+    if (matching.length < rules.minSize) {
+      tagNotes.push(`Only ${matching.length} ${matching.length === 1 ? 'person fits' : 'people fit'} “${options.tagNames?.[rule.tagId] ?? 'tag'}”, fewer than the smallest group, so they were grouped with everyone else.`);
+      return;
+    }
+    const taken = new Set(matching.map((p) => p.id));
+    rest = rest.filter((p) => !taken.has(p.id));
+    pools.push(...splitPools(matching));
+  });
+  pools.push(...splitPools(rest));
 
   const memberLists: string[][] = [];
   const unplaced: string[] = [];
@@ -284,7 +356,7 @@ export const buildDraft = (
   const seeded: DraftGroup[] = [];
   const takeBest = (support: EngineSupport) => {
     let bestIndex = -1;
-    let bestCost: [number, number] | null = null;
+    let bestCost: Cost | null = null;
     remaining.forEach((ids, i) => {
       const cost = supportCost(support, ids.map((id) => people.get(id)!).filter(Boolean), rules);
       if (cost && (!bestCost || compareCost(cost, bestCost) < 0)) { bestIndex = i; bestCost = cost; }
@@ -304,7 +376,7 @@ export const buildDraft = (
     ...remaining.map((memberIds, i) => ({ key: `draft-${i + 1}`, name: names[i], memberIds, supportId: null })),
   ];
   assignSupports(groups, people, supports, rules);
-  return { groups, needsInfo, unplaced };
+  return { groups, needsInfo, unplaced, ignored, tagNotes };
 };
 
 // ── Notes: what a group bends ────────────────────────────────────────────────
@@ -318,6 +390,7 @@ export const evaluateGroup = (
   people: Map<string, EnginePerson>,
   supports: Map<string, EngineSupport>,
   rules: GroupingRules,
+  tagNames: Record<string, string> = {},
 ): GroupNote[] => {
   const notes: GroupNote[] = [];
   const members = group.memberIds.map((id) => people.get(id)).filter((p): p is EnginePerson => !!p);
@@ -346,9 +419,17 @@ export const evaluateGroup = (
   }
 
   const support = group.supportId ? supports.get(group.supportId) : undefined;
+  const tagRule = groupTagRule(members, rules);
+  const tagName = (id: string) => tagNames[id] ?? 'tagged';
   if (!group.supportId) {
-    notes.push({ tone: 'broken', text: 'No suitable support' });
+    notes.push({ tone: 'broken', text: tagRule ? `No ${tagName(tagRule.tagId)} support free` : 'No suitable support' });
   } else if (support) {
+    if (tagRule && !(support.tagIds ?? []).includes(tagRule.tagId)) {
+      notes.push({ tone: 'broken', text: `Needs a ${tagName(tagRule.tagId)} support` });
+    } else if (!tagRule) {
+      const own = restrictedTagIds(support, rules);
+      if (own.length > 0) notes.push({ tone: 'relaxed', text: `${tagName(own[0])} support on a regular group` });
+    }
     if (!support.gender || !support.ageRange) notes.push({ tone: 'relaxed', text: "Support's gender/age not on file" });
     const gender = groupGender(members);
     if (rules.supportGender === 'SAME_AS_GROUP' && gender && support.gender && support.gender !== gender) {

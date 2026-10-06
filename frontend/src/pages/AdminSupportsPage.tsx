@@ -22,6 +22,7 @@ import type { HubMembership, OnboardingProgressParticipant, ParticipantNote, Sup
 import AppSelect from '../components/AppSelect';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import SupportsExportPopup from '../components/supports/SupportsExportPopup';
+import SupportTagsModal from '../components/supports/SupportTagsModal';
 import { PERSON_OF_INTEREST_INFO } from '../components/hubs/hubJobs';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
@@ -100,6 +101,7 @@ const AdminSupportsPage: React.FC = () => {
   const kindParam = searchParams.get('kind');
   const kindFilter: SupportKind | '' = kindParam === 'PARTICIPANT_SUPPORT' || kindParam === 'HUB_LEAD' || kindParam === 'OPERATIONAL' ? kindParam : '';
   const [exportOpen, setExportOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
   const pageTab = searchParams.get('tab') === 'trainings' ? 'trainings' : 'supports';
   const [search, setSearch] = useState('');
   // Supports with a note about them — they get a ★ and the "With notes" filter.
@@ -369,7 +371,7 @@ const AdminSupportsPage: React.FC = () => {
         subtitle={pageTab === 'supports' && model ? countSubtitle : 'Group meeting records and onboarding for every support.'}
         tourId="admin:supports"
         action={pageTab === 'supports' && model ? (
-          <AppOverflowMenu align="right" items={[{ label: 'Export for WhatsApp', onClick: () => setExportOpen(true) }]} />
+          <AppOverflowMenu align="right" items={[{ label: 'Support tags', onClick: () => setTagsOpen(true) }, { label: 'Export for WhatsApp', onClick: () => setExportOpen(true) }]} />
         ) : undefined}
       />
 
@@ -582,6 +584,7 @@ const AdminSupportsPage: React.FC = () => {
         onClose={() => setProfileUserId(null)}
         onUserUpdated={(id, changes) => setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...changes } : u)))}
       />
+      <SupportTagsModal isOpen={tagsOpen} onClose={() => setTagsOpen(false)} supports={users.filter((u) => hasSupportRole(u) && u.isActive !== false && !u.isTest)} />
       {exportOpen && (
         <SupportsExportPopup
           supports={shownSupports}

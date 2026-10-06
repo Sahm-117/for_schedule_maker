@@ -15,6 +15,20 @@ export type AgeMix = 'SIMILAR' | 'SPREAD';
 /** SAME_AS_GROUP = a one-gender group gets a support of that gender. */
 export type SupportGender = 'SAME_AS_GROUP' | 'ANY';
 
+/**
+ * What a support tag does in this cohort's builder. A group made only of people
+ * who fit (every ageRange / gender given) takes ONLY supports on the tag. The
+ * order of the list is the priority when a group fits several tags.
+ */
+export interface TagRule {
+  tagId: string;
+  enabled: boolean;
+  /** Empty = any age. */
+  ageRanges: string[];
+  /** null = any gender. */
+  gender: 'Female' | 'Male' | null;
+}
+
 export interface GroupingRules {
   minSize: number;
   targetSize: number;
@@ -35,6 +49,8 @@ export interface GroupingRules {
   supportAgeStrength: RuleStrength;
   /** Supports an admin left out of the builder for this cohort (kept with the rules). */
   excludedSupportIds: string[];
+  /** Support tag rules, highest priority first. */
+  tagRules: TagRule[];
 }
 
 export const DEFAULT_GROUPING_RULES: GroupingRules = {
@@ -53,6 +69,7 @@ export const DEFAULT_GROUPING_RULES: GroupingRules = {
   preferredSupportAges: ['25 - 34'],
   supportAgeStrength: 'PREFER',
   excludedSupportIds: [],
+  tagRules: [],
 };
 
 // ── Normalising saved answers ────────────────────────────────────────────────
@@ -94,6 +111,24 @@ const oneOf = <T extends string>(value: unknown, allowed: readonly T[], fallback
   (allowed as readonly string[]).includes(value as string) ? (value as T) : fallback;
 const strength = (value: unknown, fallback: RuleStrength) => oneOf(value, ['MUST', 'PREFER'] as const, fallback);
 
+const normaliseTagRules = (value: unknown): TagRule[] => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const out: TagRule[] = [];
+  for (const item of value) {
+    const row = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
+    if (typeof row.tagId !== 'string' || !row.tagId || seen.has(row.tagId)) continue;
+    seen.add(row.tagId);
+    out.push({
+      tagId: row.tagId,
+      enabled: row.enabled === true,
+      ageRanges: Array.isArray(row.ageRanges) ? [...new Set(row.ageRanges.filter((r): r is string => typeof r === 'string' && AGE_RANGE_OPTIONS.includes(r)))] : [],
+      gender: row.gender === 'Female' || row.gender === 'Male' ? row.gender : null,
+    });
+  }
+  return out;
+};
+
 export const normaliseGroupingRules = (value: unknown): GroupingRules => {
   const source = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
   const d = DEFAULT_GROUPING_RULES;
@@ -128,5 +163,6 @@ export const normaliseGroupingRules = (value: unknown): GroupingRules => {
     excludedSupportIds: Array.isArray(source.excludedSupportIds)
       ? [...new Set(source.excludedSupportIds.filter((id): id is string => typeof id === 'string' && id.length > 0))]
       : [],
+    tagRules: normaliseTagRules(source.tagRules),
   };
 };

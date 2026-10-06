@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import AppSelect from '../AppSelect';
 import Avatar from '../Avatar';
 import Spinner from '../Spinner';
-import { cohortsApi, groupsApi, settingsApi, supportKindApi } from '../../services/api';
-import type { Group, Participant, SupportKind, User } from '../../types';
+import SupportTagsModal from '../supports/SupportTagsModal';
+import { cohortsApi, groupsApi, settingsApi, supportKindApi, supportTagsApi } from '../../services/api';
+import type { Group, Participant, SupportKind, SupportTag, User } from '../../types';
 import { AGE_RANGE_OPTIONS } from '../../constants/departments';
 import { trainingCountFor } from '../../utils/programmeRules';
-import { DEFAULT_GROUPING_RULES, type GroupingRules, type RuleStrength } from '../../utils/groupingRules';
+import { DEFAULT_GROUPING_RULES, type GroupingRules, type RuleStrength, type TagRule } from '../../utils/groupingRules';
 import {
   buildDraft,
   evaluateGroup,
@@ -143,6 +144,13 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   // Empty groups the admin made first: fill them, or leave them alone. Asked each time.
   const [emptyChoice, setEmptyChoice] = useState<'fill' | 'leave' | null>(null);
   const createdAny = useRef(false);
+  // Support tags, and the age ranges left out of THIS build only (never saved).
+  const [tags, setTags] = useState<SupportTag[]>([]);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [tagEditFor, setTagEditFor] = useState<string | null>(null);
+  const [tagSaving, setTagSaving] = useState<string | null>(null);
+  const [ignoredAges, setIgnoredAges] = useState<Set<string>>(new Set());
+  const [draftInfo, setDraftInfo] = useState<{ ignored: number; tagNotes: string[] }>({ ignored: 0, tagNotes: [] });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -154,14 +162,18 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setStatuses({});
     setIncludeMissedTraining(false);
     setEmptyChoice(null);
+    setIgnoredAges(new Set());
+    setTagEditFor(null);
+    setDraftInfo({ ignored: 0, tagNotes: [] });
     createdAny.current = false;
     setLoading(true);
     Promise.all([
       supportKindApi.getForCohort(cohortId).then((r) => r.kinds).catch(() => ({} as Record<string, SupportKind>)),
       cohortsApi.getMembers(cohortId).then((r) => new Set(r.users.map((u) => u.id))).catch(() => new Set<string>()),
       settingsApi.getGroupingRules(cohortId).catch(() => DEFAULT_GROUPING_RULES),
+      supportTagsApi.getAll().then((r) => r.tags).catch(() => [] as SupportTag[]),
     ])
-      .then(([k, m, r]) => { setKinds(k); setMemberIds(m); setRules(r); })
+      .then(([k, m, r, t]) => { setKinds(k); setMemberIds(m); setRules(r); setTags(t); })
       .catch(() => setErr('Could not load everything. Please retry.'))
       .finally(() => setLoading(false));
   }, [isOpen, cohortId]);
@@ -173,6 +185,21 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     [ungrouped]
   );
   const participantById = useMemo(() => new Map(participants.map((p) => [p.id, p])), [participants]);
+
+  const reloadTags = () => supportTagsApi.getAll().then((r) => setTags(r.tags)).catch(() => {});
+  const tagIdsByUser = useMemo(() => {
+    const map = new Map<string, string[]>();
+    tags.forEach((t) => t.userIds.forEach((id) => map.set(id, [...(map.get(id) ?? []), t.id])));
+    return map;
+  }, [tags]);
+  const tagNames = useMemo(() => Object.fromEntries(tags.map((t) => [t.id, t.name])), [tags]);
+  // Rules for tags that still exist (a deleted tag's rule is ignored).
+  const effectiveRules = useMemo<GroupingRules>(() => ({ ...rules, tagRules: rules.tagRules.filter((r) => tagNames[r.tagId]) }), [rules, tagNames]);
+  // Tags in priority order: saved rules first, then any tag without a rule yet.
+  const orderedTags = useMemo(() => {
+    const known = rules.tagRules.map((r) => tags.find((t) => t.id === r.tagId)).filter((t): t is SupportTag => !!t);
+    return [...known, ...tags.filter((t) => !known.some((k) => k.id === t.id))];
+  }, [rules.tagRules, tags]);
 
   const supportPool = useMemo(() => {
     const leading = new Set(groups.filter((g) => !g.archivedAt && g.supportId).map((g) => g.supportId as string));
@@ -190,10 +217,10 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
         missedTraining.add(u.id);
         if (!includeMissedTraining) { reasons.push({ user: u, reason: `Trainings ${c.attended}/${c.total}` }); return; }
       }
-      free.push({ ...toEnginePerson(u), trainingsAttended: c.attended });
+      free.push({ ...toEnginePerson(u), trainingsAttended: c.attended, tagIds: tagIdsByUser.get(u.id) ?? [] });
     });
     return { free, reasons, missedTraining };
-  }, [supportUsers, memberIds, kinds, groups, trainingCounts, trainingsTotal, minTrainingsAttended, includeMissedTraining, rules.excludedSupportIds]);
+  }, [supportUsers, memberIds, kinds, groups, trainingCounts, trainingsTotal, minTrainingsAttended, includeMissedTraining, rules.excludedSupportIds, tagIdsByUser]);
 
   // Groups with nobody in them yet (made by hand first), and the support already on each.
   const emptyGroups = useMemo(() => {
@@ -205,9 +232,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     return {
       id: g.id,
       name: g.name,
-      support: u ? { ...toEnginePerson(u), trainingsAttended: trainingCountFor(trainingCounts, u.id, trainingsTotal).attended } : null,
+      support: u ? { ...toEnginePerson(u), trainingsAttended: trainingCountFor(trainingCounts, u.id, trainingsTotal).attended, tagIds: tagIdsByUser.get(u.id) ?? [] } : null,
     };
-  }), [emptyGroups, supportUsers, trainingCounts, trainingsTotal]);
+  }), [emptyGroups, supportUsers, trainingCounts, trainingsTotal, tagIdsByUser]);
   const seedSupports = useMemo(() => seeds.map((s) => s.support).filter((s): s is EngineSupport => !!s), [seeds]);
   const supportById = useMemo(() => new Map([...supportPool.free, ...seedSupports].map((s) => [s.id, s])), [supportPool.free, seedSupports]);
 
@@ -231,7 +258,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     }
   };
 
-  const readyCount = [...people.values()].filter((p) => p.gender && p.ageRange).length;
+  const readyCount = [...people.values()].filter((p) => p.gender && p.ageRange && !ignoredAges.has(p.ageRange)).length;
   const needsInfo = ungrouped.filter((p) => { const e = people.get(p.id); return !e?.gender || !e?.ageRange; });
   const supportsMissingDetails = supportPool.free.filter((s) => !s.gender || !s.ageRange).length;
   const ageCounts = AGE_RANGE_OPTIONS.map((range) => ({ range, count: [...people.values()].filter((p) => p.ageRange === range).length }));
@@ -239,7 +266,11 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const men = [...people.values()].filter((p) => p.gender === 'Male').length;
 
   const rebuild = (r: GroupingRules = rules) => {
-    const result = buildDraft([...people.values()], supportPool.free, r, groups.map((g) => g.name), emptyChoice === 'fill' ? seeds : []);
+    const result = buildDraft(
+      [...people.values()], supportPool.free, { ...r, tagRules: r.tagRules.filter((t) => tagNames[t.tagId]) }, groups.map((g) => g.name), emptyChoice === 'fill' ? seeds : [],
+      { ignoredAgeRanges: [...ignoredAges], tagNames },
+    );
+    setDraftInfo({ ignored: result.ignored.length, tagNotes: result.tagNotes });
     setDraft(result.groups);
     setLeftOut([...result.needsInfo, ...result.unplaced]);
     setPicked(null);
@@ -331,6 +362,44 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     const next = has ? prev.preferredSupportAges.filter((r) => r !== range) : [...prev.preferredSupportAges, range];
     return next.length === 0 ? prev : { ...prev, preferredSupportAges: next };
   });
+
+  // Tag rules: one row per tag, in priority order (saved rules first, then any tag without a rule yet).
+  const tagRuleFor = (tagId: string): TagRule => rules.tagRules.find((r) => r.tagId === tagId) ?? { tagId, enabled: false, ageRanges: [], gender: null };
+  const updateTagRule = (tagId: string, patch: Partial<TagRule>) => setRules((prev) => {
+    const order = orderedTags.map((t) => t.id);
+    const byId = new Map(prev.tagRules.map((r) => [r.tagId, r]));
+    const current = byId.get(tagId) ?? { tagId, enabled: false, ageRanges: [], gender: null };
+    byId.set(tagId, { ...current, ...patch });
+    return { ...prev, tagRules: order.map((id) => byId.get(id) ?? { tagId: id, enabled: false, ageRanges: [], gender: null }) };
+  });
+  const moveTagRule = (tagId: string, dir: -1 | 1) => setRules((prev) => {
+    const order = orderedTags.map((t) => t.id);
+    const i = order.indexOf(tagId);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= order.length) return prev;
+    [order[i], order[j]] = [order[j], order[i]];
+    const byId = new Map(prev.tagRules.map((r) => [r.tagId, r]));
+    return { ...prev, tagRules: order.map((id) => byId.get(id) ?? { tagId: id, enabled: false, ageRanges: [], gender: null }) };
+  });
+  const toggleIgnoredAge = (range: string) => setIgnoredAges((prev) => {
+    const next = new Set(prev);
+    if (next.has(range)) next.delete(range); else next.add(range);
+    return next;
+  });
+  // Put a support on / take them off a tag from the builder.
+  const toggleSupportTag = async (userId: string, tagId: string) => {
+    const current = tagIdsByUser.get(userId) ?? [];
+    const next = current.includes(tagId) ? current.filter((id) => id !== tagId) : [...current, tagId];
+    setTagSaving(userId);
+    try {
+      await supportTagsApi.setUserTags(userId, next);
+      await reloadTags();
+    } catch (e: any) {
+      setErr(e?.message ? `Couldn't save the tag: ${e.message}` : "Couldn't save the tag. Try again.");
+    } finally {
+      setTagSaving(null);
+    }
+  };
 
   const personLine = (id: string) => {
     const e = people.get(id);
@@ -431,9 +500,15 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                             <span className="block h-full rounded-full bg-primary/70" style={{ width: `${ungrouped.length ? (count / ungrouped.length) * 100 : 0}%` }} />
                           </span>
                           <span className="w-6 text-right font-semibold text-gray-900">{count}</span>
+                          {count > 0 && (
+                            <button type="button" aria-pressed={ignoredAges.has(range)} onClick={() => toggleIgnoredAge(range)} className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${ignoredAges.has(range) ? 'bg-red-100/80 text-red-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                              {ignoredAges.has(range) ? 'Left out' : 'Leave out'}
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
+                    {ignoredAges.size > 0 && <p className="mt-2 text-[11px] text-red-700">{[...ignoredAges].join(', ')} left out of this build only. Nothing is saved.</p>}
                   </div>
                   <div className={`${SURFACE} p-4`}>
                     <p className={SECTION_LABEL}>Need gender or age ({needsInfo.length})</p>
@@ -487,12 +562,28 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                     {supportPool.free.map((sup) => {
                       const user = supportUsers.find((u) => u.id === sup.id);
                       return (
-                        <div key={sup.id} className="flex items-center gap-2.5 px-1 py-1">
+                        <div key={sup.id}>
+                        <div className="flex items-center gap-2.5 px-1 py-1">
                           <Avatar name={sup.name} avatarUrl={user?.avatarUrl} size="xs" />
-                          <span className="min-w-0 flex-1 truncate text-[13px] text-gray-800">{sup.name}</span>
+                          <span className="min-w-0 flex-1 truncate text-[13px] text-gray-800">{sup.name}{(sup.tagIds ?? []).length > 0 && <span className="ml-1.5 text-[11px] font-semibold text-violet-700">{(sup.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean).join(', ')}</span>}</span>
+                          <button type="button" aria-expanded={tagEditFor === sup.id} onClick={() => setTagEditFor((cur) => (cur === sup.id ? null : sup.id))} className="rounded-full bg-violet-100/80 px-3 py-1 text-[12px] font-semibold text-violet-700 hover:bg-violet-100">Tags</button>
                           <button type="button" disabled={excludeSaving === sup.id} onClick={() => void toggleExcluded(sup.id)} className="rounded-full bg-gray-100 px-3 py-1 text-[12px] font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60">
                             {excludeSaving === sup.id ? <Spinner className="h-3 w-3" /> : 'Leave out'}
                           </button>
+                        </div>
+                        {tagEditFor === sup.id && (
+                          <div className="mb-1 ml-8 flex flex-wrap items-center gap-1.5 rounded-2xl bg-gray-50 px-3 py-2">
+                            {tags.length === 0 ? <span className="text-[11px] text-gray-500">No tags yet.</span> : tags.map((t) => {
+                              const on = (sup.tagIds ?? []).includes(t.id);
+                              return (
+                                <button key={t.id} type="button" role="checkbox" aria-checked={on} disabled={tagSaving === sup.id} onClick={() => void toggleSupportTag(sup.id, t.id)} className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${on ? 'bg-violet-100/80 text-violet-700' : 'bg-white text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.10)]'}`}>
+                                  {on ? '✓ ' : ''}{t.name}
+                                </button>
+                              );
+                            })}
+                            <button type="button" onClick={() => setTagsOpen(true)} className="rounded-full px-2.5 py-1 text-[12px] font-semibold text-primary">Manage tags</button>
+                          </div>
+                        )}
                         </div>
                       );
                     })}
@@ -585,6 +676,68 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   </div>
                 </RuleCard>
               </div>
+              <div className="sm:col-span-2">
+                <RuleCard title="Support tags" hint="A group made only of the people a tag is for takes only supports on that tag. First in the list wins when a group fits more than one.">
+                  {orderedTags.length === 0 ? (
+                    <div className="flex items-center justify-between gap-3 rounded-2xl bg-gray-50 px-3 py-3">
+                      <p className="text-sm text-gray-500">No tags yet.</p>
+                      <button type="button" onClick={() => setTagsOpen(true)} className="rounded-full bg-primary/10 px-3 py-1 text-[12px] font-semibold text-primary">Manage tags</button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {orderedTags.map((tag, i) => {
+                        const rule = tagRuleFor(tag.id);
+                        const noCriteria = rule.enabled && rule.ageRanges.length === 0 && !rule.gender;
+                        return (
+                          <div key={tag.id} className="rounded-2xl bg-gray-50 p-3">
+                            <div className="flex items-center gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-gray-900">{tag.name}</p>
+                                <p className="text-[11px] text-gray-500">{tag.userIds.length} {tag.userIds.length === 1 ? 'support' : 'supports'}</p>
+                              </div>
+                              <button type="button" aria-label={`Move ${tag.name} up`} disabled={i === 0} onClick={() => moveTagRule(tag.id, -1)} className="h-7 w-7 rounded-full bg-white text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.10)] disabled:opacity-30">↑</button>
+                              <button type="button" aria-label={`Move ${tag.name} down`} disabled={i === orderedTags.length - 1} onClick={() => moveTagRule(tag.id, 1)} className="h-7 w-7 rounded-full bg-white text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.10)] disabled:opacity-30">↓</button>
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={rule.enabled}
+                                aria-label={`Use ${tag.name} in this build`}
+                                onClick={() => updateTagRule(tag.id, { enabled: !rule.enabled })}
+                                className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition ${rule.enabled ? 'bg-primary' : 'bg-slate-200'}`}
+                              >
+                                <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${rule.enabled ? 'translate-x-7' : 'translate-x-1'}`} />
+                              </button>
+                            </div>
+                            {rule.enabled && (
+                              <div className="mt-3 flex flex-col gap-2.5">
+                                <div>
+                                  <p className="mb-1 text-[11px] font-medium text-gray-500">For groups of these ages</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {AGE_RANGE_OPTIONS.map((range) => {
+                                      const on = rule.ageRanges.includes(range);
+                                      return (
+                                        <button key={range} type="button" aria-pressed={on} onClick={() => updateTagRule(tag.id, { ageRanges: on ? rule.ageRanges.filter((r) => r !== range) : [...rule.ageRanges, range] })} className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${on ? 'bg-violet-100/80 text-violet-700' : 'bg-white text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.10)]'}`}>
+                                          {range}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="mb-1 text-[11px] font-medium text-gray-500">And gender</p>
+                                  <Segmented value={rule.gender ?? ''} onChange={(v) => updateTagRule(tag.id, { gender: v === 'Female' || v === 'Male' ? v : null })} options={[{ value: '', label: 'Any' }, { value: 'Female', label: 'Women' }, { value: 'Male', label: 'Men' }]} />
+                                </div>
+                                {noCriteria && <p className="text-[11px] font-semibold text-amber-700">Pick an age range or a gender, or this tag has nothing to match.</p>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      <button type="button" onClick={() => setTagsOpen(true)} className="self-start rounded-full px-2.5 py-1 text-[12px] font-semibold text-primary">Manage tags</button>
+                    </div>
+                  )}
+                </RuleCard>
+              </div>
               <p className="text-[11px] text-gray-400 sm:col-span-2">
                 <b className="font-semibold text-violet-700">Must</b> is never bent. <b className="font-semibold text-sky-700">Prefer</b> can be relaxed when the ideal runs out — ages widened first, then group size, then the support's age, then the support's gender (mixed groups only). Every relaxation is shown on the group.
               </p>
@@ -596,14 +749,20 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 {noSupportCount > 0 && <> · <span className="font-semibold text-red-700">{noSupportCount} without a support</span></>}
                 {' · '}Tap a person, then “Move here” on another group.
               </p>
+              {(draftInfo.ignored > 0 || draftInfo.tagNotes.length > 0) && (
+                <div className="flex flex-col gap-1 rounded-2xl bg-amber-100/80 px-3 py-2 text-[12px] text-amber-700">
+                  {draftInfo.ignored > 0 && <p>{draftInfo.ignored} {draftInfo.ignored === 1 ? 'person' : 'people'} left out ({[...ignoredAges].join(', ')}), as you chose for this build.</p>}
+                  {draftInfo.tagNotes.map((note) => <p key={note}>{note}</p>)}
+                </div>
+              )}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {draft.map((g) => {
-                  const notes = evaluateGroup(g, people, supportById, rules);
+                  const notes = evaluateGroup(g, people, supportById, effectiveRules, tagNames);
                   const options = [
                     { value: '', label: 'No support' },
                     ...supportPool.free
                       .filter((s) => s.id === g.supportId || !usedSupports.has(s.id))
-                      .map((s) => ({ value: s.id, label: s.name, meta: [s.gender, s.ageRange ? shortAge(s.ageRange) : null, trainingsTotal ? `${s.trainingsAttended}/${trainingsTotal} trainings` : null].filter(Boolean).join(' · ') || 'Details missing' })),
+                      .map((s) => ({ value: s.id, label: s.name, meta: [s.gender, s.ageRange ? shortAge(s.ageRange) : null, trainingsTotal ? `${s.trainingsAttended}/${trainingsTotal} trainings` : null, ...(s.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean)].filter(Boolean).join(' · ') || 'Details missing' })),
                   ];
                   return (
                     <div key={g.key} className={`${SURFACE} flex flex-col gap-2.5 p-4`}>
@@ -684,6 +843,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
         {/* Sticky action bar */}
         <div className="flex items-center justify-end gap-2 border-t border-gray-200/70 bg-white/80 px-5 py-3.5 backdrop-blur-xl sm:px-6">{footer}</div>
       </div>
+      <SupportTagsModal isOpen={tagsOpen} onClose={() => setTagsOpen(false)} supports={supportUsers.filter((u) => u.isActive !== false && !u.isTest)} onChanged={() => void reloadTags()} />
     </div>,
     document.body
   );

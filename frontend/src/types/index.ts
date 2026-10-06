@@ -1326,6 +1326,13 @@ export interface SupportHub {
   createdAt?: string;
 }
 
+/** A label admins put on supports ("Teen support"); the group builder reads it. */
+export interface SupportTag {
+  id: string;
+  name: string;
+  userIds: string[];
+}
+
 export interface HubMembership {
   id: string;
   hubId: string;

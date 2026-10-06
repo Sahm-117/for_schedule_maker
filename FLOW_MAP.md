@@ -155,6 +155,14 @@ duplicating the logic anywhere else is a bug waiting to happen.
     `hasSupportRole` in `frontend/src/utils/people.ts`. Database and
     `push-reminders` use the same test. Source:
     `20261006120000_admin_support_tag_in_jobs.sql`.
+17. **Support tags are strict in the group builder.** A group made only of
+    people a tag rule is for (age range and/or gender) takes only supports on
+    that tag, and is left without a support (and says so) when they run out.
+    Untagged supports never take such a group; a tagged support is a last
+    resort for a regular group. Tags and rules: `SupportTag`/`SupportTagMember`
+    (written only by `support_tag_*` RPCs), `tagRules` in the cohort's grouping
+    rules, `supportCost`/`groupTagRule` in `frontend/src/utils/groupingEngine.ts`.
+    Source: `20261006130000_support_tags.sql`.
 
 ## 5. Edge functions and schedules
 

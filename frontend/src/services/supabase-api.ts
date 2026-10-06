@@ -6502,6 +6502,48 @@ export const supportKindApi = {
   },
 };
 
+// ── Support tags (admin-made labels the group builder reads) ──────────────────
+
+const tagAdminError = (message: string) => (message === 'NOT_AUTHORISED' ? 'Only admins can change support tags.' : message);
+
+export const supportTagsApi = {
+  async getAll(): Promise<{ tags: import('../types').SupportTag[] }> {
+    const [tags, members] = await Promise.all([
+      supabase.from('SupportTag').select('id, name').order('name'),
+      supabase.from('SupportTagMember').select('tagId, userId'),
+    ]);
+    if (tags.error) throw new Error(tags.error.message);
+    if (members.error) throw new Error(members.error.message);
+    const byTag = new Map<string, string[]>();
+    ((members.data || []) as any[]).forEach((row) => byTag.set(row.tagId, [...(byTag.get(row.tagId) ?? []), row.userId]));
+    return { tags: ((tags.data || []) as any[]).map((t) => ({ id: t.id, name: t.name, userIds: byTag.get(t.id) ?? [] })) };
+  },
+
+  /** Create (id null) or rename. */
+  async save(id: string | null, name: string): Promise<{ id: string; name: string }> {
+    const { data, error } = await supabase.rpc('support_tag_save', { p_token: getSessionToken(), p_id: id, p_name: name });
+    if (error) throw new Error(tagAdminError(error.message));
+    return { id: (data as any).id, name: (data as any).name };
+  },
+
+  async remove(id: string): Promise<void> {
+    const { error } = await supabase.rpc('support_tag_delete', { p_token: getSessionToken(), p_id: id });
+    if (error) throw new Error(tagAdminError(error.message));
+  },
+
+  /** Replace the supports on one tag. */
+  async setMembers(tagId: string, userIds: string[]): Promise<void> {
+    const { error } = await supabase.rpc('support_tag_set_members', { p_token: getSessionToken(), p_tag_id: tagId, p_user_ids: userIds });
+    if (error) throw new Error(tagAdminError(error.message));
+  },
+
+  /** Replace the tags on one support. */
+  async setUserTags(userId: string, tagIds: string[]): Promise<void> {
+    const { error } = await supabase.rpc('support_set_tags', { p_token: getSessionToken(), p_user_id: userId, p_tag_ids: tagIds });
+    if (error) throw new Error(tagAdminError(error.message));
+  },
+};
+
 // ── Support recaps ─────────────────────────────────────────────────────────
 
 export const supportRecapsApi = {

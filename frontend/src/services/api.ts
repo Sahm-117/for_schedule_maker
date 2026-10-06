@@ -42,6 +42,7 @@ import {
   myHubApi as supabaseMyHubApi,
   groupDiscussionApi as supabaseGroupDiscussionApi,
   supportKindApi as supabaseSupportKindApi,
+  supportTagsApi as supabaseSupportTagsApi,
   supportRecapsApi as supabaseSupportRecapsApi,
   notificationDeliveryApi as supabaseNotificationDeliveryApi,
   followUpChecksApi as supabaseFollowUpChecksApi,
@@ -810,6 +811,14 @@ export const myHubApi = USE_SUPABASE ? supabaseMyHubApi : {
   async getPrayerFocus(_hubId: string, _weekId: number): Promise<import('../types').HubPrayerFocus> { return { faithProjectId: null, participantName: null, groupName: null, projectText: null, setAt: null, prayedForIds: [], hubPrayerDone: false, prayerFinished: false }; },
   async setPrayerFocus(_hubId: string, _weekId: number, _faithProjectId: string | null): Promise<never> { return peopleUnavailable(); },
   async setPrayerState(_hubId: string, _weekId: number, _input: { hubPrayerDone?: boolean; prayerFinished?: boolean }): Promise<never> { return peopleUnavailable(); },
+};
+
+export const supportTagsApi = USE_SUPABASE ? supabaseSupportTagsApi : {
+  async getAll(): Promise<{ tags: import('../types').SupportTag[] }> { return { tags: [] }; },
+  async save(_id: string | null, _name: string): Promise<never> { return peopleUnavailable(); },
+  async remove(_id: string): Promise<never> { return peopleUnavailable(); },
+  async setMembers(_tagId: string, _userIds: string[]): Promise<never> { return peopleUnavailable(); },
+  async setUserTags(_userId: string, _tagIds: string[]): Promise<never> { return peopleUnavailable(); },
 };
 
 export const supportKindApi = USE_SUPABASE ? supabaseSupportKindApi : {
