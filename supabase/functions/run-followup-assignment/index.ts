@@ -119,6 +119,56 @@ Deno.serve(async (req) => {
       await notifyOwner(ownerId, batches[ownerId].count, batches[ownerId].names ?? [])
     }
 
+    // Teens go only to Teen Supports (assign_teen_contacts checks the teen switch itself and
+    // reads its own limit). Same notifications to the supports; admins hear about the
+    // opposite-gender fallbacks, and about teens nobody can take (once per 2 hours).
+    let teenSummary: Record<string, unknown> = { enabled: false }
+    try {
+      const { data: teen, error: teenError } = await supabase.rpc('assign_teen_contacts', { p_only_contact: null })
+      if (teenError) {
+        console.error('run-followup-assignment: assign_teen_contacts failed', teenError.message)
+      } else if (teen?.enabled) {
+        const teenBatches = (teen.batches ?? {}) as Record<string, { count: number; names: string[] }>
+        for (const ownerId of Object.keys(teenBatches)) {
+          await notifyOwner(ownerId, teenBatches[ownerId].count, teenBatches[ownerId].names ?? [])
+        }
+        const tellAdmins = async (title: string, body: string) => {
+          const { data: admins } = await supabase.from('User').select('id').eq('role', 'ADMIN').neq('isActive', false)
+          const adminIds = (admins ?? []).map((a: { id: string }) => a.id)
+          if (!adminIds.length) return
+          await insertNotifications(supabase, adminIds.map((userId: string) => ({ userId, title, body, path: '/follow-ups', type: 'FOLLOWUP_ASSIGNMENT' })))
+          const { data: subs } = await supabase.from('PushSubscription').select('userId, endpoint, p256dh, auth').in('userId', adminIds)
+          if (subs?.length) {
+            const payload = JSON.stringify({ title, body, icon: '/icon-192.png', tag: `fof-teen-${Date.now()}`, data: { path: '/follow-ups' } })
+            await sendToSubscriptions(webPush, supabase, subs as any[], payload)
+          }
+        }
+        const fallbacks = (teen.fallbacks ?? []) as Array<{ name: string; ownerName: string }>
+        if (fallbacks.length) {
+          await tellAdmins(
+            'A teen was given to an opposite-gender support',
+            fallbacks.map((f) => `${f.name} → ${f.ownerName}`).slice(0, 3).join(', ') + (fallbacks.length > 3 ? ` +${fallbacks.length - 3}` : '') + '. No same-gender Teen Support had room.',
+          )
+        }
+        const stuck = (teen.stuck ?? []) as Array<{ name: string; reason: string; createdAt: string }>
+        const waitingLong = stuck.filter((s) => Date.now() - new Date(s.createdAt).getTime() > 2 * 60 * 60 * 1000)
+        if (waitingLong.length) {
+          const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+          const { data: recent } = await supabase
+            .from('Notification').select('id').eq('title', 'Teens waiting for a Teen Support').gte('createdAt', since).limit(1)
+          if (!recent?.length) {
+            await tellAdmins(
+              'Teens waiting for a Teen Support',
+              `${waitingLong.length} ${waitingLong.length === 1 ? 'teen is' : 'teens are'} waiting: no Teen Support has room, or a number or gender is missing.`,
+            )
+          }
+        }
+        teenSummary = { enabled: true, assigned: teen.assigned ?? 0, fallbacks: fallbacks.length, stuck: stuck.length }
+      }
+    } catch (err) {
+      console.error('run-followup-assignment: teen assignment failed', String(err))
+    }
+
     // Reassignment sweep: ask quiet supports if they are following up, and hand their unmoved
     // people to active supports once the time is up. Never lets a failure here stop the rest.
     let reassignSummary: Record<string, unknown> = { enabled: false }
@@ -227,6 +277,7 @@ Deno.serve(async (req) => {
       waitingCount,
       alertSent,
       reassign: reassignSummary,
+      teen: teenSummary,
     })
   } catch (err) {
     console.error('run-followup-assignment: failed', String(err))

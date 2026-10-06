@@ -67,6 +67,14 @@ const normalisePhone = (raw: string | null | undefined): string | null => {
   return null
 }
 
+/** The form's "Below 18" wording, same list as fill_profile_from_form. */
+const isBelow18 = (answers: Record<string, unknown>): boolean =>
+  ['below 18', 'under 18', 'under-18', 'under18', '<18', 'below18'].includes(String(answers['Age Range?'] ?? '').trim().toLowerCase())
+
+/** A name as a sorted set of words, so "Abimbola Oluwaseye" equals "Oluwaseye Abimbola". Mirrors fof_name_key. */
+const nameKey = (name: string): string =>
+  Array.from(new Set(name.toLowerCase().trim().split(/\s+/).filter(Boolean))).sort().join(' ')
+
 /** Mirrors participantsApi.upsertFromFollowUpContact, which lives in the browser. */
 const upsertParticipant = async (contact: Record<string, unknown>) => {
   if (!contact.id) throw new Error('Cannot create a participant without a follow-up contact')
@@ -85,6 +93,7 @@ const upsertParticipant = async (contact: Record<string, unknown>) => {
     updatedAt: new Date().toISOString(),
   }
   if ('email' in contact) participantFields.email = contact.email
+  if (contact.ageRange) participantFields.ageRange = contact.ageRange
 
   if (existing) {
     const { error: updateError } = await supabase
@@ -102,6 +111,8 @@ const upsertParticipant = async (contact: Record<string, unknown>) => {
       phone: contact.phone,
       cohortId: contact.cohortId ?? null,
       ...(contact.email !== undefined ? { email: contact.email } : {}),
+      // A teen is created as one so the phone rule (teens may share a number) applies from the first write.
+      ...(contact.ageRange ? { ageRange: contact.ageRange } : {}),
       source: 'FOLLOW_UP',
       followUpContactId: contact.id,
     }])
@@ -119,7 +130,7 @@ const upsertParticipant = async (contact: Record<string, unknown>) => {
  * the target cohort wins over an unscoped open contact; contacts belonging to
  * another cohort are ignored so a retaker gets a new target-cohort record.
  */
-const findContact = async (normalised: string | null, targetCohortId: string | null) => {
+const findContact = async (normalised: string | null, targetCohortId: string | null, teenName: string | null = null) => {
   if (!normalised) return null
   // Numbers are stored as typed, so this compares in code rather than SQL;
   // with tens of active contacts that is cheaper than it looks, but it is the
@@ -131,8 +142,12 @@ const findContact = async (normalised: string | null, targetCohortId: string | n
   query = targetCohortId ? query.or(`cohortId.eq.${targetCohortId},cohortId.is.null`) : query.is('cohortId', null)
   const { data: candidates, error } = await query
   if (error) throw new Error(error.message)
+  // A teen's number is often a parent's, shared by brothers and sisters. For a
+  // "Below 18" form only a contact with the same name (in any word order) is the
+  // same person; anyone else on that number is a new teen, not a correction.
   const matches = ((candidates ?? []) as Array<Record<string, unknown>>)
     .filter((c) => normalisePhone(String(c.phone ?? '')) === normalised)
+    .filter((c) => !teenName || nameKey(String(c.fullName ?? '')) === nameKey(teenName))
   const targetMatch = matches.find((c) => targetCohortId && c.cohortId === targetCohortId)
   const unscopedOpenMatch = matches.find((c) =>
     c.cohortId == null && c.archivedAt == null && c.nextAction !== 'CLOSE'
@@ -214,7 +229,7 @@ Deno.serve(async (req) => {
       if (already) return json({ ok: true, outcome: 'DUPLICATE', wouldDo: 'Already imported; nothing would change.' })
     }
 
-    const match = await findContact(normalised, await currentProgrammeCohortId())
+    const match = await findContact(normalised, await currentProgrammeCohortId(), isBelow18(answers) ? fullName : null)
     return json({
       ok: true,
       outcome: match ? 'MATCHED' : 'CREATED',
@@ -270,7 +285,7 @@ Deno.serve(async (req) => {
 
     // Match on the normalised number rather than the raw text, so formatting
     // differences between the form and the app don't hide an existing prospect.
-    const contact = await findContact(normalised, cohortId)
+    const contact = await findContact(normalised, cohortId, isBelow18(answers) ? fullName : null)
 
     if (contact) {
       const adoptingUnscopedContact = contact.cohortId == null && cohortId != null
@@ -354,11 +369,14 @@ Deno.serve(async (req) => {
       phone,
       email: payload.email ? String(payload.email).trim() : null,
       cohortId: cohortId,
+      ageRange: isBelow18(answers) ? '18 and below' : undefined,
     })
 
     // An import of old sign-ups would otherwise raise one alert per row.
     if (!backfill) {
-      if (normalised) {
+      if (isBelow18(answers)) {
+        await tellAdmins('New teen sign-up from the form', `${fullName} signed up on the registration form as a teen. They go to a Teen Support.`)
+      } else if (normalised) {
         await tellAdmins('New sign-up from the form', `${fullName} signed up on the registration form. They're waiting to be assigned their login.`)
       } else {
         // run_followup_assignment holds these back until the number is fixed.
