@@ -30,6 +30,7 @@ import {
 } from '../utils/contactImport';
 import Spinner from '../components/Spinner';
 import { sortByText } from '../utils/sort';
+import { AGE_FILTER_OPTIONS, GENDER_FILTER_OPTIONS, matchesGenderAge } from '../utils/people';
 import { reconcileById } from '../utils/reconcile';
 import { normalizeToIntlPhone } from '../utils/phone';
 import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
@@ -760,6 +761,8 @@ const AdminParticipantsContent: React.FC = () => {
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState(''); // '' = all, '__UNASSIGNED__' = no group, else groupId
+  const [genderFilter, setGenderFilter] = useState('');
+  const [ageFilter, setAgeFilter] = useState('');
   const [supportFilter, setSupportFilter] = useState(''); // '' = all, else supportId
   const [addOpen, setAddOpen] = useState(false);
   // A participant just added here: show their login details straight away.
@@ -955,12 +958,13 @@ const AdminParticipantsContent: React.FC = () => {
     if (healthFilter && healthById.size > 0) ps = ps.filter((p) => healthById.get(p.id)?.health === healthFilter);
     if (noAlertsOnly) ps = ps.filter((p) => noAlertsIds.has(p.id));
     if (departmentFilter) ps = ps.filter((p) => wrapUpDeptById.get(p.id)?.has(departmentFilter));
+    if (genderFilter || ageFilter) ps = ps.filter((p) => matchesGenderAge(p, genderFilter, ageFilter));
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant, healthFilter, healthById, incompleteOnly, completionById, noAlertsOnly, noAlertsIds, departmentFilter, wrapUpDeptById]);
+  }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant, healthFilter, healthById, incompleteOnly, completionById, noAlertsOnly, noAlertsIds, departmentFilter, genderFilter, ageFilter, wrapUpDeptById]);
 
   const unassignedCount = useMemo(
     () => counted.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
@@ -1228,6 +1232,12 @@ const AdminParticipantsContent: React.FC = () => {
                   />
                 </div>
               )}
+              <div className="min-w-0">
+                <AppSelect value={genderFilter} onChange={setGenderFilter} options={GENDER_FILTER_OPTIONS} placeholder="All genders" compact />
+              </div>
+              <div className="min-w-0">
+                <AppSelect value={ageFilter} onChange={setAgeFilter} options={AGE_FILTER_OPTIONS} placeholder="All ages" compact />
+              </div>
             </div>
           </div>
 

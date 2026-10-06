@@ -26,7 +26,7 @@ import SupportTagsModal from '../components/supports/SupportTagsModal';
 import { PERSON_OF_INTEREST_INFO } from '../components/hubs/hubJobs';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
-import { activeDot, activeStatus, genderAgeLine, isSupportProfileComplete, hasSupportRole } from '../utils/people';
+import { activeDot, activeStatus, genderAgeLine, isSupportProfileComplete, hasSupportRole, matchesGenderAge, GENDER_FILTER_OPTIONS, AGE_FILTER_OPTIONS } from '../utils/people';
 import { openLoadByOwner } from '../utils/followUps';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import {
@@ -100,6 +100,8 @@ const AdminSupportsPage: React.FC = () => {
   const incompleteOnly = searchParams.get('profile') === 'incomplete';
   const kindParam = searchParams.get('kind');
   const kindFilter: SupportKind | '' = kindParam === 'PARTICIPANT_SUPPORT' || kindParam === 'HUB_LEAD' || kindParam === 'OPERATIONAL' ? kindParam : '';
+  const genderFilter = searchParams.get('gender') ?? '';
+  const ageFilter = searchParams.get('age') ?? '';
   const [exportOpen, setExportOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const pageTab = searchParams.get('tab') === 'trainings' ? 'trainings' : 'supports';
@@ -307,6 +309,10 @@ const AdminSupportsPage: React.FC = () => {
       if (!u || isSupportProfileComplete(u)) return false;
     }
     if (kindFilter && (kinds[userId] ?? 'PARTICIPANT_SUPPORT') !== kindFilter) return false;
+    if (genderFilter || ageFilter) {
+      const u = usersById.get(userId);
+      if (!u || !matchesGenderAge(u, genderFilter, ageFilter)) return false;
+    }
     return true;
   };
 
@@ -482,6 +488,12 @@ const AdminSupportsPage: React.FC = () => {
                 placeholder="All roles"
                 compact
               />
+            </div>
+            <div className="min-w-0 sm:w-64">
+              <AppSelect value={genderFilter} onChange={(v) => setParam('gender', v)} options={GENDER_FILTER_OPTIONS} placeholder="All genders" compact />
+            </div>
+            <div className="min-w-0 sm:w-64">
+              <AppSelect value={ageFilter} onChange={(v) => setParam('age', v)} options={AGE_FILTER_OPTIONS} placeholder="All ages" compact />
             </div>
           </div>
 

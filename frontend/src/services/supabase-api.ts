@@ -1,6 +1,7 @@
 import { supabase, SESSION_TOKEN_KEY } from '../lib/supabase';
 import { normaliseRules } from '../utils/programmeRules';
 import { normaliseGroupingRules } from '../utils/groupingRules';
+import { normaliseSavedDraft } from '../utils/groupingEngine';
 import { normaliseRecapReleaseTimes } from '../utils/recapReleaseTimes';
 import { normaliseClassFeedbackTimes } from '../utils/classFeedbackTimes';
 import { normaliseClassStartTime } from '../utils/classStartTime';
@@ -149,7 +150,7 @@ const friendlyUserError = (rawMessage: string | undefined, fallback: string): st
 const withActedAs = (name: string | null, actedAs?: string | null): string | null =>
   (name && actedAs === 'ADMIN' ? `${name} (Admin)` : name);
 
-const USER_SELECT = 'id, email, phone, name, role, roles, "isActive", "isTest", "deactivatedAt", "isCoordinator", "avatarUrl", "themeColor", "hubLastSeenAt", "whatsappGroupUrl", gender, "ageRange", birthday, "onboardingCompleted", "onboardingReplayCount", "onboardingLastReplayAt", "mustChangePassword", "createdAt", "updatedAt"';
+const USER_SELECT = 'id, email, phone, name, role, roles, "isActive", "isTest", "deactivatedAt", "isCoordinator", "avatarUrl", "themeColor", "birthYear", "hubLastSeenAt", "whatsappGroupUrl", gender, "ageRange", birthday, "onboardingCompleted", "onboardingReplayCount", "onboardingLastReplayAt", "mustChangePassword", "createdAt", "updatedAt"';
 
 export const authApi = {
   async login(identifier: string, password: string): Promise<AuthResponse> {
@@ -2117,6 +2118,24 @@ export const settingsApi = {
     return value;
   },
 
+  // A build saved part-way in the group builder (one per cohort). Cleared by writing an empty object.
+  async getGroupingDraft(cohortId: string): Promise<import('../utils/groupingEngine').SavedGroupingDraft | null> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', `grouping_draft_${cohortId}`)
+      .maybeSingle();
+    if (error) return null;
+    return normaliseSavedDraft((data as any)?.value);
+  },
+
+  async setGroupingDraft(cohortId: string, draft: import('../utils/groupingEngine').SavedGroupingDraft | null): Promise<void> {
+    const { error } = await supabase
+      .from('AppSetting')
+      .upsert([{ settingKey: `grouping_draft_${cohortId}`, value: draft ?? {}, updatedAt: new Date().toISOString() }], { onConflict: 'settingKey' });
+    if (error) throw new Error(error.message);
+  },
+
   // When supports and participants get a week's recap (Settings > Programme > Timings).
   async getRecapReleaseTimes(): Promise<import('../utils/recapReleaseTimes').RecapReleaseTimes> {
     const { data, error } = await supabase
@@ -2710,6 +2729,13 @@ export const usersApi = {
     const { data, error } = await supabase.rpc('user_last_active', { p_user_id: userId });
     if (error) throw new Error(error.message);
     return (data as string | null) ?? null;
+  },
+
+  /** Adds (or clears) the birth year; the database then sets the age range from it. Returns the resulting age range. */
+  async saveBirthYear(userId: string, birthYear: number | null): Promise<{ ageRange: string | null }> {
+    const { data, error } = await supabase.from('User').update({ birthYear, updatedAt: new Date().toISOString() }).eq('id', userId).select('ageRange').single();
+    if (error) throw new Error(error.message);
+    return { ageRange: (data as any)?.ageRange ?? null };
   },
 
   async saveBirthday(userId: string, birthday: string | null): Promise<void> {
@@ -3593,6 +3619,18 @@ export const participantAppApi = {
     const { error } = await supabase.rpc('set_participant_avatar', { p_token: getSessionToken(), p_url: urlData.publicUrl });
     if (error) throw participantAppError(error.message, 'Could not save your photo.');
     return { avatarUrl: urlData.publicUrl };
+  },
+
+  /** Their saved accent colour, or null for the default. */
+  async getTheme(): Promise<string | null> {
+    const { data, error } = await supabase.rpc('participant_theme', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not load your colour.');
+    return (data as string | null) ?? null;
+  },
+
+  async setTheme(color: string | null): Promise<void> {
+    const { error } = await supabase.rpc('set_participant_theme', { p_token: getSessionToken(), p_color: color });
+    if (error) throw participantAppError(error.message, 'Could not save your colour.');
   },
 
   // Saves their details and answers to requested fields; returns the new completion.

@@ -77,6 +77,8 @@ export interface User {
   ageRange?: string | null;
   /** Birthday as MM-DD (no year). Optional; not part of profile completion. */
   birthday?: string | null;
+  /** Optional birth year. Once set, the age range follows it (the database keeps them in line). */
+  birthYear?: number | null;
   /** Set by an admin-issued reset: the app blocks until they pick a new password. */
   mustChangePassword?: boolean;
   /** Participant app only: the participant record behind this sign-in. */

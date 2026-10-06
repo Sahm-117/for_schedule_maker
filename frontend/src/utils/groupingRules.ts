@@ -25,8 +25,8 @@ export interface TagRule {
   enabled: boolean;
   /** Empty = any age. */
   ageRanges: string[];
-  /** null = any gender. */
-  gender: 'Female' | 'Male' | null;
+  /** 'Female' / 'Male' = only all-women / all-men groups; 'SAME' = any group that is all one gender; null = any gender (mixed groups too). */
+  gender: 'Female' | 'Male' | 'SAME' | null;
 }
 
 export interface GroupingRules {
@@ -123,7 +123,7 @@ const normaliseTagRules = (value: unknown): TagRule[] => {
       tagId: row.tagId,
       enabled: row.enabled === true,
       ageRanges: Array.isArray(row.ageRanges) ? [...new Set(row.ageRanges.filter((r): r is string => typeof r === 'string' && AGE_RANGE_OPTIONS.includes(r)))] : [],
-      gender: row.gender === 'Female' || row.gender === 'Male' ? row.gender : null,
+      gender: row.gender === 'Female' || row.gender === 'Male' || row.gender === 'SAME' ? row.gender : null,
     });
   }
   return out;

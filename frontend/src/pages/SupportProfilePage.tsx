@@ -1,16 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Spinner from '../components/Spinner';
 
-const THEME_SWATCHES = [
-  { hex: '#ff914d', label: 'Coral' },
-  { hex: '#ec4899', label: 'Pink' },
-  { hex: '#8b5cf6', label: 'Purple' },
-  { hex: '#0ea5e9', label: 'Sky' },
-  { hex: '#14b8a6', label: 'Teal' },
-  { hex: '#10b981', label: 'Emerald' },
-  { hex: '#f43f5e', label: 'Rose' },
-  { hex: '#64748b', label: 'Slate' },
-];
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAppData } from '../context/AppDataContext';
@@ -20,7 +10,7 @@ import NotificationSettings from '../components/NotificationSettings';
 import AppStatusCard from '../components/AppStatusCard';
 import { useAuth } from '../hooks/useAuth';
 import Avatar from '../components/Avatar';
-import { applyTheme, DEFAULT_THEME } from '../utils/theme';
+import { applyTheme, DEFAULT_THEME, THEME_SWATCHES } from '../utils/theme';
 import AppSelect from '../components/AppSelect';
 import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
 import ProfileCompletionStrip from '../components/supports/ProfileCompletionStrip';
@@ -122,6 +112,21 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
       setDetailsError('Could not save. Please try again.');
     }
   };
+  // Birth year is optional too. Adding it sets the age range from it (the database does the sum).
+  const [birthYear, setBirthYear] = useState<string>(user.birthYear ? String(user.birthYear) : '');
+  const saveBirthYear = async (value: string) => {
+    const previous = birthYear;
+    setBirthYear(value);
+    setDetailsError('');
+    try {
+      const { ageRange: derived } = await usersApi.saveBirthYear(user.id, value ? Number(value) : null);
+      refreshUser({ birthYear: value ? Number(value) : null, ageRange: derived });
+      if (value && derived) setAgeRange(derived);
+    } catch {
+      setBirthYear(previous);
+      setDetailsError('Could not save. Please try again.');
+    }
+  };
   const birthdayDays = birthdayDraft.month ? new Date(2024, Number(birthdayDraft.month), 0).getDate() : 31;
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,18 +224,22 @@ const SupportProfileContent: React.FC<{ user: User }> = ({ user }) => {
                 <div className="w-40"><AppSelect value={gender} onChange={(value) => { void saveDetails({ gender: value, ageRange }); }} options={toSelectOptions(GENDER_OPTIONS)} placeholder="Choose…" compact /></div>
               </Row>
               <Row label="Age range" missing={!ageRange}>
-                <div className="w-40"><AppSelect value={ageRange} onChange={(value) => { void saveDetails({ gender, ageRange: value }); }} options={toSelectOptions(AGE_RANGE_OPTIONS)} placeholder="Choose…" compact /></div>
+                <div className="w-40"><AppSelect value={ageRange} onChange={(value) => { void saveDetails({ gender, ageRange: value }); }} options={toSelectOptions(AGE_RANGE_OPTIONS)} placeholder="Choose…" compact disabled={!!birthYear} /></div>
               </Row>
               <Row label="Birthday">
                 <div className="flex items-center gap-2">
                   <div className="w-[4.25rem]"><AppSelect value={birthdayDraft.day} onChange={(v) => { void saveBirthday({ ...birthdayDraft, day: v }); }} options={BIRTHDAY_DAYS.slice(0, birthdayDays)} placeholder="Day" compact /></div>
-                  <div className="w-24"><AppSelect value={birthdayDraft.month} onChange={(v) => { void saveBirthday({ month: v, day: birthdayDraft.day && Number(birthdayDraft.day) <= new Date(2024, Number(v), 0).getDate() ? birthdayDraft.day : '' }); }} options={BIRTHDAY_MONTHS} placeholder="Month" compact /></div>
+                  <div className="w-[4.75rem]"><AppSelect value={birthdayDraft.month} onChange={(v) => { void saveBirthday({ month: v, day: birthdayDraft.day && Number(birthdayDraft.day) <= new Date(2024, Number(v), 0).getDate() ? birthdayDraft.day : '' }); }} options={BIRTHDAY_MONTHS} placeholder="Month" compact /></div>
+                  <div className="w-[5.25rem]"><AppSelect value={birthYear} onChange={(v) => { void saveBirthYear(v); }} options={BIRTH_YEARS} placeholder="Year" compact /></div>
                   {(birthdayDraft.month || birthdayDraft.day) && (
                     <button type="button" onClick={() => { void saveBirthday({ month: '', day: '' }); }} aria-label="Clear birthday" className="px-1 text-base leading-none text-gray-400 hover:text-gray-600">×</button>
                   )}
+                  {birthYear && (
+                    <button type="button" onClick={() => { void saveBirthYear(''); }} aria-label="Clear birth year" title="Clear year" className="px-1 text-base leading-none text-gray-400 hover:text-gray-600">×</button>
+                  )}
                 </div>
               </Row>
-              <p className="-mt-1 px-4 pb-2 text-xs text-gray-400">Optional. Only the day and month are saved, so admins can celebrate you.</p>
+              <p className="-mt-1 px-4 pb-2 text-xs text-gray-400">Optional. The day and month let admins celebrate you. Adding your year also sets your age range for you.</p>
 {!editingPhone ? (
                 <div>
                 <Row label="Phone" missing={!phone}>
@@ -342,6 +351,7 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 );
 
 // One row: label on the left (orange dot when it's still needed), control on the right.
+const BIRTH_YEARS = Array.from({ length: 90 }, (_, i) => { const y = new Date().getFullYear() - 10 - i; return { value: String(y), label: String(y) }; });
 const BIRTHDAY_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((label, i) => ({ value: String(i + 1).padStart(2, '0'), label }));
 const BIRTHDAY_DAYS = Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1).padStart(2, '0'), label: String(i + 1) }));
 

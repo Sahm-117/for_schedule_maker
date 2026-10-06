@@ -119,6 +119,15 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
     if (value === profileUser?.birthday) return;
     void saveField({ birthday: value }, () => usersApi.saveBirthday(profileUser!.id, value));
   };
+  // Birth year is optional; once set, the database sets the age range from it.
+  const pickBirthYear = (value: string) => {
+    const year = value ? Number(value) : null;
+    void saveField({ birthYear: year }, async () => {
+      const { ageRange } = await usersApi.saveBirthYear(profileUser!.id, year);
+      setProfileUser((prev) => (prev ? { ...prev, ageRange } : prev));
+      onUserUpdated?.(profileUser!.id, { ageRange });
+    });
+  };
   const daysInMonth = birthdayDraft.month ? new Date(2024, Number(birthdayDraft.month), 0).getDate() : 31;
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -202,13 +211,16 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
                   <div className="w-40"><AppSelect value={profileUser.gender ?? ''} onChange={(v) => void saveDetails({ gender: v || null, ageRange: profileUser.ageRange ?? null })} options={toSelectOptions(GENDER_OPTIONS)} placeholder="Choose…" compact /></div>
                 </DetailRow>
                 <DetailRow label="Age range" missing={!profileUser.ageRange}>
-                  <div className="w-40"><AppSelect value={profileUser.ageRange ?? ''} onChange={(v) => void saveDetails({ gender: profileUser.gender ?? null, ageRange: v || null })} options={toSelectOptions(AGE_RANGE_OPTIONS)} placeholder="Choose…" compact /></div>
+                  <div className="w-40"><AppSelect value={profileUser.ageRange ?? ''} onChange={(v) => void saveDetails({ gender: profileUser.gender ?? null, ageRange: v || null })} options={toSelectOptions(AGE_RANGE_OPTIONS)} placeholder="Choose…" compact disabled={!!profileUser.birthYear} /></div>
                 </DetailRow>
                 <DetailRow label="Birthday" hint="Optional">
                   <div className="flex w-40 gap-1.5">
                     <div className="w-[4.25rem]"><AppSelect value={birthdayDraft.day} onChange={(v) => pickBirthday({ ...birthdayDraft, day: v })} options={DAY_OPTIONS.slice(0, daysInMonth)} placeholder="Day" compact /></div>
                     <div className="flex-1"><AppSelect value={birthdayDraft.month} onChange={(v) => pickBirthday({ month: v, day: birthdayDraft.day && Number(birthdayDraft.day) <= new Date(2024, Number(v), 0).getDate() ? birthdayDraft.day : '' })} options={MONTH_OPTIONS} placeholder="Month" compact /></div>
                   </div>
+                </DetailRow>
+                <DetailRow label="Birth year" hint="Optional. Sets the age range">
+                  <div className="w-40"><AppSelect value={profileUser.birthYear ? String(profileUser.birthYear) : ''} onChange={pickBirthYear} options={[{ value: '', label: 'Not given' }, ...BIRTH_YEAR_OPTIONS]} placeholder="Year" compact /></div>
                 </DetailRow>
                 {!editingPhone ? (
                   <DetailRow label="Phone" missing={!profileUser.phone}>
@@ -292,6 +304,7 @@ const HubAuthorProfileModal: React.FC<HubAuthorProfileModalProps> = ({ userId, i
   );
 };
 
+const BIRTH_YEAR_OPTIONS = Array.from({ length: 90 }, (_, i) => { const y = new Date().getFullYear() - 10 - i; return { value: String(y), label: String(y) }; });
 const MONTH_OPTIONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   .map((label, i) => ({ value: String(i + 1).padStart(2, '0'), label }));
 const DAY_OPTIONS = Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1).padStart(2, '0'), label: String(i + 1) }));

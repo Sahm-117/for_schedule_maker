@@ -5,6 +5,7 @@ import AppSelect from '../AppSelect';
 import Avatar from '../Avatar';
 import Spinner from '../Spinner';
 import SupportTagsModal from '../supports/SupportTagsModal';
+import { useAuth } from '../../hooks/useAuth';
 import { cohortsApi, groupsApi, settingsApi, supportKindApi, supportTagsApi } from '../../services/api';
 import type { Group, Participant, SupportKind, SupportTag, User } from '../../types';
 import { AGE_RANGE_OPTIONS } from '../../constants/departments';
@@ -18,6 +19,7 @@ import {
   type SeedGroup,
   type EnginePerson,
   type EngineSupport,
+  type SavedGroupingDraft,
 } from '../../utils/groupingEngine';
 
 // Groups → New group → "Build with engine". Four steps: check who's ready,
@@ -127,6 +129,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   isOpen, onClose, onCreated, cohortId, cohortName, participants, groups, supportUsers, trainingCounts, trainingsTotal, minTrainingsAttended,
 }) => {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [step, setStep] = useState<Step>('people');
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -151,6 +154,10 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const [tagSaving, setTagSaving] = useState<string | null>(null);
   const [ignoredAges, setIgnoredAges] = useState<Set<string>>(new Set());
   const [draftInfo, setDraftInfo] = useState<{ ignored: number; tagNotes: string[] }>({ ignored: 0, tagNotes: [] });
+  // A build saved part-way earlier (one per cohort), and the note after continuing it.
+  const [saved, setSaved] = useState<SavedGroupingDraft | null>(null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftNote, setDraftNote] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -165,6 +172,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setIgnoredAges(new Set());
     setTagEditFor(null);
     setDraftInfo({ ignored: 0, tagNotes: [] });
+    setSaved(null);
+    setDraftNote('');
     createdAny.current = false;
     setLoading(true);
     Promise.all([
@@ -172,8 +181,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
       cohortsApi.getMembers(cohortId).then((r) => new Set(r.users.map((u) => u.id))).catch(() => new Set<string>()),
       settingsApi.getGroupingRules(cohortId).catch(() => DEFAULT_GROUPING_RULES),
       supportTagsApi.getAll().then((r) => r.tags).catch(() => [] as SupportTag[]),
+      settingsApi.getGroupingDraft(cohortId).catch(() => null),
     ])
-      .then(([k, m, r, t]) => { setKinds(k); setMemberIds(m); setRules(r); setTags(t); })
+      .then(([k, m, r, t, d]) => { setKinds(k); setMemberIds(m); setRules(r); setTags(t); setSaved(d); })
       .catch(() => setErr('Could not load everything. Please retry.'))
       .finally(() => setLoading(false));
   }, [isOpen, cohortId]);
@@ -310,6 +320,68 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const toCreate = draft.filter((g) => g.memberIds.length > 0);
   const noSupportCount = toCreate.filter((g) => !g.supportId).length;
 
+  // ── Save a draft, and come back to it ──
+  const saveDraft = async () => {
+    setSavingDraft(true);
+    setErr('');
+    try {
+      await settingsApi.setGroupingDraft(cohortId, {
+        savedAt: new Date().toISOString(),
+        savedByName: currentUser?.name ?? '',
+        groups: draft,
+        ignoredAgeRanges: [...ignoredAges],
+        includeMissedTraining,
+        emptyChoice,
+      });
+      setDraftNote('Draft saved. Open the builder again to continue it.');
+    } catch (e: any) {
+      setErr(e?.message ? `Couldn't save the draft: ${e.message}` : "Couldn't save the draft. Try again.");
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const clearSavedDraft = async () => {
+    setSaved(null);
+    await settingsApi.setGroupingDraft(cohortId, null).catch(() => {});
+  };
+
+  // Bring a saved draft back, dropping whatever has changed since: people grouped meanwhile,
+  // supports no longer free, empty groups that were filled or removed.
+  const continueDraft = () => {
+    if (!saved) return;
+    const stillUngrouped = new Set(people.keys());
+    const freeIds = new Set(supportPool.free.map((s) => s.id));
+    const emptyIds = new Set(emptyGroups.map((g) => g.id));
+    const placed = new Set<string>();
+    let droppedPeople = 0;
+    let droppedSupports = 0;
+    const restored: DraftGroup[] = saved.groups.map((g) => {
+      const memberIds = g.memberIds.filter((id) => {
+        const ok = stillUngrouped.has(id) && !placed.has(id);
+        if (ok) placed.add(id); else droppedPeople += 1;
+        return ok;
+      });
+      const seedSupport = g.existingGroupId ? seeds.find((x) => x.id === g.existingGroupId)?.support?.id : undefined;
+      const supportOk = !g.supportId || freeIds.has(g.supportId) || g.supportId === seedSupport;
+      if (!supportOk) droppedSupports += 1;
+      const existing = g.existingGroupId && emptyIds.has(g.existingGroupId) ? g.existingGroupId : undefined;
+      return { ...g, memberIds, supportId: supportOk ? g.supportId : null, existingGroupId: existing };
+    });
+    setIgnoredAges(new Set(saved.ignoredAgeRanges));
+    setIncludeMissedTraining(saved.includeMissedTraining);
+    setEmptyChoice(saved.emptyChoice);
+    setDraft(restored);
+    setLeftOut([...people.values()].filter((p) => !placed.has(p.id)).map((p) => p.id));
+    setPicked(null);
+    setDraftNote([
+      droppedPeople > 0 ? `${droppedPeople} ${droppedPeople === 1 ? 'person was' : 'people were'} grouped since you saved and ${droppedPeople === 1 ? 'was' : 'were'} taken out.` : '',
+      droppedSupports > 0 ? `${droppedSupports} ${droppedSupports === 1 ? 'support is' : 'supports are'} no longer free and ${droppedSupports === 1 ? 'was' : 'were'} removed from their group.` : '',
+    ].filter(Boolean).join(' '));
+    setSaved(null);
+    setStep('draft');
+  };
+
   // ── Create ──
   const create = async () => {
     setCreating(true);
@@ -338,6 +410,10 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const doneCount = toCreate.filter((g) => statuses[g.key] === 'done').length;
   const failedCount = toCreate.filter((g) => statuses[g.key] === 'failed').length;
   const allDone = toCreate.length > 0 && doneCount === toCreate.length;
+  // Everything created: the saved draft has done its job.
+  useEffect(() => {
+    if (allDone) void settingsApi.setGroupingDraft(cohortId, null).catch(() => {});
+  }, [allDone, cohortId]);
 
   const close = () => {
     if (creating) return;
@@ -438,9 +514,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     const primary = 'rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50';
     if (step === 'people') return (<><button type="button" onClick={close} className={quiet}>Cancel</button><button type="button" disabled={loading || readyCount === 0 || (emptyGroups.length > 0 && !emptyChoice)} onClick={() => setStep('rules')} className={primary}>Next: rules</button></>);
     if (step === 'rules') return (<><button type="button" onClick={() => setStep('people')} className={quiet}>Back</button><button type="button" disabled={savingRules} onClick={() => void saveRulesAndBuild()} className={primary}>{savingRules ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span> : 'Save rules & build'}</button></>);
-    if (step === 'draft') return (<><button type="button" onClick={() => setStep('rules')} className={quiet}>Back</button><button type="button" onClick={() => rebuild()} className={quiet}>Rebuild</button><button type="button" disabled={toCreate.length === 0} onClick={() => setStep('create')} className={primary}>Create {toCreate.length}</button></>);
+    if (step === 'draft') return (<><button type="button" onClick={() => setStep('rules')} className={quiet}>Back</button><button type="button" onClick={() => rebuild()} className={quiet}>Rebuild</button><button type="button" disabled={savingDraft} onClick={() => void saveDraft()} className={quiet}>{savingDraft ? 'Saving…' : 'Save draft'}</button><button type="button" disabled={toCreate.length === 0} onClick={() => setStep('create')} className={primary}>Create {toCreate.length}</button></>);
     if (allDone) return <button type="button" onClick={close} className={primary}>View groups</button>;
-    return (<><button type="button" disabled={creating || doneCount > 0} onClick={() => setStep('draft')} className={quiet}>Back</button><button type="button" disabled={creating} onClick={() => void create()} className={primary}>{creating ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Creating…</span> : failedCount > 0 ? 'Retry failed' : `Create ${toCreate.length} groups`}</button></>);
+    return (<><button type="button" disabled={creating || doneCount > 0} onClick={() => setStep('draft')} className={quiet}>Back</button><button type="button" disabled={creating || savingDraft || doneCount > 0} onClick={() => void saveDraft()} className={quiet}>{savingDraft ? 'Saving…' : 'Save draft'}</button><button type="button" disabled={creating} onClick={() => void create()} className={primary}>{creating ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Creating…</span> : failedCount > 0 ? 'Retry failed' : `Create ${toCreate.length} groups`}</button></>);
   })();
 
   return createPortal(
@@ -476,6 +552,20 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
             <div className="flex justify-center py-16"><Spinner className="h-6 w-6" /></div>
           ) : step === 'people' ? (
             <div className="flex flex-col gap-4">
+              {saved && (
+                <div className={`${SURFACE} flex flex-wrap items-center justify-between gap-3 p-4`}>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">You have a saved draft</p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {saved.groups.filter((g) => g.memberIds.length > 0).length} groups{saved.savedAt ? ` · saved ${new Date(saved.savedAt).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}{saved.savedByName ? ` by ${saved.savedByName}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => void clearSavedDraft()} className="rounded-2xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 active:scale-95">Discard</button>
+                    <button type="button" onClick={continueDraft} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">Continue draft</button>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <StatTile value={readyCount} label="Ready to group" />
                 <StatTile value={needsInfo.length} label="Need gender/age" tone="amber" />
@@ -724,8 +814,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                                   </div>
                                 </div>
                                 <div>
-                                  <p className="mb-1 text-[11px] font-medium text-gray-500">And gender</p>
-                                  <Segmented value={rule.gender ?? ''} onChange={(v) => updateTagRule(tag.id, { gender: v === 'Female' || v === 'Male' ? v : null })} options={[{ value: '', label: 'Any' }, { value: 'Female', label: 'Women' }, { value: 'Male', label: 'Men' }]} />
+                                  <p className="mb-1 text-[11px] font-medium text-gray-500">And groups that are</p>
+                                  <Segmented value={rule.gender ?? ''} onChange={(v) => updateTagRule(tag.id, { gender: v === 'Female' || v === 'Male' || v === 'SAME' ? v : null })} options={[{ value: 'Male', label: 'Men' }, { value: 'Female', label: 'Women' }, { value: 'SAME', label: 'Same gender' }, { value: '', label: 'Any' }]} />
+                                  <p className="mt-1 text-[11px] text-gray-400">Men or Women: only all-men or all-women groups. Same gender: any group that is all one gender. Any: mixed groups too.</p>
                                 </div>
                                 {noCriteria && <p className="text-[11px] font-semibold text-amber-700">Pick an age range or a gender, or this tag has nothing to match.</p>}
                               </div>
@@ -755,6 +846,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   {draftInfo.tagNotes.map((note) => <p key={note}>{note}</p>)}
                 </div>
               )}
+              {draftNote && <p className="rounded-2xl bg-sky-100/80 px-3 py-2 text-[12px] font-semibold text-sky-700">{draftNote}</p>}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {draft.map((g) => {
                   const notes = evaluateGroup(g, people, supportById, effectiveRules, tagNames);
@@ -812,6 +904,32 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   </>
                 )}
               </div>
+              {(() => {
+                const unused = supportPool.free.filter((s) => !usedSupports.has(s.id));
+                return (
+                  <div className={`${SURFACE} p-4`}>
+                    <p className={SECTION_LABEL}>Supports without a group ({unused.length})</p>
+                    {unused.length === 0 ? (
+                      <p className="mt-2 text-sm text-gray-500">Every available support has a group.</p>
+                    ) : (
+                      <>
+                        <div className="mt-2 grid gap-0.5 sm:grid-cols-2 lg:grid-cols-3">
+                          {unused.map((s) => (
+                            <div key={s.id} className="flex items-center gap-2.5 rounded-2xl px-2 py-1.5">
+                              <Avatar name={s.name} avatarUrl={supportUsers.find((u) => u.id === s.id)?.avatarUrl} size="sm" />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-[13px] font-medium text-gray-900">{s.name}</p>
+                                <p className="truncate text-[11px] text-gray-500">{[s.gender, s.ageRange ? shortAge(s.ageRange) : null, ...(s.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean)].filter(Boolean).join(' · ') || 'Details missing'}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-[11px] text-gray-400">Available to the engine but not given a group in this draft. Pick one on any group above to use them.</p>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             <div className="flex flex-col gap-3">

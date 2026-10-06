@@ -190,14 +190,14 @@ const groupGender = (members: EnginePerson[]): string | null => {
 
 const ruleMatches = (rule: TagRule, person: EnginePerson) =>
   (rule.ageRanges.length === 0 || (!!person.ageRange && rule.ageRanges.includes(person.ageRange)))
-  && (!rule.gender || person.gender === rule.gender);
+  && (!rule.gender || rule.gender === 'SAME' || person.gender === rule.gender);
 
 /** An enabled rule with nothing to match on would fit every group, so it is ignored. */
 const activeTagRules = (rules: GroupingRules) => rules.tagRules.filter((r) => r.enabled && (r.ageRanges.length > 0 || !!r.gender));
 
 /** The first (highest priority) tag rule a whole group fits, or null. */
 export const groupTagRule = (members: EnginePerson[], rules: GroupingRules): TagRule | null =>
-  members.length === 0 ? null : activeTagRules(rules).find((r) => members.every((m) => ruleMatches(r, m))) ?? null;
+  members.length === 0 ? null : activeTagRules(rules).find((r) => members.every((m) => ruleMatches(r, m)) && (r.gender !== 'SAME' || groupGender(members) !== null)) ?? null;
 
 /** Tags on this support that have an active rule: they belong with matching groups. */
 const restrictedTagIds = (support: EngineSupport, rules: GroupingRules) => {
@@ -300,9 +300,9 @@ export const buildDraft = (
   // Split into pools: by gender when groups are one gender, then by age range
   // when similar ages are a Must (a group never crosses a range).
   const splitGender = rules.genderMix === 'SAME';
-  const splitPools = (list: EnginePerson[]): EnginePerson[][] => {
+  const splitPools = (list: EnginePerson[], forceGenderSplit = false): EnginePerson[][] => {
     let pools: EnginePerson[][] = [list];
-    if (splitGender) pools = ['Female', 'Male'].map((g) => list.filter((p) => p.gender === g));
+    if (splitGender || forceGenderSplit) pools = ['Female', 'Male'].map((g) => list.filter((p) => p.gender === g));
     if (rules.ageMix === 'SIMILAR' && rules.ageStrength === 'MUST') {
       pools = pools.flatMap((pool) => AGE_RANGE_OPTIONS.map((range) => pool.filter((p) => p.ageRange === range)));
     }
@@ -311,7 +311,7 @@ export const buildDraft = (
     // A one-gender pool too small for a group: if gender is only a preference,
     // fold it into the other gender's pool (shows as "Mixed genders") rather than
     // leaving a tiny group; with a Must size it would otherwise be unplaced.
-    if (splitGender && rules.genderStrength === 'PREFER' && pools.length > 1) {
+    if (splitGender && !forceGenderSplit && rules.genderStrength === 'PREFER' && pools.length > 1) {
       const small = pools.filter((pool) => pool.length < rules.minSize);
       if (small.length > 0 && small.length < pools.length) {
         const big = pools.filter((pool) => pool.length >= rules.minSize).sort((a, b) => b.length - a.length);
@@ -337,14 +337,14 @@ export const buildDraft = (
     }
     const taken = new Set(matching.map((p) => p.id));
     rest = rest.filter((p) => !taken.has(p.id));
-    pools.push(...splitPools(matching));
+    pools.push(...splitPools(matching, rule.gender === 'SAME'));
   });
   pools.push(...splitPools(rest));
 
   const memberLists: string[][] = [];
   const unplaced: string[] = [];
   pools.forEach((pool) => {
-    const result = groupPool(pool, rules, splitGender);
+    const result = groupPool(pool, rules, splitGender || new Set(pool.map((p) => p.gender)).size === 1);
     memberLists.push(...result.groups.filter((g) => g.length > 0));
     unplaced.push(...result.unplaced);
   });
@@ -440,4 +440,41 @@ export const evaluateGroup = (
     }
   }
   return notes;
+};
+
+/** A build saved part-way (Groups > New group > Build with engine > Save draft), kept per cohort. */
+export interface SavedGroupingDraft {
+  savedAt: string;
+  savedByName: string;
+  groups: DraftGroup[];
+  ignoredAgeRanges: string[];
+  includeMissedTraining: boolean;
+  emptyChoice: 'fill' | 'leave' | null;
+}
+
+/** Reads a saved draft back from storage; anything unusable counts as no draft. */
+export const normaliseSavedDraft = (value: unknown): SavedGroupingDraft | null => {
+  const v = (value && typeof value === 'object' ? value : null) as Record<string, unknown> | null;
+  if (!v || !Array.isArray(v.groups) || v.groups.length === 0) return null;
+  const groups: DraftGroup[] = [];
+  for (const item of v.groups) {
+    const g = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
+    if (typeof g.key !== 'string' || typeof g.name !== 'string' || !Array.isArray(g.memberIds)) continue;
+    groups.push({
+      key: g.key,
+      name: g.name,
+      memberIds: g.memberIds.filter((id): id is string => typeof id === 'string'),
+      supportId: typeof g.supportId === 'string' ? g.supportId : null,
+      existingGroupId: typeof g.existingGroupId === 'string' ? g.existingGroupId : undefined,
+    });
+  }
+  if (groups.length === 0) return null;
+  return {
+    savedAt: typeof v.savedAt === 'string' ? v.savedAt : '',
+    savedByName: typeof v.savedByName === 'string' ? v.savedByName : '',
+    groups,
+    ignoredAgeRanges: Array.isArray(v.ignoredAgeRanges) ? v.ignoredAgeRanges.filter((r): r is string => typeof r === 'string') : [],
+    includeMissedTraining: v.includeMissedTraining === true,
+    emptyChoice: v.emptyChoice === 'fill' || v.emptyChoice === 'leave' ? v.emptyChoice : null,
+  };
 };

@@ -122,6 +122,11 @@ duplicating the logic anywhere else is a bug waiting to happen.
    only blank profile fields are ever filled, never overwrites. The same
    allow-list lives in `fill_profile_from_form` and the contact backfill;
    change both. Source: `20261005120000_form_age_below_18.sql`.
+   Exception: a believable date of birth (age 5 to 100) sets the age range
+   itself, for participants always and for supports once a birth year is
+   added; the date wins over a typed range. Placeholder years like 1904 are
+   ignored. Source: `20261006150000_age_from_birth_and_participant_theme.sql`
+   (`trg_participant_age_from_dob`, `trg_user_age_from_birth_year`).
 9. **Passwords.** Participants: minimum 5, client and RPC
    (`set_participant_password`, `change_participant_password`). Staff:
    minimum 8. New codes sign the holder out; send the code immediately.
@@ -163,6 +168,12 @@ duplicating the logic anywhere else is a bug waiting to happen.
     (written only by `support_tag_*` RPCs), `tagRules` in the cohort's grouping
     rules, `supportCost`/`groupTagRule` in `frontend/src/utils/groupingEngine.ts`.
     Source: `20261006130000_support_tags.sql`.
+18. **A support's kind follows the hub roles.** The lead of a hub is HUB_LEAD
+    and an IT support is OPERATIONAL in that hub's cohort (triggers on
+    `SupportHub.leadUserId` and `HubItSupport`); only a PARTICIPANT_SUPPORT
+    is ever moved, so a kind chosen by hand stays. The builder and the Supports
+    page read `UserCohort.supportKind`; never keep a second list of hub leads.
+    Source: `20261006140000_support_kind_follows_hub_roles.sql`.
 
 ## 5. Edge functions and schedules
 

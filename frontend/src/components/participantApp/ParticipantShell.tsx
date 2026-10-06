@@ -23,6 +23,7 @@ import NeedSupportButton from '../NeedSupportButton';
 import PracticeDock from '../practice/PracticeDock';
 import AnnouncementPopupHost from '../AnnouncementPopupHost';
 import { POPUP_PRIORITY, usePopupSlot, useSettled } from '../../utils/popupQueue';
+import { applyTheme } from '../../utils/theme';
 
 // Layout for the participant app: sidebar on desktop, floating bar on mobile, the
 // same look as the support app. Also asks "are you okay?" when their attendance
@@ -122,6 +123,19 @@ const ShellLayout: React.FC = () => {
   const appSetupDismiss = useSessionDismiss('fof_appsetup_dismissed_session');
   // A tapped phone push counts as reading its bell copy.
   usePushTapRead(!!user, React.useCallback((title: string, body: string) => participantAppApi.markPushTapped(title, body), []));
+  // Their accent colour: the saved one shows straight away, then the account's one is fetched.
+  useEffect(() => {
+    if (!user?.id) return;
+    const key = `fof-participant-theme:${user.id}`;
+    try { const cached = localStorage.getItem(key); if (cached) applyTheme(cached); } catch { /* fetched below */ }
+    let cancelled = false;
+    participantAppApi.getTheme().then((color) => {
+      if (cancelled) return;
+      applyTheme(color);
+      try { if (color) localStorage.setItem(key, color); else localStorage.removeItem(key); } catch { /* applied already */ }
+    }).catch(() => { /* the default colour stays */ });
+    return () => { cancelled = true; };
+  }, [user?.id]);
   // Tell the server what this device is (Home Screen or browser, notifications).
   useEffect(() => {
     void recordAppState(appSetup.installed, appSetup.device, appSetup.notifications);

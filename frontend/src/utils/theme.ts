@@ -50,5 +50,17 @@ export const applyTheme = (color?: string | null) => {
   root.setProperty('--color-primary-200', `rgb(${softChannels(rgb, 0.45)})`);
 };
 
+/** The accent swatches both the support and participant profile pages offer. */
+export const THEME_SWATCHES = [
+  { hex: '#ff914d', label: 'Coral' },
+  { hex: '#ec4899', label: 'Pink' },
+  { hex: '#8b5cf6', label: 'Purple' },
+  { hex: '#0ea5e9', label: 'Sky' },
+  { hex: '#14b8a6', label: 'Teal' },
+  { hex: '#10b981', label: 'Emerald' },
+  { hex: '#f43f5e', label: 'Rose' },
+  { hex: '#64748b', label: 'Slate' },
+];
+
 /** Reset back to the default orange (e.g. on logout / login screen). */
 export const resetTheme = () => applyTheme(DEFAULT_THEME);

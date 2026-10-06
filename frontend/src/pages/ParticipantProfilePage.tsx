@@ -12,6 +12,8 @@ import AppSetupSheet from '../components/participantApp/AppSetupSheet';
 import { participantAppApi } from '../services/api';
 import { currentWeekNumber, formatTime, titleCaseDay } from '../utils/participantApp';
 import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
+import { ageRangeFromDate } from '../utils/people';
+import { applyTheme, DEFAULT_THEME, THEME_SWATCHES } from '../utils/theme';
 import { useSearchParams } from 'react-router-dom';
 import type { ProfileFieldEntry } from '../types';
 import Spinner from '../components/Spinner';
@@ -99,6 +101,33 @@ const ParticipantProfilePage: React.FC = () => {
   const [next, setNext] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [changing, setChanging] = useState(false);
+  // Accent colour: loaded from their account, applied live, saved when they tap Save.
+  const [savedTheme, setSavedTheme] = useState<string>(DEFAULT_THEME);
+  const [themeDraft, setThemeDraft] = useState<string>(DEFAULT_THEME);
+  const [savingTheme, setSavingTheme] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    participantAppApi.getTheme().then((color) => {
+      if (cancelled || !color) return;
+      setSavedTheme(color);
+      setThemeDraft(color);
+    }).catch(() => { /* the default colour stays */ });
+    return () => { cancelled = true; };
+  }, []);
+  const pickTheme = (hex: string) => { setThemeDraft(hex); applyTheme(hex); };
+  const saveTheme = async () => {
+    setSavingTheme(true);
+    try {
+      await participantAppApi.setTheme(themeDraft.toLowerCase());
+      setSavedTheme(themeDraft);
+      try { localStorage.setItem(`fof-participant-theme:${user?.id ?? ''}`, themeDraft.toLowerCase()); } catch { /* the colour still saved */ }
+      toast({ message: 'Your colour is saved.', tone: 'success' });
+    } catch (err) {
+      toast({ message: err instanceof Error ? err.message : 'Could not save your colour.', tone: 'error' });
+    } finally {
+      setSavingTheme(false);
+    }
+  };
 
   useEffect(() => {
     if (!home) return;
@@ -288,12 +317,13 @@ const ParticipantProfilePage: React.FC = () => {
                 </div>
                 <div>
                   <span className="mb-1 block text-[13px] font-semibold text-gray-900">Age range</span>
-                  <AppSelect value={details.ageRange} onChange={(value) => setDetails((prev) => ({ ...prev, ageRange: value }))} options={[{ value: '', label: 'Choose…' }, ...toSelectOptions(AGE_RANGE_OPTIONS)]} placeholder="Choose…" />
+                  <AppSelect value={details.ageRange} onChange={(value) => setDetails((prev) => ({ ...prev, ageRange: value }))} options={[{ value: '', label: 'Choose…' }, ...toSelectOptions(AGE_RANGE_OPTIONS)]} placeholder="Choose…" disabled={!!ageRangeFromDate(details.dateOfBirth)} />
+                  {ageRangeFromDate(details.dateOfBirth) && <span className="mt-1 block text-[11px] text-gray-400">Set from your date of birth.</span>}
                 </div>
               </div>
               <label className="block">
                 <span className="mb-1 block text-[13px] font-semibold text-gray-900">Date of birth</span>
-                <input type="date" value={details.dateOfBirth} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setDetails((prev) => ({ ...prev, dateOfBirth: e.target.value }))} className={FIELD} />
+                <input type="date" value={details.dateOfBirth} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setDetails((prev) => { const derived = ageRangeFromDate(e.target.value); return { ...prev, dateOfBirth: e.target.value, ageRange: derived ?? prev.ageRange }; })} className={FIELD} />
               </label>
               <label className="block">
                 <span className="mb-1 block text-[13px] font-semibold text-gray-900">Occupation</span>
@@ -346,6 +376,40 @@ const ParticipantProfilePage: React.FC = () => {
                 </>
               )}
             </>
+          )}
+        </section>
+
+        <section className={CARD}>
+          <h3 className="text-base font-bold text-gray-900">Accent colour</h3>
+          <p className="mt-0.5 text-xs text-gray-500">Pick the colour you like. It changes the app on your phone.</p>
+          <div className="mt-3 grid max-w-[360px] grid-cols-9 gap-1.5 sm:gap-2">
+            {THEME_SWATCHES.map((s) => {
+              const selected = themeDraft.toLowerCase() === s.hex;
+              return (
+                <button
+                  key={s.hex}
+                  type="button"
+                  title={s.label}
+                  aria-label={s.label}
+                  aria-pressed={selected}
+                  onClick={() => pickTheme(s.hex)}
+                  style={{ backgroundColor: s.hex }}
+                  className={`aspect-square w-full max-w-8 rounded-full transition focus:outline-none ${selected ? 'ring-2 ring-gray-900 ring-offset-2' : 'hover:scale-110'}`}
+                />
+              );
+            })}
+            <label title="Custom colour" className="relative aspect-square w-full max-w-8 cursor-pointer overflow-hidden rounded-full" style={{ background: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }}>
+              <input type="color" value={themeDraft} onChange={(e) => pickTheme(e.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" aria-label="Custom colour" />
+            </label>
+          </div>
+          {themeDraft.toLowerCase() !== savedTheme.toLowerCase() && (
+            <div className="mt-3 flex items-center gap-2">
+              <span className="text-xs text-gray-500">{THEME_SWATCHES.find((s) => s.hex === themeDraft.toLowerCase())?.label ?? themeDraft}</span>
+              <div className="ml-auto flex gap-2">
+                <button type="button" onClick={() => pickTheme(savedTheme)} className="rounded-2xl border border-gray-200 px-4 py-1.5 text-xs font-semibold text-gray-600">Cancel</button>
+                <button type="button" onClick={() => void saveTheme()} disabled={savingTheme} className="rounded-2xl bg-primary px-4 py-1.5 text-xs font-semibold text-white active:scale-95 disabled:opacity-60">{savingTheme ? 'Saving…' : 'Save'}</button>
+              </div>
+            </div>
           )}
         </section>
 
