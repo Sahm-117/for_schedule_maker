@@ -141,6 +141,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [tab, setTab] = useState<MobTab>(initialTab === 'follow' ? 'follow' : initialTab === 'it' ? 'it' : 'register');
 
   const [contacts, setContacts] = useState<FollowUpContact[]>([]);
+  // Follow-ups passed on to this support, and from whom, so a card can say so.
+  const [handovers, setHandovers] = useState<Record<string, { fromName: string | null; at: string }>>({});
   const [myProspects, setMyProspects] = useState<FollowUpContact[]>([]);
   // Every contact in the app, not just this support's. The duplicate check has to
   // see people other supports saved and people who registered on their own,
@@ -302,16 +304,18 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     try {
       // Every support sees every form sign-up, so nobody has to ask the back
       // office whether someone has registered.
-      const [contactsRes, allRes, templatesRes, linkRes, signUpRes] = await Promise.all([
+      const [contactsRes, allRes, templatesRes, linkRes, signUpRes, handoverRes] = await Promise.all([
         followUpContactsApi.getAll({ ownerId: user.id }),
         followUpContactsApi.getAll(),
         messageTemplatesApi.getAll({ category: 'FOLLOW_UP' }),
         settingsApi.getRegistrationLink(),
         formRegistrationsApi.getAll(),
+        followUpContactsApi.getMyHandovers().catch(() => ({} as Record<string, { fromName: string | null; at: string }>)),
       ]);
       const issuesRes = await followUpIssuesApi.getAll();
       if (lastEditAt.current > startedAt) return;
       setContacts(sortByText(contactsRes.contacts, (contact) => contact.fullName));
+      setHandovers(handoverRes);
       setAllContacts(allRes.contacts);
       setMyProspects(allRes.contacts.filter((contact) => contact.registeredById === user.id || contact.source === `Registered by ${user.name}` || contact.source === `Added for follow up by ${user.name}`));
       setIssues(issuesRes.issues);
@@ -990,7 +994,9 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               const phoneOk = !!normalizeToIntlPhone(reachPhone);
               const waLink = phoneOk ? buildWhatsAppLink(reachPhone, '') : null;
               const helpOpen = !!numberHelpOpen[contact.id];
-              const assigned = shortDate(contact.createdAt);
+              // When they came to THIS support (not the day they signed up), and from whom if passed on.
+              const handover = handovers[contact.id];
+              const assigned = shortDate(contact.ownerAssignedAt ?? contact.createdAt);
               return (
                 <section key={contact.id} className={`${CARD} p-4`}>
                   <div className="flex items-center gap-2">
@@ -1036,7 +1042,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       )}
                     </div>
                   )}
-                  <p className="mt-1 text-[12.5px] text-gray-500">{teenContact && contact.guardianPhone?.trim() ? `Parent ${contact.guardianPhone.trim()}` : (contact.phone || 'No phone')}{assigned ? ` · assigned ${assigned}` : ''}</p>
+                  <p className="mt-1 text-[12.5px] text-gray-500">{teenContact && contact.guardianPhone?.trim() ? `Parent ${contact.guardianPhone.trim()}` : (contact.phone || 'No phone')}{assigned ? ` · ${handover ? `passed on${handover.fromName ? ` from ${handover.fromName}` : ''}` : 'assigned'} ${assigned}` : ''}</p>
                   {!phoneOk && (
                     <div className="mt-2.5 rounded-[12px] bg-amber-50 text-amber-800">
                       <button

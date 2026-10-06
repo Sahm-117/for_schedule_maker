@@ -3798,6 +3798,7 @@ const mapFollowUpContact = (row: any): import('../types').FollowUpContact => ({
   formQuestion: row.formQuestion ?? null,
   formQuestionAnsweredAt: row.formQuestionAnsweredAt ?? null,
   formQuestionAnsweredById: row.formQuestionAnsweredById ?? null,
+  ownerAssignedAt: row.ownerAssignedAt ?? null,
   guardianPhone: row.guardianPhone ?? null,
   teenOnboardedHow: row.teenOnboardedHow ?? null,
   createdAt: row.createdAt,
@@ -4086,6 +4087,15 @@ export const followUpContactsApi = {
     if (msg.includes('REASON_REQUIRED')) throw new Error('Write a short reason first.');
     if (msg.includes('CONTACT_NOT_FOUND')) throw new Error('This contact no longer exists.');
     throw new Error(friendlyUserError(msg, 'Approval did not save. Please try again.'));
+  },
+
+  /** Contacts that were passed on to the signed-in support, and from whom (latest hand-over only). */
+  async getMyHandovers(): Promise<Record<string, { fromName: string | null; at: string }>> {
+    const { data, error } = await supabase.rpc('my_followup_handovers', { p_token: getSessionToken() });
+    if (error) throw new Error(error.message);
+    const out: Record<string, { fromName: string | null; at: string }> = {};
+    for (const row of ((data ?? []) as any[])) out[row.contactId] = { fromName: row.fromName ?? null, at: row.at };
+    return out;
   },
 
   /**

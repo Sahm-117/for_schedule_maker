@@ -254,6 +254,7 @@ export const followUpContactsApi = USE_SUPABASE ? supabaseFollowUpContactsApi : 
   async logContact(_id: string): Promise<never> { return followUpsUnavailable(); },
   async approveManualRegistration(_id: string, _reason: string): Promise<never> { return followUpsUnavailable(); },
   async addTeen(_input: any): Promise<never> { return followUpsUnavailable(); },
+  async getMyHandovers(): Promise<Record<string, { fromName: string | null; at: string }>> { return {}; },
   async delete(_id: string): Promise<never> { return followUpsUnavailable(); },
   async getNextCohortContacts(_cohortId: string): Promise<{ contacts: import('../types').FollowUpContact[] }> { return { contacts: [] }; },
   async getWaitingForCohort(_cohortId: string): Promise<{ contacts: import('../types').FollowUpContact[] }> { return { contacts: [] }; },

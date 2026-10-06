@@ -180,9 +180,27 @@ Deno.serve(async (req) => {
             'followup-check',
           )
         }
+        // Someone who is handed another support's people must be told that is what happened,
+        // and from whom, not just "you've been assigned" (which reads like a new sign-up).
         const movedTo = (re.movedTo ?? {}) as Record<string, { count: number; names: string[] }>
         for (const ownerId of Object.keys(movedTo)) {
-          await notifyOwner(ownerId, movedTo[ownerId].count, movedTo[ownerId].names ?? [])
+          const since = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+          const { data: moves } = await supabase
+            .from('FollowUpReassignmentLog').select('contactId, fromUserId').eq('toUserId', ownerId).gte('createdAt', since)
+          const fromIds = Array.from(new Set((moves ?? []).map((m: { fromUserId: string | null }) => m.fromUserId).filter(Boolean))) as string[]
+          const { data: fromUsers } = fromIds.length
+            ? await supabase.from('User').select('id, name').in('id', fromIds)
+            : { data: [] as Array<{ id: string; name: string }> }
+          const fromNames = (fromUsers ?? []).map((u: { name: string }) => u.name)
+          const who = fromNames.length ? ` from ${fromNames.slice(0, 2).join(' and ')}` : ''
+          const m = movedTo[ownerId]
+          await tellUser(
+            ownerId,
+            'Follow-ups passed on to you',
+            `${listNames(m.names ?? [], m.count)} ${m.count === 1 ? 'was' : 'were'} passed on to you${who} because they were not updated in 24 hours. Check where ${m.count === 1 ? 'they stand' : 'each one stands'} before you carry on.`,
+            followPath,
+            'followup-passed-on',
+          )
         }
         const movedFrom = (re.movedFrom ?? {}) as Record<string, { count: number; names: string[] }>
         for (const ownerId of Object.keys(movedFrom)) {

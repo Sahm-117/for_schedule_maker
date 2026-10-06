@@ -457,6 +457,8 @@ export interface FollowUpContact {
   formQuestion?: string | null;
   formQuestionAnsweredAt?: string | null;
   formQuestionAnsweredById?: string | null;
+  /** When this support was given them (changes when they are passed on). */
+  ownerAssignedAt?: string | null;
   /** A teen's parent or guardian number. Teen messages and calls go to it first. */
   guardianPhone?: string | null;
   /** What warranted marking a teen Onboarded. */
