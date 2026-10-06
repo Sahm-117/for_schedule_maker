@@ -7801,6 +7801,11 @@ const mapChecklistItem = (row: any): import('../types').SupportChecklistItem => 
   label: row.label,
   done: !!row.done,
   position: row.position ?? 0,
+  createdById: row.createdById ?? null,
+  taskGroupId: row.taskGroupId ?? null,
+  dueDay: row.dueDay ?? null,
+  completionNote: row.completionNote ?? null,
+  completedAt: row.completedAt ?? null,
 });
 
 export const supportChecklistApi = {
@@ -7822,16 +7827,53 @@ export const supportChecklistApi = {
     return { item: mapChecklistItem(data) };
   },
 
-  async setDone(itemId: string, done: boolean): Promise<{ item: import('../types').SupportChecklistItem }> {
+  // A note is only kept while the task is ticked; unticking clears it and the time.
+  async setDone(itemId: string, done: boolean, note?: string | null): Promise<{ item: import('../types').SupportChecklistItem }> {
+    const now = new Date().toISOString();
     const { data, error } = await supabase.from('SupportChecklistItem')
-      .update({ done, updatedAt: new Date().toISOString() }).eq('id', itemId).select('*').single();
+      .update({ done, completedAt: done ? now : null, completionNote: done ? (note?.trim() || null) : null, updatedAt: now })
+      .eq('id', itemId).select('*').single();
     if (error || !data) throw new Error(error?.message || 'Failed to update duty');
     return { item: mapChecklistItem(data) };
   },
 
   async remove(itemId: string): Promise<void> {
     const { error } = await supabase.from('SupportChecklistItem').delete().eq('id', itemId);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(error.code === 'P0001' || /ADMIN_TASK_LOCKED/.test(error.message) ? 'This task was set by an admin, so it can only be ticked.' : error.message);
+  },
+};
+
+const checklistAdminError = (message: string): Error => {
+  if (message.includes('SESSION_EXPIRED')) return new Error('SESSION_EXPIRED');
+  if (message.includes('NOT_AUTHORISED')) return new Error('Only admins can do this.');
+  if (/^(Write the task|Keep the task|Choose|That tag)/.test(message)) return new Error(message);
+  return new Error('That did not save. Please try again.');
+};
+
+// Admin tasks on supports' weekly checklists, added from the Schedule page.
+export const adminChecklistApi = {
+  async addTask(input: { label: string; weekIds: number[]; dueDay?: string | null; target: import('../types').AdminChecklistTarget }): Promise<{ supports: number; rows: number; skipped: number }> {
+    const { data, error } = await supabase.rpc('admin_add_checklist_task', {
+      p_token: getSessionToken(), p_label: input.label, p_week_ids: input.weekIds, p_due_day: input.dueDay ?? null, p_target: input.target,
+    });
+    if (error) throw checklistAdminError(error.message || '');
+    const row = (data ?? {}) as any;
+    return { supports: row.supports ?? 0, rows: row.rows ?? 0, skipped: row.skipped ?? 0 };
+  },
+
+  async listTasks(weekId: number): Promise<import('../types').AdminChecklistTask[]> {
+    const { data, error } = await supabase.rpc('admin_checklist_tasks', { p_token: getSessionToken(), p_week_id: weekId });
+    if (error) throw checklistAdminError(error.message || '');
+    return ((data ?? []) as any[]).map((t) => ({
+      taskGroupId: t.taskGroupId, label: t.label, dueDay: t.dueDay ?? null, total: t.total ?? 0, done: t.done ?? 0, people: t.people ?? [],
+    }));
+  },
+
+  /** Removes the task from one week, or from every week when weekId is null. */
+  async deleteTask(taskGroupId: string, weekId: number | null): Promise<number> {
+    const { data, error } = await supabase.rpc('admin_delete_checklist_task', { p_token: getSessionToken(), p_task_group_id: taskGroupId, p_week_id: weekId });
+    if (error) throw checklistAdminError(error.message || '');
+    return Number(data ?? 0);
   },
 };
 

@@ -10,6 +10,9 @@ import { attendanceFollowUpTasksApi, supportActivityCompletionsApi, supportCheck
 import { PROGRAM_DAY_ORDER, getCurrentProgramDayName, getProgramDayIndex } from '../utils/schedule';
 import { exportWeekToPDF } from '../utils/pdfExport';
 import type { AttendanceFollowUpTask, SupportActivityCompletion, SupportChecklistItem, User } from '../types';
+import TaskNoteSheet from '../components/schedule/TaskNoteSheet';
+import ChecklistTaskMeta from '../components/schedule/ChecklistTaskMeta';
+import { isAdminChecklistTask } from '../utils/checklist';
 import { CountdownRing, useChecklistAutoHide } from '../components/ChecklistAutoHide';
 import Spinner from '../components/Spinner';
 
@@ -49,6 +52,8 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
   const [checklistLoading, setChecklistLoading] = useState(false);
   const [checklistError, setChecklistError] = useState('');
   const [editingChecklist, setEditingChecklist] = useState(false);
+  // An admin task being ticked: asks for an optional note first.
+  const [noteTask, setNoteTask] = useState<SupportChecklistItem | null>(null);
   const autoHide = useChecklistAutoHide();
   const [newDuty, setNewDuty] = useState('');
   const [addingDuty, setAddingDuty] = useState(false);
@@ -164,14 +169,17 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
   const checklistDone = checklist.filter((item) => item.done).length;
   const absenceTasksDone = absenceTasks.filter((task) => task.status === 'DONE').length;
 
-  const toggleDuty = async (item: SupportChecklistItem) => {
-    setChecklist((prev) => prev.map((entry) => entry.id === item.id ? { ...entry, done: !item.done } : entry));
+  const toggleDuty = async (item: SupportChecklistItem, note?: string) => {
+    // Ticking an admin task asks for an optional note first; unticking and own duties don't.
+    if (!item.done && isAdminChecklistTask(item) && note === undefined) { setNoteTask(item); return; }
+    const savedNote = !item.done ? (note?.trim() || null) : null;
+    setChecklist((prev) => prev.map((entry) => entry.id === item.id ? { ...entry, done: !item.done, completionNote: savedNote } : entry));
     if (item.done) autoHide.cancel(item.id); else autoHide.start(item.id);
     try {
-      await supportChecklistApi.setDone(item.id, !item.done);
+      await supportChecklistApi.setDone(item.id, !item.done, savedNote);
     } catch (error) {
       autoHide.cancel(item.id);
-      setChecklist((prev) => prev.map((entry) => entry.id === item.id ? { ...entry, done: item.done } : entry));
+      setChecklist((prev) => prev.map((entry) => entry.id === item.id ? { ...entry, done: item.done, completionNote: item.completionNote ?? null } : entry));
       setChecklistError(error instanceof Error ? error.message : 'That duty could not be updated.');
     }
   };
@@ -436,9 +444,12 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
                   >
                     {item.done ? '✓' : ''}
                   </button>
-                  <span className={`text-sm font-semibold ${item.done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.label}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-sm font-semibold ${item.done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{item.label}</span>
+                    <ChecklistTaskMeta item={item} />
+                  </span>
                   {!editingChecklist && autoHide.countdowns[item.id] !== undefined && <CountdownRing seconds={autoHide.countdowns[item.id]} />}
-                  {editingChecklist && (
+                  {editingChecklist && !isAdminChecklistTask(item) && (
                     <button type="button" onClick={() => { void removeDuty(item); }} className="ml-auto text-xs font-semibold text-red-700">
                       Remove
                     </button>
@@ -464,6 +475,13 @@ const SupportScheduleContent: React.FC<{ user: User }> = ({ user }) => {
         </section>
       )}
 
+      {noteTask && (
+        <TaskNoteSheet
+          taskLabel={noteTask.label}
+          onCancel={() => setNoteTask(null)}
+          onSave={(note) => { const target = noteTask; setNoteTask(null); void toggleDuty(target, note); }}
+        />
+      )}
     </div>
   );
 };

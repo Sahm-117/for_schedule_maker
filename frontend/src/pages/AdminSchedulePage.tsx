@@ -10,6 +10,7 @@ import { useAuth } from '../hooks/useAuth';
 import { labelsApi, usersApi, cohortsApi } from '../services/api';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
+import AdminSupportTaskModal from '../components/schedule/AdminSupportTaskModal';
 import type { Day, Label, User } from '../types';
 import { exportAllWeeksToPDF, exportDayToPDF, exportWeekToPDF } from '../utils/pdfExport';
 import { sortByText } from '../utils/sort';
@@ -45,6 +46,7 @@ const AdminSchedulePage: React.FC = () => {
     finally { setPublishing(false); }
   };
   const [showTagManagement, setShowTagManagement] = React.useState(false);
+  const [showSupportTask, setShowSupportTask] = React.useState(false);
   const [showDayExportPicker, setShowDayExportPicker] = React.useState(false);
   const [headerAddDayId, setHeaderAddDayId] = React.useState<number | null>(null);
   const [showDayAddPicker, setShowDayAddPicker] = React.useState(false);
@@ -176,6 +178,7 @@ const AdminSchedulePage: React.FC = () => {
       <AppOverflowMenu
         align="right"
         items={[
+          ...(isAdmin ? [{ label: 'Add task for supports', onClick: () => setShowSupportTask(true) }] : []),
           { label: 'Daily export', onClick: () => setShowDayExportPicker(true) },
           { label: 'Export week', onClick: () => { void exportSelectedWeek(); } },
           { label: 'Export all', onClick: () => { void exportAllWeeks(); } },
@@ -281,6 +284,10 @@ const AdminSchedulePage: React.FC = () => {
         confirmText={schedulePublished ? 'Unpublish' : 'Publish'}
         type={schedulePublished ? 'danger' : 'info'}
       />
+
+      {isAdmin && (
+        <AdminSupportTaskModal isOpen={showSupportTask} onClose={() => setShowSupportTask(false)} weeks={weeks} selectedWeek={selectedWeek} />
+      )}
 
       {isAdmin && (
         <LabelManagement

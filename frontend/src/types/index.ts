@@ -844,7 +844,31 @@ export interface SupportChecklistItem {
   label: string;
   done: boolean;
   position: number;
+  /** Who set it. A task is "from admin" when this is set and isn't the support themself. */
+  createdById?: string | null;
+  /** All copies of one admin task share this. */
+  taskGroupId?: string | null;
+  /** Weekday name, e.g. "Friday". */
+  dueDay?: string | null;
+  /** What the support wrote when they ticked it. */
+  completionNote?: string | null;
+  completedAt?: string | null;
 }
+
+/** An admin task as the admin sees it for a week: who has done it, with their notes. */
+export interface AdminChecklistTask {
+  taskGroupId: string;
+  label: string;
+  dueDay: string | null;
+  total: number;
+  done: number;
+  people: Array<{ userId: string; name: string; done: boolean; note: string | null; at: string | null }>;
+}
+
+export type AdminChecklistTarget =
+  | { kind: 'ALL' }
+  | { kind: 'TAG'; tagId: string }
+  | { kind: 'USERS'; userIds: string[] };
 
 // ── Faith Projects ────────────────────────────────────────────────────────────
 

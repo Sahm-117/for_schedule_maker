@@ -202,6 +202,15 @@ duplicating the logic anywhere else is a bug waiting to happen.
     that already has a contact with a different name (words compared in any
     order, `fof_name_key`) is a new person, not a correction. Source:
     `20261006180000_teen_assignment.sql`.
+21. **Admin tasks on a support's checklist are the admin's.** A
+    `SupportChecklistItem` with `createdById` set and different from `userId` was
+    put there by an admin (`admin_add_checklist_task`, from Schedule `⋮`). Through
+    the app a support may only tick it and write a note (`done`, `completionNote`,
+    `completedAt`); renaming, moving, changing the due day and deleting are blocked
+    by `support_checklist_admin_task_guard` (it checks `current_user`, so it is
+    SECURITY INVOKER; the admin RPCs run as owner and pass). Supports are resolved
+    when the task is added: people who join later do not get it. Source:
+    `20261006210000_support_admin_checklist_tasks.sql`.
 
 ## 5. Edge functions and schedules
 
