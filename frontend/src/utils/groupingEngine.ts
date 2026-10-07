@@ -36,6 +36,12 @@ export interface DraftGroup {
   supportId: string | null;
   /** An empty group the admin already made; the builder fills it instead of creating a new one. */
   existingGroupId?: string;
+  /**
+   * A group that already has people and some space: `memberIds` are only the people being ADDED,
+   * `existingMemberIds` who is there now. Its support stays as it is.
+   */
+  topUp?: boolean;
+  existingMemberIds?: string[];
 }
 
 /** An existing empty group to fill first; `support` is the support already on it, if any. */
@@ -43,6 +49,17 @@ export interface SeedGroup {
   id: string;
   name: string;
   support: EngineSupport | null;
+}
+
+/** A running group (it already has people) that could take more. */
+export interface TopUpTarget {
+  id: string;
+  name: string;
+  /** The support on the group as it stands. Always carried through unchanged, even when `support` is unknown. */
+  supportId: string | null;
+  /** That support's details, when known, for the support-gender rule. */
+  support: EngineSupport | null;
+  members: EnginePerson[];
 }
 
 export interface GroupDraft {
@@ -322,6 +339,94 @@ export const nextGroupNames = (existingNames: string[], count: number) => {
   return Array.from({ length: count }, (_, i) => `Group ${start + i}`);
 };
 
+// ── Topping up groups that already have people ──────────────────────────────
+
+/** The most people a running group may hold: its tag's size when it is a tag group, else the cohort's. */
+const groupCap = (members: EnginePerson[], rules: GroupingRules) => rulesForTag(rules, groupTagRule(members, rules)).maxSize;
+
+/** How many more people a running group can take (0 when full). */
+export const groupRoom = (members: EnginePerson[], rules: GroupingRules) => Math.max(0, groupCap(members, rules) - members.length);
+
+/** Whether a person may join a running group without bending any rule. Mirrors how new groups are made. */
+export const fitsGroup = (person: EnginePerson, members: EnginePerson[], support: EngineSupport | null, rules: GroupingRules): boolean => {
+  if (groupRoom(members, rules) <= 0) return false;
+  // A tag group takes only the people its tag is for; people a tag is for wait for those groups.
+  const tagRule = groupTagRule(members, rules);
+  if (tagRule) {
+    if (!ruleMatches(tagRule, person)) return false;
+  } else if (activeTagRules(rules).some((r) => ruleMatches(r, person))) {
+    return false;
+  }
+  // One-gender groups stay one gender, whether that is a Must or a Prefer.
+  if (rules.genderMix === 'SAME' || tagRule?.gender === 'SAME') {
+    if (!person.gender || groupGender(members) !== person.gender) return false;
+  }
+  // A group that never crosses an age range keeps to one.
+  if (rules.ageMix === 'SIMILAR' && rules.ageStrength === 'MUST') {
+    if (!person.ageRange || members.some((m) => m.ageRange !== person.ageRange)) return false;
+  }
+  // A support who must match the group's gender is still a match.
+  if (support && support.gender && rules.supportGender === 'SAME_AS_GROUP' && rules.supportGenderStrength === 'MUST' && person.gender && support.gender !== person.gender) return false;
+  return true;
+};
+
+export interface TopUpResult {
+  /** One entry per running group that took people (`memberIds` are the people added). */
+  groups: DraftGroup[];
+  /** Running groups with room, and the spots they have (before anyone is placed). */
+  groupsWithSpace: number;
+  spots: number;
+}
+
+/**
+ * Put waiting people into running groups that have space, and only those. Only people with a gender
+ * and age range are placed (nothing is guessed). Each person goes to the group whose ages are closest
+ * (fewest people first among equals), never past the group's largest size and never against a rule.
+ * Whoever is not placed is left for new groups.
+ */
+export const topUpGroups = (people: EnginePerson[], targets: TopUpTarget[], rules: GroupingRules): TopUpResult => {
+  const state = targets
+    .filter((t) => t.members.length > 0)
+    .map((t) => ({ target: t, members: [...t.members], added: [] as string[] }));
+  const withSpace = state.filter((st) => st.members.length < groupCap(st.members, rules));
+  const spots = withSpace.reduce((sum, st) => sum + groupCap(st.members, rules) - st.members.length, 0);
+
+  // Best fits first: of every person-and-group pair that fits, the one with the closest ages goes first
+  // (then the emptier group, then age order), so a spot is not taken by a stretch while an exact match waits.
+  const placed = new Set<string>();
+  const waiting = [...people].filter((p) => p.gender && p.ageRange).sort(byAge);
+  for (;;) {
+    let best: { person: EnginePerson; st: (typeof state)[number]; cost: [number, number] } | null = null;
+    for (const person of waiting) {
+      if (placed.has(person.id)) continue;
+      for (const st of state) {
+        if (!fitsGroup(person, st.members, st.target.support, rules)) continue;
+        const distance = rules.ageMix === 'SIMILAR' ? Math.abs(ageIndex(person.ageRange) - ageIndex(groupRange(st.members))) : 0;
+        const cost: [number, number] = [distance, st.members.length];
+        if (!best || cost[0] < best.cost[0] || (cost[0] === best.cost[0] && cost[1] < best.cost[1])) best = { person, st, cost };
+      }
+    }
+    if (!best) break;
+    best.st.members.push(best.person);
+    best.st.added.push(best.person.id);
+    placed.add(best.person.id);
+  }
+
+  return {
+    groups: state.filter((st) => st.added.length > 0).map((st) => ({
+      key: `top-${st.target.id}`,
+      name: st.target.name,
+      memberIds: st.added,
+      supportId: st.target.supportId,
+      existingGroupId: st.target.id,
+      topUp: true,
+      existingMemberIds: st.target.members.map((m) => m.id),
+    })),
+    groupsWithSpace: withSpace.length,
+    spots,
+  };
+};
+
 // ── The draft ────────────────────────────────────────────────────────────────
 
 export const buildDraft = (
@@ -518,6 +623,8 @@ export interface SavedGroupingDraft {
   ignoredAgeRanges: string[];
   includeMissedTraining: boolean;
   emptyChoice: 'fill' | 'leave' | null;
+  /** Whether groups with space were topped up first when the draft was built (absent in older drafts = no). */
+  topUpFirst?: boolean;
   /** The "Only people who have signed in" switch the draft was built with (absent in older drafts = off). */
   onlySignedIn?: boolean;
 }
@@ -536,6 +643,7 @@ export const normaliseSavedDraft = (value: unknown): SavedGroupingDraft | null =
       memberIds: g.memberIds.filter((id): id is string => typeof id === 'string'),
       supportId: typeof g.supportId === 'string' ? g.supportId : null,
       existingGroupId: typeof g.existingGroupId === 'string' ? g.existingGroupId : undefined,
+      ...(g.topUp === true ? { topUp: true, existingMemberIds: Array.isArray(g.existingMemberIds) ? g.existingMemberIds.filter((id): id is string => typeof id === 'string') : [] } : {}),
     });
   }
   if (groups.length === 0) return null;
@@ -547,5 +655,6 @@ export const normaliseSavedDraft = (value: unknown): SavedGroupingDraft | null =
     includeMissedTraining: v.includeMissedTraining === true,
     emptyChoice: v.emptyChoice === 'fill' || v.emptyChoice === 'leave' ? v.emptyChoice : null,
     onlySignedIn: v.onlySignedIn === true,
+    topUpFirst: v.topUpFirst === true,
   };
 };

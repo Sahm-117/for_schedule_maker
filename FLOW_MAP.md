@@ -270,15 +270,20 @@ duplicating the logic anywhere else is a bug waiting to happen.
     assignment and reassignment. A teen keeps their Teen Support and TEENAGER status (a teen always
     needs a same-gender Teen Support) and is only flagged; `push-reminders` skips anyone flagged.
     Choosing another status clears the flag. Source: `20261007200000_followup_no_response_flag.sql`.
-29. **Grouping does not need a login.** The group builder takes every participant it is given
-    (the Groups page loads only the cohort's Active ones) who is not in a group, signed in or not.
-    Its switch "Only people who have signed in" (off by default) leaves out anyone whose login is
-    not confirmed: no account, no password chosen yet (`ParticipantAccount.passwordSetAt` empty, as
-    on the support Get-them-on-the-app card), or the account switched off (`isActive` false). Those people stay Active and ungrouped, and a
-    later build picks them up. A later build only makes new groups or fills empty ones; it does not
-    top up a group that already has members. A saved draft remembers the switch (and Continue
-    restores it). Source: `20261007260000_participants_signed_in.sql`
-    (`participants_signed_in`), `GroupEngineWizard`.
+29. **Only people who have signed in are grouped, and running groups are topped up first.** The group
+    builder takes the participants it is given (the Groups page loads only the cohort's Active ones, and
+    leaves teens to their Teen Supports) who are not in a group, and of those only people whose login is
+    confirmed: they chose their own password (`ParticipantAccount.passwordSetAt`, as on the support
+    Get-them-on-the-app card) and the account is on. This is compulsory, with no switch. Everyone else
+    stays Active and ungrouped and is picked up by a later build once they sign in. If the sign-in check
+    cannot be loaded, building is blocked rather than grouping everyone. Before making new groups, the
+    builder tops up running groups that have people and space (a switch, on by default): each person goes
+    to the group with the closest ages, never past the group's largest size and never against a gender,
+    age-range or tag rule; the group's support and existing members are never changed. Whoever does not
+    fit goes into new groups with free supports; if no group has space it says so. Teen Supports are never
+    offered as supports. Creating a group the builder half-made before (empty, live, same support) finishes
+    it instead of failing on the name. Source: `20261007260000_participants_signed_in.sql`
+    (`participants_signed_in`), `GroupEngineWizard`, `groupingEngine.topUpGroups`.
 
 ## 5. Edge functions and schedules
 
