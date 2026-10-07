@@ -128,9 +128,10 @@ duplicating the logic anywhere else is a bug waiting to happen.
    change both, and `isBelow18` in `receive-form-registration`. Source:
    `20261005120000_form_age_below_18.sql`, `20261007220000_form_age_new_wording.sql`.
    Exception: a believable date of birth (age 5 to 100) sets the age range
-   itself, for participants always and for supports once a birth year is
+   itself (18 and under is "18 and below", 19 to 24 is "18 - 24"), for participants always and for supports once a birth year is
    added; the date wins over a typed range. Placeholder years like 1904 are
-   ignored. Source: `20261006150000_age_from_birth_and_participant_theme.sql`
+   ignored. Source: `20261006150000_age_from_birth_and_participant_theme.sql`,
+   `20261007230000_age_18_is_teen.sql`
    (`trg_participant_age_from_dob`, `trg_user_age_from_birth_year`).
 9. **Passwords.** Participants: minimum 5, client and RPC
    (`set_participant_password`, `change_participant_password`). Staff:
