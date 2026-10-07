@@ -128,6 +128,10 @@ duplicating the logic anywhere else is a bug waiting to happen.
    change both, and `isBelow18` in `receive-form-registration`. Source:
    `20261005120000_form_age_below_18.sql`, `20261007220000_form_age_new_wording.sql`,
    `20261007240000_age_bucket_19_24.sql` (the bucket was "18 - 24" before).
+   `fill_profile_from_form` fills the follow-up contact (gender, age, occupation,
+   email, who registered them) as well as the participant; the same-gender rule
+   (4) needs the contact's gender, so a rewrite must keep both. Source:
+   `20261008000000_restore_contact_profile_fill.sql`.
    Exception: a believable date of birth (age 5 to 100) sets the age range
    itself (18 and under is "18 and below", 19 to 24 is "19 - 24"), for participants always and for supports once a birth year is
    added; the date wins over a typed range. Placeholder years like 1904 are
