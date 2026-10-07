@@ -266,6 +266,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     return [...known, ...tags.filter((t) => !known.some((k) => k.id === t.id))];
   }, [rules.tagRules, tags]);
 
+  const teenTagId = useMemo(() => tags.find((t) => t.systemKey === 'TEEN_SUPPORT')?.id ?? null, [tags]);
   const supportPool = useMemo(() => {
     const leading = new Set(groups.filter((g) => !g.archivedAt && g.supportId).map((g) => g.supportId as string));
     const free: EngineSupport[] = [];
@@ -277,6 +278,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
       const c = trainingCountFor(trainingCounts, u.id, trainingsTotal);
       if (kind !== 'PARTICIPANT_SUPPORT') { reasons.push({ user: u, reason: kind === 'HUB_LEAD' ? 'Hub lead' : 'Operational' }); return; }
       if (leading.has(u.id)) { reasons.push({ user: u, reason: 'Already has a group' }); return; }
+      // Teen Supports look after teens in their own groups, never in the automatic builder.
+      if (teenTagId && (tagIdsByUser.get(u.id) ?? []).includes(teenTagId)) { reasons.push({ user: u, reason: 'Teen Support' }); return; }
       if (rules.excludedSupportIds.includes(u.id)) { reasons.push({ user: u, reason: LEFT_OUT_BY_YOU }); return; }
       if (c.total > 0 && c.attended < minTrainingsAttended) {
         missedTraining.add(u.id);
@@ -285,7 +288,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
       free.push({ ...toEnginePerson(u), trainingsAttended: c.attended, tagIds: tagIdsByUser.get(u.id) ?? [] });
     });
     return { free, reasons, missedTraining };
-  }, [supportUsers, memberIds, kinds, groups, trainingCounts, trainingsTotal, minTrainingsAttended, includeMissedTraining, rules.excludedSupportIds, tagIdsByUser]);
+  }, [supportUsers, memberIds, kinds, groups, trainingCounts, trainingsTotal, minTrainingsAttended, includeMissedTraining, rules.excludedSupportIds, tagIdsByUser, teenTagId]);
 
   // Groups with nobody in them yet (made by hand first), and the support already on each.
   const emptyGroups = useMemo(() => {
@@ -456,7 +459,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
           const before = groups.find((x) => x.id === groupId);
           if ((before?.supportId ?? null) !== g.supportId) await groupsApi.update(groupId, { supportId: g.supportId });
         } else {
-          ({ group: { id: groupId } } = await groupsApi.create({ cohortId, name: g.name, supportId: g.supportId }));
+          // reuseEmpty: if a first try made this group but stopped before adding people, finish it.
+          ({ group: { id: groupId } } = await groupsApi.create({ cohortId, name: g.name, supportId: g.supportId }, { reuseEmpty: true }));
         }
         createdAny.current = true;
         await groupsApi.bulkAssign(g.memberIds.map((participantId) => ({ participantId, groupId: groupId! })));

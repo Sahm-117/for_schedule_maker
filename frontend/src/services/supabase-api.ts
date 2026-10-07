@@ -5219,8 +5219,16 @@ const ensureGroupTag = async (group: { id: string; name: string; cohortId: strin
     .from('Label')
     .select('id, name, cohortId, groupId')
     .ilike('name', desiredName);
+  // A label still pointing at a group that no longer exists (it was deleted) is free to adopt too;
+  // otherwise creating a fresh one with the same name fails on the unique name-per-cohort rule.
+  const pointedAt = [...new Set((candidates ?? []).map((l: any) => l.groupId).filter(Boolean))] as string[];
+  let alive = new Set<string>();
+  if (pointedAt.length > 0) {
+    const { data: rows } = await supabase.from('Group').select('id').in('id', pointedAt);
+    alive = new Set((rows ?? []).map((r: any) => r.id as string));
+  }
   const adopt = (candidates ?? []).find(
-    (l: any) => !l.groupId && (l.cohortId === group.cohortId || l.cohortId === null)
+    (l: any) => (!l.groupId || !alive.has(l.groupId)) && (l.cohortId === group.cohortId || l.cohortId === null)
   );
   if (adopt) {
     await supabase
@@ -5323,14 +5331,36 @@ export const groupsApi = {
     return { group: data ? mapGroup(data as any) : null };
   },
 
-  async create(input: { cohortId: string; name: string; supportId?: string | null; meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null }): Promise<{ group: import('../types').Group }> {
-    const { data, error } = await supabase
+  async create(
+    input: { cohortId: string; name: string; supportId?: string | null; meetingDay?: string | null; meetingTime?: string | null; meetingDurationMins?: number | null },
+    options: { reuseEmpty?: boolean } = {},
+  ): Promise<{ group: import('../types').Group }> {
+    const { data: inserted, error } = await supabase
       .from('Group')
       .insert([input])
       .select(GROUP_SELECT)
       .single();
 
-    if (error || !data) throw new Error(error?.message || 'Failed to create group');
+    let data: any = inserted;
+    if (error && options.reuseEmpty && (error as { code?: string }).code === '23505') {
+      // A first attempt already made this group but stopped before finishing (its tag, or adding people).
+      // If it is still empty, finish it now instead of failing again on the name.
+      const { data: existing } = await supabase.from('Group').select(GROUP_SELECT).eq('cohortId', input.cohortId).eq('name', input.name).maybeSingle();
+      if (existing) {
+        const { count } = await supabase.from('GroupParticipant').select('participantId', { count: 'exact', head: true }).eq('groupId', (existing as any).id);
+        if ((count ?? 0) === 0) {
+          if (((existing as any).supportId ?? null) !== (input.supportId ?? null)) {
+            const { data: updated, error: upError } = await supabase.from('Group').update({ supportId: input.supportId ?? null }).eq('id', (existing as any).id).select(GROUP_SELECT).single();
+            if (upError || !updated) throw new Error(upError?.message || 'Failed to update group');
+            data = updated;
+          } else {
+            data = existing;
+          }
+        }
+      }
+    }
+
+    if (!data) throw new Error(error?.message || 'Failed to create group');
     const group = mapGroup(data);
     // Auto-create the group's cohort-scoped "<name> Support" tag and tie the support to it.
     await syncGroupTag({ id: group.id, name: group.name, cohortId: input.cohortId, supportId: group.supportId }, null);
