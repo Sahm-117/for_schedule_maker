@@ -144,6 +144,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const [leftOut, setLeftOut] = useState<string[]>([]);
   const [picked, setPicked] = useState<string | null>(null);
   const [statuses, setStatuses] = useState<Record<string, CreateStatus>>({});
+  // Why a group failed, shown on its row (cleared when it is retried).
+  const [failReasons, setFailReasons] = useState<Record<string, string>>({});
   const [creating, setCreating] = useState(false);
   // Off each time the builder opens, so nobody who missed training is used by accident.
   const [includeMissedTraining, setIncludeMissedTraining] = useState(false);
@@ -175,6 +177,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setLeftOut([]);
     setPicked(null);
     setStatuses({});
+    setFailReasons({});
     setIncludeMissedTraining(false);
     setEmptyChoice(null);
     setOnlySignedIn(false);
@@ -452,6 +455,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     for (const g of toCreate) {
       if (statuses[g.key] === 'done') continue; // retry only the ones that failed
       setStatuses((prev) => ({ ...prev, [g.key]: 'creating' }));
+      setFailReasons((prev) => ({ ...prev, [g.key]: '' }));
       try {
         let groupId = g.existingGroupId;
         if (groupId) {
@@ -465,7 +469,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
         createdAny.current = true;
         await groupsApi.bulkAssign(g.memberIds.map((participantId) => ({ participantId, groupId: groupId! })));
         setStatuses((prev) => ({ ...prev, [g.key]: 'done' }));
-      } catch {
+      } catch (e: any) {
+        setFailReasons((prev) => ({ ...prev, [g.key]: e?.message ? String(e.message) : '' }));
         setStatuses((prev) => ({ ...prev, [g.key]: 'failed' }));
       }
     }
@@ -1078,6 +1083,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-gray-900">{g.name} <span className="font-normal text-gray-500">· {g.memberIds.length} people</span>{groupTagName(g.memberIds) && <span className="ml-1.5 rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">{groupTagName(g.memberIds)}</span>}</p>
                         <p className="truncate text-xs text-gray-500">{support ? support.name : 'No support'}</p>
+                        {s === 'failed' && failReasons[g.key] && <p className="mt-0.5 text-xs text-red-700">{failReasons[g.key]}</p>}
                       </div>
                       {s === 'creating' ? <Spinner className="h-4 w-4" /> : (
                         <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${s === 'done' ? 'bg-emerald-100/80 text-emerald-700' : s === 'failed' ? 'bg-red-100/80 text-red-700' : 'bg-neutral-100 text-neutral-600'}`}>

@@ -5223,12 +5223,15 @@ const ensureGroupTag = async (group: { id: string; name: string; cohortId: strin
   // otherwise creating a fresh one with the same name fails on the unique name-per-cohort rule.
   const pointedAt = [...new Set((candidates ?? []).map((l: any) => l.groupId).filter(Boolean))] as string[];
   let alive = new Set<string>();
+  let aliveKnown = true;
   if (pointedAt.length > 0) {
-    const { data: rows } = await supabase.from('Group').select('id').in('id', pointedAt);
+    const { data: rows, error: aliveError } = await supabase.from('Group').select('id').in('id', pointedAt);
+    // If we can't tell which groups still exist, never treat a label as stale (it could belong to a live group).
+    if (aliveError) aliveKnown = false;
     alive = new Set((rows ?? []).map((r: any) => r.id as string));
   }
   const adopt = (candidates ?? []).find(
-    (l: any) => (!l.groupId || !alive.has(l.groupId)) && (l.cohortId === group.cohortId || l.cohortId === null)
+    (l: any) => (!l.groupId || (aliveKnown && !alive.has(l.groupId))) && (l.cohortId === group.cohortId || l.cohortId === null)
   );
   if (adopt) {
     await supabase
@@ -5344,18 +5347,20 @@ export const groupsApi = {
     let data: any = inserted;
     if (error && options.reuseEmpty && (error as { code?: string }).code === '23505') {
       // A first attempt already made this group but stopped before finishing (its tag, or adding people).
-      // If it is still empty, finish it now instead of failing again on the name.
-      const { data: existing } = await supabase.from('Group').select(GROUP_SELECT).eq('cohortId', input.cohortId).eq('name', input.name).maybeSingle();
-      if (existing) {
-        const { count } = await supabase.from('GroupParticipant').select('participantId', { count: 'exact', head: true }).eq('groupId', (existing as any).id);
-        if ((count ?? 0) === 0) {
-          if (((existing as any).supportId ?? null) !== (input.supportId ?? null)) {
-            const { data: updated, error: upError } = await supabase.from('Group').update({ supportId: input.supportId ?? null }).eq('id', (existing as any).id).select(GROUP_SELECT).single();
-            if (upError || !updated) throw new Error(upError?.message || 'Failed to update group');
-            data = updated;
-          } else {
-            data = existing;
-          }
+      // Finish it only when it is clearly that leftover: live, empty, and with this support (or none yet).
+      const { data: existing, error: lookupError } = await supabase.from('Group').select(GROUP_SELECT).eq('cohortId', input.cohortId).eq('name', input.name).maybeSingle();
+      const found = existing as any;
+      if (!lookupError && found) {
+        const { count } = await supabase.from('GroupParticipant').select('participantId', { count: 'exact', head: true }).eq('groupId', found.id);
+        const sameSupport = !found.supportId || found.supportId === (input.supportId ?? null);
+        if (found.archivedAt) throw new Error(`A group named "${input.name}" already exists but is archived. Rename or unarchive it, then try again.`);
+        if ((count ?? 0) > 0 || !sameSupport) throw new Error(`A group named "${input.name}" already exists${(count ?? 0) > 0 ? ' with people in it' : ' with a different support'}. Rename the new group or remove the old one, then try again.`);
+        if ((found.supportId ?? null) !== (input.supportId ?? null)) {
+          const { data: updated, error: upError } = await supabase.from('Group').update({ supportId: input.supportId ?? null }).eq('id', found.id).select(GROUP_SELECT).single();
+          if (upError || !updated) throw new Error(upError?.message || 'Failed to update group');
+          data = updated;
+        } else {
+          data = found;
         }
       }
     }
