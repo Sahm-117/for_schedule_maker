@@ -71,6 +71,22 @@ const normalisePhone = (raw: string | null | undefined): string | null => {
 const isBelow18 = (answers: Record<string, unknown>): boolean =>
   ['below 18', 'under 18', 'under-18', 'under18', '<18', 'below18'].includes(String(answers['Age Range?'] ?? '').trim().toLowerCase())
 
+/**
+ * A teen's parent or guardian, from the form: any question that mentions a parent or guardian
+ * and a name, or a phone/number/WhatsApp. Matched on the wording so the form can be reworded.
+ */
+const guardianFromAnswers = (answers: Record<string, unknown>): { guardianName?: string; guardianPhone?: string } => {
+  const out: { guardianName?: string; guardianPhone?: string } = {}
+  for (const [question, answer] of Object.entries(answers)) {
+    const key = question.toLowerCase()
+    const value = String(answer ?? '').trim()
+    if (!value || !/parent|guardian/.test(key)) continue
+    if (/name/.test(key)) out.guardianName = value
+    else if (/phone|number|whatsapp|contact/.test(key)) out.guardianPhone = value
+  }
+  return out
+}
+
 /** A name as a sorted set of words, so "Abimbola Oluwaseye" equals "Oluwaseye Abimbola". Mirrors fof_name_key. */
 const nameKey = (name: string): string =>
   Array.from(new Set(name.toLowerCase().trim().split(/\s+/).filter(Boolean))).sort().join(' ')
@@ -94,6 +110,7 @@ const upsertParticipant = async (contact: Record<string, unknown>) => {
   }
   if ('email' in contact) participantFields.email = contact.email
   if (contact.ageRange) participantFields.ageRange = contact.ageRange
+  if (contact.guardianPhone) participantFields.guardianPhone = contact.guardianPhone
 
   if (existing) {
     const { error: updateError } = await supabase
@@ -113,6 +130,7 @@ const upsertParticipant = async (contact: Record<string, unknown>) => {
       ...(contact.email !== undefined ? { email: contact.email } : {}),
       // A teen is created as one so the phone rule (teens may share a number) applies from the first write.
       ...(contact.ageRange ? { ageRange: contact.ageRange } : {}),
+      ...(contact.guardianPhone ? { guardianPhone: contact.guardianPhone } : {}),
       source: 'FOLLOW_UP',
       followUpContactId: contact.id,
     }])
@@ -137,7 +155,7 @@ const findContact = async (normalised: string | null, targetCohortId: string | n
   // thing to revisit if the table ever grows into the thousands.
   let query = supabase
     .from('FollowUpContact')
-    .select('id, fullName, phone, email, cohortId, registrationStatus, archivedAt, nextAction, createdAt')
+    .select('id, fullName, phone, email, cohortId, registrationStatus, archivedAt, nextAction, createdAt, guardianPhone, guardianName')
     .limit(5000)
   query = targetCohortId ? query.or(`cohortId.eq.${targetCohortId},cohortId.is.null`) : query.is('cohortId', null)
   const { data: candidates, error } = await query
@@ -290,6 +308,7 @@ Deno.serve(async (req) => {
   try {
     // Which cohort a new prospect belongs to.
     const cohortId = await currentProgrammeCohortId()
+    const guardian = guardianFromAnswers(answers)
 
     // Match on the normalised number rather than the raw text, so formatting
     // differences between the form and the app don't hide an existing prospect.
@@ -302,11 +321,12 @@ Deno.serve(async (req) => {
           .from('FollowUpContact')
           .update({
             ...(adoptingUnscopedContact ? { cohortId } : {}),
+            ...guardian,
             registrationStatus: 'REGISTERED',
             updatedAt: new Date().toISOString(),
           })
           .eq('id', contact.id)
-          .select('id, fullName, phone, email, cohortId, registrationStatus, archivedAt, nextAction, createdAt')
+          .select('id, fullName, phone, email, cohortId, registrationStatus, archivedAt, nextAction, createdAt, guardianPhone')
           .single()
         if (updateError || !updatedContact) throw new Error(updateError?.message || 'Failed to update contact')
         await upsertParticipant({ ...contact, ...updatedContact })
@@ -319,6 +339,8 @@ Deno.serve(async (req) => {
       if (contact.fullName !== fullName) changes.fullName = fullName
       if (email && contact.email !== email) changes.email = email
       if (adoptingUnscopedContact) changes.cohortId = cohortId
+      if (guardian.guardianPhone && contact.guardianPhone !== guardian.guardianPhone) changes.guardianPhone = guardian.guardianPhone
+      if (guardian.guardianName && contact.guardianName !== guardian.guardianName) changes.guardianName = guardian.guardianName
       let effectiveContact = contact
       if (Object.keys(changes).length) {
         const updatedAt = new Date().toISOString()
@@ -326,7 +348,7 @@ Deno.serve(async (req) => {
           .from('FollowUpContact')
           .update({ ...changes, updatedAt })
           .eq('id', contact.id)
-          .select('id, fullName, phone, email, cohortId, registrationStatus, archivedAt, nextAction, createdAt')
+          .select('id, fullName, phone, email, cohortId, registrationStatus, archivedAt, nextAction, createdAt, guardianPhone')
           .single()
         if (updateError || !updatedContact) throw new Error(updateError?.message || 'Failed to update contact')
         effectiveContact = { ...contact, ...updatedContact }
@@ -359,6 +381,7 @@ Deno.serve(async (req) => {
         registrationStatus: 'REGISTERED',
         replyStatus: 'REPLIED',
         email: payload.email ? String(payload.email).trim() : null,
+        ...guardian,
       }])
       .select('id')
       .single()
@@ -378,6 +401,7 @@ Deno.serve(async (req) => {
       email: payload.email ? String(payload.email).trim() : null,
       cohortId: cohortId,
       ageRange: isBelow18(answers) ? '18 and below' : undefined,
+      guardianPhone: guardian.guardianPhone,
     })
 
     // An import of old sign-ups would otherwise raise one alert per row.

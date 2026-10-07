@@ -452,7 +452,36 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
         patch.archivedAt = null;
       }
       const { contact: updated } = await followUpContactsApi.update(contact.id, patch);
+      if (patch.registrationStatus === 'NO_RESPONSE' && updated.ownerId !== contact.ownerId) {
+        // Released: the person is off this support's list for good, and nobody chases them again.
+        lastEditAt.current = Date.now();
+        setContacts((prev) => prev.filter((c) => c.id !== updated.id));
+        toast({
+          tone: 'info',
+          message: `Thanks. ${firstNameOf(contact.fullName)} is off your list. Don't worry, you won't be asked about them again.`,
+          actionLabel: 'Undo',
+          onAction: () => {
+            void followUpContactsApi.update(contact.id, {
+              messageStatus: contact.messageStatus,
+              replyStatus: contact.replyStatus,
+              callStatus: contact.callStatus,
+              registrationStatus: contact.registrationStatus,
+              nextAction: contact.nextAction,
+              archivedAt: contact.archivedAt ?? null,
+              ownerId: contact.ownerId ?? null,
+              noResponseAt: null,
+            })
+              .then(() => loadAll())
+              .catch(() => void loadAll());
+          },
+        });
+        return;
+      }
       replaceContact(updated);
+      if (patch.registrationStatus === 'NO_RESPONSE' && updated.noResponseAt) {
+        toast({ tone: 'info', message: `${firstNameOf(contact.fullName)} marked No response. They stay in your group, and you won't get reminders about them.` });
+        return;
+      }
 
       const wasClosed = !!contact.archivedAt;
       const nowClosed = !!updated.archivedAt;
@@ -567,6 +596,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
           fullName,
           phone: ownOk ? prospect.phone.trim() : undefined,
           guardianPhone: teenGuardianValid ? teen.guardianPhone.trim() : undefined,
+          guardianName: teen.guardianName.trim() || undefined,
           gender: teen.gender,
           email: teen.churchEmail ? CHURCH_FOF_EMAIL : teen.email.trim() || undefined,
           cohortId: activeCohort?.id ?? null,
@@ -1044,7 +1074,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       )}
                     </div>
                   )}
-                  <p className="mt-1 text-[12.5px] text-gray-500">{teenContact && contact.guardianPhone?.trim() ? `Parent ${contact.guardianPhone.trim()}` : (contact.phone || 'No phone')}{assigned ? ` · ${handover ? `passed on${handover.fromName ? ` from ${handover.fromName}` : ''}` : 'assigned'} ${assigned}` : ''}</p>
+                  <p className="mt-1 text-[12.5px] text-gray-500">{teenContact && contact.guardianPhone?.trim() ? `Parent ${[contact.guardianName?.trim(), contact.guardianPhone.trim()].filter(Boolean).join(' · ')}` : (contact.phone || 'No phone')}{assigned ? ` · ${handover ? `passed on${handover.fromName ? ` from ${handover.fromName}` : ''}` : 'assigned'} ${assigned}` : ''}</p>
                   {!phoneOk && (
                     <div className="mt-2.5 rounded-[12px] bg-amber-50 text-amber-800">
                       <button
@@ -1098,7 +1128,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       label="Where do they stand?"
                       value={status}
                       onChange={(value) => handleStatusChange(contact, value as FollowUpStatus)}
-                      options={supportStatusOptions(status)}
+                      options={supportStatusOptions(status, isTeenContact(contact))}
                       placeholder="Choose status"
                     />
                     {status === 'TEEN_ONBOARDED' && contact.teenOnboardedHow && (

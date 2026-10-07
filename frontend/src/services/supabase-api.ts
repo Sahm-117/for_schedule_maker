@@ -3807,6 +3807,8 @@ const mapFollowUpContact = (row: any): import('../types').FollowUpContact => ({
   formQuestionAnsweredById: row.formQuestionAnsweredById ?? null,
   ownerAssignedAt: row.ownerAssignedAt ?? null,
   guardianPhone: row.guardianPhone ?? null,
+  guardianName: row.guardianName ?? null,
+  noResponseAt: row.noResponseAt ?? null,
   teenOnboardedHow: row.teenOnboardedHow ?? null,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -4025,16 +4027,30 @@ export const followUpContactsApi = {
       patch.nextAction = 'CLOSE';
     }
 
-    if (fields.registrationStatus === 'NO_RESPONSE') {
-      patch.replyStatus = 'NO_REPLY';
-      patch.callStatus = 'NOT_APPLICABLE';
-      patch.nextAction = 'CLOSE';
-    }
-
     if (fields.nextAction === 'CLOSE') {
       patch.archivedAt = new Date().toISOString();
     } else if (fields.nextAction) {
       patch.archivedAt = null;
+    }
+
+    // No response parks the person instead of closing them: still open (so they can be put in
+    // a group), never assigned or nudged again. An adult is released from their support; a teen
+    // keeps their Teen Support and their status and is only flagged, because a teen always
+    // needs a same-gender Teen Support.
+    const wasTeen = (current as any).registrationStatus === 'TEENAGER' || (current as any).registrationStatus === 'TEEN_ONBOARDED';
+    if (fields.registrationStatus === 'NO_RESPONSE') {
+      if (wasTeen) {
+        for (const key of ['messageStatus', 'replyStatus', 'callStatus', 'registrationStatus', 'nextAction', 'archivedAt', 'teenOnboardedHow'] as const) delete patch[key];
+      } else {
+        patch.replyStatus = 'NO_REPLY';
+        patch.callStatus = 'NOT_APPLICABLE';
+        patch.nextAction = 'SEND_MESSAGE';
+        patch.archivedAt = null;
+        patch.ownerId = null;
+      }
+      patch.noResponseAt = new Date().toISOString();
+    } else if (fields.registrationStatus) {
+      patch.noResponseAt = null;
     }
     if ('dueDate' in fields) {
       // Re-arm the due reminder whenever the due date changes.
@@ -4066,6 +4082,10 @@ export const followUpContactsApi = {
       nextTerminalReason !== previousTerminalReason
     ) {
       notifyFollowUpTerminalStatus(contact.id, actor.id, nextTerminalReason);
+    }
+    // A teen marked No response keeps their status, so admins are told here.
+    if (wasTeen && fields.registrationStatus === 'NO_RESPONSE' && actor?.id && actor.role !== 'ADMIN') {
+      notifyFollowUpTerminalStatus(contact.id, actor.id, 'NO_RESPONSE');
     }
 
     // Auto-create a Participant when the contact is marked REGISTERED.
@@ -4110,12 +4130,13 @@ export const followUpContactsApi = {
    * Teenager and gives them to a Teen Support straight away (teen_add_prospect).
    * The support who now holds them is told, like any new follow-up.
    */
-  async addTeen(input: { fullName: string; phone?: string; guardianPhone?: string; gender: 'Male' | 'Female'; email?: string; cohortId?: string | null }): Promise<{ contactId: string; ownerId: string | null; ownerName: string | null; waiting: boolean }> {
+  async addTeen(input: { fullName: string; phone?: string; guardianPhone?: string; guardianName?: string; gender: 'Male' | 'Female'; email?: string; cohortId?: string | null }): Promise<{ contactId: string; ownerId: string | null; ownerName: string | null; waiting: boolean }> {
     const { data, error } = await supabase.rpc('teen_add_prospect', {
       p_token: getSessionToken(),
       p_full_name: input.fullName,
       p_phone: input.phone ?? null,
       p_guardian_phone: input.guardianPhone ?? null,
+      p_guardian_name: input.guardianName ?? null,
       p_gender: input.gender,
       p_email: input.email ?? null,
       p_cohort_id: input.cohortId ?? null,
@@ -4268,17 +4289,17 @@ export const followUpContactsApi = {
 };
 
 export const messageTemplatesApi = {
-  async getAll(options?: { category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR' | 'TEEN' }): Promise<{ templates: import('../types').MessageTemplate[] }> {
+  async getAll(options?: { category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR' | 'TEEN' | 'TEEN_PARENT' }): Promise<{ templates: import('../types').MessageTemplate[] }> {
     let q = supabase.from('MessageTemplate').select('*').order('createdAt', { ascending: true });
     // Follow-up screens also get the TEEN templates; the message picker shows each person the right kind.
-    if (options?.category === 'FOLLOW_UP') q = q.in('category', ['FOLLOW_UP', 'TEEN']);
+    if (options?.category === 'FOLLOW_UP') q = q.in('category', ['FOLLOW_UP', 'TEEN', 'TEEN_PARENT']);
     else if (options?.category) q = q.eq('category', options.category);
     const { data, error } = await q;
     if (error) throw new Error(error.message);
     return { templates: (data as any[]) || [] };
   },
 
-  async create(input: { useCase: string; body: string; whenToUse?: string | null; imageUrl?: string | null; imageName?: string | null; category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR' | 'TEEN' }): Promise<{ template: import('../types').MessageTemplate }> {
+  async create(input: { useCase: string; body: string; whenToUse?: string | null; imageUrl?: string | null; imageName?: string | null; category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR' | 'TEEN' | 'TEEN_PARENT' }): Promise<{ template: import('../types').MessageTemplate }> {
     const { data, error } = await supabase
       .from('MessageTemplate')
       .insert([input])
@@ -4289,7 +4310,7 @@ export const messageTemplatesApi = {
     return { template: data as any };
   },
 
-  async update(templateId: string, input: { useCase: string; body: string; whenToUse?: string | null; imageUrl?: string | null; imageName?: string | null }): Promise<{ template: import('../types').MessageTemplate }> {
+  async update(templateId: string, input: { useCase: string; body: string; whenToUse?: string | null; imageUrl?: string | null; imageName?: string | null; category?: 'FOLLOW_UP' | 'TEEN' | 'TEEN_PARENT' }): Promise<{ template: import('../types').MessageTemplate }> {
     const { data, error } = await supabase
       .from('MessageTemplate')
       .update({ ...input, updatedAt: new Date().toISOString() })

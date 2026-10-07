@@ -7,12 +7,13 @@ export interface TeenAddState {
   on: boolean;
   gender: '' | 'Male' | 'Female';
   guardianPhone: string;
+  guardianName: string;
   /** No email of their own: use the church FOF email. */
   churchEmail: boolean;
   email: string;
 }
 
-export const EMPTY_TEEN: TeenAddState = { on: false, gender: '', guardianPhone: '', churchEmail: false, email: '' };
+export const EMPTY_TEEN: TeenAddState = { on: false, gender: '', guardianPhone: '', guardianName: '', churchEmail: false, email: '' };
 
 const INPUT = 'min-h-[48px] w-full rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
 
@@ -65,6 +66,11 @@ const TeenAddFields: React.FC<{
           </div>
           {genderError && <span className="mt-1 block text-xs font-medium text-red-700">Choose Male or Female.</span>}
         </div>
+        <label className="block">
+          <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Parent or guardian name <span className="font-normal text-gray-500">(optional)</span></span>
+          <input type="text" value={teen.guardianName} onChange={(e) => onChange({ guardianName: e.target.value })} placeholder="e.g. Mrs Adebayo" className={INPUT} />
+          <span className="mt-1 block text-xs text-gray-500">Used to greet them in the parent messages.</span>
+        </label>
         <label className="block">
           <span className="mb-1.5 block text-[13px] font-semibold text-gray-900">Parent or guardian number</span>
           <input type="tel" value={teen.guardianPhone} onChange={(e) => onChange({ guardianPhone: e.target.value })} placeholder="0803 000 0000" className={INPUT} />

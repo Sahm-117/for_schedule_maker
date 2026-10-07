@@ -461,6 +461,10 @@ export interface FollowUpContact {
   ownerAssignedAt?: string | null;
   /** A teen's parent or guardian number. Teen messages and calls go to it first. */
   guardianPhone?: string | null;
+  /** A teen's parent or guardian name, for parent messages. */
+  guardianName?: string | null;
+  /** When a support marked them No response. A teen keeps their Teen Support; an adult is released. */
+  noResponseAt?: string | null;
   /** What warranted marking a teen Onboarded. */
   teenOnboardedHow?: TeenOnboardedHow | null;
   createdAt?: string;
@@ -495,6 +499,8 @@ export type FollowUpContactUpdate = Partial<Pick<
   | 'formQuestionAnsweredAt'
   | 'formQuestionAnsweredById'
   | 'guardianPhone'
+  | 'guardianName'
+  | 'noResponseAt'
   | 'teenOnboardedHow'
 >> & {
   previousOwnerId?: string | null;
@@ -507,7 +513,7 @@ export interface MessageTemplate {
   whenToUse?: string | null;
   imageUrl?: string | null;
   imageName?: string | null;
-  category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR' | 'TEEN';
+  category?: 'FOLLOW_UP' | 'ONBOARDING' | 'COORDINATOR' | 'TEEN' | 'TEEN_PARENT';
   createdAt?: string;
   updatedAt?: string;
 }

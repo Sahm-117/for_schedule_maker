@@ -48,13 +48,18 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
   // Chosen from the no-number warning: carry on by email instead.
   const [emailInstead, setEmailInstead] = useState(false);
 
-  // A teen is shown only the TEEN templates, and nobody else sees them.
+  // A teen is shown only the teen templates (for the teen, and for their parent), and nobody else sees them.
   const teen = contact ? isTeenContact(contact) : false;
-  const shownTemplates = useMemo(
-    () => templates.filter((t) => (t.category === 'TEEN') === teen),
-    [templates, teen]
-  );
   const reachPhone = contact ? contactReachPhone(contact) : null;
+  // When the number is the parent's, the parent templates come first.
+  const toParent = teen && !!contact?.guardianPhone && reachPhone === contact.guardianPhone;
+  const shownTemplates = useMemo(() => {
+    const isTeenKind = (t: MessageTemplate) => t.category === 'TEEN' || t.category === 'TEEN_PARENT';
+    const list = templates.filter((t) => isTeenKind(t) === teen);
+    if (!teen) return list;
+    const rank = (t: MessageTemplate) => ((t.category === 'TEEN_PARENT') === toParent ? 0 : 1);
+    return [...list].sort((a, b) => rank(a) - rank(b));
+  }, [templates, teen, toParent]);
   const selected = shownTemplates.find((t) => t.id === selectedId) || null;
   // A template that carries the sender's WhatsApp group link can't go out without one.
   const missingGroupLink = !!selected?.body.includes('{{group_link}}') && !senderGroupLink?.trim();
@@ -169,7 +174,7 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
           <div className="max-h-[40%] shrink-0 overflow-y-auto rounded-2xl border border-orange-100 bg-orange-50/40 p-4">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">Preview</p>
             {missingGroupLink ? (
-              <p className="text-sm font-medium text-amber-800">This message includes your WhatsApp group link, but you have not added one yet. Add it on your profile, then come back to this message.</p>
+              <p className="text-sm font-medium text-amber-800">This message includes your WhatsApp group link, but you have not added one yet. Set it on the My Group page, then come back to this message.</p>
             ) : filled ? (
               <p className="whitespace-pre-wrap text-sm text-gray-800"><LinkText text={filled} /></p>
             ) : (
@@ -184,7 +189,10 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
                 onClick={() => setSelectedId(t.id)}
                 className={`block w-full rounded-2xl border px-4 py-3 text-left transition ${selectedId === t.id ? 'border-orange-300 bg-orange-50' : 'border-orange-100 bg-white hover:bg-orange-50/50'}`}
               >
-                <p className="text-sm font-semibold text-gray-900">{t.useCase}</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  {t.useCase}
+                  {t.category === 'TEEN_PARENT' && <span className="ml-2 rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">For parent</span>}
+                </p>
                 {t.whenToUse && <p className="mt-0.5 text-xs text-gray-500">{t.whenToUse}</p>}
               </button>
             ))}

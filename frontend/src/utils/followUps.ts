@@ -125,9 +125,9 @@ const SUPPORT_AFTER_SIGN_UP_OPTIONS: FollowUpStatus[] = ['LOGIN_SHARED', 'ACCESS
  * sign-up only the steps forward, with Registered kept while it is the current
  * value so the select can show it.
  */
-export const supportStatusOptions = (current: FollowUpStatus) => {
-  if (TEEN_STATUSES.includes(current)) {
-    return TEEN_STATUSES.map((value) => ({ value, label: FOLLOW_UP_STATUS_META[value].label, meta: FOLLOW_UP_STATUS_META[value].description }));
+export const supportStatusOptions = (current: FollowUpStatus, teen = false) => {
+  if (teen || TEEN_STATUSES.includes(current)) {
+    return [...TEEN_STATUSES, 'NO_RESPONSE' as FollowUpStatus].map((value) => ({ value, label: FOLLOW_UP_STATUS_META[value].label, meta: FOLLOW_UP_STATUS_META[value].description }));
   }
   if (!AFTER_SIGN_UP_STATUSES.includes(current)) {
     return followUpStatusOptions.filter((option) => option.value !== 'LOGIN_ISSUE' && option.value !== 'ACCESS_CONFIRMED' && !TEEN_STATUSES.includes(option.value));
@@ -158,6 +158,7 @@ export const isFiledLoginShared = (c: FollowUpContact): boolean =>
 export const computeFollowUpStatus = (c: FollowUpContact): FollowUpStatus => {
   if (c.registrationStatus === 'ACCESS_CONFIRMED') return 'ACCESS_CONFIRMED';
   if (c.registrationStatus === 'ATTENDED') return 'ATTENDED';
+  if (c.noResponseAt && (c.registrationStatus === 'TEENAGER' || c.registrationStatus === 'TEEN_ONBOARDED')) return 'NO_RESPONSE';
   if (c.registrationStatus === 'TEENAGER') return 'TEENAGER';
   if (c.registrationStatus === 'TEEN_ONBOARDED') return 'TEEN_ONBOARDED';
   if (c.registrationStatus === 'LOGIN_ISSUE') return 'LOGIN_ISSUE';
@@ -568,9 +569,10 @@ export const buildStatusPatch = (status: FollowUpStatus, subReason?: string): Re
       base.archivedAt = now;
       break;
     case 'NO_RESPONSE':
+      // Parked, not closed: still open so they can be put in a group, but released from the
+      // support and never assigned or nudged again (the update step clears the owner).
       base.registrationStatus = 'NO_RESPONSE';
-      base.nextAction = 'CLOSE';
-      base.archivedAt = now;
+      base.nextAction = 'SEND_MESSAGE';
       break;
     case 'TEENAGER':
       base.replyStatus = 'REPLIED';
@@ -628,6 +630,7 @@ export const fillTemplate = (
     .replaceAll('{{full_name}}', contact.fullName.trim())
     .replaceAll('{{registration_link}}', registrationLink || '')
     .replaceAll('{{user.name}}', senderName?.trim() || '')
+    .replaceAll('{{parent_name}}', contact.guardianName?.trim() || 'Sir/Ma')
     .replaceAll('{{venue}}', contact.cohortVenue?.trim() || '')
     .replaceAll('{{start date}}', formatTemplateDate(contact.cohortStartDate));
 
@@ -639,6 +642,7 @@ export const buildTemplatePlaceholderSummary = (user?: User | null): string[] =>
   '{{venue}}',
   '{{start date}}',
   '{{group_link}}',
+  '{{parent_name}}',
 ].map((token) => {
   if (token === '{{user.name}}' && user?.name) return `${token} = ${user.name}`;
   if (token === '{{group_link}}' && user?.whatsappGroupUrl) return `${token} = your WhatsApp group link`;

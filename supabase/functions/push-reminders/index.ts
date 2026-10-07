@@ -74,6 +74,10 @@ webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 // same way the give-up statuses do.
 const TERMINAL_REGISTRATION_STATUSES = new Set(['LOGIN_SHARED', 'NOT_INTERESTED', 'NOT_A_TCN_MEMBER'])
 
+/** A support: the Support role, or an admin who also carries the Support tag (FLOW_MAP rule 16). Mirrors hasSupportRole in the app. */
+const isSupportOrTagged = (user: { role?: string; roles?: string[] | null }): boolean =>
+  user.role === 'SUPPORT' || !!user.roles?.includes('SUPPORT')
+
 const getLagosDateParts = (date: Date) => {
   const formatter = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Africa/Lagos',
@@ -1062,6 +1066,7 @@ Deno.serve(async (req) => {
       .lte('dueDate', todayISO)
       .is('archivedAt', null)
       .is('dueReminderSentAt', null)
+      .is('noResponseAt', null)
       .not('ownerId', 'is', null)
 
     const NEXT_ACTION_LABELS: Record<string, string> = {
@@ -1108,6 +1113,7 @@ Deno.serve(async (req) => {
         .from('FollowUpContact')
         .select('id, ownerId, fullName, nextAction, registrationStatus, cohortId')
         .is('archivedAt', null)
+        .is('noResponseAt', null)
         .not('ownerId', 'is', null)
 
       // Only the current cohort: supports can't see past-cohort people, so nudging about them is noise.
@@ -1186,6 +1192,7 @@ Deno.serve(async (req) => {
           .from('FollowUpContact')
           .select('id, ownerId, fullName, nextAction, registrationStatus, ownerAssignedAt, statusChangedAt, cohortId')
           .is('archivedAt', null)
+          .is('noResponseAt', null)
           .not('ownerId', 'is', null)
           .not('ownerAssignedAt', 'is', null)
           .lte('ownerAssignedAt', cutoffIso)

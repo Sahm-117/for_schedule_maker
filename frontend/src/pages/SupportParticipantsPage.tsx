@@ -4,6 +4,7 @@ import AppSelect from '../components/AppSelect';
 import SegmentedTabs from '../components/SegmentedTabs';
 import StaffDiscussionPanel from '../components/discussion/StaffDiscussionPanel';
 import GroupCallCard, { formatMeetingSlot } from '../components/groups/GroupCallCard';
+import TeenWhatsAppGroupCard from '../components/groups/TeenWhatsAppGroupCard';
 import MeetingModePanel from '../components/groups/MeetingModePanel';
 import ParticipantCard from '../components/groups/ParticipantCard';
 import ModalShell from '../components/followups/ModalShell';
@@ -11,7 +12,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { faithProjectsApi, faithProjectCategoriesApi, faithHelpRequestsApi, testimoniesApi, groupOnboardingStatusApi, groupDiscussionApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, participantPushApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
+import { supportTagsApi, faithProjectsApi, faithProjectCategoriesApi, faithHelpRequestsApi, testimoniesApi, groupOnboardingStatusApi, groupDiscussionApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, participantPushApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
 import type { FaithHelpRequest, FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, RetakeMatch, Testimony, User } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
@@ -82,6 +83,15 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const [savingPrayerFocus, setSavingPrayerFocus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  // A Teen Support gets the WhatsApp group card instead of a call link (teens have no call).
+  const [isTeenSupport, setIsTeenSupport] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    supportTagsApi.getAll()
+      .then(({ tags }) => { if (!cancelled) setIsTeenSupport(!!tags.find((t) => t.systemKey === 'TEEN_SUPPORT')?.userIds.includes(user.id)); })
+      .catch(() => { if (!cancelled) setIsTeenSupport(false); });
+    return () => { cancelled = true; };
+  }, [user.id]);
 
   const cohortWeeks = useMemo(
     () => (weeks ?? []).filter((week) => week.cohortId === activeCohort?.id).sort((a, b) => a.weekNumber - b.weekNumber),
@@ -378,6 +388,12 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
         tourId="support:group"
         subtitle="Your group's faith projects and weekly prayer check-ins."
       />
+
+      {isTeenSupport && (
+        <div className="mb-3 max-w-[760px]">
+          <TeenWhatsAppGroupCard userId={user.id} link={user.whatsappGroupUrl} />
+        </div>
+      )}
 
       {loading ? (
         <PageLoader />

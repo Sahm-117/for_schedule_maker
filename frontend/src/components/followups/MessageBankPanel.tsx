@@ -8,6 +8,7 @@ import { messageTemplatesApi, settingsApi } from '../../services/api';
 import { buildTemplatePlaceholderSummary } from '../../utils/followUps';
 import { sortByText } from '../../utils/sort';
 import Spinner from '../Spinner';
+import AppSelect from '../AppSelect';
 
 interface MessageBankPanelProps {
   templates: MessageTemplate[];
@@ -34,6 +35,7 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
   const [useCase, setUseCase] = useState('');
   const [body, setBody] = useState('');
   const [whenToUse, setWhenToUse] = useState('');
+  const [audience, setAudience] = useState<'FOLLOW_UP' | 'TEEN' | 'TEEN_PARENT'>('FOLLOW_UP');
   const [deleting, setDeleting] = useState<MessageTemplate | null>(null);
   const [linkDraft, setLinkDraft] = useState(registrationLink);
   const [savingLink, setSavingLink] = useState(false);
@@ -52,6 +54,7 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
     setUseCase(template?.useCase || '');
     setBody(template?.body || '');
     setWhenToUse(template?.whenToUse || '');
+    setAudience(template?.category === 'TEEN' || template?.category === 'TEEN_PARENT' ? template.category : 'FOLLOW_UP');
     setError('');
     setShowForm(true);
   };
@@ -64,7 +67,7 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
     setSaving(true);
     setError('');
     try {
-      const input = { useCase: useCase.trim(), body, whenToUse: whenToUse.trim() || null };
+      const input = { useCase: useCase.trim(), body, whenToUse: whenToUse.trim() || null, category: audience };
       if (editing) {
         const { template } = await messageTemplatesApi.update(editing.id, input);
         onTemplatesChanged(sortByText(templates.map((t) => (t.id === template.id ? template : t)), (entry) => entry.useCase));
@@ -155,7 +158,11 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
           {sortedTemplates.map((t) => (
             <div key={t.id} className="surface-card flex flex-col rounded-3xl p-4">
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-bold text-gray-900">{t.useCase}</p>
+                <p className="text-sm font-bold text-gray-900">
+                  {t.useCase}
+                  {t.category === 'TEEN' && <span className="ml-2 rounded-full bg-sky-100/80 px-2 py-0.5 text-[11px] font-semibold text-sky-700">Teen</span>}
+                  {t.category === 'TEEN_PARENT' && <span className="ml-2 rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">Teen's parent</span>}
+                </p>
                 {!readOnly && (
                   <AppOverflowMenu
                     align="right"
@@ -219,6 +226,19 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
       >
         <div className="space-y-4">
           {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Who is it for?</label>
+            <AppSelect
+              value={audience}
+              onChange={(v) => setAudience(v as 'FOLLOW_UP' | 'TEEN' | 'TEEN_PARENT')}
+              placeholder="Choose"
+              options={[
+                { value: 'FOLLOW_UP', label: 'Everyone else (adults)' },
+                { value: 'TEEN', label: 'A teen (Teen Supports only)' },
+                { value: 'TEEN_PARENT', label: "A teen's parent or guardian (Teen Supports only)" },
+              ]}
+            />
+          </div>
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Use case</label>
             <input className={inputClass} value={useCase} onChange={(e) => setUseCase(e.target.value)} placeholder="e.g. First WhatsApp message" />

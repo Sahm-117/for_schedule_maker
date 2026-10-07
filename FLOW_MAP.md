@@ -247,6 +247,20 @@ duplicating the logic anywhere else is a bug waiting to happen.
     bracket is "18 and below" stays there until their cohort is COMPLETED or past its end date, so
     a teen keeps their Teen Support and teen group for the programme. People without a date of
     birth or birth year are never touched. Source: `20261007180000_age_bracket_daily_refresh.sql`.
+27. **Teens have their own messages.** `MessageTemplate.category` `TEEN` (to the teen) and
+    `TEEN_PARENT` (to the parent or guardian) show only on a teen's card, and never on anyone
+    else's; the parent ones come first when the card has a parent number
+    (`contactReachPhone`). `{{parent_name}}` reads `FollowUpContact.guardianName` ("Sir/Ma" when
+    empty). A Teen Support saves their teens' WhatsApp group link on My Group
+    (`TeenWhatsAppGroupCard`, stored as `User.whatsappGroupUrl`); a template carrying
+    `{{group_link}}` cannot be sent until it is saved. The form handler reads parent or guardian
+    name/number answers by wording (`guardianFromAnswers`). Source: `20261007190000_teen_guardian_name.sql`.
+28. **No response parks someone instead of closing them.** `FollowUpContact.noResponseAt` is set
+    by `followUpContactsApi.update`. An adult is released (`ownerId` cleared), left open and
+    unarchived, so they can still be put in a group; the NO_RESPONSE status keeps them out of
+    assignment and reassignment. A teen keeps their Teen Support and TEENAGER status (a teen always
+    needs a same-gender Teen Support) and is only flagged; `push-reminders` skips anyone flagged.
+    Choosing another status clears the flag. Source: `20261007200000_followup_no_response_flag.sql`.
 
 ## 5. Edge functions and schedules
 
