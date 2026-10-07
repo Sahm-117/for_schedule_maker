@@ -67,9 +67,9 @@ const normalisePhone = (raw: string | null | undefined): string | null => {
   return null
 }
 
-/** The form's "Below 18" wording, same list as fill_profile_from_form. */
+/** The form's youngest age answer ("18 and below", earlier "Below 18"), same list as fill_profile_from_form. */
 const isBelow18 = (answers: Record<string, unknown>): boolean =>
-  ['below 18', 'under 18', 'under-18', 'under18', '<18', 'below18'].includes(String(answers['Age Range?'] ?? '').trim().toLowerCase())
+  ['below 18', 'under 18', 'under-18', 'under18', '<18', 'below18', '18 and below', '18 & below', '18 and under', '18 & under'].includes(String(answers['Age Range?'] ?? '').trim().toLowerCase())
 
 /**
  * A teen's parent or guardian, from the form: any question that mentions a parent or guardian

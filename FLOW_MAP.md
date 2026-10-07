@@ -120,10 +120,13 @@ duplicating the logic anywhere else is a bug waiting to happen.
    on write (`trg_*_local_phone`). Invalid numbers are held back from
    assignment, never dropped. Search normalises 234 to 0
    (`contactMatchesSearch`).
-8. **Form wording maps to app buckets.** "Below 18" becomes "18 and below";
+8. **Form wording maps to app buckets.** "18 and below" (and the older
+   "Below 18", or "18 & below") becomes "18 and below"; "19 - 24" becomes
+   "18 - 24";
    only blank profile fields are ever filled, never overwrites. The same
    allow-list lives in `fill_profile_from_form` and the contact backfill;
-   change both. Source: `20261005120000_form_age_below_18.sql`.
+   change both, and `isBelow18` in `receive-form-registration`. Source:
+   `20261005120000_form_age_below_18.sql`, `20261007220000_form_age_new_wording.sql`.
    Exception: a believable date of birth (age 5 to 100) sets the age range
    itself, for participants always and for supports once a birth year is
    added; the date wins over a typed range. Placeholder years like 1904 are
