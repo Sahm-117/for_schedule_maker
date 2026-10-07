@@ -134,6 +134,10 @@ duplicating the logic anywhere else is a bug waiting to happen.
    ignored. Source: `20261006150000_age_from_birth_and_participant_theme.sql`,
    `20261007230000_age_18_is_teen.sql`
    (`trg_participant_age_from_dob`, `trg_user_age_from_birth_year`).
+   The concerns answer shown on a card comes from "Any Other Questions or
+   Concerns?" or, for teens, the parent section's "Any Other Questions or
+   Concerns (Parent or Guardian)" (`form_question_text`,
+   `20261007250000_form_question_parent_section.sql`).
 9. **Passwords.** Participants: minimum 5, client and RPC
    (`set_participant_password`, `change_participant_password`). Staff:
    minimum 8. New codes sign the holder out; send the code immediately.
