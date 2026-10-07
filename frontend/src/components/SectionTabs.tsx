@@ -28,7 +28,6 @@ export const ADMIN_SECTIONS: Array<{ root: string; tabs: SectionTab[] }> = [
     tabs: [
       { to: '/groups', label: 'Groups' },
       { to: '/allocation', label: 'Allocation' },
-      { to: '/group-prayers', label: 'Group meetings' },
     ],
   },
   {

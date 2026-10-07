@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
@@ -18,7 +18,6 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import Spinner from '../components/Spinner';
 import AppSelect from '../components/AppSelect';
-import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { groupsApi, participantsApi } from '../services/api';
@@ -204,7 +203,6 @@ const AdminAllocationContent: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [distributePlan, setDistributePlan] = useState<{ assignments: Array<{ participantId: string; groupId: string }>; summary: string; count: number } | null>(null);
   const [pickerTarget, setPickerTarget] = useState<Participant | null>(null);
   const isTouchLayout = useIsTouchLayout();
 
@@ -332,51 +330,6 @@ const AdminAllocationContent: React.FC = () => {
   const activeParticipant = activeId ? participants.find((p) => p.id === activeId) ?? null : null;
   const dragCount = activeId && selected.has(activeId) ? selected.size : 1;
 
-  // Auto-distribute the unassigned evenly across groups (round-robin).
-  const autoDistributeRef = useRef<HTMLButtonElement>(null);
-  // Build the greedy even-distribution plan and open the confirm modal.
-  const handleAutoDistribute = () => {
-    if (groups.length === 0 || unassignedReal.length === 0) return;
-    const base = groups.map((g) => byGroup.get(g.id)?.length ?? 0);
-    // Greedy: always drop the next person into the currently-smallest group.
-    const counts = [...base];
-    const assignments: Array<{ participantId: string; groupId: string }> = [];
-    unassignedReal.forEach((p) => {
-      let min = 0;
-      for (let i = 1; i < counts.length; i++) if (counts[i] < counts[min]) min = i;
-      counts[min] += 1;
-      assignments.push({ participantId: p.id, groupId: groups[min].id });
-    });
-    const summary = groups.map((g, i) => `${g.name}: ${counts[i]}`).join(' · ');
-    setDistributePlan({ assignments, summary, count: unassignedReal.length });
-  };
-
-  const applyAutoDistribute = async () => {
-    if (!distributePlan) return;
-    const { assignments } = distributePlan;
-    setDistributePlan(null);
-    const snapshot = participants;
-    const nameById = new Map(groups.map((g) => [g.id, g.name]));
-    const groupById = new Map(assignments.map((a) => [a.participantId, a.groupId]));
-    setParticipants((prev) =>
-      prev.map((p) =>
-        groupById.has(p.id)
-          ? { ...p, groupId: groupById.get(p.id)!, groupName: nameById.get(groupById.get(p.id)!) ?? null }
-          : p
-      )
-    );
-    setSaving(true);
-    setErr('');
-    try {
-      await groupsApi.bulkAssign(assignments);
-    } catch (e: any) {
-      setParticipants(snapshot);
-      setErr(e?.message || 'Auto-distribute failed. Please retry.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="page-content">
       <PageHeader
@@ -411,15 +364,6 @@ const AdminAllocationContent: React.FC = () => {
                 ? 'Tap “Move” on anyone to assign them, or select several and use “Move selected”.'
                 : 'Tap people to select them, then drag onto a group — or use “Move selected”.'} {saving && <span className="inline-flex items-center gap-1 text-primary"><Spinner className="h-3 w-3" />Saving…</span>}
             </p>
-            <button
-              ref={autoDistributeRef}
-              type="button"
-              onClick={() => void handleAutoDistribute()}
-              disabled={unassignedReal.length === 0 || saving}
-              className="self-start rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
-            >
-              Auto-distribute evenly
-            </button>
           </div>
 
           {/* Explicit move bar — reliable on every device, complements drag */}
@@ -589,15 +533,6 @@ const AdminAllocationContent: React.FC = () => {
         />
       )}
 
-      <ConfirmationModal
-        isOpen={!!distributePlan}
-        onClose={() => setDistributePlan(null)}
-        onConfirm={() => { void applyAutoDistribute(); }}
-        title="Auto-distribute participants"
-        message={distributePlan ? `Spread ${distributePlan.count} unassigned across ${groups.length} groups?\n\nResult → ${distributePlan.summary}` : ''}
-        confirmText="Distribute"
-        type="info"
-      />
     </div>
   );
 };
