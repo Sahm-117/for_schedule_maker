@@ -76,7 +76,7 @@ export const DEFAULT_CHURCH_DEPARTMENTS: ChurchDepartment[] = [
 // form's original ranges.
 export const AGE_RANGE_OPTIONS: string[] = [
   '18 and below',
-  '18 - 24',
+  '19 - 24',
   '25 - 34',
   '35 - 44',
   '45 - 59',

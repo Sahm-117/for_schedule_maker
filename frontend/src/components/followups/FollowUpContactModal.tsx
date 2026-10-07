@@ -332,7 +332,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
                   <AppSelect
                     value={ageRange}
                     onChange={setAgeRange}
-                    options={[{ value: '', label: 'Not set' }, ...[...(ageRange === '18 and below' ? ['18 and below'] : []), '18 - 24', '25 - 34', '35 - 44', '45 - 59', '60 and above'].map((value) => ({ value, label: value }))]}
+                    options={[{ value: '', label: 'Not set' }, ...[...(ageRange === '18 and below' ? ['18 and below'] : []), '19 - 24', '25 - 34', '35 - 44', '45 - 59', '60 and above'].map((value) => ({ value, label: value }))]}
                     placeholder="Not set"
                     compact
                   />

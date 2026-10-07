@@ -74,7 +74,7 @@ export const DEFAULT_GROUPING_RULES: GroupingRules = {
   ageStrength: 'PREFER',
   supportGender: 'SAME_AS_GROUP',
   supportGenderStrength: 'MUST',
-  supportAgeOrder: ['25 - 34', '35 - 44', '18 - 24', '45 - 59', '60 and above', '18 and below'],
+  supportAgeOrder: ['25 - 34', '35 - 44', '19 - 24', '45 - 59', '60 and above', '18 and below'],
   preferredSupportAges: ['25 - 34'],
   supportAgeStrength: 'PREFER',
   excludedSupportIds: [],
@@ -97,6 +97,8 @@ export const normaliseAgeRange = (value?: string | null): string | null => {
   if (direct) return direct;
   if (/^(below|under)\d+$/.test(key) || key === '15-17' || key === '18andbelow' || key === '18orbelow') return '18 and below';
   if (key === '60+' || key.startsWith('60and') || key.startsWith('above60')) return '60 and above';
+  // The bucket was "18 - 24" until 18-year-olds became "18 and below".
+  if (key === '18-24') return '19 - 24';
   return null;
 };
 
@@ -141,7 +143,7 @@ const normaliseTagRules = (value: unknown): TagRule[] => {
     out.push({
       tagId: row.tagId,
       enabled: row.enabled === true,
-      ageRanges: Array.isArray(row.ageRanges) ? [...new Set(row.ageRanges.filter((r): r is string => typeof r === 'string' && AGE_RANGE_OPTIONS.includes(r)))] : [],
+      ageRanges: Array.isArray(row.ageRanges) ? [...new Set(row.ageRanges.map((r) => (typeof r === 'string' ? normaliseAgeRange(r) : null)).filter((r): r is string => r !== null))] : [],
       gender: row.gender === 'Female' || row.gender === 'Male' || row.gender === 'SAME' ? row.gender : null,
       ...tagSizes(row),
     });
@@ -157,12 +159,12 @@ export const normaliseGroupingRules = (value: unknown): GroupingRules => {
   const targetSize = Math.min(maxSize, Math.max(minSize, clampInt(source.targetSize, d.targetSize, 1, 50)));
 
   const savedOrder = Array.isArray(source.supportAgeOrder)
-    ? source.supportAgeOrder.filter((r): r is string => typeof r === 'string' && AGE_RANGE_OPTIONS.includes(r))
+    ? source.supportAgeOrder.map((r) => (typeof r === 'string' ? normaliseAgeRange(r) : null)).filter((r): r is string => r !== null)
     : [];
   // Every range appears exactly once: saved order first, any new ranges after.
   const supportAgeOrder = [...new Set([...savedOrder, ...d.supportAgeOrder, ...AGE_RANGE_OPTIONS])];
   const preferredSupportAges = Array.isArray(source.preferredSupportAges)
-    ? source.preferredSupportAges.filter((r): r is string => typeof r === 'string' && AGE_RANGE_OPTIONS.includes(r))
+    ? source.preferredSupportAges.map((r) => (typeof r === 'string' ? normaliseAgeRange(r) : null)).filter((r): r is string => r !== null)
     : d.preferredSupportAges;
 
   return {
@@ -185,7 +187,7 @@ export const normaliseGroupingRules = (value: unknown): GroupingRules => {
       : [],
     tagRules: normaliseTagRules(source.tagRules),
     ageMatchRanges: Array.isArray(source.ageMatchRanges)
-      ? [...new Set(source.ageMatchRanges.filter((r): r is string => typeof r === 'string' && AGE_RANGE_OPTIONS.includes(r)))]
+      ? [...new Set(source.ageMatchRanges.map((r) => (typeof r === 'string' ? normaliseAgeRange(r) : null)).filter((r): r is string => r !== null))]
       : [],
   };
 };

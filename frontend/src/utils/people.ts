@@ -77,7 +77,7 @@ export const ageRangeFromDate = (dob: string, now: Date = new Date()): string | 
   if (now.getMonth() + 1 < Number(m[2]) || (now.getMonth() + 1 === Number(m[2]) && now.getDate() < Number(m[3]))) age -= 1;
   if (age < 5 || age > 100) return null;
   if (age <= 18) return '18 and below';
-  if (age <= 24) return '18 - 24';
+  if (age <= 24) return '19 - 24';
   if (age <= 34) return '25 - 34';
   if (age <= 44) return '35 - 44';
   if (age <= 59) return '45 - 59';
