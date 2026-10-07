@@ -518,6 +518,8 @@ export interface SavedGroupingDraft {
   ignoredAgeRanges: string[];
   includeMissedTraining: boolean;
   emptyChoice: 'fill' | 'leave' | null;
+  /** The "Only people who have signed in" switch the draft was built with (absent in older drafts = off). */
+  onlySignedIn?: boolean;
 }
 
 /** Reads a saved draft back from storage; anything unusable counts as no draft. */
@@ -544,5 +546,6 @@ export const normaliseSavedDraft = (value: unknown): SavedGroupingDraft | null =
     ignoredAgeRanges: Array.isArray(v.ignoredAgeRanges) ? v.ignoredAgeRanges.filter((r): r is string => typeof r === 'string') : [],
     includeMissedTraining: v.includeMissedTraining === true,
     emptyChoice: v.emptyChoice === 'fill' || v.emptyChoice === 'leave' ? v.emptyChoice : null,
+    onlySignedIn: v.onlySignedIn === true,
   };
 };

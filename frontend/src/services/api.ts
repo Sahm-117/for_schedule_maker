@@ -1093,6 +1093,7 @@ export const participantPushApi = USE_SUPABASE ? supabaseParticipantPushApi : {
   async notify(_participantIds: string[], _title: string, _body: string, _path: string): Promise<void> { return; },
   async getUnreachableIds(): Promise<string[]> { return []; },
   async getNotInstalledIds(): Promise<string[]> { return []; },
+  async getSignedInIds(_cohortId: string): Promise<string[]> { return []; },
 };
 
 export const reflectionActivityApi = USE_SUPABASE ? supabaseReflectionActivityApi : {

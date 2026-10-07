@@ -8261,6 +8261,15 @@ export const participantPushApi = {
       return [];
     }
   },
+
+  // participantIds in a cohort whose login is confirmed (they chose their own
+  // password). Backed by participants_signed_in(); throws so the group builder
+  // never hides people on a failed lookup.
+  async getSignedInIds(cohortId: string): Promise<string[]> {
+    const { data, error } = await supabase.rpc('participants_signed_in', { p_cohort_id: cohortId });
+    if (error) throw new Error(error.message);
+    return (data as string[]) ?? [];
+  },
 };
 
 export const feedbackApi = {

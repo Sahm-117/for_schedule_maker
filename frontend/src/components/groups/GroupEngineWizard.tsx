@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import AppSelect from '../AppSelect';
@@ -7,7 +7,7 @@ import InfoTip from '../InfoTip';
 import Spinner from '../Spinner';
 import SupportTagsModal from '../supports/SupportTagsModal';
 import { useAuth } from '../../hooks/useAuth';
-import { cohortsApi, groupsApi, settingsApi, supportKindApi, supportTagsApi } from '../../services/api';
+import { cohortsApi, groupsApi, participantPushApi, settingsApi, supportKindApi, supportTagsApi } from '../../services/api';
 import type { Group, Participant, SupportKind, SupportTag, User } from '../../types';
 import { AGE_RANGE_OPTIONS } from '../../constants/departments';
 import { trainingCountFor } from '../../utils/programmeRules';
@@ -149,6 +149,11 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const [includeMissedTraining, setIncludeMissedTraining] = useState(false);
   // Empty groups the admin made first: fill them, or leave them alone. Asked each time.
   const [emptyChoice, setEmptyChoice] = useState<'fill' | 'leave' | null>(null);
+  // Off each time the builder opens: leave out people whose login isn't confirmed
+  // (they haven't chosen their own password yet). They stay ungrouped for a later build.
+  const [onlySignedIn, setOnlySignedIn] = useState(false);
+  const [signedInIds, setSignedInIds] = useState<Set<string> | null>(null);
+  const [signedInFailed, setSignedInFailed] = useState(false);
   const createdAny = useRef(false);
   // Support tags, and the age ranges left out of THIS build only (never saved).
   const [tags, setTags] = useState<SupportTag[]>([]);
@@ -172,6 +177,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setStatuses({});
     setIncludeMissedTraining(false);
     setEmptyChoice(null);
+    setOnlySignedIn(false);
+    setSignedInIds(null);
+    setSignedInFailed(false);
     setIgnoredAges(new Set());
     setTagEditFor(null);
     setDraftInfo({ ignored: 0, tagNotes: [] });
@@ -191,8 +199,47 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
       .finally(() => setLoading(false));
   }, [isOpen, cohortId]);
 
+  // Who has confirmed their login, for the "Only people who have signed in" switch. Loaded when the
+  // builder opens, again when you come back to the tab and when the switch is turned on, so someone
+  // who signs in meanwhile is counted. A failed refresh keeps the last good list.
+  const signedInRequest = useRef(0);
+  const signedInLoaded = useRef(false);
+  const loadSignedIn = useCallback(() => {
+    const request = ++signedInRequest.current;
+    participantPushApi.getSignedInIds(cohortId)
+      .then((ids) => {
+        if (request !== signedInRequest.current) return;
+        signedInLoaded.current = true;
+        setSignedInIds(new Set(ids));
+        setSignedInFailed(false);
+      })
+      .catch(() => {
+        if (request === signedInRequest.current && !signedInLoaded.current) setSignedInFailed(true);
+      });
+  }, [cohortId]);
+  useEffect(() => {
+    if (!isOpen) return;
+    signedInLoaded.current = false;
+    loadSignedIn();
+    const onVisible = () => { if (document.visibilityState === 'visible') loadSignedIn(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      signedInRequest.current += 1;
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [isOpen, loadSignedIn]);
+
   // ── Who can be grouped, and which supports are free ──
-  const ungrouped = useMemo(() => participants.filter((p) => !p.groupId), [participants]);
+  const notGrouped = useMemo(() => participants.filter((p) => !p.groupId), [participants]);
+  // Split once by confirmed login. With the switch on, people whose login isn't confirmed are left out
+  // of this build; they stay ungrouped.
+  const loginSplit = useMemo(
+    () => (signedInIds ? { signedIn: notGrouped.filter((p) => signedInIds.has(p.id)), notSignedIn: notGrouped.filter((p) => !signedInIds.has(p.id)) } : null),
+    [notGrouped, signedInIds]
+  );
+  const ungrouped = onlySignedIn && loginSplit ? loginSplit.signedIn : notGrouped;
+  const leftOutNotSignedIn = onlySignedIn && loginSplit ? loginSplit.notSignedIn : [];
+  const notSignedInCount = loginSplit ? loginSplit.notSignedIn.length : 0;
   const people = useMemo(
     () => new Map<string, EnginePerson>(ungrouped.map((p) => [p.id, toEnginePerson({ id: p.id, name: p.fullName, gender: p.gender, ageRange: p.ageRange })])),
     [ungrouped]
@@ -340,6 +387,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
         ignoredAgeRanges: [...ignoredAges],
         includeMissedTraining,
         emptyChoice,
+        onlySignedIn,
       });
       setDraftNote('Draft saved. Open the builder again to continue it.');
     } catch (e: any) {
@@ -358,7 +406,10 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   // supports no longer free, empty groups that were filled or removed.
   const continueDraft = () => {
     if (!saved) return;
-    const stillUngrouped = new Set(people.keys());
+    // The draft was built with the switch on or off; judge it against that same pool, not the current one.
+    const restoreOnlySignedIn = saved.onlySignedIn === true && !!loginSplit;
+    const pool = restoreOnlySignedIn && loginSplit ? loginSplit.signedIn : notGrouped;
+    const stillUngrouped = new Set(pool.map((p) => p.id));
     const freeIds = new Set(supportPool.free.map((s) => s.id));
     const emptyIds = new Set(emptyGroups.map((g) => g.id));
     const placed = new Set<string>();
@@ -379,8 +430,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setIgnoredAges(new Set(saved.ignoredAgeRanges));
     setIncludeMissedTraining(saved.includeMissedTraining);
     setEmptyChoice(saved.emptyChoice);
+    setOnlySignedIn(restoreOnlySignedIn);
     setDraft(restored);
-    setLeftOut([...people.values()].filter((p) => !placed.has(p.id)).map((p) => p.id));
+    setLeftOut(pool.filter((p) => !placed.has(p.id)).map((p) => p.id));
     setPicked(null);
     setDraftNote([
       droppedPeople > 0 ? `${droppedPeople} ${droppedPeople === 1 ? 'person was' : 'people were'} grouped since you saved and ${droppedPeople === 1 ? 'was' : 'were'} taken out.` : '',
@@ -574,6 +626,36 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   </div>
                 </div>
               )}
+              <div className={`${SURFACE} flex items-center justify-between gap-3 p-4`}>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">Only people who have signed in</p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {signedInFailed
+                      ? "Couldn't check who has signed in, so everyone is included."
+                      : !signedInIds
+                        ? 'Checking who has signed in…'
+                        : onlySignedIn
+                          ? `${leftOutNotSignedIn.length} ${leftOutNotSignedIn.length === 1 ? 'person is' : 'people are'} left out because their login isn't confirmed (not set up, or switched off). They stay ungrouped and can be grouped in a later build.`
+                          : notSignedInCount > 0
+                            ? `${notSignedInCount} ${notSignedInCount === 1 ? 'person has' : 'people have'} not signed in yet. Turn on to leave them out of this build.`
+                            : 'Everyone waiting for a group has signed in.'}
+                  </p>
+                  {signedInFailed && (
+                    <button type="button" onClick={loadSignedIn} className="mt-1 text-xs font-semibold text-primary underline underline-offset-2">Try again</button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={onlySignedIn}
+                  aria-label="Only people who have signed in"
+                  disabled={!signedInIds || signedInFailed || (notSignedInCount === 0 && !onlySignedIn)}
+                  onClick={() => { if (!onlySignedIn) loadSignedIn(); setOnlySignedIn((v) => !v); }}
+                  className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition disabled:opacity-50 ${onlySignedIn ? 'bg-primary' : 'bg-slate-200'}`}
+                >
+                  <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${onlySignedIn ? 'translate-x-7' : 'translate-x-1'}`} />
+                </button>
+              </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <StatTile value={readyCount} label="Ready to group" />
                 <StatTile value={needsInfo.length} label="Need gender/age" tone="amber" />
@@ -581,7 +663,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 <StatTile value={supportsMissingDetails} label="Supports missing details" tone="amber" />
               </div>
               {ungrouped.length === 0 ? (
-                <div className={`${SURFACE} px-5 py-10 text-center text-sm text-gray-500`}>Everyone in this cohort is already in a group.</div>
+                <div className={`${SURFACE} px-5 py-10 text-center text-sm text-gray-500`}>{notGrouped.length > 0 ? 'Nobody who has signed in is waiting for a group. Turn off the switch above to include the rest.' : 'Everyone in this cohort is already in a group.'}</div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className={`${SURFACE} p-4`}>
