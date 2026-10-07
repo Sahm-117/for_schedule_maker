@@ -31,3 +31,8 @@ Read this first, then `2026-10-07_form-age-wording-19-24.md` and `2026-10-07_gro
 - The builder never sees teen groups (the Groups page filters `isTeenGroup`); teens are grouped by their Teen Support.
 - Git: the stop hook keeps asking to re-author commits as Claude; AGENTS.md says the author stays Sam, so it was declined each time. GitHub therefore shows these commits as Unverified.
 - Checks used: `npm run build` plus `npx tsc --noEmit -p tsconfig.app.json` (Vite does not type-check); Playwright with route-mocked network against a local dev server (`VITE_SUPABASE_URL=http://127.0.0.1:9`); rolled-back SQL tests with a temporary AppSession row and `set_config('request.headers', ...)`.
+
+## Tooling added at the end of the session
+- ContextSaver and ContextCatchup (Olamide's skills) installed in the repo: `.claude/skills/context-saver/`, `.claude/skills/context-catchup/`, hook script `.claude/hooks/session-start.js`, and `.claude/settings.json` registering it for `SessionStart` and `PreCompact` (async). The saver's skill text now points at the project hook path (`$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.js`); the hook script itself is byte-identical to the package.
+- The hook summarises the most recent matching transcript through `claude -p` (needs the `claude` CLI signed in) and appends to `.sessions/INDEX.md`. It samples only the first 40 and last 60 messages, so for long sessions a hand-written note is richer. Run by hand with `node "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.js" --manual`.
+- Not run yet; the first real run will be the next session start or compaction.
