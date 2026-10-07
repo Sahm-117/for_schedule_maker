@@ -103,7 +103,7 @@ The admin Dashboard's sign-up cards disagreed with Follow-ups → Overview. Trac
 - The long "⛔ Combined Service 20 Dec · no FOF" pill was clipped behind the row heading at Quarter zoom. Church events are now date-only pills (`AdminPlannerPage`); no-FOF events have a pulsing red dot, and the class-clash "!" markers pulse. Tap opens the event sheet (or clash sheet). Legend gained "No FOF (tap for details)". No backend change.
 
 ## Open at end of session
-- Commit author: kept `Sam <tisnotaname@gmail.com>` per AGENTS.md; the stop hook wants `Claude <noreply@anthropic.com>` and flags these commits as Unverified. User has not chosen.
+- Commit author: kept `Sam <[redacted-email]>` per AGENTS.md; the stop hook wants `Claude <noreply@anthropic.com>` and flags these commits as Unverified. User has not chosen.
 - Open data items: Beulah Yalokwu vs Chris Ayomide (same number), Abisola Alabi vs Abimbola Alabi.
 - Merged preview branches on GitHub can be deleted by the user (list in earlier notes).
 

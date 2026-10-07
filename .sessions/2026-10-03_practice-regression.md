@@ -2,7 +2,7 @@
 
 ## What Was Done
 
-User requested a Practice-first app regression pass and authorized pushing fixes in tested batches. Work uses the attached managed worktree on `codex/practice-regression-fixes`, starting from main `28e449a`; original checkout changes were preserved. Publishing actor is Sahm-117, author Sam <tisnotaname@gmail.com>, destination main.
+User requested a Practice-first app regression pass and authorized pushing fixes in tested batches. Work uses the attached managed worktree on `codex/practice-regression-fixes`, starting from main `28e449a`; original checkout changes were preserved. Publishing actor is Sahm-117, author Sam <[redacted-email]>, destination main.
 
 Batch 1 fixes Practice participant class links (`/me/week/1`), account return (`/support/schedule`), a legacy schedule alias, cold-entry readiness/retry and disabled-entry redirect, failed checklist save reconciliation/confirmed-state rollback with a visible error, and the Practice participant Active stage label. Independent review caught and resolved the rapid double-failure rollback case.
 

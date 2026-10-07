@@ -14,7 +14,7 @@ Written 2026-09-29 at the end of a long session, for a fresh Claude Code session
 
 1. **Understanding first.** Before building, restate your understanding. For any UI, include **rendered screenshots plus a short explainer** (not raw HTML files). Build only after an explicit "go", "build", or "build and push".
 2. **Pushing.** Push to `main` only when told. Use a side branch (`claude/<topic>`) to show work-in-progress without deploying. `main` auto-deploys to production via Vercel (root `frontend`, `npm run build`).
-3. **Git identity.** Author: `Sam <tisnotaname@gmail.com>` (`git commit --author="Sam <tisnotaname@gmail.com>"`). The committer is the session's signing identity (Claude, noreply@anthropic.com); leave it, because the stop hook checks it. End commit messages with the Co-Authored-By and Claude-Session trailers the harness gives you.
+3. **Git identity.** Author: `Sam <[redacted-email]>` (`git commit --author="Sam <[redacted-email]>"`). The committer is the session's signing identity (Claude, noreply@anthropic.com); leave it, because the stop hook checks it. End commit messages with the Co-Authored-By and Claude-Session trailers the harness gives you.
 4. **Plain language.** Explain things in plain words to a non-developer: what changes for admins, supports and participants. Use Nigerian church context (TCN Ikorodu, "Foundation of Faith" = FOF, Cohort 10 etc.). Use sample names in mock-ups, never real people.
 5. **Deleting or overwriting.** Never delete data, files, branches or DB objects as a side effect. Ask per target first. Data fixes on production need an explicit OK.
 6. **Session notes.** After shipping, add to `.sessions/` and `.sessions/INDEX.md`. `.sessions/` is git-ignored, so use `git add -f`. Never record secrets.

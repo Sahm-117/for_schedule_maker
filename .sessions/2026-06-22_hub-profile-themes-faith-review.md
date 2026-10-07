@@ -3,7 +3,7 @@
 Date: 2026-06-22
 Branch: `main`
 Latest commit: `7e3c211 Add Hub, profile pictures, per-user themes, and faith-project review flow`
-Production status: pushed to `origin/main` (committed as `Sahm-117 <tisnotaname@gmail.com>`)
+Production status: pushed to `origin/main` (committed as `Sahm-117 <[redacted-email]>`)
 Build: clean `npm run build` from `frontend/` (518 modules, no errors); `tsc --noEmit` clean
 Edge functions deployed to project `vnmeeqvwqaeczjlvzoul`: `notify-faith-project-review`, `notify-faith-project-submitted`, `notify-hub`
 

@@ -36,7 +36,7 @@ Temporary test harnesses/screenshots/logs are under `/private/tmp/fof-app-nudge-
 
 ## Pending Tasks
 
-- No feature/publishing work remains. Verified GitHub actor was `Sahm-117`; commit author `Sam <tisnotaname@gmail.com>`; destination `Sahm-117/for_schedule_maker` branch `main`.
+- No feature/publishing work remains. Verified GitHub actor was `Sahm-117`; commit author `Sam <[redacted-email]>`; destination `Sahm-117/for_schedule_maker` branch `main`.
 - This post-deploy summary and index update are saved locally after the authorized push; no second documentation-only push was attempted.
 
 ## Errors Hit & Fixes

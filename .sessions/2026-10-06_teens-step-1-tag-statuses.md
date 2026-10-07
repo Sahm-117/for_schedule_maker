@@ -4,7 +4,7 @@
 **Branch:** main
 
 ## What Was Done
-- Spec agreed in chat for teens (18 and below): looked after off the app by Teen Supports, one support per teen throughout, no teen login, teen groups and Sunday attendance on the app, limit per teen support in Settings (default 4), same gender by default with a flagged fallback, parent/guardian phone field, church email `tcn.fof.ikd@gmail.com` for teens with no email, Mobilisation Teen switch assigns straight away. Safeguarding policy drafted (in chat only).
+- Spec agreed in chat for teens (18 and below): looked after off the app by Teen Supports, one support per teen throughout, no teen login, teen groups and Sunday attendance on the app, limit per teen support in Settings (default 4), same gender by default with a flagged fallback, parent/guardian phone field, church email `[redacted-email]` for teens with no email, Mobilisation Teen switch assigns straight away. Safeguarding policy drafted (in chat only).
 - Step 1 built, applied live and pushed: built-in **Teen Support** tag (old "Teen" tag converted in place, same id, 2 members kept), statuses **TEENAGER** and **TEEN_ONBOARDED**, auto-tag in `fill_profile_from_form` behind `AppSetting.teen_flow_enabled` (currently **false**), adult assignment/reassignment/stale/load counts skip teens, form gate treats teen statuses like Registered, cohort_health counts teens as registered.
 - Found and told: Abimbola Oluwaseye was overwritten by his sibling Ibukunoluwa Abimbola (same phone/email) — one record, first form's gender kept. Not yet fixed.
 - Hub list checked against Users: every name is a support (Mary Olalokun = Ayomide Mary Faniran, Damilare Grillo = GRILLO OLUWADARE).
