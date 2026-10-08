@@ -100,7 +100,10 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
   const [allParticipants, setParticipants] = useState<Participant[]>([]);
   // A Teen Support takes attendance for their own teens by default; a switch brings back everyone.
   const [teenGroupId, setTeenGroupId] = useState<string | null>(null);
-  const [showEveryone, setShowEveryone] = useState(false);
+  // 'mine' = their own teens, 'teens' = every teen in the cohort (any Teen Support may mark any
+  // teen), 'everyone' = the whole cohort. Teen group ids come from the cohort's teen groups.
+  const [scope, setScope] = useState<'mine' | 'teens' | 'everyone'>('mine');
+  const [teenGroupIds, setTeenGroupIds] = useState<Set<string>>(new Set());
   const [records, setRecords] = useState<Map<string, AttendanceRecord>>(new Map());
   const [session, setSession] = useState<AttendanceSession | null>(null);
   const [weekResults, setWeekResults] = useState<AttendanceWeekResult[]>([]);
@@ -111,8 +114,13 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
   const [starting, setStarting] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const participants = useMemo(
-    () => (teenGroupId && !showEveryone ? allParticipants.filter((person) => person.groupId === teenGroupId) : allParticipants),
-    [allParticipants, teenGroupId, showEveryone]
+    () => {
+      if (!teenGroupId) return allParticipants;
+      if (scope === 'mine') return allParticipants.filter((person) => person.groupId === teenGroupId);
+      if (scope === 'teens') return allParticipants.filter((person) => person.groupId && teenGroupIds.has(person.groupId));
+      return allParticipants;
+    },
+    [allParticipants, teenGroupId, scope, teenGroupIds]
   );
 
   useEffect(() => {
@@ -121,6 +129,9 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
     groupsApi.getTeenGroupForSupport(user.id, activeCohort.id)
       .then(({ group }) => { if (!cancelled) setTeenGroupId(group?.id ?? null); })
       .catch(() => { if (!cancelled) setTeenGroupId(null); });
+    groupsApi.getAll({ cohortId: activeCohort.id, includeTeenGroups: true })
+      .then(({ groups }) => { if (!cancelled) setTeenGroupIds(new Set(groups.filter((group) => group.isTeenGroup).map((group) => group.id))); })
+      .catch(() => { if (!cancelled) setTeenGroupIds(new Set()); });
     return () => { cancelled = true; };
   }, [activeCohort, user.id]);
 
@@ -278,7 +289,7 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
 
   return (
     <div className="page-content max-w-4xl">
-      <PageHeader title="Attendance" subtitle={allWeeks ? 'Attendance results for this cohort' : selectedWeek ? `Week ${selectedWeek.weekNumber} · ${teenGroupId && !showEveryone ? 'your teens' : `everyone in ${activeCohort?.name ?? 'this cohort'}`}` : 'Everyone in this cohort'} />
+      <PageHeader title="Attendance" subtitle={allWeeks ? 'Attendance results for this cohort' : selectedWeek ? `Week ${selectedWeek.weekNumber} · ${teenGroupId && scope === 'mine' ? 'your teens' : teenGroupId && scope === 'teens' ? 'all teens' : `everyone in ${activeCohort?.name ?? 'this cohort'}`}` : 'Everyone in this cohort'} />
       {switcher}
       {!activeCohort ? <p className="text-sm text-gray-500">Choose a cohort first.</p> : cohortWeeks.length === 0 ? <p className="text-sm text-gray-500">No weeks are set up yet.</p> : (
         <>
@@ -302,13 +313,15 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
               {groupOptions.length > 1 && <div className="w-full sm:w-56"><AppSelect value={selectedGroupId} onChange={setSelectedGroupId} options={groupOptions} placeholder="All groups" compact /></div>}
             </div>}
             {!allWeeks && !beforeClassDay && teenGroupId && (
-              <label className="mt-3 flex cursor-pointer items-center gap-2.5 text-[13px] font-medium text-gray-600">
-                <input type="checkbox" checked={showEveryone} onChange={(e) => { setShowEveryone(e.target.checked); setSelectedGroupId(''); }} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30" />
-                Show everyone, not just my teens
-              </label>
+              <SegmentedTabs
+                className="mt-3"
+                tabs={[{ key: 'mine', label: 'My teens' }, { key: 'teens', label: 'All teens' }, { key: 'everyone', label: 'Everyone' }]}
+                active={scope}
+                onChange={(key) => { setScope(key as 'mine' | 'teens' | 'everyone'); setSelectedGroupId(''); }}
+              />
             )}
             {!allWeeks && finalised && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance report sent.</p>}
-            {!allWeeks && !finalised && allMarked && !(teenGroupId && !showEveryone) && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance taken.{activeSession.autoFinalizeAtNoon ? ' It will be sent automatically at noon on Sunday.' : ' Waiting for the admin to send the report.'}</p>}
+            {!allWeeks && !finalised && allMarked && !(teenGroupId && scope !== 'everyone') && <p className="mt-2 text-[13px] font-medium text-emerald-700">Attendance taken.{activeSession.autoFinalizeAtNoon ? ' It will be sent automatically at noon on Sunday.' : ' Waiting for the admin to send the report.'}</p>}
             {!allWeeks && locked && <p className="mt-2 text-[13px] font-medium text-gray-500">The register is locked. You can still move an Absent mark to Late or Left early.</p>}
           </section>
           {allWeeks ? (loading ? <PageLoader /> : <section className="overflow-hidden rounded-[20px] border border-[#eef0f4] bg-white shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">{weekResults.map((result) => {

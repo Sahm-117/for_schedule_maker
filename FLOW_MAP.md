@@ -239,7 +239,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
     otherwise. Teen groups never have meetings, recaps, prayer or onboarding:
     `groupsApi.getAll` (unless `includeTeenGroups`), `getForSupport` and
     `resolveSupportScopedGroups` leave them out. A Teen Support's Attendance page
-    lists only their teens (switch for everyone). Source:
+    lists only their teens by default, with "All teens" (any Teen Support may mark any
+    teen; `mark_shared_attendance` only needs a staff session) and "Everyone" beside it. Source:
     `20261007100000_teen_groups.sql`, `20261007120000_teen_group_sync_fixes.sql`.
 23. **A teen can only be handed to a same-gender Teen Support, by anyone.**
     `teen_owner_guard` rejects any owner change on a teen to someone who is not a
