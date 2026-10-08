@@ -307,7 +307,11 @@ duplicating the logic anywhere else is a bug waiting to happen.
     not list them (a teen is judged by the number we reach them on). The WhatsApp export shows each
     person's status and leaves No response out unless "Include No response" is switched on, except
     when the list is already narrowed to No response. The single-person Copy stays a clean line.
-    Source: `20261007200000_followup_no_response_flag.sql`,
+    The next-cohort carry-over (`getNextCohortContacts`, `getWaitingForCohort`, the dashboard's
+    `nextCohortPeople`) offers No response people too, but only those who never signed up: one who
+    already has a participant record is a member of this cohort whose support could not reach them,
+    so moving the contact would only split the two. Moving someone clears their No response flag.
+    Source: `20261007200000_followup_no_response_flag.sql`, `20261008110000_no_response_next_cohort_count.sql`,
     `20261008020000_password_set_confirms_parked_contacts.sql`.
 29. **Only people who have signed in are grouped, and running groups are topped up first.** The group
     builder takes the participants it is given (the Groups page loads only the cohort's Active ones, and

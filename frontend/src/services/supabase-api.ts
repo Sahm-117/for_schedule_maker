@@ -3916,6 +3916,16 @@ export const formRegistrationsApi = {
   },
 };
 
+// Of the No response contacts, keep only those who never signed up (no participant record).
+const dropRegisteredNoResponse = async (contacts: import('../types').FollowUpContact[]): Promise<import('../types').FollowUpContact[]> => {
+  const parked = contacts.filter((c) => c.registrationStatus === 'NO_RESPONSE');
+  if (parked.length === 0) return contacts;
+  const { data, error } = await supabase.from('Participant').select('followUpContactId').in('followUpContactId', parked.map((c) => c.id));
+  if (error) throw new Error(error.message);
+  const signedUp = new Set(((data as Array<{ followUpContactId: string }>) || []).map((row) => row.followUpContactId));
+  return contacts.filter((c) => c.registrationStatus !== 'NO_RESPONSE' || !signedUp.has(c.id));
+};
+
 export const followUpContactsApi = {
   async getById(contactId: string): Promise<{ contact: import('../types').FollowUpContact | null }> {
     const { data, error } = await supabase.from('FollowUpContact').select(FOLLOW_UP_SELECT).eq('id', contactId).maybeSingle();
@@ -4249,15 +4259,18 @@ export const followUpContactsApi = {
     return { message: 'Contact deleted' };
   },
 
+  // Offered for the next cohort: people who said they will join it, and people marked No response
+  // who never signed up. A No response contact who already signed up is a participant in this
+  // cohort (their support could not reach them), so moving the contact would only confuse things.
   async getNextCohortContacts(cohortId: string): Promise<{ contacts: import('../types').FollowUpContact[] }> {
     const { data, error } = await supabase
       .from('FollowUpContact')
       .select(FOLLOW_UP_SELECT)
       .eq('cohortId', cohortId)
-      .eq('registrationStatus', 'NEXT_COHORT')
+      .in('registrationStatus', ['NEXT_COHORT', 'NO_RESPONSE'])
       .is('archivedAt', null);
     if (error) throw new Error(error.message);
-    return { contacts: ((data as any[]) || []).map(mapFollowUpContact) };
+    return { contacts: await dropRegisteredNoResponse(((data as any[]) || []).map(mapFollowUpContact)) };
   },
 
   // Everyone marked "Will join next cohort" who hasn't been moved into this cohort yet.
@@ -4265,12 +4278,12 @@ export const followUpContactsApi = {
     const { data, error } = await supabase
       .from('FollowUpContact')
       .select(FOLLOW_UP_SELECT)
-      .eq('registrationStatus', 'NEXT_COHORT')
+      .in('registrationStatus', ['NEXT_COHORT', 'NO_RESPONSE'])
       .is('archivedAt', null)
       .or(`cohortId.is.null,cohortId.neq.${cohortId}`)
       .order('fullName', { ascending: true });
     if (error) throw new Error(error.message);
-    return { contacts: ((data as any[]) || []).map(mapFollowUpContact) };
+    return { contacts: await dropRegisteredNoResponse(((data as any[]) || []).map(mapFollowUpContact)) };
   },
 
   async bulkMoveNextCohortContacts(contactIds: string[], newCohortId: string): Promise<void> {
@@ -4280,6 +4293,7 @@ export const followUpContactsApi = {
       .update({
         cohortId: newCohortId,
         registrationStatus: 'NOT_REGISTERED',
+        noResponseAt: null,
         messageStatus: 'NOT_SENT',
         replyStatus: 'NO_REPLY',
         callStatus: 'NOT_CALLED',

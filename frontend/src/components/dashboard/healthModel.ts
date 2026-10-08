@@ -271,7 +271,7 @@ export const buildAttention = (
   }
 
   if (data.nextCohortPeople > 0) {
-    const text = `${data.nextCohortPeople} ${data.nextCohortPeople === 1 ? 'person' : 'people'} said they'd join the next cohort`;
+    const text = `${data.nextCohortPeople} ${data.nextCohortPeople === 1 ? 'person' : 'people'} waiting for the next cohort`;
     // Once a cohort is over there's nowhere to move them yet, so point at creating the next one.
     items.push(mode === 'completed'
       ? { key: 'next-cohort', status: 'warning', text, actionLabel: 'Create cohort', to: '/cohorts' }

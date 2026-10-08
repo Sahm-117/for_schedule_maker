@@ -6,7 +6,7 @@ import type { FollowUpContact, User } from '../../types';
 import { firstNameOf } from '../../utils/people';
 import Spinner from '../Spinner';
 
-// People marked "Will join next cohort" get moved into the new cohort's
+// People marked "Will join next cohort" (and No response people who never signed up) get moved into the new cohort's
 // follow-up list (back to "To contact") and, if supports are picked, split
 // evenly between them. Used right after creating a cohort and from the home page.
 
@@ -77,8 +77,8 @@ const NextCohortAssignModal: React.FC<Props> = ({ isOpen, contacts, targetCohort
     <ModalShell
       isOpen={isOpen}
       onClose={() => { if (!saving) onClose(); }}
-      title={`${people} said they'd join the next cohort`}
-      subtitle="Assign them to supports to follow up."
+      title={`${people} waiting for the next cohort`}
+      subtitle="Said they'll join, or never replied. Assign them to supports to follow up."
       footer={(
         <>
           <button
@@ -107,6 +107,7 @@ const NextCohortAssignModal: React.FC<Props> = ({ isOpen, contacts, targetCohort
               <li key={c.id} className="text-sm text-sky-900">
                 {c.fullName}
                 {c.phone ? <span className="ml-2 text-xs text-sky-600">{c.phone}</span> : null}
+                {c.registrationStatus === 'NO_RESPONSE' ? <span className="ml-2 text-xs font-semibold text-sky-700">No response</span> : null}
               </li>
             ))}
             {count > 5 && <li className="text-xs text-sky-600">…and {count - 5} more</li>}
