@@ -301,6 +301,11 @@ duplicating the logic anywhere else is a bug waiting to happen.
     then choose a password they become ACCESS_CONFIRMED and the flag clears
     (`confirm_followup_access_on_password_set`). Undo puts them back through the form gate (rule 1),
     so a contact with no form on file cannot be restored by the support and the screen says so.
+    On the Follow-ups cards No response is read as next cohort: it sits in the Next cohort numbers
+    (`FOLLOW_UP_STAGE`, the per-support breakdown), never in Stopped or Dropped, and is not a
+    stopped reason. A parked person is not "waiting for assignment", so the bad-number banner does
+    not list them. The WhatsApp export shows each person's status and leaves No response out unless
+    "Include No response" is switched on.
     Source: `20261007200000_followup_no_response_flag.sql`,
     `20261008020000_password_set_confirms_parked_contacts.sql`.
 29. **Only people who have signed in are grouped, and running groups are topped up first.** The group

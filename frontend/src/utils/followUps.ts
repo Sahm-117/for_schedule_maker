@@ -382,8 +382,8 @@ export const computeFollowUpMetrics = (contacts: FollowUpContact[]): FollowUpMet
     else if (status === 'TEEN_ONBOARDED') { m.contacted++; m.registered++; m.closed++; }
     else if (status === 'WRONG_NUMBER') { m.wrongNumber++; m.contacted++; m.closed++; }
     else if (status === 'NOT_INTERESTED') { m.notInterested++; m.contacted++; m.closed++; }
-    else if (status === 'NO_RESPONSE') { m.closed++; }
-    else if (status === 'NEXT_COHORT') { /* parked — not counted as closed or active */ }
+    // Parked for the next cohort (No response counts the same way): neither closed nor active.
+    else if (status === 'NO_RESPONSE' || status === 'NEXT_COHORT') { /* parked */ }
   }
   return m;
 };
@@ -463,7 +463,8 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       case 'ACCESS_CONFIRMED': row.loginShared++; row.accessConfirmed++; break;
       case 'WRONG_NUMBER': row.wrongNumber++; break;
       case 'NOT_INTERESTED': row.notInterested++; break;
-      case 'NO_RESPONSE': row.noResponse++; break;
+      // No response is read as next cohort: it leaves the Dropped numbers and joins the parked ones.
+      case 'NO_RESPONSE': row.noResponse++; row.nextCohort++; break;
       case 'NEXT_COHORT': row.nextCohort++; break;
       case 'TEENAGER': row.registered++; break;
       case 'TEEN_ONBOARDED':
@@ -471,7 +472,7 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
     }
   }
   for (const [key, row] of map) {
-    row.stopped = row.wrongNumber + row.notInterested + row.noResponse;
+    row.stopped = row.wrongNumber + row.notInterested;
     row.stoppedReasons = countReasons(reasonsByOwner.get(key) ?? []);
     row.uncontacted = row.toContact;
     row.contacted = row.replied + row.callBackLater + row.registered + row.loginShared + row.wrongNumber + row.notInterested;
@@ -745,7 +746,8 @@ export const FOLLOW_UP_STAGE: Record<FollowUpStatus, FollowUpStage> = {
   NEXT_COHORT: 'nextCohort',
   WRONG_NUMBER: 'stopped',
   NOT_INTERESTED: 'stopped',
-  NO_RESPONSE: 'stopped',
+  // Cannot be reached for now, so they wait for the next cohort rather than count as dropped.
+  NO_RESPONSE: 'nextCohort',
 };
 
 /**
@@ -756,7 +758,6 @@ export const FOLLOW_UP_STAGE: Record<FollowUpStatus, FollowUpStage> = {
 export const stoppedReason = (c: FollowUpContact): string | null => {
   switch (computeFollowUpStatus(c)) {
     case 'WRONG_NUMBER': return 'Wrong number';
-    case 'NO_RESPONSE': return 'No response';
     case 'NOT_INTERESTED':
       return c.registrationStatus === 'NOT_A_GOOD_TIME' ? 'Not a good time'
         : c.registrationStatus === 'NOT_A_TCN_MEMBER' ? 'Not a TCN member'

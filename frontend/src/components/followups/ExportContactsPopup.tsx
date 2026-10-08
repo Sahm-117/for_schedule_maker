@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { FollowUpContact } from '../../types';
-import { buildContactsBySupport, buildContactsList, formatContactForSupportCopy, formatContactLine, normalizePhone, supportOfContact, type SupportRef } from '../../utils/whatsappExport';
-import { contactReachPhone } from '../../utils/followUps';
+import { buildContactsBySupport, buildContactsList, contactStatusLabel, formatContactForSupportCopy, formatContactLine, normalizePhone, supportOfContact, type SupportRef } from '../../utils/whatsappExport';
+import { computeFollowUpStatus, contactReachPhone } from '../../utils/followUps';
 
 interface ExportContactsPopupProps {
   contacts: FollowUpContact[];
@@ -19,8 +19,12 @@ interface ExportContactsPopupProps {
 
 const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: allContacts, onClose, closedToggle = false, title = 'Follow-ups', filters = [], owners }) => {
   const [includeClosed, setIncludeClosed] = useState(false);
+  // People marked No response are left out unless asked for, so a list for following up does not pick them up.
+  const [includeNoResponse, setIncludeNoResponse] = useState(false);
   const closedCount = closedToggle ? allContacts.filter((c) => !!c.archivedAt).length : 0;
-  const contacts = closedToggle && !includeClosed ? allContacts.filter((c) => !c.archivedAt) : allContacts;
+  const afterClosed = closedToggle && !includeClosed ? allContacts.filter((c) => !c.archivedAt) : allContacts;
+  const noResponseCount = afterClosed.filter((c) => computeFollowUpStatus(c) === 'NO_RESPONSE').length;
+  const contacts = includeNoResponse ? afterClosed : afterClosed.filter((c) => computeFollowUpStatus(c) !== 'NO_RESPONSE');
   const [copiedAll, setCopiedAll] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   // Participants' own numbers are left out unless asked for; the supports' numbers are always there.
@@ -28,7 +32,11 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: all
   const supportById = useMemo(() => new Map<string, SupportRef>((owners ?? []).map((o) => [o.id, { name: o.name, phone: o.phone }])), [owners]);
   const bySupport = !!owners;
 
-  const allFilters = closedToggle && includeClosed ? [...filters, 'Including closed'] : filters;
+  const allFilters = [
+    ...filters,
+    ...(closedToggle && includeClosed ? ['Including closed'] : []),
+    ...(noResponseCount > 0 ? [includeNoResponse ? 'Including No response' : 'Without No response'] : []),
+  ];
 
   const copyAll = async () => {
     const text = bySupport ? buildContactsBySupport(title, allFilters, contacts, supportById, includeNumbers) : buildContactsList(title, allFilters, contacts);
@@ -94,6 +102,21 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: all
           </label>
         )}
 
+        {noResponseCount > 0 && (
+          <label className="flex items-center justify-between gap-3 px-5 pt-3 text-[13px] font-semibold text-gray-700">
+            <span>Include No response ({noResponseCount})</span>
+            <button
+              type="button"
+              onClick={() => setIncludeNoResponse((v) => !v)}
+              aria-pressed={includeNoResponse}
+              aria-label="Include people marked No response"
+              className={`relative h-6 w-11 rounded-full transition ${includeNoResponse ? 'bg-primary' : 'bg-gray-300'}`}
+            >
+              <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${includeNoResponse ? 'translate-x-5' : ''}`} />
+            </button>
+          </label>
+        )}
+
         <div className="px-5 py-3">
           <button
             type="button"
@@ -112,7 +135,7 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: all
               {contacts.map((c) => (
                 <div key={c.id} className="flex items-center justify-between py-2.5">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-gray-900">{c.fullName}</p>
+                    <p className="truncate text-sm font-semibold text-gray-900">{c.fullName} <span className="text-xs font-medium text-gray-500">· {contactStatusLabel(c)}</span></p>
                     {bySupport ? (
                       <p className="truncate text-xs text-gray-500">
                         {(() => { const sp = supportOfContact(c, supportById); return sp ? `${sp.name}${sp.phone ? ` · ${normalizePhone(sp.phone)}` : ' · no number'}` : 'No support yet'; })()}

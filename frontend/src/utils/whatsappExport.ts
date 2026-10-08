@@ -1,6 +1,9 @@
 import type { FollowUpContact, Group, Participant, User } from '../types';
 import { supportProfileChecklist } from './people';
-import { contactReachPhone } from './followUps';
+import { computeFollowUpStatus, contactReachPhone, FOLLOW_UP_STATUS_META } from './followUps';
+
+/** Where a contact stands, in the words used on Follow-ups (Registered, No response, ...). */
+export const contactStatusLabel = (c: FollowUpContact): string => FOLLOW_UP_STATUS_META[computeFollowUpStatus(c)].label;
 
 // Phone display matches the existing ExportContactsPopup convention: keep a
 // leading 0 / + as-is, otherwise prefix a 0 so the number is dialable.
@@ -132,12 +135,13 @@ export const buildSupportsList = (supports: User[], missingAlertsIds: Set<string
 //   Filter: Registered · Female
 //   Total: 2
 //
-//   1. Ada Obi - 08012345678
-//   2. Bola Ade - 08023456789
-// A teen shows the number we reach them on (a parent's first).
+//   1. Ada Obi - 08012345678 (Registered)
+//   2. Bola Ade - 08023456789 (No response)
+// A teen shows the number we reach them on (a parent's first). The status is how they stand now,
+// so a list can be read (or trimmed in WhatsApp) without opening the app.
 export const formatContactLine = (index: number, c: FollowUpContact): string => {
   const phone = normalizePhone(contactReachPhone(c));
-  return `${index}. ${c.fullName} - ${phone || 'no number'}`;
+  return `${index}. ${c.fullName} - ${phone || 'no number'} (${contactStatusLabel(c)})`;
 };
 
 export const buildContactsList = (title: string, filters: string[], contacts: FollowUpContact[]): string => {
@@ -163,7 +167,7 @@ export const formatContactForSupportCopy = (c: FollowUpContact, supportById: Map
   const support = supportOfContact(c, supportById);
   const own = includeNumbers ? ` - ${normalizePhone(contactReachPhone(c)) || 'no number'}` : '';
   const who = support ? `${support.name}${support.phone ? ` ${normalizePhone(support.phone)}` : ' (no number)'}` : 'No support yet';
-  return `${c.fullName}${own} | Support: ${who}`;
+  return `${c.fullName}${own} (${contactStatusLabel(c)}) | Support: ${who}`;
 };
 
 export const buildContactsBySupport = (
@@ -185,7 +189,7 @@ export const buildContactsBySupport = (
   const header = [`*${title}*`, filters.length ? `Filter: ${filters.join(' · ')}` : '', `Total: ${contacts.length}`].filter(Boolean).join('\n');
   const blocks = ordered.map(([key, g]) => {
     const head = key === '__none' ? `*${g.label}*` : `*${g.label}*${g.phone ? ` - ${g.phone}` : ' - no number'}`;
-    const lines = g.items.map((c, i) => `${i + 1}. ${c.fullName}${includeNumbers ? ` - ${normalizePhone(contactReachPhone(c)) || 'no number'}` : ''}`);
+    const lines = g.items.map((c, i) => `${i + 1}. ${c.fullName}${includeNumbers ? ` - ${normalizePhone(contactReachPhone(c)) || 'no number'}` : ''} (${contactStatusLabel(c)})`);
     return [head, ...lines].join('\n');
   });
   return `${header}\n\n${blocks.join('\n\n')}`;

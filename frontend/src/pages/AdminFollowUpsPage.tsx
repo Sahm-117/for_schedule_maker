@@ -317,9 +317,10 @@ const AdminFollowUpsPage: React.FC = () => {
   }, [realContacts, owners, cohortFilter, activeCohort?.id]);
 
   // Waiting to be assigned but their number isn't a phone number (e.g. "00"
-  // on the form). Auto-assignment holds these back until the number is fixed.
+  // on the form). Auto-assignment holds these back until the number is fixed. Someone already
+  // parked (No response, next cohort, closed) is not waiting for anything, so is not listed.
   const invalidNumberContacts = useMemo(
-    () => realContacts.filter((c) => !c.ownerId && !c.archivedAt && !normalizeToIntlPhone(c.phone)),
+    () => realContacts.filter((c) => (isWaitingForAssignment(c) || isTeenWaitingForSupport(c)) && !normalizeToIntlPhone(c.phone)),
     [realContacts],
   );
 
