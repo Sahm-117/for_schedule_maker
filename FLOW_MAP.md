@@ -308,10 +308,13 @@ duplicating the logic anywhere else is a bug waiting to happen.
     person's status and leaves No response out unless "Include No response" is switched on, except
     when the list is already narrowed to No response. The single-person Copy stays a clean line.
     The next-cohort carry-over (`getNextCohortContacts`, `getWaitingForCohort`, the dashboard's
-    `nextCohortPeople`) offers No response people too, but only those who never signed up: one who
-    already has a participant record is a member of this cohort whose support could not reach them,
-    so moving the contact would only split the two. Moving someone clears their No response flag.
+    `nextCohortPeople`) offers every No response adult, whether or not they had signed up. A
+    registered person the support could not reach keeps their participant record in this cohort;
+    only the contact moves, and starts again as To contact in the new cohort, as a returning person
+    already does (a contact can have a participant per cohort). Moving someone clears their No
+    response flag. Teens parked as No response stay with their Teen Support and are not carried.
     Source: `20261007200000_followup_no_response_flag.sql`, `20261008110000_no_response_next_cohort_count.sql`,
+    `20261008120000_no_response_next_cohort_all.sql`,
     `20261008020000_password_set_confirms_parked_contacts.sql`.
 29. **Only people who have signed in are grouped, and running groups are topped up first.** The group
     builder takes the participants it is given (the Groups page loads only the cohort's Active ones, and

@@ -6,7 +6,7 @@ import type { FollowUpContact, User } from '../../types';
 import { firstNameOf } from '../../utils/people';
 import Spinner from '../Spinner';
 
-// People marked "Will join next cohort" (and No response people who never signed up) get moved into the new cohort's
+// People marked "Will join next cohort" (and No response people) get moved into the new cohort's
 // follow-up list (back to "To contact") and, if supports are picked, split
 // evenly between them. Used right after creating a cohort and from the home page.
 
