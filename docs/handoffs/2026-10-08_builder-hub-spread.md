@@ -80,3 +80,9 @@ Operational supports can lead groups, so the People step has "Also use operation
 shown only when the cohort has any; saved with a draft as `includeOperational`). They are used in their hub and
 show an Operational tag; hub leads stay excluded. Checked in the browser with mocked data (free supports 9 -> 11
 with the switch on). No database change.
+
+Review round for operational supports: the switch counts only operational supports who pass every other check, they are
+not flagged for missed training, the Operational pill is teal and also on "Supports without a group", and the resume path
+reuses the memoised pool. Not changed: a draft going stale when the switch flips (the only way back to the switch passes
+through "Save rules & build", which rebuilds). Still open: the Groups page hand-picker leaves out operational supports and
+supports below the minimum training (it keeps whoever is already on the group); the admin only asked for the builder.

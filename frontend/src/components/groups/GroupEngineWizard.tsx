@@ -319,15 +319,20 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
       if (u.isActive === false || !memberIds.has(u.id)) return; // not in this cohort
       const kind = kinds[u.id] ?? 'PARTICIPANT_SUPPORT';
       const c = trainingCountFor(trainingCounts, u.id, trainingsTotal);
-      if (kind === 'OPERATIONAL') operational.add(u.id);
-      if (kind === 'HUB_LEAD' || (kind === 'OPERATIONAL' && !withOperational)) { reasons.push({ user: u, reason: kind === 'HUB_LEAD' ? 'Hub lead' : 'Operational' }); return; }
+      if (kind === 'HUB_LEAD') { reasons.push({ user: u, reason: 'Hub lead' }); return; }
       if (leading.has(u.id)) { reasons.push({ user: u, reason: 'Already has a group' }); return; }
       // Teen Supports look after teens in their own groups, never in the automatic builder.
       if (teenTagId && (tagIdsByUser.get(u.id) ?? []).includes(teenTagId)) { reasons.push({ user: u, reason: 'Teen Support' }); return; }
       if (rules.excludedSupportIds.includes(u.id)) { reasons.push({ user: u, reason: LEFT_OUT_BY_YOU }); return; }
       if (hubData && hubData.hubs.length > 0 && !hubData.hubOf[u.id]) { reasons.push({ user: u, reason: NOT_IN_HUB }); return; }
-      if (c.total > 0 && c.attended < minTrainingsAttended) {
-        // Shown (a tag on the support and on the draft group), never a reason to leave them out.
+      // An operational support who passes every other check can lead a group when the switch is on.
+      if (kind === 'OPERATIONAL') {
+        operational.add(u.id);
+        if (!withOperational) { reasons.push({ user: u, reason: 'Operational' }); return; }
+      }
+      // Shown (a tag on the support and on the draft group), never a reason to leave them out. Operational
+      // supports are not expected to do the participant-support training, so they are not flagged.
+      if (kind !== 'OPERATIONAL' && c.total > 0 && c.attended < minTrainingsAttended) {
         missedTraining.add(u.id);
       }
       free.push({ ...toEnginePerson(u), trainingsAttended: c.attended, tagIds: tagIdsByUser.get(u.id) ?? [] });
@@ -542,7 +547,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     // The saved draft may have used operational supports: judge it against the pool it was built with.
     const savedWithOperational = saved.includeOperational === true;
     setIncludeOperational(savedWithOperational);
-    const freeIds = new Set(buildSupportPool(savedWithOperational).free.map((s) => s.id));
+    const freeIds = new Set((savedWithOperational === includeOperational ? supportPool : buildSupportPool(savedWithOperational)).free.map((s) => s.id));
     const emptyIds = new Set(emptyGroups.map((g) => g.id));
     const placed = new Set<string>();
     let droppedPeople = 0;
@@ -941,7 +946,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                           <div key={sup.id}>
                           <div className="flex items-center gap-2.5 px-1 py-1">
                             <Avatar name={sup.name} avatarUrl={user?.avatarUrl} size="xs" />
-                            <span className="min-w-0 flex-1 truncate text-[13px] text-gray-800">{sup.name}{(sup.tagIds ?? []).length > 0 && <span className="ml-1.5 text-[11px] font-semibold text-violet-700">{(sup.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean).join(', ')}</span>}{supportPool.operational.has(sup.id) && <span className="ml-1.5 rounded-full bg-sky-100/80 px-2 py-0.5 text-[10px] font-semibold text-sky-700">Operational</span>}{supportPool.missedTraining.has(sup.id) && <span className="ml-1.5 rounded-full bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Trainings {sup.trainingsAttended}/{trainingsTotal}</span>}</span>
+                            <span className="min-w-0 flex-1 truncate text-[13px] text-gray-800">{sup.name}{(sup.tagIds ?? []).length > 0 && <span className="ml-1.5 text-[11px] font-semibold text-violet-700">{(sup.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean).join(', ')}</span>}{supportPool.operational.has(sup.id) && <span className="ml-1.5 rounded-full bg-teal-100/80 px-2 py-0.5 text-[10px] font-semibold text-teal-700">Operational</span>}{supportPool.missedTraining.has(sup.id) && <span className="ml-1.5 rounded-full bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Trainings {sup.trainingsAttended}/{trainingsTotal}</span>}</span>
                             <button type="button" aria-expanded={tagEditFor === sup.id} onClick={() => setTagEditFor((cur) => (cur === sup.id ? null : sup.id))} className="rounded-full bg-violet-100/80 px-3 py-1 text-[12px] font-semibold text-violet-700 hover:bg-violet-100">Tags</button>
                             <button type="button" disabled={excludeSaving === sup.id} onClick={() => void toggleExcluded(sup.id)} className="rounded-full bg-gray-100 px-3 py-1 text-[12px] font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60">
                               {excludeSaving === sup.id ? <Spinner className="h-3 w-3" /> : 'Leave out'}
@@ -1207,7 +1212,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                             ? <span className="rounded-full bg-emerald-100/80 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Top-up</span>
                             : g.existingGroupId && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Your group</span>}
                           {groupTagName(g.memberIds) && <span className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">{groupTagName(g.memberIds)}</span>}
-                          {g.supportId && supportPool.operational.has(g.supportId) && <span className="rounded-full bg-sky-100/80 px-2 py-0.5 text-[11px] font-semibold text-sky-700">Operational</span>}
+                          {g.supportId && supportPool.operational.has(g.supportId) && <span className="rounded-full bg-teal-100/80 px-2 py-0.5 text-[11px] font-semibold text-teal-700">Operational</span>}
                           {hubLabelOf(g.supportId) && <span className="rounded-full bg-sky-100/80 px-2 py-0.5 text-[11px] font-semibold text-sky-700">{hubLabelOf(g.supportId)}</span>}
                         </p>
                         <div className="flex items-center gap-1.5">
@@ -1276,7 +1281,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                               <div key={s.id} className="flex items-center gap-2.5 rounded-2xl px-2 py-1.5">
                                 <Avatar name={s.name} avatarUrl={supportUsers.find((u) => u.id === s.id)?.avatarUrl} size="sm" />
                                 <div className="min-w-0 flex-1">
-                                  <p className="flex items-center gap-1.5 text-[13px] font-medium text-gray-900"><span className="truncate">{s.name}</span><InfoTip label={`Why ${s.name} has no group`}>{unusedSupportHint(s, effectiveRules, tagNames)}</InfoTip></p>
+                                  <p className="flex items-center gap-1.5 text-[13px] font-medium text-gray-900"><span className="truncate">{s.name}</span>{supportPool.operational.has(s.id) && <span className="rounded-full bg-teal-100/80 px-2 py-0.5 text-[10px] font-semibold text-teal-700">Operational</span>}<InfoTip label={`Why ${s.name} has no group`}>{unusedSupportHint(s, effectiveRules, tagNames)}</InfoTip></p>
                                   <p className="truncate text-[11px] text-gray-500">{[s.gender, s.ageRange ? shortAge(s.ageRange) : null, ...(s.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean)].filter(Boolean).join(' · ') || 'Details missing'}</p>
                                 </div>
                               </div>

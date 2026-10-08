@@ -195,7 +195,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
     Source: `20261006140000_support_kind_follows_hub_roles.sql`.
 19. **Teens are looked after by Teen Supports, off the app.** The Assign support
     and New/Edit group pickers on the Groups page leave out Teen Supports, hub
-    leads and operational supports, inactive or out-of-cohort users and anyone
+    leads and operational supports (the group being edited keeps its current
+    support, so a group the builder gave an operational support still shows them), inactive or out-of-cohort users and anyone
     already leading another group or below the minimum pre-cohort trainings
     (`supportsFor` in `AdminGroupsPage.tsx`).
     A registered
