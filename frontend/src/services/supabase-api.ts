@@ -84,6 +84,11 @@ const mapWeekRow = (week: any): Week => {
     manualSummary: week.manualSummary ?? null,
     manualDiscussionPrompt: week.manualDiscussionPrompt ?? null,
     manualReleasedEarlyAt: week.manualReleasedEarlyAt ?? null,
+    teenRecapSummary: week.teenRecapSummary ?? null,
+    teenDiscussionPrompt: week.teenDiscussionPrompt ?? null,
+    teenRecapDocumentUrl: week.teenRecapDocumentUrl ?? null,
+    teenRecapDocumentName: week.teenRecapDocumentName ?? null,
+    teenRecapReleaseAt: week.teenRecapReleaseAt ?? null,
     days: sortedDays.map((day: any) => ({
       id: day.id,
       weekId: day.weekId,
@@ -383,7 +388,7 @@ export const weeksApi = {
     return { week, pendingChanges };
   },
 
-  async update(weekId: number, input: { title?: string | null; recapSummary?: string | null; discussionPrompt?: string | null; recapDocumentUrl?: string | null; recapDocumentName?: string | null; shareWithParticipants?: boolean; participantReleasedEarlyAt?: string | null; expectations?: string | null; manualSummary?: string | null; manualDiscussionPrompt?: string | null; manualDocumentUrl?: string | null; manualDocumentName?: string | null; manualReleasedEarlyAt?: string | null }): Promise<{ week: Week }> {
+  async update(weekId: number, input: { title?: string | null; recapSummary?: string | null; discussionPrompt?: string | null; recapDocumentUrl?: string | null; recapDocumentName?: string | null; shareWithParticipants?: boolean; participantReleasedEarlyAt?: string | null; expectations?: string | null; manualSummary?: string | null; manualDiscussionPrompt?: string | null; manualDocumentUrl?: string | null; manualDocumentName?: string | null; manualReleasedEarlyAt?: string | null; teenRecapSummary?: string | null; teenDiscussionPrompt?: string | null; teenRecapReleaseAt?: string | null }): Promise<{ week: Week }> {
     const { data, error } = await supabase
       .from('Week')
       .update(input)
@@ -8074,6 +8079,31 @@ export const recapDocumentsApi = {
   /** Attach an already-uploaded document (from another cohort's week) instead of uploading a new file. */
   async choose(weekId: number, url: string, name: string | null): Promise<void> {
     const { error } = await supabase.from('Week').update({ recapDocumentUrl: url, recapDocumentName: name }).eq('id', weekId);
+    if (error) throw new Error(error.message);
+  },
+};
+
+// The Teen recap document, same shape as the adult recap's, under teen-recaps/.
+// No push is sent here: Teen Supports find it on their Recap page.
+export const teenRecapDocumentsApi = {
+  async upload(weekId: number, file: File): Promise<{ url: string; name: string }> {
+    const path = `teen-recaps/week-${weekId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const { error: uploadError } = await supabase.storage.from('resources').upload(path, file, { upsert: false, contentType: file.type || undefined });
+    if (uploadError) throw new Error(uploadError.message);
+    const { data } = supabase.storage.from('resources').getPublicUrl(path);
+    const { error } = await supabase.from('Week').update({ teenRecapDocumentUrl: data.publicUrl, teenRecapDocumentName: file.name }).eq('id', weekId);
+    if (error) throw new Error(error.message);
+    return { url: data.publicUrl, name: file.name };
+  },
+
+  async remove(weekId: number): Promise<void> {
+    const { error } = await supabase.from('Week').update({ teenRecapDocumentUrl: null, teenRecapDocumentName: null }).eq('id', weekId);
+    if (error) throw new Error(error.message);
+  },
+
+  /** Attach an already-uploaded document (from another cohort's week) instead of uploading a new file. */
+  async choose(weekId: number, url: string, name: string | null): Promise<void> {
+    const { error } = await supabase.from('Week').update({ teenRecapDocumentUrl: url, teenRecapDocumentName: name }).eq('id', weekId);
     if (error) throw new Error(error.message);
   },
 };

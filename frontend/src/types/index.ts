@@ -157,6 +157,13 @@ export interface Week {
   manualDiscussionPrompt?: string | null;
   /** Set by "Send manual now"; overrides the configured manual release time. */
   manualReleasedEarlyAt?: string | null;
+  /** The Teen recap: its own text and/or document, separate from the adult recap. */
+  teenRecapSummary?: string | null;
+  teenDiscussionPrompt?: string | null;
+  teenRecapDocumentUrl?: string | null;
+  teenRecapDocumentName?: string | null;
+  /** Empty = visible as soon as it exists; otherwise held until this time. */
+  teenRecapReleaseAt?: string | null;
   days: Day[];
 }
 
@@ -267,6 +274,12 @@ export interface SupportRecap {
   manual: ManualContent | null;
   manualReleased: boolean;
   manualReleasedAt: string | null;
+  /** Something is written or uploaded for Teens (shown to everyone, even while held). */
+  hasTeenRecap?: boolean;
+  teenRecapReleased?: boolean;
+  teenRecapReleaseAt?: string | null;
+  /** The Teen recap itself; null while held back (admins always see it). */
+  teenRecap?: ManualContent | null;
   /** NEW-status questions for this week, scoped to the caller's own groups (all cohort for an admin). */
   unreadQuestionCount: number;
 }
@@ -300,7 +313,7 @@ export interface ManualQuestion {
 
 /** One row from list_earlier_class_documents(), for the "choose an earlier file" picker. */
 export interface EarlierClassDocument {
-  kind: 'RECAP' | 'MANUAL';
+  kind: 'RECAP' | 'MANUAL' | 'TEEN_RECAP';
   url: string;
   name: string | null;
   cohortName: string;

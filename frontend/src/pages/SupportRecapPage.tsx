@@ -8,6 +8,8 @@ import ClassManualReader from '../components/classManual/ClassManualReader';
 import { hasManualForWeek, loadManualForWeek } from '../components/classManual/manuals';
 import type { ManualContent } from '../components/classManual/types';
 import { useAppData } from '../context/AppDataContext';
+import { useAuth } from '../hooks/useAuth';
+import { useTeenSupportIds } from '../hooks/useTeenSupportIds';
 import { supportRecapsApi, manualQuestionsApi, participantPushApi } from '../services/api';
 import type { ManualQuestion, SupportRecap } from '../types';
 import { formatRecapReleaseAt } from '../utils/recapReleaseTimes';
@@ -34,12 +36,13 @@ const hasIntroGuide = (week: SupportRecap) => week.weekNumber === 1 && hasManual
 
 // A week opens once its manual is out (on its drop day, or earlier if an admin
 // sends it ahead). Until then it shows when the manual arrives.
-const isWeekOpen = (week: SupportRecap) => week.manualReleased || week.released || hasIntroGuide(week);
+const isWeekOpen = (week: SupportRecap, teen = false) =>
+  week.manualReleased || week.released || hasIntroGuide(week) || (teen && !!week.hasTeenRecap && !!week.teenRecapReleased);
 
 // "Manual arrives …" / "Manual out · Recap arrives …" / "Recap out" — a dot and a few words.
-const WeekState: React.FC<{ week: SupportRecap }> = ({ week }) => {
+const WeekState: React.FC<{ week: SupportRecap; teen?: boolean }> = ({ week, teen = false }) => {
   const at = (iso: string | null) => formatRecapReleaseAt(iso ? new Date(iso) : null);
-  if (!isWeekOpen(week)) {
+  if (!isWeekOpen(week, teen)) {
     return (
       <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-400">
         <svg className="h-3.5 w-3.5 flex-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2.5" /><path strokeLinecap="round" d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
@@ -131,6 +134,54 @@ const QuestionRow: React.FC<{ question: ManualQuestion; onChanged: () => void }>
   );
 };
 
+// A Teen Support's own recap for their teens: written and/or a document, held until its release
+// time. When nothing is uploaded they can use the adult recap instead.
+const TeenRecapSection: React.FC<{ week: SupportRecap; onReadDocument: (url: string, name: string | null) => void; onReadAdult: () => void }> = ({ week, onReadDocument, onReadAdult }) => {
+  const [useAdult, setUseAdult] = useState(false);
+  const teen = week.teenRecap;
+  const adultSummary = week.recapSummary?.trim();
+  const adultPrompt = week.discussionPrompt?.trim();
+  const adultReady = week.released && !!(week.recapDocumentUrl || adultSummary);
+  const status = teen
+    ? null
+    : week.hasTeenRecap
+    ? `Arrives ${formatRecapReleaseAt(week.teenRecapReleaseAt ? new Date(week.teenRecapReleaseAt) : null)}`
+    : 'Not uploaded yet';
+  return (
+    <div className="mt-5 rounded-2xl border border-pink-100 bg-pink-50/40 px-5 py-4" data-wt="teen-recap">
+      <p className="text-[12px] font-bold uppercase tracking-wide text-pink-700">For your teens</p>
+      {teen ? (
+        <>
+          {teen.summary?.trim() && <p className="mt-2 whitespace-pre-line text-[15px] leading-[1.7] text-gray-700"><LinkText text={teen.summary.trim()} /></p>}
+          {teen.discussionPrompt?.trim() && (
+            <figure className="mt-3 rounded-2xl bg-white px-4 py-3">
+              <figcaption className="text-[12px] font-semibold text-gray-400">Something for the teens to think about</figcaption>
+              <blockquote className="mt-1 text-[15px] font-medium leading-[1.55] text-gray-900">{teen.discussionPrompt.trim()}</blockquote>
+            </figure>
+          )}
+          {teen.documentUrl && (
+            <button type="button" onClick={() => onReadDocument(teen.documentUrl!, teen.documentName)} className={`${PRIMARY} mt-3`}>Read the teen recap</button>
+          )}
+        </>
+      ) : (
+        <>
+          <p className="mt-1.5 text-[14px] font-medium text-gray-600">{status}</p>
+          {adultReady && !useAdult && (
+            <button type="button" onClick={() => setUseAdult(true)} className={`${SECONDARY} mt-3`}>Use the adult recap</button>
+          )}
+          {useAdult && (
+            <div className="mt-3">
+              {adultSummary && <p className="whitespace-pre-line text-[15px] leading-[1.7] text-gray-700"><LinkText text={adultSummary} /></p>}
+              {adultPrompt && <p className="mt-2 text-[15px] font-medium text-gray-900">{adultPrompt}</p>}
+              {week.recapDocumentUrl && <button type="button" onClick={onReadAdult} className={`${SECONDARY} mt-3`}>Read the adult recap</button>}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
 // The inside of a week: summary, one prompt, the actions, then questions.
 const WeekBody: React.FC<{
   week: SupportRecap;
@@ -138,7 +189,9 @@ const WeekBody: React.FC<{
   onReadRecap: () => void;
   onOpenManual: () => void;
   onQuestionsChanged: () => void;
-}> = ({ week, questions, onReadRecap, onOpenManual, onQuestionsChanged }) => {
+  teen?: boolean;
+  onReadTeenDocument?: (url: string, name: string | null) => void;
+}> = ({ week, questions, onReadRecap, onOpenManual, onQuestionsChanged, teen = false, onReadTeenDocument }) => {
   const [questionsOpen, setQuestionsOpen] = useState(false);
   // Before the recap is out, the class manual is what there is to read.
   const summary = (week.released ? week.recapSummary : week.manual?.summary)?.trim();
@@ -161,6 +214,7 @@ const WeekBody: React.FC<{
           {canReadRecap && <button type="button" onClick={onReadRecap} className={canOpenManual ? SECONDARY : PRIMARY}>Read the recap</button>}
         </div>
       )}
+      {teen && onReadTeenDocument && <TeenRecapSection week={week} onReadDocument={onReadTeenDocument} onReadAdult={onReadRecap} />}
       {questions.length > 0 && (
         <div className="mt-5 border-t border-[#f0f0f2] pt-1">
           <button type="button" onClick={() => setQuestionsOpen((o) => !o)} aria-expanded={questionsOpen} className="flex min-h-[52px] w-full items-center gap-2 text-left">
@@ -184,6 +238,9 @@ const WeekBody: React.FC<{
 
 const SupportRecapPage: React.FC = () => {
   const { activeCohort, weeks } = useAppData();
+  const { user } = useAuth();
+  const { ids: teenSupportIds } = useTeenSupportIds(true);
+  const isTeenSupport = !!user && !!teenSupportIds?.has(user.id);
   // Every week of the cohort (the list below only has weeks with content), to find the next class.
   const cohortWeeks = useMemo(() => weeks.filter((week) => week.cohortId === activeCohort?.id), [weeks, activeCohort?.id]);
   const [recaps, setRecaps] = useState<SupportRecap[]>([]);
@@ -232,6 +289,8 @@ const SupportRecapPage: React.FC = () => {
       onReadRecap={() => readRecap(week)}
       onOpenManual={() => openManual(week)}
       onQuestionsChanged={load}
+      teen={isTeenSupport}
+      onReadTeenDocument={(url, name) => setDoc({ url, title: `Week ${week.weekNumber} teen recap`, fileName: name })}
     />
   );
 
@@ -259,7 +318,7 @@ const SupportRecapPage: React.FC = () => {
       <h3 className="mb-2.5 px-1 text-[13px] font-semibold text-gray-500">{title}</h3>
       <ul className={`${SURFACE} divide-y divide-[#f0f0f2] overflow-hidden`}>
         {weeks.map((week) => {
-          const available = isWeekOpen(week);
+          const available = isWeekOpen(week, isTeenSupport);
           const open = available && openWeekId === week.weekId;
           return (
             <li key={week.weekId}>
@@ -267,7 +326,7 @@ const SupportRecapPage: React.FC = () => {
                 <span className="flex h-10 w-10 flex-none items-center justify-center rounded-[14px] bg-[#f2f2f4] text-[15px] font-bold tabular-nums text-gray-900">{week.weekNumber}</span>
                 <span className="min-w-0 flex-1">
                   <span className={`block truncate text-[16px] font-semibold ${available ? 'text-gray-900' : 'text-gray-400'}`}>{week.title || `Week ${week.weekNumber}`}</span>
-                  <WeekState week={week} />
+                  <WeekState week={week} teen={isTeenSupport} />
                 </span>
                 {week.unreadQuestionCount > 0 && (
                   <span className="flex-none whitespace-nowrap rounded-full bg-orange-100/80 px-2 py-0.5 text-[12px] font-bold text-orange-700">{week.unreadQuestionCount} new</span>
@@ -303,8 +362,8 @@ const SupportRecapPage: React.FC = () => {
               {featuredIsToday ? 'Today' : featuredIsNext ? 'Next class' : 'Last class'} · Week {featured.weekNumber}{featuredDate ? ` · ${featuredDate}` : ''}
             </p>
             <h2 className="mt-1.5 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">{featured.title || `Week ${featured.weekNumber}`}</h2>
-            <div className={isWeekOpen(featured) ? 'mb-5 mt-3' : 'mt-3'}><WeekState week={featured} /></div>
-            {isWeekOpen(featured) && bodyFor(featured)}
+            <div className={isWeekOpen(featured, isTeenSupport) ? 'mb-5 mt-3' : 'mt-3'}><WeekState week={featured} teen={isTeenSupport} /></div>
+            {isWeekOpen(featured, isTeenSupport) && bodyFor(featured)}
           </section>
 
           {weekList('Coming up', upcomingWeeks)}

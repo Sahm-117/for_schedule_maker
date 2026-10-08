@@ -316,6 +316,16 @@ duplicating the logic anywhere else is a bug waiting to happen.
     offered as supports. Creating a group the builder half-made before (empty, live, same support) finishes
     it instead of failing on the name. Source: `20261007260000_participants_signed_in.sql`
     (`participants_signed_in`), `GroupEngineWizard`, `groupingEngine.topUpGroups`.
+30. **Teens have their own recap, for Teen Supports only.** `Week.teenRecapSummary`,
+    `teenDiscussionPrompt`, `teenRecapDocumentUrl/Name` and `teenRecapReleaseAt` are written or uploaded
+    by an admin in the Cohorts week editor (Recap, Adults / Teens). Empty `teenRecapReleaseAt` means it
+    shows as soon as it exists; a time holds it back. `support_recaps` returns the content only once
+    released (admins always see it) plus `hasTeenRecap` / `teenRecapReleaseAt` so the Recap page can say
+    "Arrives <time>" or "Not uploaded yet" (with "Use the adult recap"). Only Teen Supports see the Teen
+    section; participants never do, and `participant_home` is untouched. The class manual is shared with
+    adults. Teen documents are not copied by the cohort clone (the adult ones are not either); they are
+    reused through "Choose earlier file" (`list_earlier_class_documents`, kind `TEEN_RECAP`), and a
+    release time is never reused. Source: `20261008050000_teen_recap.sql`.
 
 ## 5. Edge functions and schedules
 

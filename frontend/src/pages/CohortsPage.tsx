@@ -7,11 +7,13 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import NextCohortAssignModal from '../components/followups/NextCohortAssignModal';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { cohortsApi, supportHubsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, manualDocumentsApi, earlierClassDocumentsApi, aiApi, settingsApi } from '../services/api';
+import { cohortsApi, supportHubsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, teenRecapDocumentsApi, manualDocumentsApi, earlierClassDocumentsApi, aiApi, settingsApi } from '../services/api';
 import type { Cohort, EarlierClassDocument, FollowUpContact, User, Week } from '../types';
 import { sortByText } from '../utils/sort';
 import { DEFAULT_RECAP_RELEASE_TIMES, formatRecapReleaseAt, recapReleaseAt, type RecapReleaseTimes } from '../utils/recapReleaseTimes';
 import Spinner from '../components/Spinner';
+import SegmentedTabs from '../components/SegmentedTabs';
+import AppDateTimePicker from '../components/AppDateTimePicker';
 import InfoTip from '../components/InfoTip';
 import { hasSupportRole } from '../utils/people';
 
@@ -49,6 +51,14 @@ const formatDayTime = (day: string, time: string) => {
 // "Choose an earlier file" picker, shared by the manual and recap steps of
 // the week editor: an inline expandable list rather than a nested modal
 // (ModalShell already portals the week editor to body).
+// Teen recap release times are typed in Lagos time (always UTC+1, no daylight saving).
+const lagosInputFromIso = (iso?: string | null): string => {
+  if (!iso) return '';
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? '' : new Date(ms + 3600000).toISOString().slice(0, 16);
+};
+const isoFromLagosInput = (value: string): string | null => (value ? new Date(`${value}:00+01:00`).toISOString() : null);
+
 const EarlierFilePicker: React.FC<{
   open: boolean;
   docs: import('../types').EarlierClassDocument[];
@@ -75,7 +85,7 @@ const EarlierFilePicker: React.FC<{
                 onClick={() => onChoose(doc)}
                 className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm hover:bg-gray-50"
               >
-                <span className={`flex-none rounded-full px-2 py-0.5 text-[10px] font-bold ${doc.kind === 'MANUAL' ? 'bg-indigo-100/80 text-indigo-700' : 'bg-sky-100/80 text-sky-700'}`}>{doc.kind === 'MANUAL' ? 'Manual' : 'Recap'}</span>
+                <span className={`flex-none rounded-full px-2 py-0.5 text-[10px] font-bold ${doc.kind === 'MANUAL' ? 'bg-indigo-100/80 text-indigo-700' : doc.kind === 'TEEN_RECAP' ? 'bg-pink-100/80 text-pink-700' : 'bg-sky-100/80 text-sky-700'}`}>{doc.kind === 'MANUAL' ? 'Manual' : doc.kind === 'TEEN_RECAP' ? 'Teen recap' : 'Recap'}</span>
                 <span className="min-w-0 flex-1 truncate font-medium text-gray-900">{doc.name || 'Document'}</span>
                 <span className="flex-none text-xs text-gray-400">{doc.cohortName} · Wk {doc.weekNumber}</span>
               </button>
@@ -181,7 +191,15 @@ const CohortsPage: React.FC = () => {
   const [manualSendNowConfirmOpen, setManualSendNowConfirmOpen] = useState(false);
   const [sendingManualNow, setSendingManualNow] = useState(false);
   // "Choose an earlier file" picker, shared by the manual and recap steps.
-  const [earlierPicker, setEarlierPicker] = useState<'manual' | 'recap' | null>(null);
+  const [earlierPicker, setEarlierPicker] = useState<'manual' | 'recap' | 'teen' | null>(null);
+  // Teen recap: its own text, document and optional release time (empty = as soon as it exists).
+  const [recapAudience, setRecapAudience] = useState<'adults' | 'teens'>('adults');
+  const [teenSummaryDraft, setTeenSummaryDraft] = useState('');
+  const [teenPromptDraft, setTeenPromptDraft] = useState('');
+  const [teenReleaseMode, setTeenReleaseMode] = useState<'now' | 'time'>('now');
+  const [teenReleaseDraft, setTeenReleaseDraft] = useState('');
+  const [teenDocUploading, setTeenDocUploading] = useState(false);
+  const [teenDocError, setTeenDocError] = useState('');
   const [earlierDocs, setEarlierDocs] = useState<EarlierClassDocument[]>([]);
   const [earlierDocsLoading, setEarlierDocsLoading] = useState(false);
   const [earlierDocsError, setEarlierDocsError] = useState('');
@@ -487,6 +505,12 @@ const CohortsPage: React.FC = () => {
     setAiError('');
     setManualSummaryDraft(week.manualSummary || '');
     setManualDiscussionPromptDraft(week.manualDiscussionPrompt || '');
+    setRecapAudience('adults');
+    setTeenSummaryDraft(week.teenRecapSummary || '');
+    setTeenPromptDraft(week.teenDiscussionPrompt || '');
+    setTeenReleaseMode(week.teenRecapReleaseAt ? 'time' : 'now');
+    setTeenReleaseDraft(lagosInputFromIso(week.teenRecapReleaseAt));
+    setTeenDocError('');
     setManualAiOpen(false);
     setManualAiNotes('');
     setManualAiError('');
@@ -561,6 +585,28 @@ const CohortsPage: React.FC = () => {
     }
   };
 
+  // Teen recap document saves straight away, like the adult one.
+  const handleTeenRecapDocument = async (file: File | null) => {
+    if (!weekEditTarget) return;
+    setTeenDocUploading(true);
+    setTeenDocError('');
+    try {
+      if (file) {
+        const { url, name } = await teenRecapDocumentsApi.upload(weekEditTarget.week.id, file);
+        setWeekEditTarget((prev) => (prev ? { ...prev, week: { ...prev.week, teenRecapDocumentUrl: url, teenRecapDocumentName: name } } : prev));
+      } else {
+        await teenRecapDocumentsApi.remove(weekEditTarget.week.id);
+        setWeekEditTarget((prev) => (prev ? { ...prev, week: { ...prev.week, teenRecapDocumentUrl: null, teenRecapDocumentName: null } } : prev));
+      }
+      await syncCohortWeeks(weekEditTarget.cohortId);
+      if (activeCohort?.id === weekEditTarget.cohortId) await reloadWeeks();
+    } catch (error) {
+      setTeenDocError(error instanceof Error ? error.message : 'The teen recap document could not be saved.');
+    } finally {
+      setTeenDocUploading(false);
+    }
+  };
+
   const handleAiDraft = async () => {
     if (!weekEditTarget) return;
     setAiDrafting(true);
@@ -591,6 +637,9 @@ const CohortsPage: React.FC = () => {
         expectations: expectationsDraft.split('\n').map((line) => line.trim()).filter(Boolean).join('\n') || null,
         manualSummary: manualSummaryDraft.trim() || null,
         manualDiscussionPrompt: manualDiscussionPromptDraft.trim() || null,
+        teenRecapSummary: teenSummaryDraft.trim() || null,
+        teenDiscussionPrompt: teenPromptDraft.trim() || null,
+        teenRecapReleaseAt: teenReleaseMode === 'time' ? isoFromLagosInput(teenReleaseDraft) : null,
       });
       await syncCohortWeeks(weekEditTarget.cohortId);
       if (activeCohort?.id === weekEditTarget.cohortId) {
@@ -687,7 +736,7 @@ const CohortsPage: React.FC = () => {
     }
   };
 
-  const openEarlierPicker = async (field: 'manual' | 'recap') => {
+  const openEarlierPicker = async (field: 'manual' | 'recap' | 'teen') => {
     if (!weekEditTarget) return;
     setEarlierPicker(field);
     setEarlierDocsLoading(true);
@@ -715,6 +764,18 @@ const CohortsPage: React.FC = () => {
         setManualDocError(error instanceof Error ? error.message : 'Could not attach that file.');
       } finally {
         setManualDocUploading(false);
+      }
+    } else if (earlierPicker === 'teen') {
+      setTeenDocUploading(true);
+      try {
+        await teenRecapDocumentsApi.choose(weekEditTarget.week.id, doc.url, doc.name);
+        setWeekEditTarget((prev) => (prev ? { ...prev, week: { ...prev.week, teenRecapDocumentUrl: doc.url, teenRecapDocumentName: doc.name } } : prev));
+        await syncCohortWeeks(weekEditTarget.cohortId);
+        if (activeCohort?.id === weekEditTarget.cohortId) await reloadWeeks();
+      } catch (error) {
+        setTeenDocError(error instanceof Error ? error.message : 'Could not attach that file.');
+      } finally {
+        setTeenDocUploading(false);
       }
     } else {
       setRecapDocUploading(true);
@@ -1416,6 +1477,7 @@ const CohortsPage: React.FC = () => {
           const week = weekEditTarget?.week;
           const manualDone = !!week?.manualDocumentUrl;
           const recapDone = !!(week?.recapDocumentUrl || recapSummaryDraft.trim());
+          const teenRecapDone = !!(week?.teenRecapDocumentUrl || teenSummaryDraft.trim() || teenPromptDraft.trim());
           const manualReleaseLabel = `${formatDayTime(recapReleaseTimes.manualDay, recapReleaseTimes.manualTime)} in Week ${week?.weekNumber ?? ''} of the cohort`;
           const nextLine = !manualDone
             ? `Next: upload the manual · goes out ${manualReleaseLabel}`
@@ -1533,6 +1595,15 @@ const CohortsPage: React.FC = () => {
                   <p className="text-sm font-bold text-gray-900">Recap</p>
                 </div>
                 <p className="ml-[34px] mt-0.5 text-xs text-gray-500">{recapDone ? 'Recap ready' : 'No recap yet'}</p>
+                <div className="mt-2.5">
+                  <SegmentedTabs
+                    tabs={[{ key: 'adults', label: 'Adults' }, { key: 'teens', label: teenRecapDone ? 'Teens ✓' : 'Teens' }]}
+                    active={recapAudience}
+                    onChange={(key) => { setRecapAudience(key as 'adults' | 'teens'); setEarlierPicker(null); }}
+                  />
+                </div>
+                {recapAudience === 'adults' && (
+                  <>
 
                 <div className="mt-3">
                   {week?.recapDocumentUrl ? (
@@ -1611,6 +1682,84 @@ const CohortsPage: React.FC = () => {
                     className="mt-2 w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
                   />
                 </div>
+                  </>
+                )}
+
+                {recapAudience === 'teens' && (
+                  <>
+                    <div className="mt-3">
+                      {week?.teenRecapDocumentUrl ? (
+                        <div className="flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3">
+                          <span className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-pink-50 text-[10px] font-bold text-pink-600">PDF</span>
+                          <a href={week.teenRecapDocumentUrl} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900 hover:text-primary">
+                            {week.teenRecapDocumentName || 'Teen recap document'}
+                          </a>
+                          <label className={`flex-none cursor-pointer text-xs font-semibold text-primary ${teenDocUploading ? 'pointer-events-none opacity-50' : ''}`}>
+                            Replace
+                            <input type="file" accept=".pdf,image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleTeenRecapDocument(file); }} />
+                          </label>
+                          <button type="button" onClick={() => void handleTeenRecapDocument(null)} disabled={teenDocUploading} className="flex-none text-xs font-semibold text-red-700 disabled:opacity-50">
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <label className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-300 px-4 py-4 text-sm font-semibold text-gray-600 hover:border-primary hover:text-primary ${teenDocUploading ? 'pointer-events-none opacity-50' : ''}`}>
+                            {teenDocUploading ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Uploading…</span>) : 'Upload PDF'}
+                            <input type="file" accept=".pdf,image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleTeenRecapDocument(file); }} />
+                          </label>
+                          <button type="button" onClick={() => void openEarlierPicker('teen')} disabled={teenDocUploading} className="flex-none rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                            Choose earlier file
+                          </button>
+                        </div>
+                      )}
+                      {teenDocError && <p className="mt-1.5 text-xs text-red-700">{teenDocError}</p>}
+                    </div>
+
+                    <EarlierFilePicker
+                      open={earlierPicker === 'teen'}
+                      docs={earlierDocs}
+                      loading={earlierDocsLoading}
+                      error={earlierDocsError}
+                      onChoose={(doc) => void chooseEarlierDocument(doc)}
+                      onCancel={() => setEarlierPicker(null)}
+                    />
+
+                    <div className="mt-3">
+                      <textarea
+                        value={teenSummaryDraft}
+                        onChange={(event) => setTeenSummaryDraft(event.target.value)}
+                        placeholder="A short summary of this week's class for the teens (optional if you upload a document)."
+                        rows={3}
+                        className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
+                      />
+                      <textarea
+                        value={teenPromptDraft}
+                        onChange={(event) => setTeenPromptDraft(event.target.value)}
+                        placeholder="A question or action for the teens to talk through (optional)."
+                        rows={2}
+                        className="mt-2 w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="mt-3 rounded-2xl bg-gray-50 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">When Teen Supports see it</p>
+                      <SegmentedTabs
+                        className="mt-2"
+                        tabs={[{ key: 'now', label: 'As soon as it is uploaded' }, { key: 'time', label: 'Set a time' }]}
+                        active={teenReleaseMode}
+                        onChange={(key) => setTeenReleaseMode(key as 'now' | 'time')}
+                      />
+                      {teenReleaseMode === 'time' && (
+                        <div className="mt-2">
+                          <AppDateTimePicker value={teenReleaseDraft} onChange={setTeenReleaseDraft} placeholder="Pick a day and time (Lagos time)" ariaLabel="Teen recap release time" />
+                          {!teenReleaseDraft && <p className="mt-1.5 text-xs text-amber-700">Pick a time, or switch back to "As soon as it is uploaded".</p>}
+                        </div>
+                      )}
+                      <p className="mt-2 text-xs text-gray-500">Teen Supports only. Participants do not see the Teen recap.</p>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* ③ Participants */}

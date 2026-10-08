@@ -70,6 +70,7 @@ import {
   adminChecklistApi as supabaseAdminChecklistApi,
   recapDocumentsApi as supabaseRecapDocumentsApi,
   manualDocumentsApi as supabaseManualDocumentsApi,
+  teenRecapDocumentsApi as supabaseTeenRecapDocumentsApi,
   earlierClassDocumentsApi as supabaseEarlierClassDocumentsApi,
   manualQuestionsApi as supabaseManualQuestionsApi,
   onboardingEventsApi as supabaseOnboardingEventsApi,
@@ -211,7 +212,7 @@ export const weeksApi = USE_SUPABASE ? supabaseWeeksApi : {
     };
   },
 
-  async update(_weekId: number, _input: { title?: string | null; recapSummary?: string | null; discussionPrompt?: string | null; recapDocumentUrl?: string | null; recapDocumentName?: string | null; shareWithParticipants?: boolean; participantReleasedEarlyAt?: string | null; expectations?: string | null; manualSummary?: string | null; manualDiscussionPrompt?: string | null; manualDocumentUrl?: string | null; manualDocumentName?: string | null; manualReleasedEarlyAt?: string | null }): Promise<{ week: Week }> {
+  async update(_weekId: number, _input: { title?: string | null; recapSummary?: string | null; discussionPrompt?: string | null; recapDocumentUrl?: string | null; recapDocumentName?: string | null; shareWithParticipants?: boolean; participantReleasedEarlyAt?: string | null; expectations?: string | null; manualSummary?: string | null; manualDiscussionPrompt?: string | null; manualDocumentUrl?: string | null; manualDocumentName?: string | null; manualReleasedEarlyAt?: string | null; teenRecapSummary?: string | null; teenDiscussionPrompt?: string | null; teenRecapReleaseAt?: string | null }): Promise<{ week: Week }> {
     throw new Error('Weeks are only editable in Supabase mode.');
   },
 };
@@ -965,6 +966,12 @@ export const adminChecklistApi = USE_SUPABASE ? supabaseAdminChecklistApi : {
 };
 
 export const recapDocumentsApi = USE_SUPABASE ? supabaseRecapDocumentsApi : {
+  async upload(_weekId: number, _file: File): Promise<never> { return peopleUnavailable(); },
+  async remove(_weekId: number): Promise<never> { return peopleUnavailable(); },
+  async choose(_weekId: number, _url: string, _name: string | null): Promise<never> { return peopleUnavailable(); },
+};
+
+export const teenRecapDocumentsApi = USE_SUPABASE ? supabaseTeenRecapDocumentsApi : {
   async upload(_weekId: number, _file: File): Promise<never> { return peopleUnavailable(); },
   async remove(_weekId: number): Promise<never> { return peopleUnavailable(); },
   async choose(_weekId: number, _url: string, _name: string | null): Promise<never> { return peopleUnavailable(); },
