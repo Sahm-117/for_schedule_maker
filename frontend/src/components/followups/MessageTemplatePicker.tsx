@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { FollowUpContact, MessageTemplate } from '../../types';
 import ModalShell from './ModalShell';
 import LinkText from '../LinkText';
-import { contactReachPhone, fillTemplate, isTeenContact } from '../../utils/followUps';
+import { contactReachPhone, fillTemplate, isTeenContact, teenMessagePhone } from '../../utils/followUps';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../../utils/phone';
 
 // +234 806 678 3672 style, for showing who a message is going to.
@@ -48,32 +48,37 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
   // Chosen from the no-number warning: carry on by email instead.
   const [emailInstead, setEmailInstead] = useState(false);
 
-  // A teen is shown only the teen templates (for the teen, and for their parent), and nobody else sees them.
+  // A teen is shown only the teen templates, and nobody else sees them. The guardian's messages always
+  // show, and come first (the guardian is reached first). The teen's own messages show only when there
+  // is a number to send them to: the teen's own, or the one number on file while nobody has said whose
+  // it is. Once the number is known to be the guardian's alone, they are hidden.
   const teen = contact ? isTeenContact(contact) : false;
   const reachPhone = contact ? contactReachPhone(contact) : null;
-  // When the number is the parent's, the parent templates come first.
-  const toParent = teen && !!contact?.guardianPhone && reachPhone === contact.guardianPhone;
+  const teenOwn = teen && contact ? teenMessagePhone(contact) : null;
   const shownTemplates = useMemo(() => {
     const isTeenKind = (t: MessageTemplate) => t.category === 'TEEN' || t.category === 'TEEN_PARENT';
     const list = templates.filter((t) => isTeenKind(t) === teen);
     if (!teen) return list;
-    const rank = (t: MessageTemplate) => ((t.category === 'TEEN_PARENT') === toParent ? 0 : 1);
-    return [...list].sort((a, b) => rank(a) - rank(b));
-  }, [templates, teen, toParent]);
+    const visible = list.filter((t) => t.category !== 'TEEN' || !!teenOwn);
+    const rank = (t: MessageTemplate) => (t.category === 'TEEN_PARENT' ? 0 : 1);
+    return [...visible].sort((a, b) => rank(a) - rank(b));
+  }, [templates, teen, teenOwn]);
   const selected = shownTemplates.find((t) => t.id === selectedId) || null;
+  // A message for the teen goes to the teen's own number; everything else goes where the contact is reached.
+  const targetPhone = selected?.category === 'TEEN' && teenOwn ? teenOwn : reachPhone;
   // A template that carries the sender's WhatsApp group link can't go out without one.
   const missingGroupLink = !!selected?.body.includes('{{group_link}}') && !senderGroupLink?.trim();
   const filled = useMemo(
     () => (selected && contact && !missingGroupLink ? fillTemplate(selected.body, contact, registrationLink, currentUserName, senderGroupLink) : ''),
     [selected, contact, missingGroupLink, registrationLink, currentUserName, senderGroupLink]
   );
-  const waLink = contact && filled ? buildWhatsAppLink(reachPhone, filled) : null;
+  const waLink = contact && filled ? buildWhatsAppLink(targetPhone, filled) : null;
   const email = contact?.email?.trim() || '';
   const mailLink = email && filled
     ? `mailto:${email}?subject=${encodeURIComponent(EMAIL_SUBJECT)}&body=${encodeURIComponent(filled)}`
     : null;
   const byEmail = channel === 'email' || emailInstead;
-  const intl = normalizeToIntlPhone(reachPhone);
+  const intl = normalizeToIntlPhone(targetPhone);
   const numberOk = !!intl;
   const firstName = contact?.fullName.split(' ')[0] ?? '';
   // Copying a WhatsApp message for someone with no usable number is how a text
@@ -165,6 +170,11 @@ const MessageTemplatePicker: React.FC<MessageTemplatePickerProps> = ({
           onHaveNumber={onHaveNumber ? () => { setSelectedId(''); setEmailInstead(false); onHaveNumber(contact); } : undefined}
         />
       ) : null)}
+      {teen && !teenOwn && (
+        <p className="mb-3 rounded-2xl bg-neutral-50 px-4 py-2.5 text-[12.5px] text-gray-600">
+          These messages are for the parent or guardian. The teen&rsquo;s own messages appear once you add the teen&rsquo;s number (open the card&rsquo;s menu, then Edit contact).
+        </p>
+      )}
       {shownTemplates.length === 0 ? (
         <p className="rounded-2xl bg-orange-50 px-4 py-6 text-center text-sm text-gray-500">
           No message templates yet. Ask an admin to add them in the Message Bank.

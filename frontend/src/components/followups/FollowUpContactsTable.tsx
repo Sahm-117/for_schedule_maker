@@ -21,6 +21,9 @@ import {
   unassignedFollowUpTag,
   isTeenContact,
   canTakeTeen,
+  teenNumberOwner,
+  teenNumbersLine,
+  teenOwnPhone,
 } from '../../utils/followUps';
 import Spinner from '../Spinner';
 import ConfirmationModal from '../ConfirmationModal';
@@ -481,8 +484,14 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                     {genderAgeLine(contact) && <p className="mt-0.5 text-xs text-gray-500">{genderAgeLine(contact)}</p>}
                     {viewingInfo === contact.id && (
                       <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
-                        <p>{contact.phone || 'No phone'}</p>
-                        {contact.guardianPhone?.trim() && <p>Parent or guardian: {[contact.guardianName?.trim(), contact.guardianPhone.trim()].filter(Boolean).join(' · ')}</p>}
+                        {isTeenContact(contact) ? (
+                          <>
+                            {teenNumberOwner(contact) !== 'unknown' && <p>Parent or guardian: {[contact.guardianName?.trim(), contact.guardianPhone?.trim()].filter(Boolean).join(' · ')}</p>}
+                            <p>{teenNumberOwner(contact) === 'unknown' ? teenNumbersLine(contact) : `Teen: ${teenOwnPhone(contact) || 'no number yet'}`}</p>
+                          </>
+                        ) : (
+                          <p>{contact.phone || 'No phone'}</p>
+                        )}
                         {emailLine(contact)}
                         {canAssign && contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}
                         {canAssign && contact.createdAt && <p className="mt-0.5 text-gray-300">Added {formatDateTime(contact.createdAt)}</p>}
@@ -569,8 +578,14 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                 {genderAgeLine(contact) && <p className="mt-0.5 text-xs text-gray-500">{genderAgeLine(contact)}</p>}
                 {viewingInfo === contact.id && (
                   <div className="mt-1.5 rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
-                    <p>{contact.phone || 'No phone'}</p>
-                        {contact.guardianPhone?.trim() && <p>Parent or guardian: {[contact.guardianName?.trim(), contact.guardianPhone.trim()].filter(Boolean).join(' · ')}</p>}
+                    {isTeenContact(contact) ? (
+                      <>
+                        {teenNumberOwner(contact) !== 'unknown' && <p>Parent or guardian: {[contact.guardianName?.trim(), contact.guardianPhone?.trim()].filter(Boolean).join(' · ')}</p>}
+                        <p>{teenNumberOwner(contact) === 'unknown' ? teenNumbersLine(contact) : `Teen: ${teenOwnPhone(contact) || 'no number yet'}`}</p>
+                      </>
+                    ) : (
+                      <p>{contact.phone || 'No phone'}</p>
+                    )}
                     {emailLine(contact)}
                     {/* Supports only need the number and email; admins also see where they came from. */}
                     {canAssign && contact.source && <p className="mt-0.5 text-gray-300">{contact.source}</p>}

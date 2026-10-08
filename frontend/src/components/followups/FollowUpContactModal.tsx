@@ -4,8 +4,8 @@ import AppSelect from '../AppSelect';
 import ModalShell from './ModalShell';
 import { followUpContactsApi } from '../../services/api';
 import { useTeenSupportIds } from '../../hooks/useTeenSupportIds';
-import { canTakeTeen, isTeenContact } from '../../utils/followUps';
-import { normalizeToIntlPhone } from '../../utils/phone';
+import { canTakeTeen, isTeenContact, teenNumberOwner } from '../../utils/followUps';
+import { normalizeToIntlPhone, toLocalNigerianPhone } from '../../utils/phone';
 import { sortByText } from '../../utils/sort';
 import Spinner from '../Spinner';
 import { genderAgeLine } from '../../utils/people';
@@ -46,6 +46,10 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
 }) => {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  // A teen's numbers: the guardian's, and the teen's own if they have one (most do not).
+  const [guardianName, setGuardianName] = useState('');
+  const [guardianPhone, setGuardianPhone] = useState('');
+  const [teenPhone, setTeenPhone] = useState('');
   const [source, setSource] = useState('');
   const [ownerId, setOwnerId] = useState('');
   const [cohortId, setCohortId] = useState('');
@@ -71,6 +75,9 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
     setConfirmNotTeen(false);
     setFullName(contact?.fullName || '');
     setPhone(contact?.phone || '');
+    setGuardianName(contact?.guardianName || '');
+    setGuardianPhone(contact?.guardianPhone || '');
+    setTeenPhone(contact && isTeenContact(contact) && teenNumberOwner(contact) === 'teen' ? contact.phone || '' : '');
     setSource(contact?.source || '');
     setOwnerId(contact?.ownerId || '');
     setCohortId(contact?.cohortId || defaultCohortId || '');
@@ -115,6 +122,11 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
   };
 
   const phoneInvalid = phone.trim() !== '' && !normalizeToIntlPhone(phone);
+  const guardianInvalid = guardianPhone.trim() !== '' && !normalizeToIntlPhone(guardianPhone);
+  const teenPhoneInvalid = teenPhone.trim() !== '' && !normalizeToIntlPhone(teenPhone);
+  // An earlier teen: one number on file and nobody has said whose it is yet.
+  const unsortedNumber = isTeen && !!contact && teenNumberOwner(contact) === 'unknown' && !!contact.phone?.trim()
+    && !guardianPhone.trim() && !teenPhone.trim();
 
   const handleSave = async () => {
     if (!fullName.trim()) {
@@ -128,7 +140,24 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
         return;
       }
     }
-    const normalized = normalizeToIntlPhone(phone);
+    // A teen has up to two numbers. The guardian's may be shared (brothers and sisters), so only the
+    // teen's own number has to be unique; the contact's phone is the teen's number if they have one,
+    // else the guardian's, which is how the form saves it.
+    const guardianNumber = guardianPhone.trim();
+    let teenNumber = teenPhone.trim();
+    if (isTeen && teenNumber && normalizeToIntlPhone(teenNumber) === normalizeToIntlPhone(guardianNumber)) teenNumber = '';
+    const phoneToSave = isTeen ? (teenNumber || guardianNumber || contact?.phone?.trim() || '') : phone.trim();
+    if (isTeen) {
+      if (guardianInvalid || teenPhoneInvalid) {
+        setError('Check the number format. It must work for WhatsApp links.');
+        return;
+      }
+      if (!phoneToSave) {
+        setError("Add the parent or guardian's number, or the teen's number.");
+        return;
+      }
+    }
+    const normalized = normalizeToIntlPhone(isTeen ? teenNumber : phone);
     if (normalized && existingContacts) {
       const match = existingContacts.find(
         (c) => c.id !== contact?.id && normalizeToIntlPhone(c.phone) === normalized
@@ -144,7 +173,11 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
     try {
       const input = {
         fullName: fullName.trim(),
-        phone: phone.trim() || null,
+        phone: phoneToSave || null,
+        ...(isTeen ? {
+          guardianPhone: guardianNumber ? (toLocalNigerianPhone(guardianNumber) ?? guardianNumber) : null,
+          guardianName: guardianName.trim() || null,
+        } : {}),
         source: source.trim() || null,
         ownerId: canEditOwner ? (ownerId || null) : undefined,
         cohortId: cohortId || null,
@@ -207,11 +240,41 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Full name</label>
           <input className={inputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Abigail Afeme" />
         </div>
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Phone (WhatsApp)</label>
-          <input className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 08012345678" />
-          {phoneInvalid && <p className="mt-1 text-xs text-amber-600">This number can't be used for WhatsApp links — check the format.</p>}
-        </div>
+        {isTeen ? (
+          <div className="space-y-4 rounded-2xl bg-pink-50/50 p-3">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Parent or guardian name</label>
+              <input className={inputClass} value={guardianName} onChange={(e) => setGuardianName(e.target.value)} placeholder="e.g. Mrs Bello" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Parent or guardian number (WhatsApp)</label>
+              <input className={inputClass} value={guardianPhone} onChange={(e) => setGuardianPhone(e.target.value)} placeholder="e.g. 08012345678" />
+              {guardianInvalid && <p className="mt-1 text-xs text-amber-600">This number can't be used for WhatsApp links. Check the format.</p>}
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Teen's own number (optional)</label>
+              <input className={inputClass} value={teenPhone} onChange={(e) => setTeenPhone(e.target.value)} placeholder="Only if the guardian says they have a phone" />
+              {teenPhoneInvalid && <p className="mt-1 text-xs text-amber-600">This number can't be used for WhatsApp links. Check the format.</p>}
+              <p className="mt-1 text-xs text-gray-500">Most teens have no phone of their own. Once you add one, the teen's own messages appear in Templates.</p>
+            </div>
+            {unsortedNumber && contact && (
+              <div className="rounded-2xl bg-amber-50 px-3.5 py-3 text-xs text-amber-900">
+                <p className="font-semibold">The number on file is {contact.phone}. Whose is it?</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => setGuardianPhone(contact.phone || '')} className="rounded-full bg-white px-3 py-1.5 font-semibold text-amber-800 shadow-sm">It's the guardian's</button>
+                  <button type="button" onClick={() => setTeenPhone(contact.phone || '')} className="rounded-full bg-white px-3 py-1.5 font-semibold text-amber-800 shadow-sm">It's the teen's</button>
+                </div>
+                <p className="mt-1.5 text-amber-800/80">Add the guardian's number when you have it, so we always reach the guardian first.</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Phone (WhatsApp)</label>
+            <input className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 08012345678" />
+            {phoneInvalid && <p className="mt-1 text-xs text-amber-600">This number can't be used for WhatsApp links — check the format.</p>}
+          </div>
+        )}
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Source</label>
           {canEditOwner ? (

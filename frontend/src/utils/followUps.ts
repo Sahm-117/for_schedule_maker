@@ -644,6 +644,40 @@ export const formatTemplateDate = (value?: string | null): string => {
 export const contactReachPhone = (c: Pick<FollowUpContact, 'phone' | 'guardianPhone' | 'registrationStatus'>): string | null | undefined =>
   isTeenContact(c) && normalizeToIntlPhone(c.guardianPhone) ? c.guardianPhone : c.phone;
 
+/**
+ * Whose number a teen's contact `phone` is. Most teens have no phone of their own, so when the form
+ * (or a support) gives only the guardian's number, `phone` is that same number. A teen's own number
+ * is one that differs from the guardian's. With no guardian number on file (the earlier teens) there
+ * is no way to tell, so it is 'unknown' until a support says whose it is.
+ */
+export type TeenNumberOwner = 'teen' | 'guardian' | 'unknown';
+export const teenNumberOwner = (c: Pick<FollowUpContact, 'phone' | 'guardianPhone'>): TeenNumberOwner => {
+  const guardian = normalizeToIntlPhone(c.guardianPhone);
+  if (!guardian) return 'unknown';
+  const own = normalizeToIntlPhone(c.phone);
+  return own && own !== guardian ? 'teen' : 'guardian';
+};
+
+/** The teen's own number, or null when they have none saved (or it is not known whose number is on file). */
+export const teenOwnPhone = (c: Pick<FollowUpContact, 'phone' | 'guardianPhone'>): string | null =>
+  teenNumberOwner(c) === 'teen' ? (c.phone?.trim() || null) : null;
+
+/**
+ * Where a message meant for the teen goes: their own number, or, while nobody has said whose number
+ * is on file (the earlier teens), the one number there is. Null once it is known that the number
+ * is only the guardian's, because then the teen has no number to message.
+ */
+export const teenMessagePhone = (c: Pick<FollowUpContact, 'phone' | 'guardianPhone'>): string | null =>
+  teenNumberOwner(c) === 'guardian' ? null : (c.phone?.trim() || null);
+
+/** One line for a teen's card: the guardian first, then whether the teen has a number of their own. */
+export const teenNumbersLine = (c: Pick<FollowUpContact, 'phone' | 'guardianPhone' | 'guardianName'>): string => {
+  const owner = teenNumberOwner(c);
+  const guardian = [c.guardianName?.trim(), c.guardianPhone?.trim()].filter(Boolean).join(' · ');
+  if (owner === 'unknown') return c.phone?.trim() ? `${c.phone.trim()} · whose number? (guardian or teen)` : 'No number yet';
+  return owner === 'teen' ? `Guardian ${guardian} · Teen ${c.phone?.trim()}` : `Guardian ${guardian} · Teen: no number yet`;
+};
+
 export const fillTemplate = (
   body: string,
   contact: FollowUpContact,

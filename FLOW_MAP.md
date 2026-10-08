@@ -280,7 +280,12 @@ duplicating the logic anywhere else is a bug waiting to happen.
     empty). A Teen Support saves their teens' WhatsApp group link on My Group
     (`TeenWhatsAppGroupCard`, stored as `User.whatsappGroupUrl`); a template carrying
     `{{group_link}}` cannot be sent until it is saved. The form handler reads parent or guardian
-    name/number answers by wording (`guardianFromAnswers`). Source: `20261007190000_teen_guardian_name.sql`.
+    name/number answers by wording (`guardianFromAnswers`). A teen's own number is not a new column:
+    `FollowUpContact.phone` is the teen's own only when it differs from `guardianPhone`; otherwise it
+    is the guardian's copy, and a teen with no `guardianPhone` (earlier teens) is "unknown" until the
+    support says whose it is in Edit contact (`teenNumberOwner`). `TEEN` templates appear only when
+    the teen's own number exists and go to it; `TEEN_PARENT` always go to the guardian
+    (`teenMessagePhone`, `contactReachPhone`). Source: `20261007190000_teen_guardian_name.sql`.
 28. **No response parks someone instead of closing them.** `FollowUpContact.noResponseAt` is set
     by `followUpContactsApi.update`. An adult is released (`ownerId` cleared), left open and
     unarchived, so they can still be put in a group; the NO_RESPONSE status keeps them out of

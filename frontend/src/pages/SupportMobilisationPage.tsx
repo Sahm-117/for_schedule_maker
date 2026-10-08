@@ -34,6 +34,9 @@ import {
   isTeenContact,
   contactReachPhone,
   supportStatusOptions,
+  teenNumberOwner,
+  teenNumbersLine,
+  teenOwnPhone,
 } from '../utils/followUps';
 import Spinner from '../components/Spinner';
 import { buildWhatsAppLink, normalizeToIntlPhone } from '../utils/phone';
@@ -1067,8 +1070,14 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   </div>
                   {infoOpenId === contact.id && (
                     <div className="mt-1.5 inline-block max-w-full rounded-xl bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
-                      {teenContact && contact.guardianPhone?.trim() && <p>Parent or guardian: {contact.guardianPhone.trim()}</p>}
-                      <p>{teenContact && contact.guardianPhone?.trim() ? `Teen: ${contact.phone || 'No phone'}` : (contact.phone || 'No phone')}</p>
+                      {teenContact ? (
+                        <>
+                          {teenNumberOwner(contact) !== 'unknown' && <p>Parent or guardian: {[contact.guardianName?.trim(), contact.guardianPhone?.trim()].filter(Boolean).join(' · ')}</p>}
+                          <p>{teenNumberOwner(contact) === 'unknown' ? teenNumbersLine(contact) : `Teen: ${teenOwnPhone(contact) || 'no number yet'}`}</p>
+                        </>
+                      ) : (
+                        <p>{contact.phone || 'No phone'}</p>
+                      )}
                       {contact.email?.trim() && (
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                           <button type="button" onClick={() => { void sendEmail(contact); }} className="max-w-full break-words text-left text-sky-200 underline">{contact.email.trim()}</button>
@@ -1083,7 +1092,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       )}
                     </div>
                   )}
-                  <p className="mt-1 text-[12.5px] text-gray-500">{teenContact && contact.guardianPhone?.trim() ? `Parent ${[contact.guardianName?.trim(), contact.guardianPhone.trim()].filter(Boolean).join(' · ')}` : (contact.phone || 'No phone')}{assigned ? ` · ${handover ? `passed on${handover.fromName ? ` from ${handover.fromName}` : ''}` : 'assigned'} ${assigned}` : ''}</p>
+                  <p className="mt-1 text-[12.5px] text-gray-500">{teenContact ? teenNumbersLine(contact) : (contact.phone || 'No phone')}{assigned ? ` · ${handover ? `passed on${handover.fromName ? ` from ${handover.fromName}` : ''}` : 'assigned'} ${assigned}` : ''}</p>
                   {!phoneOk && (
                     <div className="mt-2.5 rounded-[12px] bg-amber-50 text-amber-800">
                       <button
