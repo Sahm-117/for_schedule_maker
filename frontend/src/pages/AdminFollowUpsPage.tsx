@@ -23,6 +23,7 @@ import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
+import { cohortHasStarted } from '../utils/cohortStarted';
 import {
   followUpContactsApi,
   followUpIssuesApi,
@@ -119,6 +120,7 @@ function activeFilterCount(f: FilterState): number {
 const AdminFollowUpsPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
   const { cohorts, activeCohort, liveRevision } = useAppData();
+  const cohortStarted = cohortHasStarted(activeCohort);
 
   // The Overview tiles link into this page (?tab=contacts&status=…), so the tab
   // and the status filter live in the URL rather than in state.
@@ -824,6 +826,7 @@ const AdminFollowUpsPage: React.FC = () => {
               onBulkAssign={handleBulkAssign}
               ownerLoad={ownerLoad}
               maxLoad={maxLoad}
+              showLoadRing={!cohortStarted}
               cohorts={cohorts}
               activeCohortId={activeCohort?.id}
             />
@@ -867,6 +870,7 @@ const AdminFollowUpsPage: React.FC = () => {
         existingContacts={contacts}
         ownerLoad={ownerLoad}
         maxLoad={maxLoad}
+        showLoadRing={!cohortStarted}
       />
 
       <ContactImportModal

@@ -3,8 +3,8 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { groupsApi, participantsApi, settingsApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
-import type { Group, Participant, User, GroupCallPlatform, SupportSession } from '../types';
+import { cohortsApi, groupsApi, participantsApi, settingsApi, supportKindApi, supportNotesApi, supportSessionsApi, supportTagsApi, usersApi } from '../services/api';
+import type { Group, Participant, User, GroupCallPlatform, SupportKind, SupportSession, SupportTag } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -37,6 +37,21 @@ const trainingLabel = (counts: Map<string, { attended: number; total: number }>,
   const c = trainingCountFor(counts, userId, total);
   return ` · ${c.attended}/${c.total} trainings`;
 };
+
+// Options for the support pickers. A support who attended none of the pre-cohort
+// trainings gets an amber warning line, so it is clear before they are picked.
+const supportOptions = (
+  users: User[],
+  counts: Map<string, { attended: number; total: number }>,
+  total: number,
+) => users.map((u) => {
+  const c = trainingCountFor(counts, u.id, total);
+  return {
+    value: u.id,
+    label: `${u.name}${trainingLabel(counts, u.id, total)}`,
+    warning: c.total > 0 && c.attended === 0 ? 'Attended no training' : undefined,
+  };
+});
 
 const TrainingBlockNotice: React.FC<{
   supportId: string;
@@ -213,7 +228,7 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
             onChange={setSupportId}
             options={[
               { value: '', label: '— None —' },
-              ...supportUsers.map((u) => ({ value: u.id, label: `${u.name}${trainingLabel(trainingCounts, u.id, trainingsTotal)}` })),
+              ...supportOptions(supportUsers, trainingCounts, trainingsTotal),
             ]}
             placeholder="— None —"
             compact
@@ -326,7 +341,7 @@ const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose
             onChange={setSupportId}
             options={[
               { value: '', label: '— None —' },
-              ...supportUsers.map((u) => ({ value: u.id, label: `${u.name}${trainingLabel(trainingCounts, u.id, trainingsTotal)}` })),
+              ...supportOptions(supportUsers, trainingCounts, trainingsTotal),
             ]}
             placeholder="— None —"
             compact
@@ -506,6 +521,11 @@ const AdminGroupsContent: React.FC = () => {
     [allSupportUsers, showTestSupports, groups],
   );
   const hasTestSupports = allSupportUsers.some((u) => u.isTest);
+  // What decides who can be put on a group: who is in this cohort, their kind
+  // and tags. If any of these fail to load the list is not narrowed by it.
+  const [cohortMemberIds, setCohortMemberIds] = useState<Set<string> | null>(null);
+  const [supportKinds, setSupportKinds] = useState<Record<string, SupportKind> | null>(null);
+  const [supportTags, setSupportTags] = useState<SupportTag[] | null>(null);
   const [trainingSessions, setTrainingSessions] = useState<SupportSession[]>([]);
   const [trainingAttendance, setTrainingAttendance] = useState<Array<{ sessionId: string; userId: string; status: string }>>([]);
   const [minTrainingsAttended, setMinTrainingsAttended] = useState(DEFAULT_PROGRAMME_RULES.minTrainingsAttended);
@@ -539,14 +559,20 @@ const AdminGroupsContent: React.FC = () => {
     if (!activeCohort) { setLoading(false); return; }
     if (!silent) setLoading(true);
     try {
-      const [{ groups: allGs }, { participants: ps }, { users }, { sessions: ts, attendance: ta }, rules, teenOn] = await Promise.all([
+      const [{ groups: allGs }, { participants: ps }, { users }, { sessions: ts, attendance: ta }, rules, teenOn, members, kindMap, tagList] = await Promise.all([
         groupsApi.getAll({ cohortId: activeCohort.id, includeArchived: showArchived, includeTeenGroups: true }),
         participantsApi.getAll({ cohortId: activeCohort.id }),
         usersApi.getAll(),
         supportSessionsApi.getForCohort(activeCohort.id, ['PRE_COHORT_TRAINING']),
         settingsApi.getProgrammeRules(),
         settingsApi.getTeenFlowEnabled().catch(() => false),
+        cohortsApi.getMembers(activeCohort.id).then((r) => new Set(r.users.map((u) => u.id))).catch(() => null),
+        supportKindApi.getForCohort(activeCohort.id).then((r) => r.kinds).catch(() => null),
+        supportTagsApi.getAll().then((r) => r.tags).catch(() => null),
       ]);
+      setCohortMemberIds(members);
+      setSupportKinds(kindMap);
+      setSupportTags(tagList);
       const gs = allGs.filter((g) => !g.isTeenGroup);
       const sortedTeenGs = sortGroupsByName(allGs.filter((g) => g.isTeenGroup));
       setTeenFlowOn(teenOn);
@@ -578,6 +604,26 @@ const AdminGroupsContent: React.FC = () => {
     () => buildTrainingCounts(trainingSessions.map((s) => s.id), trainingAttendance),
     [trainingSessions, trainingAttendance]
   );
+
+  // Who the group pickers offer, kept as short as possible. Left out: people who are
+  // inactive or not in this cohort, hub leads and operational supports, Teen Supports
+  // (they look after teens in their own groups), anyone who already leads another
+  // group and anyone below the minimum pre-cohort trainings (they can't be saved on
+  // a group). Whoever is on the group being edited stays, so their name still shows.
+  const supportsFor = useCallback((group: Group | null): User[] => {
+    const teenSupportIds = new Set((supportTags ?? []).filter((t) => t.systemKey === 'TEEN_SUPPORT').flatMap((t) => t.userIds));
+    const leading = new Set(groups.filter((g) => g.id !== group?.id && !g.archivedAt && g.supportId).map((g) => g.supportId as string));
+    return supportUsers.filter((u) => {
+      if (u.id === group?.supportId) return true;
+      if (u.isActive === false) return false;
+      if (cohortMemberIds && !cohortMemberIds.has(u.id)) return false;
+      if (supportKinds && (supportKinds[u.id] ?? 'PARTICIPANT_SUPPORT') !== 'PARTICIPANT_SUPPORT') return false;
+      if (teenSupportIds.has(u.id)) return false;
+      const trained = trainingCountFor(trainingCounts, u.id, trainingsTotal);
+      if (trained.total > 0 && trained.attended < minTrainingsAttended) return false;
+      return !leading.has(u.id);
+    });
+  }, [supportUsers, supportTags, cohortMemberIds, supportKinds, groups, trainingCounts, trainingsTotal, minTrainingsAttended]);
 
   // Initial / cohort-change load shows the loader.
   useEffect(() => { void load(false); }, [load]);
@@ -821,7 +867,7 @@ const AdminGroupsContent: React.FC = () => {
         }}
         cohortId={activeCohort?.id ?? ''}
         existing={editing}
-        supportUsers={supportUsers}
+        supportUsers={supportsFor(editing)}
         testSupportsToggle={hasTestSupports ? { value: showTestSupports, onChange: setShowTestSupports } : undefined}
         trainingCounts={trainingCounts}
         trainingsTotal={trainingsTotal}
@@ -833,7 +879,7 @@ const AdminGroupsContent: React.FC = () => {
           isOpen={!!supportTarget}
           onClose={() => setSupportTarget(null)}
           group={supportTarget}
-          supportUsers={supportUsers}
+          supportUsers={supportsFor(supportTarget)}
         testSupportsToggle={hasTestSupports ? { value: showTestSupports, onChange: setShowTestSupports } : undefined}
           trainingCounts={trainingCounts}
           trainingsTotal={trainingsTotal}

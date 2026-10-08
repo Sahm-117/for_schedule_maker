@@ -10,6 +10,8 @@ type SelectOption = {
   done?: boolean;
   /** Load ring on the right, e.g. a support's open follow-ups against the max. */
   ring?: { value: number; max: number };
+  /** Amber warning line under the option, e.g. a support who attended no training. */
+  warning?: string;
   /** Small heading shown above the first option of each run of the same group. */
   group?: string;
 };
@@ -182,6 +184,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
           {selectedOption?.meta && (
             <p className="text-xs text-gray-500">{selectedOption.meta}</p>
           )}
+          {selectedOption?.warning && <p className="text-xs font-semibold text-amber-700">⚠ {selectedOption.warning}</p>}
           {selectedOption?.ring && <LoadRing value={selectedOption.ring.value} max={selectedOption.ring.max} className="mt-0.5" />}
         </div>
         <span className={`ml-2 inline-flex flex-shrink-0 items-center justify-center transition-transform ${open ? 'rotate-180' : ''} ${
@@ -253,6 +256,7 @@ const AppSelect: React.FC<AppSelectProps> = ({
                     <div className="min-w-0">
                       <p className="text-sm font-semibold">{option.label}</p>
                       {option.meta && <p className="text-xs leading-tight text-gray-500">{option.meta}</p>}
+                      {option.warning && <p className="text-xs font-semibold leading-tight text-amber-700">⚠ {option.warning}</p>}
                     </div>
                   </div>
                   {option.ring && <LoadRing value={option.ring.value} max={option.ring.max} className="ml-3 self-center" />}

@@ -193,7 +193,12 @@ duplicating the logic anywhere else is a bug waiting to happen.
     is ever moved, so a kind chosen by hand stays. The builder and the Supports
     page read `UserCohort.supportKind`; never keep a second list of hub leads.
     Source: `20261006140000_support_kind_follows_hub_roles.sql`.
-19. **Teens are looked after by Teen Supports, off the app.** A registered
+19. **Teens are looked after by Teen Supports, off the app.** The Assign support
+    and New/Edit group pickers on the Groups page leave out Teen Supports, hub
+    leads and operational supports, inactive or out-of-cohort users and anyone
+    already leading another group or below the minimum pre-cohort trainings
+    (`supportsFor` in `AdminGroupsPage.tsx`).
+    A registered
     contact whose age is "18 and below" becomes TEENAGER (then TEEN_ONBOARDED)
     inside `fill_profile_from_form`, only while `AppSetting.teen_flow_enabled`
     is true (off until teen assignment and groups exist). Adult assignment,

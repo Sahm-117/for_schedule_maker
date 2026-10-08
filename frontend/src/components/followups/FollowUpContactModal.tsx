@@ -22,6 +22,8 @@ interface FollowUpContactModalProps {
   /** Open follow-ups each support holds, and the max from Settings (load ring + "full" note). */
   ownerLoad?: Map<string, number>;
   maxLoad?: number;
+  /** Show each support's open follow-ups ring in the owner list. Off once the cohort has started. */
+  showLoadRing?: boolean;
 }
 
 const inputClass =
@@ -39,6 +41,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
   existingContacts,
   ownerLoad,
   maxLoad,
+  showLoadRing = true,
 }) => {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -235,7 +238,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
               value: o.id,
               label: o.name,
               meta: genderAgeLine(o) || undefined,
-              ring: ownerLoad && maxLoad ? { value: ownerLoad.get(o.id) ?? 0, max: maxLoad } : undefined,
+              ring: showLoadRing && ownerLoad && maxLoad ? { value: ownerLoad.get(o.id) ?? 0, max: maxLoad } : undefined,
             }))]}
             placeholder="Unassigned"
           />

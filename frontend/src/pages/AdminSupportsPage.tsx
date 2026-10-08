@@ -15,6 +15,7 @@ import Spinner from '../components/Spinner';
 import InfoTip from '../components/InfoTip';
 import Avatar from '../components/Avatar';
 import LoadRing from '../components/LoadRing';
+import { cohortHasStarted } from '../utils/cohortStarted';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import { cohortsApi, followUpContactsApi, groupDiscussionApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
@@ -70,6 +71,8 @@ type Filter = 'all' | PersonHealth;
 const AdminSupportsPage: React.FC = () => {
   const { isAdmin } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
+  // The open follow-ups ring is for the lead-up; it goes once the cohort starts.
+  const cohortStarted = cohortHasStarted(activeCohort);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [health, setHealth] = useState<CohortHealthPayload | null>(null);
@@ -523,6 +526,7 @@ const AdminSupportsPage: React.FC = () => {
                   hasNotes={notedIds.has(evaluation.supportId)}
                   onNoteAdded={() => markNoted(evaluation.supportId)}
                   followUps={followUpLoad.get(evaluation.supportId) ?? 0}
+                  showLoad={!cohortStarted}
                   onViewProfile={() => setProfileUserId(evaluation.supportId)}
                   lastSeen={lastSeenById[evaluation.supportId]}
                   stages={stagesByGroup[evaluation.groupId] ?? null}
@@ -540,6 +544,7 @@ const AdminSupportsPage: React.FC = () => {
                   hasNotes={notedIds.has(u.id)}
                   onNoteAdded={() => markNoted(u.id)}
                   followUps={followUpLoad.get(u.id) ?? 0}
+                  showLoad={!cohortStarted}
                   maxFollowUps={rules.maxFollowUpsPerSupport}
                   onViewProfile={() => setProfileUserId(u.id)}
                   lastSeen={lastSeenById[u.id]}
@@ -663,10 +668,11 @@ const SupportCard: React.FC<{
   hasNotes: boolean;
   onNoteAdded: () => void;
   followUps: number;
+  showLoad: boolean;
   onViewProfile: () => void;
   lastSeen: string | null | undefined;
   stages: StageSummary | null;
-}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, onViewProfile, lastSeen, stages }) => {
+}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, showLoad, onViewProfile, lastSeen, stages }) => {
   const [open, setOpen] = useState(false);
   const [openReport, setOpenReport] = useState<number | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -746,10 +752,14 @@ const SupportCard: React.FC<{
 
       <div className="mt-3 flex min-h-11 flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2.5">
         <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-gray-500">Follow-ups</span>
-          <LoadRing value={followUps} max={rules.maxFollowUpsPerSupport} />
-          {rules.maxFollowUpsPerSupport > 0 && followUps > rules.maxFollowUpsPerSupport && (
-            <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[10px] font-semibold text-red-700">Over limit</span>
+          {showLoad && (
+            <>
+              <span className="text-[11px] text-gray-500">Follow-ups</span>
+              <LoadRing value={followUps} max={rules.maxFollowUpsPerSupport} />
+              {rules.maxFollowUpsPerSupport > 0 && followUps > rules.maxFollowUpsPerSupport && (
+                <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[10px] font-semibold text-red-700">Over limit</span>
+              )}
+            </>
           )}
         </span>
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="inline-flex min-h-11 flex-none items-center gap-1.5 rounded-xl bg-gray-100 px-3 text-xs font-semibold text-gray-700 hover:bg-gray-200">
@@ -935,10 +945,11 @@ const NoLeadSupportCard: React.FC<{
   hasNotes: boolean;
   onNoteAdded: () => void;
   followUps: number;
+  showLoad: boolean;
   maxFollowUps: number;
   onViewProfile: () => void;
   lastSeen: string | null | undefined;
-}> = ({ user, hub, training, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, maxFollowUps, onViewProfile, lastSeen }) => {
+}> = ({ user, hub, training, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, showLoad, maxFollowUps, onViewProfile, lastSeen }) => {
   const [open, setOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState<SupportNote[] | null>(null);
@@ -996,10 +1007,14 @@ const NoLeadSupportCard: React.FC<{
 
       <div className="mt-3 flex min-h-11 flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2.5">
         <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-gray-500">Follow-ups</span>
-          <LoadRing value={followUps} max={maxFollowUps} />
-          {maxFollowUps > 0 && followUps > maxFollowUps && (
-            <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[10px] font-semibold text-red-700">Over limit</span>
+          {showLoad && (
+            <>
+              <span className="text-[11px] text-gray-500">Follow-ups</span>
+              <LoadRing value={followUps} max={maxFollowUps} />
+              {maxFollowUps > 0 && followUps > maxFollowUps && (
+                <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[10px] font-semibold text-red-700">Over limit</span>
+              )}
+            </>
           )}
         </span>
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="inline-flex min-h-11 flex-none items-center gap-1.5 rounded-xl bg-gray-100 px-3 text-xs font-semibold text-gray-700 hover:bg-gray-200">

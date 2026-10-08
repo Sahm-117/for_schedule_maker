@@ -42,6 +42,8 @@ interface FollowUpContactsTableProps {
   /** Open follow-ups each support holds, and the max from Settings — drives the load ring and the "full" warning. */
   ownerLoad?: Map<string, number>;
   maxLoad?: number;
+  /** Show each support's open follow-ups ring in the owner list. Off once the cohort has started. */
+  showLoadRing?: boolean;
   /** With these, admins can file a "From prior cohort" contact as Attended a past cohort. */
   cohorts?: Cohort[];
   activeCohortId?: string | null;
@@ -85,6 +87,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   onBulkAssign,
   ownerLoad,
   maxLoad,
+  showLoadRing = true,
   cohorts,
   activeCohortId,
 }) => {
@@ -201,7 +204,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     value: o.id,
     label: o.isTest ? `${o.name} (test)` : o.name,
     meta: genderAgeLine(o) || undefined,
-    ring: ownerLoad && maxLoad ? { value: ownerLoad.get(o.id) ?? 0, max: maxLoad } : undefined,
+    ring: showLoadRing && ownerLoad && maxLoad ? { value: ownerLoad.get(o.id) ?? 0, max: maxLoad } : undefined,
   }))];
   // The support who added a contact goes first in that contact's picker, so
   // handing it back to them needs no searching.
