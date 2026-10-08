@@ -31,7 +31,7 @@ import { genderAgeLine, hasSupportRole } from '../utils/people';
 // than the cohort's minimum pre-cohort trainings is shown with a notice, and can
 // still be saved as a group's support (it used to need an override with a reason,
 // saved as an ELIGIBILITY_OVERRIDE support note; those old notes are still read).
-// Operational supports are not expected to do the training, so they are not flagged.
+// Operational supports and hub leads are not expected to do the training, so they are not flagged.
 
 const trainingLabel = (counts: Map<string, { attended: number; total: number }>, userId: string, total: number) => {
   if (total === 0) return '';
@@ -51,8 +51,8 @@ const supportOptions = (
   return {
     value: u.id,
     label: `${u.name}${trainingLabel(counts, u.id, total)}`,
-    meta: kinds?.[u.id] === 'OPERATIONAL' ? 'Operational support' : undefined,
-    warning: c.total > 0 && c.attended === 0 && kinds?.[u.id] !== 'OPERATIONAL' ? 'Attended no training' : undefined,
+    meta: kinds?.[u.id] === 'OPERATIONAL' ? 'Operational support' : kinds?.[u.id] === 'HUB_LEAD' ? 'Hub lead' : undefined,
+    warning: c.total > 0 && c.attended === 0 && (kinds?.[u.id] ?? 'PARTICIPANT_SUPPORT') === 'PARTICIPANT_SUPPORT' ? 'Attended no training' : undefined,
   };
 });
 
@@ -114,7 +114,7 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
 
   const selectedSupport = supportUsers.find((u) => u.id === supportId);
   const counts = supportId ? trainingCountFor(trainingCounts, supportId, trainingsTotal) : null;
-  const missedTraining = !!counts && counts.total > 0 && counts.attended < minTrainingsAttended && supportKinds?.[supportId] !== 'OPERATIONAL';
+  const missedTraining = !!counts && counts.total > 0 && counts.attended < minTrainingsAttended && (supportKinds?.[supportId] ?? 'PARTICIPANT_SUPPORT') === 'PARTICIPANT_SUPPORT';
 
   const handleSave = async () => {
     if (!name.trim()) { setErr('Group name is required'); return; }
@@ -245,7 +245,7 @@ const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose
 
   const selectedSupport = supportUsers.find((u) => u.id === supportId);
   const counts = supportId ? trainingCountFor(trainingCounts, supportId, trainingsTotal) : null;
-  const missedTraining = !!counts && counts.total > 0 && counts.attended < minTrainingsAttended && supportKinds?.[supportId] !== 'OPERATIONAL';
+  const missedTraining = !!counts && counts.total > 0 && counts.attended < minTrainingsAttended && (supportKinds?.[supportId] ?? 'PARTICIPANT_SUPPORT') === 'PARTICIPANT_SUPPORT';
 
   const handleSave = async () => {
     setSaving(true);
@@ -543,10 +543,10 @@ const AdminGroupsContent: React.FC = () => {
   );
 
   // Who the group pickers offer. Left out: people who are inactive or not in this
-  // cohort, hub leads, Teen Supports (they look after teens in their own groups) and
-  // anyone who already leads another group. Operational supports are offered, and a
-  // support who missed the pre-cohort training is offered too (shown in the list and
-  // on a notice, never blocked). Whoever is on the group being edited stays.
+  // cohort, Teen Supports (they look after teens in their own groups) and anyone who
+  // already leads another group. Operational supports and hub leads are offered
+  // (tagged), and a support who missed the pre-cohort training is offered too (shown
+  // in the list and on a notice, never blocked). Whoever is on the group being edited stays.
   const supportsFor = useCallback((group: Group | null): User[] => {
     const teenSupportIds = new Set((supportTags ?? []).filter((t) => t.systemKey === 'TEEN_SUPPORT').flatMap((t) => t.userIds));
     const leading = new Set(groups.filter((g) => g.id !== group?.id && !g.archivedAt && g.supportId).map((g) => g.supportId as string));
@@ -554,8 +554,6 @@ const AdminGroupsContent: React.FC = () => {
       if (u.id === group?.supportId) return true;
       if (u.isActive === false) return false;
       if (cohortMemberIds && !cohortMemberIds.has(u.id)) return false;
-      // Hub leads are left out; operational supports can lead a group too.
-      if (supportKinds && (supportKinds[u.id] ?? 'PARTICIPANT_SUPPORT') === 'HUB_LEAD') return false;
       if (teenSupportIds.has(u.id)) return false;
       return !leading.has(u.id);
     });

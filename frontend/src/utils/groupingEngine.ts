@@ -748,6 +748,8 @@ export interface SavedGroupingDraft {
   onlySignedIn?: boolean;
   /** The "Also use operational supports" switch the draft was built with (absent in older drafts = off). */
   includeOperational?: boolean;
+  /** The "Also use hub leads" switch the draft was built with (absent in older drafts = off). */
+  includeHubLeads?: boolean;
 }
 
 /** Reads a saved draft back from storage; anything unusable counts as no draft. */
@@ -778,5 +780,6 @@ export const normaliseSavedDraft = (value: unknown): SavedGroupingDraft | null =
     onlySignedIn: v.onlySignedIn === true,
     topUpFirst: v.topUpFirst === true,
     includeOperational: v.includeOperational === true,
+    includeHubLeads: v.includeHubLeads === true,
   };
 };

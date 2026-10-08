@@ -95,3 +95,10 @@ gone from the UI; old override notes stay in the data). Checked in the browser w
 Review round: operational supports are not flagged for missed training in the Groups page pickers either (same as the builder); the
 stale header comment is fixed. Left as is: the old override note (ELIGIBILITY_OVERRIDE) is no longer written, so there is no
 record of why an untrained support was placed; hub leads show in the pickers if the kinds fetch fails (as before).
+
+## Short note: hub leads (same day)
+
+Hub leads can lead groups if need be. The builder has "Also use hub leads" next to the operational switch (off each time it
+opens, saved with a draft as `includeHubLeads`, tagged "Hub lead"). The Groups page pickers now offer hub leads too (tagged).
+Both switches only count people who pass every other check. Checked in the browser with mocked data: free supports 9 -> 11
+(operational) -> 12 (hub leads). FLOW_MAP rules 19 and 32 updated.
