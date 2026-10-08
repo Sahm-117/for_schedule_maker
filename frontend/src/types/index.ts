@@ -1572,6 +1572,10 @@ export interface OnboardingState {
   introGuideRead: boolean;
   profileComplete: boolean;
   profileMissing: number;
+  /** Ticked that they understand the venue map. */
+  venueMapAcknowledged: boolean;
+  /** First attendance marked (present, late or left early): the Get ready list goes away. */
+  hasAttended: boolean;
   readyConfirmed: boolean;
   completed: boolean;
   /** First class date, YYYY-MM-DD (null if the cohort has none). */

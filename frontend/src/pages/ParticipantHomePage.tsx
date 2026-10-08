@@ -6,6 +6,7 @@ import PageLoader from '../components/PageLoader';
 import Avatar from '../components/Avatar';
 import AttendanceCountdownCard from '../components/participantApp/AttendanceCountdownCard';
 import ConfettiBurst from '../components/participantApp/ConfettiBurst';
+import VenueMapModal from '../components/participantApp/VenueMapModal';
 import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
 import { useManualContent } from '../components/classManual/manuals';
@@ -68,6 +69,7 @@ const ParticipantHomePage: React.FC = () => {
   const [scriptureDragPx, setScriptureDragPx] = useState(0);
   const [scriptureAnimating, setScriptureAnimating] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
   const [confirming, setConfirming] = useState(false);
   // Practice cohorts are always "completed" on paper, but a practice participant still walks the Get ready list.
@@ -90,7 +92,8 @@ const ParticipantHomePage: React.FC = () => {
 
   // The four Get ready steps, kept on the server (the 7pm reminder reads them too).
   const readyId = home?.participant.id;
-  const readyPreStart = !!home && (isPractice || (currentWeekNumber(home.cohort?.startDate, now, home.weeks) < 1 && home.cohort?.status !== 'COMPLETED'));
+  // The Get ready list stays until their first attendance is marked, so absent people keep it after the cohort starts.
+  const readyPreStart = !!home && (isPractice || home.cohort?.status !== 'COMPLETED');
   useEffect(() => {
     if (!readyId) return;
     let cancelled = false;
@@ -196,6 +199,7 @@ const ParticipantHomePage: React.FC = () => {
       to: onboarding.supportIntroPosted || onboarding.introPosted ? '/me/group?tab=discussion&intro=1' : undefined,
       done: onboarding.introPosted,
     },
+    { key: 'map', label: 'Check the venue map', sub: 'See how to get to the New VIP Lounge after first service', onClick: () => setMapOpen(true), done: !!onboarding.venueMapAcknowledged },
     { key: 'guide', label: 'Read the Intro Class guide', onClick: introManual ? openIntro : undefined, sub: introManual ? undefined : 'Not available yet', done: onboarding.introGuideRead },
     {
       key: 'profile',
@@ -206,7 +210,12 @@ const ParticipantHomePage: React.FC = () => {
     },
   ] : [];
   const readyDone = readyItems.filter((item) => item.done).length;
-  const allThreeDone = readyItems.length === 3 && readyDone === 3;
+  const allThreeDone = readyItems.length === 4 && readyDone === 4;
+
+  const acknowledgeMap = async () => {
+    await participantAppApi.ackVenueMap();
+    if (onboarding) setOnboarding({ ...onboarding, venueMapAcknowledged: true });
+  };
 
   const confirmReady = async () => {
     setConfirming(true);
@@ -487,7 +496,7 @@ const ParticipantHomePage: React.FC = () => {
           })}
         </div>
 
-        {(preStart || isPractice) && (
+        {(isPractice || (readyPreStart && onboarding && !onboarding.hasAttended)) && (
           <section data-wt="ph-get-ready" className={CARD}>
             {!onboarding ? (
               <div className="flex justify-center py-4"><Spinner /></div>
@@ -639,6 +648,7 @@ const ParticipantHomePage: React.FC = () => {
         )}
       </div>
       {confetti && <ConfettiBurst onDone={() => setConfetti(false)} />}
+      {mapOpen && <VenueMapModal acknowledged={!!onboarding?.venueMapAcknowledged} onAcknowledge={acknowledgeMap} onClose={() => setMapOpen(false)} />}
       {introOpen && introManual && <ClassManualReader content={introManual} onClose={() => setIntroOpen(false)} />}
     </div>
   );

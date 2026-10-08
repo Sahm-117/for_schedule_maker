@@ -1052,6 +1052,7 @@ export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async markReadyStep(_step: 'intro' | 'people'): Promise<void> { return; },
   async getOnboardingState(): Promise<never> { return peopleUnavailable(); },
   async markIntroGuideRead(): Promise<void> { return; },
+  async ackVenueMap(): Promise<void> { return; },
   async confirmReady(): Promise<never> { return peopleUnavailable(); },
   async discussionIntro(_body: string): Promise<never> { return peopleUnavailable(); },
   async discussionFeed(_before?: string | null): Promise<never> { return peopleUnavailable(); },

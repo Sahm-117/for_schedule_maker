@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-08 | [Venue map in Get ready](2026-10-08_venue-map-get-ready.md) | New required Get ready step with the venue map and an "I understand" tick; list stays until first attendance. One live migration, no edge functions. |
 | 2026-10-08 | [Wrong Number: out of the counts, teens keep label](2026-10-08_wrong-number-counts.md) | Registered people marked Wrong Number are left out of the registration numbers until a correct number is added; a teen keeps the Teenager label. One live data row changed, no migrations. |
 | 2026-10-08 | [One filter control, several choices, counts](2026-10-08_filters.md) | Shared FilterBar on Participants (with adults/teens and real app login), Supports, Groups, Hubs, Attendance, Faith projects, Onboarding, Birthdays, Meetings, Activity overview, Schedule, Community people. Frontend only. |
 | 2026-10-08 | [Registered and logged-in numbers, adults and teens apart](2026-10-08_registration-numbers.md) | Dashboard and Follow-ups Overview count people (participants + real sign-in), adults and teens separately, with reasons for who is still to log in. Frontend only, no live changes. |

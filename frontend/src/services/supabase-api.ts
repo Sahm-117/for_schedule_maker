@@ -3382,6 +3382,10 @@ export const participantAppApi = {
     const { error } = await supabase.rpc('participant_mark_intro_guide_read', { p_token: getSessionToken() });
     if (error) throw participantAppError(error.message, 'Could not save your step.');
   },
+  async ackVenueMap(): Promise<void> {
+    const { error } = await supabase.rpc('participant_ack_venue_map', { p_token: getSessionToken() });
+    if (error) throw participantAppError(error.message, 'Could not save your step.');
+  },
   async confirmReady(): Promise<import('../types').OnboardingState> {
     const { data, error } = await supabase.rpc('participant_confirm_ready', { p_token: getSessionToken() });
     if (error) throw participantAppError(error.message, 'Could not save your step.');

@@ -430,6 +430,13 @@ duplicating the logic anywhere else is a bug waiting to happen.
     whose selector picks the data to load (Feedback by week or group, Birthdays' cohort) keep a single selector.
     Source: `FilterBar`, `useUrlFilters`, each page. No database change.
 
+35. **The Get ready list needs the venue map, and goes away at first attendance.** A participant opens the
+    venue map and ticks that they understand it (`ParticipantOnboarding.venueMapAckAt`, set by
+    `participant_ack_venue_map`); `participant_confirm_ready` refuses until that is done. The list stays on the
+    participant home until an `AttendanceRecord` for them is PRESENT, LATE or LEFT_EARLY
+    (`participant_onboarding_state.hasAttended`), so absent people keep it after the cohort starts. People already
+    ready or completed are not asked again. Source: `20261008130000_venue_map_ready_step.sql`.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the
