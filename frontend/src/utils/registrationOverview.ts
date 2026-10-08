@@ -12,7 +12,9 @@ import { normaliseAgeRange } from './groupingRules';
 // TEENS get no login details, so a teen is only Onboarded (by their Teen Support), No response, or not
 // onboarded yet; whether a teen has a password is not counted.
 // A follow-up status is only used to say WHY an adult has not logged in, or where a teen is; it never
-// changes who is registered.
+// changes who is registered, with one exception: a registered person whose number is marked Wrong
+// Number (and who is not in the app) cannot be reached, so they are left out of the totals and counted
+// in `wrongNumber` instead. They come back in as soon as the contact moves off Wrong Number.
 
 export type PendingReason = 'loginSent' | 'notSentYet' | 'handMarked' | 'parked';
 
@@ -28,6 +30,8 @@ export interface PeopleBlock {
   notRegistered: number;
   /** Marked as registered on the follow-up list but with no participant record to count. */
   unlinked: number;
+  /** Registered but marked Wrong Number and not in the app: left out of every number above. */
+  wrongNumber: number;
 }
 
 export interface TeenBlock {
@@ -43,6 +47,8 @@ export interface TeenBlock {
   /** On the follow-up list but not registered yet. */
   notRegistered: number;
   unlinked: number;
+  /** Registered but marked Wrong Number: left out of every number above. */
+  wrongNumber: number;
 }
 
 export interface RegistrationOverview {
@@ -60,6 +66,7 @@ const emptyBlock = (): PeopleBlock => ({
   loginIssue: 0,
   notRegistered: 0,
   unlinked: 0,
+  wrongNumber: 0,
 });
 
 const TEEN_AGE = '18 and below';
@@ -102,14 +109,16 @@ export const computeRegistrationOverview = (
 ): RegistrationOverview => {
   const byContact = new Map(contacts.map((c) => [c.id, c]));
   const adults = emptyBlock();
-  const teens: TeenBlock = { registered: 0, onboarded: 0, noResponse: 0, notOnboarded: 0, waitingForSupport: 0, notRegistered: 0, unlinked: 0 };
+  const teens: TeenBlock = { registered: 0, onboarded: 0, noResponse: 0, notOnboarded: 0, waitingForSupport: 0, notRegistered: 0, unlinked: 0, wrongNumber: 0 };
   const registeredContactIds = new Set<string>();
 
   participants.forEach((p) => {
     if (p.isTest || p.status !== 'ACTIVE' || p.cohortId !== cohortId) return;
     const contact = p.followUpContactId ? byContact.get(p.followUpContactId) : undefined;
     if (p.followUpContactId) registeredContactIds.add(p.followUpContactId);
+    const wrongNumber = !!contact && computeFollowUpStatus(contact) === 'WRONG_NUMBER';
     if (isTeenPerson(p, contact)) {
+      if (wrongNumber) { teens.wrongNumber += 1; return; }
       teens.registered += 1;
       if (contact && isParked(contact)) teens.noResponse += 1;
       else if (contact && computeFollowUpStatus(contact) === 'TEEN_ONBOARDED') teens.onboarded += 1;
@@ -119,6 +128,8 @@ export const computeRegistrationOverview = (
       }
       return;
     }
+    // Someone who signed in has reached the app, so a stale Wrong Number does not take them out.
+    if (wrongNumber && !signedInIds.has(p.id)) { adults.wrongNumber += 1; return; }
     adults.registered += 1;
     if (signedInIds.has(p.id)) { adults.loggedIn += 1; return; }
     adults.pending += 1;

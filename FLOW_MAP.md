@@ -405,7 +405,12 @@ duplicating the logic anywhere else is a bug waiting to happen.
     have none), and Registered = Onboarded + No response + Not onboarded yet. Teen = age range "18 and below",
     or on the teen path (Teenager / Teen onboarded). A follow-up status only explains where someone is; it never
     adds or removes anyone from Registered, so parking someone (No response, next cohort) or moving a teen to a
-    Teen Support cannot change the total. "Not registered yet" is open, current follow-up contacts with no
+    Teen Support cannot change the total. The one exception is Wrong Number: a registered person marked Wrong
+    Number (and, for an adult, not signed in) is left out of Registered and counted in a "wrong number" note on
+    the cards; they count again as soon as a correct number is added (a changed phone on the contact clears Wrong
+    Number in `followUpContactsApi.update`) or the status is changed. A teen marked Wrong Number keeps the Teenager
+    label (`update` keeps it; `computeFollowUpStatus` still reads them as Wrong Number), so they stay a teen
+    everywhere. "Not registered yet" is open, current follow-up contacts with no
     participant; a contact marked registered with no participant record is not counted but is named in a note
     on the cards. The cards read the people again whenever the page's contacts refresh, and the mobilisation
     target shows no progress (not 0) until the total is known. If who has signed in cannot be loaded the cards

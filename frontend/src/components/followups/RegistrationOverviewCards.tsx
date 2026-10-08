@@ -150,6 +150,7 @@ const RegistrationOverviewCards: React.FC<{
 
   const { adults, teens, total } = overview;
   const unlinked = adults.unlinked + teens.unlinked;
+  const wrongNumber = adults.wrongNumber + teens.wrongNumber;
   // The contact list is not split by age, so each tile only links to it when the other tile is empty.
   const link = '/follow-ups?tab=contacts&status=open';
   return (
@@ -163,6 +164,11 @@ const RegistrationOverviewCards: React.FC<{
       {unlinked > 0 && (
         <p className="rounded-2xl bg-amber-100/80 px-3 py-2 text-[12px] text-amber-700">
           {unlinked} {unlinked === 1 ? 'contact is' : 'contacts are'} marked registered but {unlinked === 1 ? 'has' : 'have'} no participant record, so they are not counted above.
+        </p>
+      )}
+      {wrongNumber > 0 && (
+        <p className="rounded-2xl bg-rose-100/80 px-3 py-2 text-[12px] text-rose-700">
+          {wrongNumber} registered {wrongNumber === 1 ? 'person has' : 'people have'} a wrong number, so they are not counted above. They are counted again once a correct number is added.
         </p>
       )}
       <Block title="Adults" block={adults} reasons={ADULT_REASONS} unit="adult" notRegisteredLink={teens.notRegistered === 0 ? link : undefined} />

@@ -3919,6 +3919,12 @@ export const formRegistrationsApi = {
 // Who the next-cohort carry-over offers. The dashboard count (cohort_health, `nextCohortPeople`) uses the same two statuses.
 const CARRIED_STATUSES = ['NEXT_COHORT', 'NO_RESPONSE'];
 
+// A number counts as new only when it is a real, different number (blank or unchanged does not).
+const phoneChanged = (next: string | null | undefined, prev: string | null | undefined) => {
+  const n = normalizeToIntlPhone(next || '');
+  return !!n && n !== normalizeToIntlPhone(prev || '');
+};
+
 export const followUpContactsApi = {
   async getById(contactId: string): Promise<{ contact: import('../types').FollowUpContact | null }> {
     const { data, error } = await supabase.from('FollowUpContact').select(FOLLOW_UP_SELECT).eq('id', contactId).maybeSingle();
@@ -4019,7 +4025,7 @@ export const followUpContactsApi = {
     const { previousOwnerId, ...fields } = input;
     const { data: current, error: currentError } = await supabase
       .from('FollowUpContact')
-      .select('id, nextAction, registrationStatus')
+      .select('id, nextAction, registrationStatus, replyStatus, callStatus, phone, guardianPhone')
       .eq('id', contactId)
       .single();
 
@@ -4033,6 +4039,20 @@ export const followUpContactsApi = {
       patch.replyStatus = 'INCORRECT_NUMBER';
       patch.callStatus = 'INCORRECT_NUMBER';
       patch.nextAction = 'CLOSE';
+      // A teen stays a teen when the number is wrong: they are closed, but keep the Teenager label.
+      if ((current as any).registrationStatus === 'TEENAGER' && fields.registrationStatus !== 'TEENAGER') {
+        patch.registrationStatus = 'TEENAGER';
+      }
+    } else if (
+      ((current as any).replyStatus === 'INCORRECT_NUMBER' || (current as any).callStatus === 'INCORRECT_NUMBER') &&
+      fields.replyStatus === undefined && fields.callStatus === undefined &&
+      (phoneChanged(fields.phone, (current as any).phone) || phoneChanged(fields.guardianPhone, (current as any).guardianPhone))
+    ) {
+      // A new number was added to a wrong-number contact, so they are reachable again and count again.
+      patch.replyStatus = 'NO_REPLY';
+      patch.callStatus = 'NOT_CALLED';
+      patch.nextAction = 'SEND_MESSAGE';
+      patch.archivedAt = null;
     }
 
     if (fields.nextAction === 'CLOSE') {
