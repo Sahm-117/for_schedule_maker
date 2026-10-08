@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import Spinner from '../components/Spinner';
-import AppSelect from '../components/AppSelect';
+import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ModalShell from '../components/followups/ModalShell';
 import TrainingMarkersModal from '../components/TrainingMarkersModal';
@@ -81,8 +81,10 @@ const AdminAttendanceContent: React.FC = () => {
   const [followUpTasks, setFollowUpTasks] = useState<AttendanceFollowUpTask[]>([]);
   const [session, setSession] = useState<AttendanceSession | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'' | AttendanceStatus | 'UNMARKED'>('');
+  // Filter choices (see FilterBar): status (incl. UNMARKED) and group; several of each at once.
+  const [filters, setFilters] = useState<FilterValues>({});
+  const selectedGroupIds = filters.group ?? [];
+  const statusFilters = filters.status ?? [];
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());
@@ -194,36 +196,37 @@ const AdminAttendanceContent: React.FC = () => {
   };
 
   const visibleParticipants = useMemo(() => {
-    let ps = selectedGroupId ? participants.filter((p) => p.groupId === selectedGroupId) : participants;
+    let ps = selectedGroupIds.length > 0 ? participants.filter((p) => !!p.groupId && selectedGroupIds.includes(p.groupId)) : participants;
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, selectedGroupId, search]);
+  }, [participants, selectedGroupIds, search]);
 
   // Status filter applies only to the card list (summary tiles keep counting
   // the whole week). 'UNMARKED' = no attendance record for the participant.
   const displayedParticipants = useMemo(() => {
-    if (!statusFilter) return visibleParticipants;
+    if (statusFilters.length === 0) return visibleParticipants;
     return visibleParticipants.filter((p) => {
       const status = records.get(p.id)?.status;
-      return statusFilter === 'UNMARKED' ? !status : status === statusFilter;
+      return statusFilters.some((choice) => (choice === 'UNMARKED' ? !status : status === choice));
     });
-  }, [visibleParticipants, statusFilter, records]);
+  }, [visibleParticipants, statusFilters, records]);
 
-  const statusFilterOptions = useMemo(
-    () => [
-      { value: '', label: 'All statuses' },
-      { value: 'PRESENT', label: 'Present' },
-      { value: 'LATE', label: 'Late' },
-      { value: 'LEFT_EARLY', label: 'Left early' },
-      { value: 'ABSENT', label: 'Absent' },
-      { value: 'EXCUSED', label: 'Excused' },
-      { value: 'UNMARKED', label: 'Unmarked' },
-    ],
-    []
-  );
+  const filterGroups = useMemo<FilterGroup[]>(() => {
+    const statusOf = (p: { id: string }) => records.get(p.id)?.status;
+    const statusCount = (choice: string) => visibleParticipants.filter((p) => (choice === 'UNMARKED' ? !statusOf(p) : statusOf(p) === choice)).length;
+    const sortedGroups = [...groups].sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name));
+    const out: FilterGroup[] = [{
+      key: 'status',
+      label: 'Attendance',
+      options: [['PRESENT', 'Present'], ['LATE', 'Late'], ['LEFT_EARLY', 'Left early'], ['ABSENT', 'Absent'], ['EXCUSED', 'Excused'], ['UNMARKED', 'Unmarked']]
+        .map(([value, label]) => ({ value, label, count: statusCount(value) })),
+    }];
+    if (groups.length > 0) out.push({ key: 'group', label: 'Group', options: sortedGroups.map((g) => ({ value: g.id, label: g.name, count: participants.filter((p) => p.groupId === g.id).length })) });
+    return out;
+  }, [groups, participants, visibleParticipants, records]);
 
   const summary = useMemo(() => {
     const total = visibleParticipants.length;
@@ -281,19 +284,10 @@ const AdminAttendanceContent: React.FC = () => {
     finally { setSessionSaving(false); }
   };
 
-  const groupOptions = useMemo(
-    () => [
-      { value: '', label: 'All groups' },
-      ...[...groups]
-        .sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name))
-        .map((g) => ({ value: g.id, label: g.name })),
-    ],
-    [groups]
-  );
-
+  // With exactly one group chosen, say who supports it.
   const selectedGroup = useMemo(
-    () => groups.find((g) => g.id === selectedGroupId) ?? null,
-    [groups, selectedGroupId]
+    () => (selectedGroupIds.length === 1 ? groups.find((g) => g.id === selectedGroupIds[0]) ?? null : null),
+    [groups, selectedGroupIds]
   );
 
   // Group → assigned support name, so each card can show who supports that
@@ -340,49 +334,37 @@ const AdminAttendanceContent: React.FC = () => {
                 ))}
               </div>
             </div>
-            <div className="flex w-full flex-col gap-4 sm:flex-row lg:w-auto">
-              <div className="w-full sm:w-48">
-                <AppSelect
-                  label="Filter by status"
-                  value={statusFilter}
-                  onChange={(v) => setStatusFilter(v as '' | AttendanceStatus | 'UNMARKED')}
-                  options={statusFilterOptions}
-                  placeholder="All statuses"
-                />
-              </div>
-              {groups.length > 0 && (
-                <div className="w-full sm:w-64">
-                  <AppSelect
-                    label="Filter by group"
-                    value={selectedGroupId}
-                    onChange={setSelectedGroupId}
-                    options={groupOptions}
-                    placeholder="All groups"
-                  />
-                  {selectedGroup && (
-                    <p className="mt-2 text-xs text-gray-500">
-                      Support:{' '}
-                      <span className="font-semibold text-gray-700">
-                        {selectedGroup.supportName || 'None assigned'}
-                      </span>
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
 
           {allWeeks ? <section className="mb-4 overflow-hidden surface-card">{weekSummaries.map((week) => <button key={week.id} type="button" onClick={() => { setSelectedWeekId(week.id); setAllWeeks(false); }} className="flex w-full flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 text-left last:border-0 hover:bg-gray-50"><span className="text-sm font-bold">Week {week.number}</span><span className="text-xs text-gray-600">{week.present} present · {week.late} late · {week.leftEarly} left early · {week.absent} absent · {week.excused} excused</span><span className="text-xs font-semibold text-gray-500">{week.sent ? 'Report sent' : 'In progress'} →</span></button>)}</section> : <>
-          {/* Search */}
-          {!loading && visibleParticipants.length > 0 && (
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search name or phone…"
-                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-xs"
+          {/* Search and filters */}
+          {!loading && participants.length > 0 && (
+            <div className="mb-4">
+              <FilterBar
+                groups={filterGroups}
+                value={filters}
+                onChange={setFilters}
+                search={
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search name or phone…"
+                    aria-label="Search participants"
+                    className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-[11px] text-sm shadow-[0_2px_10px_-4px_rgba(17,24,39,0.08)] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                }
+                searching={search.trim().length > 0}
+                onClear={() => setSearch('')}
+                shown={displayedParticipants.length}
+                total={participants.length}
+                noun="participants"
               />
+              {selectedGroup && (
+                <p className="mt-1 px-0.5 text-xs text-gray-500">
+                  Support: <span className="font-semibold text-gray-700">{selectedGroup.supportName || 'None assigned'}</span>
+                </p>
+              )}
             </div>
           )}
 
@@ -450,7 +432,7 @@ const AdminAttendanceContent: React.FC = () => {
             <PageLoader />
           ) : displayedParticipants.length === 0 ? (
             <div className="rounded-2xl bg-gray-50/80 py-12 text-center">
-              <p className="text-sm text-gray-500">{statusFilter ? 'No participants match this status.' : selectedGroupId ? 'No active participants in this group.' : (search.trim() ? 'No participants match your search.' : 'No active participants in this cohort.')}</p>
+              <p className="text-sm text-gray-500">{statusFilters.length > 0 ? 'No participants match this status.' : selectedGroupIds.length > 0 ? 'No active participants in this group.' : (search.trim() ? 'No participants match your search.' : 'No active participants in this cohort.')}</p>
             </div>
           ) : (
             // Card grid: READ-ONLY for admins. Attendance is support-driven, so

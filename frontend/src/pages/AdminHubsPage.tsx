@@ -12,6 +12,7 @@ import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
+import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import SaveStatus, { type SaveState } from '../components/SaveStatus';
 import PageLoader from '../components/PageLoader';
 import { sortByText } from '../utils/sort';
@@ -514,7 +515,8 @@ const AdminHubsPage: React.FC = () => {
   // week" disclosure. Kept in step by handleRecapMarked.
   const [recapMarksByHubWeek, setRecapMarksByHubWeek] = useState<Record<string, Record<string, SupportAttendanceStatus>>>({});
   const [search, setSearch] = useState('');
-  const [recapFilter, setRecapFilter] = useState<'all' | 'behind' | 'complete'>('all');
+  // Filter choices (see FilterBar): hub, lead, recap, teen.
+  const [filters, setFilters] = useState<FilterValues>({});
 
   const load = useCallback(async () => {
     if (!activeCohort) { setLoading(false); return; }
@@ -650,19 +652,40 @@ const AdminHubsPage: React.FC = () => {
   };
 
   const searchQuery = search.trim().toLowerCase();
-  const filteredHubs = hubs.filter((h) => {
-    if (recapFilter !== 'all') {
-      const summary = recapByHub[h.id];
-      const behind = !!summary && summary.total > 0 && summary.marked < summary.total;
-      if (recapFilter === 'behind' && !behind) return false;
-      if (recapFilter === 'complete' && (behind || !summary || summary.total === 0)) return false;
+  // Does this hub fit one chosen choice of one filter group?
+  const hubFits = (group: string, choice: string, h: SupportHub): boolean => {
+    switch (group) {
+      case 'hub': return h.id === choice;
+      case 'lead': return choice === 'none' ? !h.leadName : !!h.leadName;
+      case 'recap': {
+        const summary = recapByHub[h.id];
+        const behind = !!summary && summary.total > 0 && summary.marked < summary.total;
+        return choice === 'behind' ? behind : !behind && !!summary && summary.total > 0;
+      }
+      case 'teen': {
+        const has = (membersByHub.get(h.id) ?? []).some((id) => !!teenSupportIds?.has(id));
+        return choice === 'has' ? has : !has;
+      }
+      default: return true;
     }
+  };
+  const matchesSearch = (h: SupportHub) => {
     if (!searchQuery) return true;
     if (h.name.toLowerCase().includes(searchQuery)) return true;
     if (h.leadName && h.leadName.toLowerCase().includes(searchQuery)) return true;
     const memberIds = membersByHub.get(h.id) ?? [];
     return memberIds.some((id) => userById.get(id)?.name.toLowerCase().includes(searchQuery));
-  });
+  };
+  const filteredHubs = hubs.filter((h) =>
+    Object.entries(filters).every(([group, choices]) => choices.length === 0 || choices.some((c) => hubFits(group, c, h))) && matchesSearch(h));
+  const filterGroups: FilterGroup[] = (() => {
+    const opt = (group: string, value: string, label: string) => ({ value, label, count: hubs.filter((h) => hubFits(group, value, h)).length });
+    const out: FilterGroup[] = [{ key: 'hub', label: 'Hub', options: hubs.map((h) => opt('hub', h.id, h.name)) }];
+    out.push({ key: 'lead', label: 'Hub lead', options: [opt('lead', 'has', 'Has a lead'), opt('lead', 'none', 'No lead yet')] });
+    if (Object.keys(recapByHub).length > 0) out.push({ key: 'recap', label: 'Recap', options: [opt('recap', 'behind', 'Recap behind'), opt('recap', 'complete', 'Recap all marked')] });
+    if (teenSupportIds && teenSupportIds.size > 0) out.push({ key: 'teen', label: 'Teen Supports', options: [opt('teen', 'has', 'Has a Teen Support'), opt('teen', 'none', 'No Teen Support')] });
+    return out;
+  })();
 
   return (
     <div className="page-content">
@@ -714,27 +737,27 @@ const AdminHubsPage: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search hub, lead or member…"
-              className="w-full rounded-2xl border-0 bg-white px-4 py-3 text-[15px] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-16px_rgba(17,24,39,0.18)] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 sm:max-w-xs"
+          <div className="mb-4">
+            <FilterBar
+              groups={filterGroups}
+              value={filters}
+              onChange={setFilters}
+              search={
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search hub, lead or member…"
+                  aria-label="Search hubs"
+                  className="w-full rounded-2xl border-0 bg-white px-4 py-3 text-[15px] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-16px_rgba(17,24,39,0.18)] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              }
+              searching={searchQuery.length > 0}
+              onClear={() => setSearch('')}
+              shown={filteredHubs.length}
+              total={hubs.length}
+              noun="hubs"
             />
-            <div className="w-full sm:w-56">
-              <AppSelect
-                value={recapFilter}
-                onChange={(v) => setRecapFilter(v as 'all' | 'behind' | 'complete')}
-                options={[
-                  { value: 'all', label: 'All hubs' },
-                  { value: 'behind', label: 'Recap behind' },
-                  { value: 'complete', label: 'Recap all marked' },
-                ]}
-                placeholder="All hubs"
-                compact
-              />
-            </div>
           </div>
 
           {filteredHubs.length === 0 ? (
