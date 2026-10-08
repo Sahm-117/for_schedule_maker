@@ -765,6 +765,8 @@ const AdminParticipantsContent: React.FC = () => {
   const [groupFilter, setGroupFilter] = useState(''); // '' = all, '__UNASSIGNED__' = no group, else groupId
   const [genderFilter, setGenderFilter] = useState('');
   const [ageFilter, setAgeFilter] = useState('');
+  // Sign-up status from the follow-up contact ('' = all, '__NONE__' = added by hand or imported).
+  const [signUpFilter, setSignUpFilter] = useState('');
   const [supportFilter, setSupportFilter] = useState(''); // '' = all, else supportId
   const [addOpen, setAddOpen] = useState(false);
   // A participant just added here: show their login details straight away.
@@ -963,12 +965,13 @@ const AdminParticipantsContent: React.FC = () => {
     if (noAlertsOnly) ps = ps.filter((p) => noAlertsIds.has(p.id));
     if (departmentFilter) ps = ps.filter((p) => wrapUpDeptById.get(p.id)?.has(departmentFilter));
     if (genderFilter || ageFilter) ps = ps.filter((p) => matchesGenderAge(p, genderFilter, ageFilter));
+    if (signUpFilter) ps = ps.filter((p) => (signUpFilter === '__NONE__' ? !p.followUpStatus : p.followUpStatus === signUpFilter));
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant, healthFilter, healthById, incompleteOnly, completionById, noAlertsOnly, noAlertsIds, departmentFilter, genderFilter, ageFilter, wrapUpDeptById]);
+  }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant, healthFilter, healthById, incompleteOnly, completionById, noAlertsOnly, noAlertsIds, departmentFilter, genderFilter, ageFilter, signUpFilter, wrapUpDeptById]);
 
   // Names what is filtered on screen, so the WhatsApp export says which people it holds.
   const exportSubtitle = useMemo(() => {
@@ -979,6 +982,7 @@ const AdminParticipantsContent: React.FC = () => {
     if (supportFilter) out.push(`Support: ${supportOptions.find((o) => o.value === supportFilter)?.label ?? 'one support'}`);
     if (genderFilter) out.push(genderFilter);
     if (ageFilter) out.push(`Age ${ageFilter}`);
+    if (signUpFilter) out.push(signUpFilter === '__NONE__' ? 'No sign-up record' : `Sign-up: ${REGISTRATION_STATUS_META[signUpFilter as keyof typeof REGISTRATION_STATUS_META]?.label ?? signUpFilter}`);
     if (flaggedOnly) out.push('Flagged');
     if (incompleteOnly) out.push('Profile incomplete');
     if (healthFilter) out.push(PERSON_HEALTH_LABEL[healthFilter]);
@@ -986,7 +990,21 @@ const AdminParticipantsContent: React.FC = () => {
     if (departmentFilter) out.push(`Wants to join ${departmentFilter}`);
     if (search.trim()) out.push(`Search "${search.trim()}"`);
     return out.length ? `Filter: ${out.join(' · ')}` : undefined;
-  }, [showArchived, groupFilter, groups, supportFilter, supportOptions, genderFilter, ageFilter, flaggedOnly, incompleteOnly, healthFilter, noAlertsOnly, departmentFilter, search]);
+  }, [showArchived, groupFilter, groups, supportFilter, supportOptions, genderFilter, ageFilter, signUpFilter, flaggedOnly, incompleteOnly, healthFilter, noAlertsOnly, departmentFilter, search]);
+
+  // One option per sign-up status that someone here actually has, with how many.
+  const signUpFilterOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    counted.filter((p) => p.status === (showArchived ? 'ARCHIVED' : 'ACTIVE')).forEach((p) => {
+      const key = p.followUpStatus ?? '__NONE__';
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    const label = (key: string) => key === '__NONE__' ? 'No sign-up record' : REGISTRATION_STATUS_META[key as keyof typeof REGISTRATION_STATUS_META]?.label ?? key;
+    return [
+      { value: '', label: 'All sign-up statuses' },
+      ...Array.from(counts, ([value, n]) => ({ value, label: `${label(value)} (${n})` })).sort((a, b) => a.label.localeCompare(b.label)),
+    ];
+  }, [counted, showArchived]);
 
   const unassignedCount = useMemo(
     () => counted.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
@@ -1258,6 +1276,9 @@ const AdminParticipantsContent: React.FC = () => {
               </div>
               <div className="min-w-0">
                 <AppSelect value={ageFilter} onChange={setAgeFilter} options={AGE_FILTER_OPTIONS} placeholder="All ages" compact />
+              </div>
+              <div className="min-w-0">
+                <AppSelect value={signUpFilter} onChange={setSignUpFilter} options={signUpFilterOptions} placeholder="All sign-up statuses" compact />
               </div>
             </div>
           </div>

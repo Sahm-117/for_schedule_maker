@@ -31,7 +31,7 @@ import {
   settingsApi,
   usersApi,
 } from '../services/api';
-import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, FollowUpStatus, MessageTemplate, User } from '../types';
+import type { FollowUpContact, FollowUpContactUpdate, FollowUpRegistrationStatus, FollowUpIssue, FollowUpStatus, MessageTemplate, User } from '../types';
 import {
   REPLY_STATUS_META,
   CALL_STATUS_META,
@@ -471,7 +471,13 @@ const AdminFollowUpsPage: React.FC = () => {
   };
 
   const togglePill = (group: keyof FilterState, value: string) => {
-    setDraft((prev) => ({ ...prev, [group]: prev[group] === value ? '' : value }));
+    // A closed status (Access confirmed, Not interested, ...) archives the contact, so picking one
+    // while archived contacts are hidden would always come back empty; show them instead.
+    setDraft((prev) => {
+      const next = prev[group] === value ? '' : value;
+      const closing = group === 'reg' && !!next && isClosedRegistrationStatus(next as FollowUpRegistrationStatus);
+      return { ...prev, [group]: next, ...(closing ? { archived: false } : {}) };
+    });
   };
 
   // Chips under the search row: every filter that is on, except archived
@@ -1005,6 +1011,9 @@ const AdminFollowUpsPage: React.FC = () => {
                   <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${draft.archived ? 'translate-x-5' : ''}`} />
                 </button>
               </div>
+              {draft.reg && isClosedRegistrationStatus(draft.reg as FollowUpRegistrationStatus) && !draft.archived && (
+                <p className="-mt-3 px-1 text-xs text-gray-500">Finished contacts are archived, so they are shown while this status is selected.</p>
+              )}
             </div>
 
             <div className="mt-6 flex gap-3">
