@@ -154,8 +154,6 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   // Why a group failed, shown on its row (cleared when it is retried).
   const [failReasons, setFailReasons] = useState<Record<string, string>>({});
   const [creating, setCreating] = useState(false);
-  // Off each time the builder opens, so nobody who missed training is used by accident.
-  const [includeMissedTraining, setIncludeMissedTraining] = useState(false);
   // Empty groups the admin made first: fill them, or leave them alone. Asked each time.
   const [emptyChoice, setEmptyChoice] = useState<'fill' | 'leave' | null>(null);
   // Fill running groups that have space before making new ones (on by default).
@@ -186,7 +184,6 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setPicked(null);
     setStatuses({});
     setFailReasons({});
-    setIncludeMissedTraining(false);
     setEmptyChoice(null);
     setTopUpFirst(true);
     setSignedInIds(null);
@@ -323,13 +320,13 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
       if (rules.excludedSupportIds.includes(u.id)) { reasons.push({ user: u, reason: LEFT_OUT_BY_YOU }); return; }
       if (hubData && hubData.hubs.length > 0 && !hubData.hubOf[u.id]) { reasons.push({ user: u, reason: NOT_IN_HUB }); return; }
       if (c.total > 0 && c.attended < minTrainingsAttended) {
+        // Shown (a tag on the support and on the draft group), never a reason to leave them out.
         missedTraining.add(u.id);
-        if (!includeMissedTraining) { reasons.push({ user: u, reason: `Trainings ${c.attended}/${c.total}` }); return; }
       }
       free.push({ ...toEnginePerson(u), trainingsAttended: c.attended, tagIds: tagIdsByUser.get(u.id) ?? [] });
     });
     return { free, reasons, missedTraining };
-  }, [supportUsers, memberIds, kinds, groups, trainingCounts, trainingsTotal, minTrainingsAttended, includeMissedTraining, rules.excludedSupportIds, tagIdsByUser, teenTagId, hubData]);
+  }, [supportUsers, memberIds, kinds, groups, trainingCounts, trainingsTotal, minTrainingsAttended, rules.excludedSupportIds, tagIdsByUser, teenTagId, hubData]);
 
   const notInHubCount = supportPool.reasons.filter((r) => r.reason === NOT_IN_HUB).length;
 
@@ -505,7 +502,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
         savedByName: currentUser?.name ?? '',
         groups: draft,
         ignoredAgeRanges: [...ignoredAges],
-        includeMissedTraining,
+        // Kept in the saved shape for older drafts; missing training no longer leaves anyone out.
+        includeMissedTraining: true,
         emptyChoice,
         onlySignedIn: true,
         topUpFirst,
@@ -569,7 +567,6 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
       return { ...g, memberIds, supportId: supportOk ? g.supportId : null, existingGroupId: existing };
     });
     setIgnoredAges(new Set(saved.ignoredAgeRanges));
-    setIncludeMissedTraining(saved.includeMissedTraining);
     setEmptyChoice(saved.emptyChoice);
     setTopUpFirst(saved.topUpFirst === true);
     setDraft(restored);
@@ -932,7 +929,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                           <div key={sup.id}>
                           <div className="flex items-center gap-2.5 px-1 py-1">
                             <Avatar name={sup.name} avatarUrl={user?.avatarUrl} size="xs" />
-                            <span className="min-w-0 flex-1 truncate text-[13px] text-gray-800">{sup.name}{(sup.tagIds ?? []).length > 0 && <span className="ml-1.5 text-[11px] font-semibold text-violet-700">{(sup.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean).join(', ')}</span>}</span>
+                            <span className="min-w-0 flex-1 truncate text-[13px] text-gray-800">{sup.name}{(sup.tagIds ?? []).length > 0 && <span className="ml-1.5 text-[11px] font-semibold text-violet-700">{(sup.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean).join(', ')}</span>}{supportPool.missedTraining.has(sup.id) && <span className="ml-1.5 rounded-full bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Trainings {sup.trainingsAttended}/{trainingsTotal}</span>}</span>
                             <button type="button" aria-expanded={tagEditFor === sup.id} onClick={() => setTagEditFor((cur) => (cur === sup.id ? null : sup.id))} className="rounded-full bg-violet-100/80 px-3 py-1 text-[12px] font-semibold text-violet-700 hover:bg-violet-100">Tags</button>
                             <button type="button" disabled={excludeSaving === sup.id} onClick={() => void toggleExcluded(sup.id)} className="rounded-full bg-gray-100 px-3 py-1 text-[12px] font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60">
                               {excludeSaving === sup.id ? <Spinner className="h-3 w-3" /> : 'Leave out'}
@@ -960,25 +957,11 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 </details>
               )}
               {supportPool.missedTraining.size > 0 && (
-                <div className={`${SURFACE} flex items-center justify-between gap-3 p-4`}>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900">Also use supports who missed pre-cohort training</p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      {includeMissedTraining
-                        ? `${supportPool.missedTraining.size} added to the engine. They show “Missed training” on the draft.`
-                        : `${supportPool.missedTraining.size} ${supportPool.missedTraining.size === 1 ? 'support is' : 'supports are'} left out for missing training.`}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={includeMissedTraining}
-                    aria-label="Also use supports who missed pre-cohort training"
-                    onClick={() => setIncludeMissedTraining((v) => !v)}
-                    className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition ${includeMissedTraining ? 'bg-primary' : 'bg-slate-200'}`}
-                  >
-                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${includeMissedTraining ? 'translate-x-7' : 'translate-x-1'}`} />
-                  </button>
+                <div className={`${SURFACE} p-4`}>
+                  <p className="text-sm font-semibold text-gray-900">Missed pre-cohort training ({supportPool.missedTraining.size})</p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    {supportPool.missedTraining.size === 1 ? 'This support is' : 'These supports are'} still used. They show a “Trainings” tag in the list and “Missed training” on their group, so you can see it and swap them if you want.
+                  </p>
                 </div>
               )}
               {supportPool.reasons.length > 0 && (

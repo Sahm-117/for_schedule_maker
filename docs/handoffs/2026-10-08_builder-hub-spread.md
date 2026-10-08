@@ -65,3 +65,11 @@ stay even if in no hub (their choice); the hard stop with no hubs (the admin ask
 In `GroupEngineWizard` supports are listed under their hub in the People step list, in each group's support
 menu (hub headings) and in "Supports without a group"; each group card shows its support's hub as a pill.
 No data or database change. Checked in the browser with mocked data (6 hubs, 12 supports).
+
+## Training shows, does not block; Teen Support labels (later the same day)
+
+The builder no longer leaves out supports who missed pre-cohort training: they are used, tagged "Trainings n/total"
+in the People list and "Missed training" on their group. The "Also use supports who missed training" switch was
+removed (saved drafts still carry the field). The Hubs and Supports pages now show a Teen Support pill
+(`TeenSupportPill`, `useTeenSupportIds`). Not rendered: the Supports page change (type-checked and built only).
+Noted for later: the Supports page should reflect the activities of each support's group.

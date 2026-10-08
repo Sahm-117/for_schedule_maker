@@ -24,6 +24,8 @@ import AppSelect from '../components/AppSelect';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import SupportsExportPopup from '../components/supports/SupportsExportPopup';
 import SupportTagsModal from '../components/supports/SupportTagsModal';
+import TeenSupportPill from '../components/supports/TeenSupportPill';
+import { useTeenSupportIds } from '../hooks/useTeenSupportIds';
 import { PERSON_OF_INTEREST_INFO } from '../components/hubs/hubJobs';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
@@ -107,6 +109,7 @@ const AdminSupportsPage: React.FC = () => {
   const ageFilter = searchParams.get('age') ?? '';
   const [exportOpen, setExportOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
+  const { ids: teenSupportIds } = useTeenSupportIds(true);
   const pageTab = searchParams.get('tab') === 'trainings' ? 'trainings' : 'supports';
   const [search, setSearch] = useState('');
   // Supports with a note about them — they get a ★ and the "With notes" filter.
@@ -523,6 +526,7 @@ const AdminSupportsPage: React.FC = () => {
                   kind={kinds[evaluation.supportId] ?? 'PARTICIPANT_SUPPORT'}
                   kindSaving={savingKindIds.has(evaluation.supportId)}
                   onKindChange={(kind) => void saveKind(evaluation.supportId, kind)}
+                  isTeenSupport={(teenSupportIds?.has(evaluation.supportId) ?? false)}
                   hasNotes={notedIds.has(evaluation.supportId)}
                   onNoteAdded={() => markNoted(evaluation.supportId)}
                   followUps={followUpLoad.get(evaluation.supportId) ?? 0}
@@ -541,6 +545,7 @@ const AdminSupportsPage: React.FC = () => {
                   kind={kinds[u.id] ?? 'PARTICIPANT_SUPPORT'}
                   kindSaving={savingKindIds.has(u.id)}
                   onKindChange={(kind) => void saveKind(u.id, kind)}
+                  isTeenSupport={(teenSupportIds?.has(u.id) ?? false)}
                   hasNotes={notedIds.has(u.id)}
                   onNoteAdded={() => markNoted(u.id)}
                   followUps={followUpLoad.get(u.id) ?? 0}
@@ -665,6 +670,7 @@ const SupportCard: React.FC<{
   kind: SupportKind;
   kindSaving: boolean;
   onKindChange: (kind: SupportKind) => void;
+  isTeenSupport?: boolean;
   hasNotes: boolean;
   onNoteAdded: () => void;
   followUps: number;
@@ -672,7 +678,7 @@ const SupportCard: React.FC<{
   onViewProfile: () => void;
   lastSeen: string | null | undefined;
   stages: StageSummary | null;
-}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, showLoad, onViewProfile, lastSeen, stages }) => {
+}> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, isTeenSupport, hasNotes, onNoteAdded, followUps, showLoad, onViewProfile, lastSeen, stages }) => {
   const [open, setOpen] = useState(false);
   const [openReport, setOpenReport] = useState<number | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -747,6 +753,7 @@ const SupportCard: React.FC<{
       </div>
       <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
         <OnboardingBar stages={stages} fallback={onboardingText} late={onboarding.late || !onboarding.allOnboarded} />
+        {isTeenSupport && <TeenSupportPill />}
         {training.total > 0 && <TrainingPill name={supportName} userId={evaluation.supportId} sessions={training.sessions} attendance={training.attendance} />}
       </div>
 
@@ -942,6 +949,7 @@ const NoLeadSupportCard: React.FC<{
   kind: SupportKind;
   kindSaving: boolean;
   onKindChange: (kind: SupportKind) => void;
+  isTeenSupport?: boolean;
   hasNotes: boolean;
   onNoteAdded: () => void;
   followUps: number;
@@ -949,7 +957,7 @@ const NoLeadSupportCard: React.FC<{
   maxFollowUps: number;
   onViewProfile: () => void;
   lastSeen: string | null | undefined;
-}> = ({ user, hub, training, kind, kindSaving, onKindChange, hasNotes, onNoteAdded, followUps, showLoad, maxFollowUps, onViewProfile, lastSeen }) => {
+}> = ({ user, hub, training, kind, kindSaving, onKindChange, isTeenSupport, hasNotes, onNoteAdded, followUps, showLoad, maxFollowUps, onViewProfile, lastSeen }) => {
   const [open, setOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState<SupportNote[] | null>(null);
@@ -998,6 +1006,8 @@ const NoLeadSupportCard: React.FC<{
         </div>
         <div className="flex-none pt-0.5"><AppOverflowMenu align="right" items={[{ label: 'View profile', onClick: onViewProfile }]} /></div>
       </div>
+
+      {isTeenSupport && <div className="mt-2"><TeenSupportPill /></div>}
 
       {training.total > 0 && (
         <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">

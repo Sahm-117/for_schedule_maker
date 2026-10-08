@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
+import { useTeenSupportIds } from '../hooks/useTeenSupportIds';
+import TeenSupportPill from '../components/supports/TeenSupportPill';
 import { useAppData } from '../context/AppDataContext';
 import { groupsApi, myHubApi, supportHubsApi, supportKindApi, supportSessionsApi, usersApi } from '../services/api';
 import type { Group, HubItSupportEntry, HubJob, HubLeadsMeeting, HubMembership, SupportAttendanceStatus, SupportHub, SupportKind, User, Week } from '../types';
@@ -470,6 +472,7 @@ const HubMembersModal: React.FC<{
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const AdminHubsPage: React.FC = () => {
+  const { ids: teenSupportIds } = useTeenSupportIds(true);
   const { isAdmin } = useAuth();
   const { activeCohort, liveRevision, weeks } = useAppData();
 
@@ -818,11 +821,12 @@ const AdminHubsPage: React.FC = () => {
                           </button>
                           <div className="min-w-0 flex-1">
                           <button type="button" onClick={() => setProfileUserId(u.id)} className="block max-w-full truncate text-left text-[15px] font-medium leading-tight text-gray-900 hover:underline">{u.name}</button>
-                          {(jobs.length > 0 || isPoi) && (
+                          {(jobs.length > 0 || isPoi || !!teenSupportIds?.has(u.id)) && (
                             <div className="mt-1 flex flex-wrap gap-1">
                               {jobs.map((job) => (
                                 <span key={job} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${HUB_JOB_INFO[job].pill}`}>{HUB_JOB_INFO[job].label}</span>
                               ))}
+                              {!!teenSupportIds?.has(u.id) && <TeenSupportPill />}
                               {isPoi && <SupportNotesStar supportId={u.id} name={u.name} hubId={h.id} />}
                             </div>
                           )}
@@ -842,6 +846,7 @@ const AdminHubsPage: React.FC = () => {
                             <button type="button" onClick={() => setProfileUserId(s.userId)} className="block max-w-full truncate text-left text-[15px] font-medium leading-tight text-gray-900 hover:underline">{s.name}</button>
                             <div className="mt-1 flex flex-wrap items-center gap-1">
                               <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${HUB_JOB_INFO.IT_SUPPORT.pill}`}>{HUB_JOB_INFO.IT_SUPPORT.label}</span>
+                              {!!teenSupportIds?.has(s.userId) && <TeenSupportPill />}
                               {(() => {
                                 const homeHubs = hubs.filter((x) => (membersByHub.get(x.id) ?? []).includes(s.userId)).map((x) => x.name);
                                 return <span className="text-[12.5px] text-gray-400">{homeHubs.length ? `Member of ${homeHubs.join(', ')}` : 'Not in a hub'}</span>;
