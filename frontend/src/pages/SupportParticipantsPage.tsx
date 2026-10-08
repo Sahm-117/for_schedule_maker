@@ -4,6 +4,7 @@ import AppSelect from '../components/AppSelect';
 import SegmentedTabs from '../components/SegmentedTabs';
 import StaffDiscussionPanel from '../components/discussion/StaffDiscussionPanel';
 import GroupCallCard, { formatMeetingSlot } from '../components/groups/GroupCallCard';
+import TeenMeetingCard from '../components/groups/TeenMeetingCard';
 import TeenWhatsAppGroupCard from '../components/groups/TeenWhatsAppGroupCard';
 import MeetingModePanel from '../components/groups/MeetingModePanel';
 import ParticipantCard from '../components/groups/ParticipantCard';
@@ -394,6 +395,11 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       {isTeenSupport && (
         <div className="mb-3 max-w-[760px]">
           <TeenWhatsAppGroupCard userId={user.id} link={user.whatsappGroupUrl} />
+        </div>
+      )}
+      {isTeenSupport && (
+        <div className="mb-3 max-w-[760px]">
+          <TeenMeetingCard userId={user.id} userName={user.name} />
         </div>
       )}
 

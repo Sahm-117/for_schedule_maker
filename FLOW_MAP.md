@@ -334,6 +334,18 @@ duplicating the logic anywhere else is a bug waiting to happen.
     `20261008070000_teen_recap_teen_supports_only.sql`,
     `20261008080000_earlier_documents_teen_supports_only.sql` (the earlier-files picker lists Teen recap
     files only to admins and Teen Supports too).
+31. **A Teen Support records their Saturday meeting on My Group, and it stays out of the dashboards.**
+    `TeenMeetingCard` saves one `MeetingAttendance` row per teen (Joined, Excused, Missed) and the teen
+    group's `GroupPrayerStatus` row (`done`, `metOn` = the day they actually met, `notes` = the Teen
+    Support's own notes) through `teenMeetingsApi.save`. The first time it is marked done the admins get
+    `notify-group-meeting-completed` with `teen: true` (their alert opens the dashboard), and the admin
+    dashboard's Teens card shows who has met this week (`teenMeetingsApi.getForCohort`). Teen groups are
+    kept out of everything that judges groups: `cohort_health` does not list them (so they never owe a
+    meeting report), `cohort_people` sends no teen meeting attendance and no teen onboarding rows (no
+    red flags), and `daily-checks` skips groups with `isTeenGroup` (no "report still open" nudge, no
+    digest line, no missed-meeting escalation). The Saturday-morning reminder is not built yet; it waits
+    until Teen Supports are using the card. Source: `20261008090000_teen_meetings.sql`,
+    `daily-checks` (v18), `notify-group-meeting-completed` (v6).
 
 ## 5. Edge functions and schedules
 

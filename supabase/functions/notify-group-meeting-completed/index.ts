@@ -26,7 +26,8 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response(JSON.stringify({ ok: false, error: 'Method not allowed' }), { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
   try {
-    const { groupName, weekNumber, supportName } = await req.json() as { groupName: string; weekNumber?: number; supportName: string }
+    // `teen` marks a Teen Support's Saturday meeting: it lands on the dashboard's Teens card, not on Group prayers.
+    const { groupName, weekNumber, supportName, teen } = await req.json() as { groupName: string; weekNumber?: number; supportName: string; teen?: boolean }
     if (!groupName || !supportName) throw new Error('groupName and supportName are required')
 
     const { data: admins, error: adminError } = await supabase.from('User').select('id').eq('role', 'ADMIN')
@@ -35,15 +36,16 @@ Deno.serve(async (req) => {
     if (adminIds.length === 0) return new Response(JSON.stringify({ ok: true, sent: 0 }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
     const week = weekNumber ? `Week ${weekNumber}` : 'this week'
-    const title = 'Group meeting completed'
+    const title = teen ? 'Teens meeting completed' : 'Group meeting completed'
     const body = `${supportName} marked ${groupName}'s ${week} meeting as done.`
-    await insertNotifications(supabase, adminIds.map((userId) => ({ userId, title, body, path: '/group-prayers', type: 'GROUP_MEETING_COMPLETED' })))
+    const path = teen ? '/dashboard' : '/group-prayers'
+    await insertNotifications(supabase, adminIds.map((userId) => ({ userId, title, body, path, type: 'GROUP_MEETING_COMPLETED' })))
 
     const { data: subscriptions, error: subscriptionError } = await supabase.from('PushSubscription').select('userId, endpoint, p256dh, auth').in('userId', adminIds)
     if (subscriptionError) throw subscriptionError
     if (!subscriptions?.length) return new Response(JSON.stringify({ ok: true, sent: 0 }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
-    const payload = JSON.stringify({ title, body, icon: '/icon-192.png', tag: `fof-group-meeting-${Date.now()}`, data: { path: '/group-prayers' } })
+    const payload = JSON.stringify({ title, body, icon: '/icon-192.png', tag: `fof-group-meeting-${Date.now()}`, data: { path } })
     const { sent, failed, removed, errors } = await sendToSubscriptions(webPush, supabase, subscriptions as any[], payload)
     if (failed > 0) console.error(`notify-group-meeting-completed: ${sent} sent, ${failed} failed, ${removed} removed`, JSON.stringify(errors))
     return new Response(JSON.stringify({ ok: true, sent }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })

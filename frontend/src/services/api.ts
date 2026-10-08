@@ -55,6 +55,7 @@ import {
   groupPrayersApi as supabaseGroupPrayersApi,
   groupPrayerFocusApi as supabaseGroupPrayerFocusApi,
   groupPrayerStatusApi as supabaseGroupPrayerStatusApi,
+  teenMeetingsApi as supabaseTeenMeetingsApi,
   groupOnboardingStatusApi as supabaseGroupOnboardingStatusApi,
   participantOnboardingStatusApi as supabaseParticipantOnboardingStatusApi,
   participantNotesApi as supabaseParticipantNotesApi,
@@ -1003,6 +1004,12 @@ export const groupPrayerFocusApi = USE_SUPABASE ? supabaseGroupPrayerFocusApi : 
   async getForCohort(_cohortId: string): Promise<{ focuses: import('../types').GroupPrayerFocus[] }> { return { focuses: [] }; },
   async setFocus(_groupId: string, _weekId: number, _participantId: string, _setById?: string): Promise<never> { return peopleUnavailable(); },
   async clear(_groupId: string, _weekId: number): Promise<never> { return peopleUnavailable(); },
+};
+
+export const teenMeetingsApi = USE_SUPABASE ? supabaseTeenMeetingsApi : {
+  async getWeek(_groupId: string, _weekId: number): Promise<{ status: import('../types').GroupPrayerStatus | null; records: import('../types').MeetingAttendance[] }> { return { status: null, records: [] }; },
+  async getForCohort(_cohortId: string): Promise<{ groups: Array<{ id: string; name: string; supportId: string | null; supportName: string | null }>; statuses: import('../types').GroupPrayerStatus[] }> { return { groups: [], statuses: [] }; },
+  async save(_input: unknown): Promise<never> { return peopleUnavailable(); },
 };
 
 export const groupPrayerStatusApi = USE_SUPABASE ? supabaseGroupPrayerStatusApi : {

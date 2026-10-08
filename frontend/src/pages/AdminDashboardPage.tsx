@@ -28,12 +28,14 @@ import {
 import NextCohortAssignModal from '../components/followups/NextCohortAssignModal';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { announcementsApi, cohortsApi, followUpContactsApi, settingsApi, supportActivityCompletionsApi, usersApi } from '../services/api';
+import { announcementsApi, cohortsApi, followUpContactsApi, settingsApi, supportActivityCompletionsApi, teenMeetingsApi, usersApi } from '../services/api';
 import { DEFAULT_PROGRAMME_RULES, type CohortPeoplePayload, type ProgrammeRules } from '../utils/programmeRules';
 import type { Announcement, FollowUpContact, SupportActivityCompletion, User } from '../types';
 import { sortByText } from '../utils/sort';
 import { computeFollowUpHeadline, computeTeenOverview, contactInCohortScope, type FollowUpHeadline, type TeenOverview } from '../utils/followUps';
 import { hasSupportRole } from '../utils/people';
+import { getIdealWeekForCohort } from '../utils/weekFocus';
+import { classDateIso, lagosTodayIso } from '../utils/participantApp';
 
 // Admin home: where the cohort is, whether it's healthy, what needs attention
 // and which groups need help. Switches to a registration view before a cohort
@@ -67,6 +69,7 @@ const AdminDashboardPage: React.FC = () => {
   // Sign-up numbers, worked out the same way as Follow-ups → Overview.
   const [followUpHeadline, setFollowUpHeadline] = useState<FollowUpHeadline | null>(null);
   const [teenOverview, setTeenOverview] = useState<TeenOverview | null>(null);
+  const [teenMeetings, setTeenMeetings] = useState<Awaited<ReturnType<typeof teenMeetingsApi.getForCohort>> | null>(null);
   const [healthError, setHealthError] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -77,6 +80,23 @@ const AdminDashboardPage: React.FC = () => {
   const [assignContacts, setAssignContacts] = useState<FollowUpContact[] | null>(null);
   const [openingAssign, setOpeningAssign] = useState(false);
 
+  // This week's Saturday meetings for the Teens card: who has recorded it, from the latest class week on.
+  const teenMeetingSummary = useMemo<TeenMeetingSummary | null>(() => {
+    if (!teenMeetings || !activeCohort?.startDate) return null;
+    const today = lagosTodayIso(new Date());
+    const started = (weeks ?? []).filter((w) => w.cohortId === activeCohort.id && classDateIso(activeCohort.startDate!, w) <= today);
+    const current = getIdealWeekForCohort(activeCohort, started);
+    if (!current) return null;
+    const withTeens = teenMeetings.groups.filter((g) => g.supportId);
+    const statusOf = (groupId: string) => teenMeetings.statuses.find((s) => s.groupId === groupId && s.weekId === current.id && s.done);
+    const label = (g: { name: string; supportName: string | null }) => g.supportName ?? g.name;
+    return {
+      weekNumber: current.weekNumber,
+      met: withTeens.filter((g) => statusOf(g.id)).map((g) => ({ name: label(g), metOn: statusOf(g.id)?.metOn ?? null })),
+      notYet: withTeens.filter((g) => !statusOf(g.id)).map(label),
+    };
+  }, [teenMeetings, activeCohort, weeks]);
+
   const loadHealth = useCallback(async () => {
     if (!activeCohort?.id) {
       setHealth(null);
@@ -86,14 +106,16 @@ const AdminDashboardPage: React.FC = () => {
     try {
       setHealthError('');
       const cohortId = activeCohort.id;
-      const [nextHealth, nextPeople, nextRules, nextTarget, nextContacts] = await Promise.all([
+      const [nextHealth, nextPeople, nextRules, nextTarget, nextContacts, nextTeenMeetings] = await Promise.all([
         cohortsApi.getHealth(activeCohort.id),
         // Person-level rules are extra; the page still works without them.
         cohortsApi.getPeople(activeCohort.id).catch(() => null),
         settingsApi.getProgrammeRules(),
         settingsApi.getMobilisationTarget(activeCohort.id).catch(() => ({ target: null })),
         followUpContactsApi.getAll().catch(() => null),
+        teenMeetingsApi.getForCohort(activeCohort.id).catch(() => null),
       ]);
+      setTeenMeetings(nextTeenMeetings);
       setHealth(nextHealth);
       setPeople(nextPeople);
       setRules(nextRules);
@@ -218,7 +240,7 @@ const AdminDashboardPage: React.FC = () => {
             )}
           </div>
 
-          {teenOverview && teenOverview.total > 0 && <TeenOverviewCard overview={teenOverview} />}
+          {teenOverview && teenOverview.total > 0 && <TeenOverviewCard overview={teenOverview} meetings={teenMeetingSummary} />}
 
           <div data-wt="dash-attention" className={openingAssign ? 'pointer-events-none opacity-70' : ''}>
             <AttentionList items={model.attention} onAction={(item) => { void handleAttentionAction(item); }} />
@@ -486,7 +508,13 @@ const ParticipantsTile: React.FC<{ health: CohortHealthPayload; model: Dashboard
 };
 
 // Before the cohort starts: the same five numbers as Follow-ups → Overview.
-const TeenOverviewCard: React.FC<{ overview: TeenOverview }> = ({ overview }) => {
+interface TeenMeetingSummary {
+  weekNumber: number;
+  met: Array<{ name: string; metOn: string | null }>;
+  notYet: string[];
+}
+
+const TeenOverviewCard: React.FC<{ overview: TeenOverview; meetings: TeenMeetingSummary | null }> = ({ overview, meetings }) => {
   const tiles = [
     { title: 'Teens', value: overview.total, detail: 'signed up', to: '/follow-ups?tab=contacts&status=TEENAGER' },
     { title: 'With a Teen Support', value: overview.matched, detail: 'not onboarded yet', to: '/follow-ups?tab=contacts&status=TEENAGER' },
@@ -511,6 +539,20 @@ const TeenOverviewCard: React.FC<{ overview: TeenOverview }> = ({ overview }) =>
         <p className="mt-3 text-xs text-gray-500">
           {overview.perSupport.map((row) => `${row.name} ${row.count}`).join(' · ')}
         </p>
+      )}
+      {meetings && (meetings.met.length + meetings.notYet.length) > 0 && (
+        <div className="mt-4 rounded-2xl bg-gray-50/80 p-4" data-testid="teen-meetings-summary">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Saturday meetings · Week {meetings.weekNumber}</p>
+          <p className="mt-1.5 text-sm text-gray-900">
+            <span className="font-semibold tabular-nums">{meetings.met.length} of {meetings.met.length + meetings.notYet.length}</span> Teen Supports have recorded their meeting
+          </p>
+          {meetings.met.length > 0 && (
+            <p className="mt-1 text-xs text-emerald-700">
+              Met: {meetings.met.map((m) => `${m.name}${m.metOn ? ` (${new Date(`${m.metOn}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })})` : ''}`).join(' · ')}
+            </p>
+          )}
+          {meetings.notYet.length > 0 && <p className="mt-1 text-xs text-gray-500">Not yet: {meetings.notYet.join(' · ')}</p>}
+        </div>
       )}
     </section>
   );

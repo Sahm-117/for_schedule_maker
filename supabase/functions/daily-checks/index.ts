@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
       const dayOfWeek = latest.days // 0 = the class day
 
       const { data: groups } = await supabase
-        .from('Group').select('id, name, supportId, members:GroupParticipant(participantId)').eq('cohortId', cohort.id)
+        .from('Group').select('id, name, supportId, members:GroupParticipant(participantId)').eq('cohortId', cohort.id).eq('isTeenGroup', false)
 
       for (const group of (groups ?? []) as any[]) {
         if (!group.supportId) continue
@@ -223,7 +223,7 @@ Deno.serve(async (req) => {
 
       const [{ data: weeks }, { data: groups }, { data: people }] = await Promise.all([
         supabase.from('Week').select('id, weekNumber, classDate').eq('cohortId', cohort.id),
-        supabase.from('Group').select('id, name, supportId, support:User!Group_supportId_fkey(name), members:GroupParticipant(participantId)').eq('cohortId', cohort.id),
+        supabase.from('Group').select('id, name, supportId, support:User!Group_supportId_fkey(name), members:GroupParticipant(participantId)').eq('cohortId', cohort.id).eq('isTeenGroup', false),
         supabase.from('Participant').select('id, fullName, status').eq('cohortId', cohort.id).eq('status', 'ACTIVE'),
       ])
       const weekById = new Map(((weeks ?? []) as any[]).map((w) => [w.id, w.weekNumber]))

@@ -7364,6 +7364,8 @@ const mapGroupPrayerStatus = (row: any): import('../types').GroupPrayerStatus =>
   done: row.done,
   markedById: row.markedById ?? null,
   markedAt: row.markedAt ?? undefined,
+  metOn: row.metOn ?? null,
+  notes: row.notes ?? null,
 });
 
 export const groupPrayerStatusApi = {
@@ -7803,6 +7805,60 @@ export const meetingAttendanceApi = {
     const failed = results.find((r) => r.error);
     if (failed?.error) throw new Error(failed.error.message);
     notifyGroupMeetingChanged();
+  },
+};
+
+// A Teen Support's Saturday meeting with their teens. It reuses MeetingAttendance (one row per teen)
+// and the group's GroupPrayerStatus row (done, the day they met, the Teen Support's own notes).
+// Teen groups are kept out of the dashboards and reminders (FLOW_MAP rule 31).
+export const teenMeetingsApi = {
+  async getWeek(groupId: string, weekId: number): Promise<{ status: import('../types').GroupPrayerStatus | null; records: import('../types').MeetingAttendance[] }> {
+    const [{ data: status, error: statusError }, { data: records, error: recordsError }] = await Promise.all([
+      supabase.from('GroupPrayerStatus').select(GROUP_PRAYER_STATUS_SELECT).eq('groupId', groupId).eq('weekId', weekId).maybeSingle(),
+      supabase.from('MeetingAttendance').select('*').eq('groupId', groupId).eq('weekId', weekId),
+    ]);
+    if (statusError) throw new Error(statusError.message);
+    if (recordsError) throw new Error(recordsError.message);
+    return { status: status ? mapGroupPrayerStatus(status) : null, records: ((records as any[]) || []).map(mapMeetingAttendance) };
+  },
+
+  /** Every teen group's meeting rows for the cohort, for the admin Teens card. */
+  async getForCohort(cohortId: string): Promise<{ groups: Array<{ id: string; name: string; supportId: string | null; supportName: string | null }>; statuses: import('../types').GroupPrayerStatus[] }> {
+    const { data: groupRows, error: groupError } = await supabase
+      .from('Group')
+      .select('id, name, supportId, support:User!Group_supportId_fkey(name), members:GroupParticipant(participantId)')
+      .eq('cohortId', cohortId).eq('isTeenGroup', true).is('archivedAt', null);
+    if (groupError) throw new Error(groupError.message);
+    const groups = ((groupRows as any[]) || []).filter((g) => (g.members ?? []).length > 0).map((g) => ({ id: g.id as string, name: g.name as string, supportId: (g.supportId as string | null) ?? null, supportName: (g.support?.name as string | null) ?? null }));
+    if (groups.length === 0) return { groups, statuses: [] };
+    const { data, error } = await supabase.from('GroupPrayerStatus').select(GROUP_PRAYER_STATUS_SELECT).in('groupId', groups.map((g) => g.id));
+    if (error) throw new Error(error.message);
+    return { groups, statuses: ((data as any[]) || []).map(mapGroupPrayerStatus) };
+  },
+
+  /** Saves the day they met, each teen's mark and the notes; `done` is the "We met" tick the admins are told about. */
+  async save(input: {
+    groupId: string;
+    weekId: number;
+    userId: string;
+    metOn: string | null;
+    notes: string | null;
+    done: boolean;
+    marks: Array<{ participantId: string; status: import('../types').MeetingAttendanceStatus }>;
+  }): Promise<{ status: import('../types').GroupPrayerStatus }> {
+    for (const mark of input.marks) {
+      await meetingAttendanceApi.mark({ participantId: mark.participantId, groupId: input.groupId, weekId: input.weekId, status: mark.status, markedById: input.userId });
+    }
+    const { data, error } = await supabase
+      .from('GroupPrayerStatus')
+      .upsert(
+        { groupId: input.groupId, weekId: input.weekId, done: input.done, markedById: input.userId, markedAt: new Date().toISOString(), metOn: input.metOn, notes: input.notes },
+        { onConflict: 'groupId,weekId' },
+      )
+      .select(GROUP_PRAYER_STATUS_SELECT)
+      .single();
+    if (error || !data) throw new Error(error?.message || 'Could not save the meeting');
+    return { status: mapGroupPrayerStatus(data) };
   },
 };
 

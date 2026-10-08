@@ -967,6 +967,9 @@ export interface GroupPrayerStatus {
   done: boolean;
   markedById?: string | null;
   markedAt?: string;
+  /** Teen meetings only: the day they actually met (YYYY-MM-DD), and the Teen Support's own notes. */
+  metOn?: string | null;
+  notes?: string | null;
 }
 
 export interface GroupPrayerFocus {
