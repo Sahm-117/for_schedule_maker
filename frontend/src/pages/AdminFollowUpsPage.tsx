@@ -61,17 +61,20 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 type Tab = 'overview' | 'contacts' | 'messages' | 'issues';
 
 interface FilterState {
-  reply: string;
-  call: string;
-  reg: string;
-  next: string;
+  // Each group takes several choices at once; a contact matches if it fits any chosen one.
+  reply: string[];
+  call: string[];
+  reg: string[];
+  next: string[];
   archived: boolean;
-  gender: string;
-  age: string;
-  assignment: string;
+  gender: string[];
+  age: string[];
+  assignment: string[];
 }
 
-const EMPTY_FILTERS: FilterState = { reply: '', call: '', reg: '', next: '', archived: true, gender: '', age: '', assignment: '' };
+type FilterGroupKey = 'reply' | 'call' | 'reg' | 'next' | 'gender' | 'age' | 'assignment';
+
+const EMPTY_FILTERS: FilterState = { reply: [], call: [], reg: [], next: [], archived: true, gender: [], age: [], assignment: [] };
 
 const ASSIGNMENT_TAG_KEY: Record<string, string> = {
   'Waiting to be assigned': 'waiting',
@@ -79,7 +82,7 @@ const ASSIGNMENT_TAG_KEY: Record<string, string> = {
   'Gender not known': 'unknown_gender',
 };
 
-const statusGroups: Array<{ key: keyof FilterState; label: string; options: Array<{ value: string; label: string }> }> = [
+const statusGroups: Array<{ key: FilterGroupKey; label: string; options: Array<{ value: string; label: string }> }> = [
   { key: 'reply', label: 'Reply', options: Object.entries(REPLY_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
   { key: 'call', label: 'Call', options: Object.entries(CALL_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
   { key: 'reg', label: 'Registration', options: Object.entries(REGISTRATION_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
@@ -108,14 +111,8 @@ const FilterIcon = (
 
 function activeFilterCount(f: FilterState): number {
   let n = 0;
-  if (f.reply) n++;
-  if (f.call) n++;
-  if (f.reg) n++;
-  if (f.next) n++;
-  // Archived is hidden by default, so it never counts toward the badge.
-  if (f.gender) n++;
-  if (f.age) n++;
-  if (f.assignment) n++;
+  // One per group that has any choice (archived is hidden by default, so it never counts).
+  (['reply', 'call', 'reg', 'next', 'gender', 'age', 'assignment'] as const).forEach((key) => { if (f[key].length > 0) n++; });
   return n;
 }
 
@@ -270,19 +267,21 @@ const AdminFollowUpsPage: React.FC = () => {
       if (ownerFilter === '__unassigned__' && c.ownerId) return false;
       if (ownerFilter && ownerFilter !== '__unassigned__' && c.ownerId !== ownerFilter) return false;
       if (filters.archived && c.archivedAt) return false;
-      if (filters.reply && c.replyStatus !== filters.reply) return false;
-      if (filters.call && c.callStatus !== filters.call) return false;
-      if (filters.reg && c.registrationStatus !== filters.reg) return false;
-      if (filters.next && c.nextAction !== filters.next) return false;
-      if (filters.gender && c.gender !== filters.gender) return false;
-      if (filters.age === '__unknown' && c.ageRange) return false;
-      if (filters.age && filters.age !== '__unknown' && (c.ageRange || '') !== filters.age) return false;
-      if (filters.assignment) {
+      if (filters.reply.length && !filters.reply.includes(c.replyStatus)) return false;
+      if (filters.call.length && !filters.call.includes(c.callStatus)) return false;
+      if (filters.reg.length && !filters.reg.includes(c.registrationStatus)) return false;
+      if (filters.next.length && !filters.next.includes(c.nextAction)) return false;
+      if (filters.gender.length && !filters.gender.includes(c.gender ?? '')) return false;
+      if (filters.age.length && !filters.age.some((age) => (age === '__unknown' ? !c.ageRange : (c.ageRange || '') === age))) return false;
+      if (filters.assignment.length) {
         const tag = unassignedFollowUpTag(c, owners, ownerLoad, maxLoad);
-        // "all": everyone waiting, whatever the reason, teens waiting for a Teen Support included.
-        if (filters.assignment === 'teens') {
-          if (!isTeenWaitingForSupport(c)) return false;
-        } else if (filters.assignment === 'all' ? !(isTeenWaitingForSupport(c) || (tag && isWaitingForAssignment(c))) : ASSIGNMENT_TAG_KEY[tag?.label ?? ''] !== filters.assignment) return false;
+        const matches = (choice: string) => {
+          // "all": everyone waiting, whatever the reason, teens waiting for a Teen Support included.
+          if (choice === 'teens') return isTeenWaitingForSupport(c);
+          if (choice === 'all') return isTeenWaitingForSupport(c) || (!!tag && isWaitingForAssignment(c));
+          return ASSIGNMENT_TAG_KEY[tag?.label ?? ''] === choice;
+        };
+        if (!filters.assignment.some(matches)) return false;
       }
       // Arrived from an Overview tile: a single derived status, or every status
       // that still counts as open work.
@@ -470,12 +469,13 @@ const AdminFollowUpsPage: React.FC = () => {
     setShowFilterPanel(false);
   };
 
-  const togglePill = (group: keyof FilterState, value: string) => {
+  const togglePill = (group: FilterGroupKey, value: string) => {
     // A closed status (Access confirmed, Not interested, ...) archives the contact, so picking one
     // while archived contacts are hidden would always come back empty; show them instead.
     setDraft((prev) => {
-      const next = prev[group] === value ? '' : value;
-      const closing = group === 'reg' && !!next && isClosedRegistrationStatus(next as FollowUpRegistrationStatus);
+      const had = prev[group].includes(value);
+      const next = had ? prev[group].filter((v) => v !== value) : [...prev[group], value];
+      const closing = group === 'reg' && !had && isClosedRegistrationStatus(value as FollowUpRegistrationStatus);
       return { ...prev, [group]: next, ...(closing ? { archived: false } : {}) };
     });
   };
@@ -484,11 +484,11 @@ const AdminFollowUpsPage: React.FC = () => {
   // (hidden-by-default, so it would just sit there). Tapping × clears one.
   const activeChips = useMemo(
     () => (['reply', 'call', 'reg', 'next', 'gender', 'age', 'assignment'] as const)
-      .filter((key) => filters[key])
-      .map((key) => ({
+      .flatMap((key) => filters[key].map((value) => ({
         key,
-        label: statusGroups.find((g) => g.key === key)?.options.find((o) => o.value === filters[key])?.label ?? filters[key],
-      })),
+        value,
+        label: statusGroups.find((g) => g.key === key)?.options.find((o) => o.value === value)?.label ?? value,
+      }))),
     [filters],
   );
 
@@ -747,9 +747,9 @@ const AdminFollowUpsPage: React.FC = () => {
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {activeChips.map((chip) => (
                   <button
-                    key={chip.key}
+                    key={`${chip.key}:${chip.value}`}
                     type="button"
-                    onClick={() => setFilters((prev) => ({ ...prev, [chip.key]: '' }))}
+                    onClick={() => setFilters((prev) => ({ ...prev, [chip.key]: prev[chip.key].filter((v) => v !== chip.value) }))}
                     title={`Clear ${chip.label} filter`}
                     className="inline-flex items-center gap-1.5 rounded-full bg-[#3f4757] py-1.5 pl-3 pr-2 text-xs font-semibold text-white transition hover:bg-[#333a49] active:scale-95"
                   >
@@ -802,7 +802,7 @@ const AdminFollowUpsPage: React.FC = () => {
               owners={realOwners}
               ownerLoad={ownerLoad}
               maxLoad={maxLoad}
-              onSetAssignmentFilter={(value) => setFilters((f) => ({ ...f, assignment: f.assignment === value ? '' : value }))}
+              onSetAssignmentFilter={(value) => setFilters((f) => ({ ...f, assignment: f.assignment.includes(value) ? f.assignment.filter((v) => v !== value) : [...f.assignment, value] }))}
             />
           )}
           {tab === 'contacts' && statusParam && (
@@ -991,8 +991,8 @@ const AdminFollowUpsPage: React.FC = () => {
                       <button
                         key={opt.value}
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); togglePill(group.key as keyof FilterState, opt.value); }}
-                        className={pillBtn(draft[group.key as keyof FilterState] === opt.value)}
+                        onClick={(e) => { e.stopPropagation(); togglePill(group.key, opt.value); }}
+                        className={pillBtn(draft[group.key].includes(opt.value))}
                       >
                         {opt.label}
                       </button>
@@ -1011,7 +1011,7 @@ const AdminFollowUpsPage: React.FC = () => {
                   <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${draft.archived ? 'translate-x-5' : ''}`} />
                 </button>
               </div>
-              {draft.reg && isClosedRegistrationStatus(draft.reg as FollowUpRegistrationStatus) && !draft.archived && (
+              {draft.reg.some((status) => isClosedRegistrationStatus(status as FollowUpRegistrationStatus)) && !draft.archived && (
                 <p className="-mt-3 px-1 text-xs text-gray-500">Finished contacts are archived, so they are shown while this status is selected.</p>
               )}
             </div>
