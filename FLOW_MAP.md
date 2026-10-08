@@ -308,11 +308,15 @@ duplicating the logic anywhere else is a bug waiting to happen.
     person's status and leaves No response out unless "Include No response" is switched on, except
     when the list is already narrowed to No response. The single-person Copy stays a clean line.
     The next-cohort carry-over (`getNextCohortContacts`, `getWaitingForCohort`, the dashboard's
-    `nextCohortPeople`) offers every No response adult, whether or not they had signed up. A
-    registered person the support could not reach keeps their participant record in this cohort;
-    only the contact moves, and starts again as To contact in the new cohort, as a returning person
-    already does (a contact can have a participant per cohort). Moving someone clears their No
-    response flag. Teens parked as No response stay with their Teen Support and are not carried.
+    `nextCohortPeople`) offers every adult marked Will join next cohort or No response, whether or
+    not they had signed up. `carryContactsToCohort` does not move the contact: it adds a fresh
+    contact in the new cohort (To contact, no support, same name, number, email, gender, age,
+    source and notes) and closes the original in the cohort they leave (archived, next action
+    Close, status kept). The original stays linked to any participant record in the old cohort,
+    because a later sign-up finds the participant through the contact and would otherwise pull that
+    participant (attendance, group) into the new cohort. It only carries people still parked and
+    open at that moment, so someone who signed in while the list was open is left alone. Teens
+    parked as No response stay with their Teen Support and are not carried.
     Source: `20261007200000_followup_no_response_flag.sql`, `20261008110000_no_response_next_cohort_count.sql`,
     `20261008120000_no_response_next_cohort_all.sql`,
     `20261008020000_password_set_confirms_parked_contacts.sql`.

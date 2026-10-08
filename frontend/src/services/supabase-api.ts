@@ -3916,6 +3916,9 @@ export const formRegistrationsApi = {
   },
 };
 
+// Who the next-cohort carry-over offers. The dashboard count (cohort_health, `nextCohortPeople`) uses the same two statuses.
+const CARRIED_STATUSES = ['NEXT_COHORT', 'NO_RESPONSE'];
+
 export const followUpContactsApi = {
   async getById(contactId: string): Promise<{ contact: import('../types').FollowUpContact | null }> {
     const { data, error } = await supabase.from('FollowUpContact').select(FOLLOW_UP_SELECT).eq('id', contactId).maybeSingle();
@@ -4250,14 +4253,14 @@ export const followUpContactsApi = {
   },
 
   // Offered for the next cohort: people who said they will join it, and people marked No response
-  // (including someone who signed up but could not be reached: their participant record stays in
-  // this cohort, and the contact starts again in the next one, as a returning person does).
+  // (including someone who signed up but could not be reached). They are carried with
+  // carryContactsToCohort: closed here, started afresh there.
   async getNextCohortContacts(cohortId: string): Promise<{ contacts: import('../types').FollowUpContact[] }> {
     const { data, error } = await supabase
       .from('FollowUpContact')
       .select(FOLLOW_UP_SELECT)
       .eq('cohortId', cohortId)
-      .in('registrationStatus', ['NEXT_COHORT', 'NO_RESPONSE'])
+      .in('registrationStatus', CARRIED_STATUSES)
       .is('archivedAt', null);
     if (error) throw new Error(error.message);
     return { contacts: ((data as any[]) || []).map(mapFollowUpContact) };
@@ -4268,7 +4271,7 @@ export const followUpContactsApi = {
     const { data, error } = await supabase
       .from('FollowUpContact')
       .select(FOLLOW_UP_SELECT)
-      .in('registrationStatus', ['NEXT_COHORT', 'NO_RESPONSE'])
+      .in('registrationStatus', CARRIED_STATUSES)
       .is('archivedAt', null)
       .or(`cohortId.is.null,cohortId.neq.${cohortId}`)
       .order('fullName', { ascending: true });
@@ -4276,28 +4279,53 @@ export const followUpContactsApi = {
     return { contacts: ((data as any[]) || []).map(mapFollowUpContact) };
   },
 
-  async bulkMoveNextCohortContacts(contactIds: string[], newCohortId: string): Promise<void> {
-    // Back to "To contact" so they re-enter the follow-up list for the new cohort.
-    const { error } = await supabase
+  /**
+   * Carries people into the next cohort: each gets a fresh contact there (To contact, no support), and the
+   * original is closed (archived) in the cohort they leave. The original is never moved, because it stays
+   * linked to the participant record they may have in the old cohort, and a later sign-up looks that record
+   * up through the contact. Only people still parked and open are carried (someone who signed in while the
+   * list was open is left alone). Returns old id -> new id for the ones carried.
+   */
+  async carryContactsToCohort(contactIds: string[], newCohortId: string): Promise<{ idMap: Map<string, string> }> {
+    const idMap = new Map<string, string>();
+    if (contactIds.length === 0) return { idMap };
+    const { data: rows, error } = await supabase
       .from('FollowUpContact')
-      .update({
-        cohortId: newCohortId,
-        registrationStatus: 'NOT_REGISTERED',
-        noResponseAt: null,
-        messageStatus: 'NOT_SENT',
-        replyStatus: 'NO_REPLY',
-        callStatus: 'NOT_CALLED',
-        nextAction: 'SEND_MESSAGE',
-        archivedAt: null,
-        // A fresh start in the new cohort: the old cohort's owner and due date don't carry over.
-        ownerId: null,
-        ownerAssignedAt: null,
-        dueDate: null,
-        dueReminderSentAt: null,
-        updatedAt: new Date().toISOString(),
-      })
-      .in('id', contactIds);
+      .select('id, fullName, phone, source, email, gender, ageRange, occupation, notes')
+      .in('id', contactIds)
+      .in('registrationStatus', CARRIED_STATUSES)
+      .is('archivedAt', null);
     if (error) throw new Error(error.message);
+    const originals = (rows as any[]) || [];
+    if (originals.length === 0) return { idMap };
+
+    const { data: inserted, error: insertError } = await supabase
+      .from('FollowUpContact')
+      .insert(originals.map((o) => ({
+        fullName: o.fullName, phone: o.phone, source: o.source, email: o.email, gender: o.gender,
+        ageRange: o.ageRange, occupation: o.occupation, notes: o.notes,
+        cohortId: newCohortId,
+        registrationStatus: 'NOT_REGISTERED', messageStatus: 'NOT_SENT', replyStatus: 'NO_REPLY',
+        callStatus: 'NOT_CALLED', nextAction: 'SEND_MESSAGE',
+      })))
+      .select('id');
+    if (insertError) throw new Error(insertError.message);
+    const created = ((inserted as any[]) || []).map((row) => row.id as string);
+
+    const now = new Date().toISOString();
+    const { error: closeError } = await supabase
+      .from('FollowUpContact')
+      .update({ archivedAt: now, nextAction: 'CLOSE', updatedAt: now })
+      .in('id', originals.map((o) => o.id))
+      .in('registrationStatus', CARRIED_STATUSES)
+      .is('archivedAt', null);
+    if (closeError) {
+      // Do not leave two open copies behind.
+      await supabase.from('FollowUpContact').delete().in('id', created);
+      throw new Error(closeError.message);
+    }
+    originals.forEach((o, i) => { if (created[i]) idMap.set(o.id, created[i]); });
+    return { idMap };
   },
 };
 

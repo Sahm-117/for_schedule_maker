@@ -261,7 +261,7 @@ export const followUpContactsApi = USE_SUPABASE ? supabaseFollowUpContactsApi : 
   async delete(_id: string): Promise<never> { return followUpsUnavailable(); },
   async getNextCohortContacts(_cohortId: string): Promise<{ contacts: import('../types').FollowUpContact[] }> { return { contacts: [] }; },
   async getWaitingForCohort(_cohortId: string): Promise<{ contacts: import('../types').FollowUpContact[] }> { return { contacts: [] }; },
-  async bulkMoveNextCohortContacts(_ids: string[], _newCohortId: string): Promise<void> { return; },
+  async carryContactsToCohort(_ids: string[], _newCohortId: string): Promise<{ idMap: Map<string, string> }> { return { idMap: new Map() }; },
 };
 
 export const messageTemplatesApi = USE_SUPABASE ? supabaseMessageTemplatesApi : {

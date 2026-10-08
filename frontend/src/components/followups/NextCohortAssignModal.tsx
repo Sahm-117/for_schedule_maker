@@ -6,9 +6,10 @@ import type { FollowUpContact, User } from '../../types';
 import { firstNameOf } from '../../utils/people';
 import Spinner from '../Spinner';
 
-// People marked "Will join next cohort" (and No response people) get moved into the new cohort's
-// follow-up list (back to "To contact") and, if supports are picked, split
-// evenly between them. Used right after creating a cohort and from the home page.
+// People marked "Will join next cohort" (and No response people) are carried into the new cohort's
+// follow-up list as fresh "To contact" contacts and, if supports are picked, split evenly between
+// them. Their old contact is closed in the cohort they leave. Used right after creating a cohort
+// and from the home page.
 
 interface Props {
   isOpen: boolean;
@@ -58,14 +59,22 @@ const NextCohortAssignModal: React.FC<Props> = ({ isOpen, contacts, targetCohort
     setSaving(true);
     setError('');
     try {
-      await followUpContactsApi.bulkMoveNextCohortContacts(sorted.map((c) => c.id), targetCohortId);
+      const { idMap } = await followUpContactsApi.carryContactsToCohort(sorted.map((c) => c.id), targetCohortId);
       for (const [ownerId, owned] of plan) {
-        if (owned.length > 0) await followUpContactsApi.assignMany(owned.map((c) => c.id), ownerId, dueDate || null);
+        // Their new contacts, not the closed ones. Anyone no longer parked was skipped.
+        const newIds = owned.map((c) => idMap.get(c.id)).filter((id): id is string => !!id);
+        if (newIds.length > 0) await followUpContactsApi.assignMany(newIds, ownerId, dueDate || null);
       }
+      const carried = idMap.size;
+      const carriedText = `${carried} ${carried === 1 ? 'person' : 'people'}`;
+      const skipped = count - carried;
       const where = targetCohortName ? `${targetCohortName}'s` : "the new cohort's";
-      onDone(supportIds.length > 0
-        ? `Moved ${people} to ${where} follow-ups and assigned them to ${supportIds.length} support${supportIds.length === 1 ? '' : 's'}.`
-        : `Moved ${people} to ${where} follow-ups. They're unassigned for now.`);
+      const tail = skipped > 0 ? ` ${skipped} ${skipped === 1 ? 'was' : 'were'} left out because they are no longer waiting.` : '';
+      onDone((carried === 0
+        ? 'Nobody was carried over: they are no longer waiting.'
+        : supportIds.length > 0
+          ? `Carried ${carriedText} to ${where} follow-ups and assigned them to ${supportIds.length} support${supportIds.length === 1 ? '' : 's'}.`
+          : `Carried ${carriedText} to ${where} follow-ups. They're unassigned for now.`) + (carried > 0 ? tail : ''));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not move them. Try again.');
     } finally {
@@ -78,7 +87,7 @@ const NextCohortAssignModal: React.FC<Props> = ({ isOpen, contacts, targetCohort
       isOpen={isOpen}
       onClose={() => { if (!saving) onClose(); }}
       title={`${people} waiting for the next cohort`}
-      subtitle="Said they'll join, or never replied. Assign them to supports to follow up."
+      subtitle="Said they'll join, or could not be reached. They are closed in the current cohort and start again in the new one."
       footer={(
         <>
           <button
@@ -115,7 +124,7 @@ const NextCohortAssignModal: React.FC<Props> = ({ isOpen, contacts, targetCohort
         </div>
 
         <p className="text-sm text-gray-600">
-          They'll move to {targetCohortName ?? 'the new cohort'}'s follow-up list as <span className="font-semibold">To contact</span>.
+          They'll be added to {targetCohortName ?? 'the new cohort'}'s follow-up list as <span className="font-semibold">To contact</span>. Their old follow-up is closed in the cohort they leave.
         </p>
 
         <div>
