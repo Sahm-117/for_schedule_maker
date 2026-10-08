@@ -46,7 +46,7 @@ This file is project-specific. Keep changes here limited to guidance for this re
 
 ## Session and git workflow
 
-- At the start of resumed work, read the latest relevant `.sessions/` handoff. When a feature is complete and pushed, save a new concise session summary and update `.sessions/INDEX.md` without recording credentials or unnecessary personal data.
+- **Handoffs live in `docs/handoffs/` and are mandatory.** Before you change anything, read `docs/handoffs/README.md` and `docs/handoffs/INDEX.md`, then the newest handoff that touches your area (check its Open items and Gotchas). When you finish a feature, or any stretch of work that changed the live database, an edge function or user-visible behaviour, add a handoff file and an `INDEX.md` row in that same change, listing every migration you applied live and every function you deployed. Never record credentials, tokens or people's names or numbers. `.sessions/` is git-ignored and only holds older auto-written summaries; do not put new handoffs there.
 - Before every push, show the account/PAT actor, commit author, and exact destination branch, then obtain confirmation. Use the repository-local `GITHUB_TOKEN` from `.env.github.local`, `.env.local`, or `.env` when available; never print, commit, or persist its value in a Git remote URL.
 - Keep the commit author aligned with the repository's established identity. If the repository history, remote owner, and available credential point to different identities, stop and ask for direction.
 
