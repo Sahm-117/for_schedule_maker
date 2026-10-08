@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { FollowUpContact, FollowUpStatus } from '../../types';
-import { computeFollowUpFunnel, computeFollowUpStatus, computeIntroducerBreakdown, computeOwnerBreakdown, type OwnerBreakdownRow } from '../../utils/followUps';
+import { computeFollowUpFunnel, computeFollowUpStatus, computeIntroducerBreakdown, computeOwnerBreakdown, isClosedContact, type OwnerBreakdownRow } from '../../utils/followUps';
 import RegistrationOverviewCards from './RegistrationOverviewCards';
 import { settingsApi } from '../../services/api';
 
@@ -201,7 +201,9 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
 
   // Unassigned prospects are nobody's work yet, so they don't belong in a table
   // of who's doing what — they get their own callout above it instead.
-  const unassignedRow = owners.find((row) => !row.ownerId);
+  // Only people still waiting for a support: parked (No response), closed, filed away and next-cohort
+  // contacts have no owner on purpose and are never assigned, so they are not "nobody following up".
+  const waitingForSupport = contacts.filter((c) => !c.ownerId && !c.isTest && !c.archivedAt && !isClosedContact(c) && c.registrationStatus !== 'NEXT_COHORT').length;
   const namedOwners = owners.filter((row) => row.ownerId);
 
   // One row per status, biggest first, so the list reads as a ranking rather
@@ -298,9 +300,9 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
         )}
       </section>
 
-      {unassignedRow && unassignedRow.assigned > 0 && (
+      {waitingForSupport > 0 && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          {unassignedRow.assigned} {unassignedRow.assigned === 1 ? 'contact has' : 'contacts have'} nobody following up.{' '}
+          {waitingForSupport} {waitingForSupport === 1 ? 'contact has' : 'contacts have'} nobody following up.{' '}
           {onShowUnassigned ? (
             <button type="button" onClick={onShowUnassigned} className="font-semibold text-amber-800 underline">
               Assign them

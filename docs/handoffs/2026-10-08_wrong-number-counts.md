@@ -42,3 +42,10 @@ live backend; there is no test runner in the repo, so no committed test.
 
 ## How to pick this up
 Start from `registrationOverview.ts` and `followUpContactsApi.update`.
+
+## Also: "nobody following up" banner
+The Follow-ups Overview banner counted every contact without an owner, including people parked as No
+response (released on purpose, never assigned). It now counts only open contacts still waiting for a support
+(no owner, not test, not filed, not closed, not next cohort), so it hides when there are none.
+Source: `FollowUpDashboard`. Built only; the logic was checked against live data (the two unowned contacts
+in the cohort are both parked, so the banner is gone). Frontend only.
