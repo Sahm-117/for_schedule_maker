@@ -498,7 +498,7 @@ const SupportFollowUpsPage: React.FC = () => {
       {showFilterPanel && createPortal(
         <div className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center">
           <div className="absolute inset-0 bg-slate-900/35" />
-          <div className="relative mb-0 w-full max-w-md rounded-t-[28px] bg-white p-6 pb-8 shadow-[0_-8px_40px_rgba(15,23,42,0.15)] sm:mb-0 sm:rounded-[28px]">
+          <div className="relative mb-0 max-h-[90dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-[28px] bg-white p-6 pb-8 shadow-[0_-8px_40px_rgba(15,23,42,0.15)] sm:mb-0 sm:rounded-[28px]">
             <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-gray-200 sm:hidden" />
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-gray-900">Filters</h3>

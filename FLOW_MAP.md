@@ -322,14 +322,16 @@ duplicating the logic anywhere else is a bug waiting to happen.
     by an admin in the Cohorts week editor (Recap, Adults / Teens). Empty `teenRecapReleaseAt` means it
     shows as soon as it exists; a time holds it back. `support_recaps` returns the content only once
     released (admins always see it) plus `hasTeenRecap` / `teenRecapReleaseAt` so the Recap page can say
-    "Arrives <time>" or "Not uploaded yet" (with "Use the adult recap"). Only Teen Supports are shown the Teen
-    section (the screen decides; like the adult recap, staff can read `Week` directly, so this is
-    not a secret from staff). Participants never see it, and `participant_home` is untouched. A week
+    "Arrives <time>" or "Not uploaded yet" (with "Use the adult recap"). Only Teen Supports (the TEEN_SUPPORT tag) and
+    admins get the Teen keys from `support_recaps`; every other support gets none of them and no week
+    that only has Teen content. (Staff can still read the `Week` table directly, as with the adult
+    recap.) Participants never see it, and `participant_home` is untouched. A week
     with only a held Teen recap still opens for a Teen Support and says when it arrives. The class manual is shared with
     adults. Teen documents are not copied by the cohort clone (the adult ones are not either); they are
     reused through "Choose earlier file" (`list_earlier_class_documents`, kind `TEEN_RECAP`), and a
     release time is never reused. The picker keeps one row per file and kind. Source:
-    `20261008050000_teen_recap.sql`, `20261008060000_earlier_documents_keep_kind.sql`.
+    `20261008050000_teen_recap.sql`, `20261008060000_earlier_documents_keep_kind.sql`,
+    `20261008070000_teen_recap_teen_supports_only.sql`.
 
 ## 5. Edge functions and schedules
 
