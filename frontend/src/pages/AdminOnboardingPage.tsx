@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
-import AppSelect from '../components/AppSelect';
+import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
 import OnboardingStepPills from '../components/OnboardingStepPills';
@@ -45,8 +45,8 @@ const AdminOnboardingContent: React.FC = () => {
   const [cohortProgress, setCohortProgress] = useState<OnboardingProgress>({ groups: [], participants: [] });
   const [events, setEvents] = useState<OnboardingEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [groupFilter, setGroupFilter] = useState(''); // '' = all groups
-  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'in_progress'>('all');
+  // Filter choices (see FilterBar): status (completed / in progress) and group; several of each at once.
+  const [filters, setFilters] = useState<FilterValues>({});
   const [eventLimit, setEventLimit] = useState(5); // "Show more" page size
   const activeCohortId = activeCohort?.id;
 
@@ -91,24 +91,25 @@ const AdminOnboardingContent: React.FC = () => {
       };
     }), [groupCollator, cohortProgress]);
 
-  const groupOptions = useMemo(
-    () => [
-      { value: '', label: 'All groups' },
-      ...groupSummaries.map((s) => ({ value: s.group.groupId, label: s.group.groupName || 'Group' })),
-    ],
-    [groupSummaries]
-  );
-
+  // Does this group fit one chosen choice of one filter group?
+  const fits = (key: string, choice: string, s: (typeof groupSummaries)[number]): boolean => {
+    if (key === 'group') return s.group.groupId === choice;
+    if (key === 'status') return choice === 'completed' ? s.completed : !s.completed;
+    return true;
+  };
   const visibleGroupSummaries = useMemo(
-    () => groupSummaries.filter((s) => {
-      if (groupFilter && s.group.groupId !== groupFilter) return false;
-      if (statusFilter === 'completed') return s.completed;
-      if (statusFilter === 'in_progress') return !s.completed;
-      return true;
-    }),
-    [groupSummaries, groupFilter, statusFilter]
+    () => groupSummaries.filter((s) => Object.entries(filters).every(([key, choices]) => choices.length === 0 || choices.some((c) => fits(key, c, s)))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [groupSummaries, filters]
   );
-
+  const filterGroups = useMemo<FilterGroup[]>(() => {
+    const opt = (key: string, value: string, label: string) => ({ value, label, count: groupSummaries.filter((s) => fits(key, value, s)).length });
+    return [
+      { key: 'status', label: 'Status', options: [opt('status', 'completed', 'Completed'), opt('status', 'in_progress', 'In progress')] },
+      { key: 'group', label: 'Group', options: groupSummaries.map((s) => opt('group', s.group.groupId, s.group.groupName || 'Group')) },
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupSummaries]);
 
   const progress = useMemo(() => {
     const totalParticipants = groupSummaries.reduce((sum, summary) => sum + summary.participantCount, 0);
@@ -123,7 +124,7 @@ const AdminOnboardingContent: React.FC = () => {
     };
   }, [groupSummaries]);
 
-  useEffect(() => { setEventLimit(5); }, [groupFilter]);
+  useEffect(() => { setEventLimit(5); }, [filters]);
 
   return (
     <div className="page-content">
@@ -192,23 +193,15 @@ const AdminOnboardingContent: React.FC = () => {
               <h3 className="mt-1 text-lg font-bold text-gray-900">Progress by group</h3>
             </div>
             {groupSummaries.length > 0 && (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5">
-                <div className="min-w-0">
-                  <AppSelect
-                    value={statusFilter}
-                    onChange={(v) => setStatusFilter(v as 'all' | 'completed' | 'in_progress')}
-                    options={[
-                      { value: 'all', label: 'All statuses' },
-                      { value: 'completed', label: 'Completed' },
-                      { value: 'in_progress', label: 'In progress' },
-                    ]}
-                    placeholder="All statuses"
-                    compact
-                  />
-                </div>
-                <div className="min-w-0">
-                  <AppSelect value={groupFilter} onChange={setGroupFilter} options={groupOptions} placeholder="All groups" compact />
-                </div>
+              <div className="w-full">
+                <FilterBar
+                  groups={filterGroups}
+                  value={filters}
+                  onChange={setFilters}
+                  shown={visibleGroupSummaries.length}
+                  total={groupSummaries.length}
+                  noun="groups"
+                />
               </div>
             )}
           </div>

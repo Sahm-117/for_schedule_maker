@@ -12,7 +12,7 @@ import { FAITH_HELP_REASON_LABELS } from '../types';
 import type { FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectReviewEntry, FaithProjectSettings, FaithProjectStatus, Group, Participant, ParticipantNote, Testimony, TestimonyStatus } from '../types';
 import { unreadTrails } from '../utils/faithThread';
 import ModalShell from '../components/followups/ModalShell';
-import AppSelect from '../components/AppSelect';
+import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import FaithProjectsExportPopup from '../components/faithProjects/FaithProjectsExportPopup';
 import FaithProjectSettingsModal from '../components/faithProjects/FaithProjectSettingsModal';
 import { sortByText } from '../utils/sort';
@@ -413,8 +413,9 @@ const AdminFaithProjectsContent: React.FC = () => {
   const [projects, setProjects] = useState<FaithProject[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<FaithProjectStatus | ''>('');
-  const [groupFilter, setGroupFilter] = useState(''); // '' = all, '__UNASSIGNED__' = no group
+  // Filter choices (see FilterBar): status (the chips above), group ('__UNASSIGNED__' = no group) and category; several of each at once.
+  const [filters, setFilters] = useState<FilterValues>({});
+  const statusFilters = filters.status ?? [];
   const [search, setSearch] = useState('');
   const [reviewTarget, setReviewTarget] = useState<{ participant: Participant; project: FaithProject | null } | null>(null);
   const [officeNotes, setOfficeNotes] = useState<ParticipantNote[]>([]);
@@ -424,7 +425,6 @@ const AdminFaithProjectsContent: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [categories, setCategories] = useState<FaithProjectCategory[]>([]);
   const [settings, setSettings] = useState<FaithProjectSettings | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState('');
   const [pageTab, setPageTab] = useState<'projects' | 'testimonies'>(
     searchParams.get('tab') === 'testimonies' ? 'testimonies' : 'projects'
   );
@@ -476,35 +476,37 @@ const AdminFaithProjectsContent: React.FC = () => {
     return map;
   }, [groups]);
 
-  const groupOptions = useMemo(
-    () => [
-      { value: '', label: 'All groups' },
-      { value: '__UNASSIGNED__', label: 'Unassigned' },
-      ...[...groups].sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name)).map((g) => ({ value: g.id, label: g.name })),
-    ],
-    [groups]
-  );
-
+  // Does this person fit one chosen choice of one filter group?
+  const fits = (group: string, choice: string, p: Participant): boolean => {
+    switch (group) {
+      case 'status': return (projectByParticipant.get(p.id)?.status ?? 'NOT_DRAFTED') === choice;
+      case 'group': return choice === '__UNASSIGNED__' ? !p.groupId : p.groupId === choice;
+      case 'category': return projectByParticipant.get(p.id)?.categoryId === choice;
+      default: return true;
+    }
+  };
   const displayed = useMemo(() => {
-    let ps = participants;
-    if (groupFilter === '__UNASSIGNED__') {
-      ps = ps.filter((p) => !p.groupId);
-    } else if (groupFilter) {
-      ps = ps.filter((p) => p.groupId === groupFilter);
-    }
-    if (filterStatus) {
-      ps = ps.filter((p) => {
-        const fp = projectByParticipant.get(p.id);
-        return (fp?.status ?? 'NOT_DRAFTED') === filterStatus;
-      });
-    }
-    if (categoryFilter) ps = ps.filter((p) => projectByParticipant.get(p.id)?.categoryId === categoryFilter);
+    let ps = participants.filter((p) => Object.entries(filters).every(([group, choices]) => choices.length === 0 || choices.some((c) => fits(group, c, p))));
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, filterStatus, search, projectByParticipant, groupFilter, categoryFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [participants, filters, search, projectByParticipant]);
+  const filterGroups: FilterGroup[] = (() => {
+    const opt = (group: string, value: string, label: string) => ({ value, label, count: participants.filter((p) => fits(group, value, p)).length });
+    const out: FilterGroup[] = [{
+      key: 'group',
+      label: 'Group',
+      options: [
+        opt('group', '__UNASSIGNED__', 'Not in a group'),
+        ...[...groups].sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name)).map((g) => opt('group', g.id, g.name)),
+      ],
+    }];
+    if (categories.length > 0) out.push({ key: 'category', label: 'Category', options: categories.map((c) => opt('category', c.id, c.name)) });
+    return out;
+  })();
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { NOT_DRAFTED: 0, UNDER_REFINEMENT: 0, APPROVED: 0 };
@@ -580,9 +582,9 @@ const AdminFaithProjectsContent: React.FC = () => {
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setFilterStatus((prev) => prev === opt.value ? '' : opt.value)}
+                  onClick={() => setFilters((prev) => ({ ...prev, status: (prev.status ?? []).includes(opt.value) ? (prev.status ?? []).filter((v) => v !== opt.value) : [...(prev.status ?? []), opt.value] }))}
                   className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition active:scale-95 ${
-                    filterStatus === opt.value ? opt.cls + ' ring-2 ring-offset-1 ring-primary/30' : 'border border-gray-100 bg-white text-gray-600 hover:bg-gray-50'
+                    statusFilters.includes(opt.value) ? opt.cls + ' ring-2 ring-offset-1 ring-primary/30' : 'border border-gray-100 bg-white text-gray-600 hover:bg-gray-50'
                   }`}
                 >
                   {opt.label} <span className="ml-1 opacity-70">{counts[opt.value] ?? 0}</span>
@@ -591,30 +593,27 @@ const AdminFaithProjectsContent: React.FC = () => {
             </div>
           )}
 
-          <div className="mb-4 space-y-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search participant…"
-                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-md sm:flex-1"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5">
-              <div className="min-w-0">
-                <AppSelect
-                  value={groupFilter}
-                  onChange={setGroupFilter}
-                  options={groupOptions}
-                  placeholder="All groups"
-                  compact
+          <div className="mb-4">
+            <FilterBar
+              groups={filterGroups}
+              value={filters}
+              onChange={setFilters}
+              search={
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search participant…"
+                  aria-label="Search participants"
+                  className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-[11px] text-sm shadow-[0_2px_10px_-4px_rgba(17,24,39,0.08)] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
-              </div>
-              <div className="min-w-0">
-                <AppSelect value={categoryFilter} onChange={setCategoryFilter} options={[{ value: '', label: 'All categories' }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} placeholder="All categories" compact />
-              </div>
-            </div>
+              }
+              searching={search.trim().length > 0}
+              onClear={() => setSearch('')}
+              shown={displayed.length}
+              total={participants.length}
+              noun="participants"
+            />
           </div>
           {settings?.deadlineAt && <p className="mb-4 text-sm font-semibold text-[#9a6a4b]">Submission deadline: {formatReviewDate(settings.deadlineAt)}</p>}
 
