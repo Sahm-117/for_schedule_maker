@@ -375,13 +375,14 @@ duplicating the logic anywhere else is a bug waiting to happen.
     Must rule or too few groups stop it, the builder still builds and the draft says so
     ("Hubs with participants: X of Y", with the reason and the hubs without; it updates as supports are
     changed by hand). Topping up follows the same aim: running groups already led from fewer than two
-    thirds of the hubs make the top-up keep back people (`hubReserve`) for new groups led from the other
-    hubs, and among equal fits the hub with fewer people per support is filled first. Supports in no hub are
+    thirds of the hubs make the top-up keep people back for new groups led from the other hubs (enough for
+    one group of the smallest size per hub still needed; those who fit no running group already count,
+    and nobody is held back who could not make such a group), and among equal fits the hub with fewer people per support is filled first. Supports in no hub are
     not offered: supports are always in hubs, so a support in none is listed under "Supports the engine won't
     use" as "Not in a hub", and the People step says how many. With no hub that has anyone in it (or if the
     hubs cannot be loaded) the builder will not go past the People step or continue a saved draft; it asks for
     the hubs to be created (link to Hubs) or to try again. Source: `groupingEngine` (`hubTarget`,
-    `hubCoverage`, `hubReserve`, `assignSupports`, `topUpGroups`), `GroupEngineWizard`. No database change.
+    `hubCoverage`, `hubGroupsNeeded`, `assignSupports`, `topUpGroups`), `GroupEngineWizard`. No database change.
 
 ## 5. Edge functions and schedules
 

@@ -18,7 +18,7 @@ import {
   fitsGroup,
   groupTagRule,
   hubCoverage,
-  hubReserve,
+  hubGroupsNeeded,
   topUpGroups,
   unusedSupportHint,
   toEnginePerson,
@@ -170,9 +170,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const [tagSaving, setTagSaving] = useState<string | null>(null);
   const [ignoredAges, setIgnoredAges] = useState<Set<string>>(new Set());
   const [draftInfo, setDraftInfo] = useState<{ ignored: number; tagNotes: string[] }>({ ignored: 0, tagNotes: [] });
-  // A build saved part-way earlier (one per cohort), and the note after continuing it.
   // The cohort's hubs and who is in each, so supports are picked from all of them.
   const [hubData, setHubData] = useState<{ hubs: Array<{ id: string; name: string }>; hubOf: Record<string, string> } | null>(null);
+  // A build saved part-way earlier (one per cohort), and the note after continuing it.
   const [saved, setSaved] = useState<SavedGroupingDraft | null>(null);
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftNote, setDraftNote] = useState('');
@@ -403,7 +403,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   // What topping up would do right now, for the note on the first step.
   const topUpPreview = useMemo(
     () => (step === 'people'
-      ? topUpGroups([...people.values()].filter((p) => !(p.ageRange && ignoredAges.has(p.ageRange))), topUpTargets, effectiveRules, { hubs: hubSpread, keepBack: hubReserve(hubSpread, effectiveRules, supportPool.free) })
+      ? topUpGroups([...people.values()].filter((p) => !(p.ageRange && ignoredAges.has(p.ageRange))), topUpTargets, effectiveRules, { hubs: hubSpread, reserveGroups: hubGroupsNeeded(hubSpread, supportPool.free) })
       : { groups: [] as DraftGroup[], groupsWithSpace: 0, spots: 0 }),
     [step, people, topUpTargets, effectiveRules, ignoredAges, hubSpread, supportPool.free]
   );
@@ -420,7 +420,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     const ruleSet = { ...r, tagRules: r.tagRules.filter((t) => tagNames[t.tagId]) };
     // Running groups with space are topped up first; whoever is left goes to new groups.
     const top = topUpFirst
-      ? topUpGroups([...people.values()].filter((p) => !(p.ageRange && ignoredAges.has(p.ageRange))), topUpTargets, ruleSet, { hubs: hubSpread, keepBack: hubReserve(hubSpread, ruleSet, supportPool.free) })
+      ? topUpGroups([...people.values()].filter((p) => !(p.ageRange && ignoredAges.has(p.ageRange))), topUpTargets, ruleSet, { hubs: hubSpread, reserveGroups: hubGroupsNeeded(hubSpread, supportPool.free) })
       : null;
     const toppedUp = new Set((top?.groups ?? []).flatMap((g) => g.memberIds));
     const result = buildDraft(

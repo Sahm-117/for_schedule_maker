@@ -12,9 +12,9 @@ people to prepare for when the hubs meet, not a few hubs holding all of them).
 ## What changed
 
 - `frontend/src/utils/groupingEngine.ts`: `HubSpread`, `hubTarget` (ceil of 2/3), `hubCoverage`,
-  `hubReserve`; `assignSupports` ranks candidates by tag fit, gender fit, then an uncovered hub (until
+  `hubGroupsNeeded`; `assignSupports` ranks candidates by tag fit, gender fit, then an uncovered hub (until
   2/3 are covered), then the hub with the smaller share of its supports leading, then age fit,
-  trainings and name. `topUpGroups` takes `{ hubs, keepBack }`.
+  trainings and name. `topUpGroups` takes `{ hubs, reserveGroups }`.
 - `frontend/src/components/groups/GroupEngineWizard.tsx`: loads the cohort's hubs and memberships,
   passes them to the build and the top-up, shows "Hubs with participants: X of Y (aim: at least N)"
   on the Draft step (live as supports are changed by hand), and the hub name in each support's menu.
@@ -29,8 +29,9 @@ if no hub has anyone in it, the builder asks for hubs to be created and blocks t
 the hubs fail to load, with Try again).
 
 My own calls, not asked: hub spread outranks a support's age fit but not tag or gender fit; hubs with no
-members are not counted; a support in several hubs counts for the first one found; top-up keeps back
-`minSize` people per hub still needed, never more than the hubs that still have a free support.
+members are not counted; a support in several hubs counts for the first one found; top-up leaves room for one
+new group of `minSize` people per hub still needed (never more than the hubs a free support can reach),
+counting people who fit no running group, and never holding back people who could not make a group.
 
 ## How it was tested
 
@@ -49,3 +50,12 @@ Not tested against live data.
 ## Gotchas
 
 - `pkill -f vite` kills your own shell; start the dev server with `--strictPort` and stop it by pid.
+
+## Code-review round (same day)
+
+Fixed: reserve could hold back everyone (now counts unplaceable people and caps by what can form a
+group); a hub's share used a size that grew as supports were picked (now fixed); a running group whose
+support is in no hub was filled first (now last); `hubsLeading` computed once per group; a misplaced
+comment. Left as is on purpose: the 2/3 target counts every hub that has members (the admin said "all
+hubs"; the banner already explains an unreachable aim); supports the admin put on their own empty groups
+stay even if in no hub (their choice); the hard stop with no hubs (the admin asked for it).
