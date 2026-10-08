@@ -73,3 +73,10 @@ in the People list and "Missed training" on their group. The "Also use supports 
 removed (saved drafts still carry the field). The Hubs and Supports pages now show a Teen Support pill
 (`TeenSupportPill`, `useTeenSupportIds`). Not rendered: the Supports page change (type-checked and built only).
 Noted for later: the Supports page should reflect the activities of each support's group.
+
+## Operational supports (later the same day)
+
+Operational supports can lead groups, so the People step has "Also use operational supports" (off by default,
+shown only when the cohort has any; saved with a draft as `includeOperational`). They are used in their hub and
+show an Operational tag; hub leads stay excluded. Checked in the browser with mocked data (free supports 9 -> 11
+with the switch on). No database change.

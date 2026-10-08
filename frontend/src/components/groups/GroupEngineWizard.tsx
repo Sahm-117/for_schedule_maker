@@ -156,6 +156,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const [creating, setCreating] = useState(false);
   // Empty groups the admin made first: fill them, or leave them alone. Asked each time.
   const [emptyChoice, setEmptyChoice] = useState<'fill' | 'leave' | null>(null);
+  // Operational supports can lead groups too, but only when this is switched on (off each time the builder opens).
+  const [includeOperational, setIncludeOperational] = useState(false);
   // Fill running groups that have space before making new ones (on by default).
   const [topUpFirst, setTopUpFirst] = useState(true);
   const [signedInIds, setSignedInIds] = useState<Set<string> | null>(null);
@@ -185,6 +187,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setStatuses({});
     setFailReasons({});
     setEmptyChoice(null);
+    setIncludeOperational(false);
     setTopUpFirst(true);
     setSignedInIds(null);
     setSignedInFailed(false);
@@ -304,16 +307,20 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   }, [rules.tagRules, tags]);
 
   const teenTagId = useMemo(() => tags.find((t) => t.systemKey === 'TEEN_SUPPORT')?.id ?? null, [tags]);
-  const supportPool = useMemo(() => {
+  // Who the builder may use as a support. `withOperational` lets Operational supports lead groups too (hub
+  // leads never do); the rest of the rules are the same either way.
+  const buildSupportPool = useCallback((withOperational: boolean) => {
     const leading = new Set(groups.filter((g) => !g.archivedAt && g.supportId).map((g) => g.supportId as string));
     const free: EngineSupport[] = [];
     const reasons: Array<{ user: User; reason: string }> = [];
     const missedTraining = new Set<string>();
+    const operational = new Set<string>();
     supportUsers.forEach((u) => {
       if (u.isActive === false || !memberIds.has(u.id)) return; // not in this cohort
       const kind = kinds[u.id] ?? 'PARTICIPANT_SUPPORT';
       const c = trainingCountFor(trainingCounts, u.id, trainingsTotal);
-      if (kind !== 'PARTICIPANT_SUPPORT') { reasons.push({ user: u, reason: kind === 'HUB_LEAD' ? 'Hub lead' : 'Operational' }); return; }
+      if (kind === 'OPERATIONAL') operational.add(u.id);
+      if (kind === 'HUB_LEAD' || (kind === 'OPERATIONAL' && !withOperational)) { reasons.push({ user: u, reason: kind === 'HUB_LEAD' ? 'Hub lead' : 'Operational' }); return; }
       if (leading.has(u.id)) { reasons.push({ user: u, reason: 'Already has a group' }); return; }
       // Teen Supports look after teens in their own groups, never in the automatic builder.
       if (teenTagId && (tagIdsByUser.get(u.id) ?? []).includes(teenTagId)) { reasons.push({ user: u, reason: 'Teen Support' }); return; }
@@ -325,8 +332,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
       }
       free.push({ ...toEnginePerson(u), trainingsAttended: c.attended, tagIds: tagIdsByUser.get(u.id) ?? [] });
     });
-    return { free, reasons, missedTraining };
+    return { free, reasons, missedTraining, operational };
   }, [supportUsers, memberIds, kinds, groups, trainingCounts, trainingsTotal, minTrainingsAttended, rules.excludedSupportIds, tagIdsByUser, teenTagId, hubData]);
+  const supportPool = useMemo(() => buildSupportPool(includeOperational), [buildSupportPool, includeOperational]);
 
   const notInHubCount = supportPool.reasons.filter((r) => r.reason === NOT_IN_HUB).length;
 
@@ -504,6 +512,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
         ignoredAgeRanges: [...ignoredAges],
         // Kept in the saved shape for older drafts; missing training no longer leaves anyone out.
         includeMissedTraining: true,
+        includeOperational,
         emptyChoice,
         onlySignedIn: true,
         topUpFirst,
@@ -530,7 +539,10 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     const unsignedIds = new Set((loginSplit?.notSignedIn ?? []).map((p) => p.id));
     const stillUngrouped = new Set(pool.map((p) => p.id));
     const poolPeople = new Map(pool.map((p) => [p.id, toEnginePerson({ id: p.id, name: p.fullName, gender: p.gender, ageRange: p.ageRange })]));
-    const freeIds = new Set(supportPool.free.map((s) => s.id));
+    // The saved draft may have used operational supports: judge it against the pool it was built with.
+    const savedWithOperational = saved.includeOperational === true;
+    setIncludeOperational(savedWithOperational);
+    const freeIds = new Set(buildSupportPool(savedWithOperational).free.map((s) => s.id));
     const emptyIds = new Set(emptyGroups.map((g) => g.id));
     const placed = new Set<string>();
     let droppedPeople = 0;
@@ -929,7 +941,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                           <div key={sup.id}>
                           <div className="flex items-center gap-2.5 px-1 py-1">
                             <Avatar name={sup.name} avatarUrl={user?.avatarUrl} size="xs" />
-                            <span className="min-w-0 flex-1 truncate text-[13px] text-gray-800">{sup.name}{(sup.tagIds ?? []).length > 0 && <span className="ml-1.5 text-[11px] font-semibold text-violet-700">{(sup.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean).join(', ')}</span>}{supportPool.missedTraining.has(sup.id) && <span className="ml-1.5 rounded-full bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Trainings {sup.trainingsAttended}/{trainingsTotal}</span>}</span>
+                            <span className="min-w-0 flex-1 truncate text-[13px] text-gray-800">{sup.name}{(sup.tagIds ?? []).length > 0 && <span className="ml-1.5 text-[11px] font-semibold text-violet-700">{(sup.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean).join(', ')}</span>}{supportPool.operational.has(sup.id) && <span className="ml-1.5 rounded-full bg-sky-100/80 px-2 py-0.5 text-[10px] font-semibold text-sky-700">Operational</span>}{supportPool.missedTraining.has(sup.id) && <span className="ml-1.5 rounded-full bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Trainings {sup.trainingsAttended}/{trainingsTotal}</span>}</span>
                             <button type="button" aria-expanded={tagEditFor === sup.id} onClick={() => setTagEditFor((cur) => (cur === sup.id ? null : sup.id))} className="rounded-full bg-violet-100/80 px-3 py-1 text-[12px] font-semibold text-violet-700 hover:bg-violet-100">Tags</button>
                             <button type="button" disabled={excludeSaving === sup.id} onClick={() => void toggleExcluded(sup.id)} className="rounded-full bg-gray-100 px-3 py-1 text-[12px] font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60">
                               {excludeSaving === sup.id ? <Spinner className="h-3 w-3" /> : 'Leave out'}
@@ -955,6 +967,28 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                     ))}
                   </div>
                 </details>
+              )}
+              {supportPool.operational.size > 0 && (
+                <div className={`${SURFACE} flex items-center justify-between gap-3 p-4`}>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">Also use operational supports</p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {includeOperational
+                        ? `${supportPool.operational.size} operational ${supportPool.operational.size === 1 ? 'support is' : 'supports are'} added to the engine, in their hub. They show “Operational” on the draft. Hub leads are still left out.`
+                        : `${supportPool.operational.size} operational ${supportPool.operational.size === 1 ? 'support is' : 'supports are'} left out. Switch on to let them lead a group too.`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={includeOperational}
+                    aria-label="Also use operational supports"
+                    onClick={() => setIncludeOperational((v) => !v)}
+                    className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition ${includeOperational ? 'bg-primary' : 'bg-slate-200'}`}
+                  >
+                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${includeOperational ? 'translate-x-7' : 'translate-x-1'}`} />
+                  </button>
+                </div>
               )}
               {supportPool.missedTraining.size > 0 && (
                 <div className={`${SURFACE} p-4`}>
@@ -1162,7 +1196,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                     { value: '', label: 'No support' },
                     ...groupByHub(supportPool.free.filter((s) => s.id === g.supportId || !usedSupports.has(s.id)))
                       .flatMap((hubGroup) => hubGroup.items.map((s) => ({ ...s, hubLabel: hubGroup.hub })))
-                      .map((s) => ({ value: s.id, label: s.name, group: s.hubLabel ?? undefined, meta: [s.gender, s.ageRange ? shortAge(s.ageRange) : null, trainingsTotal ? `${s.trainingsAttended}/${trainingsTotal} trainings` : null, ...(s.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean)].filter(Boolean).join(' · ') || 'Details missing' })),
+                      .map((s) => ({ value: s.id, label: s.name, group: s.hubLabel ?? undefined, meta: [supportPool.operational.has(s.id) ? 'Operational' : null, s.gender, s.ageRange ? shortAge(s.ageRange) : null, trainingsTotal ? `${s.trainingsAttended}/${trainingsTotal} trainings` : null, ...(s.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean)].filter(Boolean).join(' · ') || 'Details missing' })),
                   ];
                   return (
                     <div key={g.key} className={`${SURFACE} flex flex-col gap-2.5 p-4`}>
@@ -1173,6 +1207,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                             ? <span className="rounded-full bg-emerald-100/80 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Top-up</span>
                             : g.existingGroupId && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Your group</span>}
                           {groupTagName(g.memberIds) && <span className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">{groupTagName(g.memberIds)}</span>}
+                          {g.supportId && supportPool.operational.has(g.supportId) && <span className="rounded-full bg-sky-100/80 px-2 py-0.5 text-[11px] font-semibold text-sky-700">Operational</span>}
                           {hubLabelOf(g.supportId) && <span className="rounded-full bg-sky-100/80 px-2 py-0.5 text-[11px] font-semibold text-sky-700">{hubLabelOf(g.supportId)}</span>}
                         </p>
                         <div className="flex items-center gap-1.5">
