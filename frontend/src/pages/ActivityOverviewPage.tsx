@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import AppSelect from '../components/AppSelect';
+import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import ActivityText from '../components/ActivityText';
 import LabelChip from '../components/LabelChip';
 import PageHeader from '../components/PageHeader';
@@ -22,9 +22,11 @@ const ActivityOverviewPage: React.FC = () => {
   const [supportGroups, setSupportGroups] = useState<Label[]>([]);
   const [supportUsers, setSupportUsers] = useState<User[]>([]);
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
-  const [selectedSupportGroupId, setSelectedSupportGroupId] = useState('');
-  const [selectedSupportUserId, setSelectedSupportUserId] = useState('');
-  const [selectedDayName, setSelectedDayName] = useState('');
+  // Filter choices (see FilterBar): day, activity tag (support group) and support person; several of each at once.
+  const [filters, setFilters] = useState<FilterValues>({});
+  const selectedDayNames = filters.day ?? [];
+  const selectedGroupIds = filters.tag ?? [];
+  const selectedUserIds = filters.person ?? [];
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -65,60 +67,31 @@ const ActivityOverviewPage: React.FC = () => {
       });
   }, [isAdmin, selectedWeek]);
 
+  // Support people who carry any of the chosen tags (all of them when no tag is chosen).
   const filteredSupportUsers = useMemo(() => {
-    if (!selectedSupportGroupId) return supportUsers;
-    return supportUsers.filter((member) => member.labels?.some((label) => label.id === selectedSupportGroupId));
-  }, [selectedSupportGroupId, supportUsers]);
+    if (selectedGroupIds.length === 0) return supportUsers;
+    return supportUsers.filter((member) => member.labels?.some((label) => selectedGroupIds.includes(label.id)));
+  }, [selectedGroupIds, supportUsers]);
 
+  // A chosen person who no longer carries a chosen tag is dropped, so no hidden filter stays on.
   useEffect(() => {
-    if (selectedSupportUserId && !filteredSupportUsers.some((member) => member.id === selectedSupportUserId)) {
-      setSelectedSupportUserId('');
-    }
-  }, [filteredSupportUsers, selectedSupportUserId]);
+    const kept = selectedUserIds.filter((id) => filteredSupportUsers.some((member) => member.id === id));
+    if (kept.length !== selectedUserIds.length) setFilters((prev) => ({ ...prev, person: kept }));
+  }, [filteredSupportUsers, selectedUserIds]);
 
-  const selectedSupportUser = supportUsers.find((member) => member.id === selectedSupportUserId) || null;
-
+  // Tags an activity must carry (any of): the chosen tags, narrowed to the chosen people's tags when both are chosen.
   const effectiveFilterLabelIds = useMemo(() => {
-    const userGroupIds = selectedSupportUser?.labels?.map((label) => label.id) || [];
-
-    if (selectedSupportUserId && selectedSupportGroupId) {
-      return userGroupIds.includes(selectedSupportGroupId) ? [selectedSupportGroupId] : [];
-    }
-
-    if (selectedSupportUserId) return userGroupIds;
-    if (selectedSupportGroupId) return [selectedSupportGroupId];
+    const userLabelIds = new Set(supportUsers.filter((member) => selectedUserIds.includes(member.id)).flatMap((member) => member.labels?.map((label) => label.id) ?? []));
+    if (selectedUserIds.length > 0 && selectedGroupIds.length > 0) return selectedGroupIds.filter((id) => userLabelIds.has(id));
+    if (selectedUserIds.length > 0) return [...userLabelIds];
+    if (selectedGroupIds.length > 0) return selectedGroupIds;
     return undefined;
-  }, [selectedSupportGroupId, selectedSupportUser, selectedSupportUserId]);
+  }, [selectedGroupIds, selectedUserIds, supportUsers]);
 
-  const dayOptions = useMemo(() => {
-    const weekDays = selectedWeek?.days || [];
-    return [
-      { value: '', label: 'All days', meta: 'Show the whole selected week' },
-      ...weekDays.map((day) => ({
-        value: day.dayName,
-        label: day.dayName,
-        meta: `${day.activities.length} activities`,
-      })),
-    ];
-  }, [selectedWeek]);
-
-  const groupOptions = [
-    { value: '', label: 'All activity tags', meta: 'Show every assigned activity' },
-    ...sortByText(supportGroups, (group) => group.name).map((group) => ({
-      value: group.id,
-      label: group.name,
-      meta: 'Support group filter',
-    })),
-  ];
-
-  const supportUserOptions = [
-    { value: '', label: 'All support users', meta: 'Show the whole support team' },
-    ...sortByText(filteredSupportUsers, (member) => member.name).map((member) => ({
-      value: member.id,
-      label: member.name,
-      meta: member.labels?.map((label) => label.name).join(' • ') || 'No activity tags yet',
-    })),
-  ];
+  const allActivities = useMemo(
+    () => (selectedWeek?.days ?? []).flatMap((day) => day.activities.map((activity) => ({ ...activity, dayName: day.dayName }))),
+    [selectedWeek]
+  );
 
   const activities = useMemo(() => {
     if (!selectedWeek) return [] as EnrichedActivity[];
@@ -130,11 +103,11 @@ const ActivityOverviewPage: React.FC = () => {
     );
 
     return raw.filter((activity) => {
-      if (selectedDayName && activity.dayName !== selectedDayName) return false;
+      if (selectedDayNames.length > 0 && !selectedDayNames.includes(activity.dayName)) return false;
       if (!effectiveFilterLabelIds) return true;
       return activity.labels?.some((label) => effectiveFilterLabelIds.includes(label.id)) ?? false;
     });
-  }, [effectiveFilterLabelIds, selectedDayName, selectedWeek]);
+  }, [effectiveFilterLabelIds, selectedDayNames, selectedWeek]);
 
   const completionsByActivity = useMemo(() => {
     const map = new Map<number, SupportActivityCompletion[]>();
@@ -153,7 +126,7 @@ const ActivityOverviewPage: React.FC = () => {
         .filter((member) =>
           hasSupportRole(member) && member.labels?.some((label) => activityLabelIds.has(label.id))
         )
-        .filter((member) => !selectedSupportUserId || member.id === selectedSupportUserId);
+        .filter((member) => selectedUserIds.length === 0 || selectedUserIds.includes(member.id));
       const completedUserIds = new Set((completionsByActivity.get(activity.id) || []).map((completion) => completion.userId));
 
       return {
@@ -163,7 +136,7 @@ const ActivityOverviewPage: React.FC = () => {
         pendingSupports: assignedSupports.filter((member) => !completedUserIds.has(member.id)),
       };
     });
-  }, [activities, completionsByActivity, selectedSupportUserId, supportUsers]);
+  }, [activities, completionsByActivity, selectedUserIds, supportUsers]);
 
   const groupedByDay = useMemo(() => {
     return activitySummaries.reduce<Record<string, typeof activitySummaries>>((acc, item) => {
@@ -176,7 +149,20 @@ const ActivityOverviewPage: React.FC = () => {
 
   const totalAssigned = activitySummaries.reduce((sum, item) => sum + item.assignedSupports.length, 0);
   const totalCompleted = activitySummaries.reduce((sum, item) => sum + item.doneSupports.length, 0);
-  const hasActiveFilters = Boolean(selectedDayName || selectedSupportGroupId || selectedSupportUserId);
+  // The chip groups, each choice with how many of the week's activities it matches.
+  const filterGroups: FilterGroup[] = [
+    { key: 'day', label: 'Day', options: (selectedWeek?.days ?? []).map((day) => ({ value: day.dayName, label: day.dayName, count: day.activities.length })) },
+    {
+      key: 'tag',
+      label: 'Activity tag (support group)',
+      options: sortByText(supportGroups, (group) => group.name).map((group) => ({ value: group.id, label: group.name, count: allActivities.filter((a) => a.labels?.some((l) => l.id === group.id)).length })),
+    },
+    {
+      key: 'person',
+      label: 'Support person',
+      options: sortByText(filteredSupportUsers, (member) => member.name).map((member) => ({ value: member.id, label: member.name })),
+    },
+  ].filter((g) => g.options.length > 0);
 
   if (user?.role === 'SUPPORT') {
     return <Navigate to="/support" replace />;
@@ -207,49 +193,10 @@ const ActivityOverviewPage: React.FC = () => {
         />
 
         <div className="surface-card relative z-20 rounded-3xl border border-orange-100 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Filters</p>
-              <p className="mt-1 text-sm font-semibold text-gray-900">Shape the overview</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedDayName('');
-                setSelectedSupportGroupId('');
-                setSelectedSupportUserId('');
-              }}
-              disabled={!hasActiveFilters}
-              className="rounded-full border border-orange-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-orange-50 disabled:opacity-40"
-            >
-              Reset filters
-            </button>
-          </div>
-          <div className="mt-4 space-y-4">
-            <AppSelect
-              value={selectedDayName}
-              onChange={setSelectedDayName}
-              options={dayOptions}
-              placeholder="All days"
-              compact
-              label="Day"
-            />
-            <AppSelect
-              value={selectedSupportGroupId}
-              onChange={setSelectedSupportGroupId}
-              options={groupOptions}
-              placeholder="All activity tags"
-              compact
-              label="Support group"
-            />
-            <AppSelect
-              value={selectedSupportUserId}
-              onChange={setSelectedSupportUserId}
-              options={supportUserOptions}
-              placeholder="All support users"
-              compact
-              label="Support person"
-            />
+          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Filters</p>
+          <p className="mt-1 text-sm font-semibold text-gray-900">Shape the overview</p>
+          <div className="mt-4">
+            <FilterBar groups={filterGroups} value={filters} onChange={setFilters} shown={activities.length} total={allActivities.length} noun="activities" />
           </div>
         </div>
 
@@ -262,7 +209,7 @@ const ActivityOverviewPage: React.FC = () => {
             <MetricCard label="Activities" value={activities.length} />
             <MetricCard label="Completed" value={totalCompleted} />
             <MetricCard label="Pending" value={Math.max(totalAssigned - totalCompleted, 0)} />
-            <MetricCard label="Scope" value={selectedDayName || 'Week'} />
+            <MetricCard label="Scope" value={selectedDayNames.length === 1 ? selectedDayNames[0] : selectedDayNames.length > 1 ? `${selectedDayNames.length} days` : 'Week'} />
           </div>
         </div>
       </div>

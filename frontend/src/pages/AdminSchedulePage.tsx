@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import AppSelect from '../components/AppSelect';
+import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import LabelManagement from '../components/LabelManagement';
 import PageHeader from '../components/PageHeader';
 import ScheduleView from '../components/ScheduleView';
@@ -52,9 +52,11 @@ const AdminSchedulePage: React.FC = () => {
   const [showDayAddPicker, setShowDayAddPicker] = React.useState(false);
   const [crossWeekRequest, setCrossWeekRequest] = React.useState(0);
   const [supportGroups, setSupportGroups] = React.useState<Label[]>([]);
-  const [selectedSupportGroupId, setSelectedSupportGroupId] = React.useState('');
+  // Filter choices (see FilterBar): activity tag and support person; several of each at once.
+  const [filters, setFilters] = React.useState<FilterValues>({});
+  const selectedGroupIds = filters.tag ?? [];
+  const selectedUserIds = filters.person ?? [];
   const [supportUsers, setSupportUsers] = React.useState<User[]>([]);
-  const [selectedSupportUserId, setSelectedSupportUserId] = React.useState('');
 
   React.useEffect(() => {
     if (!isAdmin) return;
@@ -100,55 +102,36 @@ const AdminSchedulePage: React.FC = () => {
     await exportDayToPDF(selectedWeek, day, { includeEmptyDays: false });
   };
 
-  const groupOptions = [
-    { value: '', label: 'All activity tags', meta: 'Show every assigned activity' },
-    ...sortByText(supportGroups, (group) => group.name).map((group) => ({
-      value: group.id,
-      label: group.name,
-      meta: 'Activity tag filter',
-    })),
-  ];
-
+  // Support people who carry any of the chosen tags (all of them when no tag is chosen).
   const filteredSupportUsers = React.useMemo(() => {
-    const users = selectedSupportGroupId
-      ? supportUsers.filter((member) => member.labels?.some((label) => label.id === selectedSupportGroupId))
+    const users = selectedGroupIds.length > 0
+      ? supportUsers.filter((member) => member.labels?.some((label) => selectedGroupIds.includes(label.id)))
       : supportUsers;
     return sortByText(users, (member) => member.name);
-  }, [selectedSupportGroupId, supportUsers]);
+  }, [selectedGroupIds, supportUsers]);
 
+  // A chosen person who no longer carries a chosen tag is dropped, so no hidden filter stays on.
   React.useEffect(() => {
-    if (selectedSupportUserId && !filteredSupportUsers.some((member) => member.id === selectedSupportUserId)) {
-      setSelectedSupportUserId('');
-    }
-  }, [filteredSupportUsers, selectedSupportUserId]);
+    const kept = selectedUserIds.filter((id) => filteredSupportUsers.some((member) => member.id === id));
+    if (kept.length !== selectedUserIds.length) setFilters((prev) => ({ ...prev, person: kept }));
+  }, [filteredSupportUsers, selectedUserIds]);
 
-  const supportUserOptions = [
-    { value: '', label: 'All support users', meta: 'Show the full support team' },
-    ...sortByText(filteredSupportUsers, (member) => member.name).map((member) => ({
-      value: member.id,
-      label: member.name,
-      meta: member.labels?.map((label) => label.name).join(' • ') || 'No activity tags yet',
-    })),
-  ];
-
-  const selectedSupportUser = supportUsers.find((member) => member.id === selectedSupportUserId) || null;
+  // Tags an activity must carry (any of): the chosen tags, narrowed to the chosen people's tags when both are chosen.
   const effectiveFilterLabelIds = React.useMemo(() => {
-    const userGroupIds = selectedSupportUser?.labels?.map((label) => label.id) || [];
-
-    if (selectedSupportUserId && selectedSupportGroupId) {
-      return userGroupIds.includes(selectedSupportGroupId) ? [selectedSupportGroupId] : [];
-    }
-
-    if (selectedSupportUserId) {
-      return userGroupIds;
-    }
-
-    if (selectedSupportGroupId) {
-      return [selectedSupportGroupId];
-    }
-
+    const userLabelIds = new Set(supportUsers.filter((member) => selectedUserIds.includes(member.id)).flatMap((member) => member.labels?.map((label) => label.id) ?? []));
+    if (selectedUserIds.length > 0 && selectedGroupIds.length > 0) return selectedGroupIds.filter((id) => userLabelIds.has(id));
+    if (selectedUserIds.length > 0) return [...userLabelIds];
+    if (selectedGroupIds.length > 0) return selectedGroupIds;
     return undefined;
-  }, [selectedSupportGroupId, selectedSupportUser, selectedSupportUserId]);
+  }, [selectedGroupIds, selectedUserIds, supportUsers]);
+
+  // How many of the week's activities the filters leave, and the chips with counts.
+  const weekActivities = React.useMemo(() => (selectedWeek?.days ?? []).flatMap((day) => day.activities), [selectedWeek]);
+  const shownActivities = effectiveFilterLabelIds ? weekActivities.filter((a) => a.labels?.some((l) => effectiveFilterLabelIds.includes(l.id))).length : weekActivities.length;
+  const filterGroups: FilterGroup[] = [
+    { key: 'tag', label: 'Activity tag', options: supportGroups.map((group) => ({ value: group.id, label: group.name, count: weekActivities.filter((a) => a.labels?.some((l) => l.id === group.id)).length })) },
+    { key: 'person', label: 'Support person', options: filteredSupportUsers.map((member) => ({ value: member.id, label: member.name })) },
+  ].filter((g) => g.options.length > 0);
 
   const headerAction = canManageSchedule ? (
     <div className="flex flex-wrap items-center justify-end gap-2">
@@ -224,25 +207,9 @@ const AdminSchedulePage: React.FC = () => {
           <div data-wt="sched-filters" className="surface-card relative z-20 rounded-3xl border border-gray-100 p-4">
             <p className="text-sm font-semibold uppercase tracking-[0.12em] text-gray-500">Activity tags</p>
             <p className="mt-1 text-sm font-semibold text-gray-900">Filter assignments fast</p>
-            <p className="mt-1 text-xs text-gray-500">Show only activities with this tag.</p>
+            <p className="mt-1 text-xs text-gray-500">Show only activities with these tags, or for these people.</p>
             <div className="mt-4">
-              <AppSelect
-                value={selectedSupportGroupId}
-                onChange={setSelectedSupportGroupId}
-                options={groupOptions}
-                placeholder="All activity tags"
-                compact
-              />
-            </div>
-            <div className="mt-4">
-              <AppSelect
-                value={selectedSupportUserId}
-                onChange={setSelectedSupportUserId}
-                options={supportUserOptions}
-                placeholder="All support users"
-                compact
-                label="Support person"
-              />
+              <FilterBar groups={filterGroups} value={filters} onChange={setFilters} shown={shownActivities} total={weekActivities.length} noun="activities" />
             </div>
           </div>
         )}

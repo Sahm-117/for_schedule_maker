@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import SegmentedTabs from '../components/SegmentedTabs';
 import AppSelect from '../components/AppSelect';
+import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import Spinner from '../components/Spinner';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
@@ -46,7 +47,8 @@ const AdminBirthdaysPage: React.FC = () => {
   const { activeCohort, cohorts } = useAppData();
   const [cohortId, setCohortId] = useState<string>('');
   const [search, setSearch] = useState('');
-  const [month, setMonth] = useState('');
+  // Filter choices (see FilterBar): birthday month and how soon; several of each at once.
+  const [filters, setFilters] = useState<FilterValues>({});
   const [tab, setTab] = useState<'supports' | 'participants'>('supports');
   const [data, setData] = useState<BirthdayList | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,14 +75,18 @@ const AdminBirthdaysPage: React.FC = () => {
     [cohorts],
   );
 
-  const monthOptions = [{ value: '', label: 'Any month' }, ...MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))];
 
   if (user?.role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
 
   const all = data ? (tab === 'supports' ? data.supports : data.participants) : [];
   const needle = search.trim().toLowerCase();
-  const list = all.filter((p) => (!needle || p.name.toLowerCase().includes(needle)) && (!month || p.month === Number(month)));
-  const filtering = !!needle || !!month;
+  const fits = (key: string, choice: string, p: (typeof all)[number]) => (key === 'month' ? p.month === Number(choice) : GROUPS.find((g) => g.label === choice)?.test(p.daysUntil) ?? false);
+  const list = all.filter((p) => (!needle || p.name.toLowerCase().includes(needle)) && Object.entries(filters).every(([key, choices]) => choices.length === 0 || choices.some((c) => fits(key, c, p))));
+  const filtering = !!needle || Object.values(filters).some((c) => c.length > 0);
+  const filterGroups: FilterGroup[] = [
+    { key: 'when', label: 'How soon', options: GROUPS.map((g) => ({ value: g.label, label: g.label, count: all.filter((p) => fits('when', g.label, p)).length })) },
+    { key: 'month', label: 'Month', options: MONTHS.map((m, i) => ({ value: String(i + 1), label: m, count: all.filter((p) => fits('month', String(i + 1), p)).length })) },
+  ];
   const missing = data ? (tab === 'supports' ? data.missing.supports : data.missing.participants) : 0;
   const todayMonth = data ? Number(data.today.slice(5, 7)) : 0;
 
@@ -101,17 +107,27 @@ const AdminBirthdaysPage: React.FC = () => {
           <AppSelect value={cohortId} onChange={setCohortId} options={cohortOptions} placeholder="All cohorts" compact />
         </div>
       </div>
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={`Search ${tab === 'supports' ? 'supports' : 'participants'} by name`}
-          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:flex-1"
+      <div className="mb-4">
+        <FilterBar
+          groups={filterGroups}
+          value={filters}
+          onChange={setFilters}
+          search={
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={`Search ${tab === 'supports' ? 'supports' : 'participants'} by name`}
+              aria-label="Search by name"
+              className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-[11px] text-sm shadow-[0_2px_10px_-4px_rgba(17,24,39,0.08)] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          }
+          searching={!!needle}
+          onClear={() => setSearch('')}
+          shown={list.length}
+          total={all.length}
+          noun={tab === 'supports' ? 'supports' : 'participants'}
         />
-        <div className="sm:w-56">
-          <AppSelect value={month} onChange={setMonth} options={monthOptions} placeholder="Any month" compact />
-        </div>
       </div>
 
       {loading ? (

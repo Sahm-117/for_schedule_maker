@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
-import AppSelect from '../components/AppSelect';
+import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import { formatMeetingSlot } from '../components/GroupMeetingSlotEditor';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
@@ -29,7 +29,8 @@ const AdminGroupPrayersContent: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [focuses, setFocuses] = useState<GroupPrayerFocus[]>([]);
   const [statuses, setStatuses] = useState<GroupPrayerStatus[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState('');
+  // Filter choices (see FilterBar): groups, several at once, and each group's support.
+  const [filters, setFilters] = useState<FilterValues>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [attendance, setAttendance] = useState<MeetingAttendance[]>([]);
   const [markTarget, setMarkTarget] = useState<{ group: Group; week: Week } | null>(null);
@@ -85,8 +86,8 @@ const AdminGroupPrayersContent: React.FC = () => {
   const joinedCount = (groupId: string, weekId: number) => joinedMap.get(`${groupId}:${weekId}`) ?? 0;
 
   const visibleGroups = useMemo(
-    () => sortByText(selectedGroupId ? groups.filter((g) => g.id === selectedGroupId) : groups, (group) => group.name),
-    [groups, selectedGroupId]
+    () => sortByText(groups.filter((g) => Object.entries(filters).every(([key, choices]) => choices.length === 0 || choices.some((c) => (key === 'group' ? g.id === c : g.supportId === c)))), (group) => group.name),
+    [groups, filters]
   );
 
   // Trend: per week, count of groups marked done out of all groups
@@ -100,10 +101,20 @@ const AdminGroupPrayersContent: React.FC = () => {
     [cohortWeeks, groups, isDone]
   );
 
-  const groupOptions = useMemo(
-    () => [{ value: '', label: 'All groups' }, ...sortByText(groups, (group) => group.name).map((g) => ({ value: g.id, label: g.name }))],
-    [groups]
-  );
+  const filterGroups = useMemo<FilterGroup[]>(() => {
+    const sorted = sortByText(groups, (group) => group.name);
+    const supports = new Map<string, string>();
+    groups.forEach((g) => { if (g.supportId && g.supportName) supports.set(g.supportId, g.supportName); });
+    const out: FilterGroup[] = [{ key: 'group', label: 'Group', options: sorted.map((g) => ({ value: g.id, label: g.name })) }];
+    if (supports.size > 1) {
+      out.push({
+        key: 'support',
+        label: 'Support',
+        options: [...supports.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ value: id, label: name, count: groups.filter((g) => g.supportId === id).length })),
+      });
+    }
+    return out;
+  }, [groups]);
 
   return (
     <div className="page-content">
@@ -147,16 +158,8 @@ const AdminGroupPrayersContent: React.FC = () => {
             </div>
           </div>
 
-          {/* Group filter */}
-          <div className="max-w-xs">
-            <AppSelect
-              label="Filter by group"
-              value={selectedGroupId}
-              onChange={setSelectedGroupId}
-              options={groupOptions}
-              placeholder="All groups"
-            />
-          </div>
+          {/* Filters */}
+          <FilterBar groups={filterGroups} value={filters} onChange={setFilters} shown={visibleGroups.length} total={groups.length} noun="groups" />
 
           {/* Phones: one card per group, a row per week. From tablet size up, the grid below. */}
           <ul className="divide-y divide-gray-100 overflow-hidden rounded-[22px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-14px_rgba(17,24,39,0.18)] md:hidden">
