@@ -587,6 +587,7 @@ const AdminSupportsPage: React.FC = () => {
 // Per-group onboarding roll-up: every member past each step.
 interface StageSummary {
   introPosted: boolean;
+  venueMapAcknowledged: boolean;
   introGuideRead: boolean;
   profileComplete: boolean;
   readyConfirmed: boolean;
@@ -594,18 +595,19 @@ interface StageSummary {
 
 const summarizeStages = (statuses: OnboardingProgressParticipant[]): StageSummary => ({
   introPosted: statuses.length > 0 && statuses.every((s) => s.completed || s.introPosted),
+  venueMapAcknowledged: statuses.length > 0 && statuses.every((s) => s.completed || s.venueMapAcknowledged),
   introGuideRead: statuses.length > 0 && statuses.every((s) => s.completed || s.introGuideRead),
   profileComplete: statuses.length > 0 && statuses.every((s) => s.completed || s.profileComplete),
   readyConfirmed: statuses.length > 0 && statuses.every((s) => s.completed || s.readyConfirmed),
 });
 
-// Four-segment onboarding bar + short label. Falls back to the sentence when
+// Five-segment onboarding bar + short label. Falls back to the sentence when
 // stage data is missing.
 const OnboardingBar: React.FC<{ stages: StageSummary | null; fallback: string; late: boolean }> = ({ stages, fallback, late }) => {
   if (!stages) return <span>{fallback}</span>;
-  const steps = [stages.introPosted, stages.introGuideRead, stages.profileComplete, stages.readyConfirmed];
+  const steps = [stages.introPosted, stages.venueMapAcknowledged, stages.introGuideRead, stages.profileComplete, stages.readyConfirmed];
   const done = steps.filter(Boolean).length;
-  const all = done === 4;
+  const all = done === steps.length;
   return (
     <span className="flex min-w-0 flex-1 items-center gap-2">
       <span className="flex min-w-0 flex-1 gap-1" aria-hidden="true">
@@ -614,7 +616,7 @@ const OnboardingBar: React.FC<{ stages: StageSummary | null; fallback: string; l
         ))}
       </span>
       <span className={`flex-none text-[11px] font-semibold ${all ? 'text-emerald-700' : late ? 'text-red-600' : 'text-gray-500'}`}>
-        {all ? 'Onboarded' : done === 0 ? 'Not started' : `${done}/4`}
+        {all ? 'Onboarded' : done === 0 ? 'Not started' : `${done}/${steps.length}`}
       </span>
     </span>
   );

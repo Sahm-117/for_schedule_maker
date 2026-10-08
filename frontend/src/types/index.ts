@@ -1565,7 +1565,7 @@ export interface DiscussionFeed {
   openReports: Array<{ postId: string; count: number; reasons: DiscussionReportReason[] }>;
 }
 
-/** Where one participant stands on the four onboarding steps (participant_onboarding_state). */
+/** Where one participant stands on the five onboarding steps (participant_onboarding_state). */
 export interface OnboardingState {
   introPosted: boolean;
   supportIntroPosted: boolean;

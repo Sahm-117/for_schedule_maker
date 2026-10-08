@@ -18,7 +18,7 @@ absent people keep it after the cohort starts. People already ready or completed
 ## Decisions and why
 - Saved in the database, not the browser, so it survives a new phone.
 - "Attended" = PRESENT, LATE or LEFT_EARLY. Excused or absent does not retire the list.
-- Staff onboarding pills are unchanged: the map is part of the Ready step.
+- Staff onboarding views show a "Map" pill (Support Onboarding, Group People overview) and the Supports roll-up bar has five segments.
 
 ## How it was tested
 Playwright with mocked backend: absent person after start still sees the list, Ready locked until the tick,
@@ -28,7 +28,7 @@ ack call made, 3 of 4 becomes 4 of 4, attended person sees no list. State functi
 ## Open items
 - `push-reminders` source now mentions the map and skips people who attended, but is NOT deployed yet; until it is, the 7pm reminder can say "confirm you're ready" while the map is the missing step.
 - Mid-programme, anyone with no qualifying attendance (late joiners, excused) sees the list, by design.
-- Staff Onboarding page does not show the map tick separately.
+- Staff pill/bar change built and compiled but not exercised in a browser.
 - Participants with the list hidden have no permanent link back to the map.
 
 ## Gotchas

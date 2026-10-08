@@ -365,7 +365,7 @@ const AdminParticipantProfilePage: React.FC = () => {
       {/* Onboarding */}
       <section data-wt="pp-onboarding" className={CARD}>
         <h2 className="text-lg font-semibold text-gray-900">Onboarding</h2>
-        <p className="text-sm text-gray-500">The four steps the participant does themselves.</p>
+        <p className="text-sm text-gray-500">The five steps the participant does themselves.</p>
         <div className="mt-3">
           {data.onboarding ? <OnboardingStepPills state={data.onboarding} /> : <p className="text-sm text-gray-500">No onboarding progress for this participant.</p>}
         </div>

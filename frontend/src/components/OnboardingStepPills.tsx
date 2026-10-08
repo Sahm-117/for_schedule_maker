@@ -1,11 +1,12 @@
 import React from 'react';
 import type { OnboardingState } from '../types';
 
-type StepKey = 'introPosted' | 'introGuideRead' | 'profileComplete' | 'readyConfirmed';
+type StepKey = 'introPosted' | 'venueMapAcknowledged' | 'introGuideRead' | 'profileComplete' | 'readyConfirmed';
 
-// The four steps a participant does themselves; staff only watch.
+// The five steps a participant does themselves; staff only watch.
 export const PROGRESS_STEPS: Array<{ key: StepKey; label: string }> = [
   { key: 'introPosted', label: 'Intro' },
+  { key: 'venueMapAcknowledged', label: 'Map' },
   { key: 'introGuideRead', label: 'Guide' },
   { key: 'profileComplete', label: 'Profile' },
   { key: 'readyConfirmed', label: 'Ready' },
@@ -20,7 +21,7 @@ export const StepPill: React.FC<{ label: string; done: boolean }> = ({ label, do
   </span>
 );
 
-/** Four step pills, plus an "Onboarded" pill when all are done. */
+/** Step pills, plus an "Onboarded" pill when all are done. */
 const OnboardingStepPills: React.FC<{ state: Pick<OnboardingState, StepKey | 'completed'> }> = ({ state }) => (
   <div className="flex flex-wrap items-center gap-1.5">
     {PROGRESS_STEPS.map((step) => <StepPill key={step.key} label={step.label} done={state[step.key]} />)}
