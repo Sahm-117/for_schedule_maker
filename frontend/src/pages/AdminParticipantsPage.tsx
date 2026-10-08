@@ -17,10 +17,12 @@ import RetakingChip, { RetakeMarkModal } from '../components/participants/Retaki
 import ModalShell from '../components/followups/ModalShell';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
+import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import AppMultiSelect from '../components/AppMultiSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useToast } from '../components/Toast';
-import { REGISTRATION_STATUS_META } from '../utils/followUps';
+import { REGISTRATION_STATUS_META, TEEN_STATUSES } from '../utils/followUps';
+import { normaliseAgeRange, normaliseGender } from '../utils/groupingRules';
 import ParticipantsExportPopup from '../components/participants/ParticipantsExportPopup';
 import {
   parseBulkPaste,
@@ -32,7 +34,6 @@ import {
 } from '../utils/contactImport';
 import Spinner from '../components/Spinner';
 import { sortByText } from '../utils/sort';
-import { AGE_FILTER_OPTIONS, GENDER_FILTER_OPTIONS, matchesGenderAge } from '../utils/people';
 import { reconcileById } from '../utils/reconcile';
 import { normalizeToIntlPhone } from '../utils/phone';
 import { AGE_RANGE_OPTIONS, GENDER_OPTIONS, toSelectOptions } from '../constants/departments';
@@ -762,12 +763,12 @@ const AdminParticipantsContent: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState('');
-  const [groupFilter, setGroupFilter] = useState(''); // '' = all, '__UNASSIGNED__' = no group, else groupId
-  const [genderFilter, setGenderFilter] = useState('');
-  const [ageFilter, setAgeFilter] = useState('');
-  // Sign-up status from the follow-up contact ('' = all, '__NONE__' = added by hand or imported).
-  const [signUpFilter, setSignUpFilter] = useState('');
-  const [supportFilter, setSupportFilter] = useState(''); // '' = all, else supportId
+  // Every filter takes several choices at once (see FilterBar). Keys: people (adult / teen), login, signup
+  // ('__NONE__' = added by hand or imported), group ('__UNASSIGNED__' = no group), support, gender, age,
+  // alerts, profile, wants.
+  const [filters, setFilters] = useState<FilterValues>({});
+  // Who has chosen their own password (the real sign-in), for the Logged in filter. Null until it loads.
+  const [signedInIds, setSignedInIds] = useState<Set<string> | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   // A participant just added here: show their login details straight away.
   const [loginFor, setLoginFor] = useState<Participant | null>(null);
@@ -780,33 +781,34 @@ const AdminParticipantsContent: React.FC = () => {
   const toast = useToast();
   const navigate = useNavigate();
   const [flags, setFlags] = useState<ParticipantFlag[]>([]);
-  const [flaggedOnly, setFlaggedOnly] = useState(false);
   // Status by the programme rules (On track / Keep an eye on / Needs attention).
   const [people, setPeople] = useState<PeopleSummary | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const healthParam = searchParams.get('health');
-  const healthFilter: PersonHealth | '' = healthParam === 'critical' || healthParam === 'warning' || healthParam === 'good' ? healthParam : '';
+  // The dashboard links here with ?health=…; it becomes a filter chip and leaves the address.
+  useEffect(() => {
+    const health = searchParams.get('health');
+    if (health !== 'critical' && health !== 'warning' && health !== 'good') return;
+    setFilters((prev) => ({ ...prev, alerts: [...new Set([...(prev.alerts ?? []), health])] }));
+    const params = new URLSearchParams(searchParams);
+    params.delete('health');
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
   const [assigning, setAssigning] = useState<Participant | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [requestInfoOpen, setRequestInfoOpen] = useState(false);
   // Profile completion (%) per participant, and the "Incomplete profiles" filter.
   const [completionById, setCompletionById] = useState<Map<string, import('../types').ProfileCompletion>>(new Map());
-  const [incompleteOnly, setIncompleteOnly] = useState(false);
   // participantIds with an active app login but no saved push subscription —
   // "No alerts" tag + filter. Empty (not an error) until the
   // participants_without_push migration is applied.
   const [noAlertsIds, setNoAlertsIds] = useState<Set<string>>(new Set());
   const [notInstalledIds, setNotInstalledIds] = useState<Set<string>>(new Set());
   const [appDetails, setAppDetails] = useState<Record<string, ParticipantAppInfo>>({});
-  const [noAlertsOnly, setNoAlertsOnly] = useState(false);
-  // noAlertsIds spans every cohort; the count shows only this cohort's active participants.
-  const noAlertsCount = counted.filter((p) => p.status === 'ACTIVE' && noAlertsIds.has(p.id)).length;
   // Departments each participant wants to join, for the "Wants to join" filter
   // (and the Export, which uses the same filtered list): their own answer in
   // the app plus any department a support/admin logged for them (the
   // department handoff), leaving out ones marked "didn't join".
   const [wrapUpDeptById, setWrapUpDeptById] = useState<Map<string, Set<string>>>(new Map());
-  const [departmentFilter, setDepartmentFilter] = useState('');
 
   // `silent` background refreshes (realtime liveRevision bumps) update data in
   // place without the full-page "Loading…" flash.
@@ -815,6 +817,7 @@ const AdminParticipantsContent: React.FC = () => {
     if (!silent) setLoading(true);
     try {
       profileFieldsApi.getCohortCompletion(activeCohort.id).then(setCompletionById).catch(() => { /* column stays empty */ });
+      participantPushApi.getSignedInIds(activeCohort.id).then((ids) => setSignedInIds(new Set(ids))).catch(() => { /* the Logged in filter is simply not offered */ });
       participantsApi.getRetakeMatches(activeCohort.id).then(setRetakeMatches).catch(() => { /* no chips */ });
       const [{ participants: ps }, { groups: gs }, { flags: fs }, health, peopleData, rules, unreachableIds, wrapUpDepts] = await Promise.all([
         participantsApi.getAll({ cohortId: activeCohort.id, includeArchived: true }),
@@ -868,15 +871,6 @@ const AdminParticipantsContent: React.FC = () => {
     void load(true);
   }, [liveRevision, load]);
 
-  const groupOptions = useMemo(
-    () => [
-      { value: '', label: 'All groups' },
-      { value: '__UNASSIGNED__', label: 'Unassigned' },
-      ...[...groups].sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name)).map((g) => ({ value: g.id, label: g.name })),
-    ],
-    [groups]
-  );
-
   // Map each group to its assigned support person's name (groups already carry
   // supportName), so we can show the support for each participant via groupId.
   const supportByGroupId = useMemo(() => {
@@ -885,30 +879,12 @@ const AdminParticipantsContent: React.FC = () => {
     return map;
   }, [groups]);
 
-  // Unique support users derived from groups (only those with an assigned support).
-  const supportOptions = useMemo(() => {
-    const seen = new Map<string, string>(); // supportId → name
-    groups.forEach((g) => { if (g.supportId && g.supportName) seen.set(g.supportId, g.supportName); });
-    const sorted = [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-    return [{ value: '', label: 'All support' }, ...sorted.map(([id, name]) => ({ value: id, label: name }))];
-  }, [groups]);
-
-  // groupIds that belong to the selected support person — used to filter participants.
-  const groupIdsForSupport = useMemo(() => {
-    if (!supportFilter) return null;
-    return new Set(groups.filter((g) => g.supportId === supportFilter).map((g) => g.id));
-  }, [groups, supportFilter]);
-
   // Open concerns raised by supports, keyed by participant.
   const flagsByParticipant = useMemo(() => {
     const map = new Map<string, ParticipantFlag[]>();
     flags.forEach((flag) => map.set(flag.participantId, [...(map.get(flag.participantId) ?? []), flag]));
     return map;
   }, [flags]);
-  const flaggedCount = useMemo(
-    () => counted.filter((p) => p.status === 'ACTIVE' && flagsByParticipant.has(p.id)).length,
-    [counted, flagsByParticipant]
-  );
 
   const healthById = useMemo(() => {
     const map = new Map<string, { health: PersonHealth; detail: string }>();
@@ -919,17 +895,6 @@ const AdminParticipantsContent: React.FC = () => {
     }));
     return map;
   }, [people]);
-  const healthCounts = useMemo(() => {
-    const counts = { critical: 0, warning: 0, good: 0 };
-    healthById.forEach((value) => { counts[value.health] += 1; });
-    return counts;
-  }, [healthById]);
-  const setHealthFilter = (value: string) => {
-    const params = new URLSearchParams(searchParams);
-    if (value) params.set('health', value); else params.delete('health');
-    setSearchParams(params, { replace: true });
-  };
-
   // Departments named in "Wants to join", with how many active participants
   // named each one.
   const departmentCounts = useMemo(() => {
@@ -940,76 +905,138 @@ const AdminParticipantsContent: React.FC = () => {
     });
     return counts;
   }, [counted, wrapUpDeptById]);
-  const departmentFilterOptions = useMemo(
-    () => [
-      { value: '', label: 'Wants to join: any' },
-      ...[...departmentCounts.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([name, count]) => ({ value: name, label: `${name} (${count})` })),
-    ],
-    [departmentCounts]
-  );
+  // A teen by age range, by being on the teen path, or by being in a teen group. Teens get no login.
+  const teenGroupIds = useMemo(() => new Set(groups.filter((g) => g.isTeenGroup).map((g) => g.id)), [groups]);
+  const isTeen = useCallback((p: Participant) =>
+    normaliseAgeRange(p.ageRange) === '18 and below'
+    || (!!p.followUpStatus && (TEEN_STATUSES as string[]).includes(p.followUpStatus))
+    || (!!p.groupId && teenGroupIds.has(p.groupId)), [teenGroupIds]);
+
+  const supportGroups = useMemo(() => {
+    const map = new Map<string, { name: string; groupIds: Set<string> }>();
+    groups.forEach((g) => {
+      if (!g.supportId || !g.supportName) return;
+      const entry = map.get(g.supportId) ?? { name: g.supportName, groupIds: new Set<string>() };
+      entry.groupIds.add(g.id);
+      map.set(g.supportId, entry);
+    });
+    return map;
+  }, [groups]);
+
+  // Does this person fit one chosen choice of one filter group?
+  const fits = useCallback((group: string, choice: string, p: Participant): boolean => {
+    switch (group) {
+      case 'people': return choice === 'teen' ? isTeen(p) : !isTeen(p);
+      case 'login': return !isTeen(p) && !!signedInIds && (choice === 'in' ? signedInIds.has(p.id) : !signedInIds.has(p.id));
+      case 'signup': return choice === '__NONE__' ? !p.followUpStatus : p.followUpStatus === choice;
+      case 'group': return choice === '__UNASSIGNED__' ? !p.groupId : p.groupId === choice;
+      case 'support': return !!p.groupId && !!supportGroups.get(choice)?.groupIds.has(p.groupId);
+      case 'gender': return normaliseGender(p.gender) === choice;
+      case 'age': return choice === '__unknown' ? normaliseAgeRange(p.ageRange) === null : normaliseAgeRange(p.ageRange) === choice;
+      case 'alerts':
+        if (choice === 'concerns') return flagsByParticipant.has(p.id);
+        if (choice === 'noalerts') return noAlertsIds.has(p.id);
+        return healthById.get(p.id)?.health === choice;
+      case 'profile': return choice === 'incomplete' ? (completionById.get(p.id)?.percent ?? 0) < 100 : (completionById.get(p.id)?.percent ?? 0) >= 100;
+      case 'wants': return !!wrapUpDeptById.get(p.id)?.has(choice);
+      default: return true;
+    }
+  }, [isTeen, signedInIds, supportGroups, flagsByParticipant, noAlertsIds, healthById, completionById, wrapUpDeptById]);
 
   const displayed = useMemo(() => {
     let ps = showArchived
       ? participants.filter((p) => p.status === 'ARCHIVED')
       : participants.filter((p) => p.status === 'ACTIVE');
-    if (groupIdsForSupport) {
-      ps = ps.filter((p) => p.groupId && groupIdsForSupport.has(p.groupId));
-    } else if (groupFilter === '__UNASSIGNED__') {
-      ps = ps.filter((p) => !p.groupId);
-    } else if (groupFilter) {
-      ps = ps.filter((p) => p.groupId === groupFilter);
-    }
-    if (flaggedOnly) ps = ps.filter((p) => flagsByParticipant.has(p.id));
-    if (incompleteOnly) ps = ps.filter((p) => (completionById.get(p.id)?.percent ?? 0) < 100);
-    if (healthFilter && healthById.size > 0) ps = ps.filter((p) => healthById.get(p.id)?.health === healthFilter);
-    if (noAlertsOnly) ps = ps.filter((p) => noAlertsIds.has(p.id));
-    if (departmentFilter) ps = ps.filter((p) => wrapUpDeptById.get(p.id)?.has(departmentFilter));
-    if (genderFilter || ageFilter) ps = ps.filter((p) => matchesGenderAge(p, genderFilter, ageFilter));
-    if (signUpFilter) ps = ps.filter((p) => (signUpFilter === '__NONE__' ? !p.followUpStatus : p.followUpStatus === signUpFilter));
+    // Within a group any chosen choice matches; every group that has a choice must match.
+    const active = Object.entries(filters).filter(([, choices]) => choices.length > 0);
+    if (active.length > 0) ps = ps.filter((p) => active.every(([group, choices]) => choices.some((choice) => fits(group, choice, p))));
     if (search.trim()) {
       const q = search.toLowerCase();
       ps = ps.filter((p) => p.fullName.toLowerCase().includes(q) || (p.phone ?? '').includes(q));
     }
     return sortByText(ps, (participant) => participant.fullName);
-  }, [participants, showArchived, search, groupFilter, groupIdsForSupport, flaggedOnly, flagsByParticipant, healthFilter, healthById, incompleteOnly, completionById, noAlertsOnly, noAlertsIds, departmentFilter, genderFilter, ageFilter, signUpFilter, wrapUpDeptById]);
+  }, [participants, showArchived, search, filters, fits]);
+
+  // The chip groups, each choice with how many people it matches among those on show (active or archived).
+  const filterGroups = useMemo<FilterGroup[]>(() => {
+    const base = counted.filter((p) => p.status === (showArchived ? 'ARCHIVED' : 'ACTIVE'));
+    const count = (group: string, choice: string) => base.filter((p) => fits(group, choice, p)).length;
+    const opt = (group: string, value: string, label: string) => ({ value, label, count: count(group, value) });
+
+    const signUpCounts = new Map<string, number>();
+    base.forEach((p) => { const key = p.followUpStatus ?? '__NONE__'; signUpCounts.set(key, (signUpCounts.get(key) ?? 0) + 1); });
+    const signUpLabel = (key: string) => key === '__NONE__' ? 'No sign-up record' : REGISTRATION_STATUS_META[key as keyof typeof REGISTRATION_STATUS_META]?.label ?? key;
+
+    const out: FilterGroup[] = [
+      { key: 'people', label: 'Adults or teens', options: [opt('people', 'adult', 'Adults'), opt('people', 'teen', 'Teens')] },
+    ];
+    if (signedInIds) {
+      out.push({
+        key: 'login',
+        label: 'App login',
+        hint: 'Adults only. Teens get no login, so they are onboarded by their Teen Support.',
+        options: [opt('login', 'in', 'Logged in (chose a password)'), opt('login', 'out', 'Not signed in yet')],
+      });
+    }
+    out.push({
+      key: 'signup',
+      label: 'Sign-up status',
+      hint: 'The follow-up status. A hand-set "Access Confirmed" is not the same as logged in.',
+      options: [...signUpCounts.keys()].sort((a, b) => signUpLabel(a).localeCompare(signUpLabel(b))).map((key) => ({ value: key, label: signUpLabel(key), count: signUpCounts.get(key) ?? 0 })),
+    });
+    out.push({
+      key: 'group',
+      label: 'Group',
+      options: [
+        opt('group', '__UNASSIGNED__', 'Not in a group'),
+        ...[...groups].sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name)).map((g) => opt('group', g.id, g.name)),
+      ],
+    });
+    if (supportGroups.size > 1) {
+      out.push({
+        key: 'support',
+        label: 'Support',
+        options: [...supportGroups.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name)).map(([id, v]) => opt('support', id, v.name)),
+      });
+    }
+    out.push({ key: 'gender', label: 'Gender', options: [opt('gender', 'Male', 'Male'), opt('gender', 'Female', 'Female')] });
+    out.push({ key: 'age', label: 'Age', options: [...AGE_RANGE_OPTIONS.map((range) => opt('age', range, range)), opt('age', '__unknown', 'Age not known')] });
+
+    const alerts: FilterGroup['options'] = [];
+    if (healthById.size > 0) alerts.push(opt('alerts', 'critical', PERSON_HEALTH_LABEL.critical), opt('alerts', 'warning', PERSON_HEALTH_LABEL.warning), opt('alerts', 'good', PERSON_HEALTH_LABEL.good));
+    if (flagsByParticipant.size > 0) alerts.push(opt('alerts', 'concerns', 'Concerns raised'));
+    if (noAlertsIds.size > 0) alerts.push(opt('alerts', 'noalerts', 'No alerts (push off)'));
+    if (alerts.length > 0) out.push({ key: 'alerts', label: 'Status and alerts', options: alerts });
+    if (completionById.size > 0) out.push({ key: 'profile', label: 'Profile', options: [opt('profile', 'incomplete', 'Incomplete'), opt('profile', 'complete', 'Complete')] });
+    if (departmentCounts.size > 0) {
+      out.push({ key: 'wants', label: 'Wants to join', options: [...departmentCounts.keys()].sort((a, b) => a.localeCompare(b)).map((name) => opt('wants', name, name)) });
+    }
+    return out.filter((g) => g.options.length > 0);
+  }, [counted, showArchived, fits, signedInIds, groups, supportGroups, healthById, flagsByParticipant, noAlertsIds, completionById, departmentCounts]);
+
+  // Archived and active people are different lists; a choice nobody here has is dropped, so no hidden filter stays on.
+  useEffect(() => {
+    setFilters((prev) => {
+      let changed = false;
+      const next: FilterValues = {};
+      Object.entries(prev).forEach(([key, choices]) => {
+        const offered = filterGroups.find((g) => g.key === key)?.options.map((o) => o.value);
+        const kept = offered ? choices.filter((c) => offered.includes(c)) : [];
+        if (kept.length !== choices.length) changed = true;
+        if (kept.length > 0) next[key] = kept;
+      });
+      return changed ? next : prev;
+    });
+  }, [filterGroups]);
 
   // Names what is filtered on screen, so the WhatsApp export says which people it holds.
   const exportSubtitle = useMemo(() => {
     const out: string[] = [];
     if (showArchived) out.push('Archived');
-    if (groupFilter === '__UNASSIGNED__') out.push('Not in a group');
-    else if (groupFilter) out.push(groups.find((g) => g.id === groupFilter)?.name ?? 'One group');
-    if (supportFilter) out.push(`Support: ${supportOptions.find((o) => o.value === supportFilter)?.label ?? 'one support'}`);
-    if (genderFilter) out.push(genderFilter);
-    if (ageFilter) out.push(`Age ${ageFilter}`);
-    if (signUpFilter) out.push(signUpFilter === '__NONE__' ? 'No sign-up record' : `Sign-up: ${REGISTRATION_STATUS_META[signUpFilter as keyof typeof REGISTRATION_STATUS_META]?.label ?? signUpFilter}`);
-    if (flaggedOnly) out.push('Flagged');
-    if (incompleteOnly) out.push('Profile incomplete');
-    if (healthFilter) out.push(PERSON_HEALTH_LABEL[healthFilter]);
-    if (noAlertsOnly) out.push('No alerts');
-    if (departmentFilter) out.push(`Wants to join ${departmentFilter}`);
+    filterGroups.forEach((g) => (filters[g.key] ?? []).forEach((v) => out.push(g.options.find((o) => o.value === v)?.label ?? v)));
     if (search.trim()) out.push(`Search "${search.trim()}"`);
     return out.length ? `Filter: ${out.join(' · ')}` : undefined;
-  }, [showArchived, groupFilter, groups, supportFilter, supportOptions, genderFilter, ageFilter, signUpFilter, flaggedOnly, incompleteOnly, healthFilter, noAlertsOnly, departmentFilter, search]);
-
-  // One option per sign-up status that someone here actually has, with how many.
-  const signUpFilterOptions = useMemo(() => {
-    const counts = new Map<string, number>();
-    counted.filter((p) => p.status === (showArchived ? 'ARCHIVED' : 'ACTIVE')).forEach((p) => {
-      const key = p.followUpStatus ?? '__NONE__';
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    });
-    const label = (key: string) => key === '__NONE__' ? 'No sign-up record' : REGISTRATION_STATUS_META[key as keyof typeof REGISTRATION_STATUS_META]?.label ?? key;
-    return [
-      { value: '', label: 'All sign-up statuses' },
-      ...Array.from(counts, ([value, n]) => ({ value, label: `${label(value)} (${n})` })).sort((a, b) => a.label.localeCompare(b.label)),
-    ];
-  }, [counted, showArchived]);
-
-  // Archived and active people have different statuses; drop a choice that is no longer on offer.
-  useEffect(() => {
-    if (signUpFilter && !signUpFilterOptions.some((option) => option.value === signUpFilter)) setSignUpFilter('');
-  }, [signUpFilter, signUpFilterOptions]);
+  }, [showArchived, filterGroups, filters, search]);
 
   const unassignedCount = useMemo(
     () => counted.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
@@ -1178,114 +1205,28 @@ const AdminParticipantsContent: React.FC = () => {
         <p className="text-sm text-gray-500">Select or create a cohort first.</p>
       ) : (
         <>
-          <div data-wt="participants-filters" className="mb-4 space-y-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search name or phone…"
-                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-md sm:flex-1"
-              />
-              <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
-                {flaggedCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setFlaggedOnly((value) => !value)}
-                    aria-pressed={flaggedOnly}
-                    className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${flaggedOnly ? 'bg-amber-500 text-white' : 'bg-amber-100/80 text-amber-700'}`}
-                  >
-                    Concerns ({flaggedCount})
-                  </button>
-                )}
-                {completionById.size > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setIncompleteOnly((value) => !value)}
-                    aria-pressed={incompleteOnly}
-                    className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold ${incompleteOnly ? 'bg-sky-600 text-white' : 'bg-sky-100/80 text-sky-700'}`}
-                  >
-                    Incomplete profiles ({counted.filter((p) => p.status === 'ACTIVE' && (completionById.get(p.id)?.percent ?? 0) < 100).length})
-                  </button>
-                )}
-                <label className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-600">
-                  <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="accent-primary" />
-                  Show archived
-                </label>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
-              <div className="min-w-0">
-                <AppSelect
-                  value={groupFilter}
-                  onChange={(v) => { setGroupFilter(v); setSupportFilter(''); }}
-                  options={groupOptions}
-                  placeholder="All groups"
-                  compact
+          <div data-wt="participants-filters" className="mb-4">
+            <FilterBar
+              groups={filterGroups}
+              value={filters}
+              onChange={setFilters}
+              toggles={[{ key: 'archived', label: 'Show archived', value: showArchived, onChange: setShowArchived, hint: 'Look at archived participants instead of active ones.' }]}
+              search={
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search name or phone…"
+                  aria-label="Search participants"
+                  className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-[11px] text-sm shadow-[0_2px_10px_-4px_rgba(17,24,39,0.08)] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
-              </div>
-              {healthById.size > 0 && (
-                <div className="min-w-0">
-                  <AppSelect
-                    value={healthFilter}
-                    onChange={setHealthFilter}
-                    options={[
-                      { value: '', label: 'All statuses' },
-                      { value: 'critical', label: `Needs attention (${healthCounts.critical})` },
-                      { value: 'warning', label: `Keep an eye on (${healthCounts.warning})` },
-                      { value: 'good', label: `On track (${healthCounts.good})` },
-                    ]}
-                    placeholder="All statuses"
-                    compact
-                  />
-                </div>
-              )}
-              {supportOptions.length > 1 && (
-                <div className="min-w-0">
-                  <AppSelect
-                    value={supportFilter}
-                    onChange={(v) => { setSupportFilter(v); setGroupFilter(''); }}
-                    options={supportOptions}
-                    placeholder="All support"
-                    compact
-                  />
-                </div>
-              )}
-              {noAlertsCount > 0 && (
-                <div className="min-w-0">
-                  <AppSelect
-                    value={noAlertsOnly ? 'no-alerts' : ''}
-                    onChange={(v) => setNoAlertsOnly(v === 'no-alerts')}
-                    options={[
-                      { value: '', label: 'All alerts' },
-                      { value: 'no-alerts', label: `No alerts (${noAlertsCount})` },
-                    ]}
-                    placeholder="All alerts"
-                    compact
-                  />
-                </div>
-              )}
-              {departmentCounts.size > 0 && (
-                <div className="min-w-0">
-                  <AppSelect
-                    value={departmentFilter}
-                    onChange={setDepartmentFilter}
-                    options={departmentFilterOptions}
-                    placeholder="Wants to join"
-                    compact
-                  />
-                </div>
-              )}
-              <div className="min-w-0">
-                <AppSelect value={genderFilter} onChange={setGenderFilter} options={GENDER_FILTER_OPTIONS} placeholder="All genders" compact />
-              </div>
-              <div className="min-w-0">
-                <AppSelect value={ageFilter} onChange={setAgeFilter} options={AGE_FILTER_OPTIONS} placeholder="All ages" compact />
-              </div>
-              <div className="min-w-0">
-                <AppSelect value={signUpFilter} onChange={setSignUpFilter} options={signUpFilterOptions} placeholder="All sign-up statuses" compact />
-              </div>
-            </div>
+              }
+              searching={search.trim().length > 0}
+              onClear={() => setSearch('')}
+              shown={displayed.filter((p) => !p.isTest).length}
+              total={counted.filter((p) => p.status === (showArchived ? 'ARCHIVED' : 'ACTIVE')).length}
+              noun={showArchived ? 'archived participants' : 'participants'}
+            />
           </div>
 
           {loading ? (
