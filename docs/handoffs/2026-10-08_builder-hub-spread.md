@@ -91,3 +91,7 @@ Groups page pickers (New/Edit group, Assign support) now follow the same rule as
 offered and tagged, and missing training shows an amber notice instead of blocking (the old override-with-a-reason flow is
 gone from the UI; old override notes stay in the data). Checked in the browser with mocked data: an operational support with
 0/1 trainings can be picked and saved. FLOW_MAP rule 19 updated.
+
+Review round: operational supports are not flagged for missed training in the Groups page pickers either (same as the builder); the
+stale header comment is fixed. Left as is: the old override note (ELIGIBILITY_OVERRIDE) is no longer written, so there is no
+record of why an untrained support was placed; hub leads show in the pickers if the kinds fetch fails (as before).

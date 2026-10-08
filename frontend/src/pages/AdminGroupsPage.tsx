@@ -26,11 +26,12 @@ import { normalizeLink } from '../utils/links';
 import Spinner from '../components/Spinner';
 import { genderAgeLine, hasSupportRole } from '../utils/people';
 
-// ── Training eligibility (Phase 4) ────────────────────────────────────────────
-// Shared by GroupFormModal and AssignSupportModal: a support who attended
-// fewer than the cohort's minimum pre-cohort trainings can't be saved as a
-// group's support unless an admin overrides it with a reason, saved as an
-// ELIGIBILITY_OVERRIDE support note.
+// ── Training (Phase 4) ────────────────────────────────────────────────────────
+// Shared by GroupFormModal and AssignSupportModal: a support who attended fewer
+// than the cohort's minimum pre-cohort trainings is shown with a notice, and can
+// still be saved as a group's support (it used to need an override with a reason,
+// saved as an ELIGIBILITY_OVERRIDE support note; those old notes are still read).
+// Operational supports are not expected to do the training, so they are not flagged.
 
 const trainingLabel = (counts: Map<string, { attended: number; total: number }>, userId: string, total: number) => {
   if (total === 0) return '';
@@ -51,7 +52,7 @@ const supportOptions = (
     value: u.id,
     label: `${u.name}${trainingLabel(counts, u.id, total)}`,
     meta: kinds?.[u.id] === 'OPERATIONAL' ? 'Operational support' : undefined,
-    warning: c.total > 0 && c.attended === 0 ? 'Attended no training' : undefined,
+    warning: c.total > 0 && c.attended === 0 && kinds?.[u.id] !== 'OPERATIONAL' ? 'Attended no training' : undefined,
   };
 });
 
@@ -113,7 +114,7 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
 
   const selectedSupport = supportUsers.find((u) => u.id === supportId);
   const counts = supportId ? trainingCountFor(trainingCounts, supportId, trainingsTotal) : null;
-  const missedTraining = !!counts && counts.total > 0 && counts.attended < minTrainingsAttended;
+  const missedTraining = !!counts && counts.total > 0 && counts.attended < minTrainingsAttended && supportKinds?.[supportId] !== 'OPERATIONAL';
 
   const handleSave = async () => {
     if (!name.trim()) { setErr('Group name is required'); return; }
@@ -244,7 +245,7 @@ const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose
 
   const selectedSupport = supportUsers.find((u) => u.id === supportId);
   const counts = supportId ? trainingCountFor(trainingCounts, supportId, trainingsTotal) : null;
-  const missedTraining = !!counts && counts.total > 0 && counts.attended < minTrainingsAttended;
+  const missedTraining = !!counts && counts.total > 0 && counts.attended < minTrainingsAttended && supportKinds?.[supportId] !== 'OPERATIONAL';
 
   const handleSave = async () => {
     setSaving(true);
