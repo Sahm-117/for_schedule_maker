@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { FollowUpContact, FollowUpStatus } from '../../types';
-import { computeFollowUpFunnel, computeFollowUpHeadline, computeFollowUpStatus, computeIntroducerBreakdown, computeOwnerBreakdown, type OwnerBreakdownRow } from '../../utils/followUps';
-import { VitalTile } from '../dashboard/DashboardParts';
+import { computeFollowUpFunnel, computeFollowUpStatus, computeIntroducerBreakdown, computeOwnerBreakdown, type OwnerBreakdownRow } from '../../utils/followUps';
+import RegistrationOverviewCards from './RegistrationOverviewCards';
 import { settingsApi } from '../../services/api';
 
 // One colour per status, matching the tone each status already carries on its
@@ -27,8 +27,6 @@ const STATUS_COLOR: Record<FollowUpStatus, string> = {
   NO_RESPONSE: '#dfe3e8',
 };
 
-const pct = (rate: number) => Math.round(rate * 100);
-
 // In "Where all … stand", Registered reads as the tile it belongs to.
 const OVERVIEW_LABEL: Partial<Record<FollowUpStatus, string>> = { REGISTERED: 'Needs login' };
 
@@ -37,9 +35,6 @@ const Chevron: React.FC<{ open: boolean }> = ({ open }) => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="m9 5 7 7-7 7" />
   </svg>
 );
-
-const contactsLink = (status?: FollowUpStatus | 'open') =>
-  `/follow-ups?tab=contacts${status ? `&status=${status}` : ''}`;
 
 // Thin stacked bar showing how a support's assigned contacts split out, so the
 // shape of their work is visible at a glance without reading five numbers.
@@ -174,13 +169,13 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
   const reachable = contacts.filter((c) => computeFollowUpStatus(c) !== 'WRONG_NUMBER');
   const wrongNumbers = contacts.length - reachable.length;
   const standing = computeFollowUpFunnel(reachable);
-  // The four tiles, worked out the same way as on the admin Dashboard.
-  const headline = computeFollowUpHeadline(contacts);
   const owners = computeOwnerBreakdown(contacts);
   const introducers = computeIntroducerBreakdown(contacts);
   const totalMet = introducers.reduce((sum, row) => sum + row.met, 0);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [target, setTarget] = useState<number | null>(null);
+  // Everyone registered (adults + teens), from the overview cards, so the target shows the same total.
+  const [registeredTotal, setRegisteredTotal] = useState<number | null>(null);
   const priorContacts = reachable.filter((c) => !c.cohortId);
   const priorCohort = { total: priorContacts.length, unassigned: priorContacts.filter((c) => !c.ownerId).length };
   const currentCohortCount = reachable.length - priorCohort.total;
@@ -227,58 +222,12 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
 
   return (
     <div className="space-y-6">
-      {cohortId && <MobilisationTarget cohortId={cohortId} cohortName={cohortName} signedUp={headline.signedUp} onTarget={setTarget} />}
+      {cohortId && <MobilisationTarget cohortId={cohortId} cohortName={cohortName} signedUp={registeredTotal ?? 0} onTarget={setTarget} />}
 
-      {/* The path from sign-up to the app, then who still needs chasing. */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <VitalTile
-          title="Registered"
-          status="neutral"
-          statusLabel={target ? `${pct(headline.signedUp / target)}% of ${target} target` : 'No target set'}
-          value={headline.signedUp}
-          unit={headline.signedUp === 1 ? 'person' : 'people'}
-          detail={headline.nextCohort > 0 ? `${headline.nextCohort} more waiting for the next cohort` : 'They filled in the registration form'}
-          to={contactsLink('REGISTERED')}
-        />
-        <VitalTile
-          title="Needs login"
-          status={headline.needsLogin > 0 ? 'warning' : 'good'}
-          statusLabel={headline.needsLogin > 0 ? 'Waiting on us' : 'All handed over'}
-          value={headline.needsLogin}
-          unit={headline.needsLogin === 1 ? 'person' : 'people'}
-          detail={headline.needsLogin > 0 ? 'Registered, but nobody has sent their login yet' : 'Nobody is waiting on a login'}
-          to={contactsLink('REGISTERED')}
-        />
-        <VitalTile
-          title="Login shared"
-          status="neutral"
-          statusLabel="Waiting on them"
-          value={headline.loginShared}
-          unit={headline.loginShared === 1 ? 'person' : 'people'}
-          detail={headline.loginShared > 0
-            ? `They have their login but haven't signed in yet${headline.loginIssue > 0 ? ` · ${headline.loginIssue} with a login problem` : ''}`
-            : 'Nobody is waiting to sign in'}
-          to={contactsLink('LOGIN_SHARED')}
-        />
-        <VitalTile
-          title="Logged in"
-          status={headline.loggedIn > 0 ? 'good' : 'neutral'}
-          statusLabel="Confirmed"
-          value={headline.loggedIn}
-          unit={headline.loggedIn === 1 ? 'person' : 'people'}
-          detail={headline.signedUp > 0 ? `${pct(headline.loggedIn / headline.signedUp)}% of those registered are in the app` : 'Nobody has signed in yet'}
-          to={contactsLink('ACCESS_CONFIRMED')}
-        />
-        <VitalTile
-          title="Not registered yet"
-          status={headline.notDone > 0 ? 'warning' : 'good'}
-          statusLabel={headline.notDone > 0 ? 'Needs work' : 'All handled'}
-          value={headline.notDone}
-          unit={headline.notDone === 1 ? 'person' : 'people'}
-          detail={headline.notDone > 0 ? 'They need to be contacted to register' : 'Everyone on the list has registered or stopped'}
-          to={contactsLink('open')}
-        />
-      </div>
+      {/* Registered and logged in, adults and teens apart, counted from people (not follow-up statuses). */}
+      {cohortId
+        ? <RegistrationOverviewCards cohortId={cohortId} contacts={contacts} target={target} onOverview={(o) => setRegisteredTotal(o.total.registered)} />
+        : <div className="surface-card p-5 text-sm text-gray-500">Choose a cohort to see how many have registered and logged in.</div>}
 
       {/* Contacts with no cohort are prior-cohort follow-ups shown under the
           active cohort; split them out so the two groups aren't confused. */}

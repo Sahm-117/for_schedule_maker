@@ -384,6 +384,21 @@ duplicating the logic anywhere else is a bug waiting to happen.
     the hubs to be created (link to Hubs) or to try again. Source: `groupingEngine` (`hubTarget`,
     `hubCoverage`, `hubGroupsNeeded`, `assignSupports`, `topUpGroups`), `GroupEngineWizard`. No database change.
 
+33. **Registered and logged-in numbers count people, adults and teens apart.** The Dashboard (before a cohort
+    starts) and Follow-ups → Overview show the same `RegistrationOverviewCards`, worked out by
+    `computeRegistrationOverview` from the cohort's participants, not from follow-up statuses.
+    Registered = an active, non-test participant in the cohort. Logged in = they chose their own password
+    and the login is on (`participants_signed_in`, the same check as the group builder). Still to log in =
+    registered minus logged in, listed by reason (login sent, login not sent yet, not reachable or joining
+    next cohort, marked as logged in by hand but never signed in, with their Teen Support, waiting for a
+    Teen Support). Teen = age range "18 and below", or on the teen path (Teenager / Teen onboarded). A
+    follow-up status only explains why someone has not logged in; it never adds or removes anyone from
+    Registered, so parking someone (No response, next cohort) or moving a teen to a Teen Support cannot
+    change the total. "Not registered yet" is open, current follow-up contacts with no participant. If who
+    has signed in cannot be loaded the cards say so instead of showing numbers. The status list further
+    down still shows follow-up statuses (a hand-set Access confirmed is counted there). No database change.
+    Source: `utils/registrationOverview.ts`, `RegistrationOverviewCards`.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the

@@ -32,7 +32,8 @@ import { announcementsApi, cohortsApi, followUpContactsApi, settingsApi, support
 import { DEFAULT_PROGRAMME_RULES, type CohortPeoplePayload, type ProgrammeRules } from '../utils/programmeRules';
 import type { Announcement, FollowUpContact, SupportActivityCompletion, User } from '../types';
 import { sortByText } from '../utils/sort';
-import { computeFollowUpHeadline, computeTeenOverview, contactInCohortScope, type FollowUpHeadline, type TeenOverview } from '../utils/followUps';
+import { computeTeenOverview, contactInCohortScope, type TeenOverview } from '../utils/followUps';
+import RegistrationOverviewCards from '../components/followups/RegistrationOverviewCards';
 import { hasSupportRole } from '../utils/people';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { classDateIso, lagosTodayIso } from '../utils/participantApp';
@@ -67,7 +68,7 @@ const AdminDashboardPage: React.FC = () => {
   const [rules, setRules] = useState<ProgrammeRules>(DEFAULT_PROGRAMME_RULES);
   const [signUpTarget, setSignUpTarget] = useState<number | null>(null);
   // Sign-up numbers, worked out the same way as Follow-ups → Overview.
-  const [followUpHeadline, setFollowUpHeadline] = useState<FollowUpHeadline | null>(null);
+  const [followUpContacts, setFollowUpContacts] = useState<FollowUpContact[] | null>(null);
   const [teenOverview, setTeenOverview] = useState<TeenOverview | null>(null);
   const [teenMeetings, setTeenMeetings] = useState<Awaited<ReturnType<typeof teenMeetingsApi.getForCohort>> | null>(null);
   const [healthError, setHealthError] = useState('');
@@ -120,8 +121,8 @@ const AdminDashboardPage: React.FC = () => {
       setPeople(nextPeople);
       setRules(nextRules);
       setSignUpTarget(nextTarget.target);
-      setFollowUpHeadline(nextContacts
-        ? computeFollowUpHeadline(nextContacts.contacts.filter((c) => !c.isTest && contactInCohortScope(c, cohortId, cohortId)))
+      setFollowUpContacts(nextContacts
+        ? nextContacts.contacts.filter((c) => !c.isTest && contactInCohortScope(c, cohortId, cohortId))
         : null);
       setTeenOverview(nextContacts
         ? computeTeenOverview(nextContacts.contacts.filter((c) => contactInCohortScope(c, cohortId, cohortId)))
@@ -234,7 +235,7 @@ const AdminDashboardPage: React.FC = () => {
 
           <div data-wt="dash-vitals">
             {model.mode === 'upcoming' ? (
-              <RegistrationFunnel headline={followUpHeadline} target={signUpTarget} />
+              followUpContacts ? <RegistrationOverviewCards cohortId={activeCohort.id} contacts={followUpContacts} target={signUpTarget} /> : null
             ) : (
               <VitalSigns health={health} model={model} />
             )}
@@ -555,43 +556,6 @@ const TeenOverviewCard: React.FC<{ overview: TeenOverview; meetings: TeenMeeting
         </div>
       )}
     </section>
-  );
-};
-
-const RegistrationFunnel: React.FC<{ headline: FollowUpHeadline | null; target: number | null }> = ({ headline, target }) => {
-  if (!headline) return null;
-  const steps = [
-    // Measured against the cohort's sign-up target (set on Follow-ups → Overview).
-    {
-      title: 'Registered',
-      value: headline.signedUp,
-      detail: target ? `of ${target} target` : 'No target set yet',
-      base: target && target > 0 ? target : null,
-      to: '/follow-ups?tab=contacts&status=REGISTERED',
-    },
-    { title: 'Needs login', value: headline.needsLogin, detail: 'Registered, but waiting for login', base: null as number | null, to: '/follow-ups?tab=contacts&status=REGISTERED' },
-    { title: 'Login shared', value: headline.loginShared, detail: 'Have their login, not signed in yet', base: null as number | null, to: '/follow-ups?tab=contacts&status=LOGIN_SHARED' },
-    { title: 'Logged in', value: headline.loggedIn, detail: 'of those registered', base: headline.signedUp, to: '/follow-ups?tab=contacts&status=ACCESS_CONFIRMED' },
-    { title: 'Not registered yet', value: headline.notDone, detail: 'Need to be contacted to register', base: null as number | null, to: '/follow-ups?tab=contacts&status=open' },
-  ];
-  return (
-    <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
-      {steps.map((step, i) => (
-        // Five cards: on a phone the first spans the row, then two pairs.
-        <NavLink key={step.title} to={step.to} className={`surface-card block p-5 transition hover:-translate-y-0.5 ${i === 0 ? 'col-span-2 xl:col-span-1' : ''}`}>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{step.title}</p>
-          <p className="mt-3 text-3xl font-bold tracking-tight text-gray-900 tabular-nums">{step.value}</p>
-          <p className="mt-1 text-sm text-gray-600">
-            {step.base !== null && step.base > 0 ? `${Math.round((step.value / step.base) * 100)}% ` : ''}{step.detail}
-          </p>
-          {step.base !== null && step.base > 0 && (
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-100">
-              <div className="h-full rounded-full" style={{ width: `${Math.min(100, (step.value / step.base) * 100)}%`, backgroundColor: SUNDAY_COLOR }} />
-            </div>
-          )}
-        </NavLink>
-      ))}
-    </div>
   );
 };
 

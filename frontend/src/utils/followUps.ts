@@ -833,9 +833,8 @@ export const computeFollowUpFunnel = (contacts: FollowUpContact[]): FollowUpFunn
   };
 };
 
-// The four headline numbers on Follow-ups → Overview, also shown on the admin
-// Dashboard before a cohort starts. Both read them from here so they always
-// agree. `contacts` is the cohort's contacts in scope, test contacts left out.
+// Headline numbers worked out from follow-up statuses. No longer used for the registered / logged-in
+// cards (those count people, adults and teens apart: utils/registrationOverview.ts, FLOW_MAP rule 33). `contacts` is the cohort's contacts in scope, test contacts left out.
 export interface FollowUpHeadline {
   /** This cohort's reachable contacts (wrong numbers and prior-cohort people left out). */
   contacts: number;
