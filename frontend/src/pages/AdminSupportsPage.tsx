@@ -26,10 +26,13 @@ import SupportsExportPopup from '../components/supports/SupportsExportPopup';
 import SupportTagsModal from '../components/supports/SupportTagsModal';
 import TeenSupportPill from '../components/supports/TeenSupportPill';
 import { useTeenSupportIds } from '../hooks/useTeenSupportIds';
+import { useUrlFilters } from '../hooks/useUrlFilters';
+import FilterBar, { type FilterGroup } from '../components/filters/FilterBar';
 import { PERSON_OF_INTEREST_INFO } from '../components/hubs/hubJobs';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
-import { activeDot, activeStatus, genderAgeLine, isSupportProfileComplete, hasSupportRole, matchesGenderAge, GENDER_FILTER_OPTIONS, AGE_FILTER_OPTIONS } from '../utils/people';
+import { activeDot, activeStatus, genderAgeLine, isSupportProfileComplete, hasSupportRole, matchesGenderAge } from '../utils/people';
+import { AGE_RANGE_OPTIONS } from '../constants/departments';
 import { openLoadByOwner } from '../utils/followUps';
 import HubAuthorProfileModal from '../components/HubAuthorProfileModal';
 import {
@@ -100,13 +103,8 @@ const AdminSupportsPage: React.FC = () => {
 
   const filterParam = searchParams.get('health');
   const filter: Filter = filterParam === 'critical' || filterParam === 'warning' || filterParam === 'good' ? filterParam : 'all';
-  const hubFilter = searchParams.get('hub') ?? '';
-  const notesOnly = searchParams.get('notes') === '1';
-  const incompleteOnly = searchParams.get('profile') === 'incomplete';
-  const kindParam = searchParams.get('kind');
-  const kindFilter: SupportKind | '' = kindParam === 'PARTICIPANT_SUPPORT' || kindParam === 'HUB_LEAD' || kindParam === 'OPERATIONAL' ? kindParam : '';
-  const genderFilter = searchParams.get('gender') ?? '';
-  const ageFilter = searchParams.get('age') ?? '';
+  // Each filter takes several choices at once and lives in the address: hub, role (kind), profile, notes, tags, gender, age.
+  const [filters, setFilters] = useUrlFilters(['hub', 'kind', 'profile', 'notes', 'tags', 'gender', 'age']);
   const [exportOpen, setExportOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const { ids: teenSupportIds } = useTeenSupportIds(true);
@@ -287,44 +285,33 @@ const AdminSupportsPage: React.FC = () => {
     if (next === 'all') params.delete('health'); else params.set('health', next);
     setSearchParams(params, { replace: true });
   };
-  const setNotesFilter = (next: string) => {
-    const params = new URLSearchParams(searchParams);
-    if (next === '1') params.set('notes', '1'); else params.delete('notes');
-    setSearchParams(params, { replace: true });
-  };
   const markNoted = (userId: string) => setNotedIds((prev) => (prev.has(userId) ? prev : new Set(prev).add(userId)));
-  const setParam = (key: string, value: string) => {
-    const params = new URLSearchParams(searchParams);
-    if (value) params.set(key, value); else params.delete(key);
-    setSearchParams(params, { replace: true });
-  };
-  const setHubFilter = (next: string) => {
-    const params = new URLSearchParams(searchParams);
-    if (!next) params.delete('hub'); else params.set('hub', next);
-    setSearchParams(params, { replace: true });
-  };
-
   const searchTerm = search.trim().toLowerCase();
   const nameById = new Map(users.map((u) => [u.id, u.name.toLowerCase()]));
   const usersById = new Map(users.map((u) => [u.id, u]));
-  // Search plus the profile and role filters, applied to every list below.
+  // Does this support fit one chosen choice of one filter group?
+  const supportFits = (group: string, choice: string, userId: string): boolean => {
+    const u = usersById.get(userId);
+    switch (group) {
+      case 'hub': return hubByUserId.get(userId)?.id === choice;
+      case 'kind': return (kinds[userId] ?? 'PARTICIPANT_SUPPORT') === choice;
+      case 'profile': return !!u && (choice === 'incomplete' ? !isSupportProfileComplete(u) : isSupportProfileComplete(u));
+      case 'notes': return notedIds.has(userId);
+      case 'tags': return choice === 'teen' && !!teenSupportIds?.has(userId);
+      case 'gender': return !!u && matchesGenderAge(u, choice, '');
+      case 'age': return !!u && matchesGenderAge(u, '', choice);
+      default: return true;
+    }
+  };
+  // A support passes when, for every filter group with a choice, they fit any one of the choices.
+  const passesFilters = (userId: string) => Object.entries(filters).every(([group, choices]) => choices.length === 0 || choices.some((c) => supportFits(group, c, userId)));
+  // Search plus the filters, applied to every list below.
   const matchesSearch = (userId: string) => {
     if (searchTerm && !(nameById.get(userId) ?? '').includes(searchTerm)) return false;
-    if (incompleteOnly) {
-      const u = usersById.get(userId);
-      if (!u || isSupportProfileComplete(u)) return false;
-    }
-    if (kindFilter && (kinds[userId] ?? 'PARTICIPANT_SUPPORT') !== kindFilter) return false;
-    if (genderFilter || ageFilter) {
-      const u = usersById.get(userId);
-      if (!u || !matchesGenderAge(u, genderFilter, ageFilter)) return false;
-    }
-    return true;
+    return passesFilters(userId);
   };
 
   const visible = (model?.evaluations.filter((e) => filter === 'all' || e.health === filter) ?? [])
-    .filter((e) => !hubFilter || hubByUserId.get(e.supportId)?.id === hubFilter)
-    .filter((e) => !notesOnly || notedIds.has(e.supportId))
     .filter((e) => matchesSearch(e.supportId));
   const userById = new Map(users.map((u) => [u.id, u]));
   const groupById = new Map((health?.groups ?? []).map((g) => [g.id, g]));
@@ -340,7 +327,7 @@ const AdminSupportsPage: React.FC = () => {
   // their card too.
   const notLeadingWithHub = (model?.notLeading ?? []).filter((u) => !!hubByUserId.get(u.id) || !isProblemKind(u.id));
   const notLeadingCards = filter === 'all'
-    ? notLeadingWithHub.filter((u) => (!hubFilter || hubByUserId.get(u.id)?.id === hubFilter) && (!notesOnly || notedIds.has(u.id)) && matchesSearch(u.id))
+    ? notLeadingWithHub.filter((u) => matchesSearch(u.id))
     : [];
   const notLeadingCardIds = new Set(notLeadingCards.map((u) => u.id));
   // Hub leads and operational supports are never flagged as a "no group"
@@ -348,8 +335,24 @@ const AdminSupportsPage: React.FC = () => {
   const notLeadingCollapsed = (model?.notLeading ?? [])
     .filter((u) => !notLeadingCardIds.has(u.id))
     .filter((u) => isProblemKind(u.id))
-    .filter((u) => !notesOnly || notedIds.has(u.id))
     .filter((u) => matchesSearch(u.id));
+
+  // Every support in this cohort's list (leading a group or not), and the filter chips with how many each matches.
+  const allSupportIds = [...new Set([...(model?.evaluations ?? []).map((e) => e.supportId), ...(model?.notLeading ?? []).map((u) => u.id)])];
+  const filterGroups: FilterGroup[] = (() => {
+    const opt = (group: string, value: string, label: string) => ({ value, label, count: allSupportIds.filter((id) => supportFits(group, value, id)).length });
+    const out: FilterGroup[] = [];
+    if (hubs.length > 0) out.push({ key: 'hub', label: 'Hub', options: hubs.map((h) => opt('hub', h.id, h.name)) });
+    out.push({ key: 'kind', label: 'Role', options: KIND_OPTIONS.map((k) => opt('kind', k.value, k.label)) });
+    const tags: FilterGroup['options'] = [];
+    if (teenSupportIds && teenSupportIds.size > 0) tags.push(opt('tags', 'teen', 'Teen Support'));
+    if (tags.length > 0) out.push({ key: 'tags', label: 'Looks after', options: tags });
+    out.push({ key: 'profile', label: 'Profile', options: [opt('profile', 'incomplete', 'Incomplete'), opt('profile', 'complete', 'Complete')] });
+    if (notedIds.size > 0) out.push({ key: 'notes', label: 'Notes', options: [opt('notes', '1', '★ With notes')] });
+    out.push({ key: 'gender', label: 'Gender', options: [opt('gender', 'Male', 'Male'), opt('gender', 'Female', 'Female')] });
+    out.push({ key: 'age', label: 'Age', options: [...AGE_RANGE_OPTIONS.map((r) => opt('age', r, r)), opt('age', '__unknown', 'Age not known')] });
+    return out;
+  })();
 
   // Everyone shown on the page right now, for the WhatsApp export.
   const shownSupports = (() => {
@@ -361,19 +364,13 @@ const AdminSupportsPage: React.FC = () => {
       .filter((u): u is User => !!u)
       .sort((a, b) => a.name.localeCompare(b.name));
   })();
-  // Supports in this cohort (leading a group or not) whose profile isn't complete.
-  const incompleteCount = new Set([...(model?.evaluations ?? []).map((e) => e.supportId), ...(model?.notLeading ?? []).map((u) => u.id)]
-    .filter((id) => { const u = usersById.get(id); return !!u && !isSupportProfileComplete(u); })).size;
   // Headline count: everyone in this cohort's list, and how many the filters leave.
   const totalSupports = new Set([...(model?.evaluations ?? []).map((e) => e.supportId), ...(model?.notLeading ?? []).map((u) => u.id)]).size;
   const countSubtitle = shownSupports.length === totalSupports
     ? `${totalSupports} supports · ${activeCohort?.name ?? ''}`
     : `${shownSupports.length} of ${totalSupports} supports shown · ${activeCohort?.name ?? ''}`;
   const exportSubtitle = [
-    incompleteOnly ? 'Incomplete profile' : '',
-    kindFilter ? KIND_LABEL[kindFilter] : '',
-    hubFilter ? hubs.find((h) => h.id === hubFilter)?.name ?? '' : '',
-    notesOnly ? 'With notes' : '',
+    ...filterGroups.flatMap((g) => (filters[g.key] ?? []).map((v) => g.options.find((o) => o.value === v)?.label ?? v)),
     search.trim() ? `Search "${search.trim()}"` : '',
   ].filter(Boolean).join(' · ');
 
@@ -449,60 +446,26 @@ const AdminSupportsPage: React.FC = () => {
             </div>
           </section>
 
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search supports"
-            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          <FilterBar
+            groups={filterGroups}
+            value={filters}
+            onChange={setFilters}
+            search={
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search supports"
+                aria-label="Search supports"
+                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-[11px] text-sm shadow-[0_2px_10px_-4px_rgba(17,24,39,0.08)] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            }
+            searching={search.trim().length > 0}
+            onClear={() => setSearch('')}
+            shown={shownSupports.length}
+            total={totalSupports}
+            noun="supports"
           />
-
-          <div className="grid grid-cols-2 gap-2 sm:flex">
-            {hubs.length > 0 && (
-              <div className="min-w-0 sm:w-64">
-                <AppSelect
-                  value={hubFilter}
-                  onChange={setHubFilter}
-                  options={[{ value: '', label: 'All hubs' }, ...hubs.map((h) => ({ value: h.id, label: h.name }))]}
-                  placeholder="All hubs"
-                  compact
-                />
-              </div>
-            )}
-            <div className="min-w-0 sm:w-64">
-              <AppSelect
-                value={notesOnly ? '1' : ''}
-                onChange={setNotesFilter}
-                options={[{ value: '', label: 'All supports' }, { value: '1', label: `★ With notes (${notedIds.size})` }]}
-                placeholder="All supports"
-                compact
-              />
-            </div>
-            <div className="min-w-0 sm:w-64">
-              <AppSelect
-                value={incompleteOnly ? 'incomplete' : ''}
-                onChange={(v) => setParam('profile', v)}
-                options={[{ value: '', label: 'All profiles' }, { value: 'incomplete', label: `Incomplete profile (${incompleteCount})` }]}
-                placeholder="All profiles"
-                compact
-              />
-            </div>
-            <div className="min-w-0 sm:w-64">
-              <AppSelect
-                value={kindFilter}
-                onChange={(v) => setParam('kind', v)}
-                options={[{ value: '', label: 'All roles' }, ...KIND_OPTIONS]}
-                placeholder="All roles"
-                compact
-              />
-            </div>
-            <div className="min-w-0 sm:w-64">
-              <AppSelect value={genderFilter} onChange={(v) => setParam('gender', v)} options={GENDER_FILTER_OPTIONS} placeholder="All genders" compact />
-            </div>
-            <div className="min-w-0 sm:w-64">
-              <AppSelect value={ageFilter} onChange={(v) => setParam('age', v)} options={AGE_FILTER_OPTIONS} placeholder="All ages" compact />
-            </div>
-          </div>
 
           {visible.length === 0 && notLeadingCards.length === 0 ? (
             <div className="surface-card p-8 text-center text-sm text-gray-500">No supports here.</div>
@@ -613,7 +576,7 @@ const AdminSupportsPage: React.FC = () => {
           supports={shownSupports}
           title={`${activeCohort?.name ?? 'Cohort'} Supports`}
           subtitle={exportSubtitle}
-          showMissing={incompleteOnly}
+          showMissing={(filters.profile ?? []).includes('incomplete')}
           onClose={() => setExportOpen(false)}
         />
       )}

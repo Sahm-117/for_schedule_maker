@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
+import FilterBar, { type FilterGroup } from '../components/filters/FilterBar';
+import { useUrlFilters } from '../hooks/useUrlFilters';
 import { cohortsApi, groupsApi, participantsApi, settingsApi, supportKindApi, supportSessionsApi, supportTagsApi, usersApi } from '../services/api';
 import type { Group, Participant, User, GroupCallPlatform, SupportKind, SupportSession, SupportTag } from '../types';
 import ModalShell from '../components/followups/ModalShell';
@@ -443,7 +445,6 @@ const AdminGroupsContent: React.FC = () => {
   const { user } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
 
   const [groups, setGroups] = useState<Group[]>([]);
   // A Teen Support's teens, kept apart: no meetings or recaps, Sunday attendance only.
@@ -472,8 +473,6 @@ const AdminGroupsContent: React.FC = () => {
   const [membersTarget, setMembersTarget] = useState<Group | null>(null);
   const [supportTarget, setSupportTarget] = useState<Group | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<Group | null>(null);
-  const [noSupportOnly, setNoSupportOnly] = useState(false);
-  const [supportFilter, setSupportFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [chooserOpen, setChooserOpen] = useState(false);
@@ -482,12 +481,8 @@ const AdminGroupsContent: React.FC = () => {
   // "Open group" elsewhere (the Supports page) links straight to one group as
   // /groups?group=<id>, so the URL — not local state — decides what's in view.
   // That keeps the link shareable and survives a refresh.
-  const groupFilter = searchParams.get('group') ?? '';
-  const setGroupFilter = (next: string) => {
-    const params = new URLSearchParams(searchParams);
-    if (next) params.set('group', next); else params.delete('group');
-    setSearchParams(params, { replace: true });
-  };
+  // Each filter takes several choices at once and lives in the address (`?group=` is what the Supports page links to).
+  const [filters, setFilters] = useUrlFilters(['group', 'support', 'type', 'people']);
 
   // `silent` background refreshes (triggered by realtime liveRevision bumps)
   // update the data in place WITHOUT flipping `loading`, so the grid doesn't
@@ -586,17 +581,6 @@ const AdminGroupsContent: React.FC = () => {
     } catch { /* ignore */ }
   };
 
-  const noSupportCount = groups.filter((g) => !g.supportId).length;
-  // Filters are mutually exclusive: a specific group wins, then a support
-  // person, then the "no support" pill, else all groups.
-  const displayedGroups = groupFilter
-    ? groups.filter((g) => g.id === groupFilter)
-    : supportFilter
-      ? groups.filter((g) => g.supportId === supportFilter)
-      : noSupportOnly
-        ? groups.filter((g) => !g.supportId)
-        : groups;
-
   // Members per group, derived from the already-loaded participants list (no
   // extra fetch). Used to render the inline expandable member chips.
   const membersByGroupId = useMemo(() => {
@@ -608,6 +592,34 @@ const AdminGroupsContent: React.FC = () => {
     });
     return map;
   }, [participants]);
+
+  // Does this group fit one chosen choice of one filter group?
+  const groupFits = (key: string, choice: string, g: Group): boolean => {
+    switch (key) {
+      case 'group': return g.id === choice;
+      case 'support': return choice === NO_SUPPORT_OPTION ? !g.supportId : g.supportId === choice;
+      case 'type': return choice === 'teen' ? !!g.isTeenGroup : !g.isTeenGroup;
+      case 'people': return choice === 'empty' ? (membersByGroupId.get(g.id)?.length ?? 0) === 0 : (membersByGroupId.get(g.id)?.length ?? 0) > 0;
+      default: return true;
+    }
+  };
+  // Within a filter any chosen choice matches; every filter that has a choice must match.
+  const displayedGroups = groups.filter((g) => Object.entries(filters).every(([key, choices]) => choices.length === 0 || choices.some((c) => groupFits(key, c, g))));
+  const filterGroups: FilterGroup[] = (() => {
+    const opt = (key: string, value: string, label: string) => ({ value, label, count: groups.filter((g) => groupFits(key, value, g)).length });
+    const out: FilterGroup[] = [];
+    if (groups.some((g) => g.isTeenGroup)) out.push({ key: 'type', label: 'Adults or teens', options: [opt('type', 'adult', 'Adult groups'), opt('type', 'teen', 'Teen groups')] });
+    out.push({ key: 'group', label: 'Group', options: groups.map((g) => opt('group', g.id, g.name)) });
+    if (supportUsers.length > 0) {
+      out.push({
+        key: 'support',
+        label: 'Support',
+        options: [opt('support', NO_SUPPORT_OPTION, 'No support assigned'), ...supportUsers.map((u) => opt('support', u.id, u.name))],
+      });
+    }
+    out.push({ key: 'people', label: 'Members', options: [opt('people', 'empty', 'Empty'), opt('people', 'has', 'Has participants')] });
+    return out;
+  })();
 
   // Teens (18 and below) are grouped by their Teen Support, never by the builder, so
   // once teen handling is on they are left out of the "not in a group yet" counts.
@@ -635,7 +647,6 @@ const AdminGroupsContent: React.FC = () => {
                 align="right"
                 items={[
                   { label: 'Export for WhatsApp', onClick: () => setExportOpen(true) },
-                  { label: showArchived ? 'Hide archived groups' : 'Show archived groups', onClick: () => setShowArchived((current) => !current) },
                 ]}
               />
             </div>
@@ -644,35 +655,16 @@ const AdminGroupsContent: React.FC = () => {
       />
 
       {activeCohort && !loading && groups.length > 0 && (
-        <div data-wt="groups-filters" className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5">
-          {supportUsers.length > 0 && (
-            <div className="min-w-0">
-              <AppSelect
-                value={noSupportOnly ? NO_SUPPORT_OPTION : supportFilter}
-                onChange={(v) => {
-                  setGroupFilter('');
-                  setNoSupportOnly(v === NO_SUPPORT_OPTION);
-                  setSupportFilter(v === NO_SUPPORT_OPTION ? '' : v);
-                }}
-                options={[
-                  { value: '', label: 'All support' },
-                  { value: NO_SUPPORT_OPTION, label: `No support assigned (${noSupportCount})` },
-                  ...supportUsers.map((u) => ({ value: u.id, label: u.name, meta: genderAgeLine(u) || undefined })),
-                ]}
-                placeholder="All support"
-                compact
-              />
-            </div>
-          )}
-          <div className="min-w-0">
-            <AppSelect
-              value={groupFilter}
-              onChange={(v) => { setGroupFilter(v); setSupportFilter(''); setNoSupportOnly(false); }}
-              options={[{ value: '', label: 'All groups' }, ...groups.map((g) => ({ value: g.id, label: g.name }))]}
-              placeholder="Jump to group"
-              compact
-            />
-          </div>
+        <div data-wt="groups-filters" className="mb-4">
+          <FilterBar
+            groups={filterGroups}
+            value={filters}
+            onChange={setFilters}
+            toggles={[{ key: 'archived', label: 'Show archived groups', value: showArchived, onChange: setShowArchived, hint: 'Include groups that were archived.' }]}
+            shown={displayedGroups.length}
+            total={groups.length}
+            noun="groups"
+          />
         </div>
       )}
 
@@ -902,9 +894,7 @@ const AdminGroupsContent: React.FC = () => {
           cohortName={activeCohort?.name ?? 'Cohort'}
           unassignedParticipants={groupablePeople.filter((p) => !p.groupId).length}
           filters={[
-            groupFilter ? groups.find((g) => g.id === groupFilter)?.name ?? 'One group' : '',
-            !groupFilter && supportFilter ? `Support: ${groups.find((g) => g.supportId === supportFilter)?.supportName ?? 'one support'}` : '',
-            !groupFilter && !supportFilter && noSupportOnly ? 'No support assigned' : '',
+            ...filterGroups.flatMap((g) => (filters[g.key] ?? []).map((v) => g.options.find((o) => o.value === v)?.label ?? v)),
             showArchived ? 'Including archived' : '',
           ].filter(Boolean)}
           onClose={() => setExportOpen(false)}
