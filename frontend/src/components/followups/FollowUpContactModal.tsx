@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import type { Cohort, FollowUpContact, User } from '../../types';
 import AppSelect from '../AppSelect';
 import ModalShell from './ModalShell';
-import { followUpContactsApi, supportTagsApi } from '../../services/api';
-import { isTeenContact } from '../../utils/followUps';
+import { followUpContactsApi } from '../../services/api';
+import { useTeenSupportIds } from '../../hooks/useTeenSupportIds';
+import { canTakeTeen, isTeenContact } from '../../utils/followUps';
 import { normalizeToIntlPhone } from '../../utils/phone';
 import { sortByText } from '../../utils/sort';
 import Spinner from '../Spinner';
@@ -59,21 +60,11 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [teenSupportIds, setTeenSupportIds] = useState<Set<string> | null>(null);
   const [confirmNotTeen, setConfirmNotTeen] = useState(false);
-  const [teenSupportsFailed, setTeenSupportsFailed] = useState(false);
   const isTeen = !!contact && isTeenContact(contact);
 
   // A teen can only be handed to a same-gender Teen Support, so the picker is limited to those.
-  useEffect(() => {
-    if (!isOpen || !isTeen) { setTeenSupportIds(null); setTeenSupportsFailed(false); return; }
-    let cancelled = false;
-    setTeenSupportsFailed(false);
-    supportTagsApi.getAll()
-      .then(({ tags }) => { if (!cancelled) setTeenSupportIds(new Set(tags.find((t) => t.systemKey === 'TEEN_SUPPORT')?.userIds ?? [])); })
-      .catch(() => { if (!cancelled) { setTeenSupportIds(new Set()); setTeenSupportsFailed(true); } });
-    return () => { cancelled = true; };
-  }, [isOpen, isTeen]);
+  const { ids: teenSupportIds, failed: teenSupportsFailed } = useTeenSupportIds(isOpen && isTeen);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -97,7 +88,7 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
   }, [isOpen, contact, defaultCohortId]);
 
   const ownerChoices = isTeen
-    ? owners.filter((o) => o.id === contact?.ownerId || (teenSupportIds?.has(o.id) && !!contact?.gender && o.gender === contact.gender))
+    ? owners.filter((o) => o.id === contact?.ownerId || canTakeTeen(o, teenSupportIds, contact?.gender))
     : owners;
 
   // Back to the normal flow: registered, no owner, so adult follow-up picks them up. The database

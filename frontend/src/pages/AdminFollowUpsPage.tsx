@@ -39,6 +39,7 @@ import {
   NEXT_ACTION_META,
   isClosedContact,
   isWaitingForAssignment,
+  isTeenWaitingForSupport,
   isClosedRegistrationStatus,
   computeFollowUpStatus,
   contactInCohortScope,
@@ -90,6 +91,7 @@ const statusGroups: Array<{ key: keyof FilterState; label: string; options: Arra
     { value: 'waiting', label: 'Ready to assign' },
     { value: 'no_gender', label: 'No same gender to follow up' },
     { value: 'unknown_gender', label: 'Gender not known' },
+    { value: 'teens', label: 'Teens waiting for a Teen Support' },
   ] },
 ];
 
@@ -277,8 +279,10 @@ const AdminFollowUpsPage: React.FC = () => {
       if (filters.age && filters.age !== '__unknown' && (c.ageRange || '') !== filters.age) return false;
       if (filters.assignment) {
         const tag = unassignedFollowUpTag(c, owners, ownerLoad, maxLoad);
-        // "all": everyone waiting, whatever the reason.
-        if (filters.assignment === 'all' ? !tag || !isWaitingForAssignment(c) : ASSIGNMENT_TAG_KEY[tag?.label ?? ''] !== filters.assignment) return false;
+        // "all": everyone waiting, whatever the reason, teens waiting for a Teen Support included.
+        if (filters.assignment === 'teens') {
+          if (!isTeenWaitingForSupport(c)) return false;
+        } else if (filters.assignment === 'all' ? !(isTeenWaitingForSupport(c) || (tag && isWaitingForAssignment(c))) : ASSIGNMENT_TAG_KEY[tag?.label ?? ''] !== filters.assignment) return false;
       }
       // Arrived from an Overview tile: a single derived status, or every status
       // that still counts as open work.
@@ -326,7 +330,8 @@ const AdminFollowUpsPage: React.FC = () => {
 
   const openQuestionCount = useMemo(() => dashboardContacts.filter(hasOpenFormQuestion).length, [dashboardContacts]);
 
-  const waitingCount = useMemo(() => realContacts.filter(isWaitingForAssignment).length, [realContacts]);
+  // Everyone "Assign now" would hand out: waiting adults, and teens waiting for a Teen Support.
+  const waitingCount = useMemo(() => realContacts.filter((c) => isWaitingForAssignment(c) || isTeenWaitingForSupport(c)).length, [realContacts]);
 
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
@@ -1055,6 +1060,9 @@ const FollowUpAssignmentSummary: React.FC<{
 }> = ({ contacts, owners, ownerLoad, maxLoad, onSetAssignmentFilter }) => {
   const [showAtLimit, setShowAtLimit] = useState(false);
   const waitingContacts = useMemo(() => contacts.filter(isWaitingForAssignment), [contacts]);
+  // Teens with no Teen Support yet wait too, but for a Teen Support, so they are counted here and
+  // kept out of the gender capacity cards, which are about adult supports.
+  const teensWaiting = useMemo(() => contacts.filter(isTeenWaitingForSupport).length, [contacts]);
   const tagCounts = useMemo(() => {
     const counts = { waiting: 0, no_gender: 0, unknown_gender: 0 };
     waitingContacts.forEach((c) => {
@@ -1111,8 +1119,11 @@ const FollowUpAssignmentSummary: React.FC<{
             </span>
             <div className="min-w-0">
               <p className="text-[13px] text-gray-500">Waiting to be assigned</p>
-              {/* Everyone with nobody assigned (what the alert and Assign now count), then why. */}
-              <button type="button" onClick={() => onSetAssignmentFilter('all')} className="mt-0.5 block text-[17px] font-bold leading-tight text-gray-900 hover:underline">{waitingContacts.length}</button>
+              {/* Everyone with nobody assigned, teens waiting for a Teen Support included (the same number Assign now counts), then why. */}
+              <button type="button" onClick={() => onSetAssignmentFilter('all')} className="mt-0.5 block text-[17px] font-bold leading-tight text-gray-900 hover:underline">{waitingContacts.length + teensWaiting}</button>
+              {teensWaiting > 0 && (
+                <button type="button" onClick={() => onSetAssignmentFilter('teens')} className="mt-1 block text-[12px] font-semibold text-sky-700 hover:underline">{teensWaiting} {teensWaiting === 1 ? 'teen' : 'teens'} waiting for a Teen Support</button>
+              )}
               {tagCounts.waiting > 0 && (
                 <button type="button" onClick={() => onSetAssignmentFilter('waiting')} className="mt-1 block text-[12px] font-semibold text-amber-700 hover:underline">{tagCounts.waiting} ready to assign</button>
               )}

@@ -245,7 +245,13 @@ duplicating the logic anywhere else is a bug waiting to happen.
     `teen_owner_guard` rejects any owner change on a teen to someone who is not a
     Teen Support of the teen's gender (clearing the owner is allowed); editing a held teen's gender is checked the same way (`20261007130000_teen_owner_guard_gender.sql`). Admin "This
     person is not a teen" returns the contact to REGISTERED with no owner. Source:
-    `20261007110000_teen_owner_guard.sql`.
+    `20261007110000_teen_owner_guard.sql`. The Follow-ups pickers match it: a teen's
+    row dropdown and "Assign a support" list (and bulk assign when every selected
+    contact is a teen) offer only Unassigned, the current holder and same-gender Teen
+    Supports (`canTakeTeen`, `useTeenSupportIds`; a mixed-gender teen batch offers
+    nobody). Teens with no Teen Support count in the Capacity card's "Waiting to be
+    assigned" and in the "Assign now" count (`isTeenWaitingForSupport`), because
+    `assign_followups_now` also runs `assign_teen_contacts`.
 24. **Switching teen handling on for the first time moves the existing teens.** The
     `teen_enable_move` trigger on `AppSetting` runs `teen_move_existing()` once (marker
     `teen_move_done`): every current-cohort participant aged 18 and below becomes a TEENAGER

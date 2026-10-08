@@ -207,6 +207,20 @@ export const isWaitingForAssignment = (c: FollowUpContact): boolean =>
   !c.ownerId && !c.isTest && !c.archivedAt && !isClosedContact(c) && c.registrationStatus !== 'NEXT_COHORT' && !isTeenContact(c);
 
 /**
+ * Whether this support may be given a teen of the given gender: a Teen Support of that same gender
+ * (what `teen_owner_guard` accepts). A teen with no gender on file matches nobody.
+ */
+export const canTakeTeen = (
+  owner: { id: string; gender?: string | null },
+  teenSupportIds: Set<string> | null | undefined,
+  teenGender: string | null | undefined,
+): boolean => !!teenSupportIds?.has(owner.id) && !!teenGender && owner.gender === teenGender;
+
+/** A teen with no Teen Support yet: waiting for one, not for an adult support. */
+export const isTeenWaitingForSupport = (c: FollowUpContact): boolean =>
+  isTeenContact(c) && !c.ownerId && !c.isTest && !c.archivedAt && !isClosedContact(c);
+
+/**
  * Open (not closed, not archived) follow-ups each support holds in the given
  * cohort — what the load ring counts. Past cohorts' contacts don't add to the load.
  */

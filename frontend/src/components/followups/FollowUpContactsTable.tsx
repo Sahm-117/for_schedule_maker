@@ -19,12 +19,15 @@ import {
   isOverdue,
   buildStatusPatch,
   unassignedFollowUpTag,
+  isTeenContact,
+  canTakeTeen,
 } from '../../utils/followUps';
 import Spinner from '../Spinner';
 import ConfirmationModal from '../ConfirmationModal';
 import { sortByText } from '../../utils/sort';
 import { formatDate, formatDateTime } from '../../utils/time';
 import { followUpContactsApi, followUpLoginIssuesApi } from '../../services/api';
+import { useTeenSupportIds } from '../../hooks/useTeenSupportIds';
 import FormQuestionBox from './FormQuestionBox';
 
 interface FollowUpContactsTableProps {
@@ -103,6 +106,20 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   };
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkOwnerId, setBulkOwnerId] = useState('');
+  // A teen can only be handed to a same-gender Teen Support, so their pickers list only those.
+  // Loaded when the list has a teen (and again each time a teen's picker opens); until it arrives,
+  // or if it fails, a teen's picker offers just Unassigned and whoever already holds them.
+  const hasTeens = canAssign && contacts.some(isTeenContact);
+  const { ids: teenSupportIds, failed: teenSupportsFailed, reload: reloadTeenSupports } = useTeenSupportIds(hasTeens);
+  // Someone who drops out of the list (a filter, a refresh) drops out of the selection too, so a
+  // hidden teen is never sent along with the rest.
+  useEffect(() => {
+    setSelected((prev) => {
+      const present = new Set(contacts.map((c) => c.id));
+      const next = new Set(Array.from(prev).filter((id) => present.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [contacts]);
   const [bulkDueDate, setBulkDueDate] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [editingDueDate, setEditingDueDate] = useState<FollowUpContact | null>(null);
@@ -184,14 +201,14 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   };
 
   const handleBulkAssign = () => {
-    if (!bulkOwnerId || selected.size === 0 || !onBulkAssign) return;
-    withLoadCheck(bulkOwnerId, selected.size, () => { void runBulkAssign(); });
+    if (!bulkOwnerValid || selected.size === 0 || !onBulkAssign) return;
+    withLoadCheck(bulkOwnerValid, selected.size, () => { void runBulkAssign(); });
   };
   const runBulkAssign = async () => {
-    if (!bulkOwnerId || selected.size === 0 || !onBulkAssign) return;
+    if (!bulkOwnerValid || selected.size === 0 || !onBulkAssign) return;
     setAssigning(true);
     try {
-      await onBulkAssign(Array.from(selected), bulkOwnerId, bulkDueDate || null);
+      await onBulkAssign(Array.from(selected), bulkOwnerValid, bulkDueDate || null);
       setSelected(new Set());
       setBulkOwnerId('');
       setBulkDueDate('');
@@ -206,16 +223,40 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     meta: genderAgeLine(o) || undefined,
     ring: showLoadRing && ownerLoad && maxLoad ? { value: ownerLoad.get(o.id) ?? 0, max: maxLoad } : undefined,
   }))];
+  // For a teen: Unassigned, whoever holds them now, and Teen Supports of their gender (what the
+  // database accepts). A teen with no gender on file has no match.
+  const teenOwnerOptions = (contact: FollowUpContact) => ownerOptions.filter((option) => {
+    if (!option.value || option.value === contact.ownerId) return true;
+    const owner = owners.find((o) => o.id === option.value);
+    return !!owner && canTakeTeen(owner, teenSupportIds, contact.gender);
+  });
+  // Bulk assign: when everyone selected is a teen, only Teen Supports of their gender. A mixed-gender
+  // batch can't go to one Teen Support, so it lists nobody until the selection is one gender.
+  const selectedContacts = contacts.filter((c) => selected.has(c.id));
+  const allTeens = selectedContacts.length > 0 && selectedContacts.every(isTeenContact);
+  const teenGenders = new Set(selectedContacts.map((c) => c.gender || ''));
+  const teenGender = teenGenders.size === 1 ? Array.from(teenGenders)[0] : '';
+  const bulkOwnerOptions = !allTeens
+    ? ownerOptions.slice(1)
+    : teenGenders.size !== 1
+      ? []
+      : ownerOptions.slice(1).filter((option) => {
+        const owner = owners.find((o) => o.id === option.value);
+        return !!owner && canTakeTeen(owner, teenSupportIds, teenGender);
+      });
+  // The chosen support only counts while they are still on offer for this selection.
+  const bulkOwnerValid = bulkOwnerOptions.some((option) => option.value === bulkOwnerId) ? bulkOwnerId : '';
   // The support who added a contact goes first in that contact's picker, so
   // handing it back to them needs no searching.
   const ownerOptionsFor = (contact: FollowUpContact) => {
+    const base = isTeenContact(contact) ? teenOwnerOptions(contact) : ownerOptions;
     const adderId = contact.registeredById;
-    if (!adderId) return ownerOptions;
+    if (!adderId) return base;
     const adderName = owners.find((o) => o.id === adderId)?.name || contact.registeredByName;
-    if (!adderName) return ownerOptions;
+    if (!adderName || !base.some((option) => option.value === adderId)) return base;
     return [
-      { value: adderId, label: `${adderName} · added them`, meta: ownerOptions.find((option) => option.value === adderId)?.meta, ring: ownerOptions.find((option) => option.value === adderId)?.ring },
-      ...ownerOptions.filter((option) => option.value !== adderId),
+      { value: adderId, label: `${adderName} · added them`, meta: base.find((option) => option.value === adderId)?.meta, ring: base.find((option) => option.value === adderId)?.ring },
+      ...base.filter((option) => option.value !== adderId),
     ];
   };
   const assignToAdder = (contact: FollowUpContact) => {
@@ -326,7 +367,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         { label: 'Copy number', onClick: () => { void copyNumber(contact); }, icon: PhoneIcon },
         { label: 'Send message', onClick: () => onMessage(contact), icon: WhatsAppIcon },
         ...(contact.email ? [{ label: 'Send email', onClick: () => { if (onEmail) onEmail(contact); else window.location.href = `mailto:${contact.email}`; }, icon: EmailIcon }] : []),
-        ...(canAssign ? [{ label: 'Assign a support', onClick: () => { setOwnerSearch(''); setAssigningOwner(contact); } }] : []),
+        ...(canAssign ? [{ label: 'Assign a support', onClick: () => { setOwnerSearch(''); if (isTeenContact(contact)) reloadTeenSupports(); setAssigningOwner(contact); } }] : []),
         { label: 'Edit contact', onClick: () => onEdit(contact) },
         ...(hasLoginToSend(contact) ? [{ label: 'Reset password', onClick: () => setResetLoginContact(contact) }] : []),
         { label: `Due date: ${contact.dueDate ? dateLabel(contact.dueDate) : 'none'}`, onClick: () => { setDueDateValue(contact.dueDate || ''); setEditingDueDate(contact); } },
@@ -359,7 +400,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         <div className="surface-card sticky top-16 z-40 flex flex-wrap items-center gap-2 rounded-[28px] px-3.5 py-3">
           <span className="text-sm font-semibold text-gray-900">{selected.size} selected</span>
           <div className="w-44">
-            <AppSelect value={bulkOwnerId} onChange={setBulkOwnerId} options={ownerOptions.slice(1)} placeholder="Assign to…" compact />
+            <AppSelect value={bulkOwnerValid} onChange={setBulkOwnerId} options={bulkOwnerOptions} placeholder="Assign to…" compact />
           </div>
           <input
             type="date"
@@ -371,7 +412,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
           <button
             type="button"
             onClick={handleBulkAssign}
-            disabled={!bulkOwnerId || assigning}
+            disabled={!bulkOwnerValid || assigning}
             className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
           >
             {assigning ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Assigning…</span>) : 'Assign'}
@@ -379,6 +420,15 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
           <button type="button" onClick={() => setSelected(new Set())} className="text-xs font-semibold text-gray-500 hover:text-gray-700">
             Clear
           </button>
+          {allTeens && teenGenders.size > 1 && (
+            <p className="w-full text-xs font-medium text-amber-700">Teens go only to a Teen Support of their own gender. Select teens of one gender to assign them together.</p>
+          )}
+          {allTeens && teenSupportsFailed && (
+            <p className="w-full text-xs font-medium text-red-600">
+              Could not load the Teen Supports.{' '}
+              <button type="button" onClick={reloadTeenSupports} className="font-semibold underline">Try again</button>
+            </p>
+          )}
         </div>
       )}
 
@@ -628,6 +678,13 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               placeholder="Search supports"
               className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-orange-300"
             />
+            {isTeenContact(assigningOwner) && (
+              <p className={`mt-2 text-center text-xs ${teenSupportsFailed ? 'font-medium text-red-600' : 'text-gray-500'}`}>
+                {teenSupportsFailed ? (
+                  <>Could not load the Teen Supports. <button type="button" onClick={reloadTeenSupports} className="font-semibold underline">Try again</button></>
+                ) : 'Teens go only to a Teen Support of the same gender.'}
+              </p>
+            )}
             <div className="mt-3 flex max-h-72 flex-col gap-1 overflow-y-auto overscroll-contain">
               {(() => {
                 const query = ownerSearch.trim().toLowerCase();
