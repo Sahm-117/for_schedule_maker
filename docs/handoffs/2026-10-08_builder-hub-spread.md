@@ -86,3 +86,8 @@ not flagged for missed training, the Operational pill is teal and also on "Suppo
 reuses the memoised pool. Not changed: a draft going stale when the switch flips (the only way back to the switch passes
 through "Save rules & build", which rebuilds). Still open: the Groups page hand-picker leaves out operational supports and
 supports below the minimum training (it keeps whoever is already on the group); the admin only asked for the builder.
+
+Groups page pickers (New/Edit group, Assign support) now follow the same rule as the builder: operational supports are
+offered and tagged, and missing training shows an amber notice instead of blocking (the old override-with-a-reason flow is
+gone from the UI; old override notes stay in the data). Checked in the browser with mocked data: an operational support with
+0/1 trainings can be picked and saved. FLOW_MAP rule 19 updated.

@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { cohortsApi, groupsApi, participantsApi, settingsApi, supportKindApi, supportNotesApi, supportSessionsApi, supportTagsApi, usersApi } from '../services/api';
+import { cohortsApi, groupsApi, participantsApi, settingsApi, supportKindApi, supportSessionsApi, supportTagsApi, usersApi } from '../services/api';
 import type { Group, Participant, User, GroupCallPlatform, SupportKind, SupportSession, SupportTag } from '../types';
 import ModalShell from '../components/followups/ModalShell';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -44,70 +44,24 @@ const supportOptions = (
   users: User[],
   counts: Map<string, { attended: number; total: number }>,
   total: number,
+  kinds?: Record<string, SupportKind> | null,
 ) => users.map((u) => {
   const c = trainingCountFor(counts, u.id, total);
   return {
     value: u.id,
     label: `${u.name}${trainingLabel(counts, u.id, total)}`,
+    meta: kinds?.[u.id] === 'OPERATIONAL' ? 'Operational support' : undefined,
     warning: c.total > 0 && c.attended === 0 ? 'Attended no training' : undefined,
   };
 });
 
-const TrainingBlockNotice: React.FC<{
-  supportId: string;
-  supportName: string;
-  attended: number;
-  total: number;
-  onOverridden: () => void;
-}> = ({ supportId, supportName, attended, total, onOverridden }) => {
-  const [open, setOpen] = useState(false);
-  const [reason, setReason] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState('');
-
-  const handleOverride = async () => {
-    if (!reason.trim()) { setErr('A reason is required'); return; }
-    setSaving(true);
-    setErr('');
-    try {
-      await supportNotesApi.create({ supportId, noteType: 'ELIGIBILITY_OVERRIDE', body: reason.trim() });
-      onOverridden();
-    } catch (e: any) {
-      setErr(e.message || 'Failed to save override');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="rounded-xl border border-red-200 bg-red-50 p-3.5">
-      <p className="text-sm font-semibold text-red-700">Missed all pre-cohort trainings</p>
-      <p className="mt-0.5 text-xs text-red-600">{supportName} attended {attended} of {total} pre-cohort training{total === 1 ? '' : 's'} this cohort.</p>
-      {!open ? (
-        <button type="button" onClick={() => setOpen(true)} className="mt-2 rounded-xl border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100">
-          Override
-        </button>
-      ) : (
-        <div className="mt-2 flex flex-col gap-2">
-          <textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={2}
-            placeholder="Reason for overriding this rule"
-            className="w-full rounded-xl border border-red-200 px-3 py-2 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-          {err && <p className="text-xs text-red-700">{err}</p>}
-          <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => { setOpen(false); setErr(''); }} className="rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-white">Cancel</button>
-            <button type="button" onClick={() => void handleOverride()} disabled={saving} className="rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
-              {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save override'}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+// Missing pre-cohort training is shown, never a reason to stop a support leading a group.
+const TrainingNotice: React.FC<{ supportName: string; attended: number; total: number }> = ({ supportName, attended, total }) => (
+  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5">
+    <p className="text-sm font-semibold text-amber-700">Missed pre-cohort training</p>
+    <p className="mt-0.5 text-xs text-amber-700">{supportName} attended {attended} of {total} pre-cohort training{total === 1 ? '' : 's'} this cohort. You can still make them the support.</p>
+  </div>
+);
 
 const groupNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 const NO_SUPPORT_OPTION = '__no_support__';
@@ -129,9 +83,11 @@ interface GroupFormModalProps {
   trainingCounts: Map<string, { attended: number; total: number }>;
   trainingsTotal: number;
   minTrainingsAttended: number;
+  /** Each support's kind, to tag operational supports in the picker. */
+  supportKinds?: Record<string, SupportKind> | null;
 }
 
-const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSaved, cohortId, existing, supportUsers, testSupportsToggle, trainingCounts, trainingsTotal, minTrainingsAttended }) => {
+const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSaved, cohortId, existing, supportUsers, testSupportsToggle, trainingCounts, trainingsTotal, minTrainingsAttended, supportKinds }) => {
   const [name, setName] = useState('');
   const [supportId, setSupportId] = useState('');
   const [slot, setSlot] = useState<MeetingSlot>({ meetingDay: null, meetingTime: null, meetingDurationMins: null });
@@ -139,7 +95,6 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
   const [callLink, setCallLink] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
-  const [overridden, setOverridden] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -153,19 +108,15 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
       setCallPlatform(existing?.callPlatform ?? 'WHATSAPP');
       setCallLink(existing?.callLink ?? '');
       setErr('');
-      setOverridden(false);
     }
   }, [isOpen, existing]);
 
-  useEffect(() => { setOverridden(false); }, [supportId]);
-
   const selectedSupport = supportUsers.find((u) => u.id === supportId);
   const counts = supportId ? trainingCountFor(trainingCounts, supportId, trainingsTotal) : null;
-  const blocked = !!counts && counts.total > 0 && counts.attended < minTrainingsAttended && !overridden;
+  const missedTraining = !!counts && counts.total > 0 && counts.attended < minTrainingsAttended;
 
   const handleSave = async () => {
     if (!name.trim()) { setErr('Group name is required'); return; }
-    if (blocked) { setErr('Missed all pre-cohort trainings'); return; }
     setSaving(true);
     setErr('');
     try {
@@ -203,7 +154,7 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
       footer={
         <>
           <button type="button" onClick={onClose} className="rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Cancel</button>
-          <button type="button" onClick={() => void handleSave()} disabled={saving || blocked} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
+          <button type="button" onClick={() => void handleSave()} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
             {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
           </button>
         </>
@@ -228,21 +179,15 @@ const GroupFormModal: React.FC<GroupFormModalProps> = ({ isOpen, onClose, onSave
             onChange={setSupportId}
             options={[
               { value: '', label: '— None —' },
-              ...supportOptions(supportUsers, trainingCounts, trainingsTotal),
+              ...supportOptions(supportUsers, trainingCounts, trainingsTotal, supportKinds),
             ]}
             placeholder="— None —"
             compact
           />
           {testSupportsToggle && <TestSupportsToggle checked={testSupportsToggle.value} onChange={testSupportsToggle.onChange} className="mt-2" />}
         </div>
-        {blocked && counts && selectedSupport && (
-          <TrainingBlockNotice
-            supportId={supportId}
-            supportName={selectedSupport.name}
-            attended={counts.attended}
-            total={counts.total}
-            onOverridden={() => setOverridden(true)}
-          />
+        {missedTraining && counts && selectedSupport && (
+          <TrainingNotice supportName={selectedSupport.name} attended={counts.attended} total={counts.total} />
         )}
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Weekly meeting slot</label>
@@ -281,30 +226,27 @@ interface AssignSupportModalProps {
   trainingCounts: Map<string, { attended: number; total: number }>;
   trainingsTotal: number;
   minTrainingsAttended: number;
+  /** Each support's kind, to tag operational supports in the picker. */
+  supportKinds?: Record<string, SupportKind> | null;
 }
 
-const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose, onSaved, group, supportUsers, testSupportsToggle, trainingCounts, trainingsTotal, minTrainingsAttended }) => {
+const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose, onSaved, group, supportUsers, testSupportsToggle, trainingCounts, trainingsTotal, minTrainingsAttended, supportKinds }) => {
   const [supportId, setSupportId] = useState('');
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
-  const [overridden, setOverridden] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setSupportId(group.supportId ?? '');
       setErr('');
-      setOverridden(false);
     }
   }, [isOpen, group]);
 
-  useEffect(() => { setOverridden(false); }, [supportId]);
-
   const selectedSupport = supportUsers.find((u) => u.id === supportId);
   const counts = supportId ? trainingCountFor(trainingCounts, supportId, trainingsTotal) : null;
-  const blocked = !!counts && counts.total > 0 && counts.attended < minTrainingsAttended && !overridden;
+  const missedTraining = !!counts && counts.total > 0 && counts.attended < minTrainingsAttended;
 
   const handleSave = async () => {
-    if (blocked) { setErr('Missed all pre-cohort trainings'); return; }
     setSaving(true);
     setErr('');
     try {
@@ -326,7 +268,7 @@ const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose
       footer={
         <>
           <button type="button" onClick={onClose} className="rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Cancel</button>
-          <button type="button" onClick={() => void handleSave()} disabled={saving || blocked} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
+          <button type="button" onClick={() => void handleSave()} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
             {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
           </button>
         </>
@@ -341,21 +283,15 @@ const AssignSupportModal: React.FC<AssignSupportModalProps> = ({ isOpen, onClose
             onChange={setSupportId}
             options={[
               { value: '', label: '— None —' },
-              ...supportOptions(supportUsers, trainingCounts, trainingsTotal),
+              ...supportOptions(supportUsers, trainingCounts, trainingsTotal, supportKinds),
             ]}
             placeholder="— None —"
             compact
           />
           {testSupportsToggle && <TestSupportsToggle checked={testSupportsToggle.value} onChange={testSupportsToggle.onChange} className="mt-2" />}
         </div>
-        {blocked && counts && selectedSupport && (
-          <TrainingBlockNotice
-            supportId={supportId}
-            supportName={selectedSupport.name}
-            attended={counts.attended}
-            total={counts.total}
-            onOverridden={() => setOverridden(true)}
-          />
+        {missedTraining && counts && selectedSupport && (
+          <TrainingNotice supportName={selectedSupport.name} attended={counts.attended} total={counts.total} />
         )}
       </div>
     </ModalShell>
@@ -605,11 +541,11 @@ const AdminGroupsContent: React.FC = () => {
     [trainingSessions, trainingAttendance]
   );
 
-  // Who the group pickers offer, kept as short as possible. Left out: people who are
-  // inactive or not in this cohort, hub leads and operational supports, Teen Supports
-  // (they look after teens in their own groups), anyone who already leads another
-  // group and anyone below the minimum pre-cohort trainings (they can't be saved on
-  // a group). Whoever is on the group being edited stays, so their name still shows.
+  // Who the group pickers offer. Left out: people who are inactive or not in this
+  // cohort, hub leads, Teen Supports (they look after teens in their own groups) and
+  // anyone who already leads another group. Operational supports are offered, and a
+  // support who missed the pre-cohort training is offered too (shown in the list and
+  // on a notice, never blocked). Whoever is on the group being edited stays.
   const supportsFor = useCallback((group: Group | null): User[] => {
     const teenSupportIds = new Set((supportTags ?? []).filter((t) => t.systemKey === 'TEEN_SUPPORT').flatMap((t) => t.userIds));
     const leading = new Set(groups.filter((g) => g.id !== group?.id && !g.archivedAt && g.supportId).map((g) => g.supportId as string));
@@ -617,13 +553,12 @@ const AdminGroupsContent: React.FC = () => {
       if (u.id === group?.supportId) return true;
       if (u.isActive === false) return false;
       if (cohortMemberIds && !cohortMemberIds.has(u.id)) return false;
-      if (supportKinds && (supportKinds[u.id] ?? 'PARTICIPANT_SUPPORT') !== 'PARTICIPANT_SUPPORT') return false;
+      // Hub leads are left out; operational supports can lead a group too.
+      if (supportKinds && (supportKinds[u.id] ?? 'PARTICIPANT_SUPPORT') === 'HUB_LEAD') return false;
       if (teenSupportIds.has(u.id)) return false;
-      const trained = trainingCountFor(trainingCounts, u.id, trainingsTotal);
-      if (trained.total > 0 && trained.attended < minTrainingsAttended) return false;
       return !leading.has(u.id);
     });
-  }, [supportUsers, supportTags, cohortMemberIds, supportKinds, groups, trainingCounts, trainingsTotal, minTrainingsAttended]);
+  }, [supportUsers, supportTags, cohortMemberIds, supportKinds, groups]);
 
   // Initial / cohort-change load shows the loader.
   useEffect(() => { void load(false); }, [load]);
@@ -868,6 +803,7 @@ const AdminGroupsContent: React.FC = () => {
         cohortId={activeCohort?.id ?? ''}
         existing={editing}
         supportUsers={supportsFor(editing)}
+        supportKinds={supportKinds}
         testSupportsToggle={hasTestSupports ? { value: showTestSupports, onChange: setShowTestSupports } : undefined}
         trainingCounts={trainingCounts}
         trainingsTotal={trainingsTotal}
@@ -880,6 +816,7 @@ const AdminGroupsContent: React.FC = () => {
           onClose={() => setSupportTarget(null)}
           group={supportTarget}
           supportUsers={supportsFor(supportTarget)}
+          supportKinds={supportKinds}
         testSupportsToggle={hasTestSupports ? { value: showTestSupports, onChange: setShowTestSupports } : undefined}
           trainingCounts={trainingCounts}
           trainingsTotal={trainingsTotal}
