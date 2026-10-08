@@ -139,9 +139,9 @@ export const buildSupportsList = (supports: User[], missingAlertsIds: Set<string
 //   2. Bola Ade - 08023456789 (No response)
 // A teen shows the number we reach them on (a parent's first). The status is how they stand now,
 // so a list can be read (or trimmed in WhatsApp) without opening the app.
-export const formatContactLine = (index: number, c: FollowUpContact): string => {
+export const formatContactLine = (index: number, c: FollowUpContact, withStatus = true): string => {
   const phone = normalizePhone(contactReachPhone(c));
-  return `${index}. ${c.fullName} - ${phone || 'no number'} (${contactStatusLabel(c)})`;
+  return `${index}. ${c.fullName} - ${phone || 'no number'}${withStatus ? ` (${contactStatusLabel(c)})` : ''}`;
 };
 
 export const buildContactsList = (title: string, filters: string[], contacts: FollowUpContact[]): string => {

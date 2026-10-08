@@ -382,8 +382,8 @@ export const computeFollowUpMetrics = (contacts: FollowUpContact[]): FollowUpMet
     else if (status === 'TEEN_ONBOARDED') { m.contacted++; m.registered++; m.closed++; }
     else if (status === 'WRONG_NUMBER') { m.wrongNumber++; m.contacted++; m.closed++; }
     else if (status === 'NOT_INTERESTED') { m.notInterested++; m.contacted++; m.closed++; }
-    // Parked for the next cohort (No response counts the same way): neither closed nor active.
-    else if (status === 'NO_RESPONSE' || status === 'NEXT_COHORT') { /* parked */ }
+    else if (status === 'NO_RESPONSE') { m.closed++; }
+    else if (status === 'NEXT_COHORT') { /* parked — not counted as closed or active */ }
   }
   return m;
 };
@@ -464,7 +464,7 @@ export const computeOwnerBreakdown = (contacts: FollowUpContact[]): OwnerBreakdo
       case 'WRONG_NUMBER': row.wrongNumber++; break;
       case 'NOT_INTERESTED': row.notInterested++; break;
       // No response is read as next cohort: it leaves the Dropped numbers and joins the parked ones.
-      case 'NO_RESPONSE': row.noResponse++; row.nextCohort++; break;
+      case 'NO_RESPONSE': row.noResponse++; row.nextCohort++; break; // noResponse is a subset of nextCohort, not a separate column
       case 'NEXT_COHORT': row.nextCohort++; break;
       case 'TEENAGER': row.registered++; break;
       case 'TEEN_ONBOARDED':

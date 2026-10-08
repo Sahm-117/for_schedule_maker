@@ -40,6 +40,8 @@ import {
   isClosedContact,
   isWaitingForAssignment,
   isTeenWaitingForSupport,
+  isTeenContact,
+  contactReachPhone,
   isClosedRegistrationStatus,
   computeFollowUpStatus,
   contactInCohortScope,
@@ -320,7 +322,7 @@ const AdminFollowUpsPage: React.FC = () => {
   // on the form). Auto-assignment holds these back until the number is fixed. Someone already
   // parked (No response, next cohort, closed) is not waiting for anything, so is not listed.
   const invalidNumberContacts = useMemo(
-    () => realContacts.filter((c) => (isWaitingForAssignment(c) || isTeenWaitingForSupport(c)) && !normalizeToIntlPhone(c.phone)),
+    () => realContacts.filter((c) => (isWaitingForAssignment(c) || isTeenWaitingForSupport(c)) && !normalizeToIntlPhone(isTeenContact(c) ? contactReachPhone(c) : c.phone)),
     [realContacts],
   );
 

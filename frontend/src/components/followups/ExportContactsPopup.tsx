@@ -22,9 +22,18 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: all
   // People marked No response are left out unless asked for, so a list for following up does not pick them up.
   const [includeNoResponse, setIncludeNoResponse] = useState(false);
   const closedCount = closedToggle ? allContacts.filter((c) => !!c.archivedAt).length : 0;
-  const afterClosed = closedToggle && !includeClosed ? allContacts.filter((c) => !c.archivedAt) : allContacts;
-  const noResponseCount = afterClosed.filter((c) => computeFollowUpStatus(c) === 'NO_RESPONSE').length;
-  const contacts = includeNoResponse ? afterClosed : afterClosed.filter((c) => computeFollowUpStatus(c) !== 'NO_RESPONSE');
+  const { contacts, noResponseCount, leavingOutNoResponse } = useMemo(() => {
+    const afterClosed = closedToggle && !includeClosed ? allContacts.filter((c) => !c.archivedAt) : allContacts;
+    const noResponse = afterClosed.filter((c) => computeFollowUpStatus(c) === 'NO_RESPONSE');
+    // A list already narrowed to No response is exactly what was asked for, so nothing is left out of it.
+    const onlyNoResponse = afterClosed.length > 0 && noResponse.length === afterClosed.length;
+    const leaveOut = noResponse.length > 0 && !onlyNoResponse && !includeNoResponse;
+    return {
+      contacts: leaveOut ? afterClosed.filter((c) => computeFollowUpStatus(c) !== 'NO_RESPONSE') : afterClosed,
+      noResponseCount: onlyNoResponse ? 0 : noResponse.length,
+      leavingOutNoResponse: leaveOut,
+    };
+  }, [allContacts, closedToggle, includeClosed, includeNoResponse]);
   const [copiedAll, setCopiedAll] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   // Participants' own numbers are left out unless asked for; the supports' numbers are always there.
@@ -35,7 +44,7 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: all
   const allFilters = [
     ...filters,
     ...(closedToggle && includeClosed ? ['Including closed'] : []),
-    ...(noResponseCount > 0 ? [includeNoResponse ? 'Including No response' : 'Without No response'] : []),
+    ...(noResponseCount > 0 ? [leavingOutNoResponse ? 'Without No response' : 'Including No response'] : []),
   ];
 
   const copyAll = async () => {
@@ -49,7 +58,7 @@ const ExportContactsPopup: React.FC<ExportContactsPopupProps> = ({ contacts: all
 
   const copyOne = async (c: FollowUpContact) => {
     try {
-      await navigator.clipboard.writeText(bySupport ? formatContactForSupportCopy(c, supportById, includeNumbers) : formatContactLine(1, c).replace(/^1\. /, ''));
+      await navigator.clipboard.writeText(bySupport ? formatContactForSupportCopy(c, supportById, includeNumbers) : formatContactLine(1, c, false).replace(/^1\. /, ''));
       setCopiedId(c.id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch { /* ignore */ }

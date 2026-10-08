@@ -304,8 +304,9 @@ duplicating the logic anywhere else is a bug waiting to happen.
     On the Follow-ups cards No response is read as next cohort: it sits in the Next cohort numbers
     (`FOLLOW_UP_STAGE`, the per-support breakdown), never in Stopped or Dropped, and is not a
     stopped reason. A parked person is not "waiting for assignment", so the bad-number banner does
-    not list them. The WhatsApp export shows each person's status and leaves No response out unless
-    "Include No response" is switched on.
+    not list them (a teen is judged by the number we reach them on). The WhatsApp export shows each
+    person's status and leaves No response out unless "Include No response" is switched on, except
+    when the list is already narrowed to No response. The single-person Copy stays a clean line.
     Source: `20261007200000_followup_no_response_flag.sql`,
     `20261008020000_password_set_confirms_parked_contacts.sql`.
 29. **Only people who have signed in are grouped, and running groups are topped up first.** The group
