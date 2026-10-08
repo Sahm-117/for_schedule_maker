@@ -1039,12 +1039,13 @@ Deno.serve(async (req) => {
           const byBody = new Map<string, string[]>()
           for (const a of rows) {
             const st = states.get(a.participantId)
-            if (!st || st.completed) continue
+            if (!st || st.completed || st.hasAttended) continue
             const guideRead = !!st.introGuideRead || doneSteps.has(`${a.participantId}:intro`)
             const left: string[] = []
             if (st.supportIntroPosted && !st.introPosted) left.push('introduce yourself')
             if (!guideRead) left.push('read the Intro Class guide')
             if (!st.profileComplete) left.push('finish your profile')
+            if (!st.venueMapAcknowledged) left.push('check the venue map')
             if (left.length === 0 && st.introPosted && !st.readyConfirmed) left.push("confirm you're ready for class")
             if (left.length === 0) continue
             const body = `Still to do: ${left.join(', ')}`

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Spinner from '../Spinner';
 
@@ -14,34 +14,43 @@ export default function VenueMapModal({ acknowledged, onAcknowledge, onClose }: 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // Closing is ignored while the tick is being saved, so a failure is never lost.
+  const savingRef = useRef(false);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const close = () => { if (!savingRef.current) closeRef.current(); };
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !savingRef.current) closeRef.current(); };
     window.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
-  }, [onClose]);
+  }, []);
 
   const done = async () => {
-    if (acknowledged) { onClose(); return; }
+    if (acknowledged) { close(); return; }
+    savingRef.current = true;
     setSaving(true);
     setError('');
     try {
       await onAcknowledge();
+      savingRef.current = false;
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save your step.');
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 sm:items-center" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 sm:items-center" onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
       <div role="dialog" aria-modal="true" aria-label="FOF venue map" className="flex max-h-[94vh] w-full max-w-lg flex-col rounded-t-[24px] bg-white shadow-xl sm:rounded-[24px]">
         <div className="flex items-center gap-3 px-5 pb-2 pt-4">
           <h2 className="text-lg font-bold text-gray-900">Venue map</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="ml-auto grid h-9 w-9 place-items-center rounded-full text-gray-500 hover:bg-gray-100">&#10005;</button>
+          <button type="button" onClick={close} aria-label="Close" className="ml-auto grid h-9 w-9 place-items-center rounded-full text-gray-500 hover:bg-gray-100">&#10005;</button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto px-5">
           <img src="/venue-map.webp" alt="FOF venue map: from the Dreampark entrance to the church entrance, then after first service walk from the church entrance to the New VIP Lounge." className="w-full rounded-[16px] border border-[#eef0f4]" />

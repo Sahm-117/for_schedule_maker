@@ -103,10 +103,16 @@ const ParticipantHomePage: React.FC = () => {
   useEffect(() => {
     if (!readyId || !readyPreStart) return;
     let cancelled = false;
-    participantAppApi.getOnboardingState()
-      .then((state) => { if (!cancelled) setOnboarding(state); })
-      .catch(() => { /* ignore */ });
-    return () => { cancelled = true; };
+    const load = () => {
+      participantAppApi.getOnboardingState()
+        .then((state) => { if (!cancelled) setOnboarding(state); })
+        .catch(() => { /* ignore */ });
+    };
+    load();
+    // Marked present while the app sits open: pick it up when they come back to it.
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { cancelled = true; document.removeEventListener('visibilitychange', onVisible); };
   }, [readyId, readyPreStart]);
 
   // Arrived from a practice "Go there" link: bring the Get ready card into view.
@@ -210,7 +216,7 @@ const ParticipantHomePage: React.FC = () => {
     },
   ] : [];
   const readyDone = readyItems.filter((item) => item.done).length;
-  const allThreeDone = readyItems.length === 4 && readyDone === 4;
+  const allDone = readyItems.length > 0 && readyDone === readyItems.length;
 
   const acknowledgeMap = async () => {
     await participantAppApi.ackVenueMap();
@@ -511,7 +517,7 @@ const ParticipantHomePage: React.FC = () => {
               <>
             <div className="flex items-baseline gap-2">
               <h2 className="text-lg font-bold text-gray-900">Get ready</h2>
-              <span className="ml-auto text-xs font-semibold text-gray-500">{readyDone} of 4 done</span>
+              <span className="ml-auto text-xs font-semibold text-gray-500">{readyDone} of {readyItems.length} done</span>
             </div>
             <div className="mt-3 flex flex-col gap-2">
               {readyItems.map((item) => {
@@ -537,7 +543,7 @@ const ParticipantHomePage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void confirmReady()}
-                disabled={!allThreeDone || confirming}
+                disabled={!allDone || confirming}
                 className="mt-1 flex min-h-[48px] w-full items-center gap-3 rounded-[14px] bg-primary px-3.5 py-3 text-left text-sm font-semibold text-white disabled:bg-gray-100 disabled:text-gray-400"
               >
                 {confirming ? <Spinner className="h-4 w-4" /> : <span className="grid h-6 w-6 flex-none place-items-center rounded-full border-2 border-current" aria-hidden="true" />}
