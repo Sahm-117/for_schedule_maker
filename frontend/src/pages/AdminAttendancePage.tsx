@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import Spinner from '../components/Spinner';
-import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
+import FilterBar, { NO_CHOICES, type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ModalShell from '../components/followups/ModalShell';
 import TrainingMarkersModal from '../components/TrainingMarkersModal';
@@ -83,8 +83,8 @@ const AdminAttendanceContent: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   // Filter choices (see FilterBar): status (incl. UNMARKED) and group; several of each at once.
   const [filters, setFilters] = useState<FilterValues>({});
-  const selectedGroupIds = filters.group ?? [];
-  const statusFilters = filters.status ?? [];
+  const selectedGroupIds = filters.group ?? NO_CHOICES;
+  const statusFilters = filters.status ?? NO_CHOICES;
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());

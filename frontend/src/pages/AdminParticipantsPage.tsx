@@ -17,7 +17,7 @@ import RetakingChip, { RetakeMarkModal } from '../components/participants/Retaki
 import ModalShell from '../components/followups/ModalShell';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import AppSelect from '../components/AppSelect';
-import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
+import FilterBar, { describeFilters, type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import AppMultiSelect from '../components/AppMultiSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useToast } from '../components/Toast';
@@ -992,7 +992,7 @@ const AdminParticipantsContent: React.FC = () => {
         ...[...groups].sort((a, b) => new Intl.Collator(undefined, { numeric: true }).compare(a.name, b.name)).map((g) => opt('group', g.id, g.name)),
       ],
     });
-    if (supportGroups.size > 1) {
+    if (supportGroups.size > 0) {
       out.push({
         key: 'support',
         label: 'Support',
@@ -1020,8 +1020,9 @@ const AdminParticipantsContent: React.FC = () => {
       let changed = false;
       const next: FilterValues = {};
       Object.entries(prev).forEach(([key, choices]) => {
+        // A group not offered yet (its data is still loading, or it came from a link) is left alone.
         const offered = filterGroups.find((g) => g.key === key)?.options.map((o) => o.value);
-        const kept = offered ? choices.filter((c) => offered.includes(c)) : [];
+        const kept = offered ? choices.filter((c) => offered.includes(c)) : choices;
         if (kept.length !== choices.length) changed = true;
         if (kept.length > 0) next[key] = kept;
       });
@@ -1033,7 +1034,7 @@ const AdminParticipantsContent: React.FC = () => {
   const exportSubtitle = useMemo(() => {
     const out: string[] = [];
     if (showArchived) out.push('Archived');
-    filterGroups.forEach((g) => (filters[g.key] ?? []).forEach((v) => out.push(g.options.find((o) => o.value === v)?.label ?? v)));
+    out.push(...describeFilters(filterGroups, filters));
     if (search.trim()) out.push(`Search "${search.trim()}"`);
     return out.length ? `Filter: ${out.join(' · ')}` : undefined;
   }, [showArchived, filterGroups, filters, search]);

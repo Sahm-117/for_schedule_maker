@@ -50,6 +50,13 @@ const FilterIcon = (
 export const countActiveFilters = (value: FilterValues, toggles: FilterToggle[] = []): number =>
   Object.values(value).reduce((n, list) => n + list.length, 0) + toggles.filter((t) => t.value).length;
 
+/** One shared empty list, so `filters.x ?? NO_CHOICES` is the same array every render (safe in effect and memo deps). */
+export const NO_CHOICES: string[] = [];
+
+/** Plain-words list of what is filtered ("Profile: Incomplete"), for export subtitles. */
+export const describeFilters = (groups: FilterGroup[], value: FilterValues): string[] =>
+  groups.flatMap((g) => (value[g.key] ?? []).map((v) => `${g.label}: ${g.options.find((o) => o.value === v)?.label ?? v}`));
+
 /** Match helper: true when `choices` is empty or contains `candidate`. */
 export const matchesAny = (choices: string[] | undefined, ...candidates: Array<string | null | undefined>): boolean =>
   !choices || choices.length === 0 || candidates.some((c) => c !== null && c !== undefined && choices.includes(c));
@@ -116,6 +123,15 @@ const FilterBar: React.FC<{
         label: g.options.find((o) => o.value === v)?.label ?? v,
         remove: () => onChange({ ...value, [g.key]: (value[g.key] ?? []).filter((x) => x !== v) }),
       }))),
+      // A choice for a group the page is not offering right now (its data is still loading, or it came from a
+      // link) still shows as a chip, so a filter is never active without a way to see and remove it.
+      ...Object.entries(value)
+        .filter(([key]) => !groups.some((g) => g.key === key))
+        .flatMap(([key, list]) => list.map((v) => ({
+          id: `${key}:${v}`,
+          label: v,
+          remove: () => onChange({ ...value, [key]: list.filter((x) => x !== v) }),
+        }))),
       ...toggles.filter((t) => t.value).map((t) => ({ id: `toggle:${t.key}`, label: t.label, remove: () => t.onChange(false) })),
     ],
     [groups, value, toggles, onChange],

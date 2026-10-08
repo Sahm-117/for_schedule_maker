@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
+import FilterBar, { NO_CHOICES, type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import ActivityText from '../components/ActivityText';
 import LabelChip from '../components/LabelChip';
 import PageHeader from '../components/PageHeader';
@@ -24,9 +24,9 @@ const ActivityOverviewPage: React.FC = () => {
   const [completions, setCompletions] = useState<SupportActivityCompletion[]>([]);
   // Filter choices (see FilterBar): day, activity tag (support group) and support person; several of each at once.
   const [filters, setFilters] = useState<FilterValues>({});
-  const selectedDayNames = filters.day ?? [];
-  const selectedGroupIds = filters.tag ?? [];
-  const selectedUserIds = filters.person ?? [];
+  const selectedDayNames = filters.day ?? NO_CHOICES;
+  const selectedGroupIds = filters.tag ?? NO_CHOICES;
+  const selectedUserIds = filters.person ?? NO_CHOICES;
 
   useEffect(() => {
     if (!isAdmin) return;

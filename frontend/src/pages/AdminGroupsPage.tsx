@@ -3,7 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import FilterBar, { type FilterGroup } from '../components/filters/FilterBar';
+import FilterBar, { describeFilters, type FilterGroup } from '../components/filters/FilterBar';
 import { useUrlFilters } from '../hooks/useUrlFilters';
 import { cohortsApi, groupsApi, participantsApi, settingsApi, supportKindApi, supportSessionsApi, supportTagsApi, usersApi } from '../services/api';
 import type { Group, Participant, User, GroupCallPlatform, SupportKind, SupportSession, SupportTag } from '../types';
@@ -654,7 +654,7 @@ const AdminGroupsContent: React.FC = () => {
         }
       />
 
-      {activeCohort && !loading && groups.length > 0 && (
+      {activeCohort && !loading && (
         <div data-wt="groups-filters" className="mb-4">
           <FilterBar
             groups={filterGroups}
@@ -894,7 +894,7 @@ const AdminGroupsContent: React.FC = () => {
           cohortName={activeCohort?.name ?? 'Cohort'}
           unassignedParticipants={groupablePeople.filter((p) => !p.groupId).length}
           filters={[
-            ...filterGroups.flatMap((g) => (filters[g.key] ?? []).map((v) => g.options.find((o) => o.value === v)?.label ?? v)),
+            ...describeFilters(filterGroups, filters),
             showArchived ? 'Including archived' : '',
           ].filter(Boolean)}
           onClose={() => setExportOpen(false)}

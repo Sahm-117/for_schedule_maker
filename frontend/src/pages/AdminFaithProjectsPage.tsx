@@ -497,6 +497,10 @@ const AdminFaithProjectsContent: React.FC = () => {
   const filterGroups: FilterGroup[] = (() => {
     const opt = (group: string, value: string, label: string) => ({ value, label, count: participants.filter((p) => fits(group, value, p)).length });
     const out: FilterGroup[] = [{
+      key: 'status',
+      label: 'Project status',
+      options: STATUS_OPTIONS.map((o) => opt('status', o.value, o.label)),
+    }, {
       key: 'group',
       label: 'Group',
       options: [

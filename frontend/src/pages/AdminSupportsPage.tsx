@@ -27,7 +27,7 @@ import SupportTagsModal from '../components/supports/SupportTagsModal';
 import TeenSupportPill from '../components/supports/TeenSupportPill';
 import { useTeenSupportIds } from '../hooks/useTeenSupportIds';
 import { useUrlFilters } from '../hooks/useUrlFilters';
-import FilterBar, { type FilterGroup } from '../components/filters/FilterBar';
+import FilterBar, { describeFilters, type FilterGroup } from '../components/filters/FilterBar';
 import { PERSON_OF_INTEREST_INFO } from '../components/hubs/hubJobs';
 import { useToast } from '../components/Toast';
 import { buildWhatsAppLink } from '../utils/phone';
@@ -370,7 +370,7 @@ const AdminSupportsPage: React.FC = () => {
     ? `${totalSupports} supports · ${activeCohort?.name ?? ''}`
     : `${shownSupports.length} of ${totalSupports} supports shown · ${activeCohort?.name ?? ''}`;
   const exportSubtitle = [
-    ...filterGroups.flatMap((g) => (filters[g.key] ?? []).map((v) => g.options.find((o) => o.value === v)?.label ?? v)),
+    ...describeFilters(filterGroups, filters),
     search.trim() ? `Search "${search.trim()}"` : '',
   ].filter(Boolean).join(' · ');
 
@@ -463,8 +463,8 @@ const AdminSupportsPage: React.FC = () => {
             searching={search.trim().length > 0}
             onClear={() => setSearch('')}
             shown={shownSupports.length}
-            total={totalSupports}
-            noun="supports"
+            total={filter === 'all' ? totalSupports : (model?.evaluations ?? []).filter((e) => e.health === filter).length}
+            noun={filter === 'all' ? 'supports' : 'supports in this tab'}
           />
 
           {visible.length === 0 && notLeadingCards.length === 0 ? (

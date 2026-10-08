@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
+import FilterBar, { NO_CHOICES, type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import LabelManagement from '../components/LabelManagement';
 import PageHeader from '../components/PageHeader';
 import ScheduleView from '../components/ScheduleView';
@@ -54,8 +54,8 @@ const AdminSchedulePage: React.FC = () => {
   const [supportGroups, setSupportGroups] = React.useState<Label[]>([]);
   // Filter choices (see FilterBar): activity tag and support person; several of each at once.
   const [filters, setFilters] = React.useState<FilterValues>({});
-  const selectedGroupIds = filters.tag ?? [];
-  const selectedUserIds = filters.person ?? [];
+  const selectedGroupIds = filters.tag ?? NO_CHOICES;
+  const selectedUserIds = filters.person ?? NO_CHOICES;
   const [supportUsers, setSupportUsers] = React.useState<User[]>([]);
 
   React.useEffect(() => {
