@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FollowUpContact, Participant } from '../../types';
 import { participantPushApi, participantsApi } from '../../services/api';
-import { computeRegistrationOverview, type PeopleBlock, type PendingReason, type RegistrationOverview } from '../../utils/registrationOverview';
+import { computeRegistrationOverview, type PeopleBlock, type PendingReason, type RegistrationOverview, type TeenBlock } from '../../utils/registrationOverview';
 import { VitalTile } from '../dashboard/DashboardParts';
 
 // The registration numbers, adults and teens apart, counted from people (see utils/registrationOverview).
@@ -14,11 +14,8 @@ const REASON_LABEL: Record<PendingReason, string> = {
   notSentYet: 'Login not sent yet',
   handMarked: 'Marked as logged in by hand, not signed in',
   parked: 'Not reachable, stopped, or joining next cohort',
-  withTeenSupport: 'With their Teen Support',
-  waitingForSupport: 'Waiting for a Teen Support',
 };
 const ADULT_REASONS: PendingReason[] = ['loginSent', 'notSentYet', 'parked', 'handMarked'];
-const TEEN_REASONS: PendingReason[] = ['withTeenSupport', 'waitingForSupport', 'parked'];
 
 const Block: React.FC<{ title: string; block: PeopleBlock; reasons: PendingReason[]; unit: string; notRegisteredLink?: string }> = ({ title, block, reasons, unit, notRegisteredLink }) => (
   <section aria-label={title}>
@@ -67,6 +64,42 @@ const Block: React.FC<{ title: string; block: PeopleBlock; reasons: PendingReaso
         detail={block.notRegistered > 0 ? 'On the follow-up list, still to register' : 'Everyone on the list has registered or stopped'}
         to={block.notRegistered > 0 ? notRegisteredLink : undefined}
       />
+    </div>
+  </section>
+);
+
+// Teens get no login details: they are Onboarded by their Teen Support, No response, or still being followed up.
+const TeenCards: React.FC<{ block: TeenBlock; notRegisteredLink?: string }> = ({ block, notRegisteredLink }) => (
+  <section aria-label="Teens">
+    <h3 className="mb-2 text-sm font-semibold text-gray-900">Teens <span className="font-normal text-gray-500">· {block.registered} registered · no login details, so they are onboarded by their Teen Support</span></h3>
+    <div className={`grid grid-cols-2 gap-4 ${block.notRegistered > 0 ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
+      <VitalTile title="Registered" status="neutral" statusLabel="Teens" value={block.registered} unit={block.registered === 1 ? 'teen' : 'teens'} detail="Filled in the form, or registered by a support" />
+      <VitalTile
+        title="Onboarded"
+        status={block.onboarded > 0 ? 'good' : 'neutral'}
+        statusLabel="By their Teen Support"
+        value={block.onboarded}
+        detail={block.registered > 0 ? `${pct(block.onboarded / block.registered)}% of those registered` : 'Nobody registered yet'}
+      />
+      <VitalTile
+        title="No response"
+        status={block.noResponse > 0 ? 'warning' : 'good'}
+        statusLabel={block.noResponse > 0 ? 'Not reachable' : 'None'}
+        value={block.noResponse}
+        detail={block.noResponse > 0 ? 'Marked No response, or stopped' : 'Nobody is unreachable'}
+      />
+      <VitalTile
+        title="Not onboarded yet"
+        status={block.notOnboarded > 0 ? 'warning' : 'good'}
+        statusLabel={block.notOnboarded > 0 ? 'Still being followed up' : 'All done'}
+        value={block.notOnboarded}
+        detail={block.notOnboarded > 0
+          ? (block.waitingForSupport > 0 ? `${block.notOnboarded - block.waitingForSupport} with their Teen Support, ${block.waitingForSupport} waiting for one` : 'With their Teen Support')
+          : 'Every registered teen is onboarded or marked No response'}
+      />
+      {block.notRegistered > 0 && (
+        <VitalTile title="Not registered yet" status="warning" statusLabel="Needs work" value={block.notRegistered} detail="On the follow-up list, still to register" to={notRegisteredLink} />
+      )}
     </div>
   </section>
 );
@@ -124,7 +157,8 @@ const RegistrationOverviewCards: React.FC<{
       <p className="text-sm text-gray-600">
         <b className="font-semibold text-gray-900">{total.registered} registered</b> ({adults.registered} adults, {teens.registered} teens)
         {target ? <> · {pct(total.registered / target)}% of the {target} target</> : null}
-        {' · '}{total.loggedIn} logged in · {total.pending} still to log in
+        {' · '}Adults: {total.adultsLoggedIn} logged in, {total.adultsPending} still to log in
+        {' · '}Teens: {teens.onboarded} onboarded, {teens.noResponse} no response, {teens.notOnboarded} not onboarded yet
       </p>
       {unlinked > 0 && (
         <p className="rounded-2xl bg-amber-100/80 px-3 py-2 text-[12px] text-amber-700">
@@ -132,7 +166,7 @@ const RegistrationOverviewCards: React.FC<{
         </p>
       )}
       <Block title="Adults" block={adults} reasons={ADULT_REASONS} unit="adult" notRegisteredLink={teens.notRegistered === 0 ? link : undefined} />
-      <Block title="Teens" block={teens} reasons={TEEN_REASONS} unit="teen" notRegisteredLink={adults.notRegistered === 0 ? link : undefined} />
+      <TeenCards block={teens} notRegisteredLink={adults.notRegistered === 0 ? link : undefined} />
     </div>
   );
 };

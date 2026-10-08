@@ -41,3 +41,12 @@ and counted statuses.
 ## Gotchas
 
 - "Logged in" here means chose a password, not "Teen onboarded" (that is a Teen Support's own step).
+
+## Later the same day: teens have no login
+
+The admin said teens get no login details, so for them it is only Onboarded or No response. The teen
+block now shows Registered, Onboarded (by the Teen Support), No response and Not onboarded yet, and no
+longer counts teen sign-ins. "Logged in" and "still to log in" are about adults only. Numbers then
+(Cohort 10): teens 14 registered, 3 onboarded, 2 no response, 9 not onboarded yet. One of the 9 is a
+teen whose own contact is filed away as Not registered (it should be on a teen status; worth a look).
+The earlier "registered, no login" list therefore applies to adults only (3 people).

@@ -5,12 +5,16 @@ import { normaliseAgeRange } from './groupingRules';
 // The registration numbers on the admin Dashboard and Follow-ups → Overview, counted from PEOPLE, not
 // from follow-up statuses, and adults and teens apart.
 //   Registered  = a participant in the cohort (they filled the form, or a support registered them).
+// ADULTS:
 //   Logged in   = they chose their own password and the login is on (the same check the group builder uses).
 //   Still to log in = everyone else who is registered, with the reason, so nobody drops out of the total
-//                     when they are parked (No response, next cohort) or moved to a Teen Support.
-// A follow-up status is only used to say WHY someone has not logged in; it never changes who counts.
+//                     when they are parked (No response, next cohort).
+// TEENS get no login details, so a teen is only Onboarded (by their Teen Support), No response, or not
+// onboarded yet; whether a teen has a password is not counted.
+// A follow-up status is only used to say WHY an adult has not logged in, or where a teen is; it never
+// changes who is registered.
 
-export type PendingReason = 'loginSent' | 'notSentYet' | 'handMarked' | 'parked' | 'withTeenSupport' | 'waitingForSupport';
+export type PendingReason = 'loginSent' | 'notSentYet' | 'handMarked' | 'parked';
 
 export interface PeopleBlock {
   registered: number;
@@ -26,17 +30,33 @@ export interface PeopleBlock {
   unlinked: number;
 }
 
+export interface TeenBlock {
+  registered: number;
+  /** Onboarded by their Teen Support. */
+  onboarded: number;
+  /** Marked No response (or otherwise stopped / parked). */
+  noResponse: number;
+  /** Everyone else: still being followed up. Always registered - onboarded - noResponse. */
+  notOnboarded: number;
+  /** Of notOnboarded, those with no Teen Support yet. */
+  waitingForSupport: number;
+  /** On the follow-up list but not registered yet. */
+  notRegistered: number;
+  unlinked: number;
+}
+
 export interface RegistrationOverview {
   adults: PeopleBlock;
-  teens: PeopleBlock;
-  total: { registered: number; loggedIn: number; pending: number };
+  teens: TeenBlock;
+  /** Everyone registered; logged in and still to log in are about adults only (teens get no login). */
+  total: { registered: number; adultsLoggedIn: number; adultsPending: number };
 }
 
 const emptyBlock = (): PeopleBlock => ({
   registered: 0,
   loggedIn: 0,
   pending: 0,
-  reasons: { loginSent: 0, notSentYet: 0, handMarked: 0, parked: 0, withTeenSupport: 0, waitingForSupport: 0 },
+  reasons: { loginSent: 0, notSentYet: 0, handMarked: 0, parked: 0 },
   loginIssue: 0,
   notRegistered: 0,
   unlinked: 0,
@@ -60,9 +80,8 @@ const isParked = (c: FollowUpContact) => {
   return stage === 'nextCohort' || stage === 'stopped';
 };
 
-const pendingReason = (teen: boolean, c: FollowUpContact | undefined): PendingReason => {
+const pendingReason = (c: FollowUpContact | undefined): PendingReason => {
   if (c && isParked(c)) return 'parked';
-  if (teen) return c?.ownerId ? 'withTeenSupport' : 'waitingForSupport';
   if (!c) return 'notSentYet';
   const status = computeFollowUpStatus(c);
   if (status === 'LOGIN_SHARED' || status === 'LOGIN_ISSUE') return 'loginSent';
@@ -83,21 +102,29 @@ export const computeRegistrationOverview = (
 ): RegistrationOverview => {
   const byContact = new Map(contacts.map((c) => [c.id, c]));
   const adults = emptyBlock();
-  const teens = emptyBlock();
+  const teens: TeenBlock = { registered: 0, onboarded: 0, noResponse: 0, notOnboarded: 0, waitingForSupport: 0, notRegistered: 0, unlinked: 0 };
   const registeredContactIds = new Set<string>();
 
   participants.forEach((p) => {
     if (p.isTest || p.status !== 'ACTIVE' || p.cohortId !== cohortId) return;
     const contact = p.followUpContactId ? byContact.get(p.followUpContactId) : undefined;
     if (p.followUpContactId) registeredContactIds.add(p.followUpContactId);
-    const teen = isTeenPerson(p, contact);
-    const block = teen ? teens : adults;
-    block.registered += 1;
-    if (signedInIds.has(p.id)) { block.loggedIn += 1; return; }
-    block.pending += 1;
-    const reason = pendingReason(teen, contact);
-    block.reasons[reason] += 1;
-    if (reason === 'loginSent' && contact && computeFollowUpStatus(contact) === 'LOGIN_ISSUE') block.loginIssue += 1;
+    if (isTeenPerson(p, contact)) {
+      teens.registered += 1;
+      if (contact && isParked(contact)) teens.noResponse += 1;
+      else if (contact && computeFollowUpStatus(contact) === 'TEEN_ONBOARDED') teens.onboarded += 1;
+      else {
+        teens.notOnboarded += 1;
+        if (!contact?.ownerId) teens.waitingForSupport += 1;
+      }
+      return;
+    }
+    adults.registered += 1;
+    if (signedInIds.has(p.id)) { adults.loggedIn += 1; return; }
+    adults.pending += 1;
+    const reason = pendingReason(contact);
+    adults.reasons[reason] += 1;
+    if (reason === 'loginSent' && contact && computeFollowUpStatus(contact) === 'LOGIN_ISSUE') adults.loginIssue += 1;
   });
 
   // Follow-up contacts with no participant yet: still to register (open), or marked registered with no
@@ -106,7 +133,7 @@ export const computeRegistrationOverview = (
     if (c.isTest || c.archivedAt || registeredContactIds.has(c.id)) return;
     if (!contactInCohortScope(c, cohortId, cohortId)) return;
     const stage = FOLLOW_UP_STAGE[computeFollowUpStatus(c)];
-    const block = isTeenRecord(c) ? teens : adults;
+    const block: { notRegistered: number; unlinked: number } = isTeenRecord(c) ? teens : adults;
     if (stage === 'open') block.notRegistered += 1;
     else if (stage === 'registered' || stage === 'loginShared' || stage === 'done') block.unlinked += 1;
   });
@@ -114,10 +141,6 @@ export const computeRegistrationOverview = (
   return {
     adults,
     teens,
-    total: {
-      registered: adults.registered + teens.registered,
-      loggedIn: adults.loggedIn + teens.loggedIn,
-      pending: adults.pending + teens.pending,
-    },
+    total: { registered: adults.registered + teens.registered, adultsLoggedIn: adults.loggedIn, adultsPending: adults.pending },
   };
 };

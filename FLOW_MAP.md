@@ -384,22 +384,25 @@ duplicating the logic anywhere else is a bug waiting to happen.
     the hubs to be created (link to Hubs) or to try again. Source: `groupingEngine` (`hubTarget`,
     `hubCoverage`, `hubGroupsNeeded`, `assignSupports`, `topUpGroups`), `GroupEngineWizard`. No database change.
 
-33. **Registered and logged-in numbers count people, adults and teens apart.** The Dashboard (before a cohort
-    starts) and Follow-ups → Overview show the same `RegistrationOverviewCards`, worked out by
+33. **Registered and logged-in numbers count people, adults and teens apart; teens have no login.** The Dashboard
+    (before a cohort starts) and Follow-ups → Overview show the same `RegistrationOverviewCards`, worked out by
     `computeRegistrationOverview` from the cohort's participants, not from follow-up statuses.
-    Registered = an active, non-test participant in the cohort. Logged in = they chose their own password
-    and the login is on (`participants_signed_in`, the same check as the group builder). Still to log in =
-    registered minus logged in, listed by reason (login sent, login not sent yet, not reachable / stopped / joining
-    next cohort, marked as logged in by hand but never signed in, with their Teen Support, waiting for a
-    Teen Support). Teen = age range "18 and below", or on the teen path (Teenager / Teen onboarded). A
-    follow-up status only explains why someone has not logged in; it never adds or removes anyone from
-    Registered, so parking someone (No response, next cohort) or moving a teen to a Teen Support cannot
-    change the total. "Not registered yet" is open, current follow-up contacts with no participant; a contact marked registered
-    with no participant record is not counted but is named in a note on the cards. The cards read the people again
-    whenever the page's contacts refresh, and the mobilisation target shows no progress (not 0) until the total is known. If who
-    has signed in cannot be loaded the cards say so instead of showing numbers. The status list further
-    down still shows follow-up statuses (a hand-set Access confirmed is counted there). No database change.
-    Source: `utils/registrationOverview.ts`, `RegistrationOverviewCards`.
+    Registered = an active, non-test participant in the cohort. ADULTS: Logged in = they chose their own
+    password and the login is on (`participants_signed_in`, the same check as the group builder); Still to log
+    in = registered minus logged in, listed by reason (login sent, login not sent yet, not reachable / stopped /
+    joining next cohort, marked as logged in by hand but never signed in). TEENS get no login details, so their
+    sign-in is never counted: a teen is Onboarded (by their Teen Support, status Teen onboarded), No response
+    (No response, or parked / stopped), or Not onboarded yet (the rest; "waiting for a Teen Support" when they
+    have none), and Registered = Onboarded + No response + Not onboarded yet. Teen = age range "18 and below",
+    or on the teen path (Teenager / Teen onboarded). A follow-up status only explains where someone is; it never
+    adds or removes anyone from Registered, so parking someone (No response, next cohort) or moving a teen to a
+    Teen Support cannot change the total. "Not registered yet" is open, current follow-up contacts with no
+    participant; a contact marked registered with no participant record is not counted but is named in a note
+    on the cards. The cards read the people again whenever the page's contacts refresh, and the mobilisation
+    target shows no progress (not 0) until the total is known. If who has signed in cannot be loaded the cards
+    say so instead of showing numbers. The status list further down still shows follow-up statuses (a hand-set
+    Access confirmed is counted there). No database change. Source: `utils/registrationOverview.ts`,
+    `RegistrationOverviewCards`.
 
 ## 5. Edge functions and schedules
 
