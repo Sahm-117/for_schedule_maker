@@ -7,7 +7,7 @@ import InfoTip from '../InfoTip';
 import Spinner from '../Spinner';
 import SupportTagsModal from '../supports/SupportTagsModal';
 import { useAuth } from '../../hooks/useAuth';
-import { cohortsApi, groupsApi, participantPushApi, settingsApi, supportKindApi, supportTagsApi } from '../../services/api';
+import { cohortsApi, groupsApi, participantPushApi, settingsApi, supportHubsApi, supportKindApi, supportTagsApi } from '../../services/api';
 import type { Group, Participant, SupportKind, SupportTag, User } from '../../types';
 import { AGE_RANGE_OPTIONS } from '../../constants/departments';
 import { trainingCountFor } from '../../utils/programmeRules';
@@ -17,6 +17,8 @@ import {
   evaluateGroup,
   fitsGroup,
   groupTagRule,
+  hubCoverage,
+  hubReserve,
   topUpGroups,
   unusedSupportHint,
   toEnginePerson,
@@ -24,6 +26,7 @@ import {
   type SeedGroup,
   type EnginePerson,
   type EngineSupport,
+  type HubSpread,
   type SavedGroupingDraft,
   type TopUpTarget,
 } from '../../utils/groupingEngine';
@@ -167,6 +170,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const [ignoredAges, setIgnoredAges] = useState<Set<string>>(new Set());
   const [draftInfo, setDraftInfo] = useState<{ ignored: number; tagNotes: string[] }>({ ignored: 0, tagNotes: [] });
   // A build saved part-way earlier (one per cohort), and the note after continuing it.
+  // The cohort's hubs and who is in each, so supports are picked from all of them.
+  const [hubData, setHubData] = useState<{ hubs: Array<{ id: string; name: string }>; hubOf: Record<string, string> } | null>(null);
   const [saved, setSaved] = useState<SavedGroupingDraft | null>(null);
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftNote, setDraftNote] = useState('');
@@ -189,6 +194,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setTagEditFor(null);
     setDraftInfo({ ignored: 0, tagNotes: [] });
     setSaved(null);
+    setHubData(null);
     setDraftNote('');
     createdAny.current = false;
     setLoading(true);
@@ -198,8 +204,17 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
       settingsApi.getGroupingRules(cohortId).catch(() => DEFAULT_GROUPING_RULES),
       supportTagsApi.getAll().then((r) => r.tags).catch(() => [] as SupportTag[]),
       settingsApi.getGroupingDraft(cohortId).catch(() => null),
+      Promise.all([supportHubsApi.getAll(cohortId), supportHubsApi.getMembershipsForCohort(cohortId)])
+        .then(([h, m]) => {
+          const hubOf: Record<string, string> = {};
+          m.memberships.forEach((x) => { if (!hubOf[x.userId]) hubOf[x.userId] = x.hubId; });
+          // Only hubs with people in them can have participants.
+          const withMembers = new Set(Object.values(hubOf));
+          return { hubs: h.hubs.filter((x) => withMembers.has(x.id)).map((x) => ({ id: x.id, name: x.name })), hubOf };
+        })
+        .catch(() => null),
     ])
-      .then(([k, m, r, t, d]) => { setKinds(k); setMemberIds(m); setRules(r); setTags(t); setSaved(d); })
+      .then(([k, m, r, t, d, h]) => { setKinds(k); setMemberIds(m); setRules(r); setTags(t); setSaved(d); setHubData(h); })
       .catch(() => setErr('Could not load everything. Please retry.'))
       .finally(() => setLoading(false));
   }, [isOpen, cohortId]);
@@ -334,6 +349,15 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const topUpSupports = useMemo(() => topUpTargets.map((t) => t.support).filter((s): s is EngineSupport => !!s), [topUpTargets]);
   const supportById = useMemo(() => new Map([...supportPool.free, ...seedSupports, ...topUpSupports].map((s) => [s.id, s])), [supportPool.free, seedSupports, topUpSupports]);
 
+  // Hubs the supports belong to, and which hubs already have participants through running groups.
+  const hubSpread = useMemo<HubSpread | undefined>(() => {
+    if (!hubData || hubData.hubs.length === 0) return undefined;
+    const groupsByHub: Record<string, number> = {};
+    topUpTargets.forEach((t) => { const h = t.supportId ? hubData.hubOf[t.supportId] : undefined; if (h) groupsByHub[h] = (groupsByHub[h] ?? 0) + 1; });
+    return { hubs: hubData.hubs, hubOf: hubData.hubOf, groupsByHub };
+  }, [hubData, topUpTargets]);
+  const hubNameById = useMemo(() => new Map((hubData?.hubs ?? []).map((h) => [h.id, h.name])), [hubData]);
+
   // Leave a support out of the builder (or bring them back). Saved with the cohort's rules.
   const [excludeSaving, setExcludeSaving] = useState<string | null>(null);
   const toggleExcluded = async (userId: string) => {
@@ -357,9 +381,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   // What topping up would do right now, for the note on the first step.
   const topUpPreview = useMemo(
     () => (step === 'people'
-      ? topUpGroups([...people.values()].filter((p) => !(p.ageRange && ignoredAges.has(p.ageRange))), topUpTargets, effectiveRules)
+      ? topUpGroups([...people.values()].filter((p) => !(p.ageRange && ignoredAges.has(p.ageRange))), topUpTargets, effectiveRules, { hubs: hubSpread, keepBack: hubReserve(hubSpread, effectiveRules, supportPool.free) })
       : { groups: [] as DraftGroup[], groupsWithSpace: 0, spots: 0 }),
-    [step, people, topUpTargets, effectiveRules, ignoredAges]
+    [step, people, topUpTargets, effectiveRules, ignoredAges, hubSpread, supportPool.free]
   );
   const topUpPlacedCount = topUpPreview.groups.reduce((sum, g) => sum + g.memberIds.length, 0);
 
@@ -374,12 +398,12 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     const ruleSet = { ...r, tagRules: r.tagRules.filter((t) => tagNames[t.tagId]) };
     // Running groups with space are topped up first; whoever is left goes to new groups.
     const top = topUpFirst
-      ? topUpGroups([...people.values()].filter((p) => !(p.ageRange && ignoredAges.has(p.ageRange))), topUpTargets, ruleSet)
+      ? topUpGroups([...people.values()].filter((p) => !(p.ageRange && ignoredAges.has(p.ageRange))), topUpTargets, ruleSet, { hubs: hubSpread, keepBack: hubReserve(hubSpread, ruleSet, supportPool.free) })
       : null;
     const toppedUp = new Set((top?.groups ?? []).flatMap((g) => g.memberIds));
     const result = buildDraft(
       [...people.values()].filter((p) => !toppedUp.has(p.id)), supportPool.free, ruleSet, groups.map((g) => g.name), emptyChoice === 'fill' ? seeds : [],
-      { ignoredAgeRanges: [...ignoredAges], tagNames },
+      { ignoredAgeRanges: [...ignoredAges], tagNames, hubs: hubSpread },
     );
     setDraftInfo({ ignored: result.ignored.length, tagNotes: result.tagNotes });
     setDraft([...(top?.groups ?? []), ...result.groups]);
@@ -419,6 +443,15 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
 
   const usedSupports = new Set(draft.map((g) => g.supportId).filter(Boolean) as string[]);
   const toCreate = draft.filter((g) => g.memberIds.length > 0);
+  // Which hubs will have participants once this is created (follows every change to the draft).
+  const coverage = useMemo(() => {
+    if (!hubSpread) return null;
+    const withPeople = draft.filter((g) => g.memberIds.length > 0 && g.supportId);
+    const ids = [...topUpTargets.map((t) => t.supportId).filter(Boolean) as string[], ...withPeople.map((g) => g.supportId as string)];
+    const groupsWithPeople = topUpTargets.length + draft.filter((g) => g.memberIds.length > 0 && !g.topUp).length;
+    const used = new Set(draft.map((g) => g.supportId).filter(Boolean) as string[]);
+    return hubCoverage(hubSpread, ids, groupsWithPeople, supportPool.free.filter((s) => !used.has(s.id)).map((s) => s.id));
+  }, [hubSpread, draft, topUpTargets, supportPool.free]);
   const noSupportCount = toCreate.filter((g) => !g.supportId && !g.topUp).length;
   const newCount = toCreate.filter((g) => !g.topUp).length;
   const topUpCount = toCreate.filter((g) => g.topUp).length;
@@ -1061,6 +1094,13 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 {noSupportCount > 0 && <> · <span className="font-semibold text-red-700">{noSupportCount} without a support</span></>}
                 {' · '}Tap a person, then “Move here” on another group.
               </p>
+              {coverage && coverage.total > 0 && (
+                <div className={`rounded-2xl px-3 py-2 text-[12px] ${coverage.covered >= coverage.need ? 'bg-emerald-100/80 text-emerald-700' : 'bg-amber-100/80 text-amber-700'}`}>
+                  <p className="font-semibold">Hubs with participants: {coverage.covered} of {coverage.total} (aim: at least {coverage.need})</p>
+                  {coverage.covered < coverage.need && coverage.reason && <p className="mt-0.5">{coverage.reason}</p>}
+                  {coverage.without.length > 0 && <p className="mt-0.5 opacity-80">Without participants: {coverage.without.join(', ')}</p>}
+                </div>
+              )}
               {(draftInfo.ignored > 0 || draftInfo.tagNotes.length > 0) && (
                 <div className="flex flex-col gap-1 rounded-2xl bg-amber-100/80 px-3 py-2 text-[12px] text-amber-700">
                   {draftInfo.ignored > 0 && <p>{draftInfo.ignored} {draftInfo.ignored === 1 ? 'person' : 'people'} left out ({[...ignoredAges].join(', ')}), as you chose for this build.</p>}
@@ -1078,7 +1118,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                     { value: '', label: 'No support' },
                     ...supportPool.free
                       .filter((s) => s.id === g.supportId || !usedSupports.has(s.id))
-                      .map((s) => ({ value: s.id, label: s.name, meta: [s.gender, s.ageRange ? shortAge(s.ageRange) : null, trainingsTotal ? `${s.trainingsAttended}/${trainingsTotal} trainings` : null, ...(s.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean)].filter(Boolean).join(' · ') || 'Details missing' })),
+                      .map((s) => ({ value: s.id, label: s.name, meta: [hubNameById.get(hubData?.hubOf[s.id] ?? '') ?? null, s.gender, s.ageRange ? shortAge(s.ageRange) : null, trainingsTotal ? `${s.trainingsAttended}/${trainingsTotal} trainings` : null, ...(s.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean)].filter(Boolean).join(' · ') || 'Details missing' })),
                   ];
                   return (
                     <div key={g.key} className={`${SURFACE} flex flex-col gap-2.5 p-4`}>

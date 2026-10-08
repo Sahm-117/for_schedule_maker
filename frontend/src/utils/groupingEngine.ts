@@ -79,6 +79,8 @@ export interface DraftOptions {
   ignoredAgeRanges?: string[];
   /** Tag names by id, for the notes. */
   tagNames?: Record<string, string>;
+  /** The cohort's hubs, so supports are picked from all of them (see HubSpread). */
+  hubs?: HubSpread;
 }
 
 /** 'info' is only a heads-up (nothing was bent); 'relaxed' a Prefer rule that was bent; 'broken' a Must rule. */
@@ -299,7 +301,70 @@ export const supportCost = (support: EngineSupport, members: EnginePerson[], rul
 
 const compareCost = (a: Cost, b: Cost) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
 
-const assignSupports = (allGroups: DraftGroup[], people: Map<string, EnginePerson>, supports: EngineSupport[], rules: GroupingRules) => {
+// ── Hubs: spread the groups across them ──────────────────────────────────────
+// Groups are filled with people first, then supports are added. Supports are picked from every
+// hub, in proportion to each hub's size, so that at least two thirds of the hubs have participants
+// when the hubs meet. A Must rule is never bent for this; when it cannot be met, it says why.
+
+export interface HubSpread {
+  /** The cohort's hubs that have members. */
+  hubs: Array<{ id: string; name: string }>;
+  /** Support id → the hub they belong to (supports in no hub are simply absent). */
+  hubOf: Record<string, string>;
+  /** Running groups that already have participants, by their support's hub (hub id → groups). */
+  groupsByHub: Record<string, number>;
+}
+
+/** The share of hubs that must have participants. */
+export const HUB_SHARE = 2 / 3;
+
+/** How many of `total` hubs must have participants: two thirds, rounded up. */
+export const hubTarget = (total: number) => (total <= 0 ? 0 : Math.ceil(total * HUB_SHARE - 1e-9));
+
+export interface HubCoverage {
+  covered: number;
+  total: number;
+  need: number;
+  /** Hubs with no participants yet. */
+  without: string[];
+  /** Why the target is missed, or null when it is met. */
+  reason: string | null;
+}
+
+/**
+ * Which hubs will have participants: those with a support on a group that has people.
+ * `unusedSupportIds` are the free supports not on any group, to tell "none left" from "ruled out".
+ */
+export const hubCoverage = (spread: HubSpread, supportIdsWithPeople: string[], groupsWithPeople: number, unusedSupportIds: string[]): HubCoverage => {
+  const total = spread.hubs.length;
+  const need = hubTarget(total);
+  const covered = new Set(supportIdsWithPeople.map((id) => spread.hubOf[id]).filter(Boolean));
+  const without = spread.hubs.filter((h) => !covered.has(h.id));
+  let reason: string | null = null;
+  if (covered.size < need) {
+    if (groupsWithPeople < need) reason = `There ${groupsWithPeople === 1 ? 'is only 1 group' : `are only ${groupsWithPeople} groups`} with people, fewer than the ${need} hubs needed.`;
+    else if (!unusedSupportIds.some((id) => spread.hubOf[id] && !covered.has(spread.hubOf[id]))) reason = 'The hubs without participants have no free supports left.';
+    else reason = 'Free supports in the other hubs could not take a group (a Must rule) or were not chosen.';
+  }
+  return { covered: covered.size, total, need, without: without.map((h) => h.name), reason };
+};
+
+/**
+ * People to keep back from topping up when the running groups cover too few hubs, so new groups can
+ * be made for supports in the hubs that still have none. Never more than there are hubs to reach.
+ */
+export const hubReserve = (spread: HubSpread | undefined, rules: GroupingRules, freeSupports: EngineSupport[]): number => {
+  if (!spread) return 0;
+  const need = hubTarget(spread.hubs.length);
+  const covered = spread.hubs.filter((h) => (spread.groupsByHub[h.id] ?? 0) > 0);
+  const missing = need - covered.length;
+  if (missing <= 0) return 0;
+  const coveredIds = new Set(covered.map((h) => h.id));
+  const reachable = new Set(freeSupports.map((s) => spread.hubOf[s.id]).filter((id) => id && !coveredIds.has(id))).size;
+  return Math.min(missing, reachable) * rules.minSize;
+};
+
+const assignSupports = (allGroups: DraftGroup[], people: Map<string, EnginePerson>, supports: EngineSupport[], rules: GroupingRules, spread?: HubSpread) => {
   const free = new Set(supports.map((s) => s.id));
   // Groups that already have a support (an admin's empty group) keep it.
   const groups = allGroups.filter((g) => !g.supportId && g.memberIds.length > 0);
@@ -310,19 +375,47 @@ const assignSupports = (allGroups: DraftGroup[], people: Map<string, EnginePerso
   // Groups that fit a tag rule go first, so no regular group can take their supports.
   const tagged = (g: DraftGroup) => (groupTagRule(membersOf(g), rules) ? 0 : 1);
   const order = [...groups].sort((a, b) => tagged(a) - tagged(b) || idealCount(a) - idealCount(b));
+  // Groups already led in each hub (running groups and groups being filled), and how many supports
+  // each hub brings, so the share of a hub's supports that lead a group can be compared.
+  const led: Record<string, number> = { ...(spread?.groupsByHub ?? {}) };
+  allGroups.forEach((g) => { if (g.supportId && g.memberIds.length > 0 && spread?.hubOf[g.supportId]) led[spread.hubOf[g.supportId]] = (led[spread.hubOf[g.supportId]] ?? 0) + 1; });
+  const poolByHub: Record<string, number> = {};
+  supports.forEach((s) => { const h = spread?.hubOf[s.id]; if (h) poolByHub[h] = (poolByHub[h] ?? 0) + 1; });
+  const need = spread ? hubTarget(spread.hubs.length) : 0;
+  const hubsLeading = () => spread ? spread.hubs.filter((h) => (led[h.id] ?? 0) > 0).length : 0;
+  const share = (hubId: string | undefined) => (hubId ? (led[hubId] ?? 0) / Math.max(1, (poolByHub[hubId] ?? 0) + (led[hubId] ?? 0)) : 0);
+
   order.forEach((g) => {
-    let best: { s: EngineSupport; cost: Cost } | null = null;
+    let best: { s: EngineSupport; cost: Cost; fresh: number; share: number } | null = null;
     supports.forEach((s) => {
       if (!free.has(s.id)) return;
       const cost = supportCost(s, membersOf(g), rules);
       if (!cost) return;
-      if (!best || compareCost(cost, best.cost) < 0 || (compareCost(cost, best.cost) === 0 && (s.trainingsAttended > best.s.trainingsAttended || (s.trainingsAttended === best.s.trainingsAttended && s.name.localeCompare(best.s.name) < 0)))) {
-        best = { s, cost };
-      }
+      const hub = spread?.hubOf[s.id];
+      // Until two thirds of the hubs have a group, a hub with none yet comes first; after that the hub
+      // with the smaller share of its supports leading goes first. Both come before the support's age
+      // fit, and never before the tag or gender fit (a Must rule is never bent).
+      const fresh = hub && hubsLeading() < need && (led[hub] ?? 0) === 0 ? 0 : 1;
+      const mine = share(hub);
+      const better = (() => {
+        if (!best) return true;
+        const c = best.cost;
+        const byCost = cost[0] - c[0] || cost[1] - c[1];
+        if (byCost) return byCost < 0;
+        if (fresh !== best.fresh) return fresh < best.fresh;
+        if (mine !== best.share) return mine < best.share;
+        if (cost[2] !== c[2]) return cost[2] < c[2];
+        if (s.trainingsAttended !== best.s.trainingsAttended) return s.trainingsAttended > best.s.trainingsAttended;
+        return s.name.localeCompare(best.s.name) < 0;
+      })();
+      if (better) best = { s, cost, fresh, share: mine };
     });
     if (best) {
-      g.supportId = (best as { s: EngineSupport }).s.id;
-      free.delete(g.supportId);
+      const chosen = (best as { s: EngineSupport }).s;
+      g.supportId = chosen.id;
+      free.delete(chosen.id);
+      const hub = spread?.hubOf[chosen.id];
+      if (hub) led[hub] = (led[hub] ?? 0) + 1;
     }
   });
 };
@@ -384,7 +477,7 @@ export interface TopUpResult {
  * (fewest people first among equals), never past the group's largest size and never against a rule.
  * Whoever is not placed is left for new groups.
  */
-export const topUpGroups = (people: EnginePerson[], targets: TopUpTarget[], rules: GroupingRules): TopUpResult => {
+export const topUpGroups = (people: EnginePerson[], targets: TopUpTarget[], rules: GroupingRules, options: { hubs?: HubSpread; keepBack?: number } = {}): TopUpResult => {
   const state = targets
     .filter((t) => t.members.length > 0)
     .map((t) => ({ target: t, members: [...t.members], added: [] as string[] }));
@@ -395,20 +488,33 @@ export const topUpGroups = (people: EnginePerson[], targets: TopUpTarget[], rule
   // (then the emptier group, then age order), so a spot is not taken by a stretch while an exact match waits.
   const placed = new Set<string>();
   const waiting = [...people].filter((p) => p.gender && p.ageRange).sort(byAge);
+  // When the running groups reach too few hubs, some people are kept back for new groups in the others.
+  const canPlace = Math.max(0, waiting.length - Math.max(0, options.keepBack ?? 0));
+  // Spread over hubs: among equal fits, the group in the hub with fewer people per support goes first.
+  const { hubs } = options;
+  const supportsPerHub: Record<string, number> = {};
+  if (hubs) Object.values(hubs.hubOf).forEach((h) => { supportsPerHub[h] = (supportsPerHub[h] ?? 0) + 1; });
+  const hubPeople: Record<string, number> = {};
+  const hubOfState = (st: (typeof state)[number]) => (hubs && st.target.supportId ? hubs.hubOf[st.target.supportId] : undefined);
+  if (hubs) state.forEach((st) => { const h = hubOfState(st); if (h) hubPeople[h] = (hubPeople[h] ?? 0) + st.members.length; });
+  const hubLoad = (st: (typeof state)[number]) => { const h = hubOfState(st); return h ? (hubPeople[h] ?? 0) / Math.max(1, supportsPerHub[h] ?? 1) : 0; };
   for (;;) {
-    let best: { person: EnginePerson; st: (typeof state)[number]; cost: [number, number] } | null = null;
+    if (placed.size >= canPlace) break;
+    let best: { person: EnginePerson; st: (typeof state)[number]; cost: [number, number, number] } | null = null;
     for (const person of waiting) {
       if (placed.has(person.id)) continue;
       for (const st of state) {
         if (!fitsGroup(person, st.members, st.target.support, rules)) continue;
         const distance = rules.ageMix === 'SIMILAR' ? Math.abs(ageIndex(person.ageRange) - ageIndex(groupRange(st.members))) : 0;
-        const cost: [number, number] = [distance, st.members.length];
-        if (!best || cost[0] < best.cost[0] || (cost[0] === best.cost[0] && cost[1] < best.cost[1])) best = { person, st, cost };
+        const cost: [number, number, number] = [distance, hubLoad(st), st.members.length];
+        if (!best || cost[0] < best.cost[0] || (cost[0] === best.cost[0] && (cost[1] < best.cost[1] || (cost[1] === best.cost[1] && cost[2] < best.cost[2])))) best = { person, st, cost };
       }
     }
     if (!best) break;
     best.st.members.push(best.person);
     best.st.added.push(best.person.id);
+    const hub = hubOfState(best.st);
+    if (hub) hubPeople[hub] = (hubPeople[hub] ?? 0) + 1;
     placed.add(best.person.id);
   }
 
@@ -525,7 +631,7 @@ export const buildDraft = (
     ...seeded,
     ...remaining.map((memberIds, i) => ({ key: `draft-${i + 1}`, name: names[i], memberIds, supportId: null })),
   ];
-  assignSupports(groups, people, supports, rules);
+  assignSupports(groups, people, supports, rules, options.hubs);
   return { groups, needsInfo, unplaced, ignored, tagNotes };
 };
 

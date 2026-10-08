@@ -366,6 +366,19 @@ duplicating the logic anywhere else is a bug waiting to happen.
     before that week's class. Source: `20261008090000_teen_meetings.sql`,
     `20261008100000_teen_meeting_flags_robust.sql`,
     `daily-checks` (v18), `notify-group-meeting-completed` (v6).
+32. **The builder fills the groups first, then adds supports from every hub.** Groups are formed from
+    the people first; supports are chosen afterwards, and never change how the groups form. Supports are
+    picked across the cohort's hubs (hubs with members, supports found through `HubMembership`) so that at
+    least two thirds of the hubs (`hubTarget`, rounded up) have a group with participants, and past that
+    the hub with the smaller share of its supports leading goes first (`groupingEngine.assignSupports`).
+    Hub spread outranks the support's age fit, never the tag or gender fit, and never a Must rule: when a
+    Must rule or too few groups stop it, the builder still builds and the draft says so
+    ("Hubs with participants: X of Y", with the reason and the hubs without; it updates as supports are
+    changed by hand). Topping up follows the same aim: running groups already led from fewer than two
+    thirds of the hubs make the top-up keep back people (`hubReserve`) for new groups led from the other
+    hubs, and among equal fits the hub with fewer people per support is filled first. Supports in no hub are
+    simply not counted. Source: `groupingEngine` (`hubTarget`, `hubCoverage`, `hubReserve`,
+    `assignSupports`, `topUpGroups`), `GroupEngineWizard`. No database change.
 
 ## 5. Edge functions and schedules
 
