@@ -58,7 +58,7 @@ export default function VenueMapModal({ acknowledged, onAcknowledge, onClose }: 
         </div>
         <div className="border-t border-[#f1f2f5] px-5 pb-5 pt-3">
           <label className="flex min-h-[44px] cursor-pointer items-center gap-3 text-sm font-semibold text-gray-900">
-            <input type="checkbox" checked={understood} disabled={acknowledged} onChange={(e) => setUnderstood(e.target.checked)} className="h-5 w-5 flex-none accent-[#ff914d]" />
+            <input type="checkbox" checked={acknowledged || understood} disabled={acknowledged} onChange={(e) => setUnderstood(e.target.checked)} className="h-5 w-5 flex-none accent-[#ff914d]" />
             <span>I understand where to go after first service</span>
           </label>
           {error && <p className="mt-1 text-xs text-red-600">{error}</p>}

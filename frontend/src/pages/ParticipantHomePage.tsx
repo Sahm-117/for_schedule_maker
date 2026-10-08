@@ -71,6 +71,9 @@ const ParticipantHomePage: React.FC = () => {
   const [introOpen, setIntroOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
+  // Once attended the list is gone for good, so stop re-reading the state on every focus.
+  const attendedRef = useRef(false);
+  attendedRef.current = !!onboarding?.hasAttended;
   const [confirming, setConfirming] = useState(false);
   // Practice cohorts are always "completed" on paper, but a practice participant still walks the Get ready list.
   const [isPractice, setIsPractice] = useState(false);
@@ -110,7 +113,7 @@ const ParticipantHomePage: React.FC = () => {
     };
     load();
     // Marked present while the app sits open: pick it up when they come back to it.
-    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    const onVisible = () => { if (document.visibilityState === 'visible' && !attendedRef.current) load(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => { cancelled = true; document.removeEventListener('visibilitychange', onVisible); };
   }, [readyId, readyPreStart]);
@@ -220,7 +223,7 @@ const ParticipantHomePage: React.FC = () => {
 
   const acknowledgeMap = async () => {
     await participantAppApi.ackVenueMap();
-    if (onboarding) setOnboarding({ ...onboarding, venueMapAcknowledged: true });
+    setOnboarding((o) => (o ? { ...o, venueMapAcknowledged: true } : o));
   };
 
   const confirmReady = async () => {

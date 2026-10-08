@@ -30,7 +30,7 @@ BEGIN
   SELECT * INTO v_ob FROM public."ParticipantOnboarding" WHERE "participantId" = p_participant_id;
   v_guide := v_ob."introGuideReadAt" IS NOT NULL;
   v_ready := v_ob."readyConfirmedAt" IS NOT NULL;
-  v_map := v_ob."venueMapAckAt" IS NOT NULL;
+  v_map := v_ob."venueMapAckAt" IS NOT NULL OR v_ob."readyConfirmedAt" IS NOT NULL OR v_ob."completedAt" IS NOT NULL;
   -- Seen in class at least once (present, late or left early): the Get ready list retires.
   v_attended := EXISTS (SELECT 1 FROM public."AttendanceRecord" ar
     WHERE ar."participantId" = p_participant_id AND ar.status IN ('PRESENT','LATE','LEFT_EARLY'));
