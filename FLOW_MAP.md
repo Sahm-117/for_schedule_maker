@@ -344,7 +344,10 @@ duplicating the logic anywhere else is a bug waiting to happen.
     meeting report), `cohort_people` sends no teen meeting attendance and no teen onboarding rows (no
     red flags), and `daily-checks` skips groups with `isTeenGroup` (no "report still open" nudge, no
     digest line, no missed-meeting escalation). The Saturday-morning reminder is not built yet; it waits
-    until Teen Supports are using the card. Source: `20261008090000_teen_meetings.sql`,
+    until Teen Supports are using the card. The red-flag exclusion also skips anyone currently in a teen
+    group, so a meeting row whose group was later deleted still never counts. A meeting cannot be dated
+    before that week's class. Source: `20261008090000_teen_meetings.sql`,
+    `20261008100000_teen_meeting_flags_robust.sql`,
     `daily-checks` (v18), `notify-group-meeting-completed` (v6).
 
 ## 5. Edge functions and schedules

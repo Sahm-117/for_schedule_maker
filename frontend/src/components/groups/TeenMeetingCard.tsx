@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAppData } from '../../context/AppDataContext';
 import { groupsApi, participantsApi, supportRecapsApi, teenMeetingsApi } from '../../services/api';
@@ -98,20 +98,23 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
     return saturday > today ? today : saturday;
   }, [activeCohort?.startDate, week, today]);
 
+  const defaultDayRef = useRef(defaultDay);
+  defaultDayRef.current = defaultDay;
+
   const loadWeek = useCallback(async () => {
     if (!group || !week) { setSaved(null); return; }
     try {
       const { status, records } = await teenMeetingsApi.getWeek(group.id, week.id);
       setSaved(status ? { done: status.done, metOn: status.metOn ?? null, notes: status.notes ?? null } : null);
       setMarks(new Map(records.map((r) => [r.participantId, r.status])));
-      setMetOn(status?.metOn ?? defaultDay);
+      setMetOn(status?.metOn ?? defaultDayRef.current);
       setNotes(status?.notes ?? '');
       setEditing(false);
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load this meeting.');
     }
-  }, [group, week, defaultDay]);
+  }, [group, week]);
   useEffect(() => { void loadWeek(); }, [loadWeek]);
 
   const recap = recaps.find((r) => r.weekId === week?.id) ?? null;
@@ -133,6 +136,10 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
   const save = async () => {
     if (!group || !week) return;
     if (!metOn) { setError('Pick the day you met.'); return; }
+    if (activeCohort?.startDate && metOn < classDateIso(activeCohort.startDate, week)) {
+      setError(`The meeting follows the class on ${dayLabel(classDateIso(activeCohort.startDate, week))}. Pick that day or later.`);
+      return;
+    }
     if (!allMarked) { setError('Mark each teen as joined, excused or missed.'); return; }
     setSaving(true);
     setError('');
@@ -209,7 +216,7 @@ const TeenMeetingCard: React.FC<TeenMeetingCardProps> = ({ userId, userName }) =
             <div className="mt-3 flex flex-col gap-3.5">
               <div>
                 <label htmlFor="teen-met-on" className="mb-1.5 block text-[13px] font-semibold text-gray-900">Day you met</label>
-                <input id="teen-met-on" type="date" value={metOn} max={today} onChange={(e) => setMetOn(e.target.value)} className="min-h-[46px] w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                <input id="teen-met-on" type="date" value={metOn} max={today} min={activeCohort?.startDate && week ? classDateIso(activeCohort.startDate, week) : undefined} onChange={(e) => setMetOn(e.target.value)} className="min-h-[46px] w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
               </div>
               <ul className="flex flex-col gap-2.5">
                 {teens.map((teen) => (
