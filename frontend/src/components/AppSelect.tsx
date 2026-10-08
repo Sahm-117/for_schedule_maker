@@ -60,7 +60,8 @@ const AppSelect: React.FC<AppSelectProps> = ({
     return options.filter((option) => {
       const label = option.label.toLowerCase();
       const meta = option.meta?.toLowerCase() || '';
-      return label.includes(query) || meta.includes(query);
+      const group = option.group?.toLowerCase() || '';
+      return label.includes(query) || meta.includes(query) || group.includes(query);
     });
   }, [options, searchQuery]);
   const filteredOptionsHaveMeta = useMemo(() => filteredOptions.some((option) => !!option.meta), [filteredOptions]);

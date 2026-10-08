@@ -380,15 +380,16 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   }, [hubData, topUpTargets]);
   const hubNameById = useMemo(() => new Map((hubData?.hubs ?? []).map((h) => [h.id, h.name])), [hubData]);
   const hubOfSupport = (id: string) => hubData?.hubOf[id] ?? null;
+  const hubLabelOf = (id: string | null | undefined) => (id ? hubNameById.get(hubOfSupport(id) ?? '') ?? null : null);
+  const hubsInOrder = useMemo(() => [...(hubData?.hubs ?? [])].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })), [hubData]);
   // Supports shown under their hub (Hub 1, Hub 2, ... in order), people in no hub last. With no hubs loaded,
   // one unnamed list.
   const groupByHub = <T extends { id: string; name: string }>(list: T[]): Array<{ key: string; hub: string | null; items: T[] }> => {
-    const order = [...(hubData?.hubs ?? [])].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-    const out: Array<{ key: string; hub: string | null; items: T[] }> = order
+    const out: Array<{ key: string; hub: string | null; items: T[] }> = hubsInOrder
       .map((h) => ({ key: h.id, hub: h.name, items: list.filter((x) => hubOfSupport(x.id) === h.id).sort((a, b) => a.name.localeCompare(b.name)) }))
       .filter((g) => g.items.length > 0);
     const rest = list.filter((x) => !hubOfSupport(x.id) || !hubNameById.has(hubOfSupport(x.id) as string)).sort((a, b) => a.name.localeCompare(b.name));
-    if (rest.length > 0) out.push({ key: '__none__', hub: out.length > 0 ? 'No hub' : null, items: rest });
+    if (rest.length > 0) out.push({ key: '__none__', hub: out.length > 0 ? 'Not in a hub' : null, items: rest });
     return out;
   };
 
@@ -925,34 +926,34 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                     {groupByHub(supportPool.free).map((hubGroup) => (
                       <div key={hubGroup.key} className="flex flex-col gap-1">
                         {hubGroup.hub && <p className="mt-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 first:mt-0">{hubGroup.hub} · {hubGroup.items.length} {hubGroup.items.length === 1 ? 'support' : 'supports'}</p>}
-                    {hubGroup.items.map((sup) => {
-                      const user = supportUsers.find((u) => u.id === sup.id);
-                      return (
-                        <div key={sup.id}>
-                        <div className="flex items-center gap-2.5 px-1 py-1">
-                          <Avatar name={sup.name} avatarUrl={user?.avatarUrl} size="xs" />
-                          <span className="min-w-0 flex-1 truncate text-[13px] text-gray-800">{sup.name}{(sup.tagIds ?? []).length > 0 && <span className="ml-1.5 text-[11px] font-semibold text-violet-700">{(sup.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean).join(', ')}</span>}</span>
-                          <button type="button" aria-expanded={tagEditFor === sup.id} onClick={() => setTagEditFor((cur) => (cur === sup.id ? null : sup.id))} className="rounded-full bg-violet-100/80 px-3 py-1 text-[12px] font-semibold text-violet-700 hover:bg-violet-100">Tags</button>
-                          <button type="button" disabled={excludeSaving === sup.id} onClick={() => void toggleExcluded(sup.id)} className="rounded-full bg-gray-100 px-3 py-1 text-[12px] font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60">
-                            {excludeSaving === sup.id ? <Spinner className="h-3 w-3" /> : 'Leave out'}
-                          </button>
-                        </div>
-                        {tagEditFor === sup.id && (
-                          <div className="mb-1 ml-8 flex flex-wrap items-center gap-1.5 rounded-2xl bg-gray-50 px-3 py-2">
-                            {tags.length === 0 ? <span className="text-[11px] text-gray-500">No tags yet.</span> : tags.map((t) => {
-                              const on = (sup.tagIds ?? []).includes(t.id);
-                              return (
-                                <button key={t.id} type="button" role="checkbox" aria-checked={on} disabled={tagSaving === sup.id} onClick={() => void toggleSupportTag(sup.id, t.id)} className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${on ? 'bg-violet-100/80 text-violet-700' : 'bg-white text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.10)]'}`}>
-                                  {on ? '✓ ' : ''}{t.name}
-                                </button>
-                              );
-                            })}
-                            <button type="button" onClick={() => setTagsOpen(true)} className="rounded-full px-2.5 py-1 text-[12px] font-semibold text-primary">Manage tags</button>
+                      {hubGroup.items.map((sup) => {
+                        const user = supportUsers.find((u) => u.id === sup.id);
+                        return (
+                          <div key={sup.id}>
+                          <div className="flex items-center gap-2.5 px-1 py-1">
+                            <Avatar name={sup.name} avatarUrl={user?.avatarUrl} size="xs" />
+                            <span className="min-w-0 flex-1 truncate text-[13px] text-gray-800">{sup.name}{(sup.tagIds ?? []).length > 0 && <span className="ml-1.5 text-[11px] font-semibold text-violet-700">{(sup.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean).join(', ')}</span>}</span>
+                            <button type="button" aria-expanded={tagEditFor === sup.id} onClick={() => setTagEditFor((cur) => (cur === sup.id ? null : sup.id))} className="rounded-full bg-violet-100/80 px-3 py-1 text-[12px] font-semibold text-violet-700 hover:bg-violet-100">Tags</button>
+                            <button type="button" disabled={excludeSaving === sup.id} onClick={() => void toggleExcluded(sup.id)} className="rounded-full bg-gray-100 px-3 py-1 text-[12px] font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60">
+                              {excludeSaving === sup.id ? <Spinner className="h-3 w-3" /> : 'Leave out'}
+                            </button>
                           </div>
-                        )}
-                        </div>
-                      );
-                    })}
+                          {tagEditFor === sup.id && (
+                            <div className="mb-1 ml-8 flex flex-wrap items-center gap-1.5 rounded-2xl bg-gray-50 px-3 py-2">
+                              {tags.length === 0 ? <span className="text-[11px] text-gray-500">No tags yet.</span> : tags.map((t) => {
+                                const on = (sup.tagIds ?? []).includes(t.id);
+                                return (
+                                  <button key={t.id} type="button" role="checkbox" aria-checked={on} disabled={tagSaving === sup.id} onClick={() => void toggleSupportTag(sup.id, t.id)} className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${on ? 'bg-violet-100/80 text-violet-700' : 'bg-white text-gray-600 shadow-[0_1px_2px_rgba(17,24,39,0.10)]'}`}>
+                                    {on ? '✓ ' : ''}{t.name}
+                                  </button>
+                                );
+                              })}
+                              <button type="button" onClick={() => setTagsOpen(true)} className="rounded-full px-2.5 py-1 text-[12px] font-semibold text-primary">Manage tags</button>
+                            </div>
+                          )}
+                          </div>
+                        );
+                      })}
                       </div>
                     ))}
                   </div>
@@ -1183,13 +1184,13 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   return (
                     <div key={g.key} className={`${SURFACE} flex flex-col gap-2.5 p-4`}>
                       <div className="flex items-center justify-between gap-2">
-                        <p className="flex items-center gap-1.5 font-bold text-gray-900">
+                        <p className="flex min-w-0 flex-wrap items-center gap-1.5 font-bold text-gray-900">
                           {g.name}
                           {g.topUp
                             ? <span className="rounded-full bg-emerald-100/80 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Top-up</span>
                             : g.existingGroupId && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Your group</span>}
                           {groupTagName(g.memberIds) && <span className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">{groupTagName(g.memberIds)}</span>}
-                          {g.supportId && hubNameById.get(hubOfSupport(g.supportId) ?? '') && <span className="rounded-full bg-sky-100/80 px-2 py-0.5 text-[11px] font-semibold text-sky-700">{hubNameById.get(hubOfSupport(g.supportId) ?? '')}</span>}
+                          {hubLabelOf(g.supportId) && <span className="rounded-full bg-sky-100/80 px-2 py-0.5 text-[11px] font-semibold text-sky-700">{hubLabelOf(g.supportId)}</span>}
                         </p>
                         <div className="flex items-center gap-1.5">
                           {moveHere(g.key, g.memberIds)}
@@ -1252,17 +1253,17 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                         {groupByHub(unused).map((hubGroup) => (
                         <div key={hubGroup.key} className="mt-2">
                           {hubGroup.hub && <p className="px-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{hubGroup.hub} · {hubGroup.items.length}</p>}
-                        <div className="grid gap-0.5 sm:grid-cols-2 lg:grid-cols-3">
-                          {hubGroup.items.map((s) => (
-                            <div key={s.id} className="flex items-center gap-2.5 rounded-2xl px-2 py-1.5">
-                              <Avatar name={s.name} avatarUrl={supportUsers.find((u) => u.id === s.id)?.avatarUrl} size="sm" />
-                              <div className="min-w-0 flex-1">
-                                <p className="flex items-center gap-1.5 text-[13px] font-medium text-gray-900"><span className="truncate">{s.name}</span><InfoTip label={`Why ${s.name} has no group`}>{unusedSupportHint(s, effectiveRules, tagNames)}</InfoTip></p>
-                                <p className="truncate text-[11px] text-gray-500">{[s.gender, s.ageRange ? shortAge(s.ageRange) : null, ...(s.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean)].filter(Boolean).join(' · ') || 'Details missing'}</p>
+                          <div className="grid gap-0.5 sm:grid-cols-2 lg:grid-cols-3">
+                            {hubGroup.items.map((s) => (
+                              <div key={s.id} className="flex items-center gap-2.5 rounded-2xl px-2 py-1.5">
+                                <Avatar name={s.name} avatarUrl={supportUsers.find((u) => u.id === s.id)?.avatarUrl} size="sm" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="flex items-center gap-1.5 text-[13px] font-medium text-gray-900"><span className="truncate">{s.name}</span><InfoTip label={`Why ${s.name} has no group`}>{unusedSupportHint(s, effectiveRules, tagNames)}</InfoTip></p>
+                                  <p className="truncate text-[11px] text-gray-500">{[s.gender, s.ageRange ? shortAge(s.ageRange) : null, ...(s.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean)].filter(Boolean).join(' · ') || 'Details missing'}</p>
+                                </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
                         </div>
                         ))}
                         <p className="mt-2 text-[11px] text-gray-400">Available to the engine but not given a group in this draft. Tap ⓘ for the reason, or pick one on any group above to use them.</p>
