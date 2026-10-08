@@ -4040,10 +4040,12 @@ export const followUpContactsApi = {
       patch.callStatus = 'INCORRECT_NUMBER';
       patch.nextAction = 'CLOSE';
       // A teen stays a teen when the number is wrong: they are closed, but keep the Teenager label.
-      if ((current as any).registrationStatus === 'TEENAGER' && fields.registrationStatus !== 'TEENAGER') {
-        patch.registrationStatus = 'TEENAGER';
+      const currentStatus = (current as any).registrationStatus;
+      if (currentStatus === 'TEENAGER' || currentStatus === 'TEEN_ONBOARDED') {
+        patch.registrationStatus = currentStatus;
       }
     } else if (
+      ((current as any).registrationStatus === 'NOT_REGISTERED' || (current as any).registrationStatus === 'TEENAGER') &&
       ((current as any).replyStatus === 'INCORRECT_NUMBER' || (current as any).callStatus === 'INCORRECT_NUMBER') &&
       fields.replyStatus === undefined && fields.callStatus === undefined &&
       (phoneChanged(fields.phone, (current as any).phone) || phoneChanged(fields.guardianPhone, (current as any).guardianPhone))
@@ -4051,6 +4053,7 @@ export const followUpContactsApi = {
       // A new number was added to a wrong-number contact, so they are reachable again and count again.
       patch.replyStatus = 'NO_REPLY';
       patch.callStatus = 'NOT_CALLED';
+      patch.messageStatus = 'NOT_SENT';
       patch.nextAction = 'SEND_MESSAGE';
       patch.archivedAt = null;
     }

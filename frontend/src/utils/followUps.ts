@@ -171,10 +171,10 @@ export const isFiledLoginShared = (c: FollowUpContact): boolean =>
 export const computeFollowUpStatus = (c: FollowUpContact): FollowUpStatus => {
   if (c.registrationStatus === 'ACCESS_CONFIRMED') return 'ACCESS_CONFIRMED';
   if (c.registrationStatus === 'ATTENDED') return 'ATTENDED';
-  if (c.noResponseAt && (c.registrationStatus === 'TEENAGER' || c.registrationStatus === 'TEEN_ONBOARDED')) return 'NO_RESPONSE';
   // A teen keeps the Teenager label when the number is wrong (so they stay a teen everywhere), but
   // they are still a wrong number: closed, and left out of the registered counts.
   if (c.registrationStatus === 'TEENAGER' && (c.replyStatus === 'INCORRECT_NUMBER' || c.callStatus === 'INCORRECT_NUMBER')) return 'WRONG_NUMBER';
+  if (c.noResponseAt && (c.registrationStatus === 'TEENAGER' || c.registrationStatus === 'TEEN_ONBOARDED')) return 'NO_RESPONSE';
   if (c.registrationStatus === 'TEENAGER') return 'TEENAGER';
   if (c.registrationStatus === 'TEEN_ONBOARDED') return 'TEEN_ONBOARDED';
   if (c.registrationStatus === 'LOGIN_ISSUE') return 'LOGIN_ISSUE';

@@ -25,12 +25,16 @@ A teen marked Wrong Number keeps the Teenager label.
 
 ## How it was tested
 Frontend build; a small script over `computeRegistrationOverview` (teen and adult wrong numbers leave the
-totals, a signed-in adult stays, clearing the flag brings the teen back). Not tested in the browser.
+totals, a signed-in adult stays, clearing the flag brings the teen back); Playwright on the Dashboard and
+Follow-ups Overview with mocked data (2 left out, note shown, signed-in adult still counted, no page errors).
+The save path in `update` (teen label kept, new phone clears Wrong Number) was only built, not run against the
+live backend; there is no test runner in the repo, so no committed test.
 
 ## Open items
 - Editing a participant's own phone (not the contact's) does not clear Wrong Number; only the contact edit does.
-- Other teens already reset to Not registered by an earlier Wrong Number were not searched for beyond the one
-  found (live check showed two wrong-number contacts in all, one of them registered).
+- Live check: only two contacts are marked Wrong Number in all, and only one of them is a registered person,
+  so no other teen was reset.
+- An onboarded teen marked Wrong Number keeps Teen onboarded and stays counted as onboarded.
 
 ## Gotchas
 - Rule 5: statuses are set with `buildStatusPatch`; the teen label is kept in `update`, because the patch
