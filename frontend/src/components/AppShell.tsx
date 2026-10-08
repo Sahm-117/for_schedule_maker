@@ -462,8 +462,8 @@ const AppShell: React.FC = () => {
     if (item.to === '/support/my-hub') return !hubPhase;
     return !!item.mobileMore;
   };
-  // Kind tagged for this cohort: hub leads and operational supports don't run
-  // a participant group, so "My Group" doesn't apply to them.
+  // Kind tagged for this cohort: hub leads and operational supports usually don't run
+  // a participant group, so "My Group" doesn't apply to them unless they were given one.
   // Bumped when Practice moves the person to another seat or resets them. The header label and
   // the page behind it (My Hub, My Group, Attendance...) re-read everything right away instead of
   // on the next background refresh.
@@ -477,7 +477,27 @@ const AppShell: React.FC = () => {
       .catch(() => { if (!cancelled) setSupportKind('PARTICIPANT_SUPPORT'); });
     return () => { cancelled = true; };
   }, [isSupport, user, activeCohort, workspaceRevision]);
-  const isHubOnlySupport = isSupport && (supportKind === 'HUB_LEAD' || supportKind === 'OPERATIONAL');
+  // The support badge names the group(s) they lead in the selected cohort —
+  // activity tags aren't cohort-specific, so an old cohort's tag would show.
+  const [myGroupNames, setMyGroupNames] = useState<string[]>([]);
+  // This support's own group id, for the "My Group" nav dot (useGroupMeetingLive
+  // polls MeetingAttendance/GroupPrayerStatus for it — see that hook).
+  const [myGroupId, setMyGroupId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isSupport || !user || !activeCohort) { setMyGroupNames([]); setMyGroupId(null); return; }
+    let cancelled = false;
+    groupsApi.getAll({ cohortId: activeCohort.id })
+      .then((res) => {
+        if (cancelled) return;
+        const own = res.groups.filter((g) => g.supportId === user.id && !g.archivedAt);
+        setMyGroupNames(own.map((g) => g.name));
+        setMyGroupId(own[0]?.id ?? null);
+      })
+      .catch(() => { if (!cancelled) { setMyGroupNames([]); setMyGroupId(null); } });
+    return () => { cancelled = true; };
+  }, [isSupport, user, activeCohort, workspaceRevision]);
+  // A hub lead or operational support who has been given a group leads it like any support, so "My Group" shows for them.
+  const isHubOnlySupport = isSupport && (supportKind === 'HUB_LEAD' || supportKind === 'OPERATIONAL') && !myGroupId;
   const canShowForKind = (item: NavItem) => !(item.hiddenForHubOnly && isHubOnlySupport);
   const navItems = useMemo(() => {
     if (isSupport) return supportNav.filter((item) => (!item.hubOnly || !!myHub?.hub) && canShowForKind(item) && (!item.practiceOnly || practiceOn));
@@ -513,25 +533,6 @@ const AppShell: React.FC = () => {
   );
   const moreActive = mobileMoreItems.some((item) => isNavActive(location.pathname, item.to));
 
-  // The support badge names the group(s) they lead in the selected cohort —
-  // activity tags aren't cohort-specific, so an old cohort's tag would show.
-  const [myGroupNames, setMyGroupNames] = useState<string[]>([]);
-  // This support's own group id, for the "My Group" nav dot (useGroupMeetingLive
-  // polls MeetingAttendance/GroupPrayerStatus for it — see that hook).
-  const [myGroupId, setMyGroupId] = useState<string | null>(null);
-  useEffect(() => {
-    if (!isSupport || !user || !activeCohort) { setMyGroupNames([]); setMyGroupId(null); return; }
-    let cancelled = false;
-    groupsApi.getAll({ cohortId: activeCohort.id })
-      .then((res) => {
-        if (cancelled) return;
-        const own = res.groups.filter((g) => g.supportId === user.id && !g.archivedAt);
-        setMyGroupNames(own.map((g) => g.name));
-        setMyGroupId(own[0]?.id ?? null);
-      })
-      .catch(() => { if (!cancelled) { setMyGroupNames([]); setMyGroupId(null); } });
-    return () => { cancelled = true; };
-  }, [isSupport, user, activeCohort, workspaceRevision]);
   // Hub jobs held in the selected cohort — fetched across every hub this
   // support belongs to or IT-supports, so an operational support on 2+ hubs
   // still gets a single deduped list of job labels.

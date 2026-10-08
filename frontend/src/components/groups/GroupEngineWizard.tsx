@@ -310,8 +310,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   }, [rules.tagRules, tags]);
 
   const teenTagId = useMemo(() => tags.find((t) => t.systemKey === 'TEEN_SUPPORT')?.id ?? null, [tags]);
-  // Who the builder may use as a support. `withOperational` lets Operational supports lead groups too (hub
-  // leads never do); the rest of the rules are the same either way.
+  // Who the builder may use as a support. `withOperational` and `withHubLeads` let Operational supports and hub
+  // leads lead groups too; the rest of the rules are the same either way.
   const buildSupportPool = useCallback((withOperational: boolean, withHubLeads: boolean) => {
     const leading = new Set(groups.filter((g) => !g.archivedAt && g.supportId).map((g) => g.supportId as string));
     const free: EngineSupport[] = [];
@@ -1012,7 +1012,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                     <p className="text-sm font-semibold text-gray-900">Also use hub leads</p>
                     <p className="mt-0.5 text-xs text-gray-500">
                       {includeHubLeads
-                        ? `${supportPool.hubLeads.size} hub ${supportPool.hubLeads.size === 1 ? 'lead is' : 'leads are'} added to the engine, in their hub. They show “Hub lead” on the draft. Only needed if there are not enough other supports.`
+                        ? `${supportPool.hubLeads.size} hub ${supportPool.hubLeads.size === 1 ? 'lead is' : 'leads are'} added to the engine, in their hub. They show “Hub lead” on the draft. Turn this on only if you need them.`
                         : `${supportPool.hubLeads.size} hub ${supportPool.hubLeads.size === 1 ? 'lead is' : 'leads are'} left out. Switch on to let them lead a group too, if need be.`}
                     </p>
                   </div>
@@ -1245,8 +1245,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                             ? <span className="rounded-full bg-emerald-100/80 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Top-up</span>
                             : g.existingGroupId && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Your group</span>}
                           {groupTagName(g.memberIds) && <span className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">{groupTagName(g.memberIds)}</span>}
-                          {g.supportId && supportPool.hubLeads.has(g.supportId) && <span className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">Hub lead</span>}
-                          {g.supportId && supportPool.operational.has(g.supportId) && <span className="rounded-full bg-teal-100/80 px-2 py-0.5 text-[11px] font-semibold text-teal-700">Operational</span>}
+                          {g.supportId && kinds[g.supportId] === 'HUB_LEAD' && <span className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">Hub lead</span>}
+                          {g.supportId && kinds[g.supportId] === 'OPERATIONAL' && <span className="rounded-full bg-teal-100/80 px-2 py-0.5 text-[11px] font-semibold text-teal-700">Operational</span>}
                           {hubLabelOf(g.supportId) && <span className="rounded-full bg-sky-100/80 px-2 py-0.5 text-[11px] font-semibold text-sky-700">{hubLabelOf(g.supportId)}</span>}
                         </p>
                         <div className="flex items-center gap-1.5">

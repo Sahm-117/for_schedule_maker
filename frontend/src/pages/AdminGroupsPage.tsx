@@ -557,7 +557,7 @@ const AdminGroupsContent: React.FC = () => {
       if (teenSupportIds.has(u.id)) return false;
       return !leading.has(u.id);
     });
-  }, [supportUsers, supportTags, cohortMemberIds, supportKinds, groups]);
+  }, [supportUsers, supportTags, cohortMemberIds, groups]);
 
   // Initial / cohort-change load shows the loader.
   useEffect(() => { void load(false); }, [load]);

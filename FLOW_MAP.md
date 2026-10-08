@@ -198,7 +198,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     inactive or out-of-cohort users and anyone already leading another
     group (`supportsFor` in `AdminGroupsPage.tsx`). Operational supports and hub
     leads are offered (tagged), and missing pre-cohort training is
-    shown as a notice, never a block (no override note needed).
+    shown as a notice (not for those two kinds), never a block (no override note needed).
     A registered
     contact whose age is "18 and below" becomes TEENAGER (then TEEN_ONBOARDED)
     inside `fill_profile_from_form`, only while `AppSetting.teen_flow_enabled`
@@ -385,8 +385,10 @@ duplicating the logic anywhere else is a bug waiting to happen.
     the hubs to be created (link to Hubs) or to try again. A support marked Participant support for the cohort (Supports page → Kind) and in a hub is eligible; missing pre-cohort
     training is shown (a Trainings tag and "Missed training" on the draft group) and never leaves anyone out. Operational
     supports can lead groups too, but only when "Also use operational supports" is switched on in the builder (off each
-    time it opens, remembered with a saved draft); they show an Operational tag. Hub leads can lead groups too, if need be, with "Also use hub leads" (same behaviour, Hub lead tag). The
-    Hubs and Supports pages label Teen Supports. Wherever the builder lists supports (the People step,
+    time it opens, remembered with a saved draft); they show an Operational tag. Hub leads can lead groups too, if need be, with
+    "Also use hub leads" (same behaviour, Hub lead tag). Neither kind is flagged for missed training. A hub lead or
+    operational support who has a group sees My Group and the group Home like any support (AppShell,
+    SupportHomePage). The Hubs and Supports pages label Teen Supports. Wherever the builder lists supports (the People step,
     each group's support menu, supports without a group) they are shown under their hub (Hub 1, Hub 2, ...),
     and each group shows its support's hub. Source: `groupingEngine` (`hubTarget`,
     `hubCoverage`, `hubGroupsNeeded`, `assignSupports`, `topUpGroups`), `GroupEngineWizard`. No database change.

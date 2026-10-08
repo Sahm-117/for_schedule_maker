@@ -24,8 +24,8 @@ FOF runs in cohorts. Each cohort has its own weeks, participants, and small grou
 Supports are grouped into **hubs** per cohort. Each support has a kind for the cohort:
 
 - **Participant support** — leads a small group of participants
-- **Hub lead** — leads supports only, no participant group
-- **Operational support** — IT/technical help covering two or more hubs, no participant group
+- **Hub lead** — leads supports; can also be given a participant group if need be
+- **Operational support** — IT/technical help covering two or more hubs; can also be given a participant group if need be
 
 On top of that, each hub has named jobs: **Hub Lead** (runs the hub, does announcements), **Assistant Hub Lead** (makes sure the meeting happens and everyone attends; the Hub Lead decides what else they may do), **Recap Lead**, **Prayer Lead** and **IT Support**. Jobs show as labels on names in My Hub, with an introduction the first time someone gets one.
 
@@ -41,7 +41,7 @@ The weekly **hub meeting** (the Sunday recap meeting) has its own walk-through: 
 - **My Hub** — fellow supports and their jobs, the hub meeting walk-through, prayer list, messages from the lead, trainings (leads), and a hub switcher for IT supports on several hubs
 - **Community, Resources, Profile** — team discussion and people directory, shared files, and personal settings
 
-Supports without a participant group (hub leads, operational supports) get a Home and empty states that point them to My Hub instead.
+Supports without a participant group (usually hub leads and operational supports) get a Home and empty states that point them to My Hub instead; one who is given a group sees My Group like any support.
 
 ### The participant app (`/me`)
 

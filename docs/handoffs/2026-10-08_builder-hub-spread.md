@@ -102,3 +102,8 @@ Hub leads can lead groups if need be. The builder has "Also use hub leads" next 
 opens, saved with a draft as `includeHubLeads`, tagged "Hub lead"). The Groups page pickers now offer hub leads too (tagged).
 Both switches only count people who pass every other check. Checked in the browser with mocked data: free supports 9 -> 11
 (operational) -> 12 (hub leads). FLOW_MAP rules 19 and 32 updated.
+
+Review round for hub leads: a hub lead or operational support who has a group now sees My Group and the group Home (before, the
+support side hid them whenever their kind was one of those, so a group led by one would have had no way in). Copy now says to turn
+the switch on only if needed (the engine does not hold them back). Neither kind is flagged for missed training. Left as is: a hub
+lead who is excluded for another reason is not counted by the switch.

@@ -118,7 +118,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
     myHubApi.getMyHubs(activeCohort.id).then(({ hubs }) => setHubsList(hubs)).catch(() => setHubsList([]));
   }, [activeCohort?.id, liveRevision]);
 
-  // Admin-tagged kind: hub leads and operational supports don't run a
+  // Admin-tagged kind: hub leads and operational supports usually don't run a
   // participant group, so the group-only tiles/pages swap for hub ones.
   const [supportKind, setSupportKind] = useState<SupportKind>('PARTICIPANT_SUPPORT');
   useEffect(() => {
@@ -127,7 +127,8 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
       .then(({ kinds }) => setSupportKind(kinds[user.id] ?? 'PARTICIPANT_SUPPORT'))
       .catch(() => setSupportKind('PARTICIPANT_SUPPORT'));
   }, [activeCohort?.id, user.id]);
-  const isHubOnlySupport = supportKind === 'HUB_LEAD' || supportKind === 'OPERATIONAL';
+  // A hub lead or operational support who was given a group leads it like any support.
+  const isHubOnlySupport = (supportKind === 'HUB_LEAD' || supportKind === 'OPERATIONAL') && myGroups.length === 0;
   // "Mark attendance" varies by kind: hidden for an IT-only (OPERATIONAL)
   // support, "Open hub meeting" for a hub lead, unchanged for a participant
   // support.
