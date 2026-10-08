@@ -24,6 +24,10 @@ people to prepare for when the hubs meet, not a few hubs holding all of them).
 1. Hubs means the support hubs. 2. When a Must rule stops the 2/3 aim, break the aim, build anyway and
 say so. 3. Top-up follows the same aim.
 
+4. (Later) Supports are always in hubs: a support in no hub is not used and is listed as "Not in a hub";
+if no hub has anyone in it, the builder asks for hubs to be created and blocks the People step (also if
+the hubs fail to load, with Try again).
+
 My own calls, not asked: hub spread outranks a support's age fit but not tag or gender fit; hubs with no
 members are not counted; a support in several hubs counts for the first one found; top-up keeps back
 `minSize` people per hub still needed, never more than the hubs that still have a free support.
@@ -38,8 +42,8 @@ Not tested against live data.
 
 ## Open items
 
-- Existing running groups' hubs come from their support's hub membership; a support missing from every
-  hub is invisible to the aim.
+- Existing running groups' hubs come from their support's hub membership; a running group whose support
+  is in no hub does not count towards any hub.
 - The banner reason for "a Must rule or not chosen" is generic.
 
 ## Gotchas
