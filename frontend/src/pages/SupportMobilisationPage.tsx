@@ -472,7 +472,16 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
               noResponseAt: null,
             })
               .then(() => loadAll())
-              .catch(() => void loadAll());
+              .catch((err) => {
+                // Put back needs the sign-up form on file; say so rather than leaving them parked silently.
+                toast({
+                  tone: 'error',
+                  message: isNoFormRegistrationError(err)
+                    ? `Could not put ${firstNameOf(contact.fullName)} back. ${NO_FORM_MESSAGE} Ask an admin to restore them.`
+                    : `Could not put ${firstNameOf(contact.fullName)} back. Ask an admin to restore them.`,
+                });
+                void loadAll();
+              });
           },
         });
         return;

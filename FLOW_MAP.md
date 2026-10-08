@@ -286,7 +286,16 @@ duplicating the logic anywhere else is a bug waiting to happen.
     unarchived, so they can still be put in a group; the NO_RESPONSE status keeps them out of
     assignment and reassignment. A teen keeps their Teen Support and TEENAGER status (a teen always
     needs a same-gender Teen Support) and is only flagged; `push-reminders` skips anyone flagged.
-    Choosing another status clears the flag. Source: `20261007200000_followup_no_response_flag.sql`.
+    Choosing another status clears the flag. A support can also park a registered adult (Registered
+    or Login shared only) as No response when they cannot reach them (`CAN_PARK_AFTER_SIGN_UP`; not
+    Login issue, which has an open issue with IT, and not Access confirmed, which the API refuses for
+    a non-admin): the same release applies, and they wait under No response on the admin Follow-ups
+    table. Such an adult is only grouped by the builder once they have signed in (rule 29). If they
+    then choose a password they become ACCESS_CONFIRMED and the flag clears
+    (`confirm_followup_access_on_password_set`). Undo puts them back through the form gate (rule 1),
+    so a contact with no form on file cannot be restored by the support and the screen says so.
+    Source: `20261007200000_followup_no_response_flag.sql`,
+    `20261008020000_password_set_confirms_parked_contacts.sql`.
 29. **Only people who have signed in are grouped, and running groups are topped up first.** The group
     builder takes the participants it is given (the Groups page loads only the cohort's Active ones, and
     leaves teens to their Teen Supports) who are not in a group, and of those only people whose login is

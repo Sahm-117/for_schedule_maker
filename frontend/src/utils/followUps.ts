@@ -120,6 +120,13 @@ export const AFTER_SIGN_UP_STATUSES: FollowUpStatus[] = ['REGISTERED', 'LOGIN_SH
 const SUPPORT_AFTER_SIGN_UP_OPTIONS: FollowUpStatus[] = ['LOGIN_SHARED', 'ACCESS_CONFIRMED', 'LOGIN_ISSUE', 'NEXT_COHORT'];
 
 /**
+ * Where a support may park a registered adult as No response because they cannot be reached. Not from
+ * Login issue (they were reached, and an open issue would be left behind with IT) and not from Access
+ * confirmed (they are in the app).
+ */
+export const CAN_PARK_AFTER_SIGN_UP: FollowUpStatus[] = ['REGISTERED', 'LOGIN_SHARED'];
+
+/**
  * The support's "Where do they stand?" options. Before sign-up it is the usual
  * list, without the two steps that only make sense once a login exists; after
  * sign-up only the steps forward, with Registered kept while it is the current
@@ -133,7 +140,13 @@ export const supportStatusOptions = (current: FollowUpStatus, teen = false) => {
     return followUpStatusOptions.filter((option) => option.value !== 'LOGIN_ISSUE' && option.value !== 'ACCESS_CONFIRMED' && !TEEN_STATUSES.includes(option.value));
   }
   const values: FollowUpStatus[] = current === 'REGISTERED' ? ['REGISTERED', ...SUPPORT_AFTER_SIGN_UP_OPTIONS] : SUPPORT_AFTER_SIGN_UP_OPTIONS;
-  return values.map((value) => ({ value, label: FOLLOW_UP_STATUS_META[value].label, meta: FOLLOW_UP_STATUS_META[value].description }));
+  const options = values.map((value) => ({ value, label: FOLLOW_UP_STATUS_META[value].label, meta: FOLLOW_UP_STATUS_META[value].description }));
+  // A registered adult who cannot be reached to hand over their login can be parked: off the support's
+  // list for good, and waiting under No response on the Follow-ups table.
+  if (CAN_PARK_AFTER_SIGN_UP.includes(current)) {
+    options.push({ value: 'NO_RESPONSE', label: FOLLOW_UP_STATUS_META.NO_RESPONSE.label, meta: 'You cannot reach them. They come off your list and wait on the Follow-ups table.' });
+  }
+  return options;
 };
 
 /**

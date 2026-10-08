@@ -4039,6 +4039,10 @@ export const followUpContactsApi = {
     // needs a same-gender Teen Support.
     const wasTeen = (current as any).registrationStatus === 'TEENAGER' || (current as any).registrationStatus === 'TEEN_ONBOARDED';
     if (fields.registrationStatus === 'NO_RESPONSE') {
+      // Someone already in the app has been reached. A support's screen may be out of date, so refuse here too.
+      if ((current as any).registrationStatus === 'ACCESS_CONFIRMED' && getCurrentUserFromStorage()?.role !== 'ADMIN') {
+        throw new Error('They are already confirmed in the app, so they cannot be marked No response.');
+      }
       if (wasTeen) {
         for (const key of ['messageStatus', 'replyStatus', 'callStatus', 'registrationStatus', 'nextAction', 'archivedAt', 'teenOnboardedHow'] as const) delete patch[key];
       } else {
