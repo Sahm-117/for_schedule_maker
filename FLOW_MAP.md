@@ -87,11 +87,13 @@ duplicating the logic anywhere else is a bug waiting to happen.
 
 1. **No form, no progress.** Moving a contact into REGISTERED, LOGIN_SHARED,
    or ACCESS_CONFIRMED requires a linked SheetRegistration (or an unlinked
-   one from the last 15 minutes on the same number). Otherwise the database
+   one from the last 15 minutes on the same number, by phone key or, for a
+   mistyped number with no key, by the same raw text). Otherwise the database
    raises `NO_FORM_REGISTRATION`. Admin override only, with a written reason
    (`approve_manual_registration`). Grandfathering is structural: the trigger
    fires on the change, never on existing rows.
-   Source: `supabase/migrations/20261004190000_form_registration_gate.sql`.
+   Source: `supabase/migrations/20261004190000_form_registration_gate.sql`,
+   `20261006161000_teen_support_tag.sql`, `20261008010000_form_gate_accepts_unkeyed_number.sql`.
    Frontend: `NO_FORM_MESSAGE`/`isNoFormRegistrationError` in
    `frontend/src/utils/followUps.ts`.
 2. **Single current cohort.** One DB-owned definition of the current cohort;
