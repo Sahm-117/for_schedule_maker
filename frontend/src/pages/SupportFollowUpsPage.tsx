@@ -436,11 +436,13 @@ const SupportFollowUpsPage: React.FC = () => {
                   aria-label="Search your contacts"
                   className="w-full rounded-2xl border border-orange-200 bg-white px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
-                {searching && (
-                  <p className="mt-1.5 px-1 text-xs text-gray-500">
-                    {searchedContacts.length} match{searchedContacts.length === 1 ? '' : 'es'} across all your cohorts
-                  </p>
-                )}
+                <p className="mt-1.5 px-1 text-xs text-gray-500" aria-live="polite">
+                  {searching
+                    ? <>{searchedContacts.length} match{searchedContacts.length === 1 ? '' : 'es'} across all your cohorts</>
+                    : filterCount > 0
+                      ? <>Showing <b className="font-semibold text-gray-800">{searchedContacts.length}</b> of {cohortScopedContacts.length} contacts</>
+                      : <>{searchedContacts.length} contact{searchedContacts.length === 1 ? '' : 's'}</>}
+                </p>
               </div>
               <FollowUpContactsTable
                 contacts={searchedContacts}

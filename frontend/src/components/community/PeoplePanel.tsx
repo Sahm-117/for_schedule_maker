@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AppSelect from '../AppSelect';
+import FilterBar, { type FilterGroup, type FilterValues } from '../filters/FilterBar';
 import Avatar from '../Avatar';
 import Spinner from '../Spinner';
 import { useAppData } from '../../context/AppDataContext';
@@ -22,7 +23,6 @@ type PersonRow = {
   groupName: string | null;
 };
 
-type TypeFilter = 'ALL' | 'SUPPORTS' | 'PARTICIPANTS';
 
 const ROLE_PILL: Record<'SUPPORT' | 'ADMIN', string> = {
   SUPPORT: 'bg-sky-100/80 text-sky-700',
@@ -70,8 +70,8 @@ const PeoplePanel: React.FC = () => {
   const { cohorts, activeCohort } = useAppData();
   const [cohortId, setCohortId] = useState<string>('');
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL');
-  const [groupFilter, setGroupFilter] = useState('');
+  // Filter choices (see FilterBar): who (supports / participants) and group; several of each at once.
+  const [filters, setFilters] = useState<FilterValues>({});
   const [loading, setLoading] = useState(true);
   const [supports, setSupports] = useState<User[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -90,7 +90,7 @@ const PeoplePanel: React.FC = () => {
     if (!cohortId) return;
     let cancelled = false;
     setLoading(true);
-    setGroupFilter('');
+    setFilters((prev) => ({ ...prev, group: [] }));
     Promise.all([
       cohortsApi.getMembers(cohortId),
       participantsApi.getAll({ cohortId }),
@@ -108,7 +108,7 @@ const PeoplePanel: React.FC = () => {
   }, [cohortId]);
 
   const groupNameById = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
-  const filterGroupSupportId = useMemo(() => groups.find((g) => g.id === groupFilter)?.supportId ?? null, [groups, groupFilter]);
+  const supportIdByGroup = useMemo(() => new Map(groups.map((g) => [g.id, g.supportId ?? null])), [groups]);
 
   const rows: PersonRow[] = useMemo(() => {
     const supportRows: PersonRow[] = supports.map((u) => ({
@@ -132,51 +132,51 @@ const PeoplePanel: React.FC = () => {
     return sortByText([...supportRows, ...participantRows], (r) => r.name);
   }, [supports, participants, groupNameById]);
 
+  // Does this person fit one chosen choice of one filter group? A support fits a group they lead.
+  const fits = (key: string, choice: string, r: PersonRow): boolean => {
+    if (key === 'who') return choice === 'SUPPORTS' ? r.kind !== 'PARTICIPANT' : r.kind === 'PARTICIPANT';
+    if (key === 'group') return r.kind === 'PARTICIPANT' ? r.groupId === choice : r.id === supportIdByGroup.get(choice);
+    return true;
+  };
   const filtered = rows.filter((r) => {
-    if (typeFilter === 'SUPPORTS' && r.kind === 'PARTICIPANT') return false;
-    if (typeFilter === 'PARTICIPANTS' && r.kind !== 'PARTICIPANT') return false;
-    if (groupFilter) {
-      if (r.kind === 'PARTICIPANT') {
-        if (r.groupId !== groupFilter) return false;
-      } else if (r.id !== filterGroupSupportId) {
-        return false;
-      }
-    }
+    if (!Object.entries(filters).every(([key, choices]) => choices.length === 0 || choices.some((c) => fits(key, c, r)))) return false;
     const q = search.trim().toLowerCase();
     if (q && !r.name.toLowerCase().includes(q) && !(r.phone ?? '').toLowerCase().includes(q)) return false;
     return true;
   });
+  const filterGroups: FilterGroup[] = [
+    { key: 'who', label: 'Who', options: [{ value: 'SUPPORTS', label: 'Supports', count: rows.filter((r) => fits('who', 'SUPPORTS', r)).length }, { value: 'PARTICIPANTS', label: 'Participants', count: rows.filter((r) => fits('who', 'PARTICIPANTS', r)).length }] },
+    ...(groups.length > 0 ? [{ key: 'group', label: 'Group (with its support)', options: sortByText(groups, (g) => g.name).map((g) => ({ value: g.id, label: g.name, count: rows.filter((r) => fits('group', g.id, r)).length })) }] : []),
+  ];
 
   const cohortOptions = sortedCohorts.map((c) => ({ value: c.id, label: c.name, meta: c.status }));
-  const groupOptions = [{ value: '', label: 'All groups' }, ...sortByText(groups, (g) => g.name).map((g) => ({ value: g.id, label: g.name }))];
 
   return (
     <div>
       <div data-wt="people-filters" className="mb-4 space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name or phone…"
-            className="w-full rounded-xl border border-orange-200 px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:max-w-md sm:flex-1"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+        <div className="w-full sm:w-64">
           <AppSelect value={cohortId} onChange={setCohortId} options={cohortOptions} placeholder="Choose cohort" compact />
-          <AppSelect
-            value={typeFilter}
-            onChange={(v) => setTypeFilter(v as TypeFilter)}
-            options={[
-              { value: 'ALL', label: 'Everyone' },
-              { value: 'SUPPORTS', label: 'Supports' },
-              { value: 'PARTICIPANTS', label: 'Participants' },
-            ]}
-            placeholder="Everyone"
-            compact
-          />
-          <AppSelect value={groupFilter} onChange={setGroupFilter} options={groupOptions} placeholder="All groups" compact />
         </div>
+        <FilterBar
+          groups={filterGroups}
+          value={filters}
+          onChange={setFilters}
+          search={
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name or phone…"
+              aria-label="Search people"
+              className="w-full rounded-2xl border border-orange-200 bg-white px-4 py-[11px] text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          }
+          searching={search.trim().length > 0}
+          onClear={() => setSearch('')}
+          shown={filtered.length}
+          total={rows.length}
+          noun="people"
+        />
       </div>
 
       {loading ? (

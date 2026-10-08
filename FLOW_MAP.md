@@ -412,6 +412,18 @@ duplicating the logic anywhere else is a bug waiting to happen.
     say so instead of showing numbers. The status list further down still shows follow-up statuses (a hand-set
     Access confirmed is counted there). No database change. Source: `utils/registrationOverview.ts`,
     `RegistrationOverviewCards`.
+34. **List pages filter with one shared control, several choices at once, and say how many are shown.**
+    `components/filters/FilterBar` (the Follow-ups pattern): a Filters button with a badge, a sheet of chip groups where
+    a row matches if it fits ANY chosen choice in a group and EVERY group that has a choice, each choice carrying how
+    many rows it matches, removable chips, and a line "Showing N of M <things>" (just "M <things>" when nothing is
+    filtered). Used by Participants, Supports, Groups, Hubs, Attendance, Faith projects, Onboarding, Birthdays, Meetings,
+    Activity overview, Schedule and Community people; Follow-ups (admin and support) keep their own sheet and show the
+    same count. Supports and Groups keep the choices in the address (`useUrlFilters`, comma separated, so `?hub=` and
+    `?group=` links still work); the others keep them in the page. The Participants page splits adults and teens, and
+    its App login filter means logged in = chose a password (`participants_signed_in`), adults only (rule 33); the
+    sign-up status there is the follow-up status, so a hand-set Access confirmed is not the same as logged in. Pages
+    whose selector picks the data to load (Feedback by week or group, Birthdays' cohort) keep a single selector.
+    Source: `FilterBar`, `useUrlFilters`, each page. No database change.
 
 ## 5. Edge functions and schedules
 
