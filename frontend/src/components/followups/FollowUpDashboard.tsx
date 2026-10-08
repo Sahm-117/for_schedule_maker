@@ -65,7 +65,7 @@ const SupportBar: React.FC<{ row: OwnerBreakdownRow }> = ({ row }) => {
 
 // The cohort's sign-up goal, set by the admin, with how far along it is and
 // how many are still to go. Saved per cohort.
-const MobilisationTarget: React.FC<{ cohortId: string; cohortName?: string; signedUp: number; onTarget?: (target: number | null) => void }> = ({ cohortId, cohortName, signedUp, onTarget }) => {
+const MobilisationTarget: React.FC<{ cohortId: string; cohortName?: string; signedUp: number | null; onTarget?: (target: number | null) => void }> = ({ cohortId, cohortName, signedUp, onTarget }) => {
   const [target, setTargetState] = useState<number | null>(null);
   // The Signed up card below measures against the same target.
   const setTarget = (value: number | null) => { setTargetState(value); onTarget?.(value); };
@@ -105,8 +105,9 @@ const MobilisationTarget: React.FC<{ cohortId: string; cohortName?: string; sign
   };
 
   if (!loaded) return null;
-  const left = target ? Math.max(target - signedUp, 0) : 0;
-  const progress = target ? Math.min(signedUp / target, 1) : 0;
+  // Until the registered total is known (or if it could not be loaded) no progress is shown, never 0.
+  const left = target && signedUp !== null ? Math.max(target - signedUp, 0) : 0;
+  const progress = target && signedUp !== null ? Math.min(signedUp / target, 1) : 0;
 
   return (
     <section className="surface-card p-5 sm:p-6">
@@ -115,11 +116,13 @@ const MobilisationTarget: React.FC<{ cohortId: string; cohortName?: string; sign
           <h3 className="text-base font-semibold text-gray-900">Mobilisation target{cohortName ? ` · ${cohortName}` : ''}</h3>
           {target ? (
             <p className="mt-1 text-sm text-gray-600">
-              <span className="text-2xl font-bold tabular-nums text-gray-900">{signedUp}</span> of {target} registered
-              {' · '}
-              <span className={left > 0 ? 'font-semibold text-amber-700' : 'font-semibold text-emerald-700'}>
-                {left > 0 ? `${left} to go` : 'Target reached'}
-              </span>
+              <span className="text-2xl font-bold tabular-nums text-gray-900">{signedUp ?? '–'}</span> of {target} registered
+              {signedUp !== null && (<>
+                {' · '}
+                <span className={left > 0 ? 'font-semibold text-amber-700' : 'font-semibold text-emerald-700'}>
+                  {left > 0 ? `${left} to go` : 'Target reached'}
+                </span>
+              </>)}
             </p>
           ) : (
             <p className="mt-1 text-sm text-gray-500">No target set yet. Set how many people this cohort is aiming to register.</p>
@@ -222,11 +225,11 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
 
   return (
     <div className="space-y-6">
-      {cohortId && <MobilisationTarget cohortId={cohortId} cohortName={cohortName} signedUp={registeredTotal ?? 0} onTarget={setTarget} />}
+      {cohortId && <MobilisationTarget cohortId={cohortId} cohortName={cohortName} signedUp={registeredTotal} onTarget={setTarget} />}
 
       {/* Registered and logged in, adults and teens apart, counted from people (not follow-up statuses). */}
       {cohortId
-        ? <RegistrationOverviewCards cohortId={cohortId} contacts={contacts} target={target} onOverview={(o) => setRegisteredTotal(o.total.registered)} />
+        ? <RegistrationOverviewCards cohortId={cohortId} contacts={contacts} target={target} onOverview={(o) => setRegisteredTotal(o ? o.total.registered : null)} />
         : <div className="surface-card p-5 text-sm text-gray-500">Choose a cohort to see how many have registered and logged in.</div>}
 
       {/* Contacts with no cohort are prior-cohort follow-ups shown under the
@@ -261,7 +264,7 @@ const FollowUpDashboard: React.FC<{ contacts: FollowUpContact[]; cohortId?: stri
       <section className="surface-card p-5 sm:p-6">
         <h3 className="text-base font-semibold text-gray-900">All {standing.total} contacts</h3>
         <p className="mb-4 text-xs text-gray-500">
-          {signedUpTotal} registered · {standing.open} not registered yet{standing.nextCohort + standing.stopped > 0 ? ` · ${standing.nextCohort + standing.stopped} other` : ''}. Each person counted once.
+          By follow-up status: {signedUpTotal} in a registered status · {standing.open} not registered yet{standing.nextCohort + standing.stopped > 0 ? ` · ${standing.nextCohort + standing.stopped} other` : ''}. Each contact counted once. This follows each contact's status, so someone parked as No response or Next cohort sits under "other"; the cards above count people.
           {wrongNumbers > 0 && ` Wrong numbers are shown but not counted in the ${standing.total}.`}
         </p>
         {ranked.length === 0 ? (

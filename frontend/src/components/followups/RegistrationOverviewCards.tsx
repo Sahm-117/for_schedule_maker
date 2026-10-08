@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FollowUpContact, Participant } from '../../types';
 import { participantPushApi, participantsApi } from '../../services/api';
 import { computeRegistrationOverview, type PeopleBlock, type PendingReason, type RegistrationOverview } from '../../utils/registrationOverview';
@@ -13,14 +13,14 @@ const REASON_LABEL: Record<PendingReason, string> = {
   loginSent: 'Login sent, not signed in yet',
   notSentYet: 'Login not sent yet',
   handMarked: 'Marked as logged in by hand, not signed in',
-  parked: 'Not reachable, or joining next cohort',
+  parked: 'Not reachable, stopped, or joining next cohort',
   withTeenSupport: 'With their Teen Support',
   waitingForSupport: 'Waiting for a Teen Support',
 };
 const ADULT_REASONS: PendingReason[] = ['loginSent', 'notSentYet', 'parked', 'handMarked'];
 const TEEN_REASONS: PendingReason[] = ['withTeenSupport', 'waitingForSupport', 'parked'];
 
-const Block: React.FC<{ title: string; block: PeopleBlock; reasons: PendingReason[]; unit: string }> = ({ title, block, reasons, unit }) => (
+const Block: React.FC<{ title: string; block: PeopleBlock; reasons: PendingReason[]; unit: string; notRegisteredLink?: string }> = ({ title, block, reasons, unit, notRegisteredLink }) => (
   <section aria-label={title}>
     <h3 className="mb-2 text-sm font-semibold text-gray-900">{title} <span className="font-normal text-gray-500">· {block.registered} registered</span></h3>
     <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
@@ -65,7 +65,7 @@ const Block: React.FC<{ title: string; block: PeopleBlock; reasons: PendingReaso
         statusLabel={block.notRegistered > 0 ? 'Needs work' : 'All handled'}
         value={block.notRegistered}
         detail={block.notRegistered > 0 ? 'On the follow-up list, still to register' : 'Everyone on the list has registered or stopped'}
-        to={block.notRegistered > 0 ? '/follow-ups?tab=contacts&status=open' : undefined}
+        to={block.notRegistered > 0 ? notRegisteredLink : undefined}
       />
     </div>
   </section>
@@ -75,13 +75,15 @@ const RegistrationOverviewCards: React.FC<{
   cohortId: string;
   contacts: FollowUpContact[];
   target?: number | null;
-  /** Called with the figures once they are known, so a page can use the same total elsewhere. */
-  onOverview?: (overview: RegistrationOverview) => void;
+  /** Called with the figures once they are known, and with null while they are loading or could not be loaded. */
+  onOverview?: (overview: RegistrationOverview | null) => void;
 }> = ({ cohortId, contacts, target, onOverview }) => {
   const [people, setPeople] = useState<{ participants: Participant[]; signedIn: Set<string> } | null>(null);
   const [failed, setFailed] = useState(false);
   const request = useRef(0);
 
+  // The people (and who has signed in) are read again whenever the contacts the page holds are refreshed,
+  // so the cards never mix a new contact list with an old participant list. Switching cohort clears them.
   const load = useCallback(() => {
     const mine = ++request.current;
     setFailed(false);
@@ -89,15 +91,19 @@ const RegistrationOverviewCards: React.FC<{
       .then(([p, ids]) => { if (mine === request.current) setPeople({ participants: p.participants, signedIn: new Set(ids) }); })
       .catch(() => { if (mine === request.current) setFailed(true); });
   }, [cohortId]);
+  useEffect(() => { setPeople(null); }, [cohortId]);
   useEffect(() => {
-    setPeople(null);
     load();
     return () => { request.current += 1; };
-  }, [load]);
+  }, [load, contacts]);
 
-  const overview = people ? computeRegistrationOverview(people.participants, contacts, people.signedIn, cohortId) : null;
-  const registered = overview?.total.registered ?? null;
-  useEffect(() => { if (overview && onOverview) onOverview(overview); }, [registered, overview?.total.loggedIn, overview?.teens.registered]); // eslint-disable-line react-hooks/exhaustive-deps
+  const overview = useMemo(
+    () => (people ? computeRegistrationOverview(people.participants, contacts, people.signedIn, cohortId) : null),
+    [people, contacts, cohortId],
+  );
+  const onOverviewRef = useRef(onOverview);
+  onOverviewRef.current = onOverview;
+  useEffect(() => { onOverviewRef.current?.(overview); }, [overview]);
 
   if (failed) {
     return (
@@ -110,6 +116,9 @@ const RegistrationOverviewCards: React.FC<{
   if (!overview) return <div className="surface-card p-5 text-sm text-gray-500">Counting who has registered and signed in…</div>;
 
   const { adults, teens, total } = overview;
+  const unlinked = adults.unlinked + teens.unlinked;
+  // The contact list is not split by age, so each tile only links to it when the other tile is empty.
+  const link = '/follow-ups?tab=contacts&status=open';
   return (
     <div className="space-y-5">
       <p className="text-sm text-gray-600">
@@ -117,8 +126,13 @@ const RegistrationOverviewCards: React.FC<{
         {target ? <> · {pct(total.registered / target)}% of the {target} target</> : null}
         {' · '}{total.loggedIn} logged in · {total.pending} still to log in
       </p>
-      <Block title="Adults" block={adults} reasons={ADULT_REASONS} unit="adult" />
-      <Block title="Teens" block={teens} reasons={TEEN_REASONS} unit="teen" />
+      {unlinked > 0 && (
+        <p className="rounded-2xl bg-amber-100/80 px-3 py-2 text-[12px] text-amber-700">
+          {unlinked} {unlinked === 1 ? 'contact is' : 'contacts are'} marked registered but {unlinked === 1 ? 'has' : 'have'} no participant record, so they are not counted above.
+        </p>
+      )}
+      <Block title="Adults" block={adults} reasons={ADULT_REASONS} unit="adult" notRegisteredLink={teens.notRegistered === 0 ? link : undefined} />
+      <Block title="Teens" block={teens} reasons={TEEN_REASONS} unit="teen" notRegisteredLink={adults.notRegistered === 0 ? link : undefined} />
     </div>
   );
 };

@@ -17,7 +17,12 @@ adult numbers.
 - `frontend/src/components/followups/RegistrationOverviewCards.tsx`: the shared cards; used by
   `AdminDashboardPage` (replaces `RegistrationFunnel`) and `FollowUpDashboard` (replaces the five tiles).
   The sign-up target on Follow-ups now measures against everyone registered (adults + teens).
-- `computeFollowUpHeadline` is no longer used; left in place (not deleted on purpose).
+- `computeFollowUpHeadline` / `FollowUpHeadline` were left unused by this change, so they were removed.
+- Code-review round: target tile no longer shows a made-up 0; people are re-read when contacts refresh;
+  stopped contacts (wrong number, not interested) read as "not reachable / stopped"; contacts marked
+  registered with no participant are named in a note; the two "Not registered yet" tiles only link when
+  the other is empty; one teen rule for people and contacts. Not changed: no pagination on the participant
+  read (the cohort is ~80 people; PostgREST caps at 1000).
 
 ## Numbers at the time (Cohort 10, test records left out, read from the live database)
 

@@ -833,24 +833,6 @@ export const computeFollowUpFunnel = (contacts: FollowUpContact[]): FollowUpFunn
   };
 };
 
-// Headline numbers worked out from follow-up statuses. No longer used for the registered / logged-in
-// cards (those count people, adults and teens apart: utils/registrationOverview.ts, FLOW_MAP rule 33). `contacts` is the cohort's contacts in scope, test contacts left out.
-export interface FollowUpHeadline {
-  /** This cohort's reachable contacts (wrong numbers and prior-cohort people left out). */
-  contacts: number;
-  signedUp: number;
-  /** Signed up, as a share of `contacts`. Null when there are none. */
-  conversion: number | null;
-  nextCohort: number;
-  needsLogin: number;
-  /** Given their login (or having trouble with it), not signed in yet. */
-  loginShared: number;
-  /** Of loginShared, those who reported a problem with their login. */
-  loginIssue: number;
-  notDone: number;
-  loggedIn: number;
-}
-
 export interface TeenOverview {
   total: number;
   /** Held by a Teen Support but not yet onboarded. */
@@ -877,24 +859,6 @@ export const computeTeenOverview = (contacts: FollowUpContact[]): TeenOverview =
     onboarded: teens.filter((c) => c.registrationStatus === 'TEEN_ONBOARDED').length,
     waiting: teens.filter((c) => !c.ownerId).length,
     perSupport: Array.from(load, ([ownerId, v]) => ({ ownerId, ...v })).sort((a, b) => a.name.localeCompare(b.name)),
-  };
-};
-
-export const computeFollowUpHeadline = (contacts: FollowUpContact[]): FollowUpHeadline => {
-  const all = computeFollowUpFunnel(contacts);
-  // A wrong number was never a prospect we could reach. "Signed up" counts this
-  // cohort only; prior-cohort people (no cohort yet) join once they're assigned.
-  const cohort = computeFollowUpFunnel(contacts.filter((c) => c.cohortId && computeFollowUpStatus(c) !== 'WRONG_NUMBER'));
-  return {
-    contacts: cohort.total,
-    signedUp: cohort.signedUp,
-    conversion: cohort.conversion,
-    nextCohort: cohort.nextCohort,
-    needsLogin: all.registered,
-    loginShared: all.loginShared,
-    loginIssue: all.buckets.find((b) => b.status === 'LOGIN_ISSUE')?.value ?? 0,
-    notDone: all.open,
-    loggedIn: all.accessConfirmed,
   };
 };
 
