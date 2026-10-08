@@ -1006,6 +1006,11 @@ const AdminParticipantsContent: React.FC = () => {
     ];
   }, [counted, showArchived]);
 
+  // Archived and active people have different statuses; drop a choice that is no longer on offer.
+  useEffect(() => {
+    if (signUpFilter && !signUpFilterOptions.some((option) => option.value === signUpFilter)) setSignUpFilter('');
+  }, [signUpFilter, signUpFilterOptions]);
+
   const unassignedCount = useMemo(
     () => counted.filter((p) => p.status === 'ACTIVE' && !p.groupId).length,
     [counted]

@@ -37,11 +37,20 @@ const hasIntroGuide = (week: SupportRecap) => week.weekNumber === 1 && hasManual
 // A week opens once its manual is out (on its drop day, or earlier if an admin
 // sends it ahead). Until then it shows when the manual arrives.
 const isWeekOpen = (week: SupportRecap, teen = false) =>
-  week.manualReleased || week.released || hasIntroGuide(week) || (teen && !!week.hasTeenRecap && !!week.teenRecapReleased);
+  week.manualReleased || week.released || hasIntroGuide(week) || (teen && !!week.hasTeenRecap);
 
 // "Manual arrives …" / "Manual out · Recap arrives …" / "Recap out" — a dot and a few words.
 const WeekState: React.FC<{ week: SupportRecap; teen?: boolean }> = ({ week, teen = false }) => {
   const at = (iso: string | null) => formatRecapReleaseAt(iso ? new Date(iso) : null);
+  // Open only because of the Teen recap: say where that stands, not the manual or adult recap.
+  if (teen && isWeekOpen(week, true) && !isWeekOpen(week)) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500">
+        <span className={`h-1.5 w-1.5 rounded-full ${week.teenRecapReleased ? 'bg-emerald-500' : 'bg-amber-400'}`} aria-hidden="true" />
+        {week.teenRecapReleased ? 'Teen recap out' : `Teen recap arrives ${at(week.teenRecapReleaseAt ?? null)}`}
+      </span>
+    );
+  }
   if (!isWeekOpen(week, teen)) {
     return (
       <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-400">

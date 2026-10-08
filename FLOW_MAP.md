@@ -284,7 +284,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
     name/number answers by wording (`guardianFromAnswers`). A teen's own number is not a new column:
     `FollowUpContact.phone` is the teen's own only when it differs from `guardianPhone`; otherwise it
     is the guardian's copy, and a teen with no `guardianPhone` (earlier teens) is "unknown" until the
-    support says whose it is in Edit contact (`teenNumberOwner`). `TEEN` templates appear only when
+    support says whose it is in Edit contact (`teenNumberOwner`); a teen's own number is only saved together with the guardian's, so
+    the guardian is always reached first. `TEEN` templates appear only when
     the teen's own number exists and go to it; `TEEN_PARENT` always go to the guardian
     (`teenMessagePhone`, `contactReachPhone`). Source: `20261007190000_teen_guardian_name.sql`.
 28. **No response parks someone instead of closing them.** `FollowUpContact.noResponseAt` is set
@@ -321,11 +322,14 @@ duplicating the logic anywhere else is a bug waiting to happen.
     by an admin in the Cohorts week editor (Recap, Adults / Teens). Empty `teenRecapReleaseAt` means it
     shows as soon as it exists; a time holds it back. `support_recaps` returns the content only once
     released (admins always see it) plus `hasTeenRecap` / `teenRecapReleaseAt` so the Recap page can say
-    "Arrives <time>" or "Not uploaded yet" (with "Use the adult recap"). Only Teen Supports see the Teen
-    section; participants never do, and `participant_home` is untouched. The class manual is shared with
+    "Arrives <time>" or "Not uploaded yet" (with "Use the adult recap"). Only Teen Supports are shown the Teen
+    section (the screen decides; like the adult recap, staff can read `Week` directly, so this is
+    not a secret from staff). Participants never see it, and `participant_home` is untouched. A week
+    with only a held Teen recap still opens for a Teen Support and says when it arrives. The class manual is shared with
     adults. Teen documents are not copied by the cohort clone (the adult ones are not either); they are
     reused through "Choose earlier file" (`list_earlier_class_documents`, kind `TEEN_RECAP`), and a
-    release time is never reused. Source: `20261008050000_teen_recap.sql`.
+    release time is never reused. The picker keeps one row per file and kind. Source:
+    `20261008050000_teen_recap.sql`, `20261008060000_earlier_documents_keep_kind.sql`.
 
 ## 5. Edge functions and schedules
 

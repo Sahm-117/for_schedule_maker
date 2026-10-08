@@ -129,11 +129,18 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
     groupsApi.getTeenGroupForSupport(user.id, activeCohort.id)
       .then(({ group }) => { if (!cancelled) setTeenGroupId(group?.id ?? null); })
       .catch(() => { if (!cancelled) setTeenGroupId(null); });
-    groupsApi.getAll({ cohortId: activeCohort.id, includeTeenGroups: true })
-      .then(({ groups }) => { if (!cancelled) setTeenGroupIds(new Set(groups.filter((group) => group.isTeenGroup).map((group) => group.id))); })
-      .catch(() => { if (!cancelled) setTeenGroupIds(new Set()); });
     return () => { cancelled = true; };
   }, [activeCohort, user.id]);
+
+  // Every teen group in the cohort, for "All teens". Only a Teen Support sees that choice.
+  useEffect(() => {
+    if (!activeCohort || !teenGroupId) { setTeenGroupIds(new Set()); return; }
+    let cancelled = false;
+    groupsApi.getAll({ cohortId: activeCohort.id, includeTeenGroups: true })
+      .then(({ groups }) => { if (!cancelled) setTeenGroupIds(new Set(groups.filter((group) => group.isTeenGroup).map((group) => group.id))); })
+      .catch(() => { if (!cancelled) { setTeenGroupIds(new Set()); toast({ tone: 'error', message: 'Couldn’t load all teens. Try again.' }); } });
+    return () => { cancelled = true; };
+  }, [activeCohort, teenGroupId, toast]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);

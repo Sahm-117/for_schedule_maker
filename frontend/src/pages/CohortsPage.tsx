@@ -626,6 +626,11 @@ const CohortsPage: React.FC = () => {
 
   const handleSaveWeekTitle = async () => {
     if (!weekEditTarget) return;
+    if (teenReleaseMode === 'time' && !teenReleaseDraft) {
+      setRecapAudience('teens');
+      setTeenDocError('Pick a release time for the Teen recap, or choose "As soon as it is uploaded".');
+      return;
+    }
     setWeekActionPending(true);
     setStatus('');
     try {
@@ -1477,7 +1482,7 @@ const CohortsPage: React.FC = () => {
           const week = weekEditTarget?.week;
           const manualDone = !!week?.manualDocumentUrl;
           const recapDone = !!(week?.recapDocumentUrl || recapSummaryDraft.trim());
-          const teenRecapDone = !!(week?.teenRecapDocumentUrl || teenSummaryDraft.trim() || teenPromptDraft.trim());
+          const teenRecapDone = !!(week?.teenRecapDocumentUrl || week?.teenRecapSummary?.trim() || week?.teenDiscussionPrompt?.trim());
           const manualReleaseLabel = `${formatDayTime(recapReleaseTimes.manualDay, recapReleaseTimes.manualTime)} in Week ${week?.weekNumber ?? ''} of the cohort`;
           const nextLine = !manualDone
             ? `Next: upload the manual · goes out ${manualReleaseLabel}`

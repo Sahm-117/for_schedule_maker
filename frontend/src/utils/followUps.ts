@@ -655,7 +655,9 @@ export const teenNumberOwner = (c: Pick<FollowUpContact, 'phone' | 'guardianPhon
   const guardian = normalizeToIntlPhone(c.guardianPhone);
   if (!guardian) return 'unknown';
   const own = normalizeToIntlPhone(c.phone);
-  return own && own !== guardian ? 'teen' : 'guardian';
+  // A number we cannot read (typo, landline) that is not the guardian's text is still the teen's own.
+  if (!own) return c.phone?.trim() && c.phone.trim() !== c.guardianPhone?.trim() ? 'teen' : 'guardian';
+  return own !== guardian ? 'teen' : 'guardian';
 };
 
 /** The teen's own number, or null when they have none saved (or it is not known whose number is on file). */

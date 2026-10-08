@@ -156,6 +156,11 @@ const FollowUpContactModal: React.FC<FollowUpContactModalProps> = ({
         setError("Add the parent or guardian's number, or the teen's number.");
         return;
       }
+      // Without the guardian's number we could not tell whose number is saved, and the guardian is reached first.
+      if (teenNumber && !guardianNumber) {
+        setError("Add the parent or guardian's number too, so the guardian is always reached first.");
+        return;
+      }
     }
     const normalized = normalizeToIntlPhone(isTeen ? teenNumber : phone);
     if (normalized && existingContacts) {
