@@ -87,7 +87,7 @@ const statusGroups: Array<{ key: FilterGroupKey; label: string; options: Array<{
   { key: 'call', label: 'Call', options: Object.entries(CALL_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
   { key: 'reg', label: 'Registration', options: Object.entries(REGISTRATION_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
   { key: 'next', label: 'Next action', options: Object.entries(NEXT_ACTION_META).map(([v, m]) => ({ value: v, label: m.label })) },
-  { key: 'gender', label: 'Gender', options: [{ value: 'Male', label: 'Male' }, { value: 'Female', label: 'Female' }] },
+  { key: 'gender', label: 'Gender', options: [{ value: 'Male', label: 'Male' }, { value: 'Female', label: 'Female' }, { value: '__unknown', label: 'Gender not known' }] },
   { key: 'age', label: 'Age', options: [...AGE_RANGE_OPTIONS.map((range) => ({ value: range, label: range })), { value: '__unknown', label: 'Age not known' }] },
   { key: 'assignment', label: 'Assignment', options: [
     { value: 'all', label: 'Everyone waiting' },
@@ -111,8 +111,8 @@ const FilterIcon = (
 
 function activeFilterCount(f: FilterState): number {
   let n = 0;
-  // One per group that has any choice (archived is hidden by default, so it never counts).
-  (['reply', 'call', 'reg', 'next', 'gender', 'age', 'assignment'] as const).forEach((key) => { if (f[key].length > 0) n++; });
+  // One per choice, matching the chips (archived is hidden by default, so it never counts).
+  (['reply', 'call', 'reg', 'next', 'gender', 'age', 'assignment'] as const).forEach((key) => { n += f[key].length; });
   return n;
 }
 
@@ -266,12 +266,13 @@ const AdminFollowUpsPage: React.FC = () => {
       if (questionsOnly && !hasOpenFormQuestion(c)) return false;
       if (ownerFilter === '__unassigned__' && c.ownerId) return false;
       if (ownerFilter && ownerFilter !== '__unassigned__' && c.ownerId !== ownerFilter) return false;
-      if (filters.archived && c.archivedAt) return false;
+      // Finished contacts are archived, so a finished status you chose is shown even with archived hidden.
+      if (filters.archived && c.archivedAt && !(filters.reg.includes(c.registrationStatus) && isClosedRegistrationStatus(c.registrationStatus))) return false;
       if (filters.reply.length && !filters.reply.includes(c.replyStatus)) return false;
       if (filters.call.length && !filters.call.includes(c.callStatus)) return false;
       if (filters.reg.length && !filters.reg.includes(c.registrationStatus)) return false;
       if (filters.next.length && !filters.next.includes(c.nextAction)) return false;
-      if (filters.gender.length && !filters.gender.includes(c.gender ?? '')) return false;
+      if (filters.gender.length && !filters.gender.some((g) => (g === '__unknown' ? !c.gender : c.gender === g))) return false;
       if (filters.age.length && !filters.age.some((age) => (age === '__unknown' ? !c.ageRange : (c.ageRange || '') === age))) return false;
       if (filters.assignment.length) {
         const tag = unassignedFollowUpTag(c, owners, ownerLoad, maxLoad);
@@ -470,14 +471,7 @@ const AdminFollowUpsPage: React.FC = () => {
   };
 
   const togglePill = (group: FilterGroupKey, value: string) => {
-    // A closed status (Access confirmed, Not interested, ...) archives the contact, so picking one
-    // while archived contacts are hidden would always come back empty; show them instead.
-    setDraft((prev) => {
-      const had = prev[group].includes(value);
-      const next = had ? prev[group].filter((v) => v !== value) : [...prev[group], value];
-      const closing = group === 'reg' && !had && isClosedRegistrationStatus(value as FollowUpRegistrationStatus);
-      return { ...prev, [group]: next, ...(closing ? { archived: false } : {}) };
-    });
+    setDraft((prev) => ({ ...prev, [group]: prev[group].includes(value) ? prev[group].filter((v) => v !== value) : [...prev[group], value] }));
   };
 
   // Chips under the search row: every filter that is on, except archived
@@ -802,7 +796,7 @@ const AdminFollowUpsPage: React.FC = () => {
               owners={realOwners}
               ownerLoad={ownerLoad}
               maxLoad={maxLoad}
-              onSetAssignmentFilter={(value) => setFilters((f) => ({ ...f, assignment: f.assignment.includes(value) ? f.assignment.filter((v) => v !== value) : [...f.assignment, value] }))}
+              onSetAssignmentFilter={(value) => setFilters((f) => ({ ...f, assignment: f.assignment.length === 1 && f.assignment[0] === value ? [] : [value] }))}
             />
           )}
           {tab === 'contacts' && statusParam && (
@@ -1011,8 +1005,8 @@ const AdminFollowUpsPage: React.FC = () => {
                   <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition ${draft.archived ? 'translate-x-5' : ''}`} />
                 </button>
               </div>
-              {draft.reg.some((status) => isClosedRegistrationStatus(status as FollowUpRegistrationStatus)) && !draft.archived && (
-                <p className="-mt-3 px-1 text-xs text-gray-500">Finished contacts are archived, so they are shown while this status is selected.</p>
+              {draft.reg.some((status) => isClosedRegistrationStatus(status as FollowUpRegistrationStatus)) && draft.archived && (
+                <p className="-mt-3 px-1 text-xs text-gray-500">Finished contacts are archived. The finished statuses you chose are shown even with archived contacts hidden.</p>
               )}
             </div>
 

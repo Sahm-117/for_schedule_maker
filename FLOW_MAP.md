@@ -331,7 +331,9 @@ duplicating the logic anywhere else is a bug waiting to happen.
     reused through "Choose earlier file" (`list_earlier_class_documents`, kind `TEEN_RECAP`), and a
     release time is never reused. The picker keeps one row per file and kind. Source:
     `20261008050000_teen_recap.sql`, `20261008060000_earlier_documents_keep_kind.sql`,
-    `20261008070000_teen_recap_teen_supports_only.sql`.
+    `20261008070000_teen_recap_teen_supports_only.sql`,
+    `20261008080000_earlier_documents_teen_supports_only.sql` (the earlier-files picker lists Teen recap
+    files only to admins and Teen Supports too).
 
 ## 5. Edge functions and schedules
 

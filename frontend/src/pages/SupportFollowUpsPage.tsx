@@ -58,10 +58,7 @@ function unreadCount(issues: FollowUpIssue[]): number {
 
 function activeFilterCount(reply: string[], call: string[], reg: string[], next: string[], archived: boolean): number {
   let n = 0;
-  if (reply.length) n++;
-  if (call.length) n++;
-  if (reg.length) n++;
-  if (next.length) n++;
+  n += reply.length + call.length + reg.length + next.length;
   if (archived) n++;
   return n;
 }
@@ -77,6 +74,8 @@ const FilterIcon = (
   </svg>
 );
 
+type FilterGroupKey = 'reply' | 'call' | 'reg' | 'next';
+
 interface FilterState {
   // Each group takes several choices at once; a contact matches if it fits any chosen one.
   reply: string[];
@@ -86,7 +85,7 @@ interface FilterState {
   archived: boolean;
 }
 
-const statusGroups: Array<{ key: 'reply' | 'call' | 'reg' | 'next'; label: string; options: Array<{ value: string; label: string }> }> = [
+const statusGroups: Array<{ key: FilterGroupKey; label: string; options: Array<{ value: string; label: string }> }> = [
   { key: 'reply', label: 'Reply', options: Object.entries(REPLY_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
   { key: 'call', label: 'Call', options: Object.entries(CALL_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
   { key: 'reg', label: 'Registration', options: Object.entries(REGISTRATION_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
@@ -314,7 +313,7 @@ const SupportFollowUpsPage: React.FC = () => {
     setShowFilterPanel(false);
   };
 
-  const togglePill = (group: 'reply' | 'call' | 'reg' | 'next', value: string) => {
+  const togglePill = (group: FilterGroupKey, value: string) => {
     setDraft((prev) => ({ ...prev, [group]: prev[group].includes(value) ? prev[group].filter((v) => v !== value) : [...prev[group], value] }));
   };
 
@@ -513,7 +512,7 @@ const SupportFollowUpsPage: React.FC = () => {
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{group.label}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {group.options.map((opt) => (
-                      <button key={opt.value} type="button" onClick={(e) => { e.stopPropagation(); togglePill(group.key as 'reply' | 'call' | 'reg' | 'next', opt.value); }} className={pillBtn((draft[group.key as 'reply' | 'call' | 'reg' | 'next']).includes(opt.value))}>
+                      <button key={opt.value} type="button" onClick={(e) => { e.stopPropagation(); togglePill(group.key, opt.value); }} className={pillBtn(draft[group.key].includes(opt.value))}>
                         {opt.label}
                       </button>
                     ))}
