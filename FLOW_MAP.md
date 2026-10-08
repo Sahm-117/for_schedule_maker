@@ -381,7 +381,9 @@ duplicating the logic anywhere else is a bug waiting to happen.
     not offered: supports are always in hubs, so a support in none is listed under "Supports the engine won't
     use" as "Not in a hub", and the People step says how many. With no hub that has anyone in it (or if the
     hubs cannot be loaded) the builder will not go past the People step or continue a saved draft; it asks for
-    the hubs to be created (link to Hubs) or to try again. Source: `groupingEngine` (`hubTarget`,
+    the hubs to be created (link to Hubs) or to try again. Wherever the builder lists supports (the People step,
+    each group's support menu, supports without a group) they are shown under their hub (Hub 1, Hub 2, ...),
+    and each group shows its support's hub. Source: `groupingEngine` (`hubTarget`,
     `hubCoverage`, `hubGroupsNeeded`, `assignSupports`, `topUpGroups`), `GroupEngineWizard`. No database change.
 
 33. **Registered and logged-in numbers count people, adults and teens apart; teens have no login.** The Dashboard

@@ -59,3 +59,9 @@ support is in no hub was filled first (now last); `hubsLeading` computed once pe
 comment. Left as is on purpose: the 2/3 target counts every hub that has members (the admin said "all
 hubs"; the banner already explains an unreachable aim); supports the admin put on their own empty groups
 stay even if in no hub (their choice); the hard stop with no hubs (the admin asked for it).
+
+## Supports shown by hub (later the same day)
+
+In `GroupEngineWizard` supports are listed under their hub in the People step list, in each group's support
+menu (hub headings) and in "Supports without a group"; each group card shows its support's hub as a pill.
+No data or database change. Checked in the browser with mocked data (6 hubs, 12 supports).

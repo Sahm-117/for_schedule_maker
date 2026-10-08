@@ -379,6 +379,18 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     return { hubs: hubData.hubs, hubOf: hubData.hubOf, groupsByHub };
   }, [hubData, topUpTargets]);
   const hubNameById = useMemo(() => new Map((hubData?.hubs ?? []).map((h) => [h.id, h.name])), [hubData]);
+  const hubOfSupport = (id: string) => hubData?.hubOf[id] ?? null;
+  // Supports shown under their hub (Hub 1, Hub 2, ... in order), people in no hub last. With no hubs loaded,
+  // one unnamed list.
+  const groupByHub = <T extends { id: string; name: string }>(list: T[]): Array<{ key: string; hub: string | null; items: T[] }> => {
+    const order = [...(hubData?.hubs ?? [])].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    const out: Array<{ key: string; hub: string | null; items: T[] }> = order
+      .map((h) => ({ key: h.id, hub: h.name, items: list.filter((x) => hubOfSupport(x.id) === h.id).sort((a, b) => a.name.localeCompare(b.name)) }))
+      .filter((g) => g.items.length > 0);
+    const rest = list.filter((x) => !hubOfSupport(x.id) || !hubNameById.has(hubOfSupport(x.id) as string)).sort((a, b) => a.name.localeCompare(b.name));
+    if (rest.length > 0) out.push({ key: '__none__', hub: out.length > 0 ? 'No hub' : null, items: rest });
+    return out;
+  };
 
   // Leave a support out of the builder (or bring them back). Saved with the cohort's rules.
   const [excludeSaving, setExcludeSaving] = useState<string | null>(null);
@@ -910,7 +922,10 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   <summary className="cursor-pointer text-sm font-semibold text-gray-700">Supports the engine can use ({supportPool.free.length})</summary>
                   <p className="mt-1 text-[11px] text-gray-400">Tap “Leave out” for anyone who shouldn’t get a group this cohort. It’s remembered.</p>
                   <div className="mt-2 flex flex-col gap-1">
-                    {supportPool.free.map((sup) => {
+                    {groupByHub(supportPool.free).map((hubGroup) => (
+                      <div key={hubGroup.key} className="flex flex-col gap-1">
+                        {hubGroup.hub && <p className="mt-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 first:mt-0">{hubGroup.hub} · {hubGroup.items.length} {hubGroup.items.length === 1 ? 'support' : 'supports'}</p>}
+                    {hubGroup.items.map((sup) => {
                       const user = supportUsers.find((u) => u.id === sup.id);
                       return (
                         <div key={sup.id}>
@@ -938,6 +953,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                         </div>
                       );
                     })}
+                      </div>
+                    ))}
                   </div>
                 </details>
               )}
@@ -1159,9 +1176,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                     : evaluateGroup(g, people, supportById, effectiveRules, tagNames);
                   const options = [
                     { value: '', label: 'No support' },
-                    ...supportPool.free
-                      .filter((s) => s.id === g.supportId || !usedSupports.has(s.id))
-                      .map((s) => ({ value: s.id, label: s.name, meta: [hubNameById.get(hubData?.hubOf[s.id] ?? '') ?? null, s.gender, s.ageRange ? shortAge(s.ageRange) : null, trainingsTotal ? `${s.trainingsAttended}/${trainingsTotal} trainings` : null, ...(s.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean)].filter(Boolean).join(' · ') || 'Details missing' })),
+                    ...groupByHub(supportPool.free.filter((s) => s.id === g.supportId || !usedSupports.has(s.id)))
+                      .flatMap((hubGroup) => hubGroup.items.map((s) => ({ ...s, hubLabel: hubGroup.hub })))
+                      .map((s) => ({ value: s.id, label: s.name, group: s.hubLabel ?? undefined, meta: [s.gender, s.ageRange ? shortAge(s.ageRange) : null, trainingsTotal ? `${s.trainingsAttended}/${trainingsTotal} trainings` : null, ...(s.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean)].filter(Boolean).join(' · ') || 'Details missing' })),
                   ];
                   return (
                     <div key={g.key} className={`${SURFACE} flex flex-col gap-2.5 p-4`}>
@@ -1172,6 +1189,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                             ? <span className="rounded-full bg-emerald-100/80 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Top-up</span>
                             : g.existingGroupId && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Your group</span>}
                           {groupTagName(g.memberIds) && <span className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">{groupTagName(g.memberIds)}</span>}
+                          {g.supportId && hubNameById.get(hubOfSupport(g.supportId) ?? '') && <span className="rounded-full bg-sky-100/80 px-2 py-0.5 text-[11px] font-semibold text-sky-700">{hubNameById.get(hubOfSupport(g.supportId) ?? '')}</span>}
                         </p>
                         <div className="flex items-center gap-1.5">
                           {moveHere(g.key, g.memberIds)}
@@ -1231,8 +1249,11 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                       <p className="mt-2 text-sm text-gray-500">Every available support has a group.</p>
                     ) : (
                       <>
-                        <div className="mt-2 grid gap-0.5 sm:grid-cols-2 lg:grid-cols-3">
-                          {unused.map((s) => (
+                        {groupByHub(unused).map((hubGroup) => (
+                        <div key={hubGroup.key} className="mt-2">
+                          {hubGroup.hub && <p className="px-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{hubGroup.hub} · {hubGroup.items.length}</p>}
+                        <div className="grid gap-0.5 sm:grid-cols-2 lg:grid-cols-3">
+                          {hubGroup.items.map((s) => (
                             <div key={s.id} className="flex items-center gap-2.5 rounded-2xl px-2 py-1.5">
                               <Avatar name={s.name} avatarUrl={supportUsers.find((u) => u.id === s.id)?.avatarUrl} size="sm" />
                               <div className="min-w-0 flex-1">
@@ -1242,6 +1263,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                             </div>
                           ))}
                         </div>
+                        </div>
+                        ))}
                         <p className="mt-2 text-[11px] text-gray-400">Available to the engine but not given a group in this draft. Tap ⓘ for the reason, or pick one on any group above to use them.</p>
                       </>
                     )}
