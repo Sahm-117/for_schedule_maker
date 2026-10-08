@@ -1094,6 +1094,7 @@ export const participantPushApi = USE_SUPABASE ? supabaseParticipantPushApi : {
   async getUnreachableIds(): Promise<string[]> { return []; },
   async getNotInstalledIds(): Promise<string[]> { return []; },
   async getSignedInIds(_cohortId: string): Promise<string[]> { return []; },
+  async getAppDetails(): Promise<Record<string, import('../types').ParticipantAppInfo>> { return {}; },
 };
 
 export const reflectionActivityApi = USE_SUPABASE ? supabaseReflectionActivityApi : {

@@ -160,6 +160,18 @@ export interface Week {
   days: Day[];
 }
 
+/** What the app knows about a participant's phone: type, and when the app was last opened. */
+export interface ParticipantAppInfo {
+  participantId: string;
+  device: 'ios' | 'ios-inapp' | 'android' | 'desktop' | null;
+  /** First time they opened the app from their Home Screen (null: never). */
+  installedAt: string | null;
+  /** Last time they opened it from the Home Screen. */
+  lastOpenedInstalledAt: string | null;
+  /** Last time the signed-in app ran anywhere, browser or Home Screen. */
+  lastSeenAt: string | null;
+}
+
 /** A participant who has signed in but still needs the app (shown to their support). */
 export interface AppNudgePerson {
   participantId: string;

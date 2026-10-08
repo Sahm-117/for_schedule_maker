@@ -8301,6 +8301,20 @@ export const participantPushApi = {
     }
   },
 
+  // Phone type and last-opened times for every participant the app has heard from, by id.
+  // Backed by participants_app_details(); a failure resolves to {} (the details are only a hint).
+  async getAppDetails(): Promise<Record<string, import('../types').ParticipantAppInfo>> {
+    try {
+      const { data, error } = await supabase.rpc('participants_app_details');
+      if (error) { console.warn('participants_app_details failed:', error.message); return {}; }
+      const out: Record<string, import('../types').ParticipantAppInfo> = {};
+      ((data as import('../types').ParticipantAppInfo[]) ?? []).forEach((row) => { out[row.participantId] = row; });
+      return out;
+    } catch {
+      return {};
+    }
+  },
+
   // participantIds in a cohort whose login is confirmed (they chose their own
   // password). Backed by participants_signed_in(); throws so the group builder
   // never hides people on a failed lookup.

@@ -13,7 +13,7 @@ import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
 import { supportTagsApi, faithProjectsApi, faithProjectCategoriesApi, faithHelpRequestsApi, testimoniesApi, groupOnboardingStatusApi, groupDiscussionApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, participantPushApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
-import type { FaithHelpRequest, FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, RetakeMatch, Testimony, User } from '../types';
+import type { FaithHelpRequest, FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, RetakeMatch, Testimony, User, ParticipantAppInfo } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
 import Spinner from '../components/Spinner';
@@ -64,6 +64,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   // migration is applied.
   const [noAlertsIds, setNoAlertsIds] = useState<Set<string>>(new Set());
   const [notInstalledIds, setNotInstalledIds] = useState<Set<string>>(new Set());
+  const [appDetails, setAppDetails] = useState<Record<string, ParticipantAppInfo>>({});
   const [noteParticipant, setNoteParticipant] = useState<Participant | null>(null);
   const [noteBody, setNoteBody] = useState('');
   const [savingNote, setSavingNote] = useState(false);
@@ -187,6 +188,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       setCheckIns(checkInsRes.checkIns);
       setNoAlertsIds(new Set(unreachableIds));
       participantPushApi.getNotInstalledIds().then((ids) => setNotInstalledIds(new Set(ids))).catch(() => { /* no tags */ });
+      participantPushApi.getAppDetails().then(setAppDetails).catch(() => { /* details are only a hint */ });
       setFaithHelpRequests(faithHelpRes.requests);
       setTestimonies(testimoniesRes.testimonies);
 
@@ -493,6 +495,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
                 helpRequest={checkIns.find((entry) => entry.participantId === participant.id && entry.response === 'NEED_HELP' && !entry.handledAt) ?? null}
                 noAlerts={noAlertsIds.has(participant.id)}
                 notInstalled={notInstalledIds.has(participant.id)}
+                appInfo={appDetails[participant.id]}
                 onHelpHandled={(checkIn) => setCheckIns((prev) => prev.map((entry) => (entry.id === checkIn.id ? checkIn : entry)))}
                 faithHelpRequests={faithHelpRequests.filter((entry) => entry.participantId === participant.id)}
                 onFaithHelpResolved={(resolved) => setFaithHelpRequests((prev) => prev.filter((entry) => entry.id !== resolved.id))}

@@ -10,7 +10,9 @@ import { useAppData } from '../context/AppDataContext';
 import { participantsApi, practiceApi, groupsApi, participantFlagsApi, participantPushApi, cohortsApi, settingsApi, profileFieldsApi, wrapUpApi, departmentReferralsApi } from '../services/api';
 import { buildDashboardModel, type PeopleSummary } from '../components/dashboard/healthModel';
 import { PERSON_HEALTH_LABEL, type PersonHealth } from '../utils/programmeRules';
-import type { Participant, Group, ParticipantFlag, ParticipantUpdate, RetakeMatch } from '../types';
+import type { Participant, ParticipantAppInfo, Group, ParticipantFlag, ParticipantUpdate, RetakeMatch } from '../types';
+import { appUseLine } from '../utils/appUse';
+import NotOpenedTag from '../components/participants/NotOpenedTag';
 import RetakingChip, { RetakeMarkModal } from '../components/participants/RetakingChip';
 import ModalShell from '../components/followups/ModalShell';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -793,6 +795,7 @@ const AdminParticipantsContent: React.FC = () => {
   // participants_without_push migration is applied.
   const [noAlertsIds, setNoAlertsIds] = useState<Set<string>>(new Set());
   const [notInstalledIds, setNotInstalledIds] = useState<Set<string>>(new Set());
+  const [appDetails, setAppDetails] = useState<Record<string, ParticipantAppInfo>>({});
   const [noAlertsOnly, setNoAlertsOnly] = useState(false);
   // noAlertsIds spans every cohort; the count shows only this cohort's active participants.
   const noAlertsCount = counted.filter((p) => p.status === 'ACTIVE' && noAlertsIds.has(p.id)).length;
@@ -824,6 +827,7 @@ const AdminParticipantsContent: React.FC = () => {
       setFlags(fs);
       setNoAlertsIds(new Set(unreachableIds));
       participantPushApi.getNotInstalledIds().then((ids) => setNotInstalledIds(new Set(ids))).catch(() => { /* no tags */ });
+      participantPushApi.getAppDetails().then(setAppDetails).catch(() => { /* details are only a hint */ });
       const referrals = await departmentReferralsApi.getForParticipants(ps.map((p) => p.id)).then((r) => r.referrals).catch(() => []);
       const deptsById = new Map<string, Set<string>>();
       const addDept = (id: string, dept: string | null | undefined) => {
@@ -1076,12 +1080,7 @@ const AdminParticipantsContent: React.FC = () => {
                           </span>
                         )}
                         {notInstalledIds.has(p.id) && (
-                          <span
-                            title="They have signed in but have never opened the app from their Home Screen."
-                            className="ml-2 inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600"
-                          >
-                            Not installed
-                          </span>
+                          <NotOpenedTag className="ml-2 px-2 py-0.5 text-[11px]" />
                         )}
                         {noAlertsIds.has(p.id) && (
                           <span
@@ -1091,6 +1090,10 @@ const AdminParticipantsContent: React.FC = () => {
                             No alerts
                           </span>
                         )}
+                        {(() => {
+                          const appLine = appUseLine(appDetails[p.id]);
+                          return appLine ? <span className="block w-full pt-0.5 text-[11.5px] font-normal text-gray-500">{appLine}</span> : null;
+                        })()}
     </>
   );
 

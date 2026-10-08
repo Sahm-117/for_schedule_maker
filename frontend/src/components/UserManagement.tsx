@@ -13,6 +13,8 @@ import Spinner from './Spinner';
 import InviteMessageCard, { type InviteDetails } from './InviteMessageCard';
 import { toLocalNigerianPhone } from '../utils/phone';
 import { INSTALL_VIDEO_ANDROID, INSTALL_VIDEO_IOS } from '../constants/installVideos';
+import NotOpenedTag from './participants/NotOpenedTag';
+import { STAFF_NOT_OPENED_HINT } from '../utils/appUse';
 
 const ROLE_BADGE: Record<User['role'], string> = {
   ADMIN: 'bg-orange-100/80 text-orange-700',
@@ -691,7 +693,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             <p className="font-semibold text-gray-900 text-sm truncate">{user.name}</p>
                             {renderStatusBadge(user)}
                             {user.isActive !== false && notInstalledIds.has(user.id) && (
-                              <span title="Has never opened the app from their Home Screen." className="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Not installed</span>
+                              <NotOpenedTag className="px-2 py-0.5 text-[11px]" hint={STAFF_NOT_OPENED_HINT} />
                             )}
                             {hasNoAlerts(user) && (
                               <span title="No saved push subscription on any device." className="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">No alerts</span>
@@ -759,7 +761,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                               <div className="text-sm font-medium text-gray-900">{user.name}</div>
                               {renderStatusBadge(user)}
                               {user.isActive !== false && notInstalledIds.has(user.id) && (
-                                <span title="Has never opened the app from their Home Screen." className="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Not installed</span>
+                                <NotOpenedTag className="px-2 py-0.5 text-[11px]" hint={STAFF_NOT_OPENED_HINT} />
                               )}
                               {hasNoAlerts(user) && (
                                 <span title="No saved push subscription on any device." className="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">No alerts</span>

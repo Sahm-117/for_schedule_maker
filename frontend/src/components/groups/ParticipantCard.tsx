@@ -13,7 +13,9 @@ import { buildWhatsAppLink } from '../../utils/phone';
 import { shortMoment } from '../../utils/participantApp';
 import { unreadTrails, type FaithTrail, type ThreadReads } from '../../utils/faithThread';
 import { FAITH_HELP_REASON_LABELS } from '../../types';
-import type { DepartmentReferral, FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectStatus, Participant, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote, ParticipantUpdate, RetakeMatch, Testimony } from '../../types';
+import type { DepartmentReferral, FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectStatus, Participant, ParticipantAppInfo, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote, ParticipantUpdate, RetakeMatch, Testimony } from '../../types';
+import { appUseLine } from '../../utils/appUse';
+import NotOpenedTag from '../participants/NotOpenedTag';
 import Spinner from '../Spinner';
 
 const TESTIMONY_STATUS_CHIP: Record<Testimony['status'], { label: string; cls: string }> = {
@@ -294,6 +296,8 @@ interface ParticipantCardProps {
   noAlerts?: boolean;
   /** Signed in, but never opened the app from their Home Screen. */
   notInstalled?: boolean;
+  /** Their phone type and when the app was last opened, for the line under the tags. */
+  appInfo?: ParticipantAppInfo;
   /** Open ("is it going well?") faith help requests for this participant. */
   faithHelpRequests?: FaithHelpRequest[];
   onFaithHelpResolved?: (request: FaithHelpRequest) => void;
@@ -329,12 +333,14 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   onHelpHandled,
   noAlerts,
   notInstalled,
+  appInfo,
   faithHelpRequests,
   onFaithHelpResolved,
   testimonies,
   onTestimonyViewed,
   retakeMatches,
 }) => {
+  const appLine = appUseLine(appInfo);
   const [retakeMarkOpen, setRetakeMarkOpen] = useState(false);
   const updateRetake = async (patch: ParticipantUpdate) => {
     const { participant: saved } = await participantsApi.update(participant.id, patch);
@@ -516,9 +522,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         </span>
         <RetakingChip participant={participant} matches={retakeMatches} onUpdate={updateRetake} />
         {notInstalled && (
-          <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600" title="They have signed in but have never opened the app from their Home Screen.">
-            Not installed
-          </span>
+          <NotOpenedTag className="px-2.5 py-1 text-[11px]" />
         )}
         {noAlerts && (
           <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold text-neutral-600" title="They have an app login but can't receive push notifications on any device.">
@@ -552,6 +556,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
           </span>
         )}
       </div>
+      {appLine && <p className="mt-1.5 text-[11.5px] text-gray-500">{appLine}</p>}
 
       {helpRequest && (
         <div className="mt-2.5 rounded-xl bg-red-100/80 px-[13px] py-3">

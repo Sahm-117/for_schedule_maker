@@ -14,7 +14,7 @@ import type { AppNudgePerson } from '../../types';
 // video already in the message. It goes away on its own as people finish, and the
 // server stops listing anyone once their cohort has started.
 
-const REASON_LABEL: Record<AppNudgePerson['reason'], string> = { NOT_INSTALLED: 'Not installed', NO_ALERTS: 'No alerts' };
+const REASON_LABEL: Record<AppNudgePerson['reason'], string> = { NOT_INSTALLED: 'Not opened', NO_ALERTS: 'No alerts' };
 const REFRESH_MS = 2 * 60 * 1000;
 
 const sentLabel = (iso: string) => {
