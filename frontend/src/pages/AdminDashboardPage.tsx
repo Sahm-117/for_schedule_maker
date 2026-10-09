@@ -372,7 +372,7 @@ const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel 
 
   const faith = model.faith;
   const active = Number(health.participants.active);
-  const faithRate = active ? faith.started / active : null;
+  const faithRate = active ? faith.saved / active : null;
   // Faith projects take time; don't flag them before the cohort's halfway point.
   const judgeFaith = completed || model.currentWeek > model.stats.length / 2;
 

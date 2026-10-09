@@ -42,7 +42,9 @@ const FaithProjectSettingsModal: React.FC<Props> = ({ isOpen, onClose, cohortId,
     setDaysBefore(String(settings.prayerPopupDaysBefore));
     setCategoryName('');
     setError('');
-  }, [isOpen, settings.deadlineAt, settings.prayersStartWeekNumber, settings.prayerPopupDaysBefore]);
+    // Only when the dialog opens: saving one section must not reset what is typed in another.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const saveDeadline = async () => {
     setSavingDeadline(true);
@@ -60,8 +62,8 @@ const FaithProjectSettingsModal: React.FC<Props> = ({ isOpen, onClose, cohortId,
   };
 
   const savePrayers = async () => {
+    if (!daysBefore.trim() || !Number.isFinite(Number(daysBefore))) { setError('Enter how many days before, from 0 to 30.'); return; }
     const days = Math.min(30, Math.max(0, Math.round(Number(daysBefore))));
-    if (!Number.isFinite(days)) { setError('Enter how many days before, from 0 to 30.'); return; }
     setSavingPrayers(true);
     setError('');
     try {

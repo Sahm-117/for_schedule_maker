@@ -554,7 +554,9 @@ duplicating the logic anywhere else is a bug waiting to happen.
     `faith_project_keep_version` writes `FaithProjectVersion` (full text, when, who: a participant's own save has no name), so every
     save path keeps history. The participant, their support and the admin read the same "Edit history" accordion
     (`FaithProjectHistory`). Supports and admins cannot edit the text; they can set an optional category (`faithProjectsApi.setCategory`).
-    Never write the retired statuses again. Source: `20261010100000_faith_project_free_edit.sql`.
+    A participant's own save marks itself (`fof.faith_by_participant`) so the history never credits a staff identity, and a first project
+    carries an earlier "I'm fine with this". Never write the retired statuses again. Source: `20261010100000_faith_project_free_edit.sql`,
+    `20261010110000_faith_project_review_fixes.sql`.
 
 50. **Corporate prayer is opt-out, and the pop-up cannot be closed.** `Participant."prayerConsent"` is NULL (not answered, counts as
     included), `IN` or `OUT`; `set_prayer_consent` records it (and keeps the older `sharedForPrayer` flag in step). Admin sets, per

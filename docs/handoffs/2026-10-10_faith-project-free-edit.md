@@ -13,7 +13,7 @@ Part 1 of the corporate-prayer work (the spec agreed in chat). The back-and-fort
 - FLOW_MAP rules 49 and 50.
 
 ## Live changes
-Migration (applied live): `20261010100000_faith_project_free_edit.sql`
+Migrations (applied live): `20261010100000_faith_project_free_edit.sql` and the review follow-up `20261010110000_faith_project_review_fixes.sql`
 - New: `Participant."prayerConsent"` / `"prayerConsentAt"`; `FaithProjectSetting."prayersStartWeekNumber"` / `"prayerPopupDaysBefore"`;
   table `FaithProjectVersion` (staff read policy) and trigger `faith_project_keep_version_ins` / `_upd`; functions
   `faith_prayers_start_date`, `faith_prayers_started`, `faith_prayers_prompt_due`, `faith_project_prayable`, `set_prayer_consent`.
@@ -47,6 +47,17 @@ with real logins.
 - Deleted with approval: `utils/faithThread.ts`, `faithThreadReadsApi`, `faithProjectsApi.upsertForParticipant`, the `faithUnread` type field,
   and the two edge functions above. Kept on purpose: the old comment data (`ParticipantNote` FAITH_COACH / FAITH_OFFICE, `FaithThreadRead`,
   `FaithProject.reviewHistory`) and the `faithUnread` value that `participant_home` still returns; nothing in the app reads them.
+
+## After /code-review (second pass)
+Fixed: a first project now carries an earlier "I'm fine with this" (migration `...110000`); a participant's own save carries no saver name even
+if a staff identity is present; the Meeting panel can still clear a focus on someone who opted out later and shows only saved text; saving the
+date in settings no longer resets the unsaved prayer fields, and an empty "days" box is refused; a failed history load says so instead of "None yet";
+dead leftovers removed (`markFaithRead`, `reviewHistory`, the `trail` type, the duplicate `started` count).
+Not changed on purpose: a push on every changed save (the owner chose every save), the SECURITY DEFINER prayable function (a few hundred rows at most),
+and the server-side group prayer focus setter has no consent check (the screen guards it; `participant_home` never sends an opted-out project text).
+Known and accepted: the retirement migration turned every project with text in a review state into SAVED, including a few "sent back for changes" drafts the
+participant may not have finished. They only become prayable from the start week (or earlier if the person says yes), and every participant sees the opt-out
+pop-up first.
 
 ## Open items
 - Hub prayer pages still say "shared for prayer"; the text is fine but could say "corporate prayers".

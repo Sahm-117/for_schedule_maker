@@ -44,6 +44,7 @@ const ProjectModal: React.FC<{
   onCategoryChanged: (project: FaithProject) => void;
 }> = ({ isOpen, onClose, participant, group, project, categories, onCategoryChanged }) => {
   const [versions, setVersions] = useState<FaithProjectVersion[]>([]);
+  const [historyFailed, setHistoryFailed] = useState(false);
   const [categoryId, setCategoryId] = useState(project?.categoryId ?? '');
   const [err, setErr] = useState('');
   const firstName = participant.fullName.trim().split(/\s+/)[0] || 'Participant';
@@ -54,8 +55,8 @@ const ProjectModal: React.FC<{
     setCategoryId(project?.categoryId ?? '');
     setErr('');
     faithProjectsApi.getVersions(participant.id)
-      .then((res) => { if (!cancelled) setVersions(res.versions); })
-      .catch(() => { if (!cancelled) setVersions([]); });
+      .then((res) => { if (!cancelled) { setVersions(res.versions); setHistoryFailed(false); } })
+      .catch(() => { if (!cancelled) { setVersions([]); setHistoryFailed(true); } });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, participant.id]);
@@ -97,7 +98,7 @@ const ProjectModal: React.FC<{
         {project && (
           <AppSelect label="Category (optional)" value={categoryId} onChange={(value) => { void changeCategory(value); }} options={[{ value: '', label: 'No category' }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} placeholder="No category" />
         )}
-        <FaithProjectHistory versions={versions} participantLabel={firstName} />
+        <FaithProjectHistory versions={versions} participantLabel={firstName} loadFailed={historyFailed} />
       </div>
     </ModalShell>
   );

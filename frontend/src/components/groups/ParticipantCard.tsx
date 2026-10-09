@@ -750,6 +750,7 @@ const FaithProjectSheet: React.FC<{
 }> = ({ open, onClose, participant, project, categories, onSaved }) => {
   const chip = FP_CHIP[project?.status ?? 'NOT_DRAFTED'];
   const [versions, setVersions] = useState<FaithProjectVersion[]>([]);
+  const [historyFailed, setHistoryFailed] = useState(false);
   const [categoryId, setCategoryId] = useState(project?.categoryId ?? '');
   const [error, setError] = useState('');
   const firstName = participant.fullName.trim().split(/\s+/)[0] || 'The participant';
@@ -760,8 +761,8 @@ const FaithProjectSheet: React.FC<{
     setCategoryId(project?.categoryId ?? '');
     setError('');
     faithProjectsApi.getVersions(participant.id)
-      .then((res) => { if (!cancelled) setVersions(res.versions); })
-      .catch(() => { if (!cancelled) setVersions([]); });
+      .then((res) => { if (!cancelled) { setVersions(res.versions); setHistoryFailed(false); } })
+      .catch(() => { if (!cancelled) { setVersions([]); setHistoryFailed(true); } });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, participant.id, project?.updatedAt]);
@@ -803,7 +804,7 @@ const FaithProjectSheet: React.FC<{
         </div>
       )}
 
-      <FaithProjectHistory className="mt-3" versions={versions} participantLabel={firstName} />
+      <FaithProjectHistory className="mt-3" versions={versions} participantLabel={firstName} loadFailed={historyFailed} />
     </Sheet>
   );
 };

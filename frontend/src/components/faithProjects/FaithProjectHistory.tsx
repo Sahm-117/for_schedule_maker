@@ -9,10 +9,12 @@ const FaithProjectHistory: React.FC<{
   versions: FaithProjectVersion[];
   /** What to call the participant on each version: "You" for the participant, their first name for staff. */
   participantLabel: string;
+  /** The history could not be loaded: say so instead of saying there is none. */
+  loadFailed?: boolean;
   className?: string;
-}> = ({ versions, participantLabel, className = '' }) => {
+}> = ({ versions, participantLabel, loadFailed = false, className = '' }) => {
   const [open, setOpen] = useState(false);
-  const hint = versions.length === 0 ? 'None yet' : `${versions.length} ${versions.length === 1 ? 'version' : 'versions'}`;
+  const hint = loadFailed ? 'Could not load' : versions.length === 0 ? 'None yet' : `${versions.length} ${versions.length === 1 ? 'version' : 'versions'}`;
   return (
     <div className={className}>
       <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex min-h-[48px] w-full items-center gap-2 text-left">
@@ -23,7 +25,9 @@ const FaithProjectHistory: React.FC<{
         </svg>
       </button>
       {open && (
-        versions.length === 0 ? (
+        loadFailed ? (
+          <p className="pb-3 text-[14px] text-red-600">The edit history could not be loaded. Close this and try again.</p>
+        ) : versions.length === 0 ? (
           <p className="pb-3 text-[14px] text-gray-500">Nothing has been saved yet.</p>
         ) : (
           <ol className="space-y-2 pb-3">

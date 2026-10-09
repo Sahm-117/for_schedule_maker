@@ -175,7 +175,7 @@ export const faithProjectCounts = (data: CohortHealthPayload) => {
   // A saved project is the only finished state now; anything else (including a seed from the form) is "not started".
   const saved = Number(fp.SAVED ?? 0);
   const active = Number(data.participants.active);
-  return { saved, started: saved, notStarted: Math.max(0, active - saved), active };
+  return { saved, notStarted: Math.max(0, active - saved), active };
 };
 
 export interface AttentionItem {

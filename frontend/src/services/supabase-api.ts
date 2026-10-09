@@ -3543,11 +3543,6 @@ export const participantAppApi = {
     return data as import('../types').ParticipantFaith;
   },
 
-  async markFaithRead(): Promise<void> {
-    const { error } = await supabase.rpc('mark_participant_faith_read', { p_token: getSessionToken() });
-    if (error) throw participantAppError(error.message, 'Could not mark the reply as read.');
-  },
-
   // Saves straight away; the participant can change it any time. The support is told on a first save and on every change.
   async saveFaithProject(body: string, participantName: string): Promise<NonNullable<import('../types').ParticipantFaith['project']>> {
     const { data, error } = await supabase.rpc('save_faith_project', { p_token: getSessionToken(), p_body: body, p_submit: true });
@@ -7054,7 +7049,6 @@ const mapFaithProject = (row: any): import('../types').FaithProject => ({
   status: row.status ?? 'NOT_DRAFTED',
   updatedById: row.updatedById ?? null,
   updatedByName: withActedAs(row.updatedBy?.name ?? null, row.updatedByActedAs),
-  reviewHistory: (row.reviewHistory as import('../types').FaithProjectReviewEntry[]) ?? [],
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });

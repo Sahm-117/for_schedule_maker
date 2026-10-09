@@ -924,14 +924,6 @@ export interface FaithProjectVersion {
   savedByName: string | null;
 }
 
-export interface FaithProjectReviewEntry {
-  actorId: string;
-  actorName: string;
-  action: 'APPROVED' | 'NEEDS_REFINEMENT';
-  note?: string | null;
-  at: string;
-}
-
 export interface FaithProject {
   id: string;
   participantId: string;
@@ -943,7 +935,6 @@ export interface FaithProject {
   status: FaithProjectStatus;
   updatedById?: string | null;
   updatedByName?: string | null;
-  reviewHistory?: FaithProjectReviewEntry[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -1224,8 +1215,6 @@ export interface ParticipantFaith {
   prayerConsent: 'IN' | 'OUT' | null;
   /** The class day corporate prayers start on (YYYY-MM-DD), or null while not set. */
   prayersStartsOn: string | null;
-  /** Always empty now: the review comments are retired. */
-  trail: Array<{ id: string; body: string; createdAt: string; byParticipant: boolean; authorName: string | null }>;
   openHelpRequest: { id: string; reason: FaithHelpReason; note: string | null; wantsContact: boolean; createdAt: string } | null;
 }
 
