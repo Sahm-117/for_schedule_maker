@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink } from 'react-router-dom';
 import type { ParticipantHomeWeek } from '../../types';
@@ -24,18 +24,21 @@ const ManualButton: React.FC<{ week: ParticipantHomeWeek; className?: string }> 
   const base = `flex min-h-[46px] w-full items-center justify-center rounded-[14px] px-4 text-[14.5px] font-bold ${className}`;
   if (week.manual) return <NavLink to={`/me/week/${week.weekNumber}`} className={`${base} bg-primary text-white`}>Open manual</NavLink>;
   const when = arrivesLabel(week.manualReleasesAt);
-  return <span className={`${base} cursor-default bg-gray-100 text-gray-500`} aria-disabled="true">{when ? `Manual arrives ${when}` : 'Manual not available yet'}</span>;
+  if (!when) return null; // no manual is coming yet, so there is nothing to promise
+  return <span className={`${base} cursor-default bg-gray-100 text-gray-500`} aria-disabled="true">{`Manual arrives ${when}`}</span>;
 };
 
 const TeacherSheet: React.FC<{ week: ParticipantHomeWeek; title: string; onClose: () => void }> = ({ week, title, onClose }) => {
   const teacher = week.teacher!;
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeRef.current(); };
     window.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
-  }, [onClose]);
+  }, []);
   return createPortal(
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 sm:items-center" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div role="dialog" aria-modal="true" aria-label={`About ${teacher.name}`} className="w-full max-w-lg rounded-t-[26px] bg-white px-5 pb-5 pt-3 shadow-xl sm:rounded-[26px]">

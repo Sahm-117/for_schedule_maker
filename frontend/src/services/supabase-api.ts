@@ -430,6 +430,16 @@ export const uploadClassImage = async (cohortId: string, weekId: number, kind: '
   return supabase.storage.from('resources').getPublicUrl(path).data.publicUrl;
 };
 
+// Deletes a class picture we stored (only ones under classes/ in our own bucket; anything else is left alone).
+export const removeClassImage = async (url: string): Promise<void> => {
+  const marker = '/object/public/resources/';
+  const at = url.indexOf(marker);
+  if (at < 0) return;
+  const path = url.slice(at + marker.length);
+  if (!path.startsWith('classes/')) return;
+  await supabase.storage.from('resources').remove([path]).catch(() => { /* leaving an orphan is harmless */ });
+};
+
 export const cohortsApi = {
   async getCurrentProgrammeCohortId(): Promise<string | null> {
     const { data, error } = await supabase.rpc('current_programme_cohort_id');

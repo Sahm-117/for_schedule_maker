@@ -1,15 +1,6 @@
--- Class card: each week (class) can carry a graphic and a teacher (name, role, short bio, photo), entered in the
--- week editor on the Cohorts page. participant_home gives them to the participant app for the "Next class" card,
--- plus manualReleasesAt (when the manual arrives, while it has not been released yet).
--- participant_home below is the live definition with only those three keys added to each week.
+-- Class card follow-up: manualReleasesAt is only given while a manual document exists and has not been released yet,
+-- so the card never promises a manual that was never uploaded. Whole function, same as 20261009110000 plus that one condition.
 -- Idempotent.
-
-ALTER TABLE public."Week"
-  ADD COLUMN IF NOT EXISTS "teacherName" TEXT,
-  ADD COLUMN IF NOT EXISTS "teacherRole" TEXT,
-  ADD COLUMN IF NOT EXISTS "teacherBio" TEXT,
-  ADD COLUMN IF NOT EXISTS "teacherPhotoUrl" TEXT,
-  ADD COLUMN IF NOT EXISTS "classGraphicUrl" TEXT;
 
 CREATE OR REPLACE FUNCTION public.participant_home(p_token text)
  RETURNS json

@@ -4,11 +4,11 @@
 Staff can give each class a graphic and a teacher (name, role, short bio, photo) in the week editor on the Cohorts
 page. The participant home shows a "Next class" card for the next class: the graphic with the class name over a soft
 dark fade, the teacher as a chip (tap for a short sheet), and one button. The date, countdown and week count are not
-repeated. The button is "Open manual" once the manual is released, otherwise a disabled "Manual arrives Thu 22 Oct".
+repeated. The button is "Open manual" once the manual is released, a disabled "Manual arrives Thu 22 Oct" while an uploaded manual waits for its release time, and absent if no manual was uploaded.
 With no graphic and no teacher the old plain manual row stays.
 
 ## Live changes
-- Migration `20261009110000_class_card.sql` applied: five new columns on `Week` (`classGraphicUrl`, `teacherName`,
+- Migrations `20261009110000_class_card.sql` and `20261009120000_class_card_manual_only_if_uploaded.sql` applied: five new columns on `Week` (`classGraphicUrl`, `teacherName`,
   `teacherRole`, `teacherBio`, `teacherPhotoUrl`) and `participant_home` rewritten from the live definition to add
   `teacher`, `classGraphicUrl` and `manualReleasesAt` to each week. Grants unchanged. No edge function.
 - Checked live with a rolled-back test (temporary teacher on week 2, a temporary participant session): the new keys came
@@ -34,5 +34,7 @@ pictures and saves the teacher fields. Not run against a real login or real stor
 - Teens do not use the participant app, so they do not see the card.
 
 ## Gotchas
-- `manualReleasesAt` is the configured release time (default Thursday 18:00, Lagos). The label shows the date even if no
-  manual document has been uploaded yet.
+- `manualReleasesAt` is the configured release time (default Thursday 18:00, Lagos), given only while a manual document exists.
+- `participant_home` is copied whole into the two migrations. A later change must start from the live definition, or it will drop `teacher`, `classGraphicUrl` and `manualReleasesAt`.
+- Replaced or removed class pictures are deleted from storage on Save (best effort); a picture uploaded for a different week than the one being edited is dropped.
+- Image resizing now fills a white background first, so a transparent PNG no longer turns black (this also applies to avatar uploads).

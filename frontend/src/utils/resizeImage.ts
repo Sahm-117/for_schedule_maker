@@ -10,7 +10,11 @@ export const resizeImageToJpeg = (file: File, maxSize = 640, quality = 0.85): Pr
       const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
       canvas.width = Math.round(img.width * scale);
       canvas.height = Math.round(img.height * scale);
-      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const ctx = canvas.getContext('2d')!;
+      // JPEG has no transparency: without this a transparent PNG would turn black.
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       URL.revokeObjectURL(url);
       canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not read this photo.'))), 'image/jpeg', quality);
     };

@@ -554,6 +554,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const continueDraft = () => {
     if (!saved) return;
     // Only people who have signed in can be in a restored draft; anyone who hasn't is taken out.
+    // A saved draft is always a real one (signed-in people only), so leave planning mode.
+    setPlanningMode(false);
     const pool = loginSplit ? loginSplit.signedIn : notGrouped;
     const unsignedIds = new Set((loginSplit?.notSignedIn ?? []).map((p) => p.id));
     const stillUngrouped = new Set(pool.map((p) => p.id));

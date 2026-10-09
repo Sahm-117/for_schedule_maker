@@ -460,10 +460,11 @@ duplicating the logic anywhere else is a bug waiting to happen.
     `teacherPhotoUrl`; pictures go to the public `resources` bucket under `classes/`). `participant_home` hands them to the
     app per week, with `manualReleasesAt` (the manual's release time while it is not released yet). The card is for the
     next class (not the current week) and shows only the graphic with the class name, the teacher chip and one button; it
-    never repeats the date, countdown or week count. The button is "Open manual" once the manual is released, otherwise
-    a disabled "Manual arrives <day date>". With no graphic and no teacher the card is not shown and the plain "This
+    never repeats the date, countdown or week count. The button is "Open manual" once the manual is released, a disabled
+    "Manual arrives <day date>" while an uploaded manual is waiting for its release time, and absent when no manual has
+    been uploaded. The plain manual row for the current week stays whenever the card is for a different week. With no graphic and no teacher the card is not shown and the plain "This
     week's manual" row stays. The teacher's bio and photo only show once a name is set. Source:
-    `20261009110000_class_card.sql`.
+    `20261009110000_class_card.sql`, `20261009120000_class_card_manual_only_if_uploaded.sql`.
 
 ## 5. Edge functions and schedules
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
 import AppOverflowMenu from '../components/AppOverflowMenu';
@@ -7,7 +7,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import NextCohortAssignModal from '../components/followups/NextCohortAssignModal';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { uploadClassImage, cohortsApi, supportHubsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, teenRecapDocumentsApi, manualDocumentsApi, earlierClassDocumentsApi, aiApi, settingsApi } from '../services/api';
+import { uploadClassImage, removeClassImage, cohortsApi, supportHubsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, teenRecapDocumentsApi, manualDocumentsApi, earlierClassDocumentsApi, aiApi, settingsApi } from '../services/api';
 import type { Cohort, EarlierClassDocument, FollowUpContact, User, Week } from '../types';
 import { sortByText } from '../utils/sort';
 import { DEFAULT_RECAP_RELEASE_TIMES, formatRecapReleaseAt, recapReleaseAt, type RecapReleaseTimes } from '../utils/recapReleaseTimes';
@@ -161,7 +161,9 @@ const CohortsPage: React.FC = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [weekAddTarget, setWeekAddTarget] = useState<{ cohortId: string; weekNumber: number } | null>(null);
   const [weekDeleteTarget, setWeekDeleteTarget] = useState<{ cohortId: string; weekId: number; weekNumber: number } | null>(null);
+  const editedWeekId = useRef<number | null>(null);
   const [weekEditTarget, setWeekEditTarget] = useState<{ cohortId: string; week: Week } | null>(null);
+  editedWeekId.current = weekEditTarget?.week.id ?? null;
   const [addWeekChoice, setAddWeekChoice] = useState('blank');
   const [weekTitleDraft, setWeekTitleDraft] = useState('');
   const [recapSummaryDraft, setRecapSummaryDraft] = useState('');
@@ -665,6 +667,10 @@ const CohortsPage: React.FC = () => {
         teenDiscussionPrompt: teenPromptDraft.trim() || null,
         teenRecapReleaseAt: teenReleaseMode === 'time' ? isoFromLagosInput(teenReleaseDraft) : null,
       });
+      // Pictures that were replaced or removed are no longer used: tidy them away (best effort).
+      const oldWeek = weekEditTarget.week;
+      if (oldWeek.classGraphicUrl && oldWeek.classGraphicUrl !== classGraphicDraft) void removeClassImage(oldWeek.classGraphicUrl);
+      if (oldWeek.teacherPhotoUrl && oldWeek.teacherPhotoUrl !== teacherPhotoDraft) void removeClassImage(oldWeek.teacherPhotoUrl);
       await syncCohortWeeks(weekEditTarget.cohortId);
       if (activeCohort?.id === weekEditTarget.cohortId) {
         await reloadWeeks();
@@ -704,10 +710,13 @@ const CohortsPage: React.FC = () => {
   // Class manual document saves straight away, same shape as handleRecapDocument.
   const handleClassImage = async (kind: 'graphic' | 'teacher', file: File) => {
     if (!weekEditTarget) return;
+    const weekId = weekEditTarget.week.id;
     setClassImageBusy(kind);
     setClassImageError('');
     try {
-      const url = await uploadClassImage(weekEditTarget.cohortId, weekEditTarget.week.id, kind, file);
+      const url = await uploadClassImage(weekEditTarget.cohortId, weekId, kind, file);
+      // The editor may have moved to another week (or closed) while this was uploading: drop the picture then.
+      if (editedWeekId.current !== weekId) { void removeClassImage(url); return; }
       if (kind === 'graphic') setClassGraphicDraft(url); else setTeacherPhotoDraft(url);
     } catch (error) {
       setClassImageError(error instanceof Error ? error.message : 'Could not upload that picture.');
