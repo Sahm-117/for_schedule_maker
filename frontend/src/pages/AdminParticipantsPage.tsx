@@ -142,8 +142,8 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
         if (!wasTeen && isTeen) crossed = 'teen';
         else if (wasTeen && !isTeen) crossed = 'adult';
       }
-      if (crossed === 'teen') toast({ message: `${result.fullName} is now a teen: they leave any adult group and go to a same-gender Teen Support.` });
-      if (crossed === 'adult') toast({ message: `${result.fullName} is now an adult: they leave their Teen Support and go to the usual follow-up.` });
+      if (crossed === 'teen') toast({ message: `${result.fullName} is now a teen. While teen handling is on, they leave any adult group and go to a same-gender Teen Support.` });
+      if (crossed === 'adult') toast({ message: `${result.fullName} is now an adult. If they were with a Teen Support, they go back to the usual follow-up.` });
       onSaved(result, crossed);
       onClose();
     } catch (e: any) {
@@ -245,7 +245,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
                   disabled={ageFromDob}
                 />
                 {ageFromDob && <p className="mt-1 text-xs text-gray-500">Worked out from their date of birth. To change it, change the date of birth.</p>}
-                {!ageFromDob && existing && <p className="mt-1 text-xs text-gray-500">Switching between teen (10 - 17) and adult also moves them: their group, Teen Support and follow-up.</p>}
+                {!ageFromDob && existing && <p className="mt-1 text-xs text-gray-500">Switching between teen (10 - 17) and adult also moves them (group, Teen Support and follow-up) when they are in the current cohort and teen handling is on.</p>}
               </div>
               <div>
                 <AppMultiSelect

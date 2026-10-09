@@ -256,7 +256,7 @@ export const rulesForGender = (rules: GroupingRules, gender: string | null): Gro
 };
 
 /** The one gender everyone in the list shares, or null (mixed, or nobody has one on file). */
-const sharedGender = (people: EnginePerson[]): string | null => {
+export const sharedGender = (people: EnginePerson[]): 'Male' | 'Female' | null => {
   const genders = new Set(people.map((p) => p.gender));
   const only = genders.size === 1 ? [...genders][0] : null;
   return only === 'Male' || only === 'Female' ? only : null;
@@ -797,7 +797,8 @@ export const normaliseSavedDraft = (value: unknown): SavedGroupingDraft | null =
     savedAt: typeof v.savedAt === 'string' ? v.savedAt : '',
     savedByName: typeof v.savedByName === 'string' ? v.savedByName : '',
     groups,
-    ignoredAgeRanges: Array.isArray(v.ignoredAgeRanges) ? v.ignoredAgeRanges.filter((r): r is string => typeof r === 'string') : [],
+    // Drafts saved before the teen bracket became "10 - 17" still say "18 and below" / "19 - 24".
+    ignoredAgeRanges: Array.isArray(v.ignoredAgeRanges) ? [...new Set(v.ignoredAgeRanges.filter((r): r is string => typeof r === 'string').map((r) => normaliseAgeRange(r) ?? r))] : [],
     includeMissedTraining: v.includeMissedTraining === true,
     emptyChoice: v.emptyChoice === 'fill' || v.emptyChoice === 'leave' ? v.emptyChoice : null,
     onlySignedIn: v.onlySignedIn === true,

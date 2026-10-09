@@ -30,7 +30,7 @@ import {
   type HubSpread,
   type SavedGroupingDraft,
   type TopUpTarget,
-  groupGender,
+  sharedGender,
 } from '../../utils/groupingEngine';
 
 // Groups → New group → "Build with engine". Four steps: check who's ready,
@@ -541,8 +541,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const resetSupportView = () => setSupportViewState(null);
   const genderOfGroup = (g: DraftGroup): 'Male' | 'Female' | 'Mixed' => {
     const members = g.memberIds.map((id) => people.get(id)).filter((m): m is EnginePerson => !!m);
-    const gender = members.length > 0 ? groupGender(members) : null;
-    return gender === 'Male' || gender === 'Female' ? gender : 'Mixed';
+    return sharedGender(members) ?? 'Mixed';
   };
   const noSupportByGender = { Male: 0, Female: 0, Mixed: 0 };
   toCreate.forEach((g) => { if (!g.supportId && !g.topUp) noSupportByGender[genderOfGroup(g)] += 1; });

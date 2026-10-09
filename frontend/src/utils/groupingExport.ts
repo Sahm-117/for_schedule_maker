@@ -1,4 +1,4 @@
-import type { DraftGroup, EnginePerson, EngineSupport } from './groupingEngine';
+import { sharedGender, type DraftGroup, type EnginePerson, type EngineSupport } from './groupingEngine';
 import { AGE_RANGE_OPTIONS } from '../constants/departments';
 
 // The Draft step as plain text for a WhatsApp message: supports by gender, each with their participants.
@@ -24,11 +24,7 @@ const ageCounts = (members: EnginePerson[]): string => {
 const personLines = (members: EnginePerson[], names: boolean): string[] =>
   names ? [...members].sort(byName).map((m) => `${m.name}, ${m.ageRange ?? 'age not set'}`) : [`Age ranges: ${ageCounts(members)}`];
 
-const groupGenderLabel = (members: EnginePerson[]): 'Male' | 'Female' | 'Mixed' => {
-  const genders = new Set(members.map((m) => m.gender));
-  const only = genders.size === 1 ? [...genders][0] : null;
-  return only === 'Male' || only === 'Female' ? only : 'Mixed';
-};
+const groupGenderLabel = (members: EnginePerson[]): 'Male' | 'Female' | 'Mixed' => sharedGender(members) ?? 'Mixed';
 
 export const buildWhatsAppText = (
   groups: DraftGroup[],
