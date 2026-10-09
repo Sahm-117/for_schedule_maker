@@ -7,6 +7,7 @@ import Avatar from '../components/Avatar';
 import AttendanceCountdownCard from '../components/participantApp/AttendanceCountdownCard';
 import ConfettiBurst from '../components/participantApp/ConfettiBurst';
 import VenueMapModal from '../components/participantApp/VenueMapModal';
+import NextClassCard, { hasClassCard } from '../components/participantApp/NextClassCard';
 import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
 import { useManualContent } from '../components/classManual/manuals';
@@ -587,7 +588,9 @@ const ParticipantHomePage: React.FC = () => {
           </section>
         ) : null}
 
-        {week?.manual && (
+        {hasClassCard(nextClass?.week) && <NextClassCard week={nextClass!.week} />}
+
+        {week?.manual && !hasClassCard(nextClass?.week) && (
           <NavLink to={`/me/week/${week.weekNumber}`} className="flex items-center gap-3 rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">This week&apos;s manual</p>

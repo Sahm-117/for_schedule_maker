@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-09 | [Next class card: graphic and teacher](2026-10-09_class-card.md) | Per-class graphic and teacher entered in the week editor; "Next class" card on the participant home with a teacher sheet and one manual button. One live migration, no edge function. |
 | 2026-10-09 | [Group builder: Planning only switch](2026-10-09_builder-planning-only.md) | Optional switch on the People step to include people who have not signed in, for forecasting; planning drafts cannot be created. Frontend only. |
 | 2026-10-09 | [Mobilisation cards, teens on the form list](2026-10-09_mobilisation-cards-teens.md) | Cards follow the Dashboard count with a Teens card, teen numbers hidden and chipped on the form list, teen groups out of the discussion line, 3 test rows removed, push-reminders v42. One live migration. |
 | 2026-10-08 | [Venue map in Get ready](2026-10-08_venue-map-get-ready.md) | New required Get ready step with the venue map and an "I understand" tick; list stays until first attendance. One live migration, no edge functions. |

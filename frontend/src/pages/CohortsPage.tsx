@@ -7,7 +7,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import NextCohortAssignModal from '../components/followups/NextCohortAssignModal';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { cohortsApi, supportHubsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, teenRecapDocumentsApi, manualDocumentsApi, earlierClassDocumentsApi, aiApi, settingsApi } from '../services/api';
+import { uploadClassImage, cohortsApi, supportHubsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, teenRecapDocumentsApi, manualDocumentsApi, earlierClassDocumentsApi, aiApi, settingsApi } from '../services/api';
 import type { Cohort, EarlierClassDocument, FollowUpContact, User, Week } from '../types';
 import { sortByText } from '../utils/sort';
 import { DEFAULT_RECAP_RELEASE_TIMES, formatRecapReleaseAt, recapReleaseAt, type RecapReleaseTimes } from '../utils/recapReleaseTimes';
@@ -181,6 +181,14 @@ const CohortsPage: React.FC = () => {
   // Class manual (step 1 of the redesigned week editor) -- same shape as the
   // recap fields above, plus its own AI-helper toggle and send-now confirm.
   const [manualSummaryDraft, setManualSummaryDraft] = useState('');
+  // The class card on the participant home: a graphic and who is teaching.
+  const [classGraphicDraft, setClassGraphicDraft] = useState<string | null>(null);
+  const [teacherNameDraft, setTeacherNameDraft] = useState('');
+  const [teacherRoleDraft, setTeacherRoleDraft] = useState('');
+  const [teacherBioDraft, setTeacherBioDraft] = useState('');
+  const [teacherPhotoDraft, setTeacherPhotoDraft] = useState<string | null>(null);
+  const [classImageBusy, setClassImageBusy] = useState<'graphic' | 'teacher' | null>(null);
+  const [classImageError, setClassImageError] = useState('');
   const [manualDiscussionPromptDraft, setManualDiscussionPromptDraft] = useState('');
   const [manualAiOpen, setManualAiOpen] = useState(false);
   const [manualAiNotes, setManualAiNotes] = useState('');
@@ -504,6 +512,12 @@ const CohortsPage: React.FC = () => {
     setAiNotes('');
     setAiError('');
     setManualSummaryDraft(week.manualSummary || '');
+    setClassGraphicDraft(week.classGraphicUrl ?? null);
+    setTeacherNameDraft(week.teacherName || '');
+    setTeacherRoleDraft(week.teacherRole || '');
+    setTeacherBioDraft(week.teacherBio || '');
+    setTeacherPhotoDraft(week.teacherPhotoUrl ?? null);
+    setClassImageError('');
     setManualDiscussionPromptDraft(week.manualDiscussionPrompt || '');
     setRecapAudience('adults');
     setTeenSummaryDraft(week.teenRecapSummary || '');
@@ -641,6 +655,11 @@ const CohortsPage: React.FC = () => {
         shareWithParticipants: shareWithParticipantsDraft,
         expectations: expectationsDraft.split('\n').map((line) => line.trim()).filter(Boolean).join('\n') || null,
         manualSummary: manualSummaryDraft.trim() || null,
+        classGraphicUrl: classGraphicDraft,
+        teacherName: teacherNameDraft.trim() || null,
+        teacherRole: teacherRoleDraft.trim() || null,
+        teacherBio: teacherBioDraft.trim() || null,
+        teacherPhotoUrl: teacherPhotoDraft,
         manualDiscussionPrompt: manualDiscussionPromptDraft.trim() || null,
         teenRecapSummary: teenSummaryDraft.trim() || null,
         teenDiscussionPrompt: teenPromptDraft.trim() || null,
@@ -683,6 +702,20 @@ const CohortsPage: React.FC = () => {
   };
 
   // Class manual document saves straight away, same shape as handleRecapDocument.
+  const handleClassImage = async (kind: 'graphic' | 'teacher', file: File) => {
+    if (!weekEditTarget) return;
+    setClassImageBusy(kind);
+    setClassImageError('');
+    try {
+      const url = await uploadClassImage(weekEditTarget.cohortId, weekEditTarget.week.id, kind, file);
+      if (kind === 'graphic') setClassGraphicDraft(url); else setTeacherPhotoDraft(url);
+    } catch (error) {
+      setClassImageError(error instanceof Error ? error.message : 'Could not upload that picture.');
+    } finally {
+      setClassImageBusy(null);
+    }
+  };
+
   const handleManualDocument = async (file: File | null) => {
     if (!weekEditTarget) return;
     setManualDocUploading(true);
@@ -1501,6 +1534,51 @@ const CohortsPage: React.FC = () => {
                   className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-base font-semibold focus:border-primary focus:outline-none"
                 />
                 <p className="mt-1.5 text-xs font-semibold text-gray-500">{nextLine}</p>
+              </div>
+
+              {/* Class card: what participants see on the home page for the next class */}
+              <div className="rounded-2xl border border-orange-100 p-4">
+                <p className="text-sm font-bold text-gray-900">Class card</p>
+                <p className="mt-0.5 text-xs text-gray-500">Shown to participants on the home page before this class. Everything here is optional; leave it empty and the card stays plain.</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600">Class graphic</p>
+                    <div className="mt-1.5 flex items-center gap-3">
+                      <div className="h-16 w-24 flex-none overflow-hidden rounded-xl bg-neutral-100">
+                        {classGraphicDraft && <img src={classGraphicDraft} alt="Class graphic" className="h-full w-full object-cover" />}
+                      </div>
+                      <div className="flex flex-col items-start gap-1">
+                        <label className="cursor-pointer rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                          {classImageBusy === 'graphic' ? 'Uploading…' : classGraphicDraft ? 'Replace' : 'Add graphic'}
+                          <input type="file" accept="image/*" className="hidden" disabled={classImageBusy !== null} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleClassImage('graphic', file); }} />
+                        </label>
+                        {classGraphicDraft && <button type="button" onClick={() => setClassGraphicDraft(null)} className="text-xs font-semibold text-red-600">Remove</button>}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600">Teacher photo</p>
+                    <div className="mt-1.5 flex items-center gap-3">
+                      <div className="h-16 w-16 flex-none overflow-hidden rounded-full bg-neutral-100">
+                        {teacherPhotoDraft && <img src={teacherPhotoDraft} alt="Teacher" className="h-full w-full object-cover" />}
+                      </div>
+                      <div className="flex flex-col items-start gap-1">
+                        <label className="cursor-pointer rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                          {classImageBusy === 'teacher' ? 'Uploading…' : teacherPhotoDraft ? 'Replace' : 'Add photo'}
+                          <input type="file" accept="image/*" className="hidden" disabled={classImageBusy !== null} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void handleClassImage('teacher', file); }} />
+                        </label>
+                        {teacherPhotoDraft && <button type="button" onClick={() => setTeacherPhotoDraft(null)} className="text-xs font-semibold text-red-600">Remove</button>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {classImageError && <p className="mt-2 text-xs font-semibold text-red-600">{classImageError}</p>}
+                <div className="mt-3 space-y-2">
+                  <input type="text" value={teacherNameDraft} onChange={(event) => setTeacherNameDraft(event.target.value)} placeholder="Teacher's name" maxLength={60} className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none" />
+                  <input type="text" value={teacherRoleDraft} onChange={(event) => setTeacherRoleDraft(event.target.value)} placeholder="Role or title (optional)" maxLength={80} className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none" />
+                  <textarea value={teacherBioDraft} onChange={(event) => setTeacherBioDraft(event.target.value)} placeholder="Two or three lines about them (optional)" rows={3} maxLength={320} className="w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none" />
+                  <p className="text-[11px] text-gray-500">The photo and bio only show once a name is added.</p>
+                </div>
               </div>
 
               {/* ① Class manual */}

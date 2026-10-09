@@ -455,6 +455,16 @@ duplicating the logic anywhere else is a bug waiting to happen.
     WhatsApp), so `admin_discussion_summary` skips `Group.isTeenGroup`; with only teen groups the line is hidden.
     Source: `20261009100000_discussion_summary_no_teen_groups.sql`.
 
+38. **A class can carry a graphic and a teacher, and the participant home shows them as the "Next class" card.** Staff
+    add them in the week editor on the Cohorts page (`Week.classGraphicUrl`, `teacherName`, `teacherRole`, `teacherBio`,
+    `teacherPhotoUrl`; pictures go to the public `resources` bucket under `classes/`). `participant_home` hands them to the
+    app per week, with `manualReleasesAt` (the manual's release time while it is not released yet). The card is for the
+    next class (not the current week) and shows only the graphic with the class name, the teacher chip and one button; it
+    never repeats the date, countdown or week count. The button is "Open manual" once the manual is released, otherwise
+    a disabled "Manual arrives <day date>". With no graphic and no teacher the card is not shown and the plain "This
+    week's manual" row stays. The teacher's bio and photo only show once a name is set. Source:
+    `20261009110000_class_card.sql`.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the

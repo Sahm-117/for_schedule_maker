@@ -155,6 +155,12 @@ export interface Week {
   manualDocumentName?: string | null;
   manualSummary?: string | null;
   manualDiscussionPrompt?: string | null;
+  /** The class card on the participant home: a graphic and who is teaching. All optional. */
+  classGraphicUrl?: string | null;
+  teacherName?: string | null;
+  teacherRole?: string | null;
+  teacherBio?: string | null;
+  teacherPhotoUrl?: string | null;
   /** Set by "Send manual now"; overrides the configured manual release time. */
   manualReleasedEarlyAt?: string | null;
   /** The Teen recap: its own text and/or document, separate from the adult recap. */
@@ -1074,6 +1080,11 @@ export interface ParticipantHomeWeek {
   discussionPrompt: string | null;
   recapDocumentUrl: string | null;
   recapDocumentName: string | null;
+  /** Who is teaching, when the admin added them to this class. */
+  teacher: { name: string; role: string | null; bio: string | null; photoUrl: string | null } | null;
+  classGraphicUrl: string | null;
+  /** When the manual arrives, while it has not been released yet (else null). */
+  manualReleasesAt: string | null;
   /** Present only once released (manualReleasedEarlyAt, or the configured manual release time has passed) and a document exists. */
   manual: ManualContent | null;
   /** This participant's own questions for this week, always visible to them regardless of release. */
