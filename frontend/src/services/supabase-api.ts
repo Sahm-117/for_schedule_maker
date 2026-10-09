@@ -440,6 +440,21 @@ export const removeClassImage = async (url: string): Promise<void> => {
   await supabase.storage.from('resources').remove([path]).catch(() => { /* leaving an orphan is harmless */ });
 };
 
+// An admin moving a teen to another Teen Support (same gender, recorded). Targets say how many teens each has and the limit.
+export interface TeenMoveTarget { userId: string; name: string; count: number; cap: number; current: boolean }
+export const teenMoveApi = {
+  async targets(participantId: string): Promise<TeenMoveTarget[]> {
+    const { data, error } = await supabase.rpc('admin_teen_move_targets', { p_participant_id: participantId });
+    if (error) throw new Error(error.message);
+    return ((data as TeenMoveTarget[] | null) ?? []).map((t) => ({ ...t, count: Number(t.count), cap: Number(t.cap) }));
+  },
+  async move(participantId: string, toUserId: string, force = false): Promise<{ toName: string; count: number; cap: number }> {
+    const { data, error } = await supabase.rpc('admin_move_teen', { p_participant_id: participantId, p_to_support: toUserId, p_force: force });
+    if (error) throw new Error(error.message);
+    return data as { toName: string; count: number; cap: number };
+  },
+};
+
 export const cohortsApi = {
   async getCurrentProgrammeCohortId(): Promise<string | null> {
     const { data, error } = await supabase.rpc('current_programme_cohort_id');

@@ -199,7 +199,8 @@ export const authApi = USE_SUPABASE ? supabaseAuthApi : {
 };
 
 // Weeks API
-export { uploadClassImage, removeClassImage } from './supabase-api';
+export { uploadClassImage, removeClassImage, teenMoveApi } from './supabase-api';
+export type { TeenMoveTarget } from './supabase-api';
 
 export const weeksApi = USE_SUPABASE ? supabaseWeeksApi : {
   async getAll(_cohortId?: string): Promise<{ weeks: Week[] }> {

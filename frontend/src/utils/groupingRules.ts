@@ -33,11 +33,20 @@ export interface TagRule {
   maxSize: number | null;
 }
 
+/** Group sizes for groups of one gender; null on a gender = the cohort's sizes. Teen groups follow the largest. */
+export interface GenderSizes {
+  minSize: number;
+  targetSize: number;
+  maxSize: number;
+}
+
 export interface GroupingRules {
   minSize: number;
   targetSize: number;
   maxSize: number;
   sizeStrength: RuleStrength;
+  /** Own sizes for all-male and all-female groups (and the most teens a Teen Support holds). */
+  genderSizes: { Male: GenderSizes | null; Female: GenderSizes | null };
   genderMix: GenderMix;
   genderStrength: RuleStrength;
   /** RATIO only: the share of women each group aims for (±1 person). */
@@ -67,6 +76,7 @@ export const DEFAULT_GROUPING_RULES: GroupingRules = {
   targetSize: 4,
   maxSize: 5,
   sizeStrength: 'PREFER',
+  genderSizes: { Male: null, Female: null },
   genderMix: 'SAME',
   genderStrength: 'PREFER',
   femalePct: 50,
@@ -158,6 +168,21 @@ const normaliseTagRules = (value: unknown): TagRule[] => {
   return out;
 };
 
+const normaliseGenderSize = (value: unknown): GenderSizes | null => {
+  if (!value || typeof value !== 'object') return null;
+  const row = value as Record<string, unknown>;
+  const min = Math.round(Number(row.minSize));
+  const target = Math.round(Number(row.targetSize));
+  const max = Math.round(Number(row.maxSize));
+  const ok = [min, target, max].every((n) => Number.isFinite(n) && n >= 1 && n <= 50) && min <= target && target <= max;
+  return ok ? { minSize: min, targetSize: target, maxSize: max } : null;
+};
+
+const normaliseGenderSizes = (value: unknown): GroupingRules['genderSizes'] => {
+  const row = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  return { Male: normaliseGenderSize(row.Male), Female: normaliseGenderSize(row.Female) };
+};
+
 export const normaliseGroupingRules = (value: unknown): GroupingRules => {
   const source = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
   const d = DEFAULT_GROUPING_RULES;
@@ -179,6 +204,7 @@ export const normaliseGroupingRules = (value: unknown): GroupingRules => {
     targetSize,
     maxSize,
     sizeStrength: strength(source.sizeStrength, d.sizeStrength),
+    genderSizes: normaliseGenderSizes(source.genderSizes),
     genderMix: oneOf(source.genderMix, ['SAME', 'MIXED', 'RATIO'] as const, d.genderMix),
     genderStrength: strength(source.genderStrength, d.genderStrength),
     femalePct: clampInt(source.femalePct, d.femalePct, 0, 100),

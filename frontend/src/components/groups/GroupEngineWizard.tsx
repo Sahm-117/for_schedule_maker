@@ -1118,6 +1118,38 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   <Stepper label="Aim" value={rules.targetSize} min={rules.minSize} max={rules.maxSize} onChange={(v) => set('targetSize', v)} />
                   <Stepper label="Largest" value={rules.maxSize} min={rules.minSize} max={50} onChange={(v) => setRules((p) => ({ ...p, maxSize: v, targetSize: Math.min(v, p.targetSize) }))} />
                 </div>
+                {/* Own sizes for all-male and all-female groups. Teen groups follow the largest: a Teen Support holds at most that many teens of their gender. */}
+                {(['Male', 'Female'] as const).map((gender) => {
+                  const own = rules.genderSizes[gender];
+                  const sizes = own ?? { minSize: rules.minSize, targetSize: rules.targetSize, maxSize: rules.maxSize };
+                  const setGender = (next: Partial<typeof sizes>) => setRules((p) => {
+                    const cur = p.genderSizes[gender] ?? { minSize: p.minSize, targetSize: p.targetSize, maxSize: p.maxSize };
+                    const merged = { ...cur, ...next };
+                    merged.maxSize = Math.max(merged.minSize, merged.maxSize);
+                    merged.targetSize = Math.min(merged.maxSize, Math.max(merged.minSize, merged.targetSize));
+                    return { ...p, genderSizes: { ...p.genderSizes, [gender]: merged } };
+                  });
+                  return (
+                    <div key={gender} className="mt-3 border-t border-gray-100 pt-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-gray-700">{gender} groups{own ? '' : ' (same as above)'}</p>
+                        {own
+                          ? <button type="button" onClick={() => setRules((p) => ({ ...p, genderSizes: { ...p.genderSizes, [gender]: null } }))} className="text-[11px] font-semibold text-primary">Use the sizes above</button>
+                          : <button type="button" onClick={() => setGender({})} className="text-[11px] font-semibold text-primary">Set own sizes</button>}
+                      </div>
+                      {own && (
+                        <div className="mt-2 grid grid-cols-3 gap-2">
+                          <Stepper label="Smallest" value={sizes.minSize} min={1} max={sizes.maxSize} onChange={(v) => setGender({ minSize: v })} />
+                          <Stepper label="Aim" value={sizes.targetSize} min={sizes.minSize} max={sizes.maxSize} onChange={(v) => setGender({ targetSize: v })} />
+                          <Stepper label="Largest" value={sizes.maxSize} min={sizes.minSize} max={50} onChange={(v) => setGender({ maxSize: v })} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {rules.genderMix !== 'SAME' && (rules.genderSizes.Male || rules.genderSizes.Female) && (
+                  <p className="mt-2 text-[11px] text-gray-400">Own sizes apply to groups of one gender only. With mixed groups the sizes above are used (teen groups still follow each gender's largest).</p>
+                )}
               </RuleCard>
               <RuleCard title="Gender mix" hint="How men and women are placed." strength={rules.genderStrength} onStrength={(v) => set('genderStrength', v)}>
                 <Segmented value={rules.genderMix} onChange={(v) => set('genderMix', v as GroupingRules['genderMix'])} options={[{ value: 'SAME', label: 'Same gender' }, { value: 'MIXED', label: 'Mixed' }, { value: 'RATIO', label: 'Ratio' }]} />

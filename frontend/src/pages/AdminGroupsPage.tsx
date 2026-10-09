@@ -1,3 +1,5 @@
+import TeenMoveModal from '../components/groups/TeenMoveModal';
+import { useToast } from '../components/Toast';
 import { isTeenAgeRange } from '../utils/groupingRules';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
@@ -450,6 +452,8 @@ const AdminGroupsContent: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   // A Teen Support's teens, kept apart: no meetings or recaps, Sunday attendance only.
   const [teenGroups, setTeenGroups] = useState<Group[]>([]);
+  const [movingTeen, setMovingTeen] = useState<{ participantId: string; name: string } | null>(null);
+  const toast = useToast();
   const [teenFlowOn, setTeenFlowOn] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
   // Every support; test accounts are hidden from the pickers unless asked for.
@@ -771,6 +775,14 @@ const AdminGroupsContent: React.FC = () => {
                             <p className="truncate text-sm font-semibold leading-tight text-gray-900">{p.fullName}</p>
                             <p className="truncate text-xs text-gray-400">{[p.guardianPhone ?? p.phone, genderAgeLine(p)].filter(Boolean).join(' · ')}</p>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => setMovingTeen({ participantId: p.id, name: p.fullName })}
+                            className="min-h-[36px] flex-none rounded-full border border-gray-200 px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 active:scale-95"
+                            aria-label={`Move ${p.fullName} to another Teen Support`}
+                          >
+                            Move
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -781,6 +793,12 @@ const AdminGroupsContent: React.FC = () => {
           </div>
         </section>
       )}
+
+      <TeenMoveModal
+        teen={movingTeen}
+        onClose={() => setMovingTeen(null)}
+        onMoved={(message) => { toast({ message }); void load(true); }}
+      />
 
       <GroupFormModal
         isOpen={formOpen}
