@@ -325,7 +325,10 @@ duplicating the logic anywhere else is a bug waiting to happen.
     builder takes the participants it is given (the Groups page loads only the cohort's Active ones, and
     leaves teens to their Teen Supports) who are not in a group, and of those only people whose login is
     confirmed: they chose their own password (`ParticipantAccount.passwordSetAt`, as on the support
-    Get-them-on-the-app card) and the account is on. This is compulsory, with no switch. Everyone else
+    Get-them-on-the-app card) and the account is on. This is compulsory for creating groups. The one exception is
+    the "Planning only" switch (off by default, People step): it includes everyone ungrouped so the draft shows
+    the groups and supports a cohort will need; such a draft is marked `planning` when saved, shows a banner,
+    and can never be created (its create button is disabled and `create()` refuses). Everyone else
     stays Active and ungrouped and is picked up by a later build once they sign in. If the sign-in check
     cannot be loaded, building is blocked rather than grouping everyone. Before making new groups, the
     builder tops up running groups that have people and space (a switch, on by default): each person goes

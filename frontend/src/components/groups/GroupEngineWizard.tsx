@@ -158,6 +158,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const [emptyChoice, setEmptyChoice] = useState<'fill' | 'leave' | null>(null);
   // Operational supports can lead groups too, but only when this is switched on (off each time the builder opens).
   const [includeOperational, setIncludeOperational] = useState(false);
+  // Planning only: include people who have not signed in so the draft shows the groups and supports we will need.
+  // Such a draft can be saved and looked at but never turned into real groups.
+  const [planningMode, setPlanningMode] = useState(false);
   // Hub leads can lead groups too if need be; also off each time the builder opens.
   const [includeHubLeads, setIncludeHubLeads] = useState(false);
   // Fill running groups that have space before making new ones (on by default).
@@ -281,7 +284,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   // Only people who have signed in are ever grouped by the builder (no password chosen yet = not yet).
   // The rest stay Active and ungrouped, and a later build picks them up once they sign in. Until we
   // know who has signed in, Next and Continue draft are blocked, so nobody is grouped by mistake.
-  const ungrouped = loginSplit ? loginSplit.signedIn : notGrouped;
+  const ungrouped = planningMode ? notGrouped : loginSplit ? loginSplit.signedIn : notGrouped;
   const notSignedInCount = loginSplit ? loginSplit.notSignedIn.length : 0;
   const people = useMemo(
     () => new Map<string, EnginePerson>(ungrouped.map((p) => [p.id, toEnginePerson({ id: p.id, name: p.fullName, gender: p.gender, ageRange: p.ageRange })])),
@@ -528,7 +531,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
         includeOperational,
         includeHubLeads,
         emptyChoice,
-        onlySignedIn: true,
+        onlySignedIn: !planningMode,
+        planning: planningMode,
         topUpFirst,
       });
       setDraftNote('Draft saved. Open the builder again to continue it.');
@@ -549,8 +553,10 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const continueDraft = () => {
     if (!saved) return;
     // Only people who have signed in can be in a restored draft; anyone who hasn't is taken out.
-    const pool = loginSplit ? loginSplit.signedIn : notGrouped;
-    const unsignedIds = new Set((loginSplit?.notSignedIn ?? []).map((p) => p.id));
+    const savedPlanning = saved.planning === true;
+    setPlanningMode(savedPlanning);
+    const pool = savedPlanning ? notGrouped : loginSplit ? loginSplit.signedIn : notGrouped;
+    const unsignedIds = savedPlanning ? new Set<string>() : new Set((loginSplit?.notSignedIn ?? []).map((p) => p.id));
     const stillUngrouped = new Set(pool.map((p) => p.id));
     const poolPeople = new Map(pool.map((p) => [p.id, toEnginePerson({ id: p.id, name: p.fullName, gender: p.gender, ageRange: p.ageRange })]));
     // The saved draft may have used operational supports: judge it against the pool it was built with.
@@ -613,6 +619,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
 
   // ── Create ──
   const create = async () => {
+    if (planningMode) { setErr('This is a planning draft: it includes people who have not signed in, so it cannot be created.'); return; }
     setCreating(true);
     setErr('');
     for (const g of toCreate) {
@@ -745,9 +752,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const footer = (() => {
     const quiet = 'rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 active:scale-95 disabled:opacity-50';
     const primary = 'rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50';
-    if (step === 'people') return (<><button type="button" onClick={close} className={quiet}>Cancel</button><button type="button" disabled={loading || !signedInIds || !hubsReady || readyCount === 0 || (emptyGroups.length > 0 && !emptyChoice)} onClick={() => setStep('rules')} className={primary}>Next: rules</button></>);
+    if (step === 'people') return (<><button type="button" onClick={close} className={quiet}>Cancel</button><button type="button" disabled={loading || (!planningMode && !signedInIds) || !hubsReady || readyCount === 0 || (emptyGroups.length > 0 && !emptyChoice)} onClick={() => setStep('rules')} className={primary}>Next: rules</button></>);
     if (step === 'rules') return (<><button type="button" onClick={() => setStep('people')} className={quiet}>Back</button><button type="button" disabled={savingRules} onClick={() => void saveRulesAndBuild()} className={primary}>{savingRules ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span> : 'Save rules & build'}</button></>);
-    if (step === 'draft') return (<><button type="button" onClick={() => setStep('rules')} className={quiet}>Back</button><button type="button" onClick={() => rebuild()} className={quiet}>Rebuild</button><button type="button" disabled={savingDraft} onClick={() => void saveDraft()} className={quiet}>{savingDraft ? 'Saving…' : 'Save draft'}</button><button type="button" disabled={toCreate.length === 0} onClick={() => setStep('create')} className={primary}>{applyLabel}</button></>);
+    if (step === 'draft') return (<><button type="button" onClick={() => setStep('rules')} className={quiet}>Back</button><button type="button" onClick={() => rebuild()} className={quiet}>Rebuild</button><button type="button" disabled={savingDraft} onClick={() => void saveDraft()} className={quiet}>{savingDraft ? 'Saving…' : 'Save draft'}</button><button type="button" disabled={toCreate.length === 0 || planningMode} onClick={() => setStep('create')} className={primary}>{planningMode ? 'Planning only' : applyLabel}</button></>);
     if (allDone) return <button type="button" onClick={close} className={primary}>View groups</button>;
     return (<><button type="button" disabled={creating || doneCount > 0} onClick={() => setStep('draft')} className={quiet}>Back</button><button type="button" disabled={creating || savingDraft || doneCount > 0} onClick={() => void saveDraft()} className={quiet}>{savingDraft ? 'Saving…' : 'Save draft'}</button><button type="button" disabled={creating} onClick={() => void create()} className={primary}>{creating ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Creating…</span> : failedCount > 0 ? 'Retry failed' : applyLabel}</button></>);
   })();
@@ -803,10 +810,14 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 text-sm font-semibold text-gray-900">
                     Only people who have signed in
-                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Required</span>
+                    {planningMode
+                      ? <span className="rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Planning only</span>
+                      : <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Required</span>}
                   </p>
                   <p className="mt-0.5 text-xs text-gray-500">
-                    {signedInFailed
+                    {planningMode
+                      ? `Everyone waiting for a group is included${notSignedInCount > 0 ? `, ${notSignedInCount} of them not signed in yet` : ''}. Use this to forecast the groups and supports you will need. A planning draft can be saved, but groups can't be created from it.`
+                    : signedInFailed
                       ? "Couldn't check who has signed in, so groups can't be built yet."
                       : !signedInIds
                         ? 'Checking who has signed in…'
@@ -818,6 +829,16 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                     <button type="button" onClick={loadSignedIn} className="mt-1 text-xs font-semibold text-primary underline underline-offset-2">Try again</button>
                   )}
                 </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={planningMode}
+                  aria-label="Planning only: include people who have not signed in"
+                  onClick={() => setPlanningMode((v) => !v)}
+                  className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition ${planningMode ? 'bg-primary' : 'bg-slate-200'}`}
+                >
+                  <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${planningMode ? 'translate-x-7' : 'translate-x-1'}`} />
+                </button>
               </div>
               {(hubsFailed || noHubs || notInHubCount > 0) && (
                 <div className={`${SURFACE} flex items-center justify-between gap-3 p-4`}>
@@ -1210,6 +1231,12 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 {noSupportCount > 0 && <> · <span className="font-semibold text-red-700">{noSupportCount} without a support</span></>}
                 {' · '}Tap a person, then “Move here” on another group.
               </p>
+              {planningMode && (
+                <div className="rounded-2xl bg-amber-100/80 px-3 py-2 text-[12px] text-amber-800">
+                  <p className="font-semibold">Planning draft</p>
+                  <p className="mt-0.5">Includes people who have not signed in, so these groups are for forecasting and planning only. Save the draft to come back to it. To create real groups, switch “Planning only” off on the People step.</p>
+                </div>
+              )}
               {coverage && coverage.total > 0 && (
                 <div className={`rounded-2xl px-3 py-2 text-[12px] ${coverage.covered >= coverage.need ? 'bg-emerald-100/80 text-emerald-700' : 'bg-amber-100/80 text-amber-700'}`}>
                   <p className="font-semibold">Hubs with participants: {coverage.covered} of {coverage.total} (aim: at least {coverage.need})</p>
