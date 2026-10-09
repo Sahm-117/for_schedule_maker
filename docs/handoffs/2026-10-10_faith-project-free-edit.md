@@ -73,3 +73,9 @@ pop-up first.
 ## Gotchas
 - `npx tsc --noEmit -p .` checks nothing here (the root tsconfig has no files). Use `npx tsc --noEmit -p tsconfig.app.json`; it has about
   27 older errors in files unrelated to this work, and `npm run build` (vite) does not type-check.
+- **Ship the app before (or together with) a database change that old code cannot read.** The faith project migration went live hours before the new app: the
+  old app does not know the `SAVED` status, so its Faith page and the support's My Group card would have errored for anyone with a saved project until the new
+  app was deployed. When the deploy then failed (Vercel could not fetch the commit from GitHub, a 403 on their side, no build ran), it stayed that way until a
+  redeploy of the same commit was started through the Vercel API (deployment `dpl_wF6C...`, READY). Cached copies of the old app (the installed web app) pick the new one
+  up on their next update banner. No data was damaged: old and new saves both worked; only the display broke.
+- A deployment error that says "Git information retrieval failed" or "GitHub fetch error - status: 403" is not a code error. Redeploy the same commit.
