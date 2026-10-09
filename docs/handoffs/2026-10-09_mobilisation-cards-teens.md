@@ -13,6 +13,8 @@
 - Migration `20261009100000_discussion_summary_no_teen_groups.sql` applied (only the group filter changed).
 - Data: 3 test rows deleted from `SheetRegistration` (no linked contacts). No schema change.
 
+- Vercel: old deployments deleted in both projects linked to this repo (`for-schedule-maker` 371, `backend` 372), keeping the newest two of each at the time. Deployments only; no project, domain or setting changed. Both projects build every push to `main`, so storage refills; a retention setting in Vercel would stop that.
+
 ## Decisions and why
 - Cards follow the Dashboard so the two never disagree (Target was counting only contacts at a registered stage, so it
   was 70 where the Dashboard counts 76 people; adults are 63).
