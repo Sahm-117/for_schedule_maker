@@ -3,6 +3,7 @@ import { Navigate, NavLink } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
+import { usePolling } from '../hooks/usePolling';
 import { announcementsApi } from '../services/api';
 import type { Announcement } from '../types';
 
@@ -42,10 +43,7 @@ const AnnouncementsFeedPage: React.FC = () => {
     void fetchFeed(true);
   }, [liveRevision, fetchFeed]);
 
-  useEffect(() => {
-    const interval = setInterval(() => { void fetchFeed(true); }, 15000);
-    return () => clearInterval(interval);
-  }, [fetchFeed]);
+  usePolling(() => fetchFeed(true), 15000);
 
   if (!user) return null;
 

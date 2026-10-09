@@ -1,6 +1,7 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { participantAppApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { usePolling } from '../hooks/usePolling';
 import type { ParticipantHome, ParticipantReflection } from '../types';
 
 // The signed-in participant's data, loaded once for the whole participant app and
@@ -34,15 +35,34 @@ export const ParticipantAppProvider: React.FC<{ children: React.ReactNode }> = (
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Several things can ask for a reload at once (coming back to the tab, the poll, a save).
+  // `loadSeq` makes the newest request win, and `mutationSeq` drops a response that started
+  // before a local save so it can't wipe what was just saved. Background polls never replace
+  // the page with an error once something has loaded: they keep the last good data.
+  const homeRef = useRef<ParticipantHome | null>(null);
+  homeRef.current = home;
+  const loadSeq = useRef(0);
+  const mutationSeq = useRef(0);
+  const inFlight = useRef(0);
+  const lastStartedAt = useRef(0);
+
   const reload = useCallback(async () => {
+    const seq = ++loadSeq.current;
+    const mutationAtStart = mutationSeq.current;
+    inFlight.current += 1;
+    lastStartedAt.current = Date.now();
     try {
-      setHome(await participantAppApi.getHome());
-      setError('');
+      const next = await participantAppApi.getHome();
+      if (seq === loadSeq.current && mutationAtStart === mutationSeq.current) {
+        setHome(next);
+        setError('');
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
       if (message === 'SESSION_EXPIRED') { logout(); return; }
-      setError(message || 'Could not load your FOF space. Please try again.');
+      if (seq === loadSeq.current && !homeRef.current) setError(message || 'Could not load your FOF space. Please try again.');
     } finally {
+      inFlight.current -= 1;
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -50,36 +70,23 @@ export const ParticipantAppProvider: React.FC<{ children: React.ReactNode }> = (
 
   useEffect(() => {
     void reload();
-    const onVisible = () => { if (document.visibilityState === 'visible') void reload(); };
+    // Coming back to the tab refreshes straight away, unless a load has only just started
+    // (focus and visibility changes can fire together).
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastStartedAt.current > 5000) void reload();
+    };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [reload]);
 
-  // While a Sunday register is open, poll so the countdown/status stays live
-  // and catches the close (or being marked) without needing a manual refresh.
-  useEffect(() => {
-    if (!home?.openWindow) return undefined;
-    const timer = window.setInterval(() => { void reload(); }, 20000);
-    return () => window.clearInterval(timer);
-  }, [home?.openWindow, reload]);
-
-  // While the group meeting is on, poll faster so the "Now praying for" pick
-  // on My Group shows up soon after the support makes it.
-  useEffect(() => {
-    if (!home?.groupMeetingLive) return undefined;
-    const timer = window.setInterval(() => { void reload(); }, 20000);
-    return () => window.clearInterval(timer);
-  }, [home?.groupMeetingLive, reload]);
-
-  // Unconditional slow poll so groupMeetingLive (the "your group meeting is
-  // on now" banner + nav dot) goes stale at most a minute behind, even if the
-  // tab is left open in the foreground without a visibilitychange.
-  useEffect(() => {
-    const timer = window.setInterval(() => { void reload(); }, 60000);
-    return () => window.clearInterval(timer);
-  }, [reload]);
+  // Keep the page live: every 20s while a Sunday register is open or the group meeting is on
+  // (countdown, being marked, "Now praying for"), otherwise once a minute so the "meeting is
+  // on now" banner is never long stale. Only while the tab is in view, and never stacked.
+  const pollEvery = home?.openWindow || home?.groupMeetingLive ? 20000 : 60000;
+  usePolling(() => { if (inFlight.current === 0) return reload(); }, pollEvery, { catchUp: false });
 
   const applyReflection = (reflection: ParticipantReflection) => {
+    mutationSeq.current += 1;
     setHome((prev) => prev && ({
       ...prev,
       reflections: [...prev.reflections.filter((r) => r.weekId !== reflection.weekId), reflection],
@@ -87,10 +94,12 @@ export const ParticipantAppProvider: React.FC<{ children: React.ReactNode }> = (
   };
 
   const applyCheckIn = (checkIn: NonNullable<ParticipantHome['lastCheckIn']>) => {
+    mutationSeq.current += 1;
     setHome((prev) => prev && ({ ...prev, lastCheckIn: checkIn }));
   };
 
   const applyManualQuestion = (weekId: number, question: import('../types').ParticipantManualQuestion) => {
+    mutationSeq.current += 1;
     setHome((prev) => prev && ({
       ...prev,
       weeks: prev.weeks.map((w) => (w.id === weekId ? { ...w, manualQuestions: [...w.manualQuestions, question] } : w)),
@@ -98,6 +107,7 @@ export const ParticipantAppProvider: React.FC<{ children: React.ReactNode }> = (
   };
 
   const applyManualNote = (weekId: number, body: string) => {
+    mutationSeq.current += 1;
     setHome((prev) => prev && ({
       ...prev,
       weeks: prev.weeks.map((w) => (w.id === weekId ? { ...w, manualNote: body } : w)),

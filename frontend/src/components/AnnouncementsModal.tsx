@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { announcementsApi, labelsApi, groupsApi, supportHubsApi, usersApi, participantsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { startPolling } from '../hooks/usePolling';
 import { useAppData } from '../context/AppDataContext';
 import { announcementPopupsApi } from '../services/api';
 import type { AnnouncementPopupStatus } from '../types';
@@ -149,18 +150,15 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   }, [activeCohort?.id, isAdmin, liveRevision, shouldRender, user?.id, userCohortIds, propHistory]);
 
   useEffect(() => {
-    if (propHistory) return;
-    const interval = setInterval(() => {
-      announcementsApi.getHistory({
-        cohortId: activeCohort?.id || null,
-        userId: user?.id,
-        isAdmin,
-        accessibleCohortIds: userCohortIds,
-      })
-        .then((res) => setLocalHistory(res.announcements))
-        .catch(() => {});
-    }, 15000);
-    return () => clearInterval(interval);
+    if (propHistory) return undefined;
+    return startPolling(() => announcementsApi.getHistory({
+      cohortId: activeCohort?.id || null,
+      userId: user?.id,
+      isAdmin,
+      accessibleCohortIds: userCohortIds,
+    })
+      .then((res) => setLocalHistory(res.announcements))
+      .catch(() => {}), 15000);
   }, [activeCohort?.id, isAdmin, user?.id, userCohortIds, propHistory]);
 
   // Load tags so the admin can target a specific support's group tag, and so the

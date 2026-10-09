@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePolling } from '../hooks/usePolling';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { firstNameOf } from '../utils/people';
@@ -405,15 +406,9 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   };
 
   useEffect(() => { void loadAll(); }, [liveRevision, loadAll]);
-  useEffect(() => {
-    const interval = setInterval(() => void loadAll(), 30000);
-    return () => clearInterval(interval);
-  }, [loadAll]);
+  usePolling(loadAll, 30000);
   useEffect(() => { void loadItIssues(); }, [liveRevision, loadItIssues]);
-  useEffect(() => {
-    const interval = setInterval(() => void loadItIssues(), 30000);
-    return () => clearInterval(interval);
-  }, [loadItIssues]);
+  usePolling(loadItIssues, 30000);
 
   // ?tab=it for someone who isn't IT Support lands on Registration instead.
   useEffect(() => {

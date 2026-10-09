@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePolling } from '../hooks/usePolling';
 import SegmentedTabs from '../components/SegmentedTabs';
 import { createPortal } from 'react-dom';
 import { Navigate, useSearchParams } from 'react-router-dom';
@@ -217,10 +218,7 @@ const AdminFollowUpsPage: React.FC = () => {
     void loadAll();
   }, [liveRevision, loadAll]);
 
-  useEffect(() => {
-    const interval = setInterval(() => void loadAll(), 30000);
-    return () => clearInterval(interval);
-  }, [loadAll]);
+  usePolling(loadAll, 30000);
 
   // Default the cohort filter to the active cohort once it's known, unless
   // the admin has already picked something from the dropdown themselves.

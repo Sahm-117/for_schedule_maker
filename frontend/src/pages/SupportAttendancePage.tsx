@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePolling } from '../hooks/usePolling';
 import SegmentedTabs from '../components/SegmentedTabs';
 import { Navigate } from 'react-router-dom';
 import AppSelect from '../components/AppSelect';
@@ -199,10 +200,7 @@ const SupportAttendanceContent: React.FC<{ user: User; switcher?: React.ReactNod
   }, [activeCohort, selectedWeekId, toast]);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    const timer = window.setInterval(() => { void load(true); }, 15000);
-    return () => window.clearInterval(timer);
-  }, [load]);
+  usePolling(() => load(true), 15000);
 
   const allWeeks = selectedWeekId === 'ALL';
   const selectedWeek = typeof selectedWeekId === 'number' ? cohortWeeks.find((week) => week.id === selectedWeekId) ?? null : null;

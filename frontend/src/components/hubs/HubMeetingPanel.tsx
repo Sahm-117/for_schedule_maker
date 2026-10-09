@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { startPolling } from '../../hooks/usePolling';
 import AppSelect from '../AppSelect';
 import CompactAttendanceRow from '../CompactAttendanceRow';
 import DocumentViewerSheet from '../DocumentViewerSheet';
@@ -294,9 +295,9 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
     || isInMeetingWindow(meetingDay, meetingTime, meetingDurationMins, now);
   useEffect(() => {
     if (!isFollowAlong || !hubId || weekId === null || attendanceTaken) return undefined;
-    const interval = setInterval(() => {
+    return startPolling(() => {
       setNow(new Date());
-      supportSessionsApi.getForHubWeek(hubId, weekId)
+      return supportSessionsApi.getForHubWeek(hubId, weekId)
         .then(({ attendance, session: sessionRow }) => {
           if (attendance.length === 0) return;
           const map: Record<string, SupportAttendanceStatus> = {};
@@ -306,13 +307,11 @@ const HubMeetingPanel: React.FC<HubMeetingPanelProps> = ({
         })
         .catch(() => { /* try again next tick */ });
     }, 10000);
-    return () => clearInterval(interval);
   }, [isFollowAlong, hubId, weekId, attendanceTaken]);
 
   useEffect(() => {
     if (!hubId || weekId === null) return undefined;
-    const interval = setInterval(() => { void loadPrayerFocus(); }, 10000);
-    return () => clearInterval(interval);
+    return startPolling(loadPrayerFocus, 10000);
   }, [hubId, weekId, loadPrayerFocus]);
 
   // SupportSession is staff-only (app_is_staff(), gated on the x-session-token

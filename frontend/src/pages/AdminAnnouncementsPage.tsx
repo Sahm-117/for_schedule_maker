@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader';
 import AnnouncementsModal from '../components/AnnouncementsModal';
 import { announcementsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { usePolling } from '../hooks/usePolling';
 import type { Announcement } from '../types';
 
 const sameList = (a: Announcement[], b: Announcement[]) => JSON.stringify(a) === JSON.stringify(b);
@@ -43,10 +44,7 @@ const AdminAnnouncementsPage: React.FC = () => {
     void fetchHistory();
   }, [fetchHistory]);
 
-  useEffect(() => {
-    const interval = setInterval(() => void fetchHistory(true), 15000);
-    return () => clearInterval(interval);
-  }, [fetchHistory]);
+  usePolling(() => fetchHistory(true), 15000);
 
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;

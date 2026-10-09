@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { startPolling } from '../hooks/usePolling';
 import AppSelect from './AppSelect';
 import PageLoader from './PageLoader';
 import { useToast } from './Toast';
@@ -86,8 +87,8 @@ const TrainingAttendancePanel: React.FC = () => {
       })
       .subscribe();
     setChannel(ch);
-    const interval = setInterval(() => {
-      supportSessionsApi.getForCohort(cohortIds, ['PRE_COHORT_TRAINING', 'GET_TOGETHER'])
+    const stopPolling = startPolling(() => {
+      return supportSessionsApi.getForCohort(cohortIds, ['PRE_COHORT_TRAINING', 'GET_TOGETHER'])
         .then(({ attendance }) => {
           const fresh: Record<string, SupportAttendanceStatus> = {};
           attendance.forEach((a) => { if (a.sessionId === sessionId) fresh[a.userId] = a.status; });
@@ -95,7 +96,7 @@ const TrainingAttendancePanel: React.FC = () => {
         })
         .catch(() => { /* try again next tick */ });
     }, 15000);
-    return () => { clearInterval(interval); void supabase.removeChannel(ch); setChannel(null); };
+    return () => { stopPolling(); void supabase.removeChannel(ch); setChannel(null); };
   }, [sessionId, cohortIds]);
 
   const session = sessions.find((s) => s.id === sessionId) ?? null;

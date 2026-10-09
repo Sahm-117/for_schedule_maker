@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { usePolling } from '../../hooks/usePolling';
 import { participantAppApi } from '../../services/api';
 import type { ParticipantTeenInfo } from '../../types';
 import { buildWhatsAppLink } from '../../utils/phone';
@@ -17,18 +18,13 @@ const REFRESH_MS = 60_000;
 export const useTeenGate = (): Gate => {
   const [gate, setGate] = useState<Gate>({ status: 'loading' });
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = () => {
-      participantAppApi.getTeenInfo()
-        .then((info) => { if (!cancelled) setGate(info.isTeen ? { status: 'teen', info } : { status: 'app' }); })
-        // If the check fails, the normal app opens rather than leaving them stuck on a blank screen.
-        .catch(() => { if (!cancelled) setGate((current) => (current.status === 'loading' ? { status: 'app' } : current)); });
-    };
-    load();
-    const timer = window.setInterval(load, REFRESH_MS);
-    return () => { cancelled = true; window.clearInterval(timer); };
-  }, []);
+  const refresh = useCallback(() => participantAppApi.getTeenInfo()
+    .then((info) => setGate(info.isTeen ? { status: 'teen', info } : { status: 'app' }))
+    // If the check fails, the normal app opens rather than leaving them stuck on a blank screen.
+    .catch(() => setGate((current) => (current.status === 'loading' ? { status: 'app' } : current))), []);
+
+  useEffect(() => { void refresh(); }, [refresh]);
+  usePolling(refresh, REFRESH_MS);
 
   return gate;
 };

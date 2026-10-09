@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { usePolling } from '../hooks/usePolling';
 import { cohortsApi, hubApi, myHubApi, notificationsApi, pendingChangesApi, rejectedChangesApi, resourcesApi, settingsApi, usersApi, weeksApi } from '../services/api';
 import { cohortsApi as supabaseCohortsApi } from '../services/supabase-api';
 import type { Cohort, MyHubPayload, Notification, PendingChange, RejectedChange, Week } from '../types';
@@ -78,6 +79,7 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [liveRevision, setLiveRevision] = useState(0);
 
   const refreshTimeoutRef = useRef<number | null>(null);
+  const refreshPendingWhileHiddenRef = useRef(false);
   const refreshInProgressRef = useRef(false);
   // Mirror the latest cohort/week into refs so refreshWorkspaceData can read them
   // without listing them as deps. That keeps the callback (and the realtime
@@ -291,13 +293,20 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (refreshTimeoutRef.current) {
       window.clearTimeout(refreshTimeoutRef.current);
     }
+    // A little random spread, so a burst of writes doesn't make every open staff tab
+    // reload the whole workspace in the same instant.
     refreshTimeoutRef.current = window.setTimeout(() => {
+      // Nobody is looking: remember it and catch up when the tab comes back.
+      if (document.visibilityState === 'hidden') {
+        refreshPendingWhileHiddenRef.current = true;
+        return;
+      }
       if (refreshInProgressRef.current) {
         scheduleWorkspaceRefresh();
         return;
       }
       refreshWorkspaceData();
-    }, 300);
+    }, 300 + Math.round(Math.random() * 1500));
   }, [refreshWorkspaceData]);
 
   useEffect(() => {
@@ -381,7 +390,15 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (document.visibilityState === 'visible') void refreshNotifications().catch(() => {});
     };
     const notificationTimer = window.setInterval(pollNotifications, 10000);
-    document.addEventListener('visibilitychange', pollNotifications);
+    // Back in view: check notifications, and do any workspace refresh that came in while hidden.
+    const onBackInView = () => {
+      pollNotifications();
+      if (document.visibilityState === 'visible' && refreshPendingWhileHiddenRef.current) {
+        refreshPendingWhileHiddenRef.current = false;
+        scheduleWorkspaceRefresh();
+      }
+    };
+    document.addEventListener('visibilitychange', onBackInView);
 
     return () => {
       if (refreshTimeoutRef.current) {
@@ -390,22 +407,18 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setRealtimeHealthy(false);
       (supabase as any).removeChannel(channel);
       window.clearInterval(notificationTimer);
-      document.removeEventListener('visibilitychange', pollNotifications);
+      document.removeEventListener('visibilitychange', onBackInView);
     };
     // Depend on user.id (not the whole user object) so avatar/theme updates that
     // replace the user object don't tear down and rebuild the realtime channel.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshHubActivity, refreshNotifications, refreshUserCohorts, scheduleWorkspaceRefresh, user?.id]);
 
-  useEffect(() => {
-    if (!user || realtimeHealthy) return;
-    const intervalId = window.setInterval(() => {
-      refreshWorkspaceData();
-      void refreshNotifications();
-    }, 15000);
-    return () => window.clearInterval(intervalId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [realtimeHealthy, refreshNotifications, refreshWorkspaceData, user?.id]);
+  // Live updates are down: fall back to polling, but only while the tab is in view.
+  usePolling(() => {
+    refreshWorkspaceData();
+    return refreshNotifications();
+  }, user && !realtimeHealthy ? 15000 : null);
 
   // A support whose cohort list changes (e.g. Practice switched on for them) sees
   // it in their cohort menu straight away, without reloading.

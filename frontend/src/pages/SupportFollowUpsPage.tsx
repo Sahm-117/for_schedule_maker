@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePolling } from '../hooks/usePolling';
 import SegmentedTabs from '../components/SegmentedTabs';
 import { createPortal } from 'react-dom';
 import { Navigate } from 'react-router-dom';
@@ -166,10 +167,7 @@ const SupportFollowUpsPage: React.FC = () => {
     void loadAll();
   }, [liveRevision, loadAll]);
 
-  useEffect(() => {
-    const interval = setInterval(() => void loadAll(), 30000);
-    return () => clearInterval(interval);
-  }, [loadAll]);
+  usePolling(loadAll, 30000);
 
   // Default view stays on the active cohort (plus contacts with no cohort at
   // all, which count as belonging to it); "Show past cohorts" reveals the rest.

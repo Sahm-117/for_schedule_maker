@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { meetingAttendanceApi } from '../services/api';
+import { startPolling } from './usePolling';
 import { GROUP_MEETING_CHANGED_EVENT } from '../utils/meetingLiveEvents';
 
 // "Your group meeting is on now" — a support's own group, and a participant's
@@ -19,16 +20,21 @@ export const useGroupMeetingLive = (groupId: string | null | undefined) => {
         .catch(() => { if (!cancelled) setLive(null); });
     };
     load();
-    const interval = window.setInterval(load, 60000);
-    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
-    document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('focus', load);
+    const stopPolling = startPolling(load, 60000);
+    // Coming back to the tab refreshes (startPolling catches up when overdue); a focus event
+    // alone, without a hidden tab, still counts. The two can fire together, so refresh once.
+    let lastFocusLoad = 0;
+    const onFocus = () => {
+      if (Date.now() - lastFocusLoad < 5000) return;
+      lastFocusLoad = Date.now();
+      load();
+    };
+    window.addEventListener('focus', onFocus);
     window.addEventListener(GROUP_MEETING_CHANGED_EVENT, load);
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('focus', load);
+      stopPolling();
+      window.removeEventListener('focus', onFocus);
       window.removeEventListener(GROUP_MEETING_CHANGED_EVENT, load);
     };
   }, [groupId]);

@@ -3,6 +3,7 @@ import SegmentedTabs from '../SegmentedTabs';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { participantAppApi } from '../../services/api';
+import { usePolling } from '../../hooks/usePolling';
 import Spinner from '../Spinner';
 import type { ParticipantNotification } from '../../types';
 
@@ -55,16 +56,21 @@ const ParticipantNotificationBell: React.FC = () => {
   // Refresh on mount, coming back into focus, and every 60s.
   useEffect(() => {
     void load();
-    const onVisible = () => { if (document.visibilityState === 'visible') void load(); };
+    let last = Date.now();
+    const onVisible = () => {
+      // Focus and visibility changes can fire together; one refresh is enough.
+      if (document.visibilityState !== 'visible' || Date.now() - last < 5000) return;
+      last = Date.now();
+      void load();
+    };
     window.addEventListener('focus', onVisible);
     document.addEventListener('visibilitychange', onVisible);
-    const timer = window.setInterval(() => { void load(); }, 60000);
     return () => {
       window.removeEventListener('focus', onVisible);
       document.removeEventListener('visibilitychange', onVisible);
-      window.clearInterval(timer);
     };
   }, [load]);
+  usePolling(load, 60000, { catchUp: false });
 
   // Also refresh whenever the panel opens.
   useEffect(() => {

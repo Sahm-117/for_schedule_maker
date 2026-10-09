@@ -568,6 +568,12 @@ duplicating the logic anywhere else is a bug waiting to happen.
     (`sharedForPrayer`) or prayers have started. `hub_prayer_list`, `set_hub_prayer_focus` and the group prayer focus in `participant_home`
     use it; never go back to "APPROVED and shared". Once answered (or if they had already shared before the pop-up existed), the project tab of the Faith page shows a small "Prayer on / Prayer off" chip at the top right (`PrayerChoiceSheet`; choosing applies at once, no Save); there is no toggle row on the page. Teens
     have no login, so none of this reaches them. Source: `20261010100000_faith_project_free_edit.sql`.
+51. **Background polling goes through `usePolling` / `startPolling` (`hooks/usePolling.ts`), never a bare `setInterval`.** The database is a
+    small free-tier instance, so a poll runs only while the tab is visible, is jittered, never stacks on itself, and catches up once when the
+    tab returns. In `ParticipantAppContext` a failed background poll keeps the last good `home` (only the first load may show the error
+    card), the newest request wins, and a response that started before a local save is dropped so it cannot wipe it. Staff `AppDataContext`
+    holds a Realtime-triggered workspace refresh while the tab is hidden and runs it on return. A clock that only ticks locally
+    (`setInterval(() => setNow(...))`) is not a poll. Frontend only; no migration.
 
 ## 5. Edge functions and schedules
 

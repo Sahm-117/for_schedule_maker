@@ -232,7 +232,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     if (!user?.id) return;
 
+    // Returning to the tab fires both `focus` and `visibilitychange`; one check is enough.
+    let lastVerifyAt = 0;
     const verifyCurrentUser = async () => {
+      if (Date.now() - lastVerifyAt < 5000) return;
+      lastVerifyAt = Date.now();
       try {
         const response = await authApi.getMe();
         if (response.user.isActive === false) {
