@@ -1,8 +1,9 @@
 -- Hub leads can message a participant on WhatsApp from the group overview.
 --
 -- hub_group_overview (20261001100000) deliberately returned no phone numbers. It now also returns, for each participant:
---   * isTeen   - the group is a teen group, the age range is "10 - 17", or the contact is on the teen path
---                (TEENAGER / TEEN_ONBOARDED), the same test used on the Mobilisation cards;
+--   * isTeen   - the group is a teen group, the age range is "10 - 17" (spacing, case and the older "18 and below" / "Below 18"
+--                labels all count), or the contact is on the teen path (TEENAGER / TEEN_ONBOARDED). Worked out once per person
+--                and never NULL;
 --   * phone    - the participant's own number, or NULL for a teen (a teen's number is never shown outside their Teen Support).
 -- Same access check as before (discussion_staff_access: hub lead, assistant with "See groups", the group's support, admin).
 -- Nothing else changes. Idempotent (CREATE OR REPLACE).
@@ -52,12 +53,8 @@ BEGIN
           'participantId', p.id,
           'name', p."fullName",
           'avatarUrl', p."avatarUrl",
-          'isTeen', (v_group."isTeenGroup" OR p."ageRange" = '10 - 17' OR EXISTS (
-            SELECT 1 FROM public."FollowUpContact" fc
-            WHERE fc.id = p."followUpContactId" AND fc."registrationStatus"::text IN ('TEENAGER', 'TEEN_ONBOARDED'))),
-          'phone', CASE WHEN (v_group."isTeenGroup" OR p."ageRange" = '10 - 17' OR EXISTS (
-            SELECT 1 FROM public."FollowUpContact" fc
-            WHERE fc.id = p."followUpContactId" AND fc."registrationStatus"::text IN ('TEENAGER', 'TEEN_ONBOARDED'))) THEN NULL ELSE NULLIF(btrim(COALESCE(p.phone, '')), '') END,
+          'isTeen', t.teen,
+          'phone', CASE WHEN t.teen THEN NULL ELSE NULLIF(btrim(COALESCE(p.phone, '')), '') END,
           'onboarding', public.participant_onboarding_state(p.id),
           'faithProjectStatus', (
             SELECT fp.status FROM public."FaithProject" fp
@@ -79,6 +76,15 @@ BEGIN
         ) ORDER BY p."fullName")
         FROM public."GroupParticipant" gp
         JOIN public."Participant" p ON p.id = gp."participantId"
+        CROSS JOIN LATERAL (
+          SELECT COALESCE(
+            v_group."isTeenGroup"
+            OR replace(lower(COALESCE(p."ageRange", '')), ' ', '') IN ('10-17', '18andbelow', 'below18', 'under18')
+            OR EXISTS (
+              SELECT 1 FROM public."FollowUpContact" fc
+              WHERE fc.id = p."followUpContactId" AND fc."registrationStatus"::text IN ('TEENAGER', 'TEEN_ONBOARDED')),
+            FALSE) AS teen
+        ) t
         WHERE gp."groupId" = v_group.id AND p.status = 'ACTIVE' AND p."isTest" IS NOT TRUE
       ), '[]'::json)
     )

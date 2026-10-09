@@ -9,7 +9,7 @@ import ProfileOverview from '../participants/ProfileOverview';
 import RetakingChip, { RetakeMarkModal } from '../participants/RetakingChip';
 import { useToast } from '../Toast';
 import { departmentReferralsApi, faithHelpRequestsApi, faithProjectsApi, participantCheckInsApi, participantPushApi, participantFlagsApi, participantNotesApi, participantsApi } from '../../services/api';
-import { buildWhatsAppLink } from '../../utils/phone';
+import { buildParticipantMessageLink, buildWhatsAppLink } from '../../utils/phone';
 import WhatsAppIcon from '../WhatsAppIcon';
 import { shortMoment } from '../../utils/participantApp';
 import { unreadTrails, type FaithTrail, type ThreadReads } from '../../utils/faithThread';
@@ -409,7 +409,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   const status = project?.status ?? 'NOT_DRAFTED';
   const chip = FP_CHIP[status];
   // Opens WhatsApp on their number; hidden when there is no usable number (a teen's is hidden from most supports).
-  const messageLink = buildWhatsAppLink(participant.phone, `Hi ${participant.fullName.trim().split(/\s+/)[0]}, `);
+  const messageLink = buildParticipantMessageLink(participant.phone, participant.fullName);
 
   useEffect(() => {
     if (menu === 'closed') return undefined;
@@ -616,7 +616,7 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
             <>
               <button type="button" className={menuItemCls} onClick={() => { setMenu('closed'); setViewOpen(true); }}>View</button>
               {messageLink && (
-                <a href={messageLink} target="_blank" rel="noreferrer" className={`${menuItemCls} flex items-center gap-2`} onClick={() => setMenu('closed')}>
+                <a href={messageLink} target="_blank" rel="noreferrer" className={`${menuItemCls} flex items-center gap-2`} onClick={() => { window.setTimeout(() => setMenu('closed'), 0); }}>
                   <WhatsAppIcon />
                   Send message
                 </a>

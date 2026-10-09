@@ -4,7 +4,7 @@ import Spinner from '../Spinner';
 import { PROGRESS_STEPS, StepPill } from '../OnboardingStepPills';
 import { myHubApi } from '../../services/api';
 import { supportProfileChecklist } from '../../utils/people';
-import { buildWhatsAppLink } from '../../utils/phone';
+import { buildParticipantMessageLink } from '../../utils/phone';
 import WhatsAppIcon from '../WhatsAppIcon';
 import type { FaithProjectStatus, HubGroupOverview } from '../../types';
 
@@ -133,6 +133,7 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
                 const open = openId === p.participantId;
                 const pct = data.classesRun > 0 ? Math.round((p.classesAttended / data.classesRun) * 100) : null;
                 const fp = FP_CHIP[p.faithProjectStatus ?? 'NOT_DRAFTED'];
+                const messageLink = buildParticipantMessageLink(p.phone, p.name);
                 const stepsDone = PROGRESS_STEPS.filter((s) => p.onboarding[s.key]).length;
                 return (
                   <li key={p.participantId}>
@@ -163,17 +164,13 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
                     </button>
                     {open && (
                       <div className="mb-3 ml-11 rounded-2xl bg-[#f6f7f9] px-4 py-3">
-                        {(() => {
-                          const link = buildWhatsAppLink(p.phone, `Hi ${p.name.trim().split(/\s+/)[0]}, `);
-                          if (link) {
-                            return (
-                              <a href={link} target="_blank" rel="noreferrer" className="mb-3 inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-white px-3.5 text-[13px] font-semibold text-gray-800 shadow-sm">
-                                <WhatsAppIcon />Send message
-                              </a>
-                            );
-                          }
-                          return p.isTeen ? <p className="mb-3 text-[13px] text-gray-500">A teen's number stays with their Teen Support.</p> : null;
-                        })()}
+                        {messageLink ? (
+                          <a href={messageLink} target="_blank" rel="noreferrer" className="mb-3 inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-white px-3.5 text-[13px] font-semibold text-gray-800 shadow-sm">
+                            <WhatsAppIcon />Send message
+                          </a>
+                        ) : (
+                          <p className="mb-3 text-[13px] text-gray-500">{p.isTeen ? "A teen's number stays with their Teen Support." : 'No number saved.'}</p>
+                        )}
                         <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-gray-500">Onboarding</p>
                         <div className="mt-1.5 flex flex-wrap gap-1.5">
                           {PROGRESS_STEPS.map((s) => <StepPill key={s.key} label={s.label} done={p.onboarding[s.key]} />)}

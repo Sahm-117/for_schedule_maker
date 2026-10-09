@@ -28,3 +28,9 @@ export const buildWhatsAppLink = (phone: string | null | undefined, message: str
   if (!intl) return null;
   return `https://wa.me/${intl}?text=${encodeURIComponent(message)}`;
 };
+
+/** A WhatsApp chat with a participant, opened with "Hi <first name>, " (just "Hi, " when there is no name). */
+export const buildParticipantMessageLink = (phone: string | null | undefined, fullName: string | null | undefined): string | null => {
+  const first = (fullName ?? '').trim().split(/\s+/)[0];
+  return buildWhatsAppLink(phone, first ? `Hi ${first}, ` : 'Hi, ');
+};
