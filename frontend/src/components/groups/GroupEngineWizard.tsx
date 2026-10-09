@@ -29,6 +29,7 @@ import {
   type HubSpread,
   type SavedGroupingDraft,
   type TopUpTarget,
+  groupGender,
 } from '../../utils/groupingEngine';
 
 // Groups → New group → "Build with engine". Four steps: check who's ready,
@@ -510,6 +511,25 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     return hubCoverage(hubSpread, ids, groupsWithPeople, supportPool.free.filter((s) => !used.has(s.id)).map((s) => s.id));
   }, [hubSpread, draft, topUpTargets, supportPool.free]);
   const noSupportCount = toCreate.filter((g) => !g.supportId && !g.topUp).length;
+  // New groups still without a support, by the gender of their people (a group of both, or of unknown, is "Mixed").
+  const [supportView, setSupportView] = useState<'all' | 'none' | 'none:Male' | 'none:Female' | 'none:Mixed'>('all');
+  const genderOfGroup = (g: DraftGroup): 'Male' | 'Female' | 'Mixed' => {
+    const members = g.memberIds.map((id) => people.get(id)).filter((m): m is EnginePerson => !!m);
+    const gender = members.length > 0 ? groupGender(members) : null;
+    return gender === 'Male' || gender === 'Female' ? gender : 'Mixed';
+  };
+  const noSupportByGender = { Male: 0, Female: 0, Mixed: 0 };
+  toCreate.forEach((g) => { if (!g.supportId && !g.topUp) noSupportByGender[genderOfGroup(g)] += 1; });
+  const inSupportView = (g: DraftGroup) => {
+    if (supportView === 'all') return true;
+    if (g.supportId || g.topUp || g.memberIds.length === 0) return false;
+    return supportView === 'none' || supportView === `none:${genderOfGroup(g)}`;
+  };
+  const visibleDraft = draft.filter(inSupportView);
+  // Once every group in the chosen view has a support, go back to showing all of them.
+  useEffect(() => {
+    if (supportView !== 'all' && draft.length > 0 && !draft.some(inSupportView)) setSupportView('all');
+  }, [draft, supportView]); // eslint-disable-line react-hooks/exhaustive-deps
   const newCount = toCreate.filter((g) => !g.topUp).length;
   const topUpCount = toCreate.filter((g) => g.topUp).length;
   const createdDone = toCreate.filter((g) => !g.topUp && statuses[g.key] === 'done').length;
@@ -1235,6 +1255,34 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 {noSupportCount > 0 && <> · <span className="font-semibold text-red-700">{noSupportCount} without a support</span></>}
                 {' · '}Tap a person, then “Move here” on another group.
               </p>
+              {noSupportCount > 0 && (
+                <div className="flex flex-col gap-2" role="group" aria-label="Show groups by support">
+                  <p className="text-[12px] font-semibold text-gray-700">
+                    Groups without a support:{' '}
+                    {([['Male', 'male'], ['Female', 'female'], ['Mixed', 'mixed']] as const).filter(([k]) => noSupportByGender[k] > 0).map(([k, label]) => `${noSupportByGender[k]} ${label}`).join(' · ')}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {([
+                      ['all', 'All groups', draft.length],
+                      ['none', 'No support', noSupportCount],
+                      ['none:Male', 'Male, no support', noSupportByGender.Male],
+                      ['none:Female', 'Female, no support', noSupportByGender.Female],
+                      ['none:Mixed', 'Mixed, no support', noSupportByGender.Mixed],
+                    ] as const).filter(([value, , count]) => value === 'all' || value === 'none' || count > 0).map(([value, label, count]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={supportView === value}
+                        onClick={() => setSupportView(value)}
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95 ${supportView === value ? 'bg-primary text-white shadow-sm' : 'border border-gray-100 bg-white text-gray-600 hover:bg-gray-50'}`}
+                      >
+                        {label} <span className={supportView === value ? 'opacity-90' : 'text-gray-400'}>{count}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {supportView !== 'all' && <p className="text-[11px] text-gray-500">Showing {visibleDraft.length} of {draft.length} groups</p>}
+                </div>
+              )}
               {planningMode && (
                 <div className="rounded-2xl bg-amber-100/80 px-3 py-2 text-[12px] text-amber-800">
                   <p className="font-semibold">Planning draft</p>
@@ -1256,7 +1304,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
               )}
               {draftNote && <p className="rounded-2xl bg-sky-100/80 px-3 py-2 text-[12px] font-semibold text-sky-700">{draftNote}</p>}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {draft.map((g) => {
+                {visibleDraft.map((g) => {
                   // A topped-up group is judged as it will be: the people already there plus those being added.
                   const notes = g.topUp
                     ? evaluateGroup({ ...g, memberIds: [...(g.existingMemberIds ?? []), ...g.memberIds] }, topUpPeople, supportById, effectiveRules, tagNames)

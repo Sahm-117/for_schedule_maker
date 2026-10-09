@@ -217,7 +217,7 @@ const groupPool = (pool: EnginePerson[], rules: GroupingRules, split: boolean) =
 
 // ── Support matching ─────────────────────────────────────────────────────────
 
-const groupGender = (members: EnginePerson[]): string | null => {
+export const groupGender = (members: EnginePerson[]): string | null => {
   const genders = new Set(members.map((m) => m.gender));
   return genders.size === 1 ? [...genders][0] : null;
 };

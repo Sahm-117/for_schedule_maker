@@ -14,6 +14,12 @@ is disabled, and `create()` also refuses unless everyone in the draft has a conf
   for the sign-in check in planning mode; Save draft is hidden in planning mode.
 - The switch resets to off each time the builder opens.
 
+## Also: groups without a support, by gender
+The Draft step now says how many new groups have no support, split by the gender of their people ("2 male · 1 female", plus
+"mixed" when a group has both or unknown), with chips to show only those groups: All, No support, Male, Female, Mixed. A
+chip with nothing in it is hidden, and the view returns to all groups once none is left. Frontend only. Tested in the browser
+with a mocked cohort (16 people, 1 support): 3 groups without a support, 2 male and 1 female, each chip filters correctly.
+
 ## Decisions (mine, not asked)
 - Planning drafts cannot be created, because the rule exists so nobody without a working login is grouped.
   If creating from a planning draft should be allowed, that is a separate decision.

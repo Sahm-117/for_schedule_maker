@@ -330,7 +330,9 @@ duplicating the logic anywhere else is a bug waiting to happen.
     the groups and supports a cohort will need; such a draft shows a banner and is only a view: it cannot be saved (so it never
     overwrites the cohort's real draft) or created (its create button is disabled, and `create()` refuses unless
     every person in the draft has a confirmed sign-in). Switching the mode clears the draft, so it must be rebuilt. Everyone else
-    stays Active and ungrouped and is picked up by a later build once they sign in. If the sign-in check
+    stays Active and ungrouped and is picked up by a later build once they sign in.
+    On the Draft step, new groups still without a support are counted by the gender of their people (male, female,
+    mixed) and can be filtered by that; the filter falls back to all groups once none is left. If the sign-in check
     cannot be loaded, building is blocked rather than grouping everyone. Before making new groups, the
     builder tops up running groups that have people and space (a switch, on by default): each person goes
     to the group with the closest ages, never past the group's largest size and never against a gender,
