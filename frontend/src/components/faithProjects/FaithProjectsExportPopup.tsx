@@ -11,20 +11,17 @@ interface FaithProjectsExportPopupProps {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  NOT_DRAFTED: 'Not Drafted',
-  AWAITING_DRAFT: 'Awaiting Draft',
-  UNDER_REFINEMENT: 'Under Refinement',
-  NEEDS_REFINEMENT: 'Needs Refinement',
-  APPROVED: 'Approved',
+  NOT_DRAFTED: 'Not started',
+  SAVED: 'Saved',
 };
 
 const truncate = (text: string, max = 80) =>
   text.length > max ? `${text.slice(0, max)}…` : text;
 
 const contentPreview = (fp: FaithProject | null): string => {
-  if (!fp || fp.status === 'NOT_DRAFTED') return 'Not drafted';
+  if (!fp || fp.status === 'NOT_DRAFTED') return 'Not started';
   const text = fp.title || fp.body || '';
-  if (!text) return 'Not drafted';
+  if (!text) return 'Not started';
   return `"${truncate(text)}"`;
 };
 
@@ -80,7 +77,7 @@ const buildExportText = (
     for (const p of members) {
       const fp = projectByParticipant.get(p.id) ?? null;
       const content = contentPreview(fp);
-      const status = STATUS_LABEL[fp?.status ?? 'NOT_DRAFTED'] ?? fp?.status ?? 'Not Drafted';
+      const status = STATUS_LABEL[fp?.status ?? 'NOT_DRAFTED'] ?? fp?.status ?? 'Not started';
       lines.push(`  • *${p.fullName}* — ${content} — *${status}*`);
     }
     lines.push('');
@@ -91,7 +88,7 @@ const buildExportText = (
     for (const p of unassigned) {
       const fp = projectByParticipant.get(p.id) ?? null;
       const content = contentPreview(fp);
-      const status = STATUS_LABEL[fp?.status ?? 'NOT_DRAFTED'] ?? fp?.status ?? 'Not Drafted';
+      const status = STATUS_LABEL[fp?.status ?? 'NOT_DRAFTED'] ?? fp?.status ?? 'Not started';
       lines.push(`  • *${p.fullName}* — ${content} — *${status}*`);
     }
     lines.push('');
@@ -189,7 +186,7 @@ const FaithProjectsExportPopup: React.FC<FaithProjectsExportPopupProps> = ({
               onChange={() => setNotDraftedOnly((v) => !v)}
               className="h-4 w-4 rounded border-orange-300 text-primary focus:ring-primary/30"
             />
-            <span className="text-sm font-semibold text-gray-700">Not drafted only</span>
+            <span className="text-sm font-semibold text-gray-700">Not started only</span>
           </label>
         </div>
 

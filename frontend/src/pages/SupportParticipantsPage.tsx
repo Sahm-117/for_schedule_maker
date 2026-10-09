@@ -13,7 +13,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
-import { supportTagsApi, faithProjectsApi, faithProjectCategoriesApi, faithHelpRequestsApi, testimoniesApi, groupOnboardingStatusApi, groupDiscussionApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, faithThreadReadsApi, participantsApi, participantPushApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
+import { supportTagsApi, faithProjectsApi, faithProjectCategoriesApi, faithHelpRequestsApi, testimoniesApi, groupOnboardingStatusApi, groupDiscussionApi, groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, participantHandoversApi, participantFlagsApi, participantNotesApi, participantsApi, participantPushApi, reflectionActivityApi, participantCheckInsApi } from '../services/api';
 import type { FaithHelpRequest, FaithProject, FaithProjectCategory, Group, GroupOnboardingStatus, GroupPrayerFocus, GroupPrayerStatus, Participant, ParticipantHandover, ParticipantFlag, ParticipantNote, RetakeMatch, Testimony, User, ParticipantAppInfo } from '../types';
 import { getIdealWeekForCohort } from '../utils/weekFocus';
 import { sortByText } from '../utils/sort';
@@ -53,7 +53,6 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   const [groupPrayerStatuses, setGroupPrayerStatuses] = useState<GroupPrayerStatus[]>([]);
   const [participantNotes, setParticipantNotes] = useState<ParticipantNote[]>([]);
   // When this support last opened each faith project conversation (drives the unread dot).
-  const [threadReads, setThreadReads] = useState<Map<string, string>>(new Map());
   const [participantHandovers, setParticipantHandovers] = useState<ParticipantHandover[]>([]);
   const [flags, setFlags] = useState<ParticipantFlag[]>([]);
   const [reflectionActivity, setReflectionActivity] = useState<import('../types').ReflectionActivity[]>([]);
@@ -173,18 +172,16 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       }
 
       const participantIds = participantsRes.participants.map((participant) => participant.id);
-      const [notesRes, handoversRes, flagsRes, readsRes, activityRes, checkInsRes, unreachableIds, faithHelpRes, testimoniesRes] = await Promise.all([
+      const [notesRes, handoversRes, flagsRes, activityRes, checkInsRes, unreachableIds, faithHelpRes, testimoniesRes] = await Promise.all([
         participantNotesApi.getForParticipants(participantIds).catch(() => ({ notes: [] as ParticipantNote[] })),
         participantHandoversApi.getForParticipants(participantIds).catch(() => ({ handovers: [] as ParticipantHandover[] })),
         participantFlagsApi.getOpenForParticipants(participantIds).catch(() => ({ flags: [] as ParticipantFlag[] })),
-        faithThreadReadsApi.getForUser(user.id).catch(() => ({ reads: new Map<string, string>() })),
         reflectionActivityApi.getForCohort(activeCohort.id).catch(() => ({ activity: [] as import('../types').ReflectionActivity[] })),
         participantCheckInsApi.getForParticipants(participantIds).catch(() => ({ checkIns: [] as import('../types').ParticipantCheckIn[] })),
         participantPushApi.getUnreachableIds().catch(() => [] as string[]),
         faithHelpRequestsApi.getOpenForParticipants(participantIds).catch(() => ({ requests: [] as FaithHelpRequest[] })),
         testimoniesApi.getForParticipants(participantIds).catch(() => ({ testimonies: [] as Testimony[] })),
       ]);
-      setThreadReads(readsRes.reads);
       setReflectionActivity(activityRes.activity);
       setCheckIns(checkInsRes.checkIns);
       setNoAlertsIds(new Set(unreachableIds));
@@ -489,13 +486,6 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
                   setParticipants((prev) => sortByText(prev.map((x) => x.id === updated.id ? { ...x, ...updated } : x), (p) => p.fullName));
                 }}
                 onAddNote={() => { setNoteParticipant(participant); setNoteBody(''); }}
-                onNoteAdded={(note) => setParticipantNotes((prev) => [note, ...prev])}
-                threadReads={threadReads}
-                onThreadRead={(participantId, trail) => {
-                  const key = `${participantId}:${trail}`;
-                  setThreadReads((prev) => new Map(prev).set(key, new Date().toISOString()));
-                  void faithThreadReadsApi.markRead(user.id, participantId, trail).catch(() => undefined);
-                }}
                 openFlag={flags.find((flag) => flag.participantId === participant.id) ?? null}
                 reflectedAt={reflectionActivity.find((entry) => entry.participantId === participant.id && entry.weekId === selectedWeek?.id)?.createdAt ?? null}
                 helpRequest={checkIns.find((entry) => entry.participantId === participant.id && entry.response === 'NEED_HELP' && !entry.handledAt) ?? null}

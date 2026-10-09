@@ -8,6 +8,7 @@ import ErrorBoundary from '../ErrorBoundary';
 import CheckInModal from './CheckInModal';
 import ClassFeedbackModal from './ClassFeedbackModal';
 import DepartmentPromptModal from './DepartmentPromptModal';
+import PrayerConsentModal from './PrayerConsentModal';
 import { shouldAskCheckIn } from '../../utils/participantApp';
 import { useTourState } from '../../context/TourContext';
 import { useParticipantPush } from '../../hooks/useParticipantPush';
@@ -54,7 +55,6 @@ const MORE: NavEntry[] = [
   { to: '/me/profile', label: 'Profile', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z' },
 ];
 
-const Dot: React.FC = () => <span className="h-2 w-2 flex-none rounded-full bg-red-500" aria-label="New reply" />;
 
 const isActive = (pathname: string, to: string, exact?: boolean) =>
   exact ? pathname === to : to === '/me/journey'
@@ -116,7 +116,6 @@ const useSessionDismiss = (key: string) => {
 const ShellLayout: React.FC = () => {
   const { user, logout } = useAuth();
   const { home, reload } = useParticipantApp();
-  const faithUnread = !!home?.faithUnread;
   const groupMeetingLive = !!home?.groupMeetingLive;
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -158,6 +157,8 @@ const ShellLayout: React.FC = () => {
   const showAppSetup = notifReady && !appSetupDismiss.dismissed && appSetupSheetDue(appSetup);
   // One popup at a time (see utils/popupQueue): each popup asks for its place.
   const popupsSettled = useSettled();
+  // Required: it cannot be closed, only answered (a few days before corporate prayers start).
+  const prayerConsentSlot = usePopupSlot('prayer-consent', POPUP_PRIORITY.prayerConsent, !tourBusy && !!home?.prayerPrompt, 'required');
   const classFeedbackSlot = usePopupSlot('class-feedback', POPUP_PRIORITY.classFeedback, popupsSettled && classFeedbackPending);
   const departmentSlot = usePopupSlot('department', POPUP_PRIORITY.department, popupsSettled && departmentPending);
   const appSetupSlot = usePopupSlot('get-the-app', POPUP_PRIORITY.getTheApp, popupsSettled && showAppSetup);
@@ -195,7 +196,6 @@ const ShellLayout: React.FC = () => {
               >
                 <Icon d={item.icon} />
                 <span className="flex-1">{item.label}</span>
-                {item.faith && faithUnread && <Dot />}
                 {item.to === '/me/group' && groupMeetingLive && <LiveNavDot ringClass="ring-transparent" />}
               </NavLink>
             );
@@ -256,7 +256,6 @@ const ShellLayout: React.FC = () => {
                   {item.to === '/me/group' && groupMeetingLive && <LiveNavDot className="absolute -right-1.5 -top-1" ringClass={active ? 'ring-primary' : 'ring-white'} />}
                 </span>
                 <span className="truncate">{item.mobileLabel ?? item.label}</span>
-                {item.faith && faithUnread && <span className="absolute right-3 top-1.5 h-2 w-2 rounded-full bg-red-500" aria-label="New reply" />}
               </NavLink>
             );
           })}
@@ -297,6 +296,9 @@ const ShellLayout: React.FC = () => {
 
       <CheckInPrompt checkIn={checkIn} />
       <AnnouncementPopupHost enabled={!tourBusy && !checkIn.pending} />
+      {prayerConsentSlot && home?.prayerPrompt && (
+        <PrayerConsentModal startsOn={home.prayerPrompt.startsOn} onAnswered={() => { void reload(); }} />
+      )}
       {classFeedbackPending && classFeedbackSlot && home?.classFeedbackDue && (
         <ClassFeedbackModal
           weekId={home.classFeedbackDue.weekId}

@@ -694,37 +694,44 @@ window.GUIDE_CONTENT = {
      "id": "faith-projects",
      "title": "Faith projects",
      "where": "Sidebar → People & groups → Participants → Faith projects tab",
-     "summary": "Review each group's Faith Project idea and testimony, and message the support about it.",
+     "summary": "See each participant's saved Faith Project, its edit history and their testimonies.",
      "shot": "admin-faith-projects.jpg",
      "tasks": [
       {
        "id": "faith-projects-approve",
-       "q": "How do I approve a group's Faith Project?",
+       "q": "How do I read a participant's Faith Project and see how it changed?",
        "keywords": [
-        "approve faith project",
-        "needs refinement"
+        "faith project",
+        "edit history",
+        "category",
+        "opted out"
        ],
        "steps": [
-        "Open Faith projects and pick the group.",
-        "Read what they submitted.",
-        "Tap **Approve**, or **Needs Refinement** if it needs more work."
+        "Open Faith projects and tap **Open** next to the person.",
+        "Read what they saved. Open **Edit history** to see every version, newest first.",
+        "Pick a **Category** if you want one (optional)."
        ],
-       "result": "The group's support sees the decision on their side."
+       "result": "There is no review step: participants save and edit their own project, and their support is told each time. A tag shows if someone has opted out of corporate prayers."
       },
       {
        "id": "faith-projects-settings",
-       "q": "How do I change the Faith Project categories or the corporate-prayer setting?",
+       "q": "How do I set when corporate prayers start, or change the categories?",
        "keywords": [
         "faith project settings",
         "categories",
-        "corporate prayer"
+        "corporate prayer",
+        "start week",
+        "pop-up"
        ],
        "steps": [
         "Tap the gear icon (**Faith Project settings**) at the top of the page.",
-        "Add, rename or remove categories, and toggle corporate-prayer opt-in.",
-        "Save."
+        "Under **Corporate prayers**, choose the week it starts in and how many days before it the pop-up begins, then **Save**.",
+        "Add or archive categories if you need to."
        ],
-       "result": "New submissions use the updated categories and settings."
+       "result": "A few days before that week's class day, every participant gets a pop-up they must answer: **I'm fine with this** or **Opt out**. From that day, saved projects are prayed for unless the person opted out.",
+       "tips": [
+        "The **Write-it-by date** is only a soft date. Projects can still be saved after it."
+       ]
       }
      ]
     },
@@ -3073,25 +3080,22 @@ window.GUIDE_CONTENT = {
       {
        "id": "s-faith-project-review",
        "popular": true,
-       "q": "How do I review a participant's faith project?",
+       "q": "How do I see a participant's faith project?",
        "keywords": [
         "faith project",
-        "review",
-        "send back",
-        "back office",
-        "approve",
-        "draft"
+        "edit history",
+        "saved",
+        "category"
        ],
        "steps": [
         "On **My Group**, tap the **Faith project** tag on the person's card.",
-        "Read what they wrote. You can also help them write or improve it.",
-        "Pick a **Faith project category**.",
-        "Tap **Send back for work** if it needs changes, or **Send to back office** if it's ready."
+        "Read what they saved. Open **Edit history** to see every version, newest first.",
+        "Pick a **Faith project category** if you like (optional)."
        ],
-       "result": "**Send to back office** passes it to the programme team, who approve it. **Send back for work** returns it to the participant to change.",
+       "result": "Participants save and edit their own project; there is no review step. You get a notification each time they save or change it.",
        "tips": [
-        "The statuses are: **Not started**, **Sent back for work**, **With you to review**, **With the back office** and **Approved**.",
-        "Under **Comments** there are two conversations. The participant sees the one **With participant**. The one **With back office** is private to you and the team."
+        "The tag says **Not started** or **Saved**.",
+        "If someone opts out of corporate prayers, their project is not shown in prayer lists."
        ],
        "shot": "support-faith-project-sheet.jpg"
       },
@@ -4173,63 +4177,63 @@ window.GUIDE_CONTENT = {
      "id": "faith-project",
      "title": "Faith Project",
      "where": "Bottom bar → F. Project",
-     "summary": "Write what you're believing God for, send it to your support, and share testimonies.",
+     "summary": "Write what you're believing God for, save it, edit it any time, and share testimonies.",
      "shot": "participant-faith-project.jpg",
      "tasks": [
       {
        "id": "p-write-fp",
        "popular": true,
-       "q": "How do I write and send my faith project?",
+       "q": "How do I write and save my faith project?",
        "keywords": [
         "faith project",
         "write",
-        "submit",
-        "save draft",
+        "save",
+        "edit",
         "believing god"
        ],
        "steps": [
         "Tap **F. Project** in the bottom bar.",
         "Under **What are you believing God for?**, write your project. Be specific: who, what, and by when.",
-        "Tap **Save draft** to finish later.",
-        "When it's ready, tap **Submit for review**."
+        "Tap **Save**."
        ],
-       "result": "It goes to your support to read. While they have it, it shows **With your support** and you can't change it.",
+       "result": "It is saved straight away and your support is told. You can change it any time: edit the text and tap **Save changes**.",
        "tips": [
         "Not sure how to start? Tap **Explore the guide** for a short illustrated guide.",
-        "If a date to submit by is shown, try to send it before then. You can still send it after."
+        "If a date to write it by is shown, try to save it before then. You can still save it after."
        ],
        "shot": "participant-faith-project.jpg"
       },
       {
        "id": "p-fp-status",
-       "q": "What do the faith project labels mean?",
+       "q": "Can I see what I wrote before?",
        "keywords": [
-        "status",
-        "changes requested",
-        "with your support",
-        "approved",
-        "programme team"
-       ],
-       "steps": [
-        "Look at the label at the top of your faith project."
-       ],
-       "result": "**Start your project**: not sent yet. **With your support**: your support is reading it. **Changes requested**: your support asked you to change something, so you can edit it again. **With programme team**: it's with the FOF team. **Approved**: all done."
-      },
-      {
-       "id": "p-fp-feedback",
-       "q": "Where do I see my support's comments on my project?",
-       "keywords": [
-        "support feedback",
-        "comments",
-        "reply",
-        "new reply"
+        "edit history",
+        "versions",
+        "earlier",
+        "changed"
        ],
        "steps": [
         "Open **F. Project**.",
-        "Tap **Support feedback**. It says **New reply** when there's something new."
+        "Tap **Edit history** to see every version you saved, newest first."
        ],
+       "result": "Your support and the programme team can see the same history."
+      },
+      {
+       "id": "p-fp-prayers",
+       "q": "What is the corporate prayers pop-up, and can I opt out?",
+       "keywords": [
+        "corporate prayers",
+        "opt out",
+        "pop-up",
+        "pray for my project"
+       ],
+       "steps": [
+        "A few days before corporate prayers start, a pop-up asks about it. Tap **I'm fine with this** or **Opt out**.",
+        "To change your mind later, open **F. Project** and use the **Include in corporate prayers** switch."
+       ],
+       "result": "Everyone is included unless they opt out. When you are included, your photo and project are shown to the church team who pray together. If you opt out, they are not.",
        "tips": [
-        "Notes between your support and the programme team are not shown here."
+        "The pop-up can't be closed until you answer it."
        ]
       },
       {
@@ -4249,7 +4253,7 @@ window.GUIDE_CONTENT = {
       },
       {
        "id": "p-fp-going",
-       "q": "My project is approved but it isn't going well. What can I do?",
+       "q": "My project is saved but it isn't going well. What can I do?",
        "keywords": [
         "not going well",
         "struggling",
@@ -4264,7 +4268,7 @@ window.GUIDE_CONTENT = {
        ],
        "result": "Your support is told and will keep an eye out.",
        "tips": [
-        "Once approved, you can also switch on **Include in the general prayers** so the church team prays for your project each week."
+        "You can also turn **Include in corporate prayers** on or off at any time."
        ]
       },
       {

@@ -172,11 +172,10 @@ export const buildGroupEngagement = (data: CohortHealthPayload, weekNumbers: num
 
 export const faithProjectCounts = (data: CohortHealthPayload) => {
   const fp = data.faithProjects ?? {};
-  const approved = Number(fp.APPROVED ?? 0);
-  // Anything past "not drafted" means the participant has started one.
-  const started = Object.entries(fp).reduce((sum, [status, n]) => (status === 'NOT_DRAFTED' ? sum : sum + Number(n)), 0);
+  // A saved project is the only finished state now; anything else (including a seed from the form) is "not started".
+  const saved = Number(fp.SAVED ?? 0);
   const active = Number(data.participants.active);
-  return { approved, started, notStarted: Math.max(0, active - started), active };
+  return { saved, started: saved, notStarted: Math.max(0, active - saved), active };
 };
 
 export interface AttentionItem {

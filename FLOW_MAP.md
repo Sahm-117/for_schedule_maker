@@ -546,6 +546,27 @@ duplicating the logic anywhere else is a bug waiting to happen.
     message" (`buildWhatsAppLink`) only when there is a number, and a one-line note for a teen. The same item is on the My Group
     participant menu (`ParticipantCard`). Source: `20261009200000_hub_group_overview_numbers.sql`.
 
+49. **A faith project is saved straight away and edited any time; every version is kept.** A project is `NOT_DRAFTED` (nothing saved;
+    a seed from the registration form is still `NOT_DRAFTED` until the participant saves) or `SAVED`. The review chain
+    (`NEEDS_REFINEMENT`, `UNDER_REFINEMENT`, `AWAITING_DRAFT`, `APPROVED`) is retired: the old comments and approvals are hidden, not
+    deleted. `save_faith_project` never locks a project and says if the save was a first one (`created`) or a change (`changed`);
+    the participant app then bells the support on a first save and on every change (not when nothing changed). The trigger
+    `faith_project_keep_version` writes `FaithProjectVersion` (full text, when, who: a participant's own save has no name), so every
+    save path keeps history. The participant, their support and the admin read the same "Edit history" accordion
+    (`FaithProjectHistory`). Supports and admins cannot edit the text; they can set an optional category (`faithProjectsApi.setCategory`).
+    Never write the retired statuses again. Source: `20261010100000_faith_project_free_edit.sql`.
+
+50. **Corporate prayer is opt-out, and the pop-up cannot be closed.** `Participant."prayerConsent"` is NULL (not answered, counts as
+    included), `IN` or `OUT`; `set_prayer_consent` records it (and keeps the older `sharedForPrayer` flag in step). Admin sets, per
+    cohort in Faith Project settings, `prayersStartWeekNumber` (the week whose class day corporate prayers start on, read with
+    `week_class_date`, so a moved class moves it) and `prayerPopupDaysBefore` (default 3). From that many days before, `participant_home`
+    returns `prayerPrompt` until the participant answers, and the app shows `PrayerConsentModal` as a required popup (priority 30): no
+    close button, no tap-outside or Escape, only "I'm fine with this" or "Opt out". A project is prayable when
+    `faith_project_prayable` says so: SAVED, has text, the person has not opted out, and they said yes / were already shared
+    (`sharedForPrayer`) or prayers have started. `hub_prayer_list`, `set_hub_prayer_focus` and the group prayer focus in `participant_home`
+    use it; never go back to "APPROVED and shared". The Faith page keeps a switch (default on) that changes the same answer. Teens
+    have no login, so none of this reaches them. Source: `20261010100000_faith_project_free_edit.sql`.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the

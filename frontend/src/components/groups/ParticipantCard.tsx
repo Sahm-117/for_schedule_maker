@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import SegmentedTabs from '../SegmentedTabs';
 import { createPortal } from 'react-dom';
 import ModalShell from '../followups/ModalShell';
 import InfoTip from '../InfoTip';
@@ -8,13 +7,13 @@ import DepartmentHandoff from '../participants/DepartmentHandoff';
 import ProfileOverview from '../participants/ProfileOverview';
 import RetakingChip, { RetakeMarkModal } from '../participants/RetakingChip';
 import { useToast } from '../Toast';
-import { departmentReferralsApi, faithHelpRequestsApi, faithProjectsApi, participantCheckInsApi, participantPushApi, participantFlagsApi, participantNotesApi, participantsApi } from '../../services/api';
+import { departmentReferralsApi, faithHelpRequestsApi, faithProjectsApi, participantCheckInsApi, participantFlagsApi, participantsApi } from '../../services/api';
 import { buildParticipantMessageLink, buildWhatsAppLink } from '../../utils/phone';
 import WhatsAppIcon from '../WhatsAppIcon';
 import { shortMoment } from '../../utils/participantApp';
-import { unreadTrails, type FaithTrail, type ThreadReads } from '../../utils/faithThread';
+import FaithProjectHistory from '../faithProjects/FaithProjectHistory';
 import { FAITH_HELP_REASON_LABELS } from '../../types';
-import type { DepartmentReferral, FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectStatus, Participant, ParticipantAppInfo, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote, ParticipantUpdate, RetakeMatch, Testimony } from '../../types';
+import type { DepartmentReferral, FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectStatus, FaithProjectVersion, Participant, ParticipantAppInfo, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote, ParticipantUpdate, RetakeMatch, Testimony } from '../../types';
 import { appUseLine } from '../../utils/appUse';
 import NotOpenedTag from '../participants/NotOpenedTag';
 import Spinner from '../Spinner';
@@ -28,20 +27,12 @@ const TESTIMONY_STATUS_CHIP: Record<Testimony['status'], { label: string; cls: s
 // Faith project states mapped onto the V2 design's labels.
 const FP_CHIP: Record<FaithProjectStatus, { label: string; cls: string }> = {
   NOT_DRAFTED: { label: 'Not started', cls: 'bg-[#f6f7f9] text-gray-500' },
-  AWAITING_DRAFT: { label: 'Sent back for work', cls: 'bg-[#fef3c7] text-[#b45309]' },
-  NEEDS_REFINEMENT: { label: 'With you to review', cls: 'bg-[#fff1e6] text-[#c2410c]' },
-  UNDER_REFINEMENT: { label: 'With the back office', cls: 'bg-[#ede9fe] text-[#6d28d9]' },
-  APPROVED: { label: 'Approved', cls: 'bg-[#f2fbf5] text-[#15803d]' },
+  SAVED: { label: 'Saved', cls: 'bg-[#f2fbf5] text-[#15803d]' },
 };
-
-const CAN_SEND_UP: FaithProjectStatus[] = ['NOT_DRAFTED', 'AWAITING_DRAFT', 'NEEDS_REFINEMENT'];
 
 const CONCERN_REASONS = ['Attendance', 'Engagement', 'Emotional wellbeing', 'Spiritual struggle', 'Other'];
 
-type TrailEntry = { key: string; who: string; role: string; at: string; text: string; sortAt: string };
-
 const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
-const formatDate = (iso: string) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(new Date(iso));
 
 const TEXT_INPUT = 'w-full rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
 
@@ -283,11 +274,8 @@ interface ParticipantCardProps {
   onProjectSaved: (project: FaithProject) => void;
   onParticipantUpdated: (participant: Participant) => void;
   onAddNote: () => void;
-  onNoteAdded: (note: ParticipantNote) => void;
   onFlagRaised: (flag: ParticipantFlag) => void;
   onFlagCleared: (flagId: string) => void;
-  threadReads: ThreadReads;
-  onThreadRead: (participantId: string, trail: FaithTrail) => void;
   /** When they wrote this week's reflection in the participant app (never the text). */
   reflectedAt?: string | null;
   /** An unanswered "I need help" from the participant app. */
@@ -324,11 +312,8 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   onProjectSaved,
   onParticipantUpdated,
   onAddNote,
-  onNoteAdded,
   onFlagRaised,
   onFlagCleared,
-  threadReads,
-  onThreadRead,
   reflectedAt,
   helpRequest,
   onHelpHandled,
@@ -366,7 +351,6 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
       setResolvingHelpId(null);
     }
   };
-  const unread = unreadTrails(participant.id, project, notes, userId, threadReads);
   // Shared "just my support" testimony -- the one thing on this list that's
   // addressed to this support specifically, so it gets its own labelled
   // section (like the faith-help box) instead of hiding in the View sheet.
@@ -540,12 +524,6 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         >
           <span className="font-semibold opacity-70">Faith project</span>
           <span>{chip.label}</span>
-          {unread.size > 0 && (
-            <span className="relative flex h-2 w-2" aria-label="New messages" title={unread.has('office') && unread.has('coach') ? 'New messages from the back office and the participant' : unread.has('office') ? 'New message from the back office' : 'New message from the participant'}>
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-40 motion-reduce:hidden" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
-            </span>
-          )}
           <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="m9 5 7 7-7 7" /></svg>
         </button>
         {reflectedAt && (
@@ -747,15 +725,8 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
         onClose={() => setFpOpen(false)}
         participant={participant}
         project={project}
-        notes={notes}
-        groupName={groupName}
-        userId={userId}
-        supportName={supportName}
         categories={faithProjectCategories}
         onSaved={onProjectSaved}
-        onNoteAdded={onNoteAdded}
-        unread={unread}
-        onTrailRead={(trail) => onThreadRead(participant.id, trail)}
       />
 
       <EditNameModal
@@ -767,128 +738,45 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
   );
 };
 
+// What the participant saved, read-only for their support, plus an optional category and the edit history.
+// Participants edit their own project; there is no review step.
 const FaithProjectSheet: React.FC<{
   open: boolean;
   onClose: () => void;
   participant: Participant;
   project: FaithProject | null;
-  notes: ParticipantNote[];
-  groupName: string | null;
-  userId: string;
-  supportName: string;
   categories: FaithProjectCategory[];
   onSaved: (project: FaithProject) => void;
-  onNoteAdded: (note: ParticipantNote) => void;
-  unread: Set<FaithTrail>;
-  onTrailRead: (trail: FaithTrail) => void;
-}> = ({ open, onClose, participant, project, notes, groupName, userId, supportName, categories, onSaved, onNoteAdded, unread, onTrailRead }) => {
-  const status = project?.status ?? 'NOT_DRAFTED';
-  const chip = FP_CHIP[status];
-  const editable = CAN_SEND_UP.includes(status);
-  const [tab, setTab] = useState<'coach' | 'office'>('coach');
-  const [body, setBody] = useState(project?.body ?? '');
-  const [note, setNote] = useState('');
-  const [noteSaving, setNoteSaving] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+}> = ({ open, onClose, participant, project, categories, onSaved }) => {
+  const chip = FP_CHIP[project?.status ?? 'NOT_DRAFTED'];
+  const [versions, setVersions] = useState<FaithProjectVersion[]>([]);
   const [categoryId, setCategoryId] = useState(project?.categoryId ?? '');
-  const [showFullTrail, setShowFullTrail] = useState(false);
-  const [trailOpen, setTrailOpen] = useState(false);
+  const [error, setError] = useState('');
+  const firstName = participant.fullName.trim().split(/\s+/)[0] || 'The participant';
 
   useEffect(() => {
-    if (!open) return;
-    setBody(project?.body ?? '');
-    setNote('');
-    setError('');
+    if (!open) return undefined;
+    let cancelled = false;
     setCategoryId(project?.categoryId ?? '');
-    setShowFullTrail(false);
-    const nextTab = unread.has('coach') ? 'coach' : unread.has('office') ? 'office' : 'coach';
-    setTab(nextTab);
-    setTrailOpen(unread.size > 0);
+    setError('');
+    faithProjectsApi.getVersions(participant.id)
+      .then((res) => { if (!cancelled) setVersions(res.versions); })
+      .catch(() => { if (!cancelled) setVersions([]); });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, project?.body]);
+  }, [open, participant.id, project?.updatedAt]);
 
-  // Reading a trail clears its dot.
-  useEffect(() => {
-    if (open && trailOpen && unread.has(tab)) onTrailRead(tab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, trailOpen, tab, unread.has(tab)]);
-
-  const noteEntry = (entry: ParticipantNote): TrailEntry => ({
-    key: entry.id,
-    who: entry.byParticipant ? participant.fullName : entry.authorName || 'Support',
-    role: entry.byParticipant ? 'Participant' : 'Support',
-    at: formatDate(entry.createdAt),
-    text: entry.body,
-    sortAt: entry.createdAt,
-  });
-  const byTime = (a: TrailEntry, b: TrailEntry) => a.sortAt.localeCompare(b.sortAt);
-  const coachTrail = notes.filter((entry) => entry.noteType === 'FAITH_COACH').map(noteEntry).sort(byTime);
-  const officeTrail: TrailEntry[] = [
-    ...(project?.reviewHistory ?? []).map((entry, index) => ({
-      key: `review-${index}`,
-      who: entry.actorName,
-      role: 'Back office',
-      at: formatDate(entry.at),
-      text: entry.note?.trim() || (entry.action === 'APPROVED' ? 'Approved.' : 'Changes requested.'),
-      sortAt: entry.at,
-    })),
-    ...notes.filter((entry) => entry.noteType === 'FAITH_OFFICE').map(noteEntry),
-  ].sort(byTime);
-  const trail = tab === 'office' ? officeTrail : coachTrail;
-  const visibleTrail = showFullTrail ? trail : trail.slice(-2);
-
-  const addNote = async () => {
-    if (!note.trim() || noteSaving) return;
-    setNoteSaving(true);
+  const changeCategory = async (next: string) => {
+    if (!project) return;
+    const previous = categoryId;
+    setCategoryId(next);
     setError('');
     try {
-      const { note: saved } = await participantNotesApi.create({
-        participantId: participant.id,
-        body: note.trim(),
-        authorId: userId,
-        groupId: participant.groupId ?? null,
-        noteType: tab === 'office' ? 'FAITH_OFFICE' : 'FAITH_COACH',
-      });
-      onNoteAdded(saved);
-      if (tab === 'coach') {
-        void participantPushApi.notify([participant.id], 'Your support replied', 'New feedback on your faith project.', '/me/faith');
-      }
-      setNote('');
+      await faithProjectsApi.setCategory(project.id, next || null);
+      onSaved({ ...project, categoryId: next || null, categoryName: categories.find((category) => category.id === next)?.name ?? null });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'This note could not be saved.');
-    } finally {
-      setNoteSaving(false);
-    }
-  };
-
-  const save = async (nextStatus: FaithProjectStatus) => {
-    if (nextStatus === 'UNDER_REFINEMENT' && !body.trim()) { setError('Write the faith project before sending it to the back office.'); return; }
-    if (nextStatus === 'UNDER_REFINEMENT' && !categoryId) { setError('Choose a category before sending this to the back office.'); return; }
-    setSaving(true);
-    setError('');
-    try {
-      const { project: saved } = await faithProjectsApi.upsertForParticipant(participant.id, {
-        body: body.trim() || null,
-        categoryId: categoryId || null,
-        status: nextStatus,
-        updatedById: userId,
-      });
-      onSaved(saved);
-      if (note.trim()) await addNote();
-      if (nextStatus === 'UNDER_REFINEMENT') {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-        fetch(`${supabaseUrl}/functions/v1/notify-faith-project-submitted`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', apikey: anonKey, Authorization: `Bearer ${anonKey}` },
-          body: JSON.stringify({ participantName: participant.fullName, supportName, groupName: groupName ?? undefined }),
-        }).catch(() => {/* non-critical */});
-      }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to save');
-    } finally {
-      setSaving(false);
+      setCategoryId(previous);
+      setError(err instanceof Error ? err.message : 'Could not save the category.');
     }
   };
 
@@ -902,102 +790,20 @@ const FaithProjectSheet: React.FC<{
         {project?.categoryName && <span className="rounded-full bg-[#eef2f7] px-2.5 py-1 text-[11px] font-bold text-[#4b5563]">{project.categoryName}</span>}
         <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${chip.cls}`}>{chip.label}</span>
       </div>}
-      footer={editable ? (
-        <>
-          <button type="button" onClick={() => { void save('AWAITING_DRAFT'); }} disabled={saving} className="min-h-[46px] rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 disabled:opacity-60">
-            Send back for work
-          </button>
-          <button type="button" onClick={() => { void save('UNDER_REFINEMENT'); }} disabled={saving} className="min-h-[46px] flex-1 rounded-xl bg-primary p-3 text-[15px] font-semibold text-white disabled:opacity-60">
-            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Send to back office'}
-          </button>
-        </>
-      ) : undefined}
     >
-      {editable ? (
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={4}
-          placeholder="Nothing drafted yet. Write the participant's faith project…"
-          className="w-full resize-y rounded-[14px] border border-[#ffdeca] bg-[#fff8f3] p-3.5 text-[14.5px] leading-relaxed text-gray-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
-      ) : (
-        <div className="whitespace-pre-wrap rounded-[14px] border border-[#ffdeca] bg-[#fff8f3] p-3.5 text-[14.5px] leading-relaxed text-gray-800">
-          {project?.body?.trim() || 'Nothing drafted yet.'}
-        </div>
-      )}
+      <div className="whitespace-pre-wrap rounded-[14px] border border-[#ffdeca] bg-[#fff8f3] p-3.5 text-[14.5px] leading-relaxed text-gray-800">
+        {project?.body?.trim() || 'Nothing saved yet.'}
+      </div>
+      <p className="mt-2 text-[12.5px] text-gray-400">{firstName} edits this themselves. You are told each time they save.</p>
       {error && <p className="mt-3 rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-600">{error}</p>}
 
-      {editable && (
+      {project && (
         <div className="mt-4">
-          <AppSelect label="Faith Project category" value={categoryId} onChange={setCategoryId} options={categories.map((category) => ({ value: category.id, label: category.name }))} placeholder="Choose a category" />
-          {categories.length === 0 && <p className="mt-2 text-xs text-amber-700">No categories available yet.</p>}
+          <AppSelect label="Faith Project category (optional)" value={categoryId} onChange={(value) => { void changeCategory(value); }} options={[{ value: '', label: 'No category' }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} placeholder="No category" />
         </div>
       )}
 
-      <div className="mt-4">
-        <button type="button" onClick={() => setTrailOpen((shown) => !shown)} className="flex w-full items-center gap-2 text-left">
-          <span className="flex-1 text-[13px] font-semibold text-gray-900">Comments{trail.length ? ` (${trail.length})` : ''}</span>
-          {unread.size > 0 && !trailOpen && <span className="h-2 w-2 rounded-full bg-red-500" aria-label="New reply" />}
-          <svg className={`h-4 w-4 text-gray-500 transition-transform ${trailOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
-        </button>
-      </div>
-
-      {trailOpen && <>
-      <div className="mt-3 flex items-center gap-2">
-      <div className="flex-1">
-        <SegmentedTabs
-          tabs={[
-            { key: 'coach', label: 'With participant', dot: unread.has('coach') && tab !== 'coach' },
-            { key: 'office', label: 'With back office', dot: unread.has('office') && tab !== 'office' },
-          ]}
-          active={tab}
-          onChange={(k) => { setTab(k as 'coach' | 'office'); setNote(''); setShowFullTrail(false); }}
-        />
-      </div>
-      <InfoTip label="Who sees this trail">
-        {tab === 'office'
-          ? 'Only you and the back office see this. The participant never sees these notes.'
-          : 'The participant sees everything in this trail.'}
-      </InfoTip>
-      </div>
-
-      {trail.length === 0 ? (
-        <p className="px-4 py-6 text-center text-[13.5px] text-gray-400">No notes on this trail yet.</p>
-      ) : (
-        <div className="mt-3 flex flex-col gap-2.5">
-          {visibleTrail.map((entry) => (
-            <div key={entry.key} className={`rounded-xl px-3.5 py-3 ${entry.role === 'Participant' ? 'bg-[#fff8f3]' : 'bg-[#f6f7f9]'}`}>
-              <div className="flex flex-wrap items-baseline gap-2">
-                <span className="text-[13px] font-bold text-gray-900">{entry.who}</span>
-                <span className="text-[11px] font-semibold text-gray-400">{entry.role}</span>
-                <span className="ml-auto text-[11px] text-gray-400">{entry.at}</span>
-              </div>
-              <p className="mt-1 text-[13.5px] leading-relaxed text-gray-700">{entry.text}</p>
-            </div>
-          ))}
-          {trail.length > visibleTrail.length && (
-            <button type="button" onClick={() => setShowFullTrail(true)} className="self-start px-1 py-1.5 text-[12.5px] font-semibold text-primary">
-              Show {trail.length - visibleTrail.length} earlier {trail.length - visibleTrail.length === 1 ? 'note' : 'notes'}
-            </button>
-          )}
-        </div>
-      )}
-
-      <label className="mt-4 block">
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Write feedback…" aria-label="Write feedback" className={`${TEXT_INPUT} resize-y`} />
-      </label>
-      {note.trim() && <div className="mt-2 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => { void addNote(); }}
-          disabled={noteSaving}
-          className="rounded-xl bg-primary px-4 py-[11px] text-[13.5px] font-semibold text-white transition disabled:opacity-60"
-        >
-          {noteSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Add note'}
-        </button>
-      </div>}
-      </>}
+      <FaithProjectHistory className="mt-3" versions={versions} participantLabel={firstName} />
     </Sheet>
   );
 };

@@ -105,10 +105,7 @@ export const platformLabel = (platform: string | null | undefined) =>
 
 export const FAITH_PROJECT_PARTICIPANT_LABEL: Record<FaithProjectStatus, string> = {
   NOT_DRAFTED: 'Not started',
-  AWAITING_DRAFT: 'In progress',
-  NEEDS_REFINEMENT: 'In review',
-  UNDER_REFINEMENT: 'In review',
-  APPROVED: 'Approved',
+  SAVED: 'Saved',
 };
 
 // Pre-start Get ready steps that tick once opened ("Meet your cohort", the Intro

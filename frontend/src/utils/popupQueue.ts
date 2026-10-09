@@ -18,6 +18,7 @@ export type PopupKind = 'required' | 'soft';
 export const POPUP_PRIORITY = {
   followUpCheck: 20,
   checkIn: 25,
+  prayerConsent: 30,
   hubIntro: 35,
   announcement: 45,
   classFeedback: 50,

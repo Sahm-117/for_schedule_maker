@@ -295,16 +295,17 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
               {participants.map((participant) => {
                 const focused = participant.id === focusParticipantId;
                 const project = faithProjects.find((entry) => entry.participantId === participant.id);
+                const optedOut = participant.prayerConsent === 'OUT';
                 return (
                   <button
                     key={participant.id}
                     type="button"
-                    disabled={savingFocus}
+                    disabled={savingFocus || optedOut}
                     onClick={() => { void onSetFocus(focused ? '' : participant.id); }}
                     className={`rounded-[14px] border p-3 text-left transition disabled:opacity-60 ${focused ? 'border-[#ffdeca] bg-[#fff8f3]' : 'border-[#f1f2f5] bg-white hover:border-gray-200'}`}
                   >
                     <span className="block text-sm font-semibold text-gray-900">{participant.fullName}</span>
-                    <span className="mt-0.5 block text-[12.5px] text-gray-500">{project?.body?.trim() || 'No faith project recorded yet.'}</span>
+                    <span className="mt-0.5 block text-[12.5px] text-gray-500">{optedOut ? 'Opted out of corporate prayers.' : project?.body?.trim() || 'No faith project saved yet.'}</span>
                   </button>
                 );
               })}

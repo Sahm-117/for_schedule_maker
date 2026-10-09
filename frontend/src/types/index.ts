@@ -636,6 +636,8 @@ export interface Participant {
   groupName?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  /** NULL = not answered (counts as included in corporate prayers), IN, or OUT. */
+  prayerConsent?: 'IN' | 'OUT' | null;
 }
 
 export type ParticipantUpdate = Partial<Pick<Participant,
@@ -911,7 +913,16 @@ export type AdminChecklistTarget =
 
 // ── Faith Projects ────────────────────────────────────────────────────────────
 
-export type FaithProjectStatus = 'NOT_DRAFTED' | 'AWAITING_DRAFT' | 'UNDER_REFINEMENT' | 'NEEDS_REFINEMENT' | 'APPROVED';
+/** NOT_DRAFTED = nothing saved yet; SAVED = the participant saved it (they can edit it any time). The old review states are retired. */
+export type FaithProjectStatus = 'NOT_DRAFTED' | 'SAVED';
+
+/** One saved version of a faith project: the full text, when, and who (null = the participant). */
+export interface FaithProjectVersion {
+  id: string;
+  body: string;
+  savedAt: string;
+  savedByName: string | null;
+}
 
 export interface FaithProjectReviewEntry {
   actorId: string;
@@ -948,6 +959,10 @@ export interface FaithProjectCategory {
 export interface FaithProjectSettings {
   cohortId: string;
   deadlineAt: string | null;
+  /** The programme week whose class day corporate prayers start on; null until set. */
+  prayersStartWeekNumber: number | null;
+  /** How many days before that day the opt-out pop-up begins. */
+  prayerPopupDaysBefore: number;
 }
 
 // ── Group Prayers ─────────────────────────────────────────────────────────────
@@ -1138,6 +1153,10 @@ export interface ParticipantHome {
   meeting: Array<{ weekId: number; status: string }>;
   openWindow: { weekId: number; closesAt: string; myStatus: string | null } | null;
   faithProjectStatus: FaithProjectStatus | null;
+  /** NULL = not answered yet (counts as included), IN, or OUT of corporate prayers. */
+  prayerConsent?: 'IN' | 'OUT' | null;
+  /** Set while the opt-out pop-up is due and unanswered; startsOn is the day corporate prayers start. */
+  prayerPrompt?: { startsOn: string } | null;
   rules: unknown;
   scriptures: Array<{ dayNumber: number; imageUrl: string }>;
   /** Which FOF day the first scripture (position 1) shows on. */
@@ -1202,6 +1221,12 @@ export interface ClassFeedbackWeekResult {
 export interface ParticipantFaith {
   project: { id: string; body: string | null; status: FaithProjectStatus; updatedAt: string; sharedForPrayer: boolean; fromForm?: boolean } | null;
   deadlineAt: string | null;
+  /** Every saved version, newest first. */
+  history: FaithProjectVersion[];
+  prayerConsent: 'IN' | 'OUT' | null;
+  /** The class day corporate prayers start on (YYYY-MM-DD), or null while not set. */
+  prayersStartsOn: string | null;
+  /** Always empty now: the review comments are retired. */
   trail: Array<{ id: string; body: string; createdAt: string; byParticipant: boolean; authorName: string | null }>;
   openHelpRequest: { id: string; reason: FaithHelpReason; note: string | null; wantsContact: boolean; createdAt: string } | null;
 }

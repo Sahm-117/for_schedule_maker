@@ -7,10 +7,11 @@ import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../components/Toast';
 import { useAppData } from '../context/AppDataContext';
-import { faithProjectsApi, faithProjectCategoriesApi, faithProjectSettingsApi, faithThreadReadsApi, faithHelpRequestsApi, testimoniesApi, participantNotesApi, participantsApi, groupsApi } from '../services/api';
+import { faithProjectsApi, faithProjectCategoriesApi, faithProjectSettingsApi, faithHelpRequestsApi, testimoniesApi, participantsApi, groupsApi } from '../services/api';
 import { FAITH_HELP_REASON_LABELS } from '../types';
-import type { FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectReviewEntry, FaithProjectSettings, FaithProjectStatus, Group, Participant, ParticipantNote, Testimony, TestimonyStatus } from '../types';
-import { unreadTrails } from '../utils/faithThread';
+import type { FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectSettings, FaithProjectStatus, FaithProjectVersion, Group, Participant, Testimony, TestimonyStatus } from '../types';
+import AppSelect from '../components/AppSelect';
+import FaithProjectHistory from '../components/faithProjects/FaithProjectHistory';
 import ModalShell from '../components/followups/ModalShell';
 import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import FaithProjectsExportPopup from '../components/faithProjects/FaithProjectsExportPopup';
@@ -19,11 +20,8 @@ import { sortByText } from '../utils/sort';
 import Spinner from '../components/Spinner';
 
 const STATUS_OPTIONS: Array<{ value: FaithProjectStatus; label: string; cls: string }> = [
-  { value: 'NOT_DRAFTED', label: 'Not Drafted', cls: 'bg-neutral-100 text-neutral-600' },
-  { value: 'AWAITING_DRAFT', label: 'Awaiting Draft', cls: 'bg-sky-100/80 text-sky-700' },
-  { value: 'UNDER_REFINEMENT', label: 'Under Refinement', cls: 'bg-amber-100/80 text-amber-700' },
-  { value: 'NEEDS_REFINEMENT', label: 'Needs Refinement', cls: 'bg-orange-100/80 text-orange-700' },
-  { value: 'APPROVED', label: 'Approved', cls: 'bg-emerald-100/80 text-emerald-700' },
+  { value: 'NOT_DRAFTED', label: 'Not started', cls: 'bg-neutral-100 text-neutral-600' },
+  { value: 'SAVED', label: 'Saved', cls: 'bg-emerald-100/80 text-emerald-700' },
 ];
 
 const statusLabel = (s: FaithProjectStatus) => STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s;
@@ -32,253 +30,74 @@ const statusCls = (s: FaithProjectStatus) => STATUS_OPTIONS.find((o) => o.value 
 const formatReviewDate = (iso: string) =>
   new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso));
 
-// ── Conversation with the support ─────────────────────────────────────────────
-// The "back office" trail: review decisions plus notes from the support or the
-// back office. The support sees the same trail on their faith project sheet.
+// ── Project modal ─────────────────────────────────────────────────────────────
+// What the participant saved (they edit it themselves, there is no review step), an optional category and the
+// edit history. Admins can set the category; the text is the participant's own.
 
-const SupportConversation: React.FC<{
-  history: FaithProjectReviewEntry[];
-  notes: ParticipantNote[];
-  canReply: boolean;
-  onReply: (body: string) => Promise<void>;
-}> = ({ history, notes, canReply, onReply }) => {
-  const [reply, setReply] = useState('');
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState('');
-  const entries = [
-    ...history.map((entry, i) => ({ key: `r-${i}`, at: entry.at, who: entry.actorName, role: 'Back office', decision: entry.action, text: entry.note ?? '' })),
-    ...notes.map((note) => ({ key: note.id, at: note.createdAt, who: note.byParticipant ? 'Participant' : note.authorName || 'Support', role: (note.byParticipant ? 'Participant app' : null) as string | null, decision: null as FaithProjectReviewEntry['action'] | null, text: note.body })),
-  ].sort((a, b) => a.at.localeCompare(b.at));
-
-  const send = async () => {
-    if (!reply.trim() || sending) return;
-    setSending(true);
-    setError('');
-    try {
-      await onReply(reply.trim());
-      setReply('');
-    } catch (e: any) {
-      setError(e?.message || 'Could not send.');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <div className="rounded-xl border border-gray-100">
-      <p className="border-b border-gray-100 px-3.5 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Conversation with the support</p>
-      {entries.length === 0 ? (
-        <p className="px-3.5 py-4 text-sm text-gray-400">No messages yet.</p>
-      ) : (
-        <div className="max-h-72 divide-y divide-gray-100 overflow-y-auto">
-          {entries.map((entry) => (entry.decision ? (
-            <div
-              key={entry.key}
-              className={`flex items-start gap-3 px-3.5 py-2.5 ${entry.decision === 'APPROVED' ? 'bg-emerald-50 shadow-[inset_5px_0_0_0_#059669]' : 'bg-orange-50 shadow-[inset_5px_0_0_0_#ea580c]'}`}
-            >
-              <span className={`mt-0.5 flex-none whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11.5px] font-bold text-white ${entry.decision === 'APPROVED' ? 'bg-emerald-600' : 'bg-orange-600'}`}>
-                {entry.decision === 'APPROVED' ? '✓ Approved' : '↻ Needs refinement'}
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs text-gray-600"><span className="font-semibold text-gray-800">{entry.who}</span> · {formatReviewDate(entry.at)}</p>
-                {entry.text && <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{entry.text}</p>}
-              </div>
-            </div>
-          ) : (
-            <div key={entry.key} className="px-3.5 py-2.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-gray-800">{entry.who}</span>
-                <span className="text-xs text-gray-400">{formatReviewDate(entry.at)}</span>
-              </div>
-              {entry.text && <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{entry.text}</p>}
-            </div>
-          )))}
-        </div>
-      )}
-      {canReply && (
-        <div className="flex flex-wrap gap-2 border-t border-gray-100 p-2.5">
-          <input
-            value={reply}
-            onChange={(e) => setReply(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') void send(); }}
-            placeholder="Reply to the support…"
-            className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-          <button type="button" onClick={() => void send()} disabled={!reply.trim() || sending} className="rounded-xl bg-primary px-3.5 py-2 text-sm font-semibold text-white disabled:opacity-50">
-            {sending ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Sending…</span>) : 'Send'}
-          </button>
-          {error && <p className="w-full text-xs text-red-600">{error}</p>}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ── Review Modal ──────────────────────────────────────────────────────────────
-
-interface ReviewModalProps {
+const ProjectModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   participant: Participant;
   group?: Group | null;
-  existing: FaithProject | null;
-  onSaved: (fp: FaithProject) => void;
-  currentUser: { id: string; name: string } | null;
-  supportUserId?: string | null;
-  officeNotes: ParticipantNote[];
-  onNoteAdded: (note: ParticipantNote) => void;
-}
-
-const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, participant, group, existing, onSaved, currentUser, supportUserId, officeNotes, onNoteAdded }) => {
-  const [decision, setDecision] = useState<'APPROVED' | 'NEEDS_REFINEMENT' | null>(null);
-  const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
+  project: FaithProject | null;
+  categories: FaithProjectCategory[];
+  onCategoryChanged: (project: FaithProject) => void;
+}> = ({ isOpen, onClose, participant, group, project, categories, onCategoryChanged }) => {
+  const [versions, setVersions] = useState<FaithProjectVersion[]>([]);
+  const [categoryId, setCategoryId] = useState(project?.categoryId ?? '');
   const [err, setErr] = useState('');
+  const firstName = participant.fullName.trim().split(/\s+/)[0] || 'Participant';
 
   useEffect(() => {
-    if (isOpen) { setDecision(null); setNote(''); setErr(''); }
-  }, [isOpen, existing?.id]);
+    if (!isOpen) return undefined;
+    let cancelled = false;
+    setCategoryId(project?.categoryId ?? '');
+    setErr('');
+    faithProjectsApi.getVersions(participant.id)
+      .then((res) => { if (!cancelled) setVersions(res.versions); })
+      .catch(() => { if (!cancelled) setVersions([]); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, participant.id]);
 
-  const canSubmit = decision !== null && (decision !== 'NEEDS_REFINEMENT' || note.trim().length > 0);
-
-  const handleSubmit = async () => {
-    if (!existing || !currentUser || !canSubmit || !decision) return;
-    setSaving(true);
+  const changeCategory = async (next: string) => {
+    if (!project) return;
+    const previous = categoryId;
+    setCategoryId(next);
     setErr('');
     try {
-      const { project } = await faithProjectsApi.reviewProject(existing.id, {
-        status: decision,
-        note: note.trim() || null,
-        actorId: currentUser.id,
-        actorName: currentUser.name,
-      });
-
-      // Notify the assigned support user (fire-and-forget — don't block on push errors)
-      if (supportUserId) {
-        void fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-faith-project-review`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            supportUserId,
-            participantName: participant.fullName,
-            action: decision,
-            note: note.trim() || undefined,
-          }),
-        }).catch(() => { /* ignore push errors */ });
-      }
-
-      onSaved(project);
-      onClose();
+      await faithProjectsApi.setCategory(project.id, next || null);
+      onCategoryChanged({ ...project, categoryId: next || null, categoryName: categories.find((category) => category.id === next)?.name ?? null });
     } catch (e: any) {
-      setErr(e.message || 'Failed to save review');
-    } finally {
-      setSaving(false);
+      setCategoryId(previous);
+      setErr(e?.message || 'Could not save the category.');
     }
   };
-
-  const history = existing?.reviewHistory ?? [];
 
   return (
     <ModalShell
       isOpen={isOpen}
       onClose={onClose}
-      title={`Review: ${participant.fullName}`}
-      subtitle={group?.name}
-      footer={
-        <>
-          <button type="button" onClick={onClose} className="rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Cancel</button>
-          <button
-            type="button"
-            onClick={() => void handleSubmit()}
-            disabled={!canSubmit || saving || !existing}
-            className={`rounded-2xl px-5 py-2.5 text-sm font-bold text-white active:scale-95 disabled:opacity-50 ${decision === 'APPROVED' ? 'bg-emerald-600' : decision === 'NEEDS_REFINEMENT' ? 'bg-orange-600' : 'bg-primary'}`}
-          >
-            {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : decision === 'APPROVED' ? 'Approve and send' : decision === 'NEEDS_REFINEMENT' ? 'Send for refinement' : 'Choose a decision'}
-          </button>
-        </>
-      }
+      title={participant.fullName}
+      subtitle={group?.name ?? 'Faith project'}
+      footer={<button type="button" onClick={onClose} className="rounded-2xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Close</button>}
     >
       <div className="flex flex-col gap-4">
         {err && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{err}</p>}
-
-        {/* Project content */}
+        {participant.prayerConsent === 'OUT' && (
+          <p className="rounded-xl bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-800">{firstName} opted out of corporate prayers. Their project is not shown in prayer lists.</p>
+        )}
         <div className="rounded-xl border border-gray-100 bg-white p-3.5">
-          {existing?.title && <p className="mb-1 text-sm font-semibold text-gray-900">{existing.title}</p>}
-          {existing?.body ? (
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{existing.body}</p>
+          {project?.body ? (
+            <p className="whitespace-pre-wrap text-sm text-gray-700">{project.body}</p>
           ) : (
-            <p className="text-sm italic text-gray-400">No content drafted yet.</p>
+            <p className="text-sm italic text-gray-400">Nothing saved yet.</p>
           )}
         </div>
-
-        {/* Decision */}
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Your decision</p>
-          <div className="flex gap-2.5">
-            {(['APPROVED', 'NEEDS_REFINEMENT'] as const).map((d) => {
-              const approve = d === 'APPROVED';
-              const selected = decision === d;
-              const otherSelected = decision !== null && !selected;
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setDecision(d)}
-                  className={`flex flex-1 flex-col items-center gap-1 rounded-2xl border-2 px-3 py-3 text-sm font-bold transition active:scale-95 ${
-                    selected
-                      ? approve ? 'border-emerald-600 bg-emerald-600 text-white shadow-md' : 'border-orange-600 bg-orange-600 text-white shadow-md'
-                      : approve ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-orange-200 bg-orange-50 text-orange-700'
-                  } ${otherSelected ? 'opacity-55' : ''}`}
-                >
-                  <span className={`grid h-6 w-6 place-items-center rounded-full text-[14px] font-extrabold ${selected ? 'bg-white' : approve ? 'bg-emerald-100' : 'bg-orange-100'} ${selected ? (approve ? 'text-emerald-600' : 'text-orange-600') : ''}`}>
-                    {approve ? '✓' : '↻'}
-                  </span>
-                  {approve ? 'Approve' : 'Needs refinement'}
-                  <span className="text-[11px] font-semibold opacity-80">{approve ? 'Sent to the support' : 'Say what to change'}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Reason — only when requesting refinement */}
-        {decision === 'NEEDS_REFINEMENT' && (
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-              What needs to change <span className="text-red-400">*</span>
-            </label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={3}
-              autoFocus
-              className="w-full rounded-xl border border-orange-200 bg-orange-50/40 px-3.5 py-2.5 text-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-              placeholder="Tell the support what needs to change…"
-            />
-          </div>
+        {project && (
+          <AppSelect label="Category (optional)" value={categoryId} onChange={(value) => { void changeCategory(value); }} options={[{ value: '', label: 'No category' }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} placeholder="No category" />
         )}
-
-        <SupportConversation
-          history={history}
-          notes={officeNotes}
-          canReply={!!currentUser}
-          onReply={async (body) => {
-            if (!currentUser) return;
-            const { note: saved } = await participantNotesApi.create({
-              participantId: participant.id,
-              body,
-              authorId: currentUser.id,
-              groupId: participant.groupId ?? null,
-              noteType: 'FAITH_OFFICE',
-            });
-            onNoteAdded({ ...saved, authorName: saved.authorName ?? currentUser.name });
-          }}
-        />
+        <FaithProjectHistory versions={versions} participantLabel={firstName} />
       </div>
     </ModalShell>
   );
@@ -405,7 +224,6 @@ const AdminFaithProjectsPage: React.FC = () => {
 };
 
 const AdminFaithProjectsContent: React.FC = () => {
-  const { user } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
   const [searchParams] = useSearchParams();
 
@@ -417,10 +235,7 @@ const AdminFaithProjectsContent: React.FC = () => {
   const [filters, setFilters] = useState<FilterValues>({});
   const statusFilters = filters.status ?? [];
   const [search, setSearch] = useState('');
-  const [reviewTarget, setReviewTarget] = useState<{ participant: Participant; project: FaithProject | null } | null>(null);
-  const [officeNotes, setOfficeNotes] = useState<ParticipantNote[]>([]);
-  // When this admin last read each faith project's support conversation (drives the dot).
-  const [threadReads, setThreadReads] = useState<Map<string, string>>(new Map());
+  const [openTarget, setOpenTarget] = useState<{ participant: Participant; project: FaithProject | null } | null>(null);
   const [showExportPopup, setShowExportPopup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [categories, setCategories] = useState<FaithProjectCategory[]>([]);
@@ -444,14 +259,10 @@ const AdminFaithProjectsContent: React.FC = () => {
       ]);
       setParticipants(sortByText(ps.filter((p) => p.status === 'ACTIVE'), (participant) => participant.fullName));
       const ids = ps.filter((p) => p.status === 'ACTIVE').map((p) => p.id);
-      const [notesRes, readsRes, testimoniesRes, helpRequestsRes] = await Promise.all([
-        participantNotesApi.getForParticipants(ids).catch(() => ({ notes: [] as ParticipantNote[] })),
-        user ? faithThreadReadsApi.getForUser(user.id).catch(() => ({ reads: new Map<string, string>() })) : Promise.resolve({ reads: new Map<string, string>() }),
+      const [testimoniesRes, helpRequestsRes] = await Promise.all([
         testimoniesApi.getAll({ cohortId: activeCohort.id }).catch(() => ({ testimonies: [] as Testimony[] })),
         faithHelpRequestsApi.getOpenForParticipants(ids).catch(() => ({ requests: [] as FaithHelpRequest[] })),
       ]);
-      setOfficeNotes(notesRes.notes.filter((n) => n.noteType === 'FAITH_OFFICE'));
-      setThreadReads(readsRes.reads);
       setProjects(sortByText(fps, (project) => project.title || project.participantName));
       setGroups(sortByText(gs, (group) => group.name));
       setCategories(cs);
@@ -460,7 +271,7 @@ const AdminFaithProjectsContent: React.FC = () => {
       setOpenHelpRequests(helpRequestsRes.requests);
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [activeCohort, user]);
+  }, [activeCohort]);
 
   useEffect(() => { void load(); }, [load, liveRevision]);
 
@@ -513,7 +324,7 @@ const AdminFaithProjectsContent: React.FC = () => {
   })();
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { NOT_DRAFTED: 0, UNDER_REFINEMENT: 0, APPROVED: 0 };
+    const c: Record<string, number> = { NOT_DRAFTED: 0, SAVED: 0 };
     participants.forEach((p) => {
       const s = projectByParticipant.get(p.id)?.status ?? 'NOT_DRAFTED';
       c[s] = (c[s] ?? 0) + 1;
@@ -521,13 +332,7 @@ const AdminFaithProjectsContent: React.FC = () => {
     return c;
   }, [participants, projectByParticipant]);
 
-  const openReview = (p: Participant, fp: FaithProject | null, newMessages: boolean) => {
-    setReviewTarget({ participant: p, project: fp });
-    if (newMessages && user) {
-      setThreadReads((prev) => new Map(prev).set(`${p.id}:office`, new Date().toISOString()));
-      void faithThreadReadsApi.markRead(user.id, p.id, 'office').catch(() => undefined);
-    }
-  };
+  const openProject = (p: Participant, fp: FaithProject | null) => setOpenTarget({ participant: p, project: fp });
 
   return (
     <div className="page-content">
@@ -619,7 +424,13 @@ const AdminFaithProjectsContent: React.FC = () => {
               noun="participants"
             />
           </div>
-          {settings?.deadlineAt && <p className="mb-4 text-sm font-semibold text-[#9a6a4b]">Submission deadline: {formatReviewDate(settings.deadlineAt)}</p>}
+          {(settings?.deadlineAt || settings?.prayersStartWeekNumber) && (
+            <p className="mb-4 text-sm font-semibold text-[#9a6a4b]">
+              {settings?.deadlineAt ? `Write-it-by date: ${formatReviewDate(settings.deadlineAt)}` : ''}
+              {settings?.deadlineAt && settings?.prayersStartWeekNumber ? ' · ' : ''}
+              {settings?.prayersStartWeekNumber ? `Corporate prayers start in Week ${settings.prayersStartWeekNumber}` : ''}
+            </p>
+          )}
 
           {loading ? (
             <PageLoader />
@@ -634,10 +445,9 @@ const AdminFaithProjectsContent: React.FC = () => {
               {displayed.map((p) => {
                 const fp = projectByParticipant.get(p.id) ?? null;
                 const s: FaithProjectStatus = fp?.status ?? 'NOT_DRAFTED';
-                const newMessages = !!user && unreadTrails(p.id, fp, officeNotes, user.id, threadReads).has('office');
                 return (
                   <li key={p.id}>
-                    <button type="button" onClick={() => openReview(p, fp, newMessages)} className="flex w-full items-center gap-3 py-2.5 pl-4 pr-3 text-left active:bg-gray-50">
+                    <button type="button" onClick={() => openProject(p, fp)} className="flex w-full items-center gap-3 py-2.5 pl-4 pr-3 text-left active:bg-gray-50">
                       <Avatar name={p.fullName} avatarUrl={p.avatarUrl} size="md" />
                       <span className="min-w-0 flex-1">
                         <span className="block line-clamp-2 text-[15px] font-semibold leading-tight text-gray-900">{p.fullName}</span>
@@ -645,7 +455,6 @@ const AdminFaithProjectsContent: React.FC = () => {
                       </span>
                       <span className={`inline-flex flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusCls(s)}`}>
                         {statusLabel(s)}
-                        {newMessages && <span className="h-2 w-2 rounded-full bg-red-500" aria-label="New message from the support" />}
                       </span>
                       <svg className="h-4 w-4 flex-none text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
                     </button>
@@ -667,7 +476,6 @@ const AdminFaithProjectsContent: React.FC = () => {
                   {displayed.map((p) => {
                     const fp = projectByParticipant.get(p.id) ?? null;
                     const s: FaithProjectStatus = fp?.status ?? 'NOT_DRAFTED';
-                    const newMessages = !!user && unreadTrails(p.id, fp, officeNotes, user.id, threadReads).has('office');
                     return (
                       <tr key={p.id} className="hover:bg-gray-50/30">
                         <td className="px-4 py-3 font-medium text-gray-900">{p.fullName}</td>
@@ -675,16 +483,16 @@ const AdminFaithProjectsContent: React.FC = () => {
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCls(s)}`}>
                             {statusLabel(s)}
-                            {newMessages && <span className="h-2 w-2 rounded-full bg-red-500" aria-label="New message from the support" title="New message from the support" />}
                           </span>
+                          {p.prayerConsent === 'OUT' && <span className="ml-1.5 rounded-full bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Opted out of prayers</span>}
                         </td>
                         <td className="sticky right-0 bg-white px-4 py-3 text-right">
                           <button
                             type="button"
-                            onClick={() => openReview(p, fp, newMessages)}
+                            onClick={() => openProject(p, fp)}
                             className="rounded-xl bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-200 active:scale-95"
                           >
-                            Review
+                            Open
                           </button>
                         </td>
                       </tr>
@@ -700,25 +508,18 @@ const AdminFaithProjectsContent: React.FC = () => {
         </>
       )}
 
-      {reviewTarget && (
-        <ReviewModal
-          isOpen={!!reviewTarget}
-          onClose={() => setReviewTarget(null)}
-          participant={reviewTarget.participant}
-          group={reviewTarget.participant.groupId ? (groupById.get(reviewTarget.participant.groupId) ?? null) : null}
-          existing={reviewTarget.project}
-          onSaved={(fp) => {
-            setProjects((prev) => {
-              const idx = prev.findIndex((x) => x.id === fp.id);
-              const next = idx >= 0 ? prev.map((x) => x.id === fp.id ? fp : x) : [...prev, fp];
-              return sortByText(next, (project) => project.title || project.participantName);
-            });
-            setReviewTarget(null);
+      {openTarget && (
+        <ProjectModal
+          isOpen={!!openTarget}
+          onClose={() => setOpenTarget(null)}
+          participant={openTarget.participant}
+          group={openTarget.participant.groupId ? (groupById.get(openTarget.participant.groupId) ?? null) : null}
+          project={openTarget.project}
+          categories={categories}
+          onCategoryChanged={(fp) => {
+            setProjects((prev) => prev.map((x) => (x.id === fp.id ? fp : x)));
+            setOpenTarget((prev) => (prev ? { ...prev, project: fp } : prev));
           }}
-          currentUser={user ? { id: user.id, name: user.name ?? user.email ?? 'Admin' } : null}
-          supportUserId={reviewTarget.participant.groupId ? (groupById.get(reviewTarget.participant.groupId)?.supportId ?? null) : null}
-          officeNotes={officeNotes.filter((n) => n.participantId === reviewTarget.participant.id)}
-          onNoteAdded={(note) => setOfficeNotes((prev) => [...prev, note])}
         />
       )}
 

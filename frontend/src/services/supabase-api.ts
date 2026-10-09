@@ -3548,15 +3548,16 @@ export const participantAppApi = {
     if (error) throw participantAppError(error.message, 'Could not mark the reply as read.');
   },
 
-  async saveFaithProject(body: string, submit: boolean, participantName: string): Promise<NonNullable<import('../types').ParticipantFaith['project']>> {
-    const { data, error } = await supabase.rpc('save_faith_project', { p_token: getSessionToken(), p_body: body, p_submit: submit });
+  // Saves straight away; the participant can change it any time. The support is told on a first save and on every change.
+  async saveFaithProject(body: string, participantName: string): Promise<NonNullable<import('../types').ParticipantFaith['project']>> {
+    const { data, error } = await supabase.rpc('save_faith_project', { p_token: getSessionToken(), p_body: body, p_submit: true });
     if (error) throw participantAppError(error.message, 'Could not save your faith project.');
-    const result = data as { project: NonNullable<import('../types').ParticipantFaith['project']>; supportId: string | null };
-    if (submit && result.supportId) {
+    const result = data as { project: NonNullable<import('../types').ParticipantFaith['project']>; supportId: string | null; created: boolean; changed: boolean };
+    if (result.changed && result.supportId) {
       void notify(
         { userIds: [result.supportId] },
-        `${participantName} sent their faith project`,
-        'It is waiting for you to review in My Group.',
+        result.created ? `${participantName} saved their faith project` : `${participantName} edited their faith project`,
+        result.created ? 'Open their card in My Group to read it.' : 'Open their card in My Group to see what changed.',
         '/support/participants',
         'FAITH_PROJECT_SUBMITTED',
       );
@@ -3586,10 +3587,11 @@ export const participantAppApi = {
     }
   },
 
-  async setPrayerShare(shared: boolean): Promise<{ id: string; sharedForPrayer: boolean }> {
-    const { data, error } = await supabase.rpc('set_faith_project_prayer_share', { p_token: getSessionToken(), p_shared: shared });
+  // The answer to the corporate-prayers pop-up, and the switch on the Faith page: true = I'm fine with this, false = opt out.
+  async setPrayerConsent(consent: boolean): Promise<'IN' | 'OUT'> {
+    const { data, error } = await supabase.rpc('set_prayer_consent', { p_token: getSessionToken(), p_consent: consent });
     if (error || !data) throw participantAppError(error?.message, 'Could not save that. Please try again.');
-    return data as { id: string; sharedForPrayer: boolean };
+    return (data as { prayerConsent: 'IN' | 'OUT' }).prayerConsent;
   },
 
   async getTestimonies(): Promise<{ mine: import('../types').ParticipantTestimony[]; feed: import('../types').TestimonyFeedItem[] }> {
@@ -4696,6 +4698,7 @@ const mapParticipant = (row: any): import('../types').Participant => {
     groupName: gp?.group?.name ?? null,
     isTest: !!row.isTest,
     guardianPhone: row.guardianPhone ?? null,
+    prayerConsent: row.prayerConsent ?? null,
     retakeStatus: row.retakeStatus ?? null,
     retakeNote: row.retakeNote ?? null,
     retakeCheckedAt: row.retakeCheckedAt ?? null,
@@ -7084,6 +7087,18 @@ export const faithProjectsApi = {
     return { projects: ((data as any[]) || []).map(mapFaithProject) };
   },
 
+  // Every saved version of a participant's project, newest first (staff read the table directly).
+  async getVersions(participantId: string): Promise<{ versions: import('../types').FaithProjectVersion[] }> {
+    const { data, error } = await supabase
+      .from('FaithProjectVersion')
+      .select('id, body, savedAt, savedByName')
+      .eq('participantId', participantId)
+      .order('savedAt', { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return { versions: ((data as any[]) || []).map((row) => ({ id: row.id, body: row.body, savedAt: row.savedAt, savedByName: row.savedByName ?? null })) };
+  },
+
   async getAll(options?: { cohortId?: string; status?: import('../types').FaithProjectStatus }): Promise<{ projects: import('../types').FaithProject[] }> {
     let query = supabase
       .from('FaithProject')
@@ -7136,37 +7151,10 @@ export const faithProjectsApi = {
     return { project: mapFaithProject(data) };
   },
 
-  async reviewProject(projectId: string, input: {
-    status: 'APPROVED' | 'NEEDS_REFINEMENT';
-    note?: string | null;
-    actorId: string;
-    actorName: string;
-  }): Promise<{ project: import('../types').FaithProject }> {
-    const { data: existing, error: fetchErr } = await supabase
-      .from('FaithProject')
-      .select('reviewHistory')
-      .eq('id', projectId)
-      .single();
-    if (fetchErr || !existing) throw new Error(fetchErr?.message || 'Faith project not found');
-
-    const entry: import('../types').FaithProjectReviewEntry = {
-      actorId: input.actorId,
-      actorName: input.actorName,
-      action: input.status,
-      note: input.note ?? null,
-      at: new Date().toISOString(),
-    };
-    const history = [...((existing.reviewHistory as import('../types').FaithProjectReviewEntry[]) ?? []), entry];
-
-    const { data, error } = await supabase
-      .from('FaithProject')
-      .update({ status: input.status, reviewHistory: history, updatedById: input.actorId, updatedAt: new Date().toISOString() })
-      .eq('id', projectId)
-      .select(FAITH_PROJECT_SELECT)
-      .single();
-
-    if (error || !data) throw new Error(error?.message || 'Failed to save review');
-    return { project: mapFaithProject(data) };
+  // Only the category changes; the saved text and its "saved" time are left alone.
+  async setCategory(projectId: string, categoryId: string | null): Promise<void> {
+    const { error } = await supabase.from('FaithProject').update({ categoryId }).eq('id', projectId);
+    if (error) throw new Error(error.message);
   },
 
   async delete(projectId: string): Promise<{ message: string }> {
@@ -7301,18 +7289,26 @@ const mapFaithProjectCategory = (row: any): import('../types').FaithProjectCateg
   id: row.id, cohortId: row.cohortId, name: row.name, archivedAt: row.archivedAt ?? null, createdAt: row.createdAt,
 });
 
+const SETTINGS_COLUMNS = 'cohortId, deadlineAt, prayersStartWeekNumber, prayerPopupDaysBefore';
+const mapFaithProjectSettings = (cohortId: string, row: any): import('../types').FaithProjectSettings => ({
+  cohortId,
+  deadlineAt: row?.deadlineAt ?? null,
+  prayersStartWeekNumber: row?.prayersStartWeekNumber ?? null,
+  prayerPopupDaysBefore: row?.prayerPopupDaysBefore ?? 3,
+});
+
 export const faithProjectSettingsApi = {
   async get(cohortId: string): Promise<{ settings: import('../types').FaithProjectSettings }> {
-    const { data, error } = await supabase.from('FaithProjectSetting').select('cohortId, deadlineAt').eq('cohortId', cohortId).maybeSingle();
+    const { data, error } = await supabase.from('FaithProjectSetting').select(SETTINGS_COLUMNS).eq('cohortId', cohortId).maybeSingle();
     if (error) throw new Error(error.message);
-    return { settings: { cohortId, deadlineAt: data?.deadlineAt ?? null } };
+    return { settings: mapFaithProjectSettings(cohortId, data) };
   },
-  async set(cohortId: string, deadlineAt: string | null): Promise<{ settings: import('../types').FaithProjectSettings }> {
+  async set(cohortId: string, input: { deadlineAt: string | null; prayersStartWeekNumber: number | null; prayerPopupDaysBefore: number }): Promise<{ settings: import('../types').FaithProjectSettings }> {
     const { data, error } = await supabase.from('FaithProjectSetting')
-      .upsert([{ cohortId, deadlineAt, updatedAt: new Date().toISOString() }], { onConflict: 'cohortId' })
-      .select('cohortId, deadlineAt').single();
-    if (error || !data) throw new Error(error?.message || 'Could not save the Faith Project deadline.');
-    return { settings: { cohortId: data.cohortId, deadlineAt: data.deadlineAt ?? null } };
+      .upsert([{ cohortId, ...input, updatedAt: new Date().toISOString() }], { onConflict: 'cohortId' })
+      .select(SETTINGS_COLUMNS).single();
+    if (error || !data) throw new Error(error?.message || 'Could not save the Faith Project settings.');
+    return { settings: mapFaithProjectSettings(cohortId, data) };
   },
 };
 

@@ -14,10 +14,7 @@ const SURFACE = 'rounded-[28px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0
 // Faith Project state the same way.
 const FP_CHIP: Record<FaithProjectStatus, { label: string; cls: string }> = {
   NOT_DRAFTED: { label: 'Not started', cls: 'bg-[#f6f7f9] text-gray-500' },
-  AWAITING_DRAFT: { label: 'Sent back for work', cls: 'bg-[#fef3c7] text-[#b45309]' },
-  NEEDS_REFINEMENT: { label: 'With the support', cls: 'bg-[#fff1e6] text-[#c2410c]' },
-  UNDER_REFINEMENT: { label: 'With the back office', cls: 'bg-[#ede9fe] text-[#6d28d9]' },
-  APPROVED: { label: 'Approved', cls: 'bg-[#f2fbf5] text-[#15803d]' },
+  SAVED: { label: 'Saved', cls: 'bg-[#f2fbf5] text-[#15803d]' },
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -61,7 +58,7 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
     const onboarded = people.filter((p) => p.onboarding.completed).length;
     const attended = people.reduce((n, p) => n + p.classesAttended, 0);
     const possible = people.length * data.classesRun;
-    const approved = people.filter((p) => p.faithProjectStatus === 'APPROVED').length;
+    const approved = people.filter((p) => p.faithProjectStatus === 'SAVED').length;
     const alertsOff = people.filter((p) => !p.hasPush).length;
     return { onboarded, approved, alertsOff, rate: possible > 0 ? Math.round((attended / possible) * 100) : null };
   }, [data]);
@@ -117,7 +114,7 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
               {[
                 [`${summary.onboarded}/${n}`, 'onboarded'],
                 [summary.rate === null ? '-' : `${summary.rate}%`, data.classesRun === 0 ? 'no classes yet' : `attendance, ${data.classesRun} ${data.classesRun === 1 ? 'class' : 'classes'}`],
-                [`${summary.approved}/${n}`, 'Faith Projects approved'],
+                [`${summary.approved}/${n}`, 'Faith Projects saved'],
               ].map(([value, label]) => (
                 <div key={String(label)} className="rounded-2xl bg-[#f6f7f9] px-2 py-3 text-center">
                   <p className="text-[20px] font-bold text-gray-900">{value}</p>

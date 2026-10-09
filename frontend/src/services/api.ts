@@ -877,13 +877,14 @@ export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {
   async getByParticipant(_participantId: string): Promise<{ projects: import('../types').FaithProject[] }> { return { projects: [] }; },
   async getAll(_options?: any): Promise<{ projects: import('../types').FaithProject[] }> { return { projects: [] }; },
   async upsertForParticipant(_participantId: string, _input: any): Promise<never> { return peopleUnavailable(); },
-  async reviewProject(_projectId: string, _input: any): Promise<never> { return peopleUnavailable(); },
+  async getVersions(_participantId: string): Promise<{ versions: import('../types').FaithProjectVersion[] }> { return { versions: [] }; },
+  async setCategory(_projectId: string, _categoryId: string | null): Promise<never> { return peopleUnavailable(); },
   async delete(_id: string): Promise<never> { return peopleUnavailable(); },
 };
 
 export const faithProjectSettingsApi = USE_SUPABASE ? supabaseFaithProjectSettingsApi : {
-  async get(_cohortId: string): Promise<{ settings: import('../types').FaithProjectSettings }> { return { settings: { cohortId: _cohortId, deadlineAt: null } }; },
-  async set(_cohortId: string, _deadlineAt: string | null): Promise<never> { return peopleUnavailable(); },
+  async get(_cohortId: string): Promise<{ settings: import('../types').FaithProjectSettings }> { return { settings: { cohortId: _cohortId, deadlineAt: null, prayersStartWeekNumber: null, prayerPopupDaysBefore: 3 } }; },
+  async set(_cohortId: string, _input: { deadlineAt: string | null; prayersStartWeekNumber: number | null; prayerPopupDaysBefore: number }): Promise<never> { return peopleUnavailable(); },
 };
 
 export const faithProjectCategoriesApi = USE_SUPABASE ? supabaseFaithProjectCategoriesApi : {
@@ -1073,9 +1074,9 @@ export const participantAppApi = USE_SUPABASE ? supabaseParticipantAppApi : {
   async saveManualNote(_weekId: number, _body: string): Promise<never> { return peopleUnavailable(); },
   async recordCheckIn(_response: import('../types').CheckInResponse, _misses: { sunday: number; meeting: number }, _participantName: string): Promise<never> { return peopleUnavailable(); },
   async getFaith(): Promise<never> { return peopleUnavailable(); },
-  async saveFaithProject(_body: string, _submit: boolean, _participantName: string): Promise<never> { return peopleUnavailable(); },
+  async saveFaithProject(_body: string, _participantName: string): Promise<never> { return peopleUnavailable(); },
   async submitFaithHelpRequest(_input: { reason: import('../types').FaithHelpReason; note: string; wantsContact: boolean }, _participantName: string): Promise<never> { return peopleUnavailable(); },
-  async setPrayerShare(_shared: boolean): Promise<never> { return peopleUnavailable(); },
+  async setPrayerConsent(_consent: boolean): Promise<never> { return peopleUnavailable(); },
   async getTestimonies(): Promise<{ mine: import('../types').ParticipantTestimony[]; feed: import('../types').TestimonyFeedItem[] }> { return { mine: [], feed: [] }; },
   async submitTestimony(_input: { title: string; body: string; visibility: import('../types').TestimonyVisibility }, _participantName: string): Promise<never> { return peopleUnavailable(); },
   async updateTestimony(_id: string, _input: { title: string; body: string; visibility: import('../types').TestimonyVisibility }, _participantName: string): Promise<never> { return peopleUnavailable(); },

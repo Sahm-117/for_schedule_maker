@@ -85,11 +85,8 @@ const NOTE_LABEL: Record<string, string> = {
 };
 
 const FAITH_STATUS: Record<string, { label: string; cls: string }> = {
-  NOT_DRAFTED: { label: 'Not drafted', cls: 'bg-neutral-100 text-neutral-600' },
-  AWAITING_DRAFT: { label: 'Awaiting draft', cls: 'bg-sky-100/80 text-sky-700' },
-  UNDER_REFINEMENT: { label: 'Under refinement', cls: 'bg-amber-100/80 text-amber-700' },
-  NEEDS_REFINEMENT: { label: 'Needs refinement', cls: 'bg-orange-100/80 text-orange-700' },
-  APPROVED: { label: 'Approved', cls: 'bg-emerald-100/80 text-emerald-700' },
+  NOT_DRAFTED: { label: 'Not started', cls: 'bg-neutral-100 text-neutral-600' },
+  SAVED: { label: 'Saved', cls: 'bg-emerald-100/80 text-emerald-700' },
 };
 
 const HEALTH_PILL: Record<string, string> = {

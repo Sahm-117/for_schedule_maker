@@ -343,7 +343,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
   const draftedProjectCount = useMemo(() => {
     const participantIds = new Set(participants.map((participant) => participant.id));
     return faithProjects.filter(
-      (project) => participantIds.has(project.participantId) && ['UNDER_REFINEMENT', 'NEEDS_REFINEMENT', 'APPROVED'].includes(project.status)
+      (project) => participantIds.has(project.participantId) && project.status === 'SAVED'
     ).length;
   }, [faithProjects, participants]);
   // Next class (same rule as the Classes page): Week 1 before the cohort
@@ -408,7 +408,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                   now={tickNow}
                 />
               ) : (
-                <QuickStat title="Faith Projects" value={`${draftedProjectCount}/${participants.length}`} detail={participants.length > 0 ? 'Participants drafted' : 'No participants yet'} to="/support/participants" tone="green" />
+                <QuickStat title="Faith Projects" value={`${draftedProjectCount}/${participants.length}`} detail={participants.length > 0 ? 'Participants saved' : 'No participants yet'} to="/support/participants" tone="green" />
               )}
               <QuickStat title="Next class" value={nextWeek ? nextWeek.title?.trim() || `Week ${nextWeek.weekNumber}` : 'Not set'} detail={nextWeek ? nextClassDate ?? `Week ${nextWeek.weekNumber}` : 'Programme complete'} to="/support/recap" tone="blue" />
             </div>
