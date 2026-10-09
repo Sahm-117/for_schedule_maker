@@ -31,6 +31,7 @@ import {
   type SavedGroupingDraft,
   type TopUpTarget,
   sharedGender,
+  nextGroupNames,
 } from '../../utils/groupingEngine';
 
 // Groups → New group → "Build with engine". Four steps: check who's ready,
@@ -522,6 +523,17 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setDraft((prev) => prev.map((g) => (g.key === key ? { ...g, supportId: supportId || null } : g)));
 
   const usedSupports = new Set(draft.map((g) => g.supportId).filter(Boolean) as string[]);
+  // One empty group for every support the draft left without one, so people can be moved into them by hand.
+  // An empty group is not created unless someone is moved into it.
+  const makeGroupsForUnusedSupports = () => {
+    const unusedSupports = supportPool.free.filter((s) => !usedSupports.has(s.id));
+    if (unusedSupports.length === 0) return;
+    const names = nextGroupNames([...groups.map((g) => g.name), ...draft.map((g) => g.name)], unusedSupports.length);
+    const stamp = Date.now();
+    setDraft((prev) => [...prev, ...unusedSupports.map((s, i) => ({ key: `manual-${stamp}-${i}`, name: names[i], memberIds: [], supportId: s.id }))]);
+    resetSupportView();
+    setDraftNote(`${unusedSupports.length} empty ${unusedSupports.length === 1 ? 'group' : 'groups'} made, one for each support without a group. Tap a person, then “Move here” to fill them.`);
+  };
   const toCreate = draft.filter((g) => g.memberIds.length > 0);
   // Which hubs will have participants once this is created (follows every change to the draft).
   const coverage = useMemo(() => {
@@ -1474,7 +1486,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                         </div>
                       )}
                       <div className="flex flex-col">
-                        {g.memberIds.length === 0 ? <p className="px-2 py-2 text-xs text-gray-400">{g.topUp ? 'Nobody added — this group stays as it is.' : "Empty — won't be created."}</p> : g.memberIds.map(personRow)}
+                        {g.memberIds.length === 0 ? <p className="px-2 py-2 text-xs text-gray-400">{g.topUp ? 'Nobody added — this group stays as it is.' : "Empty — won't be created unless someone is moved in."}</p> : g.memberIds.map(personRow)}
                       </div>
                     </div>
                   );
@@ -1498,7 +1510,14 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 const unused = supportPool.free.filter((s) => !usedSupports.has(s.id));
                 return (
                   <div className={`${SURFACE} p-4`}>
-                    <p className={SECTION_LABEL}>Supports without a group ({unused.length})</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={SECTION_LABEL}>Supports without a group ({unused.length})</p>
+                      {unused.length > 0 && (
+                        <button type="button" onClick={makeGroupsForUnusedSupports} className="min-h-[36px] flex-none rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 hover:bg-gray-50 active:scale-95">
+                          Make a group for each
+                        </button>
+                      )}
+                    </div>
                     {unused.length === 0 ? (
                       <p className="mt-2 text-sm text-gray-500">Every available support has a group.</p>
                     ) : (

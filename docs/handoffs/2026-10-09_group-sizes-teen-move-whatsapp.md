@@ -7,6 +7,7 @@
   "Move anyway". The move is logged and both supports are told.
 - Draft step: "Text for WhatsApp" builds `Female supports:` / `Name (N participants)` / `Participant, age range` text,
   with a switch for participant names, and a Copy button. Supports can be moved by hand per group. FLOW_MAP rule 42.
+- Draft step, Supports without a group: **Make a group for each** adds an empty draft group for every unused support so people can be moved in by hand (FLOW_MAP rule 44). Empty groups are not created.
 - Draft step also shows groups without a support by gender with filters (see the earlier handoff on that).
 - Draft step chips also filter all groups by gender (Female / Male / Mixed or unknown), topped-up groups included, not only groups without a support. FLOW_MAP rule 43. The row is hidden when the draft is one gender, every group has a support and no filter is on (nothing to filter); the gender chips are also hidden then. A gender view is live, a no-support view is a snapshot.
 

@@ -508,6 +508,9 @@ duplicating the logic anywhere else is a bug waiting to happen.
     when the draft has more than one gender or any group without a support. A gender view is live (a group follows its people);
     a no-support view is a snapshot so cards do not jump as supports are given. Groups outside the view are hidden, so moving
     someone into one needs "All groups". Frontend only (`GroupEngineWizard.tsx`).
+44. **A support left without a group can be given an empty group on the Draft step.** "Make a group for each" in Supports
+    without a group adds one empty draft group per unused support (named after the next free "Group n"); people are then
+    moved in by hand. A group still empty at the end is not created. Frontend only (`GroupEngineWizard.tsx`).
 
 ## 5. Edge functions and schedules
 
