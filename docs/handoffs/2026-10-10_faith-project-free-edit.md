@@ -61,6 +61,9 @@ pop-up first.
 
 - The "Include in corporate prayers" toggle row is gone. After the pop-up is answered, a small grey **Prayer on / Prayer off** chip sits at the top right of the Faith page (new `PageHeader.inlineAction`); tapping it opens `PrayerChoiceSheet` (Include / Opt out, applies at once, no Save). The chip is hidden until the pop-up has been answered.
 
+- Status wording is "Not started" / "Written" everywhere, from one constant (`FAITH_PROJECT_STATUS_LABEL`); the participant page keeps "Save" (action) and shows "Written · edited <date>". The participant is no longer told their support is notified.
+- After the third /code-review: the chip also shows for someone who shared before the pop-up existed, is hidden on the Testimonies tab, the sheet's buttons no longer remount (focus stays, returns to the chip on close), and a refresh cannot flip the chip mid-save.
+
 ## Open items
 - Hub prayer pages still say "shared for prayer"; the text is fine but could say "corporate prayers".
 - Parts 2 to 4 of the spec are not built: the Corporate Prayers admin module, the prayer slot screen with live counts, and the 9pm Telegram

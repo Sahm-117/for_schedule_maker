@@ -46,7 +46,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, action, inline
       {back && <BackLink label={back.label} fallbackTo={back.fallbackTo} />}
       {/* The "?" sits right beside the page name. */}
       <div className="flex items-center gap-2.5">
-        <h1 className="page-title">{title}</h1>
+        <h1 className={inlineAction ? 'page-title min-w-0 truncate' : 'page-title'}>{title}</h1>
         {tourId && <TourHelpButton tourId={tourId} />}
         {!tourId && onHelp && (
           <button

@@ -24,7 +24,7 @@ import PendingSurveyCards from '../components/surveys/PendingSurveyCards';
 import { normalizeLink } from '../utils/links';
 import { JOIN_LEAD_MINUTES, isCallJoinable } from '../utils/joinWindow';
 import {
-  FAITH_PROJECT_PARTICIPANT_LABEL,
+  FAITH_PROJECT_STATUS_LABEL,
   currentWeekNumber,
   formatTime,
   nextClassWeek,
@@ -370,7 +370,7 @@ const ParticipantHomePage: React.FC = () => {
             ) : (
               <div className="rounded-2xl border border-[#dcefe1] bg-[#f0f9f2] p-3.5">
                 <p className="text-xs font-semibold text-[#3f7a52]">Faith Project</p>
-                <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{FAITH_PROJECT_PARTICIPANT_LABEL[home.faithProjectStatus ?? 'NOT_DRAFTED']}</p>
+                <p className="mt-1.5 text-[18px] font-extrabold leading-tight text-gray-900">{FAITH_PROJECT_STATUS_LABEL[home.faithProjectStatus ?? 'NOT_DRAFTED']}</p>
               </div>
             )}
           </div>

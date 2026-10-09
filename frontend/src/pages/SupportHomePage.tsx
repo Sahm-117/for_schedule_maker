@@ -408,7 +408,7 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
                   now={tickNow}
                 />
               ) : (
-                <QuickStat title="Faith Projects" value={`${draftedProjectCount}/${participants.length}`} detail={participants.length > 0 ? 'Participants written' : 'No participants yet'} to="/support/participants" tone="green" />
+                <QuickStat title="Faith Projects" value={`${draftedProjectCount}/${participants.length}`} detail={participants.length > 0 ? 'Projects written' : 'No participants yet'} to="/support/participants" tone="green" />
               )}
               <QuickStat title="Next class" value={nextWeek ? nextWeek.title?.trim() || `Week ${nextWeek.weekNumber}` : 'Not set'} detail={nextWeek ? nextClassDate ?? `Week ${nextWeek.weekNumber}` : 'Programme complete'} to="/support/recap" tone="blue" />
             </div>

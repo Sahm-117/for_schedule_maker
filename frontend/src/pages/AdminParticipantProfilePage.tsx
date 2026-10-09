@@ -65,6 +65,7 @@ import {
   type ParticipantEvaluation,
   type ProgrammeRules,
 } from '../utils/programmeRules';
+import { FAITH_PROJECT_STATUS_LABEL } from '../utils/participantApp';
 
 // One participant, end to end: who they are, where they are in the FOF journey,
 // attendance, faith project, check-ins, concerns, completion and department handoff.
@@ -85,8 +86,8 @@ const NOTE_LABEL: Record<string, string> = {
 };
 
 const FAITH_STATUS: Record<string, { label: string; cls: string }> = {
-  NOT_DRAFTED: { label: 'Not started', cls: 'bg-neutral-100 text-neutral-600' },
-  SAVED: { label: 'Written', cls: 'bg-emerald-100/80 text-emerald-700' },
+  NOT_DRAFTED: { label: FAITH_PROJECT_STATUS_LABEL.NOT_DRAFTED, cls: 'bg-neutral-100 text-neutral-600' },
+  SAVED: { label: FAITH_PROJECT_STATUS_LABEL.SAVED, cls: 'bg-emerald-100/80 text-emerald-700' },
 };
 
 const HEALTH_PILL: Record<string, string> = {

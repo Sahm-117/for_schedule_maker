@@ -4268,7 +4268,7 @@ window.GUIDE_CONTENT = {
        ],
        "result": "Your support is told and will keep an eye out.",
        "tips": [
-        "You can change your corporate prayers choice at any time with the small **Prayer on** chip at the top right of **F. Project**."
+        "Your project can be edited any time with the pencil next to it."
        ]
       },
       {

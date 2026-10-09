@@ -10,7 +10,7 @@ import { useToast } from '../Toast';
 import { departmentReferralsApi, faithHelpRequestsApi, faithProjectsApi, participantCheckInsApi, participantFlagsApi, participantsApi } from '../../services/api';
 import { buildParticipantMessageLink, buildWhatsAppLink } from '../../utils/phone';
 import WhatsAppIcon from '../WhatsAppIcon';
-import { shortMoment } from '../../utils/participantApp';
+import { FAITH_PROJECT_STATUS_LABEL, shortMoment } from '../../utils/participantApp';
 import FaithProjectHistory from '../faithProjects/FaithProjectHistory';
 import { FAITH_HELP_REASON_LABELS } from '../../types';
 import type { DepartmentReferral, FaithHelpRequest, FaithProject, FaithProjectCategory, FaithProjectStatus, FaithProjectVersion, Participant, ParticipantAppInfo, ParticipantCheckIn, ParticipantFlag, ParticipantHandover, ParticipantNote, ParticipantUpdate, RetakeMatch, Testimony } from '../../types';
@@ -26,8 +26,8 @@ const TESTIMONY_STATUS_CHIP: Record<Testimony['status'], { label: string; cls: s
 
 // Faith project states mapped onto the V2 design's labels.
 const FP_CHIP: Record<FaithProjectStatus, { label: string; cls: string }> = {
-  NOT_DRAFTED: { label: 'Not started', cls: 'bg-[#f6f7f9] text-gray-500' },
-  SAVED: { label: 'Written', cls: 'bg-[#f2fbf5] text-[#15803d]' },
+  NOT_DRAFTED: { label: FAITH_PROJECT_STATUS_LABEL.NOT_DRAFTED, cls: 'bg-[#f6f7f9] text-gray-500' },
+  SAVED: { label: FAITH_PROJECT_STATUS_LABEL.SAVED, cls: 'bg-[#f2fbf5] text-[#15803d]' },
 };
 
 const CONCERN_REASONS = ['Attendance', 'Engagement', 'Emotional wellbeing', 'Spiritual struggle', 'Other'];

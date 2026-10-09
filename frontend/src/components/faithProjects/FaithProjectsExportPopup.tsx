@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { FaithProject, Group, Participant } from '../../types';
+import { FAITH_PROJECT_STATUS_LABEL } from '../../utils/participantApp';
 
 interface FaithProjectsExportPopupProps {
   groups: Group[];
@@ -11,8 +12,8 @@ interface FaithProjectsExportPopupProps {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  NOT_DRAFTED: 'Not started',
-  SAVED: 'Written',
+  NOT_DRAFTED: FAITH_PROJECT_STATUS_LABEL.NOT_DRAFTED,
+  SAVED: FAITH_PROJECT_STATUS_LABEL.SAVED,
 };
 
 const truncate = (text: string, max = 80) =>

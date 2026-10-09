@@ -411,7 +411,7 @@ const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel 
         statusLabel={judgeFaith ? undefined : 'In progress'}
         value={faith.saved}
         unit="written"
-        detail={`${faith.saved} of ${active} written`}
+        detail={`of ${active} participants`}
         to="/faith-projects"
       >
         <SegmentBar

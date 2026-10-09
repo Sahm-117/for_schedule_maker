@@ -152,6 +152,7 @@ const ParticipantFaithPage: React.FC = () => {
   // NULL until they have answered the pop-up; the subtle "Prayer on / off" chip appears once they have.
   const [consent, setConsent] = useState<'IN' | 'OUT' | null>(null);
   const [prayerSaving, setPrayerSaving] = useState(false);
+  const prayerSavingRef = useRef(false);
   const [prayerSheetOpen, setPrayerSheetOpen] = useState(false);
 
   useEffect(() => {
@@ -170,12 +171,15 @@ const ParticipantFaithPage: React.FC = () => {
   // The pop-up answers the same question: follow the app's current answer so the chip never shows an old one.
   const knownConsent = home?.prayerConsent;
   useEffect(() => {
-    if (knownConsent !== undefined) setConsent(knownConsent);
+    // Not while a choice is being saved: a refresh must not flip the chip back to the old answer.
+    if (knownConsent !== undefined && !prayerSavingRef.current) setConsent(knownConsent);
   }, [knownConsent]);
 
   const choosePrayer = async (include: boolean) => {
+    if (prayerSavingRef.current) return;
     const previous = consent;
     setConsent(include ? 'IN' : 'OUT');
+    prayerSavingRef.current = true;
     setPrayerSaving(true);
     try {
       await participantAppApi.setPrayerConsent(include);
@@ -184,6 +188,7 @@ const ParticipantFaithPage: React.FC = () => {
       setConsent(previous);
       toast({ message: err instanceof Error ? err.message : 'Could not save that. Please try again.', tone: 'error' });
     } finally {
+      prayerSavingRef.current = false;
       setPrayerSaving(false);
     }
   };
@@ -192,6 +197,8 @@ const ParticipantFaithPage: React.FC = () => {
   if (!faith) return <PageLoader />;
 
   const saved = faith.project?.status === 'SAVED';
+  // Someone who switched sharing on before the pop-up existed is already in, so they get the chip (and a way out) too.
+  const chipConsent: 'IN' | 'OUT' | null = consent ?? (faith.project?.sharedForPrayer ? 'IN' : null);
   const supportFirst = (home?.group?.supportName || 'your support').split(' ')[0];
   const deadline = faith.deadlineAt ? new Date(faith.deadlineAt) : null;
   const deadlineText = deadline && !Number.isNaN(deadline.getTime())
@@ -231,15 +238,15 @@ const ParticipantFaithPage: React.FC = () => {
       <PageHeader
         title="Faith Project"
         tourId="participant:faith"
-        inlineAction={consent ? (
+        inlineAction={tab === 'project' && chipConsent ? (
           <button
             type="button"
             onClick={() => setPrayerSheetOpen(true)}
-            aria-label={`Corporate prayers: ${consent === 'OUT' ? 'off' : 'on'}. Change`}
+            aria-label={`Corporate prayers: ${chipConsent === 'OUT' ? 'off' : 'on'}. Change`}
             className="inline-flex min-h-[32px] items-center gap-1.5 whitespace-nowrap rounded-full bg-black/[0.05] px-3 text-[12px] font-semibold text-gray-600 transition active:scale-95"
           >
-            <span className={`h-[7px] w-[7px] rounded-full ${consent === 'OUT' ? 'bg-gray-400' : 'bg-emerald-500'}`} aria-hidden="true" />
-            {consent === 'OUT' ? 'Prayer off' : 'Prayer on'}
+            <span className={`h-[7px] w-[7px] rounded-full ${chipConsent === 'OUT' ? 'bg-gray-400' : 'bg-emerald-500'}`} aria-hidden="true" />
+            {chipConsent === 'OUT' ? 'Prayer off' : 'Prayer on'}
           </button>
         ) : undefined}
       />
@@ -262,7 +269,7 @@ const ParticipantFaithPage: React.FC = () => {
         <section data-wt="pf-project" className={`${SURFACE} px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-9`}>
           <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500">
             <span className={`h-1.5 w-1.5 rounded-full ${saved ? 'bg-emerald-500' : 'bg-gray-300'}`} aria-hidden="true" />
-            {saved && faith.project ? `Saved ${shortMoment(faith.project.updatedAt)}` : 'Not saved yet'}
+            {saved && faith.project ? `Written · edited ${shortMoment(faith.project.updatedAt)}` : 'Not written yet'}
           </span>
           <h2 className="mt-2 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">Your faith project</h2>
           {deadlineText && <p className={`mt-2 text-[14px] font-medium ${late ? 'text-amber-700' : 'text-gray-500'}`}>{late ? `The date to write it by was ${deadlineText}. You can still save it any time.` : saved ? `Write it by ${deadlineText}. You can edit it any time.` : `Write it by ${deadlineText}.`}</p>}
@@ -340,8 +347,8 @@ const ParticipantFaithPage: React.FC = () => {
       </div>
       )}
 
-      {prayerSheetOpen && consent && (
-        <PrayerChoiceSheet consent={consent} startsText={startsText} saving={prayerSaving} onChoose={(include) => { void choosePrayer(include); }} onClose={() => setPrayerSheetOpen(false)} />
+      {prayerSheetOpen && chipConsent && (
+        <PrayerChoiceSheet consent={chipConsent} startsText={startsText} saving={prayerSaving} onChoose={(include) => { void choosePrayer(include); }} onClose={() => setPrayerSheetOpen(false)} />
       )}
 
       <NotGoingWellSheet

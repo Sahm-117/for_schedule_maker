@@ -103,7 +103,8 @@ export const shortMoment = (iso: string) => {
 export const platformLabel = (platform: string | null | undefined) =>
   platform === 'GOOGLE_MEET' ? 'Google Meet' : platform === 'WHATSAPP' ? 'WhatsApp call' : 'Group call';
 
-export const FAITH_PROJECT_PARTICIPANT_LABEL: Record<FaithProjectStatus, string> = {
+/** The one place the faith project status wording lives. */
+export const FAITH_PROJECT_STATUS_LABEL: Record<FaithProjectStatus, string> = {
   NOT_DRAFTED: 'Not started',
   SAVED: 'Written',
 };

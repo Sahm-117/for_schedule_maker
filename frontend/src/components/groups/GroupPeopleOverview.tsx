@@ -7,14 +7,15 @@ import { supportProfileChecklist } from '../../utils/people';
 import { buildParticipantMessageLink } from '../../utils/phone';
 import WhatsAppIcon from '../WhatsAppIcon';
 import type { FaithProjectStatus, HubGroupOverview } from '../../types';
+import { FAITH_PROJECT_STATUS_LABEL } from '../../utils/participantApp';
 
 const SURFACE = 'rounded-[28px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_12px_32px_-16px_rgba(17,24,39,0.18)]';
 
 // Same wording as the participant card, so a hub lead and a support read the
 // Faith Project state the same way.
 const FP_CHIP: Record<FaithProjectStatus, { label: string; cls: string }> = {
-  NOT_DRAFTED: { label: 'Not started', cls: 'bg-[#f6f7f9] text-gray-500' },
-  SAVED: { label: 'Written', cls: 'bg-[#f2fbf5] text-[#15803d]' },
+  NOT_DRAFTED: { label: FAITH_PROJECT_STATUS_LABEL.NOT_DRAFTED, cls: 'bg-[#f6f7f9] text-gray-500' },
+  SAVED: { label: FAITH_PROJECT_STATUS_LABEL.SAVED, cls: 'bg-[#f2fbf5] text-[#15803d]' },
 };
 
 const STATUS_LABEL: Record<string, string> = {

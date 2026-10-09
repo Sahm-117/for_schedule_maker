@@ -305,7 +305,7 @@ const MeetingModePanel: React.FC<MeetingModePanelProps> = ({
                     className={`rounded-[14px] border p-3 text-left transition disabled:opacity-60 ${focused ? 'border-[#ffdeca] bg-[#fff8f3]' : 'border-[#f1f2f5] bg-white hover:border-gray-200'}`}
                   >
                     <span className="block text-sm font-semibold text-gray-900">{participant.fullName}</span>
-                    <span className="mt-0.5 block text-[12.5px] text-gray-500">{optedOut ? 'Opted out of corporate prayers.' : project?.status === 'SAVED' && project.body?.trim() ? project.body.trim() : 'No faith project saved yet.'}</span>
+                    <span className="mt-0.5 block text-[12.5px] text-gray-500">{optedOut ? 'Opted out of corporate prayers.' : project?.status === 'SAVED' && project.body?.trim() ? project.body.trim() : 'No faith project written yet.'}</span>
                   </button>
                 );
               })}

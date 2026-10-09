@@ -546,7 +546,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     message" (`buildWhatsAppLink`) only when there is a number, and a one-line note for a teen. The same item is on the My Group
     participant menu (`ParticipantCard`). Source: `20261009200000_hub_group_overview_numbers.sql`.
 
-49. **A faith project is saved straight away and edited any time; every version is kept.** A project is `NOT_DRAFTED` (nothing saved;
+49. **A faith project is saved straight away and edited any time; every version is kept.** The status wording lives in `FAITH_PROJECT_STATUS_LABEL` (`utils/participantApp.ts`): "Not started" and "Written" (the page's action stays "Save"). A project is `NOT_DRAFTED` (nothing saved;
     a seed from the registration form is still `NOT_DRAFTED` until the participant saves) or `SAVED`. The review chain
     (`NEEDS_REFINEMENT`, `UNDER_REFINEMENT`, `AWAITING_DRAFT`, `APPROVED`) is retired: the old comments and approvals are hidden, not
     deleted. `save_faith_project` never locks a project and says if the save was a first one (`created`) or a change (`changed`);
@@ -566,7 +566,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     close button, no tap-outside or Escape, only "I'm fine with this" or "Opt out". A project is prayable when
     `faith_project_prayable` says so: SAVED, has text, the person has not opted out, and they said yes / were already shared
     (`sharedForPrayer`) or prayers have started. `hub_prayer_list`, `set_hub_prayer_focus` and the group prayer focus in `participant_home`
-    use it; never go back to "APPROVED and shared". Once answered, the Faith page shows a small "Prayer on / Prayer off" chip at the top right (`PrayerChoiceSheet`; choosing applies at once, no Save); there is no toggle row on the page. Teens
+    use it; never go back to "APPROVED and shared". Once answered (or if they had already shared before the pop-up existed), the project tab of the Faith page shows a small "Prayer on / Prayer off" chip at the top right (`PrayerChoiceSheet`; choosing applies at once, no Save); there is no toggle row on the page. Teens
     have no login, so none of this reaches them. Source: `20261010100000_faith_project_free_edit.sql`.
 
 ## 5. Edge functions and schedules
