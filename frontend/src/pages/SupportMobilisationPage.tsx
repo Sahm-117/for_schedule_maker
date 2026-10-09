@@ -231,6 +231,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [linkCopied, setLinkCopied] = useState(false);
   const [mobilisationTarget, setMobilisationTarget] = useState<number | null>(null);
   const [prospectsOpen, setProspectsOpen] = useState(false);
+  useEffect(() => { setProspectsOpen(false); }, [activeCohort?.id]);
   // The people and who has signed in: the same count the Dashboard uses, so the cards never disagree with it.
   const [people, setPeople] = useState<{ cohortId: string; participants: Participant[]; signedIn: Set<string> } | null>(null);
   const peopleRequest = useRef(0);
@@ -309,7 +310,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     // Prospects are follow-up contacts still to register (all adults); they do not need the people list.
     const prospectList = scoped
       .filter((c) => FOLLOW_UP_STAGE[computeFollowUpStatus(c)] === 'open')
-      .sort((a, b) => String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? '')))
+      .sort((a, b) => String(a.createdAt || '9999').localeCompare(String(b.createdAt || '9999')))
       .map((c) => ({ id: c.id, name: c.fullName, status: computeFollowUpStatus(c), owner: c.ownerName ?? null, addedAt: c.createdAt ?? null, prior: !c.cohortId }));
     const base = { currentProspects: current.open, priorProspects: prior.open, prospectList };
     // Registered and logged in come from people (adults and teens apart), as on the Dashboard. Without a people
@@ -891,7 +892,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{mobilisationNumbers.priorProspects + mobilisationNumbers.currentProspects}</span></p>
                   <p className="mt-1 text-xs font-semibold text-gray-600">Not registered yet</p>
                   {mobilisationNumbers.prospectList.length > 0 && (
-                    <button type="button" onClick={() => setProspectsOpen(true)} className="mt-1.5 text-xs font-semibold text-primary hover:underline">See who ›</button>
+                    <button type="button" onClick={() => setProspectsOpen(true)} className="-mb-2 mt-1 min-h-[36px] py-2 pr-3 text-xs font-semibold text-primary hover:underline">See who ›</button>
                   )}
                 </section>
                 {counts ? (
@@ -1460,7 +1461,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
 
       {mobilisationNumbers && (
         <ModalShell
-          isOpen={prospectsOpen}
+          isOpen={prospectsOpen && mobilisationNumbers.prospectList.length > 0}
           onClose={() => setProspectsOpen(false)}
           title="Prospects"
           subtitle={`${mobilisationNumbers.prospectList.length} not registered yet, longest open first`}
