@@ -62,13 +62,14 @@ const TeacherSheet: React.FC<{ week: ParticipantHomeWeek; title: string; onClose
   );
 };
 
+/** A class has something to show here when it has a graphic or a teacher. */
+export const hasClassCard = (week: ParticipantHomeWeek | null | undefined): boolean => !!week && (!!week.classGraphicUrl || !!week.teacher);
+
 /**
  * "Next class": the class graphic with its name, who is teaching, and one button. It only shows what the home page
  * does not already say (no date, countdown or week count). With neither a graphic nor a teacher it renders nothing,
  * and the page keeps its plain manual row.
  */
-export const hasClassCard = (week: ParticipantHomeWeek | null | undefined): boolean => !!week && (!!week.classGraphicUrl || !!week.teacher);
-
 const NextClassCard: React.FC<{ week: ParticipantHomeWeek }> = ({ week }) => {
   const [sheetOpen, setSheetOpen] = useState(false);
   if (!hasClassCard(week)) return null;

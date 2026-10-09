@@ -897,7 +897,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 <StatTile value={supportsMissingDetails} label="Supports missing details" tone="amber" />
               </div>
               {ungrouped.length === 0 ? (
-                <div className={`${SURFACE} px-5 py-10 text-center text-sm text-gray-500`}>{notGrouped.length > 0 ? 'Nobody who has signed in is waiting for a group. Turn off the switch above to include the rest.' : 'Everyone in this cohort is already in a group.'}</div>
+                <div className={`${SURFACE} px-5 py-10 text-center text-sm text-gray-500`}>{notGrouped.length > 0 ? 'Nobody who has signed in is waiting for a group. Turn on Planning only above to see the rest in a draft (view only).' : 'Everyone in this cohort is already in a group.'}</div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className={`${SURFACE} p-4`}>

@@ -335,6 +335,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
       },
     };
   }, [allContacts, activeCohort, people, signUps]);
+  useEffect(() => { if (mobilisationNumbers && mobilisationNumbers.prospectList.length === 0) setProspectsOpen(false); }, [mobilisationNumbers]);
   const counts = mobilisationNumbers?.counts ?? null;
   const registeredTotal = counts?.total ?? 0;
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;

@@ -162,8 +162,18 @@ const CohortsPage: React.FC = () => {
   const [weekAddTarget, setWeekAddTarget] = useState<{ cohortId: string; weekNumber: number } | null>(null);
   const [weekDeleteTarget, setWeekDeleteTarget] = useState<{ cohortId: string; weekId: number; weekNumber: number } | null>(null);
   const editedWeekId = useRef<number | null>(null);
+  // Class pictures uploaded during this edit, and the ones kept by Save: anything else is deleted when the editor closes.
+  const sessionUploads = useRef<string[]>([]);
+  const keptUploads = useRef<Set<string>>(new Set());
   const [weekEditTarget, setWeekEditTarget] = useState<{ cohortId: string; week: Week } | null>(null);
-  editedWeekId.current = weekEditTarget?.week.id ?? null;
+  useEffect(() => {
+    editedWeekId.current = weekEditTarget?.week.id ?? null;
+    return () => {
+      sessionUploads.current.forEach((url) => { if (!keptUploads.current.has(url)) void removeClassImage(url); });
+      sessionUploads.current = [];
+      keptUploads.current = new Set();
+    };
+  }, [weekEditTarget?.week.id]);
   const [addWeekChoice, setAddWeekChoice] = useState('blank');
   const [weekTitleDraft, setWeekTitleDraft] = useState('');
   const [recapSummaryDraft, setRecapSummaryDraft] = useState('');
@@ -659,9 +669,9 @@ const CohortsPage: React.FC = () => {
         manualSummary: manualSummaryDraft.trim() || null,
         classGraphicUrl: classGraphicDraft,
         teacherName: teacherNameDraft.trim() || null,
-        teacherRole: teacherRoleDraft.trim() || null,
-        teacherBio: teacherBioDraft.trim() || null,
-        teacherPhotoUrl: teacherPhotoDraft,
+        teacherRole: teacherNameDraft.trim() ? teacherRoleDraft.trim() || null : null,
+        teacherBio: teacherNameDraft.trim() ? teacherBioDraft.trim() || null : null,
+        teacherPhotoUrl: teacherNameDraft.trim() ? teacherPhotoDraft : null,
         manualDiscussionPrompt: manualDiscussionPromptDraft.trim() || null,
         teenRecapSummary: teenSummaryDraft.trim() || null,
         teenDiscussionPrompt: teenPromptDraft.trim() || null,
@@ -669,8 +679,10 @@ const CohortsPage: React.FC = () => {
       });
       // Pictures that were replaced or removed are no longer used: tidy them away (best effort).
       const oldWeek = weekEditTarget.week;
+      const finalPhoto = teacherNameDraft.trim() ? teacherPhotoDraft : null;
+      keptUploads.current = new Set([classGraphicDraft, finalPhoto].filter((u): u is string => !!u));
       if (oldWeek.classGraphicUrl && oldWeek.classGraphicUrl !== classGraphicDraft) void removeClassImage(oldWeek.classGraphicUrl);
-      if (oldWeek.teacherPhotoUrl && oldWeek.teacherPhotoUrl !== teacherPhotoDraft) void removeClassImage(oldWeek.teacherPhotoUrl);
+      if (oldWeek.teacherPhotoUrl && oldWeek.teacherPhotoUrl !== finalPhoto) void removeClassImage(oldWeek.teacherPhotoUrl);
       await syncCohortWeeks(weekEditTarget.cohortId);
       if (activeCohort?.id === weekEditTarget.cohortId) {
         await reloadWeeks();
@@ -707,7 +719,7 @@ const CohortsPage: React.FC = () => {
     }
   };
 
-  // Class manual document saves straight away, same shape as handleRecapDocument.
+  // A class picture uploads as soon as it is picked; it only becomes part of the week when the editor is saved.
   const handleClassImage = async (kind: 'graphic' | 'teacher', file: File) => {
     if (!weekEditTarget) return;
     const weekId = weekEditTarget.week.id;
@@ -717,6 +729,7 @@ const CohortsPage: React.FC = () => {
       const url = await uploadClassImage(weekEditTarget.cohortId, weekId, kind, file);
       // The editor may have moved to another week (or closed) while this was uploading: drop the picture then.
       if (editedWeekId.current !== weekId) { void removeClassImage(url); return; }
+      sessionUploads.current.push(url);
       if (kind === 'graphic') setClassGraphicDraft(url); else setTeacherPhotoDraft(url);
     } catch (error) {
       setClassImageError(error instanceof Error ? error.message : 'Could not upload that picture.');

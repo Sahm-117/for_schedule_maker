@@ -36,5 +36,6 @@ pictures and saves the teacher fields. Not run against a real login or real stor
 ## Gotchas
 - `manualReleasesAt` is the configured release time (default Thursday 18:00, Lagos), given only while a manual document exists.
 - `participant_home` is copied whole into the two migrations. A later change must start from the live definition, or it will drop `teacher`, `classGraphicUrl` and `manualReleasesAt`.
-- Replaced or removed class pictures are deleted from storage on Save (best effort); a picture uploaded for a different week than the one being edited is dropped.
+- Class pictures uploaded during an edit and not kept by Save (replaced, removed, or the editor cancelled) are deleted from storage when the editor closes, and pictures that were replaced are deleted on Save (best effort). A picture uploaded for a different week than the one being edited is dropped. The photo, role and bio are only saved when a teacher name is set.
+- `20261009110000_class_card.sql` was edited after it was applied so both migration files carry the same final `participant_home`; the live result is identical.
 - Image resizing now fills a white background first, so a transparent PNG no longer turns black (this also applies to avatar uploads).
