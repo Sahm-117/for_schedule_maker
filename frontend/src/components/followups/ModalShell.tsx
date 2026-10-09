@@ -9,9 +9,11 @@ interface ModalShellProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   wide?: boolean;
+  /** Sits above other modals. For a modal opened from inside another modal. */
+  stacked?: boolean;
 }
 
-const ModalShell: React.FC<ModalShellProps> = ({ isOpen, onClose, title, subtitle, children, footer, wide }) => {
+const ModalShell: React.FC<ModalShellProps> = ({ isOpen, onClose, title, subtitle, children, footer, wide, stacked }) => {
   // Only dismiss when the press both STARTS and ENDS on the overlay itself.
   // On touch, tapping an option inside a nested dropdown (e.g. AppSelect, which
   // portals its menu as a sibling) unmounts the option on pointerdown; the
@@ -22,7 +24,7 @@ const ModalShell: React.FC<ModalShellProps> = ({ isOpen, onClose, title, subtitl
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+    <div className={`fixed inset-0 ${stacked ? 'z-[60]' : 'z-50'} flex items-end justify-center sm:items-center`}>
       <button
         type="button"
         className="absolute inset-0 bg-slate-900/45"

@@ -30,7 +30,8 @@ interface FollowUpIssuesPanelProps {
 }
 
 const inputClass =
-  'w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-100';
+  'w-full rounded-xl bg-gray-100 px-4 py-3 text-base text-gray-900 outline-none transition placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-orange-200';
+const labelClass = 'mb-1.5 block text-[13px] font-medium text-gray-500';
 
 const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   issues,
@@ -58,7 +59,8 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   const [resolution, setResolution] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [showClosed, setShowClosed] = useState(false);
+  const [view, setView] = useState<'open' | 'closed'>('open');
+  const [showDetails, setShowDetails] = useState(false);
   const [deleting, setDeleting] = useState<FollowUpIssue | null>(null);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
@@ -80,9 +82,10 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
     [selectedIds, contacts]
   );
 
+  const openCount = useMemo(() => issues.filter((i) => i.status === 'OPEN').length, [issues]);
   const visibleIssues = useMemo(
-    () => showClosed ? issues : issues.filter((i) => i.status === 'OPEN'),
-    [issues, showClosed]
+    () => issues.filter((i) => (view === 'open' ? i.status === 'OPEN' : i.status !== 'OPEN')),
+    [issues, view]
   );
 
   const handleCreate = async () => {
@@ -110,6 +113,8 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
       setIssueText('');
       setOwnerId('');
       setNeededFrom('');
+      setShowDetails(false);
+      setView('open');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to log issue.');
     } finally {
@@ -175,14 +180,14 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
     }
   };
 
-  const contactChips = (
-    <div className="flex flex-wrap gap-1.5">
+  const contactChips = selectedIds.length > 0 && (
+    <div className="mb-2 flex flex-wrap gap-1.5">
       {selectedIds.map((id) => {
         const c = contacts.find((x) => x.id === id);
         return (
-          <span key={id} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+          <span key={id} className="inline-flex items-center gap-1 rounded-full bg-orange-50 py-1 pl-3 pr-1.5 text-[13px] font-semibold text-orange-800">
             {c?.fullName || 'Unknown'}
-            <button type="button" onClick={() => toggleContact(id)} className="ml-0.5 text-primary/60 hover:text-primary">&times;</button>
+            <button type="button" onClick={() => toggleContact(id)} aria-label={`Remove ${c?.fullName || 'contact'}`} className="grid h-5 w-5 place-items-center rounded-full text-orange-700/70 hover:bg-orange-100">&times;</button>
           </span>
         );
       })}
@@ -190,155 +195,163 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   );
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-bold text-gray-900">Issues & questions</p>
-          <p className="text-xs text-gray-500">Put messy questions here, not inside people&apos;s heads.</p>
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <div role="tablist" aria-label="Show issues" className="flex flex-1 rounded-xl bg-gray-100 p-1">
+          {([['open', `Open${openCount ? ` · ${openCount}` : ''}`], ['closed', 'Closed']] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={view === key}
+              onClick={() => setView(key)}
+              className={`min-h-[36px] flex-1 rounded-lg px-3 text-sm font-semibold transition ${view === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setShowClosed((v) => !v)}
-            className={`rounded-2xl px-3 py-2 text-xs font-semibold ${showClosed ? 'bg-slate-700 text-white' : 'border border-orange-200 bg-white text-gray-600 hover:bg-orange-50'}`}
-          >
-            {showClosed ? 'Hide closed' : 'Show closed'}
-          </button>
-          <button type="button" onClick={() => setShowForm(true)} className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark">
-            Log issue
-          </button>
-        </div>
+        <button type="button" onClick={() => setShowForm(true)} className="min-h-[44px] flex-none rounded-xl bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
+          Log an issue
+        </button>
       </div>
 
       {visibleIssues.length === 0 ? (
-        <p className="rounded-3xl bg-orange-50/60 px-4 py-10 text-center text-sm text-gray-500">No issues logged.</p>
+        <div className="px-4 py-12 text-center">
+          <p className="text-base font-semibold text-gray-900">{view === 'open' ? 'All clear' : 'Nothing closed yet'}</p>
+          <p className="mx-auto mt-1 max-w-xs text-sm text-gray-500">
+            {view === 'open' ? 'No open issues. When something is stuck or you have a question, log it here.' : 'Resolved issues show up here.'}
+          </p>
+        </div>
       ) : (
-        <div className="space-y-3">
+        <ul className="space-y-3">
           {visibleIssues.map((issue) => {
             const personNames = issue.person ? issue.person.split(', ').filter(Boolean) : [];
+            const meta = [
+              `Opened ${issue.openedAt}`,
+              issue.reportedByName ? `by ${issue.reportedByName}` : '',
+              issue.ownerName ? `Owner: ${issue.ownerName}` : '',
+              issue.neededFrom ? `Needed from: ${issue.neededFrom}` : '',
+            ].filter(Boolean).join(' · ');
+            const canReopen = issue.status === 'RESOLVED' && canResolve;
+            const canClose = issue.status === 'OPEN' && canResolve;
+            const canReplyHere = canReply && issue.status === 'OPEN';
             return (
-              <div key={issue.id} className="surface-card rounded-3xl p-5">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <FollowUpStatusPill label={ISSUE_STATUS_META[issue.status].label} tone={ISSUE_STATUS_META[issue.status].tone} />
-                      {(issue.contactName || issue.person) && (
-                        <div className="flex flex-wrap gap-1">
-                          {personNames.length > 0 ? personNames.map((name, i) => (
-                            <span key={i} className="inline-flex items-center rounded-full bg-amber-100/70 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
-                              {name}
-                            </span>
-                          )) : (
-                            <span className="text-xs font-semibold text-gray-700">{issue.contactName || issue.person}</span>
-                          )}
-                        </div>
-                      )}
-                      <span className="text-xs text-gray-400">Opened {issue.openedAt}</span>
-                    </div>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800"><LinkText text={issue.issue} /></p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {issue.reportedByName ? `Reported by: ${issue.reportedByName} • ` : ''}
-                      {issue.ownerName ? `Owner: ${issue.ownerName}` : 'No owner'}
-                      {issue.neededFrom ? ` • Needed from: ${issue.neededFrom}` : ''}
-                    </p>
-                    {issue.resolution && <p className="mt-2 rounded-2xl bg-emerald-50 px-3 py-2 text-xs text-emerald-700">Resolution: {issue.resolution}</p>}
+              <li key={issue.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    {personNames.length > 0 ? personNames.map((name, i) => (
+                      <span key={i} className="rounded-full bg-orange-50 px-2.5 py-0.5 text-[13px] font-semibold text-orange-800">{name}</span>
+                    )) : (
+                      <span className="text-[13px] font-semibold text-gray-700">{issue.contactName || issue.person || 'General'}</span>
+                    )}
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <AppOverflowMenu
-                      items={[
-                        ...(issue.status === 'OPEN' && canResolve ? [{ label: 'Resolve', onClick: () => { setResolving(issue); setResolution(''); } }] : []),
-                        ...(issue.status === 'RESOLVED' && canResolve ? [{ label: 'Reopen', onClick: () => { void handleReopen(issue); } }] : []),
-                        ...(canDelete ? [{ label: 'Delete', onClick: () => setDeleting(issue), tone: 'danger' as const }] : []),
-                      ]}
-                    />
+                  <div className="flex flex-none items-center gap-1">
+                    {issue.status !== 'OPEN' && <FollowUpStatusPill label={ISSUE_STATUS_META[issue.status].label} tone={ISSUE_STATUS_META[issue.status].tone} />}
+                    {canDelete && (
+                      <AppOverflowMenu items={[{ label: 'Delete', onClick: () => setDeleting(issue), tone: 'danger' as const }]} />
+                    )}
                   </div>
                 </div>
-                {canReply && issue.status === 'OPEN' && (
-                  <div className="mt-3 border-t border-orange-50 pt-3">
+                <p className="mt-2.5 whitespace-pre-wrap text-[15px] leading-relaxed text-gray-900"><LinkText text={issue.issue} /></p>
+                <p className="mt-2 text-xs text-gray-500">{meta}</p>
+                {issue.resolution && (
+                  <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-[13px] text-emerald-800"><span className="font-semibold">Resolved:</span> {issue.resolution}</p>
+                )}
+                {(canReplyHere || canClose || canReopen) && (
+                  <div className="mt-3 border-t border-gray-100 pt-3">
                     {replyingTo === issue.id ? (
-                      <div className="flex gap-2">
+                      <div className="space-y-2">
                         <textarea
-                          className="min-h-[60px] flex-1 rounded-2xl border border-orange-100 bg-white px-3 py-2 text-sm outline-none transition focus:border-orange-300"
+                          autoFocus
+                          className={`${inputClass} min-h-[72px]`}
                           value={replyText}
                           onChange={(e) => setReplyText(e.target.value)}
-                          placeholder="Type a reply…"
+                          placeholder="Write a reply"
                         />
-                        <div className="flex flex-col gap-1.5">
+                        <div className="flex justify-end gap-2">
+                          <button type="button" onClick={() => { setReplyingTo(null); setReplyText(''); }} className="min-h-[40px] rounded-xl px-4 text-sm font-semibold text-gray-500">Cancel</button>
                           <button
                             type="button"
                             onClick={() => { void handleReply(issue); }}
                             disabled={saving || !replyText.trim()}
-                            className="rounded-2xl bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
+                            className="min-h-[40px] rounded-xl bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50"
                           >
-                            Send
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { setReplyingTo(null); setReplyText(''); }}
-                            className="rounded-2xl border border-orange-100 bg-white px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-orange-50"
-                          >
-                            Cancel
+                            Send reply
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => { setReplyingTo(issue.id); setReplyText(''); }}
-                        className="rounded-2xl border border-orange-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-orange-50"
-                      >
-                        Reply
-                      </button>
+                      <div className="flex items-center gap-5">
+                        {canReplyHere && (
+                          <button type="button" onClick={() => { setReplyingTo(issue.id); setReplyText(''); }} className="min-h-[36px] text-sm font-semibold text-primary">Reply</button>
+                        )}
+                        {canClose && (
+                          <button type="button" onClick={() => { setResolving(issue); setResolution(''); }} className="min-h-[36px] text-sm font-semibold text-emerald-700">Mark resolved</button>
+                        )}
+                        {canReopen && (
+                          <button type="button" onClick={() => { void handleReopen(issue); }} disabled={saving} className="min-h-[36px] text-sm font-semibold text-primary disabled:opacity-50">Reopen</button>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
 
       <ModalShell
         isOpen={showForm}
         onClose={() => setShowForm(false)}
-        title="Log an issue or question"
+        title="Log an issue"
+        subtitle="Say what is stuck, or ask your question."
+        stacked
         footer={(
           <>
-            <button type="button" onClick={() => setShowForm(false)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
-            <button type="button" onClick={() => { void handleCreate(); }} disabled={saving} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60">
+            <button type="button" onClick={() => setShowForm(false)} className="min-h-[44px] rounded-xl px-4 text-sm font-semibold text-gray-500">Cancel</button>
+            <button type="button" onClick={() => { void handleCreate(); }} disabled={saving || !issueText.trim()} className="min-h-[44px] rounded-xl bg-primary px-5 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50">
               {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Log issue'}
             </button>
           </>
         )}
       >
-        <div className="space-y-4">
-          {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+        <div className="space-y-5">
+          {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+
+          <div>
+            <label className={labelClass} htmlFor="issue-text">What is happening?</label>
+            <textarea id="issue-text" className={`${inputClass} min-h-[110px]`} value={issueText} onChange={(e) => setIssueText(e.target.value)} placeholder="Describe the issue or question" />
+          </div>
 
           <div className="relative">
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Related contacts</label>
+            <label className={labelClass} htmlFor="issue-contact">Who is it about? <span className="text-gray-400">(optional)</span></label>
             {contactChips}
-            <div className="relative mt-1.5">
+            <div className="relative">
               <input
+                id="issue-contact"
                 className={inputClass}
                 value={contactSearch}
                 onChange={(e) => { setContactSearch(e.target.value); setShowDropdown(true); }}
                 onFocus={() => setShowDropdown(true)}
-                placeholder="Search contacts…"
+                placeholder="Search a name"
+                autoComplete="off"
               />
               {showDropdown && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowDropdown(false)} />
-                  <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-2xl border border-orange-100 bg-white shadow-lg">
+                  <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-xl border border-gray-100 bg-white shadow-lg">
                     {filteredContacts.length === 0 ? (
-                      <p className="px-4 py-3 text-xs text-gray-400">No contacts found</p>
+                      <p className="px-4 py-3 text-sm text-gray-400">No one found</p>
                     ) : filteredContacts.slice(0, 50).map((c) => (
                       <button
                         key={c.id}
                         type="button"
                         onPointerDown={() => toggleContact(c.id)}
-                        className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition hover:bg-orange-50 ${selectedIds.includes(c.id) ? 'bg-primary/5 font-semibold text-primary' : 'text-gray-700'}`}
+                        className={`flex min-h-[44px] w-full items-center gap-2 px-4 py-2 text-left text-[15px] transition hover:bg-orange-50 ${selectedIds.includes(c.id) ? 'bg-orange-50/60 font-semibold text-orange-800' : 'text-gray-800'}`}
                       >
-                        {selectedIds.includes(c.id) && <span className="text-primary">✓</span>}
+                        <span className="w-4 flex-none text-primary">{selectedIds.includes(c.id) ? '✓' : ''}</span>
                         <span>{c.fullName}</span>
                       </button>
                     ))}
@@ -348,23 +361,27 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
             </div>
           </div>
 
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Issue / question</label>
-            <textarea className={`${inputClass} min-h-[90px]`} value={issueText} onChange={(e) => setIssueText(e.target.value)} placeholder="What needs answering or unblocking?" />
-          </div>
-          {canAssignOwner && (
-            <AppSelect
-              label="Owner (optional)"
-              value={ownerId}
-              onChange={setOwnerId}
-              options={[{ value: '', label: 'No owner' }, ...sortByText(owners, (o) => o.name).map((o) => ({ value: o.id, label: o.name, meta: genderAgeLine(o) || undefined }))]}
-              placeholder="No owner"
-            />
+          {showDetails ? (
+            <div className="space-y-5">
+              {canAssignOwner && (
+                <AppSelect
+                  label="Owner"
+                  value={ownerId}
+                  onChange={setOwnerId}
+                  options={[{ value: '', label: 'No owner' }, ...sortByText(owners, (o) => o.name).map((o) => ({ value: o.id, label: o.name, meta: genderAgeLine(o) || undefined }))]}
+                  placeholder="No owner"
+                />
+              )}
+              <div>
+                <label className={labelClass} htmlFor="issue-needed">Needed from</label>
+                <input id="issue-needed" className={inputClass} value={neededFrom} onChange={(e) => setNeededFrom(e.target.value)} placeholder="e.g. Pastor, Admin team" />
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setShowDetails(true)} className="min-h-[36px] text-sm font-semibold text-primary">
+              {canAssignOwner ? 'Add owner or who it is needed from' : 'Add who it is needed from'}
+            </button>
           )}
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Needed from (optional)</label>
-            <input className={inputClass} value={neededFrom} onChange={(e) => setNeededFrom(e.target.value)} placeholder="e.g. Pastor, Admin team" />
-          </div>
         </div>
       </ModalShell>
 
@@ -373,6 +390,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
           isOpen={!!resolving}
           onClose={() => setResolving(null)}
           title="Resolve issue"
+          stacked
           footer={(
             <>
               <button type="button" onClick={() => setResolving(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
@@ -394,6 +412,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
         isOpen={!!deleting}
         onClose={() => setDeleting(null)}
         title="Delete issue"
+        stacked
         footer={(
           <>
             <button type="button" onClick={() => setDeleting(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
