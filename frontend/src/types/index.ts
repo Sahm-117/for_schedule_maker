@@ -1172,8 +1172,6 @@ export interface ParticipantHome {
     dateOfBirth: string | null;
     occupation: string | null;
   };
-  /** Their support wrote in the faith project conversation since they last read it. */
-  faithUnread: boolean;
   reminders: { meetingRemindMinutes: number[]; recapReleased: boolean };
   resources: Array<{ id: string; title: string; description: string | null; type: Resource['type']; url: string; fileName: string | null }>;
   announcement: { id: string; subject: string; body: string; linkUrl: string | null; linkLabel: string | null; homeLabel?: string | null } | null;

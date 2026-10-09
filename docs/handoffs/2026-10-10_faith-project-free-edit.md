@@ -20,8 +20,8 @@ Migration (applied live): `20261010100000_faith_project_free_edit.sql`
 - Rewritten from their live definitions: `save_faith_project`, `participant_faith`, `set_faith_project_prayer_share` (now delegates),
   `hub_prayer_list`, `set_hub_prayer_focus`, `participant_home`, `practice_make_group`, `practice_reset_participant`.
 - Backfill: 64 projects with text became `SAVED` (10 without text `NOT_DRAFTED`), each with one baseline version.
-No edge function was deployed or removed. `notify-faith-project-submitted` and `notify-faith-project-review` are no longer called but
-are still deployed; deleting them needs explicit approval.
+Edge functions removed (approved by the owner): `notify-faith-project-submitted` and `notify-faith-project-review` (both were v5), undeployed
+and deleted from the repo. Nothing else was deployed.
 
 ## Decisions and why
 - Status is only `NOT_DRAFTED` / `SAVED`; consent lives on the participant (not the project) so someone without a project can answer.
@@ -40,11 +40,19 @@ the blocking pop-up (still there after Escape and an outside tap; Opt out clears
 sheet (read-only, category, history), the admin Faith projects page, project modal and settings. Not run against the deployed backend
 with real logins.
 
+## Follow-up the same day
+- The faith project field is closed until asked for: "Write your faith project" the first time, then the text is shown read-only with a
+  pencil on the right. Save (and Cancel) only appear while editing. Edit history is closed by default.
+- The pop-up and the Faith page switch say everyone in the cohort prays together (not "the church team").
+- Deleted with approval: `utils/faithThread.ts`, `faithThreadReadsApi`, `faithProjectsApi.upsertForParticipant`, the `faithUnread` type field,
+  and the two edge functions above. Kept on purpose: the old comment data (`ParticipantNote` FAITH_COACH / FAITH_OFFICE, `FaithThreadRead`,
+  `FaithProject.reviewHistory`) and the `faithUnread` value that `participant_home` still returns; nothing in the app reads them.
+
 ## Open items
-- Dead code left in place on purpose: `utils/faithThread.ts`, `faithThreadReadsApi`, `faithProjectsApi.upsertForParticipant`, the
-  two edge functions above, `faithUnread` in `participant_home`. Remove only with approval.
 - Hub prayer pages still say "shared for prayer"; the text is fine but could say "corporate prayers".
-- Parts 2 to 4 of the spec (Corporate Prayers admin module, the prayer slot screen with live counts, the 9pm Telegram pop-up) are not built.
+- Parts 2 to 4 of the spec are not built: the Corporate Prayers admin module, the prayer slot screen with live counts, and the 9pm Telegram
+  pop-up. Decided for the slot screen: **no close button**; it ends when they tap Amen or when the countdown finishes. The mockup the owner
+  liked puts a dark grey gradient over the participant's photo with the verse on top (three layouts were shown).
 
 ## Gotchas
 - `npx tsc --noEmit -p .` checks nothing here (the root tsconfig has no files). Use `npx tsc --noEmit -p tsconfig.app.json`; it has about

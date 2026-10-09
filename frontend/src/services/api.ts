@@ -66,7 +66,6 @@ import {
   wrapUpApi as supabaseWrapUpApi,
   classFeedbackApi as supabaseClassFeedbackApi,
   participantStageChangesApi as supabaseParticipantStageChangesApi,
-  faithThreadReadsApi as supabaseFaithThreadReadsApi,
   supportChecklistApi as supabaseSupportChecklistApi,
   adminChecklistApi as supabaseAdminChecklistApi,
   recapDocumentsApi as supabaseRecapDocumentsApi,
@@ -876,7 +875,6 @@ export const plannerApi = USE_SUPABASE ? supabasePlannerApi : {
 export const faithProjectsApi = USE_SUPABASE ? supabaseFaithProjectsApi : {
   async getByParticipant(_participantId: string): Promise<{ projects: import('../types').FaithProject[] }> { return { projects: [] }; },
   async getAll(_options?: any): Promise<{ projects: import('../types').FaithProject[] }> { return { projects: [] }; },
-  async upsertForParticipant(_participantId: string, _input: any): Promise<never> { return peopleUnavailable(); },
   async getVersions(_participantId: string): Promise<{ versions: import('../types').FaithProjectVersion[] }> { return { versions: [] }; },
   async setCategory(_projectId: string, _categoryId: string | null): Promise<never> { return peopleUnavailable(); },
   async delete(_id: string): Promise<never> { return peopleUnavailable(); },
@@ -930,11 +928,6 @@ export const classFeedbackApi = USE_SUPABASE ? supabaseClassFeedbackApi : {
 export const participantStageChangesApi = USE_SUPABASE ? supabaseParticipantStageChangesApi : {
   async getForParticipant(_participantId: string): Promise<{ changes: import('../types').ParticipantStageChange[] }> { return { changes: [] }; },
   async create(_input: any): Promise<never> { return peopleUnavailable(); },
-};
-
-export const faithThreadReadsApi = USE_SUPABASE ? supabaseFaithThreadReadsApi : {
-  async getForUser(_userId: string): Promise<{ reads: Map<string, string> }> { return { reads: new Map() }; },
-  async markRead(_userId: string, _participantId: string, _trail: 'coach' | 'office'): Promise<string> { return new Date().toISOString(); },
 };
 
 export const participantHandoversApi = USE_SUPABASE ? supabaseParticipantHandoversApi : {

@@ -34,7 +34,7 @@ const PrayerConsentModal: React.FC<{ startsOn: string; onAnswered: () => void }>
         </span>
         <h2 id="prayerconsent-title" className="mt-4 text-[22px] font-bold leading-tight tracking-[-0.02em] text-gray-900">Praying for your faith project</h2>
         <p className="mt-2 text-[15px] leading-[1.55] text-gray-600">
-          {startText ? `From ${startText}, ` : 'Soon, '}the church team will pray together for each person&apos;s faith project. FOF is set up to include yours, with your photo and what you are believing God for.
+          {startText ? `From ${startText}, ` : 'Soon, '}everyone in this cohort will pray together for each person&apos;s faith project. The system is set up to schedule yours too, with your photo and what you are believing God for, so the whole cohort can pray for you.
         </p>
         <p className="mt-3 text-[15px] leading-[1.55] text-gray-600">
           If you would rather it is not prayed for like this, you can opt out. You can change your mind any time on your Faith Project page.

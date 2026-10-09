@@ -581,7 +581,7 @@ form secret, never bare anon access.
 | `send-announcement` | Admin broadcast with audience, scope, hub, and group filters; popup acks |
 | `notify-users` | Generic sender (userIds, role plus cohort, participantIds) |
 | `notify-followup-*` (4) | Assignment, issues, terminal states (LOGIN_ISSUE also pages hub IT), completions |
-| `notify-hub`, `notify-onboarding-event`, `notify-faith-project-*` (2) | Hub mentions/threads, onboarding events, faith project reviews |
+| `notify-hub`, `notify-onboarding-event` | Hub mentions/threads, onboarding events (the faith project review functions were removed with the review chain, rule 49) |
 | `sync-lead-to-sheet` | Push a contact back to the Google Sheet; records sync state |
 | `refresh-public-holidays` | Nigerian holidays feed into the Planner |
 | `ai-assist` | Participant summaries, recap drafts, feedback and survey themes |

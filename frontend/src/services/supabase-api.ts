@@ -5092,22 +5092,6 @@ export const participantStageChangesApi = {
   },
 };
 
-export const faithThreadReadsApi = {
-  async getForUser(userId: string): Promise<{ reads: Map<string, string> }> {
-    const { data, error } = await supabase.from('FaithThreadRead').select('participantId, trail, lastReadAt').eq('userId', userId);
-    if (error) throw new Error(error.message);
-    return { reads: new Map(((data as any[]) || []).map((r) => [`${r.participantId}:${r.trail}`, r.lastReadAt])) };
-  },
-
-  async markRead(userId: string, participantId: string, trail: 'coach' | 'office'): Promise<string> {
-    const lastReadAt = new Date().toISOString();
-    const { error } = await supabase.from('FaithThreadRead')
-      .upsert([{ userId, participantId, trail, lastReadAt }], { onConflict: 'userId,participantId,trail' });
-    if (error) throw new Error(error.message);
-    return lastReadAt;
-  },
-};
-
 export const participantHandoversApi = {
   async getForParticipants(participantIds: string[]): Promise<{ handovers: import('../types').ParticipantHandover[] }> {
     if (participantIds.length === 0) return { handovers: [] };
@@ -7120,35 +7104,6 @@ export const faithProjectsApi = {
     const { data, error } = await query;
     if (error) throw new Error(error.message);
     return { projects: ((data as any[]) || []).map(mapFaithProject) };
-  },
-
-  async upsertForParticipant(participantId: string, input: { title?: string | null; body?: string | null; categoryId?: string | null; status?: import('../types').FaithProjectStatus; updatedById?: string | null }): Promise<{ project: import('../types').FaithProject }> {
-    const { data: existing } = await supabase
-      .from('FaithProject')
-      .select('id')
-      .eq('participantId', participantId)
-      .maybeSingle();
-
-    if (existing) {
-      const { data, error } = await supabase
-        .from('FaithProject')
-        .update({ ...input, updatedAt: new Date().toISOString() })
-        .eq('id', existing.id)
-        .select(FAITH_PROJECT_SELECT)
-        .single();
-
-      if (error || !data) throw new Error(error?.message || 'Failed to update faith project');
-      return { project: mapFaithProject(data) };
-    }
-
-    const { data, error } = await supabase
-      .from('FaithProject')
-      .insert([{ participantId, ...input }])
-      .select(FAITH_PROJECT_SELECT)
-      .single();
-
-    if (error || !data) throw new Error(error?.message || 'Failed to create faith project');
-    return { project: mapFaithProject(data) };
   },
 
   // Only the category changes; the saved text and its "saved" time are left alone.

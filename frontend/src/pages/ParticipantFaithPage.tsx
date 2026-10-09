@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
+import LinkText from '../components/LinkText';
 import PageLoader from '../components/PageLoader';
 import FaithProjectGuide from '../components/FaithProjectGuide';
 import FaithProjectHistory from '../components/faithProjects/FaithProjectHistory';
@@ -157,6 +158,10 @@ const ParticipantFaithPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [helpSheetOpen, setHelpSheetOpen] = useState(false);
+  // The field stays closed until they ask for it: "Write your faith project" the first time, the pencil afterwards.
+  const [editing, setEditing] = useState(false);
+  const fieldRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => { if (editing) fieldRef.current?.focus(); }, [editing]);
   const [prayerOn, setPrayerOn] = useState(true);
   const [prayerSaving, setPrayerSaving] = useState(false);
 
@@ -210,6 +215,7 @@ const ParticipantFaithPage: React.FC = () => {
     : null;
   const supportLink = buildWhatsAppLink(home?.group?.supportPhone, `Hi ${supportFirst}, I have a question about my Faith Project.`);
   const trimmed = draft.trim();
+  const hasText = !!faith.project?.body?.trim();
   const canSave = !!trimmed && (!saved || trimmed !== (faith.project?.body ?? '').trim());
 
   const save = async () => {
@@ -221,6 +227,7 @@ const ParticipantFaithPage: React.FC = () => {
       const fresh = await participantAppApi.getFaith();
       setFaith(fresh);
       setDraft(fresh.project?.body ?? draft);
+      setEditing(false);
       toast({ message: 'Saved' });
       void reload();
     } catch (err) {
@@ -257,25 +264,49 @@ const ParticipantFaithPage: React.FC = () => {
           <h2 className="mt-2 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">Your faith project</h2>
           {deadlineText && <p className={`mt-2 text-[14px] font-medium ${late ? 'text-amber-700' : 'text-gray-500'}`}>{late ? `The date to write it by was ${deadlineText}. You can still save it any time.` : saved ? `Write it by ${deadlineText}. You can edit it any time.` : `Write it by ${deadlineText}.`}</p>}
 
-          {faith.project?.fromForm && draft === faith.project.body && (
-            <p className="mt-4 text-[14px] leading-[1.6] text-gray-500">This is the SMART request you wrote on the registration form. Shape it into your faith project, then save it.</p>
+          {editing ? (
+            <>
+              <label className="mt-5 block">
+                <span className="mb-[7px] block text-[14px] font-semibold text-gray-900">What are you believing God for?</span>
+                <textarea
+                  ref={fieldRef}
+                  value={draft}
+                  onChange={(e) => { setDraft(e.target.value); setError(''); }}
+                  placeholder="Be specific. Who, what, and by when."
+                  className={`${FIELD} min-h-[120px] resize-y`}
+                />
+              </label>
+              {error && <p className="mt-1.5 text-xs font-medium text-red-700">{error}</p>}
+              <div className="mt-5 flex flex-col gap-2.5">
+                <button type="button" onClick={() => { void save(); }} disabled={saving || !canSave} className={PRIMARY}>
+                  {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Save'}
+                </button>
+                {hasText && (
+                  <button type="button" onClick={() => { setDraft(faith.project?.body ?? ''); setError(''); setEditing(false); }} disabled={saving} className="min-h-[44px] text-[14px] font-semibold text-gray-500">Cancel</button>
+                )}
+              </div>
+            </>
+          ) : hasText ? (
+            <>
+              {faith.project?.fromForm && (
+                <p className="mt-4 text-[14px] leading-[1.6] text-gray-500">This is the SMART request you wrote on the registration form. Tap the pencil to shape it into your faith project, then save it.</p>
+              )}
+              <div className="mt-5">
+                <span className="mb-[7px] block text-[14px] font-semibold text-gray-900">What are you believing God for?</span>
+                <div className="flex items-start gap-2 rounded-2xl bg-[#f5f5f7] py-3.5 pl-4 pr-2">
+                  <p className="min-w-0 flex-1 whitespace-pre-wrap text-[15px] leading-[1.55] text-gray-900"><LinkText text={faith.project?.body ?? ''} /></p>
+                  <button type="button" onClick={() => setEditing(true)} aria-label="Edit faith project" className="grid h-11 w-11 flex-none place-items-center rounded-full text-gray-500 transition hover:bg-white hover:text-gray-900 active:scale-95">
+                    <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                  </button>
+                </div>
+              </div>
+              <p className="mt-3 text-[13px] leading-snug text-gray-500">Tap the pencil to edit any time. {supportFirst} is told when you save.</p>
+            </>
+          ) : (
+            <div className="mt-5">
+              <button type="button" onClick={() => setEditing(true)} className={PRIMARY}>Write your faith project</button>
+            </div>
           )}
-          <label className="mt-5 block">
-            <span className="mb-[7px] block text-[14px] font-semibold text-gray-900">What are you believing God for?</span>
-            <textarea
-              value={draft}
-              onChange={(e) => { setDraft(e.target.value); setError(''); }}
-              placeholder="Be specific. Who, what, and by when."
-              className={`${FIELD} min-h-[120px] resize-y`}
-            />
-          </label>
-          {error && <p className="mt-1.5 text-xs font-medium text-red-700">{error}</p>}
-          <div className="mt-5">
-            <button type="button" onClick={() => { void save(); }} disabled={saving || !canSave} className={PRIMARY}>
-              {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : saved ? 'Save changes' : 'Save'}
-            </button>
-          </div>
-          <p className="mt-3 text-center text-[13px] leading-snug text-gray-500">You can edit this any time. {supportFirst} is told when you save.</p>
           <FaithProjectGuide className="mt-2 flex w-full items-center justify-center gap-1.5 py-1 text-center text-[13.5px] font-medium text-gray-500 hover:text-gray-900" />
         </section>
 
@@ -286,7 +317,7 @@ const ParticipantFaithPage: React.FC = () => {
             <div className="min-w-0 flex-1">
               <p className="text-[16px] font-semibold text-gray-900">Include in corporate prayers</p>
               <p className="mt-0.5 text-[13px] leading-snug text-gray-500">
-                Your photo and project are shown to the church team who pray together{startsText ? `, from ${startsText}` : ''}. Turn this off any time to opt out.
+                Your photo and project are shown to everyone in your cohort who prays together{startsText ? `, from ${startsText}` : ''}. Turn this off any time to opt out.
               </p>
             </div>
             <Switch on={prayerOn} onToggle={() => { void togglePrayer(); }} label="Include my Faith Project in corporate prayers" disabled={prayerSaving} />

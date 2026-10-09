@@ -4231,7 +4231,7 @@ window.GUIDE_CONTENT = {
         "A few days before corporate prayers start, a pop-up asks about it. Tap **I'm fine with this** or **Opt out**.",
         "To change your mind later, open **F. Project** and use the **Include in corporate prayers** switch."
        ],
-       "result": "Everyone is included unless they opt out. When you are included, your photo and project are shown to the church team who pray together. If you opt out, they are not.",
+       "result": "Everyone is included unless they opt out. When you are included, your photo and project are shown to everyone in your cohort who prays together. If you opt out, they are not.",
        "tips": [
         "The pop-up can't be closed until you answer it."
        ]
