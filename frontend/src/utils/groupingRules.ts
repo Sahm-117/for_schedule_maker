@@ -33,7 +33,7 @@ export interface TagRule {
   maxSize: number | null;
 }
 
-/** Group sizes for groups of one gender; null on a gender = the cohort's sizes. Teen groups follow the largest. */
+/** Group sizes for groups of one gender; null on a gender = the cohort's sizes. */
 export interface GenderSizes {
   minSize: number;
   targetSize: number;
@@ -45,7 +45,7 @@ export interface GroupingRules {
   targetSize: number;
   maxSize: number;
   sizeStrength: RuleStrength;
-  /** Own sizes for all-male and all-female groups (and the most teens a Teen Support holds). */
+  /** Own sizes for all-male and all-female groups. */
   genderSizes: { Male: GenderSizes | null; Female: GenderSizes | null };
   genderMix: GenderMix;
   genderStrength: RuleStrength;

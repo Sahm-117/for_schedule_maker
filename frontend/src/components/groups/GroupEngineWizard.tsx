@@ -1137,7 +1137,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   <Stepper label="Aim" value={rules.targetSize} min={rules.minSize} max={rules.maxSize} onChange={(v) => set('targetSize', v)} />
                   <Stepper label="Largest" value={rules.maxSize} min={rules.minSize} max={50} onChange={(v) => setRules((p) => ({ ...p, maxSize: v, targetSize: Math.min(v, p.targetSize) }))} />
                 </div>
-                {/* Own sizes for all-male and all-female groups. Teen groups follow the largest: a Teen Support holds at most that many teens of their gender. */}
+                {/* Own sizes for all-male and all-female groups. */}
                 {(['Male', 'Female'] as const).map((gender) => {
                   const own = rules.genderSizes[gender];
                   const sizes = own ?? { minSize: rules.minSize, targetSize: rules.targetSize, maxSize: rules.maxSize };
@@ -1167,7 +1167,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   );
                 })}
                 {rules.genderMix !== 'SAME' && (rules.genderSizes.Male || rules.genderSizes.Female) && (
-                  <p className="mt-2 text-[11px] text-gray-400">Own sizes apply to groups of one gender only. With mixed groups the sizes above are used (teen groups still follow each gender's largest).</p>
+                  <p className="mt-2 text-[11px] text-gray-400">Own sizes apply to groups of one gender only. With mixed groups the sizes above are used.</p>
                 )}
               </RuleCard>
               <RuleCard title="Gender mix" hint="How men and women are placed." strength={rules.genderStrength} onStrength={(v) => set('genderStrength', v)}>

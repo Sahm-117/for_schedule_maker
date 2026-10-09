@@ -2,7 +2,7 @@
 
 ## Summary
 - Group builder Rules step: size steppers per gender (Female, Male) next to the general size; the engine, caps and group
-  checks use them. Teen groups follow the same idea: a Teen Support's limit comes from the teen's gender. FLOW_MAP rule 41.
+  checks use them. A Teen Support's teen limit is separate (Settings > Programme rules, per gender). FLOW_MAP rule 41.
 - Groups page: an admin can move a teen to another same-gender Teen Support ("Move" on the teen's row). A full support needs
   "Move anyway". The move is logged and both supports are told.
 - Draft step: "Text for WhatsApp" builds `Female supports:` / `Name (N participants)` / `Participant, age range` text,
@@ -10,6 +10,9 @@
 - Draft step also shows groups without a support by gender with filters (see the earlier handoff on that).
 
 ## Live changes
+- Migration `20261009190000_teen_limit_own_setting.sql` (applied live): `teen_cap_for` no longer reads the group builder's sizes. The teen limit is now
+  Settings > Programme rules (general, plus an optional female and male limit; 0 = same as the general one). No live rules had gender sizes saved, so
+  nothing changed for anyone.
 - Migration `20261009160000_teen_group_sizes_and_admin_move.sql` (applied live): `teen_cap_for`, `assign_teen_contacts`
   (per-gender cap), `admin_teen_move_targets`, `admin_move_teen`.
 - No edge function.

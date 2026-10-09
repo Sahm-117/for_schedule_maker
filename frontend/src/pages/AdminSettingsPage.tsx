@@ -230,6 +230,8 @@ const RULE_FIELDS: Array<{ section: string; fields: Array<{ key: keyof Programme
       { key: 'minTrainingsAttended', label: 'Pre-cohort trainings a support must attend to get a group', shortLabel: 'Trainings to get a group', unit: 'trainings', max: 20 },
       { key: 'maxFollowUpsPerSupport', label: 'Most open follow-ups one support should be given', shortLabel: 'Max follow-ups per support', unit: 'follow-ups', max: 200 },
       { key: 'maxTeensPerTeenSupport', label: 'Most teens one Teen Support looks after', shortLabel: 'Max teens per Teen Support', unit: 'teens', max: 20 },
+      { key: 'maxTeensPerFemaleTeenSupport', label: 'Most teens one female Teen Support looks after (0 = same as above)', shortLabel: 'Max teens per female Teen Support', unit: 'teens', max: 20 },
+      { key: 'maxTeensPerMaleTeenSupport', label: 'Most teens one male Teen Support looks after (0 = same as above)', shortLabel: 'Max teens per male Teen Support', unit: 'teens', max: 20 },
     ],
   },
   {
@@ -326,7 +328,7 @@ const ProgrammeRulesCard: React.FC = () => {
               {group.fields.map((field) => (
                 <StatTile
                   key={field.key}
-                  value={saved[field.key]}
+                  value={saved[field.key] === 0 && field.key.startsWith('maxTeensPer') ? saved.maxTeensPerTeenSupport : saved[field.key]}
                   unit={tileUnit(field.unit, Number(saved[field.key]))}
                   label={field.shortLabel}
                   title={field.label}

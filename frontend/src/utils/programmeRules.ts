@@ -28,6 +28,10 @@ export interface ProgrammeRules {
   maxFollowUpsPerSupport: number;
   /** Most teens one Teen Support looks after (all of them, onboarded or not: they are one group). */
   maxTeensPerTeenSupport: number;
+  /** Own limit for female Teen Supports; 0 = the same as maxTeensPerTeenSupport. */
+  maxTeensPerFemaleTeenSupport: number;
+  /** Own limit for male Teen Supports; 0 = the same as maxTeensPerTeenSupport. */
+  maxTeensPerMaleTeenSupport: number;
 }
 
 export const DEFAULT_PROGRAMME_RULES: ProgrammeRules = {
@@ -42,6 +46,8 @@ export const DEFAULT_PROGRAMME_RULES: ProgrammeRules = {
   minTrainingsAttended: 1,
   maxFollowUpsPerSupport: 15,
   maxTeensPerTeenSupport: 4,
+  maxTeensPerFemaleTeenSupport: 0,
+  maxTeensPerMaleTeenSupport: 0,
 };
 
 export const COMPLETION_SCORE_ALL_MEETINGS = 100;

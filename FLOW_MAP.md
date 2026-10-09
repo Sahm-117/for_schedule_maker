@@ -487,14 +487,16 @@ duplicating the logic anywhere else is a bug waiting to happen.
     as registered by hand (`manualRegistrationAt`, the mark the form gate in rule 1 looks for) only when no form
     registration is linked to it; a person who signed up on the form is left unmarked
     (`20261009180000_teen_convert_form_signups_not_manual.sql`).
-41. **Group size can be set per gender, and a Teen Support's limit follows the teen's gender.** The group builder rules
-    carry `genderSizes` (min/max per Female and Male; a mixed group uses the general size). `teen_cap_for(cohort,
-    gender)` gives `assign_teen_contacts` the same limit per gender, falling back to
-    `programme_rules.maxTeensPerTeenSupport`. An admin can move a teen to another same-gender Teen Support from
+41. **Group size can be set per gender; a Teen Support's teen limit is its own setting.** The group builder rules carry
+    `genderSizes` (min/aim/max per Female and Male; a mixed group uses the general size) and only shape the builder's
+    groups. The most teens one Teen Support holds is `teen_cap_for(cohort, gender)`: Settings > Programme rules
+    `maxTeensPerFemaleTeenSupport` / `maxTeensPerMaleTeenSupport` (0 = same as `maxTeensPerTeenSupport`, default 4). It is
+    not read from the group builder, so saving builder rules never changes it (it did for a few hours before
+    `20261009190000_teen_limit_own_setting.sql`). An admin can move a teen to another same-gender Teen Support from
     Groups (`admin_teen_move_targets`, `admin_move_teen`): a full support needs an explicit "Move anyway", the move is
-    logged in `FollowUpReassignmentLog` as moved by that admin, and both supports are told. Source:
-    `20261009160000_teen_group_sizes_and_admin_move.sql`. `admin_move_teen` takes the same advisory lock as
-    `assign_teen_contacts` and never targets a test account (`20261009170000_teen_review_fixes.sql`).
+    logged in `FollowUpReassignmentLog` as moved by that admin, and both supports are told. `admin_move_teen` takes the same
+    advisory lock as `assign_teen_contacts` and never targets a test account. Source:
+    `20261009160000_teen_group_sizes_and_admin_move.sql`, `20261009170000_teen_review_fixes.sql`.
 42. **The Draft step can be exported as WhatsApp text.** `buildWhatsAppText` (`utils/groupingExport.ts`) lists supports by
     gender, `Name (N participants)`, then each participant with their age range, and groups still without a support.
     Participant names are optional (switch on the Draft step); with names off only counts per age range are shown. It
