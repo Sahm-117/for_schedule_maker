@@ -499,7 +499,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     `20261009160000_teen_group_sizes_and_admin_move.sql`, `20261009170000_teen_review_fixes.sql`.
 42. **The Draft step can be exported as WhatsApp text.** `buildWhatsAppText` (`utils/groupingExport.ts`) lists supports by
     gender, `Name (N participants)`, then each participant with their age range, and groups still without a support.
-    Each support's name is bold (`*name*`, WhatsApp's bold) and their participants are numbered. Participant names are
+    Each support's name (and the "Female group 1" header of a group with no support) is bold (`*name*`, WhatsApp's bold) and the participants under it are numbered (names on). Participant names are
     optional (switch on the Draft step); with names off only counts per age range are shown. It
     carries no phone numbers. Supports can be moved by hand on the Draft step; a support already used by another group
     must be cleared there first. Frontend only.

@@ -8,6 +8,9 @@ import { AGE_RANGE_OPTIONS } from '../constants/departments';
 //   1. Participant Name, 25 - 34
 //   2. ...
 //
+// Support names, and the "Female group 1" headers of groups with no support, are bold (WhatsApp's *bold*); the people under
+// each are numbered.
+//
 // With names off, a support's line is followed by one line of age ranges with counts instead of the people.
 // Groups with no support are listed at the end, by the gender of their people. Phone numbers are never included.
 
@@ -26,7 +29,10 @@ const personLines = (members: EnginePerson[], names: boolean): string[] =>
   names ? [...members].sort(byName).map((m, i) => `${i + 1}. ${m.name}, ${m.ageRange ?? 'age not set'}`) : [`Age ranges: ${ageCounts(members)}`];
 
 // WhatsApp bolds text between asterisks.
-const bold = (text: string) => `*${text.replace(/\*/g, '')}*`;
+const bold = (text: string) => {
+  const clean = text.replace(/\*/g, '').trim();
+  return clean ? `*${clean}*` : text.trim();
+};
 
 const groupGenderLabel = (members: EnginePerson[]): 'Male' | 'Female' | 'Mixed' => sharedGender(members) ?? 'Mixed';
 

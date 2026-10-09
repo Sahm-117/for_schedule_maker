@@ -691,7 +691,8 @@ export const evaluateGroup = (
 
   // A tag's groups follow the tag's own sizes when it has them.
   const sizeRules = sizeRulesFor(members, rules);
-  if (n < sizeRules.minSize) notes.push({ tone: toneFor(rules.sizeStrength), text: `Only ${n} ${n === 1 ? 'person' : 'people'}` });
+  // A group with nobody in it yet (made by hand for a support) is not too small: it is just not created until someone is moved in.
+  if (n > 0 && n < sizeRules.minSize) notes.push({ tone: toneFor(rules.sizeStrength), text: `Only ${n} ${n === 1 ? 'person' : 'people'}` });
   if (n > sizeRules.maxSize) notes.push({ tone: toneFor(rules.sizeStrength), text: `${n} people (over ${sizeRules.maxSize})` });
 
   const women = members.filter((m) => m.gender === 'Female').length;

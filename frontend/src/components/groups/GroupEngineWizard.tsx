@@ -525,14 +525,17 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const usedSupports = new Set(draft.map((g) => g.supportId).filter(Boolean) as string[]);
   // One empty group for every support the draft left without one, so people can be moved into them by hand.
   // An empty group is not created unless someone is moved into it.
-  const makeGroupsForUnusedSupports = (onlyIds?: string[]) => {
-    const unusedSupports = supportPool.free.filter((s) => !usedSupports.has(s.id) && (!onlyIds || onlyIds.includes(s.id)));
+  const makeGroupsFor = (supportsToUse: typeof supportPool.free, single: boolean) => {
+    const unusedSupports = supportsToUse.filter((s) => !usedSupports.has(s.id));
     if (unusedSupports.length === 0) return;
     const names = nextGroupNames([...groups.map((g) => g.name), ...draft.map((g) => g.name)], unusedSupports.length);
     const stamp = Date.now();
-    setDraft((prev) => [...prev, ...unusedSupports.map((s, i) => ({ key: `manual-${s.id}-${stamp}`, name: names[i], memberIds: [], supportId: s.id }))]);
+    const made = unusedSupports.map((s, i) => ({ key: `manual-${s.id}-${stamp}`, name: names[i], memberIds: [] as string[], supportId: s.id }));
+    setDraft((prev) => [...prev, ...made]);
+    // The new group sits above this list, so bring it into view.
+    window.setTimeout(() => document.getElementById(`draft-group-${made[0].key}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 60);
     resetSupportView();
-    setDraftNote(onlyIds
+    setDraftNote(single
       ? `Empty group made for ${unusedSupports.map((x) => x.name).join(', ')}. Tap a person, then “Move here” to fill it.`
       : `${unusedSupports.length} empty ${unusedSupports.length === 1 ? 'group' : 'groups'} made, one for each support without a group. Tap a person, then “Move here” to fill them.`);
   };
@@ -1448,7 +1451,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   // A topped-up group is judged as it will be: the people already there plus those being added.
                   const notes = g.topUp
                     ? evaluateGroup({ ...g, memberIds: [...(g.existingMemberIds ?? []), ...g.memberIds] }, topUpPeople, supportById, effectiveRules, tagNames)
-                    : evaluateGroup(g, people, supportById, effectiveRules, tagNames).filter((n) => g.memberIds.length > 0 || !/^Only 0 /.test(n.text));
+                    : evaluateGroup(g, people, supportById, effectiveRules, tagNames);
                   const options = [
                     { value: '', label: 'No support' },
                     ...groupByHub(supportPool.free.filter((s) => s.id === g.supportId || !usedSupports.has(s.id)))
@@ -1456,7 +1459,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                       .map((s) => ({ value: s.id, label: s.name, group: s.hubLabel ?? undefined, meta: [supportPool.operational.has(s.id) ? 'Operational' : null, supportPool.hubLeads.has(s.id) ? 'Hub lead' : null, s.gender, s.ageRange ? shortAge(s.ageRange) : null, trainingsTotal ? `${s.trainingsAttended}/${trainingsTotal} trainings` : null, ...(s.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean)].filter(Boolean).join(' · ') || 'Details missing' })),
                   ];
                   return (
-                    <div key={g.key} className={`${SURFACE} flex flex-col gap-2.5 p-4`}>
+                    <div key={g.key} id={`draft-group-${g.key}`} className={`${SURFACE} flex flex-col gap-2.5 p-4`}>
                       <div className="flex items-center justify-between gap-2">
                         <p className="flex min-w-0 flex-wrap items-center gap-1.5 font-bold text-gray-900">
                           {g.name}
@@ -1527,7 +1530,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                     <div className="flex items-center justify-between gap-2">
                       <p className={SECTION_LABEL}>Supports without a group ({unused.length})</p>
                       {unused.length > 0 && (
-                        <button type="button" onClick={() => makeGroupsForUnusedSupports()} className="min-h-[36px] flex-none rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 hover:bg-gray-50 active:scale-95">
+                        <button type="button" onClick={() => makeGroupsFor(supportPool.free, false)} className="min-h-[36px] flex-none rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 hover:bg-gray-50 active:scale-95">
                           Make a group for each
                         </button>
                       )}
@@ -1550,7 +1553,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                                   <p className="flex items-center gap-1.5 text-[13px] font-medium text-gray-900"><span className="truncate">{s.name}</span>{supportPool.hubLeads.has(s.id) && <span className="rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Hub lead</span>}{supportPool.operational.has(s.id) && <span className="rounded-full bg-teal-100/80 px-2 py-0.5 text-[10px] font-semibold text-teal-700">Operational</span>}<InfoTip label={`Why ${s.name} has no group`}>{unusedSupportHint(s, effectiveRules, tagNames)}</InfoTip></p>
                                   <p className="truncate text-[11px] text-gray-500">{[s.gender, s.ageRange ? shortAge(s.ageRange) : null, ...(s.tagIds ?? []).map((id) => tagNames[id]).filter(Boolean)].filter(Boolean).join(' · ') || 'Details missing'}</p>
                                 </div>
-                                <button type="button" onClick={() => makeGroupsForUnusedSupports([s.id])} className="min-h-[32px] flex-none rounded-full border border-gray-200 bg-white px-2.5 text-[11px] font-semibold text-gray-700 hover:bg-gray-50 active:scale-95" aria-label={`Make a group for ${s.name}`}>Make a group</button>
+                                <button type="button" onClick={() => makeGroupsFor([s], true)} className="min-h-[32px] flex-none rounded-full border border-gray-200 bg-white px-2.5 text-[11px] font-semibold text-gray-700 hover:bg-gray-50 active:scale-95" aria-label={`Make a group for ${s.name}`}>Make a group</button>
                               </div>
                             ))}
                           </div>
