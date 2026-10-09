@@ -1288,7 +1288,7 @@ const AdminParticipantsContent: React.FC = () => {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Phone</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Group</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Profile</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Pre-cohort</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Age range</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Source</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Support</th>
                     <th className="sticky right-0 bg-primary/5 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Actions</th>
@@ -1310,12 +1310,8 @@ const AdminParticipantsContent: React.FC = () => {
                           </span>
                         ) : <span className="text-gray-400">—</span>}
                       </td>
-                      <td className="px-4 py-3">
-                        {p.followUpStatus && REGISTRATION_STATUS_META[p.followUpStatus] ? (
-                          <span className={`whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${REGISTRATION_STATUS_META[p.followUpStatus].tone}`}>
-                            {REGISTRATION_STATUS_META[p.followUpStatus].label}
-                          </span>
-                        ) : <span className="text-gray-400">—</span>}
+                      <td className="px-4 py-3 text-gray-600">
+                        {normaliseAgeRange(p.ageRange) ?? <span className="text-gray-400">—</span>}
                       </td>
                       <td className="px-4 py-3">
                         <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
