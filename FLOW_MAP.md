@@ -539,6 +539,13 @@ duplicating the logic anywhere else is a bug waiting to happen.
     are the scheduled ones: a manual or recap already sent early (`manualReleasedEarlyAt`, `participantReleasedEarlyAt`) has gone out, which the
     sheet says in a note. The week editor's manual label says "ahead of the Week N class". Frontend only.
 
+48. **A hub lead can WhatsApp an adult participant from the group overview; a teen's number is never sent.** `hub_group_overview`
+    (the hub lead's, assistant's with "See groups", the support's and the admin's read-only look at a group) returns each participant's
+    `phone` and `isTeen`. `isTeen` is true when the group is a teen group, the age range is "10 - 17", or the contact is on the teen
+    path (TEENAGER / TEEN_ONBOARDED); for a teen `phone` is NULL, so the number never reaches the browser. The overview shows "Send
+    message" (`buildWhatsAppLink`) only when there is a number, and a one-line note for a teen. The same item is on the My Group
+    participant menu (`ParticipantCard`). Source: `20261009200000_hub_group_overview_numbers.sql`.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the

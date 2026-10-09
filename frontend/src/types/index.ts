@@ -1674,6 +1674,9 @@ export interface HubGroupOverview {
     onboarding: OnboardingState;
     faithProjectStatus: FaithProjectStatus | null;
     hasPush: boolean;
+    /** A teen's number is never sent; `phone` is null for them. */
+    isTeen?: boolean;
+    phone?: string | null;
     classesAttended: number;
     recent: Array<{ weekNumber: number; status: string; attended: boolean }>;
   }>;
