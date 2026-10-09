@@ -407,6 +407,8 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
 
   const status = project?.status ?? 'NOT_DRAFTED';
   const chip = FP_CHIP[status];
+  // Opens WhatsApp on their number; hidden when there is no usable number (a teen's is hidden from most supports).
+  const messageLink = buildWhatsAppLink(participant.phone, `Hi ${participant.fullName.trim().split(/\s+/)[0]}, `);
 
   useEffect(() => {
     if (menu === 'closed') return undefined;
@@ -612,6 +614,12 @@ const ParticipantCard: React.FC<ParticipantCardProps> = ({
           {menu === 'main' ? (
             <>
               <button type="button" className={menuItemCls} onClick={() => { setMenu('closed'); setViewOpen(true); }}>View</button>
+              {messageLink && (
+                <a href={messageLink} target="_blank" rel="noreferrer" className={`${menuItemCls} flex items-center gap-2`} onClick={() => setMenu('closed')}>
+                  <svg className="h-4 w-4 flex-none text-[#25d366]" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.71.45 3.36 1.3 4.82L2 22l5.4-1.42a9.87 9.87 0 004.64 1.18h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.85 9.85 0 0012.04 2zm5.8 14.03c-.24.68-1.4 1.3-1.94 1.38-.5.08-1.12.11-1.8-.11-.42-.13-.96-.31-1.65-.6-2.9-1.25-4.8-4.17-4.94-4.36-.14-.19-1.18-1.57-1.18-3 0-1.42.75-2.12 1.01-2.41.27-.29.58-.36.78-.36.19 0 .39 0 .55.01.18.01.42-.07.65.5.24.58.81 2 .88 2.15.07.15.12.32.02.51-.09.19-.14.31-.28.48-.14.17-.29.37-.42.5-.14.14-.28.29-.12.57.16.28.72 1.19 1.55 1.93 1.06.94 1.96 1.24 2.24 1.38.28.14.44.12.6-.07.16-.19.68-.79.87-1.07.18-.27.36-.22.6-.13.24.09 1.55.73 1.82.86.27.14.44.2.51.32.07.11.07.65-.17 1.32z" /></svg>
+                  Send message
+                </a>
+              )}
               <button type="button" className={menuItemCls} onClick={() => setMenu('concern')}>{flag ? 'Attention flagged' : 'Flag concern'}</button>
               <button type="button" className={menuItemCls} onClick={() => { setMenu('closed'); setRetakeMarkOpen(true); }}>Mark as retaking</button>
             </>
