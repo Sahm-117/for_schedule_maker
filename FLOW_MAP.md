@@ -527,6 +527,13 @@ duplicating the logic anywhere else is a bug waiting to happen.
     "Next class" card (photo or initials, name and role, bio, the class they teach), and does not open or close the week.
     Participants read the teacher from `participant_home` (`week.teacher`); supports from the Week rows (`teacherName`,
     `teacherRole`, `teacherBio`, `teacherPhotoUrl`). No teacher name, no chip. Frontend only.
+47. **The Planner's "Class dates" sheet shows when each class's manual and recaps will drop, for supports and participants.** Every
+    release time is worked out from the class's date (`Week.classDate`, or start + weeks when none is set), so moving a class
+    moves them all: the manual (one time for both, set in Settings > Recap release times; it goes out BEFORE class, the chosen
+    weekday on or before the class Sunday, Thursday = 3 days before), the supports' recap, the participants' recap, the
+    feedback form, the current programme week, attendance windows, reminders and daily checks. `manualReleaseAt` and
+    `recapReleaseAt` (`utils/recapReleaseTimes.ts`) mirror `recap_release_at()`; the recap one counts days forward from the
+    class Sunday and must not be used for the manual. Frontend only.
 
 ## 5. Edge functions and schedules
 

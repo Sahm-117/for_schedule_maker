@@ -3,7 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import ModalShell from '../followups/ModalShell';
 import Spinner from '../Spinner';
 import { useToast } from '../Toast';
-import { plannerApi } from '../../services/api';
+import { plannerApi, settingsApi } from '../../services/api';
+import { DEFAULT_RECAP_RELEASE_TIMES, formatRecapReleaseAt, manualReleaseAt, recapReleaseAt, type RecapReleaseTimes } from '../../utils/recapReleaseTimes';
 import { PHASE_LABEL, SPARE_WEEKS, addDays, formatPlannerDate, formatPlannerRange, isSunday, phasesFor, type PlannerCohort } from '../../utils/planner';
 
 const FIELD = 'w-full rounded-2xl border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none disabled:bg-gray-50 disabled:text-gray-500';
@@ -25,6 +26,14 @@ const ClassDatesSheet: React.FC<ClassDatesSheetProps> = ({ cohort, plan, today, 
   const [shiftLater, setShiftLater] = useState(true);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
+  // When each class's manual and recap reach supports and participants (Settings > Recap release times).
+  const [release, setRelease] = useState<RecapReleaseTimes>(DEFAULT_RECAP_RELEASE_TIMES);
+  useEffect(() => {
+    settingsApi.getRecapReleaseTimes().then(setRelease).catch(() => { /* the usual times stay */ });
+  }, []);
+  const dropAt = (date: string, day: string, time: string) => (ISO.test(date) ? recapReleaseAt(date, { weekNumber: 1, classDate: date }, day, time) : null);
+  // The manual goes out before the class, the recaps after it.
+  const manualAt = (date: string) => (ISO.test(date) ? manualReleaseAt(date, release.manualDay, release.manualTime) : null);
 
   useEffect(() => {
     if (!cohort) return;
@@ -160,6 +169,13 @@ const ClassDatesSheet: React.FC<ClassDatesSheetProps> = ({ cohort, plan, today, 
                 <input type="date" value={date} disabled={locked[i] || missingWeeks} min={today} onChange={(e) => change(i, e.target.value)} className={FIELD} />
               </label>
               {errors[i] && <p className="mt-1 text-xs font-semibold text-red-700">{errors[i]}</p>}
+              {!locked[i] && ISO.test(date) && !errors[i] && (
+                <div className={`mt-1.5 rounded-xl px-2.5 py-1.5 text-[11px] leading-snug ${date !== original[i] ? 'bg-amber-100/70 text-amber-800' : 'bg-gray-50 text-gray-500'}`}>
+                  <p><b className="font-semibold">Manual</b> (supports and participants): {formatRecapReleaseAt(manualAt(date))}</p>
+                  <p><b className="font-semibold">Recap</b>: supports {formatRecapReleaseAt(dropAt(date, release.supportDay, release.supportTime))}; participants {formatRecapReleaseAt(dropAt(date, release.participantDay, release.participantTime))}</p>
+                  {date !== original[i] && ISO.test(original[i]) && <p className="opacity-80">Was: manual {formatRecapReleaseAt(manualAt(original[i]))}</p>}
+                </div>
+              )}
             </li>
           ))}
         </ul>
