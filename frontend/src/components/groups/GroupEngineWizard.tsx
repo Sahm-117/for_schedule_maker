@@ -11,6 +11,7 @@ import { cohortsApi, groupsApi, participantPushApi, settingsApi, supportHubsApi,
 import type { Group, Participant, SupportKind, SupportTag, User } from '../../types';
 import { AGE_RANGE_OPTIONS } from '../../constants/departments';
 import { trainingCountFor } from '../../utils/programmeRules';
+import { buildWhatsAppText } from '../../utils/groupingExport';
 import { DEFAULT_GROUPING_RULES, type GroupingRules, type RuleStrength, type TagRule } from '../../utils/groupingRules';
 import {
   buildDraft,
@@ -162,6 +163,10 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   // Planning only: include people who have not signed in so the draft shows the groups and supports we will need.
   // Such a draft is only a view: it cannot be saved (that would overwrite the cohort's real draft) or turned into groups.
   const [planningMode, setPlanningMode] = useState(false);
+  // "Text for WhatsApp": the draft's supports by gender with their participants, ready to paste.
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareNames, setShareNames] = useState(true);
+  const [shareCopied, setShareCopied] = useState(false);
   // Hub leads can lead groups too if need be; also off each time the builder opens.
   const [includeHubLeads, setIncludeHubLeads] = useState(false);
   // Fill running groups that have space before making new ones (on by default).
@@ -197,6 +202,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setIncludeOperational(false);
     setIncludeHubLeads(false);
     setPlanningMode(false);
+    setShareOpen(false);
+    setShareCopied(false);
     setTopUpFirst(true);
     setSignedInIds(null);
     setSignedInFailed(false);
@@ -394,6 +401,19 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const topUpPeople = useMemo(() => new Map<string, EnginePerson>([...people, ...topUpTargets.flatMap((t) => t.members.map((m) => [m.id, m] as [string, EnginePerson]))]), [people, topUpTargets]);
   const topUpSupports = useMemo(() => topUpTargets.map((t) => t.support).filter((s): s is EngineSupport => !!s), [topUpTargets]);
   const supportById = useMemo(() => new Map([...supportPool.free, ...seedSupports, ...topUpSupports].map((s) => [s.id, s])), [supportPool.free, seedSupports, topUpSupports]);
+  const whatsAppText = useMemo(
+    () => (shareOpen ? buildWhatsAppText(draft, people, supportById, { names: shareNames }) : ''),
+    [shareOpen, shareNames, draft, people, supportById],
+  );
+  const copyWhatsAppText = async () => {
+    try {
+      await navigator.clipboard.writeText(whatsAppText);
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      setErr('Could not copy. Select the text and copy it by hand.');
+    }
+  };
 
   // Hubs the supports belong to, and which hubs already have participants through running groups.
   const hubSpread = useMemo<HubSpread | undefined>(() => {
@@ -1328,6 +1348,49 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 <div className="rounded-2xl bg-amber-100/80 px-3 py-2 text-[12px] text-amber-800">
                   <p className="font-semibold">Planning draft</p>
                   <p className="mt-0.5">Includes people who have not signed in, so these groups are for forecasting and planning only. It can’t be saved or created. To make real groups, switch “Planning only” off on the People step and build again.</p>
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShareOpen((v) => !v)}
+                  aria-expanded={shareOpen}
+                  className="min-h-[40px] rounded-full border border-gray-200 bg-white px-4 text-xs font-semibold text-gray-700 hover:bg-gray-50 active:scale-95"
+                >
+                  {shareOpen ? 'Hide text for WhatsApp' : 'Text for WhatsApp'}
+                </button>
+              </div>
+              {shareOpen && (
+                <div className={`${SURFACE} flex flex-col gap-3 p-4`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900">Include participant names</p>
+                      <p className="text-xs text-gray-500">{shareNames ? 'Each participant is listed with their age range.' : 'Only age ranges, with how many in each. No names.'} Phone numbers are never included.</p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={shareNames}
+                      aria-label="Include participant names"
+                      onClick={() => { setShareNames((v) => !v); setShareCopied(false); }}
+                      className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition ${shareNames ? 'bg-primary' : 'bg-slate-200'}`}
+                    >
+                      <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${shareNames ? 'translate-x-7' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                  <textarea
+                    readOnly
+                    value={whatsAppText || 'Nothing to share yet.'}
+                    rows={Math.min(14, Math.max(4, whatsAppText.split('\n').length))}
+                    onFocus={(e) => e.currentTarget.select()}
+                    aria-label="Text for WhatsApp"
+                    className="w-full resize-y rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-gray-800 focus:border-primary focus:outline-none"
+                  />
+                  <div className="flex justify-end">
+                    <button type="button" onClick={() => void copyWhatsAppText()} disabled={!whatsAppText} className="min-h-[44px] rounded-2xl bg-primary px-5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50">
+                      {shareCopied ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
                 </div>
               )}
               {coverage && coverage.total > 0 && (
