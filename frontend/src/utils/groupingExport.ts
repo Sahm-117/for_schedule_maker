@@ -55,7 +55,9 @@ export const buildWhatsAppText = (
       const theirs = bySupport.get(id)!;
       const members = theirs.flatMap(membersOf);
       const total = theirs.reduce((n, g) => n + size(g), 0);
-      lines.push(`${supports.get(id)?.name ?? 'Support'} (${plural(total, 'participant', 'participants')})`);
+      // A running group being topped up lists only its new people, so say how many of the total they are.
+      const added = theirs.reduce((n, g) => n + g.memberIds.length, 0);
+      lines.push(`${supports.get(id)?.name ?? 'Support'} (${plural(total, 'participant', 'participants')}${added !== total ? `, ${added} new` : ''})`);
       lines.push(...personLines(members, options.names));
     });
     sections.push(lines.join('\n'));

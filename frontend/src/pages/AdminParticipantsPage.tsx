@@ -1311,7 +1311,7 @@ const AdminParticipantsContent: React.FC = () => {
                         ) : <span className="text-gray-400">—</span>}
                       </td>
                       <td className="px-4 py-3 text-gray-600">
-                        {normaliseAgeRange(p.ageRange) ?? <span className="text-gray-400">—</span>}
+                        {normaliseAgeRange(p.ageRange) ?? p.ageRange ?? <span className="text-gray-400">—</span>}
                       </td>
                       <td className="px-4 py-3">
                         <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">

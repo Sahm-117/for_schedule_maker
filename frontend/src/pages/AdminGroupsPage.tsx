@@ -1,6 +1,3 @@
-import TeenMoveModal from '../components/groups/TeenMoveModal';
-import { useToast } from '../components/Toast';
-import { isTeenAgeRange } from '../utils/groupingRules';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -30,6 +27,9 @@ import { buildTrainingCounts, trainingCountFor, DEFAULT_PROGRAMME_RULES } from '
 import { normalizeLink } from '../utils/links';
 import Spinner from '../components/Spinner';
 import { genderAgeLine, hasSupportRole } from '../utils/people';
+import TeenMoveModal from '../components/groups/TeenMoveModal';
+import { useToast } from '../components/Toast';
+import { isTeenAgeRange } from '../utils/groupingRules';
 
 // ── Training (Phase 4) ────────────────────────────────────────────────────────
 // Shared by GroupFormModal and AssignSupportModal: a support who attended fewer
