@@ -534,8 +534,10 @@ duplicating the logic anywhere else is a bug waiting to happen.
     drives the feedback form, the current programme week, attendance finalising, reminders and daily checks (read in
     `participant_home`, `support_recaps`, `auto_finalize_sunday_attendance`, `daily-checks`, `push-reminders` and `weekFocus.ts`).
     `manualReleaseAt` and `recapReleaseFromClassDate` (`utils/recapReleaseTimes.ts`) mirror `recap_release_at()`; the recap
-    one counts days forward from the class Sunday and must not be used for the manual. The sheet shows no drop times until the
-    setting has loaded. Frontend only.
+    one counts days forward from the class Sunday and must not be used for the manual. The sheet reads the setting with `getRecapReleaseTimesChecked` (a failed read throws; the
+    plain `getRecapReleaseTimes` quietly gives the usual times) and shows no drop times until it has loaded, or if it cannot be read. The times
+    are the scheduled ones: a manual or recap already sent early (`manualReleasedEarlyAt`, `participantReleasedEarlyAt`) has gone out, which the
+    sheet says in a note. The week editor's manual label says "ahead of the Week N class". Frontend only.
 
 ## 5. Edge functions and schedules
 

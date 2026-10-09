@@ -1538,7 +1538,7 @@ const CohortsPage: React.FC = () => {
           const manualDone = !!week?.manualDocumentUrl;
           const recapDone = !!(week?.recapDocumentUrl || recapSummaryDraft.trim());
           const teenRecapDone = !!(week?.teenRecapDocumentUrl || week?.teenRecapSummary?.trim() || week?.teenDiscussionPrompt?.trim());
-          const manualReleaseLabel = `${formatDayTime(recapReleaseTimes.manualDay, recapReleaseTimes.manualTime)} in Week ${week?.weekNumber ?? ''} of the cohort`;
+          const manualReleaseLabel = `${formatDayTime(recapReleaseTimes.manualDay, recapReleaseTimes.manualTime)}, ahead of the Week ${week?.weekNumber ?? ''} class`;
           const nextLine = !manualDone
             ? `Next: upload the manual · goes out ${manualReleaseLabel}`
             : !recapDone

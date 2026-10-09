@@ -8,6 +8,11 @@ attendance windows, reminders, daily checks), because all of it reads `Week.clas
 date" sheet (`ClassDatesSheet.tsx`) now shows, under every class that can still change, when its manual drops (one time for supports and
 participants), when the recap reaches supports and when it reaches participants, and "Was: manual ..." for a class you have moved.
 
+## Also changed
+- `settingsApi.getRecapReleaseTimesChecked()`: same read as `getRecapReleaseTimes()` but a failed read throws (the sheet needs to tell "could not read" from "use the usual times").
+- The week editor's manual label (Cohorts page) said "in Week N of the cohort"; it now says "ahead of the Week N class", matching when the manual really goes out.
+- The sheet shows scheduled times only: a manual or recap already sent early has gone out (a note says so).
+
 ## Also found
 - The manual goes out before class (database `recap_release_at(date, 'manual')`: the weekday on or before the class Sunday). The frontend helper
   `recapReleaseAt` counts forward, which is right for recaps and wrong for the manual, so `manualReleaseAt` was added and the file's comment fixed.
@@ -18,7 +23,9 @@ participants), when the recap reaches supports and when it reaches participants,
 
 ## How it was tested
 Browser with a mocked backend: the Planner, the Class dates sheet, moving class 4 a week later; the manual shows Thu 5 Nov for the 8 Nov class
-(3 days before), recaps Sun and Mon after. Not run against a real admin login.
+(3 days before), recaps Sun and Mon after; with the setting read failing (500) the sheet shows no drop times. `manualReleaseAt` and
+`recapReleaseFromClassDate` were also compared with the live `recap_release_at()` for all 7 weekdays x 3 Sundays x manual/recap in a rolled-back
+transaction: 21 of 21 match (no test runner in the project, so this was a one-off script, not a committed test). Not run against a real admin login.
 
 ## Open items
 - The sheet reads Settings > Timings, each time it opens; if that setting has not loaded or cannot be read, the sheet shows no drop times (it does not guess).

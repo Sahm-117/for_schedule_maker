@@ -541,6 +541,7 @@ export const settingsApi = USE_SUPABASE ? supabaseSettingsApi : {
   async getGroupingDraft(_cohortId: string): Promise<import('../utils/groupingEngine').SavedGroupingDraft | null> { return null; },
   async setGroupingDraft(_cohortId: string, _draft: import('../utils/groupingEngine').SavedGroupingDraft | null): Promise<void> { return undefined; },
   async getRecapReleaseTimes(): Promise<import('../utils/recapReleaseTimes').RecapReleaseTimes> { return { ...DEFAULT_RECAP_RELEASE_TIMES }; },
+  async getRecapReleaseTimesChecked(): Promise<import('../utils/recapReleaseTimes').RecapReleaseTimes> { return { ...DEFAULT_RECAP_RELEASE_TIMES }; },
   async setRecapReleaseTimes(times: import('../utils/recapReleaseTimes').RecapReleaseTimes): Promise<import('../utils/recapReleaseTimes').RecapReleaseTimes> { return times; },
   async getClassFeedbackTimes(): Promise<import('../utils/classFeedbackTimes').ClassFeedbackTimes> { return { ...DEFAULT_CLASS_FEEDBACK_TIMES }; },
   async setClassFeedbackTimes(times: import('../utils/classFeedbackTimes').ClassFeedbackTimes): Promise<import('../utils/classFeedbackTimes').ClassFeedbackTimes> { return times; },

@@ -33,8 +33,7 @@ const ClassDatesSheet: React.FC<ClassDatesSheetProps> = ({ cohort, plan, today, 
   useEffect(() => {
     if (!cohortKey) return;
     let cancelled = false;
-    setRelease(null);
-    settingsApi.getRecapReleaseTimes().then((times) => { if (!cancelled) setRelease(times); }).catch(() => { /* no drop times shown */ });
+    settingsApi.getRecapReleaseTimesChecked().then((times) => { if (!cancelled) setRelease(times); }).catch(() => { if (!cancelled) setRelease(null); /* no drop times shown */ });
     return () => { cancelled = true; };
   }, [cohortKey]);
   // The manual goes out before the class, the recaps after it.
@@ -187,6 +186,7 @@ const ClassDatesSheet: React.FC<ClassDatesSheetProps> = ({ cohort, plan, today, 
             </li>
           ))}
         </ul>
+        {release && <p className="text-[11px] text-gray-400">These are the scheduled drop times. A manual or recap you have already sent early from the week editor has gone out.</p>}
         {orderError && <p className="rounded-2xl bg-red-100/80 p-3 text-xs text-red-700">{orderError}</p>}
         {phases && (
           <div className="rounded-2xl bg-gray-50 p-3.5 text-sm">

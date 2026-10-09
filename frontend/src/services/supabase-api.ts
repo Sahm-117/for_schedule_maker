@@ -2213,6 +2213,17 @@ export const settingsApi = {
     return normaliseRecapReleaseTimes(error ? null : (data as any)?.value);
   },
 
+  /** Like getRecapReleaseTimes, but a failed read throws instead of quietly giving the usual times (a missing row still means the usual times). */
+  async getRecapReleaseTimesChecked(): Promise<import('../utils/recapReleaseTimes').RecapReleaseTimes> {
+    const { data, error } = await supabase
+      .from('AppSetting')
+      .select('value')
+      .eq('settingKey', 'recap_release_times')
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return normaliseRecapReleaseTimes((data as any)?.value);
+  },
+
   async setRecapReleaseTimes(times: import('../utils/recapReleaseTimes').RecapReleaseTimes): Promise<import('../utils/recapReleaseTimes').RecapReleaseTimes> {
     const value = normaliseRecapReleaseTimes(times);
     const { error } = await supabase
