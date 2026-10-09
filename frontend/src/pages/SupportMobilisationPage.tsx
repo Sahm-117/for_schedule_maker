@@ -132,6 +132,14 @@ const reportedWhen = (value?: string | null) => {
 };
 
 
+// Stands in for a number card until the people list has loaded (or if it could not be loaded).
+const CountingCard: React.FC<{ title: string }> = ({ title }) => (
+  <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
+    <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">{title}</p>
+    <p className="mt-2 text-xs text-gray-500">Counting…</p>
+  </section>
+);
+
 const SupportMobilisationPage: React.FC = () => {
   const { user } = useAuth();
   if (!user || user.role !== 'SUPPORT') return <Navigate to="/support" replace />;
@@ -310,6 +318,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     return {
       ...base,
       counts: {
+        total: overview.total.registered,
         adults: overview.adults.registered,
         onboarded: overview.adults.loggedIn,
         teens: overview.teens.registered,
@@ -320,7 +329,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     };
   }, [allContacts, activeCohort, people, signUps]);
   const counts = mobilisationNumbers?.counts ?? null;
-  const registeredTotal = counts ? counts.adults + counts.teens : 0;
+  const registeredTotal = counts?.total ?? 0;
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   // Contacts whose number is marked Wrong Number, by the same rule as the counts, for the chip on the form list.
   const wrongNumberIds = useMemo(
     () => new Set(allContacts.filter((c) => computeFollowUpStatus(c) === 'WRONG_NUMBER').map((c) => c.id)),
@@ -819,7 +829,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Target</p>
                     {mobilisationTarget ? (
-                      <InfoTip label="About the target">{registeredTotal} people in {activeCohort?.name} have registered ({counts.adults} adults, {counts.teens} teens), out of a target of {mobilisationTarget}. This is the same count as the Dashboard.</InfoTip>
+                      <InfoTip label="About the target">{plural(registeredTotal, 'person', 'people')} in {activeCohort?.name} {registeredTotal === 1 ? 'has' : 'have'} registered ({plural(counts.adults, 'adult', 'adults')}, {plural(counts.teens, 'teen', 'teens')}), out of a target of {mobilisationTarget}. This is the same count as the Dashboard.</InfoTip>
                     ) : null}
                   </div>
                   {mobilisationTarget ? (
@@ -828,20 +838,21 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                       <p className={`mt-1 text-xs font-semibold ${registeredTotal >= mobilisationTarget ? 'text-emerald-700' : 'text-amber-700'}`}>
                         {registeredTotal >= mobilisationTarget ? 'Target reached' : `${mobilisationTarget - registeredTotal} to go`}
                       </p>
-                      <p className="mt-0.5 text-[11px] font-semibold text-gray-500">{counts.adults} {counts.adults === 1 ? 'adult' : 'adults'}, {counts.teens} {counts.teens === 1 ? 'teen' : 'teens'}</p>
+                      <p className="mt-0.5 text-[11px] font-semibold text-gray-500">{plural(counts.adults, 'adult', 'adults')}, {plural(counts.teens, 'teen', 'teens')}</p>
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
                         <span className={`block h-full ${registeredTotal >= mobilisationTarget ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${Math.min(registeredTotal / mobilisationTarget, 1) * 100}%` }} />
                       </div>
                     </>
                   ) : (
-                    <p className="mt-1 text-xs text-gray-500">No target set yet</p>
+                    <>
+                      <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{registeredTotal}</span> registered</p>
+                      <p className="mt-1 text-[11px] font-semibold text-gray-500">{plural(counts.adults, 'adult', 'adults')}, {plural(counts.teens, 'teen', 'teens')}</p>
+                      <p className="mt-0.5 text-xs text-gray-500">No target set yet</p>
+                    </>
                   )}
                 </section>
                 ) : (
-                <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Target</p>
-                  <p className="mt-2 text-xs text-gray-500">Counting…</p>
-                </section>
+                <CountingCard title="Target" />
                 )}
                 {counts ? (
                 <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
@@ -862,10 +873,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   )}
                 </section>
                 ) : (
-                <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Teens</p>
-                  <p className="mt-2 text-xs text-gray-500">Counting…</p>
-                </section>
+                <CountingCard title="Teens" />
                 )}
                 <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
                   <div className="flex items-center justify-between gap-2">
@@ -894,10 +902,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   )}
                 </section>
                 ) : (
-                <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Onboarded</p>
-                  <p className="mt-2 text-xs text-gray-500">Counting…</p>
-                </section>
+                <CountingCard title="Onboarded" />
                 )}
               </div>
               <button
