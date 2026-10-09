@@ -5,6 +5,9 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-09 | [Group sizes per gender, admin teen moves, WhatsApp text](2026-10-09_group-sizes-teen-move-whatsapp.md) | Per-gender group size (teens too), admin move of a teen between Teen Supports, Draft step "Text for WhatsApp". One live migration, no edge function. |
+| 2026-10-09 | [Teen bracket 10 - 17, age change moves the person](2026-10-09_teen-bracket-10-17.md) | Teen age bracket is "10 - 17", adults from 18 ("18 - 24"); changing an age range across the line converts or reverts; Participants age range column. Two live migrations, receive-form-registration v16. |
+| 2026-10-09 | [Practice: enrol dual-role supports](2026-10-09_practice-enrol-dual-role.md) | Admins with the Support tag are enrolled in Practice. One live migration. |
 | 2026-10-09 | [Next class card: graphic and teacher](2026-10-09_class-card.md) | Per-class graphic and teacher entered in the week editor; "Next class" card on the participant home with a teacher sheet and one manual button. One live migration, no edge function. |
 | 2026-10-09 | [Group builder: groups without a support, by gender](2026-10-09_builder-no-support-by-gender.md) | Draft step counts new groups without a support by gender and filters them. Frontend only. |
 | 2026-10-09 | [Group builder: Planning only switch](2026-10-09_builder-planning-only.md) | Optional switch on the People step to include people who have not signed in, for forecasting; planning drafts are view only. Frontend only. |

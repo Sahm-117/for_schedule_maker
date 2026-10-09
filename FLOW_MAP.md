@@ -100,7 +100,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
    consumed by frontend scope, assignment, and reminders. Do not re-derive it.
 3. **One phone per cohort, two exceptions.** `uniq_participant_phone_per_cohort`
    exempts two named rows (Funmilayo Ewayenikan / Jeremiah Williams, who
-   share a number and an email) and every participant aged "18 and below":
+   share a number and an email) and every participant aged "10 - 17":
    teens may share a number, usually a parent's
    (`20261006170000_teens_share_phone_and_abimbola.sql`). Sign-in tries the password across every
    same-number row, newest cohort first. Never add email login: duplicate
@@ -122,20 +122,23 @@ duplicating the logic anywhere else is a bug waiting to happen.
    on write (`trg_*_local_phone`). Invalid numbers are held back from
    assignment, never dropped. Search normalises 234 to 0
    (`contactMatchesSearch`).
-8. **Form wording maps to app buckets.** "18 and below" (and the older
-   "Below 18", or "18 & below") becomes "18 and below"; the older "18 - 24"
-   (or "18-24") becomes "19 - 24";
+8. **Form wording maps to app buckets.** The teen bracket is "10 - 17"; an adult is 18 or over, and the
+   first adult bracket is "18 - 24". The form still says "18 and below" (and the older "Below 18",
+   "17 and below", "18 & below"): all of those become "10 - 17". The form's "19 - 24" and the older
+   "18 - 24" both become "18 - 24". The form owner may reword the form; until then an 18-year-old who
+   ticks "18 and below" lands as a teen and an admin moves them by changing the age range;
    only blank profile fields are ever filled, never overwrites. The same
    allow-list lives in `fill_profile_from_form` and the contact backfill;
    change both, and `isBelow18` in `receive-form-registration`. Source:
    `20261005120000_form_age_below_18.sql`, `20261007220000_form_age_new_wording.sql`,
-   `20261007240000_age_bucket_19_24.sql` (the bucket was "18 - 24" before).
+   `20261007240000_age_bucket_19_24.sql`, `20261009140000_teen_bracket_10_17.sql` (the brackets were
+   "18 and below" / "19 - 24" before).
    `fill_profile_from_form` fills the follow-up contact (gender, age, occupation,
    email, who registered them) as well as the participant; the same-gender rule
    (4) needs the contact's gender, so a rewrite must keep both. Source:
    `20261008000000_restore_contact_profile_fill.sql`.
    Exception: a believable date of birth (age 5 to 100) sets the age range
-   itself (18 and under is "18 and below", 19 to 24 is "19 - 24"), for participants always and for supports once a birth year is
+   itself (under 18 is "10 - 17", 18 to 24 is "18 - 24"), for participants always and for supports once a birth year is
    added; the date wins over a typed range. Placeholder years like 1904 are
    ignored. Source: `20261006150000_age_from_birth_and_participant_theme.sql`,
    `20261007230000_age_18_is_teen.sql`
@@ -200,7 +203,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     leads are offered (tagged), and missing pre-cohort training is
     shown as a notice (not for those two kinds), never a block (no override note needed).
     A registered
-    contact whose age is "18 and below" becomes TEENAGER (then TEEN_ONBOARDED)
+    contact whose age is "10 - 17" becomes TEENAGER (then TEEN_ONBOARDED)
     inside `fill_profile_from_form`, only while `AppSetting.teen_flow_enabled`
     is true (off until teen assignment and groups exist). Adult assignment,
     reassignment, stale sweeps and load counts skip both teen statuses, and the
@@ -219,7 +222,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     there is no opposite-gender fallback. If none has room the teen waits and
     admins are told. The limit is `programme_rules.maxTeensPerTeenSupport`
     (default 4) and counts every teen a support holds, onboarded or not. A teen
-    who has a support is never moved automatically. A "Below 18" form on a phone
+    who has a support is never moved automatically. A teen form on a phone
     that already has a contact with a different name (words compared in any
     order, `fof_name_key`) is a new person, not a correction. Source:
     `20261006180000_teen_assignment.sql`.
@@ -256,7 +259,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     `assign_followups_now` also runs `assign_teen_contacts`.
 24. **Switching teen handling on for the first time moves the existing teens.** The
     `teen_enable_move` trigger on `AppSetting` runs `teen_move_existing()` once (marker
-    `teen_move_done`): every current-cohort participant aged 18 and below becomes a TEENAGER
+    `teen_move_done`): every current-cohort participant aged 10 - 17 becomes a TEENAGER
     contact (created if they had none) with no adult owner, and the adult who held them is told.
     They then wait for the normal teen assignment (sweep or admin "Assign now"), which gives them
     a same-gender Teen Support and a teen group. For the first 48 hours after that switch-on, teen assignment does not skip
@@ -272,7 +275,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
 26. **Age brackets refresh every night.** `refresh_age_brackets()` (pg_cron
     `refresh_age_brackets_daily`, 01:30 Lagos) moves participants with a believable date of
     birth, and supports with a birth year, to the bracket their age now gives. A participant whose
-    bracket is "18 and below" stays there until their cohort is COMPLETED or past its end date, so
+    bracket is "10 - 17" stays there until their cohort is COMPLETED or past its end date, so
     a teen keeps their Teen Support and teen group for the programme. People without a date of
     birth or birth year are never touched. Source: `20261007180000_age_bracket_daily_refresh.sql`.
 27. **Teens have their own messages.** `MessageTemplate.category` `TEEN` (to the teen) and
@@ -408,7 +411,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     joining next cohort, marked as logged in by hand but never signed in). TEENS get no login details, so their
     sign-in is never counted: a teen is Onboarded (by their Teen Support, status Teen onboarded), No response
     (No response, or parked / stopped), or Not onboarded yet (the rest; "waiting for a Teen Support" when they
-    have none), and Registered = Onboarded + No response + Not onboarded yet. Teen = age range "18 and below",
+    have none), and Registered = Onboarded + No response + Not onboarded yet. Teen = age range "10 - 17",
     or on the teen path (Teenager / Teen onboarded). A follow-up status only explains where someone is; it never
     adds or removes anyone from Registered, so parking someone (No response, next cohort) or moving a teen to a
     Teen Support cannot change the total. The one exception is Wrong Number: a registered person marked Wrong
@@ -448,7 +451,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     card beside it counts registered teens with the wrong number left out and says how many came from the form or
     were added by hand, Onboarded is adults logged in out of adults (teens have no login), and Prospects stays the
     follow-up contacts still to register, with a "See who" list
-    of this cohort's prospects, whoever follows them up (name, status, support, date added; no numbers). On "Registered on the form", a teen (form age "Below 18" / "18 and below", or on the
+    of this cohort's prospects, whoever follows them up (name, status, support, date added; no numbers). On "Registered on the form", a teen (age range "10 - 17", or on the
     teen path) shows a Teen chip and "Number hidden"; the number and email are dropped when the rows load, so they are not shown
     or searchable on that list (the database, and the contacts and people lists a support can open elsewhere,
     still carry them). A Wrong Number contact shows
@@ -467,6 +470,30 @@ duplicating the logic anywhere else is a bug waiting to happen.
     been uploaded. The plain manual row for the current week stays whenever the card is for a different week. With no graphic and no teacher the card is not shown and the plain "This
     week's manual" row stays. The teacher's bio and photo only show once a name is set. Source:
     `20261009110000_class_card.sql`, `20261009120000_class_card_manual_only_if_uploaded.sql`.
+39. **Practice enrols every support, including an admin who also carries the Support tag.** `practice_pulse` enrols a
+    user whose `role = SUPPORT` or whose `roles` contains SUPPORT (the same test as rule 16). Before this an admin given
+    the Support tag was never put on the practice roster. Source: `20261009130000_practice_enrol_dual_role.sql`.
+40. **Changing a participant's age range across the teen line moves the person.** Setting a current-cohort, ACTIVE,
+    non-test participant to a teen range ("10 - 17") runs `teen_convert_participant`: adult-group memberships go
+    (group supports are told first), the follow-up contact becomes a TEENAGER, the previous adult owner is told, and
+    the normal teen assignment gives a same-gender Teen Support. Setting a teen to an adult range runs
+    `teen_revert_participant`: the contact goes back to REGISTERED, the owner is cleared when it was a Teen Support, and
+    that support is told. Both run from the trigger `participant_age_teen_boundary` (`AFTER UPDATE OF "ageRange"`), so
+    any edit path behaves the same. A date of birth still wins over a typed range, so the Participants form locks the
+    age range when a date of birth exists. A participant with no date of birth can only be corrected this way. Source:
+    `20261009150000_teen_age_change_follows.sql`.
+41. **Group size can be set per gender, and a Teen Support's limit follows the teen's gender.** The group builder rules
+    carry `genderSizes` (min/max per Female and Male; a mixed group uses the general size). `teen_cap_for(cohort,
+    gender)` gives `assign_teen_contacts` the same limit per gender, falling back to
+    `programme_rules.maxTeensPerTeenSupport`. An admin can move a teen to another same-gender Teen Support from
+    Groups (`admin_teen_move_targets`, `admin_move_teen`): a full support needs an explicit "Move anyway", the move is
+    logged in `FollowUpReassignmentLog` as moved by that admin, and both supports are told. Source:
+    `20261009160000_teen_group_sizes_and_admin_move.sql`.
+42. **The Draft step can be exported as WhatsApp text.** `buildWhatsAppText` (`utils/groupingExport.ts`) lists supports by
+    gender, `Name (N participants)`, then each participant with their age range, and groups still without a support.
+    Participant names are optional (switch on the Draft step); with names off only counts per age range are shown. It
+    carries no phone numbers. Supports can be moved by hand on the Draft step; a support already used by another group
+    must be cleared there first. Frontend only.
 
 ## 5. Edge functions and schedules
 
