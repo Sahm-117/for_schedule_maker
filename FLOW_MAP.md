@@ -483,7 +483,10 @@ duplicating the logic anywhere else is a bug waiting to happen.
     transaction flag `fof.skip_teen_boundary` around its own profile fill, because it does the teen handling itself
     straight after; keep that flag if you rewrite it. A date of birth still wins over a typed range, so the Participants form locks the
     age range when a date of birth exists. A participant with no date of birth can only be corrected this way. Source:
-    `20261009150000_teen_age_change_follows.sql`, `20261009170000_teen_review_fixes.sql`.
+    `20261009150000_teen_age_change_follows.sql`, `20261009170000_teen_review_fixes.sql`. The conversion marks a contact
+    as registered by hand (`manualRegistrationAt`, the mark the form gate in rule 1 looks for) only when no form
+    registration is linked to it; a person who signed up on the form is left unmarked
+    (`20261009180000_teen_convert_form_signups_not_manual.sql`).
 41. **Group size can be set per gender, and a Teen Support's limit follows the teen's gender.** The group builder rules
     carry `genderSizes` (min/max per Female and Male; a mixed group uses the general size). `teen_cap_for(cohort,
     gender)` gives `assign_teen_contacts` the same limit per gender, falling back to
