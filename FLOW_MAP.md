@@ -566,7 +566,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     close button, no tap-outside or Escape, only "I'm fine with this" or "Opt out". A project is prayable when
     `faith_project_prayable` says so: SAVED, has text, the person has not opted out, and they said yes / were already shared
     (`sharedForPrayer`) or prayers have started. `hub_prayer_list`, `set_hub_prayer_focus` and the group prayer focus in `participant_home`
-    use it; never go back to "APPROVED and shared". The Faith page keeps a switch (default on) that changes the same answer. Teens
+    use it; never go back to "APPROVED and shared". Once answered, the Faith page shows a small "Prayer on / Prayer off" chip at the top right (`PrayerChoiceSheet`; choosing applies at once, no Save); there is no toggle row on the page. Teens
     have no login, so none of this reaches them. Source: `20261010100000_faith_project_free_edit.sql`.
 
 ## 5. Edge functions and schedules

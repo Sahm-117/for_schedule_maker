@@ -8,6 +8,7 @@ import FaithProjectGuide from '../components/FaithProjectGuide';
 import FaithProjectHistory from '../components/faithProjects/FaithProjectHistory';
 import SegmentedTabs from '../components/SegmentedTabs';
 import TestimoniesTab from '../components/participantApp/TestimoniesTab';
+import PrayerChoiceSheet from '../components/participantApp/PrayerChoiceSheet';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
 import { useParticipantApp } from '../context/ParticipantAppContext';
@@ -129,20 +130,6 @@ const Chevron: React.FC<{ open?: boolean; className?: string }> = ({ open, class
   </svg>
 );
 
-const Switch: React.FC<{ on: boolean; onToggle?: () => void; label: string; disabled?: boolean }> = ({ on, onToggle, label, disabled }) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={on}
-    aria-label={label}
-    onClick={onToggle}
-    disabled={disabled}
-    className={`relative inline-flex h-7 w-12 flex-none items-center rounded-full transition disabled:opacity-60 ${on ? 'bg-primary' : 'bg-gray-200'}`}
-  >
-    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${on ? 'translate-x-6' : 'translate-x-1'}`} />
-  </button>
-);
-
 type FaithTab = 'project' | 'testimonies';
 
 const ParticipantFaithPage: React.FC = () => {
@@ -162,8 +149,10 @@ const ParticipantFaithPage: React.FC = () => {
   const [editing, setEditing] = useState(false);
   const fieldRef = useRef<HTMLTextAreaElement | null>(null);
   useEffect(() => { if (editing) fieldRef.current?.focus(); }, [editing]);
-  const [prayerOn, setPrayerOn] = useState(true);
+  // NULL until they have answered the pop-up; the subtle "Prayer on / off" chip appears once they have.
+  const [consent, setConsent] = useState<'IN' | 'OUT' | null>(null);
   const [prayerSaving, setPrayerSaving] = useState(false);
+  const [prayerSheetOpen, setPrayerSheetOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -172,27 +161,27 @@ const ParticipantFaithPage: React.FC = () => {
         if (cancelled) return;
         setFaith(data);
         setDraft(data.project?.body ?? '');
-        setPrayerOn(data.prayerConsent !== 'OUT');
+        setConsent(data.prayerConsent);
       })
       .catch((err) => { if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Could not load your faith project.'); });
     return () => { cancelled = true; };
   }, []);
 
-  // The pop-up answers the same question: follow the app's current answer so the switch never shows an old one.
+  // The pop-up answers the same question: follow the app's current answer so the chip never shows an old one.
   const knownConsent = home?.prayerConsent;
   useEffect(() => {
-    if (knownConsent !== undefined) setPrayerOn(knownConsent !== 'OUT');
+    if (knownConsent !== undefined) setConsent(knownConsent);
   }, [knownConsent]);
 
-  const togglePrayer = async () => {
-    const next = !prayerOn;
-    setPrayerOn(next);
+  const choosePrayer = async (include: boolean) => {
+    const previous = consent;
+    setConsent(include ? 'IN' : 'OUT');
     setPrayerSaving(true);
     try {
-      await participantAppApi.setPrayerConsent(next);
+      await participantAppApi.setPrayerConsent(include);
       void reload();
     } catch (err) {
-      setPrayerOn(!next);
+      setConsent(previous);
       toast({ message: err instanceof Error ? err.message : 'Could not save that. Please try again.', tone: 'error' });
     } finally {
       setPrayerSaving(false);
@@ -239,7 +228,21 @@ const ParticipantFaithPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="Faith Project" tourId="participant:faith" />
+      <PageHeader
+        title="Faith Project"
+        tourId="participant:faith"
+        inlineAction={consent ? (
+          <button
+            type="button"
+            onClick={() => setPrayerSheetOpen(true)}
+            aria-label={`Corporate prayers: ${consent === 'OUT' ? 'off' : 'on'}. Change`}
+            className="inline-flex min-h-[32px] items-center gap-1.5 whitespace-nowrap rounded-full bg-black/[0.05] px-3 text-[12px] font-semibold text-gray-600 transition active:scale-95"
+          >
+            <span className={`h-[7px] w-[7px] rounded-full ${consent === 'OUT' ? 'bg-gray-400' : 'bg-emerald-500'}`} aria-hidden="true" />
+            {consent === 'OUT' ? 'Prayer off' : 'Prayer on'}
+          </button>
+        ) : undefined}
+      />
 
       <div className="mb-3.5">
         <SegmentedTabs
@@ -313,16 +316,6 @@ const ParticipantFaithPage: React.FC = () => {
         <section className={`${SURFACE} px-6 py-1.5 sm:px-8`}>
           <FaithProjectHistory versions={faith.history} participantLabel="You" />
 
-          <div className="flex min-h-[60px] items-center gap-3 border-t border-[#f0f0f2] py-3.5">
-            <div className="min-w-0 flex-1">
-              <p className="text-[16px] font-semibold text-gray-900">Include in corporate prayers</p>
-              <p className="mt-0.5 text-[13px] leading-snug text-gray-500">
-                Your photo and project are shown to everyone in your cohort who prays together{startsText ? `, from ${startsText}` : ''}. Turn this off any time to opt out.
-              </p>
-            </div>
-            <Switch on={prayerOn} onToggle={() => { void togglePrayer(); }} label="Include my Faith Project in corporate prayers" disabled={prayerSaving} />
-          </div>
-
           {saved && (
             faith.openHelpRequest ? (
               <div className="border-t border-[#f0f0f2] py-4">
@@ -345,6 +338,10 @@ const ParticipantFaithPage: React.FC = () => {
             : <button type="button" onClick={() => navigate('/me/group')} className="inline-flex min-h-11 items-center gap-1.5 text-[13.5px] font-medium text-gray-500 hover:text-gray-900">Got questions? Find your support <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 17 17 7m0 0H9m8 0v8" /></svg></button>}
         </div>
       </div>
+      )}
+
+      {prayerSheetOpen && consent && (
+        <PrayerChoiceSheet consent={consent} startsText={startsText} saving={prayerSaving} onChoose={(include) => { void choosePrayer(include); }} onClose={() => setPrayerSheetOpen(false)} />
       )}
 
       <NotGoingWellSheet

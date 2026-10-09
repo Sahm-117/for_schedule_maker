@@ -59,6 +59,8 @@ Known and accepted: the retirement migration turned every project with text in a
 participant may not have finished. They only become prayable from the start week (or earlier if the person says yes), and every participant sees the opt-out
 pop-up first.
 
+- The "Include in corporate prayers" toggle row is gone. After the pop-up is answered, a small grey **Prayer on / Prayer off** chip sits at the top right of the Faith page (new `PageHeader.inlineAction`); tapping it opens `PrayerChoiceSheet` (Include / Opt out, applies at once, no Save). The chip is hidden until the pop-up has been answered.
+
 ## Open items
 - Hub prayer pages still say "shared for prayer"; the text is fine but could say "corporate prayers".
 - Parts 2 to 4 of the spec are not built: the Corporate Prayers admin module, the prayer slot screen with live counts, and the 9pm Telegram

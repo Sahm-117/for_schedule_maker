@@ -4229,7 +4229,7 @@ window.GUIDE_CONTENT = {
        ],
        "steps": [
         "A few days before corporate prayers start, a pop-up asks about it. Tap **I'm fine with this** or **Opt out**.",
-        "To change your mind later, open **F. Project** and use the **Include in corporate prayers** switch."
+        "To change your mind later, open **F. Project** and tap the small **Prayer on** (or **Prayer off**) chip at the top right. Pick **Include my faith project** or **Opt out**."
        ],
        "result": "Everyone is included unless they opt out. When you are included, your photo and project are shown to everyone in your cohort who prays together. If you opt out, they are not.",
        "tips": [
@@ -4268,7 +4268,7 @@ window.GUIDE_CONTENT = {
        ],
        "result": "Your support is told and will keep an eye out.",
        "tips": [
-        "You can also turn **Include in corporate prayers** on or off at any time."
+        "You can change your corporate prayers choice at any time with the small **Prayer on** chip at the top right of **F. Project**."
        ]
       },
       {

@@ -6,6 +6,8 @@ interface PageHeaderProps {
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
+  /** A small control on the title row itself, at the right end, on phones too (the action sits below the title on phones). */
+  inlineAction?: React.ReactNode;
   onHelp?: () => void;
   /** Page tour id from constants/tours (e.g. 'support:home'); shows the "?" that runs it. */
   tourId?: string;
@@ -38,9 +40,9 @@ const BackLink: React.FC<{ label: string; fallbackTo: string }> = ({ label, fall
   );
 };
 
-const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, action, onHelp, tourId, back }) => (
+const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, action, inlineAction, onHelp, tourId, back }) => (
   <div className="mb-4 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
-    <div className="min-w-0">
+    <div className={`min-w-0 ${inlineAction ? 'sm:flex-1' : ''}`}>
       {back && <BackLink label={back.label} fallbackTo={back.fallbackTo} />}
       {/* The "?" sits right beside the page name. */}
       <div className="flex items-center gap-2.5">
@@ -56,6 +58,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, action, onHelp
             ?
           </button>
         )}
+        {inlineAction && <div className="ml-auto shrink-0">{inlineAction}</div>}
       </div>
       {subtitle && <p className="page-subtitle">{subtitle}</p>}
     </div>
