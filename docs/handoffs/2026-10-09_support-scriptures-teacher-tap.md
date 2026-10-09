@@ -13,6 +13,8 @@ Frontend only. No migration, no edge function, nothing live to apply. FLOW_MAP r
 - **Tap a teacher:** a chip under a week's title on the participant Journey and on the support Classes page (list rows and the
   big next-class card) opens the teacher sheet. The sheet moved out of `NextClassCard.tsx` into `components/TeacherSheet.tsx`.
 
+- **Also:** each support in "Supports without a group" has its own "Make a group" button (for making just some); an empty group no longer shows the red "Only 0 people" note; the WhatsApp text bolds each support's name (`*name*`) and numbers the participants under them. The Teen Support Guide v6 (5 pages, down from 9) is a PDF kept outside the repo.
+
 ## Decisions (mine, not asked)
 - Supports follow the same scriptures switch as participants. It is **off in Settings right now**, so neither group sees the card
   until an admin turns it on.

@@ -499,7 +499,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
     `20261009160000_teen_group_sizes_and_admin_move.sql`, `20261009170000_teen_review_fixes.sql`.
 42. **The Draft step can be exported as WhatsApp text.** `buildWhatsAppText` (`utils/groupingExport.ts`) lists supports by
     gender, `Name (N participants)`, then each participant with their age range, and groups still without a support.
-    Participant names are optional (switch on the Draft step); with names off only counts per age range are shown. It
+    Each support's name is bold (`*name*`, WhatsApp's bold) and their participants are numbered. Participant names are
+    optional (switch on the Draft step); with names off only counts per age range are shown. It
     carries no phone numbers. Supports can be moved by hand on the Draft step; a support already used by another group
     must be cleared there first. Frontend only.
 43. **The Draft step filters its groups by gender and by missing support.** The chips are All groups, Female, Male and Mixed or
@@ -509,8 +510,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
     a no-support view is a snapshot so cards do not jump as supports are given. Groups outside the view are hidden, so moving
     someone into one needs "All groups". Frontend only (`GroupEngineWizard.tsx`).
 44. **A support left without a group can be given an empty group on the Draft step.** "Make a group for each" in Supports
-    without a group adds one empty draft group per unused support (named after the next free "Group n"); people are then
-    moved in by hand. A group still empty at the end is not created; the Draft step says so ("N empty groups are not
+    without a group adds one empty draft group per unused support (named after the next free "Group n"), and each support in that
+    list also has its own "Make a group" button for just that one; people are then moved in by hand. A group still empty at the end is not created; the Draft step says so ("N empty groups are not
     created yet") and an empty group has a Remove button. Empty groups are their own bucket in the gender chips ("Empty
     groups"; Female + Male + Mixed + Empty = All groups) and stay on screen in every gender view, because they are where
     people get moved to. A support with only an empty group still counts as spare for hub coverage. Frontend only
