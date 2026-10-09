@@ -500,7 +500,8 @@ duplicating the logic anywhere else is a bug waiting to happen.
 42. **The Draft step can be exported as WhatsApp text.** `buildWhatsAppText` (`utils/groupingExport.ts`) lists supports by
     gender, `Name (N participants)`, then each participant with their age range, and groups still without a support.
     Participant names are optional (switch on the Draft step); with names off only counts per age range are shown. It
-    carries no phone numbers. Supports can be moved by hand on the Draft step; a support already used by another group
+    carries no phone numbers. The Draft step's chips filter the groups by the gender of their people (Female, Male, Mixed or
+    unknown) and by missing support; they show when the draft has more than one gender or any group without a support. Supports can be moved by hand on the Draft step; a support already used by another group
     must be cleared there first. Frontend only.
 
 ## 5. Edge functions and schedules

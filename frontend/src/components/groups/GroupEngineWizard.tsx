@@ -534,7 +534,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   }, [hubSpread, draft, topUpTargets, supportPool.free]);
   const noSupportCount = toCreate.filter((g) => !g.supportId && !g.topUp).length;
   // New groups still without a support, by the gender of their people (a group of both, or of unknown, is "Mixed or unknown").
-  type SupportView = 'all' | 'none' | 'none:Male' | 'none:Female' | 'none:Mixed';
+  type SupportView = 'all' | 'none' | 'none:Male' | 'none:Female' | 'none:Mixed' | 'gender:Male' | 'gender:Female' | 'gender:Mixed';
   // The view picked, with the groups it showed when it was picked. A group stays on screen after it gets a support,
   // so working down the list does not make the cards jump; picking a view again (or "All groups") refreshes it.
   const [supportViewState, setSupportViewState] = useState<{ kind: SupportView; keys: Set<string> } | null>(null);
@@ -545,8 +545,12 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   };
   const noSupportByGender = { Male: 0, Female: 0, Mixed: 0 };
   toCreate.forEach((g) => { if (!g.supportId && !g.topUp) noSupportByGender[genderOfGroup(g)] += 1; });
+  // All new groups by the gender of their people, with or without a support.
+  const groupsByGender = { Male: 0, Female: 0, Mixed: 0 };
+  toCreate.forEach((g) => { if (!g.topUp && g.memberIds.length > 0) groupsByGender[genderOfGroup(g)] += 1; });
   const matchesView = (view: SupportView, g: DraftGroup) => {
     if (view === 'all') return true;
+    if (view.startsWith('gender:')) return !g.topUp && g.memberIds.length > 0 && view === `gender:${genderOfGroup(g)}`;
     if (g.supportId || g.topUp || g.memberIds.length === 0) return false;
     return view === 'none' || view === `none:${genderOfGroup(g)}`;
   };
@@ -1315,20 +1319,24 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 {noSupportCount > 0 && <> · <span className="font-semibold text-red-700">{noSupportCount} without a support</span></>}
                 {' · '}Tap a person, then “Move here” on another group.
               </p>
-              {(noSupportCount > 0 || viewActive) && (
-                <div className="flex flex-col gap-2" role="group" aria-label="Show groups by support">
-                  <p className="text-[12px] font-semibold text-gray-700">
-                    Groups without a support:{' '}
-                    {noSupportCount === 0 ? 'every group has one now' : ([['Male', 'male'], ['Female', 'female'], ['Mixed', 'mixed or unknown']] as const).filter(([k]) => noSupportByGender[k] > 0).map(([k, label]) => `${noSupportByGender[k]} ${label}`).join(' · ')}
-                  </p>
+              {(draft.length > 0 && (Object.values(groupsByGender).filter((n) => n > 0).length > 1 || noSupportCount > 0 || viewActive)) && (
+                <div className="flex flex-col gap-2" role="group" aria-label="Filter the groups">
+                  {noSupportCount > 0 && (
+                    <p className="text-[12px] font-semibold text-gray-700">
+                      Groups without a support: {([['Male', 'male'], ['Female', 'female'], ['Mixed', 'mixed or unknown']] as const).filter(([k]) => noSupportByGender[k] > 0).map(([k, label]) => `${noSupportByGender[k]} ${label}`).join(' · ')}
+                    </p>
+                  )}
                   <div className="flex flex-wrap gap-1.5">
                     {([
                       ['all', 'All groups', draft.length],
+                      ['gender:Female', 'Female groups', groupsByGender.Female],
+                      ['gender:Male', 'Male groups', groupsByGender.Male],
+                      ['gender:Mixed', 'Mixed or unknown groups', groupsByGender.Mixed],
                       ['none', 'No support', noSupportCount],
                       ['none:Male', 'Male, no support', noSupportByGender.Male],
                       ['none:Female', 'Female, no support', noSupportByGender.Female],
                       ['none:Mixed', 'Mixed or unknown, no support', noSupportByGender.Mixed],
-                    ] as const).filter(([value, , count]) => value === 'all' || value === 'none' || count > 0 || value === activeView).map(([value, label, count]) => (
+                    ] as const).filter(([value, , count]) => value === 'all' || (value === 'none' ? noSupportCount > 0 || value === activeView : count > 0 || value === activeView)).map(([value, label, count]) => (
                       <button
                         key={value}
                         type="button"
@@ -1340,7 +1348,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                       </button>
                     ))}
                   </div>
-                  {viewActive && <p className="text-[11px] text-gray-500">Showing {visibleDraft.length} of {draft.length} groups. To move someone into a group that already has a support, pick “All groups”.</p>}
+                  {viewActive && <p className="text-[11px] text-gray-500">Showing {visibleDraft.length} of {draft.length} groups. To move someone into a group that is not shown, pick “All groups”.</p>}
                 </div>
               )}
               {planningMode && (
