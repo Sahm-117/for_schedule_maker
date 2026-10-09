@@ -74,7 +74,7 @@ export const DEFAULT_GROUPING_RULES: GroupingRules = {
   ageStrength: 'PREFER',
   supportGender: 'SAME_AS_GROUP',
   supportGenderStrength: 'MUST',
-  supportAgeOrder: ['25 - 34', '35 - 44', '19 - 24', '45 - 59', '60 and above', '18 and below'],
+  supportAgeOrder: ['25 - 34', '35 - 44', '18 - 24', '45 - 59', '60 and above', '10 - 17'],
   preferredSupportAges: ['25 - 34'],
   supportAgeStrength: 'PREFER',
   excludedSupportIds: [],
@@ -89,18 +89,25 @@ export const DEFAULT_GROUPING_RULES: GroupingRules = {
 
 const squash = (value: string) => value.toLowerCase().replace(/\s+/g, '');
 
+/** The teen age bucket. A teen is 10 to 17; 18 and over is an adult. */
+export const TEEN_AGE_RANGE = '10 - 17';
+
 export const normaliseAgeRange = (value?: string | null): string | null => {
   const raw = (value ?? '').trim();
   if (!raw) return null;
   const key = squash(raw);
   const direct = AGE_RANGE_OPTIONS.find((option) => squash(option) === key);
   if (direct) return direct;
-  if (/^(below|under)\d+$/.test(key) || key === '15-17' || key === '18andbelow' || key === '18orbelow') return '18 and below';
+  // The teen bucket (10 - 17). The registration form still says "18 and below" / "Below 18", and older forms said "15-17".
+  if (/^(below|under)\d+$/.test(key) || key === '15-17' || key === '18andbelow' || key === '18orbelow' || key === '17andbelow' || key === '17orbelow' || key === '10-17') return TEEN_AGE_RANGE;
   if (key === '60+' || key.startsWith('60and') || key.startsWith('above60')) return '60 and above';
-  // The bucket was "18 - 24" until 18-year-olds became "18 and below".
-  if (key === '18-24') return '19 - 24';
+  // The adult bracket after the teens was "19 - 24" for a while; it starts at 18 again.
+  if (key === '19-24' || key === '18-24') return '18 - 24';
   return null;
 };
+
+/** True for the teen bucket, however it was saved ("10 - 17", the form's "18 and below", "Below 15" ...). */
+export const isTeenAgeRange = (value?: string | null): boolean => normaliseAgeRange(value) === TEEN_AGE_RANGE;
 
 export const normaliseGender = (value?: string | null): string | null => {
   const key = squash(value ?? '');

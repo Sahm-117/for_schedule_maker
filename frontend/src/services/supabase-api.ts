@@ -1,6 +1,6 @@
 import { supabase, SESSION_TOKEN_KEY } from '../lib/supabase';
 import { normaliseRules } from '../utils/programmeRules';
-import { normaliseAgeRange, normaliseGroupingRules } from '../utils/groupingRules';
+import { isTeenAgeRange, normaliseGroupingRules } from '../utils/groupingRules';
 import { normaliseSavedDraft } from '../utils/groupingEngine';
 import { normaliseRecapReleaseTimes } from '../utils/recapReleaseTimes';
 import { normaliseClassFeedbackTimes } from '../utils/classFeedbackTimes';
@@ -1855,7 +1855,7 @@ export const settingsApi = {
     return enabled;
   },
 
-  // Whether teens (18 and below) are looked after by Teen Supports. Missing row means off.
+  // Whether teens (under 18) are looked after by Teen Supports. Missing row means off.
   async getTeenFlowEnabled(): Promise<boolean> {
     const { data, error } = await supabase
       .from('AppSetting')
@@ -3366,7 +3366,7 @@ const participantAppError = (rawMessage: string | undefined, fallback: string): 
 
 // The signed-in participant's own data. Every call carries their session token.
 export const participantAppApi = {
-  // Teens (18 and below, teen handling on) get a page explaining their Teen Support instead of the app.
+  // Teens (under 18, teen handling on) get a page explaining their Teen Support instead of the app.
   async getTeenInfo(): Promise<import('../types').ParticipantTeenInfo> {
     const { data, error } = await supabase.rpc('participant_teen_info', { p_token: getSessionToken() });
     if (error) throw participantAppError(error.message, 'Could not load your FOF space. Please try again.');
@@ -3912,14 +3912,14 @@ export interface FormRegistration {
   contactOwnerPhone: string | null;
   /** Where their follow-up stands, so any support can see it. */
   contactStatus: import('../types').FollowUpRegistrationStatus | null;
-  /** A teen (age range 18 and below, or on the teen path). Their number is never held here: `phone` is blank. */
+  /** A teen (age range 10 - 17, or on the teen path). Their number is never held here: `phone` is blank. */
   isTeen: boolean;
 }
 
 // The form's own age answer for a teen (the same rule as everywhere else). Kept here, not in the page,
 // so a teen's number and email are dropped as the rows load.
 const isTeenAnswer = (answers: any): boolean =>
-  !!answers && typeof answers === 'object' && normaliseAgeRange(String(answers['Age Range?'] ?? '')) === '18 and below';
+  !!answers && typeof answers === 'object' && isTeenAgeRange(String(answers['Age Range?'] ?? ''));
 
 const mapFormRegistration = (row: any): FormRegistration => {
   const teen = isTeenAnswer(row.answers) || row.contact?.registrationStatus === 'TEENAGER' || row.contact?.registrationStatus === 'TEEN_ONBOARDED';

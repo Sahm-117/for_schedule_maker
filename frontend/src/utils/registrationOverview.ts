@@ -1,6 +1,6 @@
 import type { FollowUpContact, Participant } from '../types';
 import { FOLLOW_UP_STAGE, computeFollowUpStatus, contactInCohortScope, isTeenContact } from './followUps';
-import { normaliseAgeRange } from './groupingRules';
+import { isTeenAgeRange } from './groupingRules';
 
 // The registration numbers on the admin Dashboard and Follow-ups → Overview, counted from PEOPLE, not
 // from follow-up statuses, and adults and teens apart.
@@ -69,8 +69,7 @@ const emptyBlock = (): PeopleBlock => ({
   wrongNumber: 0,
 });
 
-const TEEN_AGE = '18 and below';
-const isTeenAge = (value?: string | null) => normaliseAgeRange(value) === TEEN_AGE;
+const isTeenAge = (value?: string | null) => isTeenAgeRange(value);
 
 /** A teen by the contact's own age range, or because the contact is on the teen path. */
 const isTeenRecord = (contact?: FollowUpContact | null): boolean =>

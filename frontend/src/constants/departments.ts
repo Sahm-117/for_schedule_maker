@@ -72,11 +72,11 @@ export const DEFAULT_CHURCH_DEPARTMENTS: ChurchDepartment[] = [
   .sort((a, b) => a.localeCompare(b))
   .map((name) => (DESCRIPTIONS[name] ? { name, description: DESCRIPTIONS[name] } : { name }));
 
-// Age range buckets. Includes "18 and below" in addition to the registration
-// form's original ranges.
+// Age range buckets. A teen is 10 - 17; 18 and over are adults. (The registration form's own wording is read
+// by normaliseAgeRange: "18 and below" and "Below 18" still count as the teen bucket.)
 export const AGE_RANGE_OPTIONS: string[] = [
-  '18 and below',
-  '19 - 24',
+  '10 - 17',
+  '18 - 24',
   '25 - 34',
   '35 - 44',
   '45 - 59',

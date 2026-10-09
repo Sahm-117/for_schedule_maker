@@ -318,7 +318,7 @@ const ShellLayout: React.FC = () => {
   );
 };
 
-// A teen (18 and below, while teen handling is on) gets only the Teen Welcome page, never the app.
+// A teen (10 - 17, while teen handling is on) gets only the Teen Welcome page, never the app.
 const ParticipantShell: React.FC = () => {
   const gate = useTeenGate();
   if (gate.status === 'loading') return <PageLoader />;

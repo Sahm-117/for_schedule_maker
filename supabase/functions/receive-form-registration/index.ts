@@ -67,9 +67,14 @@ const normalisePhone = (raw: string | null | undefined): string | null => {
   return null
 }
 
-/** The form's youngest age answer ("18 and below", earlier "Below 18"), same list as fill_profile_from_form. */
+/**
+ * The form's youngest age answer, same list as fill_profile_from_form. A teen is 10 - 17; the form's current wording
+ * "18 and below" (and the earlier "Below 18") still counts as a teen until the form itself says "17 and below" / "10 - 17".
+ */
 const isBelow18 = (answers: Record<string, unknown>): boolean =>
-  ['below 18', 'under 18', 'under-18', 'under18', '<18', 'below18', '18 and below', '18 & below', '18 and under', '18 & under'].includes(String(answers['Age Range?'] ?? '').trim().toLowerCase())
+  ['below 18', 'under 18', 'under-18', 'under18', '<18', 'below18', '18 and below', '18 & below', '18 and under', '18 & under',
+    '17 and below', '17 & below', '17 and under', '17 & under', '10 - 17', '10-17', '10 to 17']
+    .includes(String(answers['Age Range?'] ?? '').trim().toLowerCase().replace(/\s*-\s*/g, '-'))
 
 /**
  * A teen's parent or guardian, from the form: any question that mentions a parent or guardian
@@ -400,7 +405,7 @@ Deno.serve(async (req) => {
       phone,
       email: payload.email ? String(payload.email).trim() : null,
       cohortId: cohortId,
-      ageRange: isBelow18(answers) ? '18 and below' : undefined,
+      ageRange: isBelow18(answers) ? '10 - 17' : undefined,
       guardianPhone: guardian.guardianPhone,
     })
 

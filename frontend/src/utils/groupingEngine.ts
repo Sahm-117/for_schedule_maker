@@ -591,7 +591,7 @@ export const buildDraft = (
     return pools;
   };
 
-  // People a tag rule is for (e.g. 18 and below) are grouped among themselves,
+  // People a tag rule is for (e.g. 10 - 17) are grouped among themselves,
   // highest priority rule first, so there are groups its supports can take. If
   // fewer people match than the smallest group, they join everyone else.
   const tagNotes: string[] = [];

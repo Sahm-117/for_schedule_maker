@@ -22,7 +22,7 @@ import AppMultiSelect from '../components/AppMultiSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useToast } from '../components/Toast';
 import { REGISTRATION_STATUS_META, TEEN_STATUSES } from '../utils/followUps';
-import { normaliseAgeRange, normaliseGender } from '../utils/groupingRules';
+import { isTeenAgeRange, normaliseAgeRange, normaliseGender } from '../utils/groupingRules';
 import ParticipantsExportPopup from '../components/participants/ParticipantsExportPopup';
 import {
   parseBulkPaste,
@@ -908,7 +908,7 @@ const AdminParticipantsContent: React.FC = () => {
   // A teen by age range, by being on the teen path, or by being in a teen group. Teens get no login.
   const teenGroupIds = useMemo(() => new Set(groups.filter((g) => g.isTeenGroup).map((g) => g.id)), [groups]);
   const isTeen = useCallback((p: Participant) =>
-    normaliseAgeRange(p.ageRange) === '18 and below'
+    isTeenAgeRange(p.ageRange)
     || (!!p.followUpStatus && (TEEN_STATUSES as string[]).includes(p.followUpStatus))
     || (!!p.groupId && teenGroupIds.has(p.groupId)), [teenGroupIds]);
 

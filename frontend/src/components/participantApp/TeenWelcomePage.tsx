@@ -5,7 +5,7 @@ import type { ParticipantTeenInfo } from '../../types';
 import { buildWhatsAppLink } from '../../utils/phone';
 import { firstNameOf } from '../../utils/people';
 
-// Teens (18 and below, while teen handling is on) are looked after by a Teen Support on WhatsApp,
+// Teens (10 - 17, while teen handling is on) are looked after by a Teen Support on WhatsApp,
 // so this page replaces the participant app for them every time they sign in. Log out is the only
 // other control. The Teen Support fills in once one is assigned.
 
@@ -61,7 +61,7 @@ const TeenWelcomePage: React.FC<{ info: ParticipantTeenInfo }> = ({ info }) => {
         <div className="surface-card p-6">
           <h1 className="text-balance text-[22px] font-bold tracking-tight text-gray-900">Hi {first}, your FOF is moving to WhatsApp</h1>
           <p className="mt-2 text-[15px] leading-relaxed text-gray-600">
-            Thank you for joining FOF at The Covenant Nation Ikorodu. For teens (18 and below), <b className="font-semibold text-gray-900">a Teen Support looks after you personally on WhatsApp</b>. You do not need this app any more.
+            Thank you for joining FOF at The Covenant Nation Ikorodu. For teens (under 18), <b className="font-semibold text-gray-900">a Teen Support looks after you personally on WhatsApp</b>. You do not need this app any more.
           </p>
 
           <div className="mt-5 rounded-[20px] bg-orange-50 p-4">

@@ -1,3 +1,4 @@
+import { isTeenAgeRange } from '../utils/groupingRules';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
@@ -621,10 +622,10 @@ const AdminGroupsContent: React.FC = () => {
     return out;
   })();
 
-  // Teens (18 and below) are grouped by their Teen Support, never by the builder, so
+  // Teens (10 - 17) are grouped by their Teen Support, never by the builder, so
   // once teen handling is on they are left out of the "not in a group yet" counts.
   const groupablePeople = useMemo(
-    () => (teenFlowOn ? participants.filter((p) => p.ageRange !== '18 and below') : participants),
+    () => (teenFlowOn ? participants.filter((p) => !isTeenAgeRange(p.ageRange)) : participants),
     [participants, teenFlowOn]
   );
 
