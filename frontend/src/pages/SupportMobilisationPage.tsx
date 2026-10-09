@@ -310,7 +310,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     // Prospects are follow-up contacts still to register (all adults); they do not need the people list.
     const prospectList = scoped
       .filter((c) => FOLLOW_UP_STAGE[computeFollowUpStatus(c)] === 'open')
-      .sort((a, b) => String(a.createdAt || '9999').localeCompare(String(b.createdAt || '9999')))
+      .sort((a, b) => (Date.parse(String(a.createdAt)) || Number.MAX_SAFE_INTEGER) - (Date.parse(String(b.createdAt)) || Number.MAX_SAFE_INTEGER))
       .map((c) => ({ id: c.id, name: c.fullName, status: computeFollowUpStatus(c), owner: c.ownerName ?? null, addedAt: c.createdAt ?? null, prior: !c.cohortId }));
     const base = { currentProspects: current.open, priorProspects: prior.open, prospectList };
     // Registered and logged in come from people (adults and teens apart), as on the Dashboard. Without a people

@@ -159,7 +159,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   // Operational supports can lead groups too, but only when this is switched on (off each time the builder opens).
   const [includeOperational, setIncludeOperational] = useState(false);
   // Planning only: include people who have not signed in so the draft shows the groups and supports we will need.
-  // Such a draft can be saved and looked at but never turned into real groups.
+  // Such a draft is only a view: it cannot be saved (that would overwrite the cohort's real draft) or turned into groups.
   const [planningMode, setPlanningMode] = useState(false);
   // Hub leads can lead groups too if need be; also off each time the builder opens.
   const [includeHubLeads, setIncludeHubLeads] = useState(false);
@@ -194,6 +194,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setEmptyChoice(null);
     setIncludeOperational(false);
     setIncludeHubLeads(false);
+    setPlanningMode(false);
     setTopUpFirst(true);
     setSignedInIds(null);
     setSignedInFailed(false);
@@ -518,6 +519,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
 
   // ── Save a draft, and come back to it ──
   const saveDraft = async () => {
+    if (planningMode) return; // a planning draft is never saved over the cohort's real draft
     setSavingDraft(true);
     setErr('');
     try {
@@ -531,8 +533,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
         includeOperational,
         includeHubLeads,
         emptyChoice,
-        onlySignedIn: !planningMode,
-        planning: planningMode,
+        onlySignedIn: true,
         topUpFirst,
       });
       setDraftNote('Draft saved. Open the builder again to continue it.');
@@ -553,10 +554,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const continueDraft = () => {
     if (!saved) return;
     // Only people who have signed in can be in a restored draft; anyone who hasn't is taken out.
-    const savedPlanning = saved.planning === true;
-    setPlanningMode(savedPlanning);
-    const pool = savedPlanning ? notGrouped : loginSplit ? loginSplit.signedIn : notGrouped;
-    const unsignedIds = savedPlanning ? new Set<string>() : new Set((loginSplit?.notSignedIn ?? []).map((p) => p.id));
+    const pool = loginSplit ? loginSplit.signedIn : notGrouped;
+    const unsignedIds = new Set((loginSplit?.notSignedIn ?? []).map((p) => p.id));
     const stillUngrouped = new Set(pool.map((p) => p.id));
     const poolPeople = new Map(pool.map((p) => [p.id, toEnginePerson({ id: p.id, name: p.fullName, gender: p.gender, ageRange: p.ageRange })]));
     // The saved draft may have used operational supports: judge it against the pool it was built with.
@@ -620,6 +619,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   // ── Create ──
   const create = async () => {
     if (planningMode) { setErr('This is a planning draft: it includes people who have not signed in, so it cannot be created.'); return; }
+    // Whatever the mode, only people whose sign-in is confirmed are ever put into a new group.
+    const unsignedInDraft = toCreate.some((g) => g.memberIds.some((id) => !signedInIds?.has(id)));
+    if (!signedInIds || unsignedInDraft) { setErr('Someone in this draft has not signed in, so groups were not created. Rebuild the draft with Planning only off.'); return; }
     setCreating(true);
     setErr('');
     for (const g of toCreate) {
@@ -754,7 +756,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     const primary = 'rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50';
     if (step === 'people') return (<><button type="button" onClick={close} className={quiet}>Cancel</button><button type="button" disabled={loading || (!planningMode && !signedInIds) || !hubsReady || readyCount === 0 || (emptyGroups.length > 0 && !emptyChoice)} onClick={() => setStep('rules')} className={primary}>Next: rules</button></>);
     if (step === 'rules') return (<><button type="button" onClick={() => setStep('people')} className={quiet}>Back</button><button type="button" disabled={savingRules} onClick={() => void saveRulesAndBuild()} className={primary}>{savingRules ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span> : 'Save rules & build'}</button></>);
-    if (step === 'draft') return (<><button type="button" onClick={() => setStep('rules')} className={quiet}>Back</button><button type="button" onClick={() => rebuild()} className={quiet}>Rebuild</button><button type="button" disabled={savingDraft} onClick={() => void saveDraft()} className={quiet}>{savingDraft ? 'Saving…' : 'Save draft'}</button><button type="button" disabled={toCreate.length === 0 || planningMode} onClick={() => setStep('create')} className={primary}>{planningMode ? 'Planning only' : applyLabel}</button></>);
+    if (step === 'draft') return (<><button type="button" onClick={() => setStep('rules')} className={quiet}>Back</button><button type="button" onClick={() => rebuild()} className={quiet}>Rebuild</button>{!planningMode && <button type="button" disabled={savingDraft} onClick={() => void saveDraft()} className={quiet}>{savingDraft ? 'Saving…' : 'Save draft'}</button>}<button type="button" disabled={toCreate.length === 0 || planningMode} onClick={() => setStep('create')} className={primary}>{planningMode ? 'Planning only' : applyLabel}</button></>);
     if (allDone) return <button type="button" onClick={close} className={primary}>View groups</button>;
     return (<><button type="button" disabled={creating || doneCount > 0} onClick={() => setStep('draft')} className={quiet}>Back</button><button type="button" disabled={creating || savingDraft || doneCount > 0} onClick={() => void saveDraft()} className={quiet}>{savingDraft ? 'Saving…' : 'Save draft'}</button><button type="button" disabled={creating} onClick={() => void create()} className={primary}>{creating ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Creating…</span> : failedCount > 0 ? 'Retry failed' : applyLabel}</button></>);
   })();
@@ -816,7 +818,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   </p>
                   <p className="mt-0.5 text-xs text-gray-500">
                     {planningMode
-                      ? `Everyone waiting for a group is included${notSignedInCount > 0 ? `, ${notSignedInCount} of them not signed in yet` : ''}. Use this to forecast the groups and supports you will need. A planning draft can be saved, but groups can't be created from it.`
+                      ? `Everyone waiting for a group is included${notSignedInCount > 0 ? `, ${notSignedInCount} of them not signed in yet` : ''}. Use this to forecast the groups and supports you will need. It is only for looking at: it can't be saved or turned into groups.`
                     : signedInFailed
                       ? "Couldn't check who has signed in, so groups can't be built yet."
                       : !signedInIds
@@ -834,7 +836,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                   role="switch"
                   aria-checked={planningMode}
                   aria-label="Planning only: include people who have not signed in"
-                  onClick={() => setPlanningMode((v) => !v)}
+                  onClick={() => { setPlanningMode((v) => !v); setDraft([]); }}
                   className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition ${planningMode ? 'bg-primary' : 'bg-slate-200'}`}
                 >
                   <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${planningMode ? 'translate-x-7' : 'translate-x-1'}`} />
@@ -1234,7 +1236,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
               {planningMode && (
                 <div className="rounded-2xl bg-amber-100/80 px-3 py-2 text-[12px] text-amber-800">
                   <p className="font-semibold">Planning draft</p>
-                  <p className="mt-0.5">Includes people who have not signed in, so these groups are for forecasting and planning only. Save the draft to come back to it. To create real groups, switch “Planning only” off on the People step.</p>
+                  <p className="mt-0.5">Includes people who have not signed in, so these groups are for forecasting and planning only. It can’t be saved or created. To make real groups, switch “Planning only” off on the People step and build again.</p>
                 </div>
               )}
               {coverage && coverage.total > 0 && (
