@@ -2,7 +2,7 @@
 
 ## Summary
 - Mobilisation cards (support page) now use the Dashboard's count: Target is everyone registered with "x adults, y teens" beneath it, Onboarded is adults, and a new Teens
-  card beside Target shows registered teens with "1 wrong number left out" and "x from the form + y added by hand". Prospects unchanged.
+  card beside Target shows registered teens with "1 wrong number left out" and "x from the form + y added by hand". Prospects has a "See who ›" list of the same people (no phone numbers).
 - "Registered on the form": teens get a Teen chip and "Number hidden"; a Wrong Number contact gets a Wrong number chip;
   a teen's number is not searchable.
 - The admin "Discussions this week" line no longer counts teen groups (no in-app discussion there).

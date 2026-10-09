@@ -441,7 +441,7 @@ duplicating the logic anywhere else is a bug waiting to happen.
     everyone registered (`computeRegistrationOverview`) and shows "x adults, y teens" under its status line, a Teens
     card beside it counts registered teens with the wrong number left out and says how many came from the form or
     were added by hand, Onboarded is adults logged in out of adults (teens have no login), and Prospects stays the
-    follow-up contacts still to register. On "Registered on the form", a teen (form age "Below 18" / "18 and below", or on the
+    follow-up contacts still to register, with a "See who" list (name, status, support, date added; no numbers). On "Registered on the form", a teen (form age "Below 18" / "18 and below", or on the
     teen path) shows a Teen chip and "Number hidden"; the number and email are dropped when the rows load, so they are not shown
     or searchable on that list (the database, and the contacts and people lists a support can open elsewhere,
     still carry them). A Wrong Number contact shows

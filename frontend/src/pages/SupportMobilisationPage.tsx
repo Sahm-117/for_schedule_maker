@@ -22,6 +22,7 @@ import { followUpContactsApi, followUpIssuesApi, followUpLoginIssuesApi, formReg
 import type { FollowUpContact, FollowUpContactUpdate, Participant, FollowUpIssue, FollowUpRegistrationStatus, FollowUpStatus, ItLoginIssue, MessageTemplate, TeenOnboardedHow, User } from '../types';
 import type { FormRegistration } from '../services/supabase-api';
 import {
+  FOLLOW_UP_STAGE,
   FOLLOW_UP_STATUS_META,
   buildStatusPatch,
   computeFollowUpFunnel,
@@ -229,6 +230,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [showExport, setShowExport] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [mobilisationTarget, setMobilisationTarget] = useState<number | null>(null);
+  const [prospectsOpen, setProspectsOpen] = useState(false);
   // The people and who has signed in: the same count the Dashboard uses, so the cards never disagree with it.
   const [people, setPeople] = useState<{ cohortId: string; participants: Participant[]; signedIn: Set<string> } | null>(null);
   const peopleRequest = useRef(0);
@@ -305,7 +307,11 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     const current = computeFollowUpFunnel(scoped.filter((c) => c.cohortId));
     const prior = computeFollowUpFunnel(scoped.filter((c) => !c.cohortId));
     // Prospects are follow-up contacts still to register (all adults); they do not need the people list.
-    const base = { currentProspects: current.open, priorProspects: prior.open };
+    const prospectList = scoped
+      .filter((c) => FOLLOW_UP_STAGE[computeFollowUpStatus(c)] === 'open')
+      .sort((a, b) => String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? '')))
+      .map((c) => ({ id: c.id, name: c.fullName, status: computeFollowUpStatus(c), owner: c.ownerName ?? null, addedAt: c.createdAt ?? null, prior: !c.cohortId }));
+    const base = { currentProspects: current.open, priorProspects: prior.open, prospectList };
     // Registered and logged in come from people (adults and teens apart), as on the Dashboard. Without a people
     // list for this cohort there is no count at all: a wrong number is worse than none.
     if (!people || people.cohortId !== activeCohort.id) return { ...base, counts: null };
@@ -884,6 +890,9 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   </div>
                   <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{mobilisationNumbers.priorProspects + mobilisationNumbers.currentProspects}</span></p>
                   <p className="mt-1 text-xs font-semibold text-gray-600">Not registered yet</p>
+                  {mobilisationNumbers.prospectList.length > 0 && (
+                    <button type="button" onClick={() => setProspectsOpen(true)} className="mt-1.5 text-xs font-semibold text-primary hover:underline">See who ›</button>
+                  )}
                 </section>
                 {counts ? (
                 <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
@@ -1449,6 +1458,28 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
         />
       </ModalShell>
 
+      {mobilisationNumbers && (
+        <ModalShell
+          isOpen={prospectsOpen}
+          onClose={() => setProspectsOpen(false)}
+          title="Prospects"
+          subtitle={`${mobilisationNumbers.prospectList.length} not registered yet, longest open first`}
+        >
+          <ul className="flex flex-col gap-2.5">
+            {mobilisationNumbers.prospectList.map((p) => (
+              <li key={p.id} className="rounded-[14px] border border-[#f1f2f5] p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-900">{p.name}</span>
+                  <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${FOLLOW_UP_STATUS_META[p.status].tone}`}>{FOLLOW_UP_STATUS_META[p.status].label}</span>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  {p.owner ? `With ${p.owner}` : 'Nobody following up yet'}{p.addedAt ? ` · added ${shortDate(p.addedAt)}` : ''}{p.prior ? ' · prior cohort' : ''}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </ModalShell>
+      )}
       {showExport && <ExportContactsPopup contacts={cohortScopedContacts} title={`${activeCohort?.name ?? 'My'} Follow-ups`} closedToggle onClose={() => setShowExport(false)} />}
     </div>
   );
