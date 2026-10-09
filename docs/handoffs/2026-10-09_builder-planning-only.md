@@ -17,7 +17,7 @@ is disabled, and `create()` also refuses unless everyone in the draft has a conf
 ## Also: groups without a support, by gender
 The Draft step now says how many new groups have no support, split by the gender of their people ("2 male · 1 female", plus
 "mixed" when a group has both or unknown), with chips to show only those groups: All, No support, Male, Female, Mixed. A
-chip with nothing in it is hidden, and the view returns to all groups once none is left. Frontend only. Tested in the browser
+chip with nothing in it is hidden. A group stays on screen after it gets a support (the view is a snapshot taken when the chip is picked), the view resets on reopen, rebuild and the planning switch, and it falls back to all groups if none of its groups are left. While a view is on, only its groups can receive "Move here"; pick All groups to move someone into any other group. Frontend only. Tested in the browser
 with a mocked cohort (16 people, 1 support): 3 groups without a support, 2 male and 1 female, each chip filters correctly.
 
 ## Decisions (mine, not asked)

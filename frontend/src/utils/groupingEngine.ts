@@ -217,6 +217,7 @@ const groupPool = (pool: EnginePerson[], rules: GroupingRules, split: boolean) =
 
 // ── Support matching ─────────────────────────────────────────────────────────
 
+/** The one gender everyone in the group shares; null when they differ, or when nobody has a gender on file. */
 export const groupGender = (members: EnginePerson[]): string | null => {
   const genders = new Set(members.map((m) => m.gender));
   return genders.size === 1 ? [...genders][0] : null;
