@@ -14,7 +14,7 @@ const SURFACE = 'rounded-[28px] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0
 // Faith Project state the same way.
 const FP_CHIP: Record<FaithProjectStatus, { label: string; cls: string }> = {
   NOT_DRAFTED: { label: 'Not started', cls: 'bg-[#f6f7f9] text-gray-500' },
-  SAVED: { label: 'Saved', cls: 'bg-[#f2fbf5] text-[#15803d]' },
+  SAVED: { label: 'Written', cls: 'bg-[#f2fbf5] text-[#15803d]' },
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -114,7 +114,7 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
               {[
                 [`${summary.onboarded}/${n}`, 'onboarded'],
                 [summary.rate === null ? '-' : `${summary.rate}%`, data.classesRun === 0 ? 'no classes yet' : `attendance, ${data.classesRun} ${data.classesRun === 1 ? 'class' : 'classes'}`],
-                [`${summary.approved}/${n}`, 'Faith Projects saved'],
+                [`${summary.approved}/${n}`, 'Faith Projects written'],
               ].map(([value, label]) => (
                 <div key={String(label)} className="rounded-2xl bg-[#f6f7f9] px-2 py-3 text-center">
                   <p className="text-[20px] font-bold text-gray-900">{value}</p>

@@ -12,7 +12,7 @@ interface FaithProjectsExportPopupProps {
 
 const STATUS_LABEL: Record<string, string> = {
   NOT_DRAFTED: 'Not started',
-  SAVED: 'Saved',
+  SAVED: 'Written',
 };
 
 const truncate = (text: string, max = 80) =>

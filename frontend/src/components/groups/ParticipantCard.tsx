@@ -27,7 +27,7 @@ const TESTIMONY_STATUS_CHIP: Record<Testimony['status'], { label: string; cls: s
 // Faith project states mapped onto the V2 design's labels.
 const FP_CHIP: Record<FaithProjectStatus, { label: string; cls: string }> = {
   NOT_DRAFTED: { label: 'Not started', cls: 'bg-[#f6f7f9] text-gray-500' },
-  SAVED: { label: 'Saved', cls: 'bg-[#f2fbf5] text-[#15803d]' },
+  SAVED: { label: 'Written', cls: 'bg-[#f2fbf5] text-[#15803d]' },
 };
 
 const CONCERN_REASONS = ['Attendance', 'Engagement', 'Emotional wellbeing', 'Spiritual struggle', 'Other'];

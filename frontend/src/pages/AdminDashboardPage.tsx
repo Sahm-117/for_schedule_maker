@@ -410,13 +410,13 @@ const VitalSigns: React.FC<{ health: CohortHealthPayload; model: DashboardModel 
         status={judgeFaith ? statusForRate(faithRate) : 'neutral'}
         statusLabel={judgeFaith ? undefined : 'In progress'}
         value={faith.saved}
-        unit="saved"
-        detail={`${faith.saved} of ${active} saved`}
+        unit="written"
+        detail={`${faith.saved} of ${active} written`}
         to="/faith-projects"
       >
         <SegmentBar
           segments={[
-            { label: 'Saved', value: faith.saved, color: '#1f5fa8' },
+            { label: 'Written', value: faith.saved, color: '#1f5fa8' },
             { label: 'Not started', value: faith.notStarted, color: '#dfe3e8' },
           ]}
         />

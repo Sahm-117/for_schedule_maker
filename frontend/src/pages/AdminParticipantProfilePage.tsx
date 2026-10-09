@@ -86,7 +86,7 @@ const NOTE_LABEL: Record<string, string> = {
 
 const FAITH_STATUS: Record<string, { label: string; cls: string }> = {
   NOT_DRAFTED: { label: 'Not started', cls: 'bg-neutral-100 text-neutral-600' },
-  SAVED: { label: 'Saved', cls: 'bg-emerald-100/80 text-emerald-700' },
+  SAVED: { label: 'Written', cls: 'bg-emerald-100/80 text-emerald-700' },
 };
 
 const HEALTH_PILL: Record<string, string> = {

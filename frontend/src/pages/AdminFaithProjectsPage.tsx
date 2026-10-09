@@ -21,7 +21,7 @@ import Spinner from '../components/Spinner';
 
 const STATUS_OPTIONS: Array<{ value: FaithProjectStatus; label: string; cls: string }> = [
   { value: 'NOT_DRAFTED', label: 'Not started', cls: 'bg-neutral-100 text-neutral-600' },
-  { value: 'SAVED', label: 'Saved', cls: 'bg-emerald-100/80 text-emerald-700' },
+  { value: 'SAVED', label: 'Written', cls: 'bg-emerald-100/80 text-emerald-700' },
 ];
 
 const statusLabel = (s: FaithProjectStatus) => STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s;

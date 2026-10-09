@@ -3094,7 +3094,7 @@ window.GUIDE_CONTENT = {
        ],
        "result": "Participants save and edit their own project; there is no review step. You get a notification each time they save or change it.",
        "tips": [
-        "The tag says **Not started** or **Saved**.",
+        "The tag says **Not started** or **Written**.",
         "If someone opts out of corporate prayers, their project is not shown in prayer lists."
        ],
        "shot": "support-faith-project-sheet.jpg"
