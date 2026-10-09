@@ -1,6 +1,6 @@
 // Recap release times: when supports and participants get a week's recap.
-// Mirrors recap_release_at() in
-// supabase/migrations/20260925060000_recap_release_times.sql exactly, so the
+// Mirrors recap_release_at() (supabase/migrations/20260925060000_recap_release_times.sql, and the manual
+// branch in 20260929200000_week_class_date.sql), so the
 // admin week editor shows the same moment the database actually uses.
 //
 // Recap days are counted 0..6 from the week's class Sunday (SUNDAY = that Sunday
@@ -56,6 +56,14 @@ export const normaliseRecapReleaseTimes = (value: unknown): RecapReleaseTimes =>
   };
 };
 
+const lagosMoment = (iso: string, offsetDays: number, time: string): Date | null => {
+  const base = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(base.getTime())) return null;
+  const targetIso = new Date(base.getTime() + offsetDays * 86400000).toISOString().slice(0, 10);
+  return new Date(`${targetIso}T${TIME_RE.test(time) ? time : '00:00'}:00+01:00`);
+};
+const dayOffset = (day: string) => Math.max(0, DAY_ORDER.indexOf(day.toUpperCase()));
+
 /**
  * The moment (as a real Date/instant) a week's recap releases for one
  * audience, from the week's class Sunday: its own classDate once the Planner
@@ -72,29 +80,20 @@ export const recapReleaseAt = (
   if (!cohortStartDate) return null;
   const { weekNumber, classDate } = typeof week === 'number' ? { weekNumber: week, classDate: null } : week;
   const startIso = classDate ? classDate.slice(0, 10) : cohortStartDate.slice(0, 10);
-  const start = new Date(`${startIso}T00:00:00Z`);
-  if (Number.isNaN(start.getTime())) return null;
-  const offset = Math.max(0, DAY_ORDER.indexOf(day.toUpperCase()));
   const weeksOn = classDate ? 0 : weekNumber - 1;
-  const targetDate = new Date(start.getTime() + (weeksOn * 7 + offset) * 86400000);
-  const targetIso = targetDate.toISOString().slice(0, 10);
-  const safeTime = TIME_RE.test(time) ? time : '00:00';
-  return new Date(`${targetIso}T${safeTime}:00+01:00`);
+  return lagosMoment(startIso, weeksOn * 7 + dayOffset(day), time);
 };
+
+/** A recap's release moment from a class Sunday date alone (recaps follow the class). */
+export const recapReleaseFromClassDate = (classDate: string | null | undefined, day: string, time: string): Date | null =>
+  classDate ? lagosMoment(classDate.slice(0, 10), dayOffset(day), time) : null;
 
 /**
  * When a class's manual goes out. Unlike the recaps (which follow the class), the manual goes out BEFORE it: the chosen
  * weekday on or before the class Sunday (Thursday = 3 days before). Mirrors recap_release_at(date, 'manual').
  */
-export const manualReleaseAt = (classDate: string | null | undefined, day: string, time: string): Date | null => {
-  if (!classDate) return null;
-  const sunday = new Date(`${classDate.slice(0, 10)}T00:00:00Z`);
-  if (Number.isNaN(sunday.getTime())) return null;
-  const offset = Math.max(0, DAY_ORDER.indexOf(day.toUpperCase()));
-  const targetIso = new Date(sunday.getTime() - ((7 - offset) % 7) * 86400000).toISOString().slice(0, 10);
-  const safeTime = TIME_RE.test(time) ? time : '00:00';
-  return new Date(`${targetIso}T${safeTime}:00+01:00`);
-};
+export const manualReleaseAt = (classDate: string | null | undefined, day: string, time: string): Date | null =>
+  classDate ? lagosMoment(classDate.slice(0, 10), -((7 - dayOffset(day)) % 7), time) : null;
 
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

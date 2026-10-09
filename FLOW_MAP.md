@@ -527,13 +527,15 @@ duplicating the logic anywhere else is a bug waiting to happen.
     "Next class" card (photo or initials, name and role, bio, the class they teach), and does not open or close the week.
     Participants read the teacher from `participant_home` (`week.teacher`); supports from the Week rows (`teacherName`,
     `teacherRole`, `teacherBio`, `teacherPhotoUrl`). No teacher name, no chip. Frontend only.
-47. **The Planner's "Class dates" sheet shows when each class's manual and recaps will drop, for supports and participants.** Every
-    release time is worked out from the class's date (`Week.classDate`, or start + weeks when none is set), so moving a class
-    moves them all: the manual (one time for both, set in Settings > Recap release times; it goes out BEFORE class, the chosen
-    weekday on or before the class Sunday, Thursday = 3 days before), the supports' recap, the participants' recap, the
-    feedback form, the current programme week, attendance windows, reminders and daily checks. `manualReleaseAt` and
-    `recapReleaseAt` (`utils/recapReleaseTimes.ts`) mirror `recap_release_at()`; the recap one counts days forward from the
-    class Sunday and must not be used for the manual. Frontend only.
+47. **The Planner's "Class dates" sheet shows when each class's manual and recaps will drop, for supports and participants.** The
+    times come from Settings > Timings and are worked out from the class's date (`Week.classDate`, or start + weeks when none is
+    set), so moving a class moves them: the manual (one time for both; it goes out BEFORE class, the chosen weekday on or
+    before the class Sunday, Thursday = 3 days before), the supports' recap and the participants' recap. The same date also
+    drives the feedback form, the current programme week, attendance finalising, reminders and daily checks (read in
+    `participant_home`, `support_recaps`, `auto_finalize_sunday_attendance`, `daily-checks`, `push-reminders` and `weekFocus.ts`).
+    `manualReleaseAt` and `recapReleaseFromClassDate` (`utils/recapReleaseTimes.ts`) mirror `recap_release_at()`; the recap
+    one counts days forward from the class Sunday and must not be used for the manual. The sheet shows no drop times until the
+    setting has loaded. Frontend only.
 
 ## 5. Edge functions and schedules
 

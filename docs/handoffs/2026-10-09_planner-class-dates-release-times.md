@@ -21,5 +21,4 @@ Browser with a mocked backend: the Planner, the Class dates sheet, moving class 
 (3 days before), recaps Sun and Mon after. Not run against a real admin login.
 
 ## Open items
-- The sheet reads Settings > Recap release times; if that setting cannot be read it falls back to the defaults (Thu 6pm manual, Sun 4pm supports,
-  Mon 6pm participants).
+- The sheet reads Settings > Timings, each time it opens; if that setting has not loaded or cannot be read, the sheet shows no drop times (it does not guess).
