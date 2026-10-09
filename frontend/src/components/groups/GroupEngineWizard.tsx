@@ -533,24 +533,27 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     return hubCoverage(hubSpread, ids, groupsWithPeople, supportPool.free.filter((s) => !used.has(s.id)).map((s) => s.id));
   }, [hubSpread, draft, topUpTargets, supportPool.free]);
   const noSupportCount = toCreate.filter((g) => !g.supportId && !g.topUp).length;
-  // New groups still without a support, by the gender of their people (a group of both, or of unknown, is "Mixed or unknown").
+  // Filters on the Draft step: by the gender of a group's people, and by groups still without a support.
   type SupportView = 'all' | 'none' | 'none:Male' | 'none:Female' | 'none:Mixed' | 'gender:Male' | 'gender:Female' | 'gender:Mixed';
-  // The view picked, with the groups it showed when it was picked. A group stays on screen after it gets a support,
-  // so working down the list does not make the cards jump; picking a view again (or "All groups") refreshes it.
+  // A "no support" view is a snapshot of the groups it showed when it was picked: a group stays on screen after it gets a
+  // support, so working down the list does not make the cards jump (picking a view again, or "All groups", refreshes it).
+  // A gender view is live instead: a group follows the people in it, so a group moved to "Mixed or unknown" leaves the view.
   const [supportViewState, setSupportViewState] = useState<{ kind: SupportView; keys: Set<string> } | null>(null);
   const resetSupportView = () => setSupportViewState(null);
-  const genderOfGroup = (g: DraftGroup): 'Male' | 'Female' | 'Mixed' => {
-    const members = g.memberIds.map((id) => people.get(id)).filter((m): m is EnginePerson => !!m);
-    return sharedGender(members) ?? 'Mixed';
-  };
+  // One gender per group, counting the people already in a group being topped up. A group of both, or of unknown, is "Mixed".
+  const genderByKey = new Map<string, 'Male' | 'Female' | 'Mixed'>(draft.map((g) => [
+    g.key,
+    sharedGender([...(g.existingMemberIds ?? []), ...g.memberIds].map((id) => topUpPeople.get(id)).filter((m): m is EnginePerson => !!m)) ?? 'Mixed',
+  ]));
+  const genderOfGroup = (g: DraftGroup) => genderByKey.get(g.key) ?? 'Mixed';
   const noSupportByGender = { Male: 0, Female: 0, Mixed: 0 };
   toCreate.forEach((g) => { if (!g.supportId && !g.topUp) noSupportByGender[genderOfGroup(g)] += 1; });
-  // All new groups by the gender of their people, with or without a support.
+  // Every group is in exactly one of these, so Female + Male + Mixed is the number on "All groups".
   const groupsByGender = { Male: 0, Female: 0, Mixed: 0 };
-  toCreate.forEach((g) => { if (!g.topUp && g.memberIds.length > 0) groupsByGender[genderOfGroup(g)] += 1; });
+  draft.forEach((g) => { groupsByGender[genderOfGroup(g)] += 1; });
   const matchesView = (view: SupportView, g: DraftGroup) => {
     if (view === 'all') return true;
-    if (view.startsWith('gender:')) return !g.topUp && g.memberIds.length > 0 && view === `gender:${genderOfGroup(g)}`;
+    if (view.startsWith('gender:')) return view === `gender:${genderOfGroup(g)}`;
     if (g.supportId || g.topUp || g.memberIds.length === 0) return false;
     return view === 'none' || view === `none:${genderOfGroup(g)}`;
   };
@@ -558,9 +561,12 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setSupportViewState(view === 'all' ? null : { kind: view, keys: new Set(draft.filter((g) => matchesView(view, g)).map((g) => g.key)) });
   };
   // If nothing from the picked view is left in the draft (after a rebuild, say), show everything.
-  const viewActive = !!supportViewState && draft.some((g) => supportViewState.keys.has(g.key));
+  const liveView = !!supportViewState && supportViewState.kind.startsWith('gender:');
+  const inPickedView = (g: DraftGroup) => (liveView ? matchesView(supportViewState!.kind, g) : supportViewState!.keys.has(g.key));
+  const viewActive = !!supportViewState && draft.some(inPickedView);
   const activeView: SupportView = viewActive ? supportViewState!.kind : 'all';
-  const visibleDraft = viewActive ? draft.filter((g) => supportViewState!.keys.has(g.key)) : draft;
+  const visibleDraft = viewActive ? draft.filter(inPickedView) : draft;
+  const genderKinds = Object.values(groupsByGender).filter((n) => n > 0).length;
   const newCount = toCreate.filter((g) => !g.topUp).length;
   const topUpCount = toCreate.filter((g) => g.topUp).length;
   const createdDone = toCreate.filter((g) => !g.topUp && statuses[g.key] === 'done').length;
@@ -1319,7 +1325,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 {noSupportCount > 0 && <> · <span className="font-semibold text-red-700">{noSupportCount} without a support</span></>}
                 {' · '}Tap a person, then “Move here” on another group.
               </p>
-              {(draft.length > 0 && (Object.values(groupsByGender).filter((n) => n > 0).length > 1 || noSupportCount > 0 || viewActive)) && (
+              {(draft.length > 0 && (genderKinds > 1 || noSupportCount > 0 || viewActive)) && (
                 <div className="flex flex-col gap-2" role="group" aria-label="Filter the groups">
                   {noSupportCount > 0 && (
                     <p className="text-[12px] font-semibold text-gray-700">
@@ -1336,7 +1342,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                       ['none:Male', 'Male, no support', noSupportByGender.Male],
                       ['none:Female', 'Female, no support', noSupportByGender.Female],
                       ['none:Mixed', 'Mixed or unknown, no support', noSupportByGender.Mixed],
-                    ] as const).filter(([value, , count]) => value === 'all' || (value === 'none' ? noSupportCount > 0 || value === activeView : count > 0 || value === activeView)).map(([value, label, count]) => (
+                    ] as const).filter(([value, , count]) => value === 'all' || value === activeView || (value.startsWith('gender:') ? genderKinds > 1 && count > 0 : count > 0)).map(([value, label, count]) => (
                       <button
                         key={value}
                         type="button"
@@ -1348,7 +1354,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                       </button>
                     ))}
                   </div>
-                  {viewActive && <p className="text-[11px] text-gray-500">Showing {visibleDraft.length} of {draft.length} groups. To move someone into a group that is not shown, pick “All groups”.</p>}
+                  {viewActive && <p className="text-[11px] text-gray-500">Showing {visibleDraft.length} of {draft.length} groups. Groups outside this filter are hidden, so to move someone into one of them pick “All groups”.</p>}
                 </div>
               )}
               {planningMode && (

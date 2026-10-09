@@ -500,9 +500,14 @@ duplicating the logic anywhere else is a bug waiting to happen.
 42. **The Draft step can be exported as WhatsApp text.** `buildWhatsAppText` (`utils/groupingExport.ts`) lists supports by
     gender, `Name (N participants)`, then each participant with their age range, and groups still without a support.
     Participant names are optional (switch on the Draft step); with names off only counts per age range are shown. It
-    carries no phone numbers. The Draft step's chips filter the groups by the gender of their people (Female, Male, Mixed or
-    unknown) and by missing support; they show when the draft has more than one gender or any group without a support. Supports can be moved by hand on the Draft step; a support already used by another group
+    carries no phone numbers. Supports can be moved by hand on the Draft step; a support already used by another group
     must be cleared there first. Frontend only.
+43. **The Draft step filters its groups by gender and by missing support.** The chips are All groups, Female, Male and Mixed or
+    unknown (every group, topped-up ones included, is counted once by the gender of everyone in it, so the three add up to
+    All groups), and No support / Male, no support / Female, no support / Mixed, no support (new groups only). The row shows
+    when the draft has more than one gender or any group without a support. A gender view is live (a group follows its people);
+    a no-support view is a snapshot so cards do not jump as supports are given. Groups outside the view are hidden, so moving
+    someone into one needs "All groups". Frontend only (`GroupEngineWizard.tsx`).
 
 ## 5. Edge functions and schedules
 
