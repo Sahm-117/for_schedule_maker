@@ -74,6 +74,19 @@ const TRAININGS_TAB_ENABLED = false as boolean;
 
 type HubTab = 'overview' | 'meeting' | 'leads' | 'trainings' | 'notes' | 'message';
 
+// A member's group: a link when the viewer may open it, plain text otherwise. It wraps instead of squeezing the
+// name beside it (group names can be long, e.g. "Teens - <a full name>").
+const MemberGroup: React.FC<{ userId: string; groupName: string | null; canOpen: boolean; className?: string }> = ({ userId, groupName, canOpen, className = '' }) => (
+  canOpen && groupName ? (
+    <Link to={`/group-view/${userId}`} className={`inline-flex min-w-0 max-w-full items-start gap-1 text-[13px] font-medium text-primary ${className}`}>
+      <span className="min-w-0 break-words">{groupName}</span>
+      <svg className="mt-[3px] flex-none" width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
+    </Link>
+  ) : (
+    <span className={`min-w-0 max-w-full break-words text-[13px] text-gray-400 ${className}`}>{groupName || 'No group'}</span>
+  )
+);
+
 const SupportMyHubPage: React.FC = () => {
   const { user } = useAuth();
   const { refreshMyHub, weeks, activeCohort, cohorts } = useAppData();
@@ -533,6 +546,7 @@ const SupportMyHubPage: React.FC = () => {
                           </button>
                           <div className="min-w-0 flex-1">
                             <button type="button" onClick={() => setProfileUserId(m.userId)} className="text-left text-[15px] font-medium text-gray-900 hover:underline">{m.name}{m.userId === user?.id && <span className="ml-1.5 text-[13px] font-normal text-gray-400">You</span>}</button>
+                            <div className="mt-0.5 sm:hidden"><MemberGroup userId={m.userId} groupName={m.groupName ?? null} canOpen={!!canGroups} /></div>
                             {(!!jobs.length || m.isPersonOfInterest) && (
                               <div className="mt-1 flex flex-wrap gap-1">
                                 {sortHubJobs(jobs).map((job) => (
@@ -542,14 +556,9 @@ const SupportMyHubPage: React.FC = () => {
                               </div>
                             )}
                           </div>
-                          {canGroups && m.groupName ? (
-                            <Link to={`/group-view/${m.userId}`} className="flex flex-none items-center gap-1 text-[13px] font-medium text-primary">
-                              {m.groupName}
-                              <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
-                            </Link>
-                          ) : (
-                            <span className="flex-none text-[13px] text-gray-400">{m.groupName || 'No group'}</span>
-                          )}
+                          <div className="hidden max-w-[40%] flex-none text-right sm:block">
+                            <MemberGroup userId={m.userId} groupName={m.groupName ?? null} canOpen={!!canGroups} />
+                          </div>
                         </li>
                       );
                     })}
