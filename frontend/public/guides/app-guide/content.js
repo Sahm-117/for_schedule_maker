@@ -4193,10 +4193,10 @@ window.GUIDE_CONTENT = {
        ],
        "steps": [
         "Tap **F. Project** in the bottom bar.",
-        "Under **What are you believing God for?**, write your project. Be specific: who, what, and by when.",
+        "Tap **Write your faith project** and write it. Be specific: who, what, and by when.",
         "Tap **Save**."
        ],
-       "result": "It is saved straight away and your support is told. You can change it any time: edit the text and tap **Save changes**.",
+       "result": "It is saved straight away. You can change it any time: tap the pencil next to your project, edit the text and tap **Save**.",
        "tips": [
         "Not sure how to start? Tap **Explore the guide** for a short illustrated guide.",
         "If a date to write it by is shown, try to save it before then. You can still save it after."

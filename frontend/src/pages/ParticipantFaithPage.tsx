@@ -303,7 +303,7 @@ const ParticipantFaithPage: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <p className="mt-3 text-[13px] leading-snug text-gray-500">Tap the pencil to edit any time. {supportFirst} is told when you save.</p>
+              <p className="mt-3 text-[13px] leading-snug text-gray-500">Tap the pencil to edit any time.</p>
             </>
           ) : (
             <div className="mt-5">
