@@ -4,9 +4,9 @@ import { AGE_RANGE_OPTIONS } from '../constants/departments';
 // The Draft step as plain text for a WhatsApp message: supports by gender, each with their participants.
 //
 //   Female supports:
-//   Support Name (4 participants)
-//   Participant Name, 25 - 34
-//   ...
+//   *Support Name* (4 participants)
+//   1. Participant Name, 25 - 34
+//   2. ...
 //
 // With names off, a support's line is followed by one line of age ranges with counts instead of the people.
 // Groups with no support are listed at the end, by the gender of their people. Phone numbers are never included.
@@ -21,8 +21,12 @@ const ageCounts = (members: EnginePerson[]): string => {
   return [...counts.entries()].sort((a, b) => rank(a[0]) - rank(b[0])).map(([range, n]) => `${range} (${n})`).join(', ');
 };
 
+// Numbered, so a long list is easy to follow in a chat.
 const personLines = (members: EnginePerson[], names: boolean): string[] =>
-  names ? [...members].sort(byName).map((m) => `${m.name}, ${m.ageRange ?? 'age not set'}`) : [`Age ranges: ${ageCounts(members)}`];
+  names ? [...members].sort(byName).map((m, i) => `${i + 1}. ${m.name}, ${m.ageRange ?? 'age not set'}`) : [`Age ranges: ${ageCounts(members)}`];
+
+// WhatsApp bolds text between asterisks.
+const bold = (text: string) => `*${text.replace(/\*/g, '')}*`;
 
 const groupGenderLabel = (members: EnginePerson[]): 'Male' | 'Female' | 'Mixed' => sharedGender(members) ?? 'Mixed';
 
@@ -53,7 +57,7 @@ export const buildWhatsAppText = (
       const total = theirs.reduce((n, g) => n + size(g), 0);
       // A running group being topped up lists only its new people, so say how many of the total they are.
       const added = theirs.reduce((n, g) => n + g.memberIds.length, 0);
-      lines.push(`${supports.get(id)?.name ?? 'Support'} (${plural(total, 'participant', 'participants')}${added !== total ? `, ${added} new` : ''})`);
+      lines.push(`${bold(supports.get(id)?.name ?? 'Support')} (${plural(total, 'participant', 'participants')}${added !== total ? `, ${added} new` : ''})`);
       lines.push(...personLines(members, options.names));
     });
     sections.push(lines.join('\n'));
@@ -64,7 +68,7 @@ export const buildWhatsAppText = (
     const lines: string[] = ['Groups without a support:'];
     (['Female', 'Male', 'Mixed'] as const).forEach((label) => {
       without.filter((g) => groupGenderLabel(membersOf(g)) === label).forEach((g, i) => {
-        lines.push(`${label} group ${i + 1} (${plural(g.memberIds.length, 'participant', 'participants')})`);
+        lines.push(`${bold(`${label} group ${i + 1}`)} (${plural(g.memberIds.length, 'participant', 'participants')})`);
         lines.push(...personLines(membersOf(g), options.names));
       });
     });
