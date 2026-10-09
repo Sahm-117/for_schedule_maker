@@ -515,11 +515,10 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   const noSupportCount = toCreate.filter((g) => !g.supportId && !g.topUp).length;
   // New groups still without a support, by the gender of their people (a group of both, or of unknown, is "Mixed or unknown").
   type SupportView = 'all' | 'none' | 'none:Male' | 'none:Female' | 'none:Mixed';
-  const [supportView, setSupportView] = useState<SupportView>('all');
-  // The groups a view showed when it was picked. A group stays on screen after it gets a support, so working
-  // down the list does not make the cards jump; picking a view again (or "All groups") refreshes it.
-  const [viewKeys, setViewKeys] = useState<Set<string> | null>(null);
-  const resetSupportView = () => { setSupportView('all'); setViewKeys(null); };
+  // The view picked, with the groups it showed when it was picked. A group stays on screen after it gets a support,
+  // so working down the list does not make the cards jump; picking a view again (or "All groups") refreshes it.
+  const [supportViewState, setSupportViewState] = useState<{ kind: SupportView; keys: Set<string> } | null>(null);
+  const resetSupportView = () => setSupportViewState(null);
   const genderOfGroup = (g: DraftGroup): 'Male' | 'Female' | 'Mixed' => {
     const members = g.memberIds.map((id) => people.get(id)).filter((m): m is EnginePerson => !!m);
     const gender = members.length > 0 ? groupGender(members) : null;
@@ -533,12 +532,12 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     return view === 'none' || view === `none:${genderOfGroup(g)}`;
   };
   const pickSupportView = (view: SupportView) => {
-    setSupportView(view);
-    setViewKeys(view === 'all' ? null : new Set(draft.filter((g) => matchesView(view, g)).map((g) => g.key)));
+    setSupportViewState(view === 'all' ? null : { kind: view, keys: new Set(draft.filter((g) => matchesView(view, g)).map((g) => g.key)) });
   };
   // If nothing from the picked view is left in the draft (after a rebuild, say), show everything.
-  const viewActive = supportView !== 'all' && !!viewKeys && draft.some((g) => viewKeys.has(g.key));
-  const visibleDraft = viewActive ? draft.filter((g) => viewKeys!.has(g.key)) : draft;
+  const viewActive = !!supportViewState && draft.some((g) => supportViewState.keys.has(g.key));
+  const activeView: SupportView = viewActive ? supportViewState!.kind : 'all';
+  const visibleDraft = viewActive ? draft.filter((g) => supportViewState!.keys.has(g.key)) : draft;
   const newCount = toCreate.filter((g) => !g.topUp).length;
   const topUpCount = toCreate.filter((g) => g.topUp).length;
   const createdDone = toCreate.filter((g) => !g.topUp && statuses[g.key] === 'done').length;
@@ -633,6 +632,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setIgnoredAges(new Set(saved.ignoredAgeRanges));
     setEmptyChoice(saved.emptyChoice);
     setTopUpFirst(saved.topUpFirst === true);
+    resetSupportView();
     setDraft(restored);
     setLeftOut(pool.filter((p) => !placed.has(p.id)).map((p) => p.id));
     setPicked(null);
@@ -1264,11 +1264,11 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                 {noSupportCount > 0 && <> · <span className="font-semibold text-red-700">{noSupportCount} without a support</span></>}
                 {' · '}Tap a person, then “Move here” on another group.
               </p>
-              {noSupportCount > 0 && (
+              {(noSupportCount > 0 || viewActive) && (
                 <div className="flex flex-col gap-2" role="group" aria-label="Show groups by support">
                   <p className="text-[12px] font-semibold text-gray-700">
                     Groups without a support:{' '}
-                    {([['Male', 'male'], ['Female', 'female'], ['Mixed', 'mixed or unknown']] as const).filter(([k]) => noSupportByGender[k] > 0).map(([k, label]) => `${noSupportByGender[k]} ${label}`).join(' · ')}
+                    {noSupportCount === 0 ? 'every group has one now' : ([['Male', 'male'], ['Female', 'female'], ['Mixed', 'mixed or unknown']] as const).filter(([k]) => noSupportByGender[k] > 0).map(([k, label]) => `${noSupportByGender[k]} ${label}`).join(' · ')}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {([
@@ -1277,15 +1277,15 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                       ['none:Male', 'Male, no support', noSupportByGender.Male],
                       ['none:Female', 'Female, no support', noSupportByGender.Female],
                       ['none:Mixed', 'Mixed or unknown, no support', noSupportByGender.Mixed],
-                    ] as const).filter(([value, , count]) => value === 'all' || value === 'none' || count > 0).map(([value, label, count]) => (
+                    ] as const).filter(([value, , count]) => value === 'all' || value === 'none' || count > 0 || value === activeView).map(([value, label, count]) => (
                       <button
                         key={value}
                         type="button"
-                        aria-pressed={(viewActive ? supportView : 'all') === value}
+                        aria-pressed={activeView === value}
                         onClick={() => pickSupportView(value)}
-                        className={`rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95 ${(viewActive ? supportView : 'all') === value ? 'bg-primary text-white shadow-sm' : 'border border-gray-100 bg-white text-gray-600 hover:bg-gray-50'}`}
+                        className={`rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95 ${activeView === value ? 'bg-primary text-white shadow-sm' : 'border border-gray-100 bg-white text-gray-600 hover:bg-gray-50'}`}
                       >
-                        {label} <span className={(viewActive ? supportView : 'all') === value ? 'opacity-90' : 'text-gray-400'}>{count}</span>
+                        {label} <span className={activeView === value ? 'opacity-90' : 'text-gray-400'}>{count}</span>
                       </button>
                     ))}
                   </div>
