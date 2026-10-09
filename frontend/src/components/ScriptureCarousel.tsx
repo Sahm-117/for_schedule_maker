@@ -27,6 +27,10 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
   const [scriptureAnimating, setScriptureAnimating] = useState(false);
   const scriptureTrackRef = useRef<HTMLDivElement>(null);
   const scriptureDrag = useRef<{ pointerId: number; x: number; y: number; time: number } | null>(null);
+  // Slide timers are cleared if the card goes away mid-slide, so nothing updates a card that is gone.
+  const timers = useRef<number[]>([]);
+  useEffect(() => () => { timers.current.forEach((id) => window.clearTimeout(id)); }, []);
+  const later = (fn: () => void, ms: number) => { timers.current.push(window.setTimeout(fn, ms)); };
 
   const now = new Date();
   const todayFofDay = scriptureDayIndex(cohortStartDate, now);
@@ -50,7 +54,7 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
     const reduced = prefersReducedMotion();
     if (direction === 0) {
       setScriptureDragPx(0);
-      if (!reduced) { setScriptureAnimating(true); window.setTimeout(() => setScriptureAnimating(false), SLIDE_MS); }
+      if (!reduced) { setScriptureAnimating(true); later(() => setScriptureAnimating(false), SLIDE_MS); }
       return;
     }
     const width = scriptureTrackRef.current?.offsetWidth || 0;
@@ -58,7 +62,7 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
     if (reduced) { advance(); setScriptureDragPx(0); return; }
     setScriptureAnimating(true);
     setScriptureDragPx(direction === 1 ? -width : width);
-    window.setTimeout(() => {
+    later(() => {
       advance();
       setScriptureDragPx(0);
       setScriptureAnimating(false);

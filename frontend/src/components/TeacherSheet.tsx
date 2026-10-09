@@ -25,19 +25,17 @@ export const classTeacher = (name?: string | null, role?: string | null, bio?: s
   return trimmed ? { name: trimmed, role: role?.trim() || null, bio: bio?.trim() || null, photoUrl: photoUrl || null } : null;
 };
 
-/** A small tappable chip for a class row. It stops the tap reaching the row, so tapping a teacher does not open the class. */
+/** A small tappable chip for a class row. Put it next to the row, not inside it: it is its own button. */
 export const TeacherChip: React.FC<{ teacher: ClassTeacher; onOpen: () => void; className?: string }> = ({ teacher, onOpen, className = '' }) => (
-  <span
-    role="button"
-    tabIndex={0}
-    onClick={(e) => { e.stopPropagation(); e.preventDefault(); onOpen(); }}
-    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); onOpen(); } }}
+  <button
+    type="button"
+    onClick={onOpen}
     aria-label={`About ${teacher.name}, teaching this class`}
-    className={`inline-flex min-h-[28px] cursor-pointer items-center gap-1.5 rounded-full border border-[#ffdeca] bg-[#fff7f0] py-0.5 pl-0.5 pr-2.5 text-[12px] font-bold text-[#9a4a12] ${className}`}
+    className={`inline-flex min-h-[28px] max-w-full items-center gap-1.5 rounded-full border border-[#ffdeca] bg-[#fff7f0] py-0.5 pl-0.5 pr-2.5 text-left text-[12px] font-bold text-[#9a4a12] ${className}`}
   >
     <TeacherAvatar name={teacher.name} photoUrl={teacher.photoUrl} size={22} />
     <span className="truncate">{teacher.name} ›</span>
-  </span>
+  </button>
 );
 
 export const TeacherSheet: React.FC<{ teacher: ClassTeacher; title: string; onClose: () => void; footer?: React.ReactNode }> = ({ teacher, title, onClose, footer }) => {

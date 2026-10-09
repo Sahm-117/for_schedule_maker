@@ -560,8 +560,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     return [g.key, members.length === 0 ? 'Empty' : sharedGender(members) ?? 'Mixed'];
   }));
   const genderOfGroup = (g: DraftGroup) => genderByKey.get(g.key) ?? 'Mixed';
-  const noSupportByGender = { Male: 0, Female: 0, Mixed: 0, Empty: 0 };
-  toCreate.forEach((g) => { if (!g.supportId && !g.topUp) noSupportByGender[genderOfGroup(g)] += 1; });
+  const noSupportByGender = { Male: 0, Female: 0, Mixed: 0 };
+  toCreate.forEach((g) => { const gender = genderOfGroup(g); if (!g.supportId && !g.topUp && gender !== 'Empty') noSupportByGender[gender] += 1; });
   // Every group is in exactly one of these, so Female + Male + Mixed + Empty is the number on "All groups".
   const groupsByGender = { Male: 0, Female: 0, Mixed: 0, Empty: 0 };
   draft.forEach((g) => { groupsByGender[genderOfGroup(g)] += 1; });
@@ -581,7 +581,8 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
   // If nothing from the picked view is left in the draft (after a rebuild, say), show everything.
   const liveView = !!supportViewState && (supportViewState.kind.startsWith('gender:') || supportViewState.kind === 'empty');
   const inPickedView = (g: DraftGroup) => (liveView ? matchesView(supportViewState!.kind, g) : supportViewState!.keys.has(g.key));
-  const viewActive = !!supportViewState && draft.some(inPickedView);
+  // A gender view also keeps the empty groups on screen, so they alone must not keep it active.
+  const viewActive = !!supportViewState && draft.some((g) => inPickedView(g) && (supportViewState.kind === 'empty' || genderOfGroup(g) !== 'Empty' || !supportViewState.kind.startsWith('gender:')));
   const activeView: SupportView = viewActive ? supportViewState!.kind : 'all';
   const visibleDraft = viewActive ? draft.filter(inPickedView) : draft;
   const genderKinds = [groupsByGender.Male, groupsByGender.Female, groupsByGender.Mixed].filter((n) => n > 0).length;
@@ -1374,7 +1375,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                       </button>
                     ))}
                   </div>
-                  {viewActive && <p className="text-[11px] text-gray-500">Showing {visibleDraft.length} of {draft.length} groups. Groups outside this filter are hidden, so to move someone into one of them pick “All groups”.</p>}
+                  {viewActive && <p className="text-[11px] text-gray-500">Showing {visibleDraft.length} of {draft.length} groups{activeView.startsWith('gender:') && groupsByGender.Empty > 0 ? ' (empty groups always show)' : ''}. Groups outside this filter are hidden, so to move someone into one of them pick “All groups”.</p>}
                 </div>
               )}
               {planningMode && (
