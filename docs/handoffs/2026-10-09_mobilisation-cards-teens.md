@@ -28,4 +28,7 @@ hidden numbers and search checked; build passes. Not run against a real support 
 - Teen numbers still reach the browser; hide at source if that matters.
 
 ## Gotchas
+- A teen's number is dropped from the form rows, so the "already registered on the form" check when saving a prospect no longer matches an unlinked teen row by number.
+- If the people list fails to load, Target, Onboarded and Teens show "Counting…" (Prospects still shows).
+- The "from the form + added by hand" line reads only the first 500 form rows and hides itself when it can't add up.
 - A teen with no follow-up contact (form only) still shows the Teen chip via the form's age answer.
