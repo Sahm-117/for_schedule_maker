@@ -1397,7 +1397,7 @@ window.GUIDE_CONTENT = {
        ],
        "steps": [
         "Switch to the **Issues** tab.",
-        "Open an issue to see details; tap **Show closed** to include resolved ones."
+        "Each issue shows who it is about and what is wrong; switch to **Closed** to see resolved ones."
        ],
        "result": "Lets you track and resolve problems raised while following people up.",
        "shot": "admin-follow-ups-issues.jpg"

@@ -59,6 +59,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   const [resolution, setResolution] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [view, setView] = useState<'open' | 'closed'>('open');
   const [showDetails, setShowDetails] = useState(false);
   const [deleting, setDeleting] = useState<FollowUpIssue | null>(null);
@@ -82,9 +83,10 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
     [selectedIds, contacts]
   );
 
+  const isClosed = (i: FollowUpIssue) => i.status !== 'OPEN';
   const openCount = useMemo(() => issues.filter((i) => i.status === 'OPEN').length, [issues]);
   const visibleIssues = useMemo(
-    () => issues.filter((i) => (view === 'open' ? i.status === 'OPEN' : i.status !== 'OPEN')),
+    () => issues.filter((i) => (view === 'open' ? !isClosed(i) : isClosed(i))),
     [issues, view]
   );
 
@@ -125,6 +127,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   const handleResolve = async () => {
     if (!resolving) return;
     setSaving(true);
+    setActionError('');
     try {
       const { issue } = await followUpIssuesApi.update(resolving.id, {
         status: 'RESOLVED',
@@ -133,6 +136,9 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
       onIssuesChanged(issues.map((i) => (i.id === issue.id ? issue : i)));
       setResolving(null);
       setResolution('');
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not mark it resolved.');
+      setResolving(null);
     } finally {
       setSaving(false);
     }
@@ -140,9 +146,12 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
 
   const handleReopen = async (issue: FollowUpIssue) => {
     setSaving(true);
+    setActionError('');
     try {
       const { issue: updated } = await followUpIssuesApi.update(issue.id, { status: 'OPEN' });
       onIssuesChanged(issues.map((i) => (i.id === updated.id ? updated : i)));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not reopen it.');
     } finally {
       setSaving(false);
     }
@@ -151,9 +160,13 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   const handleDelete = async () => {
     if (!deleting) return;
     setSaving(true);
+    setActionError('');
     try {
       await followUpIssuesApi.delete(deleting.id);
       onIssuesChanged(issues.filter((i) => i.id !== deleting.id));
+      setDeleting(null);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not delete it.');
       setDeleting(null);
     } finally {
       setSaving(false);
@@ -164,6 +177,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
     const actingAsAdminOfMany = user?.role === 'ADMIN' && (user.roles?.length ?? 0) > 1;
     if (!replyText.trim()) return;
     setSaving(true);
+    setActionError('');
     try {
       const updatedIssue = `${issue.issue}\n\n---\nReply: ${replyText.trim()}`;
       const { issue: updated } = await followUpIssuesApi.update(issue.id, { issue: updatedIssue });
@@ -175,6 +189,8 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
           body: { issueId: issue.id, reporterId: issue.reportedById, replierId: currentUserId, replierSuffix: actingAsAdminOfMany ? '(Admin)' : undefined, kind: 'REPLY' },
         }).catch(() => undefined);
       }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not send the reply.');
     } finally {
       setSaving(false);
     }
@@ -197,13 +213,12 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <div role="tablist" aria-label="Show issues" className="flex flex-1 rounded-xl bg-gray-100 p-1">
+        <div role="group" aria-label="Show issues" className="flex flex-1 rounded-xl bg-gray-100 p-1">
           {([['open', `Open${openCount ? ` · ${openCount}` : ''}`], ['closed', 'Closed']] as const).map(([key, label]) => (
             <button
               key={key}
               type="button"
-              role="tab"
-              aria-selected={view === key}
+              aria-pressed={view === key}
               onClick={() => setView(key)}
               className={`min-h-[36px] flex-1 rounded-lg px-3 text-sm font-semibold transition ${view === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
             >
@@ -211,10 +226,12 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
             </button>
           ))}
         </div>
-        <button type="button" onClick={() => setShowForm(true)} className="min-h-[44px] flex-none rounded-xl bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
+        <button type="button" onClick={() => { setError(''); setShowForm(true); }} className="min-h-[44px] flex-none rounded-xl bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
           Log an issue
         </button>
       </div>
+
+      {actionError && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</p>}
 
       {visibleIssues.length === 0 ? (
         <div className="px-4 py-12 text-center">
@@ -233,9 +250,9 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
               issue.ownerName ? `Owner: ${issue.ownerName}` : '',
               issue.neededFrom ? `Needed from: ${issue.neededFrom}` : '',
             ].filter(Boolean).join(' · ');
-            const canReopen = issue.status === 'RESOLVED' && canResolve;
-            const canClose = issue.status === 'OPEN' && canResolve;
-            const canReplyHere = canReply && issue.status === 'OPEN';
+            const canReopen = isClosed(issue) && canResolve;
+            const canClose = !isClosed(issue) && canResolve;
+            const canReplyHere = canReply && !isClosed(issue);
             return (
               <li key={issue.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
@@ -247,7 +264,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
                     )}
                   </div>
                   <div className="flex flex-none items-center gap-1">
-                    {issue.status !== 'OPEN' && <FollowUpStatusPill label={ISSUE_STATUS_META[issue.status].label} tone={ISSUE_STATUS_META[issue.status].tone} />}
+                    {isClosed(issue) && <FollowUpStatusPill label={ISSUE_STATUS_META[issue.status].label} tone={ISSUE_STATUS_META[issue.status].tone} />}
                     {canDelete && (
                       <AppOverflowMenu items={[{ label: 'Delete', onClick: () => setDeleting(issue), tone: 'danger' as const }]} />
                     )}
@@ -287,7 +304,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
                           <button type="button" onClick={() => { setReplyingTo(issue.id); setReplyText(''); }} className="min-h-[36px] text-sm font-semibold text-primary">Reply</button>
                         )}
                         {canClose && (
-                          <button type="button" onClick={() => { setResolving(issue); setResolution(''); }} className="min-h-[36px] text-sm font-semibold text-emerald-700">Mark resolved</button>
+                          <button type="button" onClick={() => { setResolving(issue); setResolution(''); }} className="min-h-[36px] text-sm font-semibold text-emerald-700">Resolve</button>
                         )}
                         {canReopen && (
                           <button type="button" onClick={() => { void handleReopen(issue); }} disabled={saving} className="min-h-[36px] text-sm font-semibold text-primary disabled:opacity-50">Reopen</button>
@@ -304,13 +321,13 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
 
       <ModalShell
         isOpen={showForm}
-        onClose={() => setShowForm(false)}
+        onClose={() => { setShowForm(false); setError(''); }}
         title="Log an issue"
         subtitle="Say what is stuck, or ask your question."
         stacked
         footer={(
           <>
-            <button type="button" onClick={() => setShowForm(false)} className="min-h-[44px] rounded-xl px-4 text-sm font-semibold text-gray-500">Cancel</button>
+            <button type="button" onClick={() => { setShowForm(false); setError(''); }} className="min-h-[44px] rounded-xl px-4 text-sm font-semibold text-gray-500">Cancel</button>
             <button type="button" onClick={() => { void handleCreate(); }} disabled={saving || !issueText.trim()} className="min-h-[44px] rounded-xl bg-primary px-5 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50">
               {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Log issue'}
             </button>
@@ -393,16 +410,16 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
           stacked
           footer={(
             <>
-              <button type="button" onClick={() => setResolving(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
-              <button type="button" onClick={() => { void handleResolve(); }} disabled={saving} className="rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+              <button type="button" onClick={() => setResolving(null)} className="min-h-[44px] rounded-xl px-4 text-sm font-semibold text-gray-500">Cancel</button>
+              <button type="button" onClick={() => { void handleResolve(); }} disabled={saving} className="min-h-[44px] rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
                 {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Mark resolved'}
               </button>
             </>
           )}
         >
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">Resolution (optional)</label>
-            <textarea className={`${inputClass} min-h-[90px]`} value={resolution} onChange={(e) => setResolution(e.target.value)} placeholder="How was it resolved?" />
+            <label className={labelClass}>How was it resolved? <span className="text-gray-400">(optional)</span></label>
+            <textarea className={`${inputClass} min-h-[90px]`} value={resolution} onChange={(e) => setResolution(e.target.value)} placeholder="Add a short note" />
           </div>
         </ModalShell>
       )}
@@ -415,8 +432,8 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
         stacked
         footer={(
           <>
-            <button type="button" onClick={() => setDeleting(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
-            <button type="button" onClick={() => { void handleDelete(); }} disabled={saving} className="rounded-2xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60">
+            <button type="button" onClick={() => setDeleting(null)} className="min-h-[44px] rounded-xl px-4 text-sm font-semibold text-gray-500">Cancel</button>
+            <button type="button" onClick={() => { void handleDelete(); }} disabled={saving} className="min-h-[44px] rounded-xl bg-rose-600 px-5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60">
               {saving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Deleting…</span>) : 'Delete'}
             </button>
           </>
