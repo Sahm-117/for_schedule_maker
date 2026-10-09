@@ -320,6 +320,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     };
   }, [allContacts, activeCohort, people, signUps]);
   const counts = mobilisationNumbers?.counts ?? null;
+  const registeredTotal = counts ? counts.adults + counts.teens : 0;
   // Contacts whose number is marked Wrong Number, by the same rule as the counts, for the chip on the form list.
   const wrongNumberIds = useMemo(
     () => new Set(allContacts.filter((c) => computeFollowUpStatus(c) === 'WRONG_NUMBER').map((c) => c.id)),
@@ -818,17 +819,18 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Target</p>
                     {mobilisationTarget ? (
-                      <InfoTip label="About the target">{counts.adults} adults in {activeCohort?.name} have registered, out of a target of {mobilisationTarget}. This is the same count as the Dashboard. Teens are counted on their own card.</InfoTip>
+                      <InfoTip label="About the target">{registeredTotal} people in {activeCohort?.name} have registered ({counts.adults} adults, {counts.teens} teens), out of a target of {mobilisationTarget}. This is the same count as the Dashboard.</InfoTip>
                     ) : null}
                   </div>
                   {mobilisationTarget ? (
                     <>
-                      <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{counts.adults}</span> of {mobilisationTarget}</p>
-                      <p className={`mt-1 text-xs font-semibold ${counts.adults >= mobilisationTarget ? 'text-emerald-700' : 'text-amber-700'}`}>
-                        {counts.adults >= mobilisationTarget ? 'Target reached' : `${mobilisationTarget - counts.adults} to go`}
+                      <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{registeredTotal}</span> of {mobilisationTarget}</p>
+                      <p className={`mt-1 text-xs font-semibold ${registeredTotal >= mobilisationTarget ? 'text-emerald-700' : 'text-amber-700'}`}>
+                        {registeredTotal >= mobilisationTarget ? 'Target reached' : `${mobilisationTarget - registeredTotal} to go`}
                       </p>
+                      <p className="mt-0.5 text-[11px] font-semibold text-gray-500">{counts.adults} {counts.adults === 1 ? 'adult' : 'adults'}, {counts.teens} {counts.teens === 1 ? 'teen' : 'teens'}</p>
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
-                        <span className={`block h-full ${counts.adults >= mobilisationTarget ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${Math.min(counts.adults / mobilisationTarget, 1) * 100}%` }} />
+                        <span className={`block h-full ${registeredTotal >= mobilisationTarget ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${Math.min(registeredTotal / mobilisationTarget, 1) * 100}%` }} />
                       </div>
                     </>
                   ) : (
@@ -841,33 +843,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   <p className="mt-2 text-xs text-gray-500">Counting…</p>
                 </section>
                 )}
-                <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Prospects</p>
-                    <InfoTip label="About prospects">
-                      Still being followed up and not registered yet: {mobilisationNumbers.priorProspects} from a prior cohort, {mobilisationNumbers.currentProspects} from {activeCohort?.name} (current).
-                    </InfoTip>
-                  </div>
-                  <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{mobilisationNumbers.priorProspects + mobilisationNumbers.currentProspects}</span></p>
-                  <p className="mt-1 text-xs font-semibold text-gray-600">Not registered yet</p>
-                </section>
                 {counts ? (
-                  <>
-                <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Onboarded</p>
-                    <InfoTip label="About onboarded">
-                      {counts.onboarded} of the {counts.adults} adults registered for {activeCohort?.name} have confirmed their login: they chose their password and signed in. Teens get no login, so they are not counted here.
-                    </InfoTip>
-                  </div>
-                  <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{counts.onboarded}</span>{counts.adults > 0 ? ` of ${counts.adults}` : ''}</p>
-                  <p className="mt-1 text-xs font-semibold text-emerald-700">Confirmed login</p>
-                  {counts.adults > 0 && (
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
-                      <span className="block h-full bg-emerald-500" style={{ width: `${Math.min(counts.onboarded / counts.adults, 1) * 100}%` }} />
-                    </div>
-                  )}
-                </section>
                 <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Teens</p>
@@ -885,18 +861,43 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                     </p>
                   )}
                 </section>
-                  </>
                 ) : (
-                  <>
-                <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Onboarded</p>
-                  <p className="mt-2 text-xs text-gray-500">Counting…</p>
-                </section>
                 <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
                   <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Teens</p>
                   <p className="mt-2 text-xs text-gray-500">Counting…</p>
                 </section>
-                  </>
+                )}
+                <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Prospects</p>
+                    <InfoTip label="About prospects">
+                      Still being followed up and not registered yet: {mobilisationNumbers.priorProspects} from a prior cohort, {mobilisationNumbers.currentProspects} from {activeCohort?.name} (current).
+                    </InfoTip>
+                  </div>
+                  <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{mobilisationNumbers.priorProspects + mobilisationNumbers.currentProspects}</span></p>
+                  <p className="mt-1 text-xs font-semibold text-gray-600">Not registered yet</p>
+                </section>
+                {counts ? (
+                <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Onboarded</p>
+                    <InfoTip label="About onboarded">
+                      {counts.onboarded} of the {counts.adults} adults registered for {activeCohort?.name} have confirmed their login: they chose their password and signed in. Teens get no login, so they are not counted here.
+                    </InfoTip>
+                  </div>
+                  <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{counts.onboarded}</span>{counts.adults > 0 ? ` of ${counts.adults}` : ''}</p>
+                  <p className="mt-1 text-xs font-semibold text-emerald-700">Confirmed login</p>
+                  {counts.adults > 0 && (
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
+                      <span className="block h-full bg-emerald-500" style={{ width: `${Math.min(counts.onboarded / counts.adults, 1) * 100}%` }} />
+                    </div>
+                  )}
+                </section>
+                ) : (
+                <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Onboarded</p>
+                  <p className="mt-2 text-xs text-gray-500">Counting…</p>
+                </section>
                 )}
               </div>
               <button
