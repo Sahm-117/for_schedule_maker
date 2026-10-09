@@ -55,7 +55,8 @@ const SOURCE_LABEL: Record<string, string> = {
 interface ParticipantModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaved: (p: Participant) => void;
+  /** `crossed` says an edit moved them across the teen line, so the list should be read again (their group and follow-up changed too). */
+  onSaved: (p: Participant, crossed?: 'teen' | 'adult' | null) => void;
   cohortId: string;
   existing?: Participant | null;
 }
@@ -70,6 +71,9 @@ const toDateInput = (value?: string | null): string => {
 
 const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, onSaved, cohortId, existing }) => {
   const churchDepartments = useChurchDepartments();
+  const toast = useToast();
+  // With a date of birth on file the database works the age range out from it and puts it back after any edit, so it is not editable here.
+  const ageFromDob = !!existing?.dateOfBirth;
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
@@ -130,7 +134,17 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
           ...details,
         }));
       }
-      onSaved(result);
+      // An edit across the teen line also moves the person (teen handling, their group, their follow-up): say so.
+      let crossed: 'teen' | 'adult' | null = null;
+      if (existing && !ageFromDob && ageRange && normaliseAgeRange(existing.ageRange) !== normaliseAgeRange(ageRange)) {
+        const wasTeen = isTeenAgeRange(existing.ageRange);
+        const isTeen = isTeenAgeRange(ageRange);
+        if (!wasTeen && isTeen) crossed = 'teen';
+        else if (wasTeen && !isTeen) crossed = 'adult';
+      }
+      if (crossed === 'teen') toast({ message: `${result.fullName} is now a teen: they leave any adult group and go to a same-gender Teen Support.` });
+      if (crossed === 'adult') toast({ message: `${result.fullName} is now an adult: they leave their Teen Support and go to the usual follow-up.` });
+      onSaved(result, crossed);
       onClose();
     } catch (e: any) {
       const raw = e?.message || '';
@@ -228,7 +242,10 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ isOpen, onClose, on
                   onChange={setAgeRange}
                   options={[{ value: '', label: 'Not specified' }, ...toSelectOptions(AGE_RANGE_OPTIONS)]}
                   placeholder="Select age range"
+                  disabled={ageFromDob}
                 />
+                {ageFromDob && <p className="mt-1 text-xs text-gray-500">Worked out from their date of birth. To change it, change the date of birth.</p>}
+                {!ageFromDob && existing && <p className="mt-1 text-xs text-gray-500">Switching between teen (10 - 17) and adult also moves them: their group, Teen Support and follow-up.</p>}
               </div>
               <div>
                 <AppMultiSelect
@@ -1332,8 +1349,9 @@ const AdminParticipantsContent: React.FC = () => {
       <ParticipantModal
         isOpen={addOpen}
         onClose={() => { setAddOpen(false); setEditing(null); }}
-        onSaved={(p) => {
+        onSaved={(p, crossed) => {
           if (!editing) setLoginFor(p);
+          if (crossed) void load(true);
           setParticipants((prev) => {
             const idx = prev.findIndex((x) => x.id === p.id);
             const next = idx >= 0 ? prev.map((x) => x.id === p.id ? p : x) : [...prev, p];
