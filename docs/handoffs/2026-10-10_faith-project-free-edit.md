@@ -20,6 +20,7 @@ Migrations (applied live): `20261010100000_faith_project_free_edit.sql` and the 
 - Rewritten from their live definitions: `save_faith_project`, `participant_faith`, `set_faith_project_prayer_share` (now delegates),
   `hub_prayer_list`, `set_hub_prayer_focus`, `participant_home`, `practice_make_group`, `practice_reset_participant`.
 - Backfill: 64 projects with text became `SAVED` (10 without text `NOT_DRAFTED`), each with one baseline version.
+Deployment: a production redeploy of commit `19d8917` was started through the Vercel API (deployment `dpl_wF6CTgMDHKWyVWb5DmcYssvDpCXo`, READY) after the first deployment of that commit failed with a GitHub fetch 403 (`dpl_2L9Z4jRU5xixDxHkMTmew9Xb4AGt`, ERROR, no build ran).
 Edge functions removed (approved by the owner): `notify-faith-project-submitted` and `notify-faith-project-review` (both were v5), undeployed
 and deleted from the repo. Nothing else was deployed.
 
@@ -76,6 +77,6 @@ pop-up first.
 - **Ship the app before (or together with) a database change that old code cannot read.** The faith project migration went live hours before the new app: the
   old app does not know the `SAVED` status, so its Faith page and the support's My Group card would have errored for anyone with a saved project until the new
   app was deployed. When the deploy then failed (Vercel could not fetch the commit from GitHub, a 403 on their side, no build ran), it stayed that way until a
-  redeploy of the same commit was started through the Vercel API (deployment `dpl_wF6C...`, READY). Cached copies of the old app (the installed web app) pick the new one
+  redeploy of the same commit was started through the Vercel API (see Live changes). Cached copies of the old app (the installed web app) pick the new one
   up on their next update banner. No data was damaged: old and new saves both worked; only the display broke.
 - A deployment error that says "Git information retrieval failed" or "GitHub fetch error - status: 403" is not a code error. Redeploy the same commit.

@@ -76,14 +76,14 @@ type HubTab = 'overview' | 'meeting' | 'leads' | 'trainings' | 'notes' | 'messag
 
 // A member's group: a link when the viewer may open it, plain text otherwise. It wraps instead of squeezing the
 // name beside it (group names can be long, e.g. "Teens - <a full name>").
-const MemberGroup: React.FC<{ userId: string; groupName: string | null; canOpen: boolean; className?: string }> = ({ userId, groupName, canOpen, className = '' }) => (
-  canOpen && groupName ? (
-    <Link to={`/group-view/${userId}`} className={`inline-flex min-w-0 max-w-full items-start gap-1 text-[13px] font-medium text-primary ${className}`}>
-      <span className="min-w-0 break-words">{groupName}</span>
+const MemberGroup: React.FC<{ member: { userId: string; groupName?: string | null }; canOpen: boolean; className?: string }> = ({ member, canOpen, className = '' }) => (
+  canOpen && member.groupName ? (
+    <Link to={`/group-view/${member.userId}`} className={`inline-flex min-w-0 max-w-full items-start gap-1 text-[13px] font-medium text-primary ${className}`}>
+      <span className="min-w-0 break-words">{member.groupName}</span>
       <svg className="mt-[3px] flex-none" width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" /></svg>
     </Link>
   ) : (
-    <span className={`min-w-0 max-w-full break-words text-[13px] text-gray-400 ${className}`}>{groupName || 'No group'}</span>
+    <span className={`min-w-0 max-w-full break-words text-[13px] text-gray-400 ${className}`}>{member.groupName || 'No group'}</span>
   )
 );
 
@@ -540,13 +540,12 @@ const SupportMyHubPage: React.FC = () => {
                       // A member can also be this hub's IT support; the member row carries that label too.
                       const jobs: HubJob[] = [...(m.jobs ?? []), ...((hub.itSupports ?? []).some((it) => it.userId === m.userId) && !(m.jobs ?? []).includes('IT_SUPPORT') ? ['IT_SUPPORT' as HubJob] : [])];
                       return (
-                        <li key={m.userId} className="flex items-center gap-3 border-t border-[#f0f0f2] py-3 first:border-t-0">
-                          <button type="button" onClick={() => setProfileUserId(m.userId)} aria-label={`View ${m.name}'s profile`} className="flex-none rounded-full">
+                        <li key={m.userId} className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 border-t border-[#f0f0f2] py-3 first:border-t-0 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+                          <button type="button" onClick={() => setProfileUserId(m.userId)} aria-label={`View ${m.name}'s profile`} className="row-span-2 flex-none self-center rounded-full sm:row-span-1">
                             <Avatar name={m.name} avatarUrl={m.avatarUrl} size="md" />
                           </button>
-                          <div className="min-w-0 flex-1">
-                            <button type="button" onClick={() => setProfileUserId(m.userId)} className="text-left text-[15px] font-medium text-gray-900 hover:underline">{m.name}{m.userId === user?.id && <span className="ml-1.5 text-[13px] font-normal text-gray-400">You</span>}</button>
-                            <div className="mt-0.5 sm:hidden"><MemberGroup userId={m.userId} groupName={m.groupName ?? null} canOpen={!!canGroups} /></div>
+                          <div className="min-w-0">
+                            <button type="button" onClick={() => setProfileUserId(m.userId)} className="break-words text-left text-[15px] font-medium text-gray-900 hover:underline">{m.name}{m.userId === user?.id && <span className="ml-1.5 text-[13px] font-normal text-gray-400">You</span>}</button>
                             {(!!jobs.length || m.isPersonOfInterest) && (
                               <div className="mt-1 flex flex-wrap gap-1">
                                 {sortHubJobs(jobs).map((job) => (
@@ -556,9 +555,8 @@ const SupportMyHubPage: React.FC = () => {
                               </div>
                             )}
                           </div>
-                          <div className="hidden max-w-[40%] flex-none text-right sm:block">
-                            <MemberGroup userId={m.userId} groupName={m.groupName ?? null} canOpen={!!canGroups} />
-                          </div>
+                          {/* Under the name on phones, at the right from `sm` up; one element either way. */}
+                          <MemberGroup member={m} canOpen={!!canGroups} className="col-start-2 mt-1 justify-self-start sm:col-start-3 sm:mt-0 sm:max-w-[11rem] sm:justify-self-end sm:text-right" />
                         </li>
                       );
                     })}
