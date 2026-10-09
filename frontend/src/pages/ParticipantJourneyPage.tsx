@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import AttendanceCountdownCard from '../components/participantApp/AttendanceCountdownCard';
 import EndSummaryCard from '../components/participantApp/EndSummaryCard';
+import { TeacherChip, TeacherSheet, type ClassTeacher } from '../components/TeacherSheet';
 import { useParticipantApp } from '../context/ParticipantAppContext';
 import { currentWeekNumber, pickCallback, reflectionFor } from '../utils/participantApp';
 
@@ -42,6 +43,8 @@ const ParticipantJourneyPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [openWeekId, setOpenWeekId] = useState<number | null>(null);
+  // The teacher whose sheet is open (tapped from a week's chip).
+  const [teacherSheet, setTeacherSheet] = useState<{ teacher: ClassTeacher; title: string } | null>(null);
   const [tab, setTab] = useState<'journey' | 'attendance'>(
     searchParams.get('tab') === 'attendance' ? 'attendance' : 'journey'
   );
@@ -144,6 +147,7 @@ const ParticipantJourneyPage: React.FC = () => {
                         </div>
                         <span className={`ml-auto flex-none rounded-full px-[9px] py-[3px] text-[11px] font-bold ${chip.cls}`}>{chip.label}</span>
                       </button>
+                      {week.teacher && <TeacherChip teacher={week.teacher} onOpen={() => setTeacherSheet({ teacher: week.teacher!, title: week.title || `Week ${week.weekNumber}` })} className="mt-1.5" />}
                       {open && reflection && (
                         <div className="mt-[11px] rounded-[14px] bg-[#f9fafb] p-3.5">
                           <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-gray-400">What stood out</p>
@@ -164,6 +168,7 @@ const ParticipantJourneyPage: React.FC = () => {
             </section>
 
             <EndSummaryCard lastWeek={totalWeeks} reflectionCount={home.reflections.length} />
+            {teacherSheet && <TeacherSheet teacher={teacherSheet.teacher} title={teacherSheet.title} onClose={() => setTeacherSheet(null)} />}
           </>
         ) : (
           <section data-wt="pj-attendance" className={`${CARD} px-5 pb-4 pt-5`}>

@@ -5,6 +5,7 @@ Older, auto-written summaries are in `.sessions/INDEX.md`.
 
 | Date | Handoff | Covers |
 |---|---|---|
+| 2026-10-09 | [Draft step empty groups, supports see the scriptures, tap a teacher](2026-10-09_support-scriptures-teacher-tap.md) | Make a group for each leftover support, supports get the Inspirational Scriptures card, teacher chips on Journey and Classes. Frontend only. |
 | 2026-10-09 | [Group sizes per gender, admin teen moves, WhatsApp text](2026-10-09_group-sizes-teen-move-whatsapp.md) | Per-gender group size (teens too), admin move of a teen between Teen Supports, Draft step "Text for WhatsApp". One live migration, no edge function. |
 | 2026-10-09 | [Teen bracket 10 - 17, age change moves the person](2026-10-09_teen-bracket-10-17.md) | Teen age bracket is "10 - 17", adults from 18 ("18 - 24"); changing an age range across the line converts or reverts; Participants age range column. Two live migrations, receive-form-registration v16. |
 | 2026-10-09 | [Practice: enrol dual-role supports](2026-10-09_practice-enrol-dual-role.md) | Admins with the Support tag are enrolled in Practice. One live migration. |

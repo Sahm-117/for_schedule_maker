@@ -3,6 +3,7 @@ import PageHeader from '../components/PageHeader';
 import LinkText from '../components/LinkText';
 import PageLoader from '../components/PageLoader';
 import DocumentViewerSheet from '../components/DocumentViewerSheet';
+import { TeacherChip, TeacherSheet, classTeacher, type ClassTeacher } from '../components/TeacherSheet';
 import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
 import { hasManualForWeek, loadManualForWeek } from '../components/classManual/manuals';
@@ -252,6 +253,17 @@ const SupportRecapPage: React.FC = () => {
   const isTeenSupport = !!user && !!teenSupportIds?.has(user.id);
   // Every week of the cohort (the list below only has weeks with content), to find the next class.
   const cohortWeeks = useMemo(() => weeks.filter((week) => week.cohortId === activeCohort?.id), [weeks, activeCohort?.id]);
+  // Who teaches each class, from the week editor (a teacher only counts once a name is set).
+  const teacherByWeek = useMemo(() => {
+    const map = new Map<number, ClassTeacher>();
+    cohortWeeks.forEach((w) => { const t = classTeacher(w.teacherName, w.teacherRole, w.teacherBio, w.teacherPhotoUrl); if (t) map.set(w.weekNumber, t); });
+    return map;
+  }, [cohortWeeks]);
+  const [teacherSheet, setTeacherSheet] = useState<{ teacher: ClassTeacher; title: string } | null>(null);
+  const openTeacher = (week: SupportRecap) => {
+    const teacher = teacherByWeek.get(week.weekNumber);
+    if (teacher) setTeacherSheet({ teacher, title: week.title || `Week ${week.weekNumber}` });
+  };
   const [recaps, setRecaps] = useState<SupportRecap[]>([]);
   const [questions, setQuestions] = useState<ManualQuestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -342,6 +354,9 @@ const SupportRecapPage: React.FC = () => {
                 )}
                 {available && <Chevron open={open} />}
               </button>
+              {teacherByWeek.has(week.weekNumber) && (
+                <div className="-mt-2 pb-3.5 pl-[76px] pr-5"><TeacherChip teacher={teacherByWeek.get(week.weekNumber)!} onOpen={() => openTeacher(week)} /></div>
+              )}
               {open && <div className="px-5 pb-6 pt-1">{bodyFor(week)}</div>}
             </li>
           );
@@ -371,6 +386,7 @@ const SupportRecapPage: React.FC = () => {
               {featuredIsToday ? 'Today' : featuredIsNext ? 'Next class' : 'Last class'} · Week {featured.weekNumber}{featuredDate ? ` · ${featuredDate}` : ''}
             </p>
             <h2 className="mt-1.5 text-[30px] font-bold leading-[1.1] tracking-[-0.025em] text-gray-900 sm:text-[36px]">{featured.title || `Week ${featured.weekNumber}`}</h2>
+            {teacherByWeek.has(featured.weekNumber) && <div className="mt-3"><TeacherChip teacher={teacherByWeek.get(featured.weekNumber)!} onOpen={() => openTeacher(featured)} className="min-h-[34px] text-[13px]" /></div>}
             <div className={isWeekOpen(featured, isTeenSupport) ? 'mb-5 mt-3' : 'mt-3'}><WeekState week={featured} teen={isTeenSupport} /></div>
             {isWeekOpen(featured, isTeenSupport) && bodyFor(featured)}
           </section>
@@ -379,6 +395,7 @@ const SupportRecapPage: React.FC = () => {
         </div>
       )}
 
+      {teacherSheet && <TeacherSheet teacher={teacherSheet.teacher} title={teacherSheet.title} onClose={() => setTeacherSheet(null)} />}
       <DocumentViewerSheet
         open={!!doc}
         url={doc?.url ?? null}

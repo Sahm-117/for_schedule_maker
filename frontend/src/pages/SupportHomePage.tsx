@@ -27,6 +27,7 @@ import TrainingLearnedCard from '../components/supports/TrainingLearnedCard';
 import ProfileCompletionStrip from '../components/supports/ProfileCompletionStrip';
 import PendingSurveyCards from '../components/surveys/PendingSurveyCards';
 import AppNudgeCard from '../components/supports/AppNudgeCard';
+import SupportScriptures from '../components/supports/SupportScriptures';
 
 type HomeActivity = {
   id: number;
@@ -501,6 +502,8 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
             </section>
           )}
           <AppNudgeCard />
+
+          <SupportScriptures cohortStartDate={activeCohort?.startDate} />
 
           {helpRequests.length > 0 && (
             <section className="rounded-[18px] bg-red-100/80 px-4 py-3.5">

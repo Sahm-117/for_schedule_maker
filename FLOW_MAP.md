@@ -510,7 +510,22 @@ duplicating the logic anywhere else is a bug waiting to happen.
     someone into one needs "All groups". Frontend only (`GroupEngineWizard.tsx`).
 44. **A support left without a group can be given an empty group on the Draft step.** "Make a group for each" in Supports
     without a group adds one empty draft group per unused support (named after the next free "Group n"); people are then
-    moved in by hand. A group still empty at the end is not created. Frontend only (`GroupEngineWizard.tsx`).
+    moved in by hand. A group still empty at the end is not created; the Draft step says so ("N empty groups are not
+    created yet") and an empty group has a Remove button. Empty groups are their own bucket in the gender chips ("Empty
+    groups"; Female + Male + Mixed + Empty = All groups) and stay on screen in every gender view, because they are where
+    people get moved to. A support with only an empty group still counts as spare for hub coverage. Frontend only
+    (`GroupEngineWizard.tsx`).
+45. **Supports see the Inspirational Scriptures on their Home, exactly as participants do.** One shared card
+    (`components/ScriptureCarousel.tsx`) serves the participant Home and the support Home (`SupportScriptures.tsx`).
+    Supports read the images straight from the `Scripture` table and the two settings (`scriptures_enabled`,
+    `scripture_start_day`), which any staff session may read, and follow the same switch: with scriptures off in Settings,
+    neither participants nor supports see the card. The day follows the active cohort's start date (day N opens at 2:00 PM
+    Lagos time). Frontend only.
+46. **A class's teacher can be tapped on the participant Journey and the support Classes page.** A week with a teacher
+    name set shows a small chip (`TeacherChip`) under its title; tapping it opens the same `TeacherSheet` as the home
+    "Next class" card (photo or initials, name and role, bio, the class they teach), and does not open or close the week.
+    Participants read the teacher from `participant_home` (`week.teacher`); supports from the Week rows (`teacherName`,
+    `teacherRole`, `teacherBio`, `teacherPhotoUrl`). No teacher name, no chip. Frontend only.
 
 ## 5. Edge functions and schedules
 

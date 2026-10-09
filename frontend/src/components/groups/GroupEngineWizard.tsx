@@ -530,7 +530,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     if (unusedSupports.length === 0) return;
     const names = nextGroupNames([...groups.map((g) => g.name), ...draft.map((g) => g.name)], unusedSupports.length);
     const stamp = Date.now();
-    setDraft((prev) => [...prev, ...unusedSupports.map((s, i) => ({ key: `manual-${stamp}-${i}`, name: names[i], memberIds: [], supportId: s.id }))]);
+    setDraft((prev) => [...prev, ...unusedSupports.map((s, i) => ({ key: `manual-${s.id}-${stamp}`, name: names[i], memberIds: [], supportId: s.id }))]);
     resetSupportView();
     setDraftNote(`${unusedSupports.length} empty ${unusedSupports.length === 1 ? 'group' : 'groups'} made, one for each support without a group. Tap a person, then “Move here” to fill them.`);
   };
@@ -541,31 +541,37 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     const withPeople = draft.filter((g) => g.memberIds.length > 0 && g.supportId);
     const ids = [...topUpTargets.map((t) => t.supportId).filter(Boolean) as string[], ...withPeople.map((g) => g.supportId as string)];
     const groupsWithPeople = topUpTargets.length + draft.filter((g) => g.memberIds.length > 0 && !g.topUp).length;
-    const used = new Set(draft.map((g) => g.supportId).filter(Boolean) as string[]);
+    // A support with only an empty group is still free to be placed, so only groups with people use one up.
+    const used = new Set(draft.filter((g) => g.memberIds.length > 0).map((g) => g.supportId).filter(Boolean) as string[]);
     return hubCoverage(hubSpread, ids, groupsWithPeople, supportPool.free.filter((s) => !used.has(s.id)).map((s) => s.id));
   }, [hubSpread, draft, topUpTargets, supportPool.free]);
   const noSupportCount = toCreate.filter((g) => !g.supportId && !g.topUp).length;
   // Filters on the Draft step: by the gender of a group's people, and by groups still without a support.
-  type SupportView = 'all' | 'none' | 'none:Male' | 'none:Female' | 'none:Mixed' | 'gender:Male' | 'gender:Female' | 'gender:Mixed';
+  type SupportView = 'all' | 'none' | 'none:Male' | 'none:Female' | 'none:Mixed' | 'gender:Male' | 'gender:Female' | 'gender:Mixed' | 'empty';
   // A "no support" view is a snapshot of the groups it showed when it was picked: a group stays on screen after it gets a
   // support, so working down the list does not make the cards jump (picking a view again, or "All groups", refreshes it).
   // A gender view is live instead: a group follows the people in it, so a group moved to "Mixed or unknown" leaves the view.
   const [supportViewState, setSupportViewState] = useState<{ kind: SupportView; keys: Set<string> } | null>(null);
   const resetSupportView = () => setSupportViewState(null);
-  // One gender per group, counting the people already in a group being topped up. A group of both, or of unknown, is "Mixed".
-  const genderByKey = new Map<string, 'Male' | 'Female' | 'Mixed'>(draft.map((g) => [
-    g.key,
-    sharedGender([...(g.existingMemberIds ?? []), ...g.memberIds].map((id) => topUpPeople.get(id)).filter((m): m is EnginePerson => !!m)) ?? 'Mixed',
-  ]));
+  // One gender per group, counting the people already in a group being topped up. A group of both, or of unknown, is "Mixed";
+  // a group with nobody in it yet (made by hand for a support) is "Empty".
+  const genderByKey = new Map<string, 'Male' | 'Female' | 'Mixed' | 'Empty'>(draft.map((g) => {
+    const members = [...(g.existingMemberIds ?? []), ...g.memberIds].map((id) => topUpPeople.get(id)).filter((m): m is EnginePerson => !!m);
+    return [g.key, members.length === 0 ? 'Empty' : sharedGender(members) ?? 'Mixed'];
+  }));
   const genderOfGroup = (g: DraftGroup) => genderByKey.get(g.key) ?? 'Mixed';
-  const noSupportByGender = { Male: 0, Female: 0, Mixed: 0 };
+  const noSupportByGender = { Male: 0, Female: 0, Mixed: 0, Empty: 0 };
   toCreate.forEach((g) => { if (!g.supportId && !g.topUp) noSupportByGender[genderOfGroup(g)] += 1; });
-  // Every group is in exactly one of these, so Female + Male + Mixed is the number on "All groups".
-  const groupsByGender = { Male: 0, Female: 0, Mixed: 0 };
+  // Every group is in exactly one of these, so Female + Male + Mixed + Empty is the number on "All groups".
+  const groupsByGender = { Male: 0, Female: 0, Mixed: 0, Empty: 0 };
   draft.forEach((g) => { groupsByGender[genderOfGroup(g)] += 1; });
+  // Groups by hand for a support, with nobody in them yet: they only exist if someone is moved in.
+  const emptyWithSupport = draft.filter((g) => !g.topUp && g.supportId && g.memberIds.length === 0).length;
   const matchesView = (view: SupportView, g: DraftGroup) => {
     if (view === 'all') return true;
-    if (view.startsWith('gender:')) return view === `gender:${genderOfGroup(g)}`;
+    if (view === 'empty') return genderOfGroup(g) === 'Empty';
+    // A gender view also keeps the empty groups on screen: they are where people get moved to.
+    if (view.startsWith('gender:')) return view === `gender:${genderOfGroup(g)}` || genderOfGroup(g) === 'Empty';
     if (g.supportId || g.topUp || g.memberIds.length === 0) return false;
     return view === 'none' || view === `none:${genderOfGroup(g)}`;
   };
@@ -573,12 +579,12 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
     setSupportViewState(view === 'all' ? null : { kind: view, keys: new Set(draft.filter((g) => matchesView(view, g)).map((g) => g.key)) });
   };
   // If nothing from the picked view is left in the draft (after a rebuild, say), show everything.
-  const liveView = !!supportViewState && supportViewState.kind.startsWith('gender:');
+  const liveView = !!supportViewState && (supportViewState.kind.startsWith('gender:') || supportViewState.kind === 'empty');
   const inPickedView = (g: DraftGroup) => (liveView ? matchesView(supportViewState!.kind, g) : supportViewState!.keys.has(g.key));
   const viewActive = !!supportViewState && draft.some(inPickedView);
   const activeView: SupportView = viewActive ? supportViewState!.kind : 'all';
   const visibleDraft = viewActive ? draft.filter(inPickedView) : draft;
-  const genderKinds = Object.values(groupsByGender).filter((n) => n > 0).length;
+  const genderKinds = [groupsByGender.Male, groupsByGender.Female, groupsByGender.Mixed].filter((n) => n > 0).length;
   const newCount = toCreate.filter((g) => !g.topUp).length;
   const topUpCount = toCreate.filter((g) => g.topUp).length;
   const createdDone = toCreate.filter((g) => !g.topUp && statuses[g.key] === 'done').length;
@@ -1335,6 +1341,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
               <p className="text-xs text-gray-500">
                 {newCount} new {newCount === 1 ? 'group' : 'groups'}{topUpCount > 0 && <> · {topUpCount} topped up</>} · {toCreate.reduce((n, g) => n + g.memberIds.length, 0)} people
                 {noSupportCount > 0 && <> · <span className="font-semibold text-red-700">{noSupportCount} without a support</span></>}
+                {emptyWithSupport > 0 && <> · <span className="font-semibold text-amber-700">{emptyWithSupport} empty {emptyWithSupport === 1 ? 'group is' : 'groups are'} not created yet</span></>}
                 {' · '}Tap a person, then “Move here” on another group.
               </p>
               {(draft.length > 0 && (genderKinds > 1 || noSupportCount > 0 || viewActive)) && (
@@ -1350,6 +1357,7 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                       ['gender:Female', 'Female groups', groupsByGender.Female],
                       ['gender:Male', 'Male groups', groupsByGender.Male],
                       ['gender:Mixed', 'Mixed or unknown groups', groupsByGender.Mixed],
+                      ['empty', 'Empty groups', groupsByGender.Empty],
                       ['none', 'No support', noSupportCount],
                       ['none:Male', 'Male, no support', noSupportByGender.Male],
                       ['none:Female', 'Female, no support', noSupportByGender.Female],
@@ -1459,6 +1467,9 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                         </p>
                         <div className="flex items-center gap-1.5">
                           {moveHere(g.key, g.memberIds)}
+                          {g.key.startsWith('manual-') && g.memberIds.length === 0 && (
+                            <button type="button" onClick={() => setDraft((prev) => prev.filter((x) => x.key !== g.key))} className="min-h-[32px] rounded-full border border-gray-200 px-2.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 active:scale-95" aria-label={`Remove empty ${g.name}`}>Remove</button>
+                          )}
                           <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">{g.topUp ? `+${g.memberIds.length}` : g.memberIds.length}</span>
                         </div>
                       </div>
@@ -1519,7 +1530,10 @@ const GroupEngineWizard: React.FC<GroupEngineWizardProps> = ({
                       )}
                     </div>
                     {unused.length === 0 ? (
-                      <p className="mt-2 text-sm text-gray-500">Every available support has a group.</p>
+                      <p className="mt-2 text-sm text-gray-500">
+                        Every available support has a group.
+                        {emptyWithSupport > 0 && <> {emptyWithSupport === 1 ? 'One is' : `${emptyWithSupport} are`} still empty, and an empty group is only created if someone is moved into it.</>}
+                      </p>
                     ) : (
                       <>
                         {groupByHub(unused).map((hubGroup) => (
