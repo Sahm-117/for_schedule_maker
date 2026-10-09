@@ -437,6 +437,17 @@ duplicating the logic anywhere else is a bug waiting to happen.
     (`participant_onboarding_state.hasAttended`), so absent people keep it after the cohort starts. People already
     ready or completed are not asked again. Source: `20261008130000_venue_map_ready_step.sql`.
 
+36. **The Mobilisation cards use the Dashboard's count, and a teen's number is never shown there.** Target and
+    Onboarded count adults (`computeRegistrationOverview`), a Teens card counts registered teens with the wrong
+    number left out and says how many came from the form or were added by hand, and Prospects stays the follow-up
+    contacts still to register. On "Registered on the form", a teen (form age "Below 18" / "18 and below", or on the
+    teen path) shows a Teen chip and "Number hidden"; the number is dropped when the rows load, so it is not shown,
+    kept in the page or searchable (the database still sends it to a signed-in support). A Wrong Number contact shows
+    a Wrong number chip. Source: `SupportMobilisationPage`, `formRegistrationsApi`.
+37. **Teen groups are left out of the admin "Discussions this week" line.** They have no in-app discussion (they use
+    WhatsApp), so `admin_discussion_summary` skips `Group.isTeenGroup`; with only teen groups the line is hidden.
+    Source: `20261009100000_discussion_summary_no_teen_groups.sql`.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the

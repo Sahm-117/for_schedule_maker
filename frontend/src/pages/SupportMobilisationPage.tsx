@@ -18,8 +18,8 @@ import FollowUpStatusFlow from '../components/followups/FollowUpStatusFlow';
 import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { useAuth } from '../hooks/useAuth';
 import { useAppData } from '../context/AppDataContext';
-import { followUpContactsApi, followUpIssuesApi, followUpLoginIssuesApi, formRegistrationsApi, messageTemplatesApi, settingsApi } from '../services/api';
-import type { FollowUpContact, FollowUpContactUpdate, FollowUpIssue, FollowUpRegistrationStatus, FollowUpStatus, ItLoginIssue, MessageTemplate, TeenOnboardedHow, User } from '../types';
+import { followUpContactsApi, followUpIssuesApi, followUpLoginIssuesApi, formRegistrationsApi, messageTemplatesApi, participantPushApi, participantsApi, settingsApi } from '../services/api';
+import type { FollowUpContact, FollowUpContactUpdate, Participant, FollowUpIssue, FollowUpRegistrationStatus, FollowUpStatus, ItLoginIssue, MessageTemplate, TeenOnboardedHow, User } from '../types';
 import type { FormRegistration } from '../services/supabase-api';
 import {
   FOLLOW_UP_STATUS_META,
@@ -46,6 +46,7 @@ import TeenOnboardedPopup, { teenOnboardedLabel } from '../components/followups/
 import TeenAddFields, { CHURCH_FOF_EMAIL, EMPTY_TEEN, type TeenAddState } from '../components/followups/TeenAddFields';
 import FormQuestionBox from '../components/followups/FormQuestionBox';
 import SignUpStageFilter from '../components/followups/SignUpStageFilter';
+import { computeRegistrationOverview } from '../utils/registrationOverview';
 import { emailLoginDetails, hasLoginToSend } from '../utils/loginEmail';
 
 type MobTab = 'register' | 'follow' | 'it';
@@ -220,6 +221,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const [showExport, setShowExport] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [mobilisationTarget, setMobilisationTarget] = useState<number | null>(null);
+  // The people and who has signed in: the same count the Dashboard uses, so the cards never disagree with it.
+  const [people, setPeople] = useState<{ participants: Participant[]; signedIn: Set<string> } | null>(null);
   // Phone-only: the number cards scroll sideways; the arrow hints at more and
   // hides once the row is scrolled to the end.
   const numbersRowRef = useRef<HTMLDivElement | null>(null);
@@ -292,9 +295,27 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
     const scoped = allContacts.filter((c) => !c.isTest && contactInCohortScope(c, activeCohort.id, activeCohort.id));
     const current = computeFollowUpFunnel(scoped.filter((c) => c.cohortId));
     const prior = computeFollowUpFunnel(scoped.filter((c) => !c.cohortId));
-    const onboarded = scoped.filter((c) => c.cohortId && computeFollowUpStatus(c) === 'ACCESS_CONFIRMED').length;
-    return { signedUp: current.signedUp, currentProspects: current.open, priorProspects: prior.open, onboarded };
-  }, [allContacts, activeCohort]);
+    if (!people) return null;
+    // Registered and logged in come from people (adults and teens apart), as on the Dashboard.
+    // Prospects are follow-up contacts still to register, who are all adults.
+    const overview = computeRegistrationOverview(people.participants, allContacts, people.signedIn, activeCohort.id);
+    // Where the counted teens came from: the form, or added by hand. Only shown when the two add up.
+    const formContactIds = new Set(signUps.map((row) => row.contactId).filter((id): id is string => !!id));
+    const countedTeens = scoped.filter((c) => isTeenContact(c) && computeFollowUpStatus(c) !== 'WRONG_NUMBER');
+    const teensFromForm = countedTeens.filter((c) => formContactIds.has(c.id)).length;
+    const teensByHand = countedTeens.length - teensFromForm;
+    const sourceKnown = countedTeens.length === overview.teens.registered;
+    return {
+      adults: overview.adults.registered,
+      onboarded: overview.adults.loggedIn,
+      currentProspects: current.open,
+      priorProspects: prior.open,
+      teens: overview.teens.registered,
+      teensWrongNumber: overview.teens.wrongNumber,
+      teensFromForm: sourceKnown ? teensFromForm : null,
+      teensByHand: sourceKnown ? teensByHand : null,
+    };
+  }, [allContacts, activeCohort, people, signUps]);
 
   // A change just saved must not be undone by a refresh that was already on its way.
   const lastEditAt = useRef(0);
@@ -302,6 +323,13 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
   const loadAll = useCallback(async () => {
     const startedAt = Date.now();
     if (!user?.id) return;
+    if (activeCohort?.id) {
+      const cohortForPeople = activeCohort.id;
+      // A failure here only hides the number cards (a wrong number is worse than none); the rest of the page still loads.
+      Promise.all([participantsApi.getAll({ cohortId: cohortForPeople }), participantPushApi.getSignedInIds(cohortForPeople)])
+        .then(([p, ids]) => { if (lastEditAt.current <= startedAt) setPeople({ participants: p.participants, signedIn: new Set(ids) }); })
+        .catch(() => setPeople(null));
+    }
     if (initialLoadRef.current) setLoading(true);
     setLoadError('');
     try {
@@ -331,7 +359,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
       setLoading(false);
       initialLoadRef.current = false;
     }
-  }, [user?.id, user?.name]);
+  }, [user?.id, user?.name, activeCohort?.id]);
 
   const [signUpsRefreshing, setSignUpsRefreshing] = useState(false);
   const refreshSignUps = async () => {
@@ -773,22 +801,22 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
 
             {mobilisationNumbers && (
               <div className="relative">
-              <div ref={numbersRowRef} onScroll={updateNumbersAtEnd} className="-mb-1 flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:none] sm:mb-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
+              <div ref={numbersRowRef} onScroll={updateNumbersAtEnd} className="-mb-1 flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:none] sm:mb-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden">
                 <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Target</p>
                     {mobilisationTarget ? (
-                      <InfoTip label="About the target">{mobilisationNumbers.signedUp} people in {activeCohort?.name} have registered on the form, out of a target of {mobilisationTarget}.</InfoTip>
+                      <InfoTip label="About the target">{mobilisationNumbers.adults} adults in {activeCohort?.name} have registered, out of a target of {mobilisationTarget}. This is the same count as the Dashboard. Teens are counted on their own card.</InfoTip>
                     ) : null}
                   </div>
                   {mobilisationTarget ? (
                     <>
-                      <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{mobilisationNumbers.signedUp}</span> of {mobilisationTarget}</p>
-                      <p className={`mt-1 text-xs font-semibold ${mobilisationNumbers.signedUp >= mobilisationTarget ? 'text-emerald-700' : 'text-amber-700'}`}>
-                        {mobilisationNumbers.signedUp >= mobilisationTarget ? 'Target reached' : `${mobilisationTarget - mobilisationNumbers.signedUp} to go`}
+                      <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{mobilisationNumbers.adults}</span> of {mobilisationTarget}</p>
+                      <p className={`mt-1 text-xs font-semibold ${mobilisationNumbers.adults >= mobilisationTarget ? 'text-emerald-700' : 'text-amber-700'}`}>
+                        {mobilisationNumbers.adults >= mobilisationTarget ? 'Target reached' : `${mobilisationTarget - mobilisationNumbers.adults} to go`}
                       </p>
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
-                        <span className={`block h-full ${mobilisationNumbers.signedUp >= mobilisationTarget ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${Math.min(mobilisationNumbers.signedUp / mobilisationTarget, 1) * 100}%` }} />
+                        <span className={`block h-full ${mobilisationNumbers.adults >= mobilisationTarget ? 'bg-emerald-500' : 'bg-primary'}`} style={{ width: `${Math.min(mobilisationNumbers.adults / mobilisationTarget, 1) * 100}%` }} />
                       </div>
                     </>
                   ) : (
@@ -809,15 +837,32 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Onboarded</p>
                     <InfoTip label="About onboarded">
-                      {mobilisationNumbers.onboarded} of the {mobilisationNumbers.signedUp} people registered for {activeCohort?.name} have confirmed their login: they chose their password and got into the app.
+                      {mobilisationNumbers.onboarded} of the {mobilisationNumbers.adults} adults registered for {activeCohort?.name} have confirmed their login: they chose their password and signed in. Teens get no login, so they are not counted here.
                     </InfoTip>
                   </div>
-                  <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{mobilisationNumbers.onboarded}</span>{mobilisationNumbers.signedUp > 0 ? ` of ${mobilisationNumbers.signedUp}` : ''}</p>
+                  <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{mobilisationNumbers.onboarded}</span>{mobilisationNumbers.adults > 0 ? ` of ${mobilisationNumbers.adults}` : ''}</p>
                   <p className="mt-1 text-xs font-semibold text-emerald-700">Confirmed login</p>
-                  {mobilisationNumbers.signedUp > 0 && (
+                  {mobilisationNumbers.adults > 0 && (
                     <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
-                      <span className="block h-full bg-emerald-500" style={{ width: `${Math.min(mobilisationNumbers.onboarded / mobilisationNumbers.signedUp, 1) * 100}%` }} />
+                      <span className="block h-full bg-emerald-500" style={{ width: `${Math.min(mobilisationNumbers.onboarded / mobilisationNumbers.adults, 1) * 100}%` }} />
                     </div>
+                  )}
+                </section>
+                <section className={`${CARD} min-w-[150px] flex-1 snap-start p-4 sm:min-w-0`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Teens</p>
+                    <InfoTip label="About teens registered">
+                      Teens registered for {activeCohort?.name}, counted as on the Dashboard. A teen whose number is marked Wrong Number is left out until a correct number is added.
+                    </InfoTip>
+                  </div>
+                  <p className="mt-1 text-sm text-gray-600"><span className="text-2xl font-bold tabular-nums text-gray-900">{mobilisationNumbers.teens}</span></p>
+                  <p className="mt-1 text-xs font-semibold text-violet-700">Registered</p>
+                  {(mobilisationNumbers.teensWrongNumber > 0 || mobilisationNumbers.teensFromForm !== null) && (
+                    <p className="mt-1 text-[11px] leading-snug text-gray-500">
+                      {mobilisationNumbers.teensWrongNumber > 0 && <>{mobilisationNumbers.teensWrongNumber} wrong number left out</>}
+                      {mobilisationNumbers.teensWrongNumber > 0 && mobilisationNumbers.teensFromForm !== null && ' · '}
+                      {mobilisationNumbers.teensFromForm !== null && <>{mobilisationNumbers.teensFromForm} from the form{mobilisationNumbers.teensByHand ? ` + ${mobilisationNumbers.teensByHand} added by hand` : ''}</>}
+                    </p>
                   )}
                 </section>
               </div>
@@ -899,7 +944,7 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                         <span className="text-sm font-semibold text-gray-900">{row.fullName}</span>
                         <span className="ml-auto text-[11px] font-semibold text-gray-500">{shortDateTime(row.signedUpAt)}</span>
                       </div>
-                      <p className="mt-1 text-xs text-gray-500">{row.phone}</p>
+                      <p className="mt-1 text-xs text-gray-500">{row.isTeen ? 'Number hidden' : row.phone}</p>
                       {row.submittedAt.length > 1 && (
                         <p className="mt-1 text-[11px] text-gray-500">
                           Filled the form {row.submittedAt.length === 2 ? 'twice' : `${row.submittedAt.length} times`} · {[...row.submittedAt].reverse().map((at) => shortDate(at)).join(', ')}
@@ -915,6 +960,8 @@ const SupportMobilisationContent: React.FC<{ user: User }> = ({ user }) => {
                         ) : (
                           <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">Not linked yet</span>
                         )}
+                        {row.isTeen && <span className="rounded-full bg-violet-100/80 px-2.5 py-0.5 text-[11px] font-bold text-violet-700">Teen</span>}
+                        {row.contactWrongNumber && <span className="rounded-full bg-rose-100/80 px-2.5 py-0.5 text-[11px] font-bold text-rose-700">Wrong number</span>}
                         {signUpStageChip(row.contactStatus)}
                         {row.contactOwnerName ? (
                           <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500">

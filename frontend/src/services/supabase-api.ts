@@ -3887,14 +3887,26 @@ export interface FormRegistration {
   contactOwnerPhone: string | null;
   /** Where their follow-up stands, so any support can see it. */
   contactStatus: import('../types').FollowUpRegistrationStatus | null;
+  /** A teen (age range 18 and below, or on the teen path). Their number is never held here: `phone` is blank. */
+  isTeen: boolean;
+  /** Their number is marked Wrong Number, so they are left out of the registered counts. */
+  contactWrongNumber: boolean;
 }
 
-const mapFormRegistration = (row: any): FormRegistration => ({
+// The form's own age answer for a teen. Kept here, not in the page, so a teen's number is dropped as the rows load.
+const isTeenAnswer = (answers: any): boolean => {
+  const range = answers && typeof answers === 'object' ? String(answers['Age Range?'] ?? '').trim().toLowerCase().replace(/\s+/g, '') : '';
+  return range === 'below18' || range === '18andbelow' || range === 'under18' || range === '18orbelow';
+};
+
+const mapFormRegistration = (row: any): FormRegistration => {
+  const teen = isTeenAnswer(row.answers) || row.contact?.registrationStatus === 'TEENAGER' || row.contact?.registrationStatus === 'TEEN_ONBOARDED';
+  return {
   id: row.id,
   fullName: row.fullName,
-  phone: row.phone,
+  phone: teen ? '' : row.phone,
   phoneNormalised: row.phoneNormalised ?? null,
-  email: row.email ?? null,
+  email: teen ? null : (row.email ?? null),
   signedUpAt: row.signedUpAt,
   outcome: row.outcome,
   outcomeDetail: row.outcomeDetail ?? null,
@@ -3903,7 +3915,10 @@ const mapFormRegistration = (row: any): FormRegistration => ({
   contactOwnerId: row.contact?.owner?.id ?? null,
   contactOwnerPhone: row.contact?.owner?.phone ?? null,
   contactStatus: row.contact?.registrationStatus ?? null,
-});
+  isTeen: teen,
+  contactWrongNumber: row.contact?.replyStatus === 'INCORRECT_NUMBER' || row.contact?.callStatus === 'INCORRECT_NUMBER',
+  };
+};
 
 export const formRegistrationsApi = {
   // Every support sees every sign-up: the point is that they can check whether
@@ -3911,7 +3926,7 @@ export const formRegistrationsApi = {
   async getAll(options?: { limit?: number }): Promise<{ registrations: FormRegistration[] }> {
     const { data, error } = await supabase
       .from('SheetRegistration')
-      .select('*, contact:FollowUpContact(id, registrationStatus, owner:User!FollowUpContact_ownerId_fkey(id, name, phone))')
+      .select('*, contact:FollowUpContact(id, registrationStatus, replyStatus, callStatus, owner:User!FollowUpContact_ownerId_fkey(id, name, phone))')
       .order('signedUpAt', { ascending: false })
       .limit(options?.limit ?? 500);
 
