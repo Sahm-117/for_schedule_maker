@@ -1078,21 +1078,20 @@ Deno.serve(async (req) => {
             ])
             const doneSteps = new Set(((stepRows ?? []) as any[]).map((r) => `${r.participantId}:${r.step}`))
             const states = new Map<string, any>(stateList)
+            // Only people already in a group have a support to nudge or an introduction to post.
+            const { data: grouped } = await supabase.from('GroupParticipant').select('participantId').in('participantId', ids)
+            const inGroup = new Set(((grouped ?? []) as any[]).map((r) => r.participantId))
             if (pNowMinutes < 19 * 60) {
-              // Only people already in a group (otherwise there is no support to nudge and nowhere to introduce yourself).
-              const { data: grouped } = await supabase.from('GroupParticipant').select('participantId').in('participantId', ids)
-              const inGroup = new Set(((grouped ?? []) as any[]).map((r) => r.participantId))
               const byText = new Map<string, string[]>()
               for (const id of ids) {
                 const st = states.get(id)
                 if (!st || st.completed || st.hasAttended || !inGroup.has(id)) continue
                 let body: string | null = null
+                // Introductions go support first: until the support has introduced themselves, the participant cannot.
                 if (!st.supportIntroPosted) {
-                  body = st.introPosted
-                    ? 'Has your support introduced themselves in your group yet? If not, give them a nudge to do so.'
-                    : 'Has your support introduced themselves in your group yet? If not, nudge them to do so. Then introduce yourself too.'
+                  if (!st.introPosted) body = "Your support hasn't introduced themselves in your group yet, so you can't introduce yourself yet. Give them a nudge to do it first, then say hi."
                 } else if (!st.introPosted) {
-                  body = 'Have you introduced yourself in your group yet? Say hi now so everyone gets to know you.'
+                  body = 'Your support has introduced themselves. Have you introduced yourself in your group yet? Say hi now so everyone gets to know you.'
                 }
                 if (body) byText.set(body, [...(byText.get(body) ?? []), id])
               }
@@ -1106,7 +1105,9 @@ Deno.serve(async (req) => {
                 if (!st || st.completed || st.hasAttended) continue
                 const guideRead = !!st.introGuideRead || doneSteps.has(`${id}:intro`)
                 const left: string[] = []
-                if (!st.introPosted) left.push('introduce yourself')
+                // Introductions go support first: you can only introduce yourself once your support has.
+                if (inGroup.has(id) && !st.supportIntroPosted) left.push('nudge your support to introduce themselves in your group')
+                else if (inGroup.has(id) && !st.introPosted) left.push('introduce yourself in your group')
                 if (!guideRead) left.push('read the Intro Class guide')
                 if (!st.profileComplete) left.push('finish your profile')
                 if (!st.venueMapAcknowledged) left.push('check the venue map')
