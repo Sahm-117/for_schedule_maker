@@ -158,9 +158,13 @@ const friendlyUserError = (rawMessage: string | undefined, fallback: string): st
 // "Sam (Admin)": a change made by someone who holds several roles while acting as Admin.
 // The database fills the ActedAs value from the session; support-mode and single-role changes stay plain.
 const withActedAs = (name: string | null, actedAs?: string | null): string | null =>
-  (name && actedAs === 'ADMIN' ? `${name} (Admin)` : name);
+  (name && actedAs === 'ADMIN' ? `${name} (Admin)` : name && actedAs === 'STAFF' ? `${name} (Team member)` : name);
 
 const USER_SELECT = 'id, email, phone, name, role, roles, "isActive", "isTest", "deactivatedAt", "isCoordinator", "avatarUrl", "themeColor", "birthYear", "hubLastSeenAt", "whatsappGroupUrl", gender, "ageRange", birthday, "onboardingCompleted", "onboardingReplayCount", "onboardingLastReplayAt", "mustChangePassword", "createdAt", "updatedAt"';
+
+// A Team member (role STAFF) is an admin to every existing screen and check; `teamMember` marks them so the
+// Roles screen and the permission grid can still tell them apart from a real admin.
+const asClientUser = (u: User): User => ((u.role as string) === 'STAFF' ? { ...u, role: 'ADMIN', teamMember: true } : u);
 
 export const authApi = {
   async login(identifier: string, password: string): Promise<AuthResponse> {
@@ -179,7 +183,8 @@ export const authApi = {
       throw new Error('Invalid credentials');
     }
 
-    const { token, user } = data as { token: string; user: User };
+    const { token, user: rawUser } = data as { token: string; user: User };
+    const user = asClientUser(rawUser);
     return {
       user,
       accessToken: `mock_token_${user.id}`,
@@ -197,7 +202,7 @@ export const authApi = {
     phone?: string;
     name: string;
     password: string;
-    role?: 'ADMIN' | 'SUPPORT'
+    role?: 'ADMIN' | 'SUPPORT' | 'STAFF'
   }): Promise<{ user: User }> {
     // The account and its hashed password are created together in the database,
     // so no password material is ever written from the browser. The session
@@ -268,18 +273,18 @@ export const authApi = {
 
     // The table holds the home role; the database knows which role this login is acting as.
     const me = data as unknown as User;
-    const roles = (me.roles && me.roles.length > 0) ? me.roles : [me.role as 'ADMIN' | 'SUPPORT'];
+    const roles = (me.roles && me.roles.length > 0) ? me.roles : [me.role as 'ADMIN' | 'SUPPORT' | 'STAFF'];
     // Only people with several roles need the extra round trip; everyone else keeps their one role.
-    if (roles.length < 2) return { user: { ...me, roles } };
+    if (roles.length < 2) return { user: asClientUser({ ...me, roles }) };
     const { data: session } = await supabase.rpc('get_session_user', { p_token: getSessionToken() });
     const active = (session as { role?: User['role'] } | null)?.role;
-    return { user: { ...me, role: active ?? me.role, roles } };
+    return { user: asClientUser({ ...me, role: active ?? me.role, roles }) };
   },
 
-  async switchRole(role: 'ADMIN' | 'SUPPORT'): Promise<User> {
+  async switchRole(role: 'ADMIN' | 'SUPPORT' | 'STAFF'): Promise<User> {
     const { data, error } = await supabase.rpc('switch_my_role', { p_token: getSessionToken(), p_role: role });
     if (error || !data) throw new Error(error?.message?.includes('do not have') ? 'You do not have that role.' : 'Could not switch roles.');
-    return data as unknown as User;
+    return asClientUser(data as unknown as User);
   },
 
   async refresh(refreshToken: string): Promise<AuthResponse> {
@@ -303,7 +308,7 @@ export const authApi = {
     }
 
     return {
-      user: data as unknown as User,
+      user: asClientUser(data as unknown as User),
       accessToken: `mock_token_${(data as any).id}`,
       refreshToken: `refresh_token_${(data as any).id}`,
     };
@@ -2677,7 +2682,7 @@ export const usersApi = {
     phone?: string | null;
     password?: string;
     role?: 'ADMIN' | 'SUPPORT';
-    roles?: Array<'ADMIN' | 'SUPPORT'>;
+    roles?: Array<'ADMIN' | 'SUPPORT' | 'STAFF'>;
     isActive?: boolean;
     deactivatedAt?: string | null;
     isCoordinator?: boolean;
@@ -3561,7 +3566,7 @@ export const participantAppApi = {
     // (except the group's support, who already has the support alert).
     if (!result.isPractice) {
       void notify(
-        { role: 'ADMIN', excludeUserId: result.supportId ?? undefined },
+        { module: 'feedback', excludeUserId: result.supportId ?? undefined },
         `${participantName} asked a question`,
         `About Week ${weekNumber}'s class manual.`,
         '/feedback?tab=manual',
@@ -3646,6 +3651,7 @@ export const participantAppApi = {
     const result = data as import('../types').ParticipantTestimony & { supportId?: string | null };
     if (result.status === 'PENDING') {
       void notifyAdmins(
+        'participants',
         'A testimony is waiting for approval',
         `${participantName} shared a testimony with their ${input.visibility === 'COHORT' ? 'cohort' : 'group'}.`,
         '/faith-projects?tab=testimonies',
@@ -3678,6 +3684,7 @@ export const participantAppApi = {
     const result = data as import('../types').ParticipantTestimony & { supportId?: string | null };
     if (result.status === 'PENDING') {
       void notifyAdmins(
+        'participants',
         'A testimony is waiting for approval',
         `${participantName} shared a testimony with their ${input.visibility === 'COHORT' ? 'cohort' : 'group'}.`,
         '/faith-projects?tab=testimonies',
@@ -4103,7 +4110,7 @@ export const followUpContactsApi = {
     // A support registering a prospect from Mobilisation: operations needs to pick it up.
     if (input.registeredById && !input.ownerId) {
       void notify(
-        { role: 'ADMIN' },
+        { module: 'follow_ups' },
         'New prospect registered',
         `${contact.registeredByName || 'A support'} registered ${contact.fullName}. They're waiting to be assigned.`,
         '/follow-ups',
@@ -7779,6 +7786,8 @@ export const hubApi = {
 type NotifyTarget = {
   userIds?: string[];
   role?: 'ADMIN' | 'SUPPORT';
+  /** Everyone who can See this permission module (admins, and Team members whose roles include it). */
+  module?: string;
   cohortId?: string | null;
   excludeUserId?: string | null;
 };
@@ -7795,6 +7804,7 @@ const notify = async (
       body: {
         userIds: target.userIds,
         role: target.role,
+        module: target.module,
         cohortId: target.cohortId ?? undefined,
         excludeUserId: target.excludeUserId ?? undefined,
         title,
@@ -7806,8 +7816,8 @@ const notify = async (
   } catch { /* non-critical */ }
 };
 
-const notifyAdmins = (title: string, body: string, path: string, type: import('../types').NotificationType) =>
-  notify({ role: 'ADMIN' }, title, body, path, type);
+const notifyAdmins = (module: string, title: string, body: string, path: string, type: import('../types').NotificationType) =>
+  notify({ module }, title, body, path, type);
 
 const notifyUser = (userId: string, title: string, body: string, path: string, type: import('../types').NotificationType) =>
   notify({ userIds: [userId] }, title, body, path, type);
@@ -8044,7 +8054,7 @@ export const participantFlagsApi = {
       .select(PARTICIPANT_FLAG_SELECT)
       .single();
     if (error || !data) throw new Error(error?.message || 'Failed to flag participant');
-    void notifyAdmins('Participant needs attention', `${input.raisedByName} flagged ${input.participantName}: ${input.reason.trim()}`, '/participants', 'PARTICIPANT_FLAG');
+    void notifyAdmins('participants', 'Participant needs attention', `${input.raisedByName} flagged ${input.participantName}: ${input.reason.trim()}`, '/participants', 'PARTICIPANT_FLAG');
     return { flag: mapParticipantFlag(data) };
   },
 
@@ -9166,5 +9176,70 @@ export const prayerSlotApi = {
     const { data, error } = await supabase.rpc('corporate_prayer_counts', { p_token: getSessionToken(), p_session: sessionId });
     if (error) throw prayerError(error.message, 'Could not refresh the counts.');
     return data as { counts: import('../types').PrayerCounts; state: 'upcoming' | 'open' | 'closed'; serverNow: string };
+  },
+};
+
+// Roles and permissions. Everything here except getMine is for real admins only (the database checks).
+const permissionError = (rawMessage: string | undefined, fallback: string): Error => {
+  const message = rawMessage ?? '';
+  if (message.includes('ROLE_NAME_TAKEN')) return new Error('There is already a role with that name.');
+  if (message.includes('ROLE_IN_USE')) {
+    const count = Number(message.split('ROLE_IN_USE:')[1]?.match(/^\d+/)?.[0] ?? 0);
+    return new Error(`${count || 'Some'} ${count === 1 ? 'person holds' : 'people hold'} this role. Move them to another role first.`);
+  }
+  if (message.includes('ROLE_IS_SYSTEM')) return new Error('The built-in Support role cannot be deleted.');
+  if (message.includes('NOT_ALLOWED') || message.includes('SESSION_EXPIRED')) return new Error('Only an admin can manage roles.');
+  return new Error(friendlyUserError(message, fallback));
+};
+
+export const permissionsApi = {
+  /** What the signed-in person may see and do, resolved from their roles. */
+  async getMine(): Promise<import('../utils/permissions').MyPermissions> {
+    const { data, error } = await supabase.rpc('get_my_permissions', { p_token: getSessionToken() });
+    if (error) throw new Error('Could not load your access.');
+    if (!data) throw new Error('Could not load your access.');
+    return data as import('../utils/permissions').MyPermissions;
+  },
+
+  async listRoles(): Promise<import('../utils/permissions').PermissionRole[]> {
+    const { data, error } = await supabase.rpc('perm_list_roles', { p_token: getSessionToken() });
+    if (error) throw permissionError(error.message, 'Could not load the roles.');
+    return (data ?? []) as import('../utils/permissions').PermissionRole[];
+  },
+
+  /** Create (no id) or update a role and replace its grid. */
+  async saveRole(input: {
+    id?: string | null;
+    name: string;
+    description?: string | null;
+    modules: Array<{ module: import('../utils/permissions').ModuleKey } & import('../utils/permissions').ModulePermission>;
+  }): Promise<import('../utils/permissions').PermissionRole> {
+    const { data, error } = await supabase.rpc('perm_save_role', {
+      p_token: getSessionToken(),
+      p_role_id: input.id ?? null,
+      p_name: input.name,
+      p_description: input.description ?? null,
+      p_modules: input.modules,
+    });
+    if (error) throw permissionError(error.message, 'Could not save the role.');
+    return data as import('../utils/permissions').PermissionRole;
+  },
+
+  async deleteRole(roleId: string): Promise<void> {
+    const { error } = await supabase.rpc('perm_delete_role', { p_token: getSessionToken(), p_role_id: roleId });
+    if (error) throw permissionError(error.message, 'Could not delete the role.');
+  },
+
+  /** Replace the custom roles a person holds. */
+  async setUserRoles(userId: string, roleIds: string[]): Promise<void> {
+    const { error } = await supabase.rpc('perm_set_user_roles', { p_token: getSessionToken(), p_user_id: userId, p_role_ids: roleIds });
+    if (error) throw permissionError(error.message, 'Could not save the roles.');
+  },
+
+  /** Who holds which custom role: [{ userId, roleIds }]. */
+  async userAssignments(): Promise<Array<{ userId: string; roleIds: string[] }>> {
+    const { data, error } = await supabase.rpc('perm_user_assignments', { p_token: getSessionToken() });
+    if (error) throw permissionError(error.message, 'Could not load who holds which role.');
+    return (data ?? []) as Array<{ userId: string; roleIds: string[] }>;
   },
 };

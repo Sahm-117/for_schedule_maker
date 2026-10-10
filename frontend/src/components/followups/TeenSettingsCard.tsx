@@ -3,12 +3,15 @@ import { createPortal } from 'react-dom';
 import ConfirmationModal from '../ConfirmationModal';
 import Spinner from '../Spinner';
 import { settingsApi } from '../../services/api';
+import { usePermissions } from '../../hooks/usePermissions';
 import { ToggleRow } from './FollowUpAssignmentSettings';
 
 // One switch on Settings: whether teens (under 18) are looked after by Teen
 // Supports. Off, everyone is handled as before. The number of teens one Teen
 // Support looks after sits with the other programme rules.
 const TeenSettingsCard: React.FC = () => {
+  const { can } = usePermissions();
+  const canEdit = can('settings', 'edit');
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,7 +50,7 @@ const TeenSettingsCard: React.FC = () => {
             label="Look after teens separately"
             description="Anyone who signs up as under 18 becomes a Teenager and goes to a Teen Support. Supports can also add a teen from Mobilisation."
             checked={enabled}
-            disabled={saving}
+            disabled={saving || !canEdit}
             onChange={(next) => { if (next) setConfirmOn(true); else save(false); }}
           />
           {error && <p className="mt-1 text-xs font-medium text-red-700">{error}</p>}

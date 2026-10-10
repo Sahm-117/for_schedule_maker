@@ -7,6 +7,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import NextCohortAssignModal from '../components/followups/NextCohortAssignModal';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { uploadClassImage, removeClassImage, cohortsApi, supportHubsApi, usersApi, weeksApi, groupsApi, participantsApi, followUpContactsApi, recapDocumentsApi, teenRecapDocumentsApi, manualDocumentsApi, earlierClassDocumentsApi, aiApi, settingsApi } from '../services/api';
 import type { Cohort, EarlierClassDocument, FollowUpContact, User, Week } from '../types';
 import { sortByText } from '../utils/sort';
@@ -147,6 +148,10 @@ const updateStartDate = (
 const CohortsPage: React.FC = () => {
   const { isAdmin } = useAuth();
   const { cohorts, activeCohort, setActiveCohort, reloadWeeks, reloadCohorts } = useAppData();
+  const { can } = usePermissions();
+  const canAdd = can('cohorts', 'add');
+  const canEdit = can('cohorts', 'edit');
+  const canDelete = can('cohorts', 'delete');
   const [supportUsers, setSupportUsers] = useState<User[]>([]);
   const [selectedCohortId, setSelectedCohortId] = useState('');
   const [memberIds, setMemberIds] = useState<string[]>([]);
@@ -915,7 +920,7 @@ const CohortsPage: React.FC = () => {
 
   const canDeleteSelectedCohort = !!cohortToDelete && cohorts.length > 1;
 
-  const headerAction = (
+  const headerAction = canAdd ? (
     <button
       type="button"
       onClick={openCreateModal}
@@ -923,7 +928,7 @@ const CohortsPage: React.FC = () => {
     >
       New Cohort
     </button>
-  );
+  ) : undefined;
 
   return (
     <div>
@@ -992,6 +997,9 @@ const CohortsPage: React.FC = () => {
                 onAdd={(weekNumber) => openAddWeekModal(activeCohort.id, weekNumber)}
                 onDelete={(week) => openDeleteWeekModal(activeCohort.id, week)}
                 onEdit={(week) => openEditWeekModal(activeCohort.id, week)}
+                allowAdd={canAdd}
+                allowEdit={canEdit}
+                allowDelete={canDelete}
               />
             </div>
             <div>
@@ -999,16 +1007,20 @@ const CohortsPage: React.FC = () => {
               <p className="mt-2 text-sm font-semibold text-gray-900">{activeCohort.venue || 'Not set'}</p>
             </div>
             <div className="flex items-center justify-end">
-              <AppOverflowMenu
-                align="right"
-                items={[
-                  { label: activeCohort.status === 'COMPLETED' ? 'Reopen cohort' : 'Mark completed', onClick: () => void handleCompletedToggle(activeCohort) },
-                  { label: activeCohort.status === 'ARCHIVED' ? 'Unarchive' : 'Archive', onClick: () => void handleArchiveToggle(activeCohort) },
-                  { label: 'Details', onClick: () => openDetailsModal(activeCohort) },
-                  { label: 'Members', onClick: () => openMembersModal(activeCohort) },
-                  { label: 'Delete', onClick: () => openDeleteModal(activeCohort), tone: 'danger' },
-                ]}
-              />
+              {(canEdit || canDelete) && (
+                <AppOverflowMenu
+                  align="right"
+                  items={[
+                    ...(canEdit ? [
+                      { label: activeCohort.status === 'COMPLETED' ? 'Reopen cohort' : 'Mark completed', onClick: () => void handleCompletedToggle(activeCohort) },
+                      { label: activeCohort.status === 'ARCHIVED' ? 'Unarchive' : 'Archive', onClick: () => void handleArchiveToggle(activeCohort) },
+                      { label: 'Details', onClick: () => openDetailsModal(activeCohort) },
+                      { label: 'Members', onClick: () => openMembersModal(activeCohort) },
+                    ] : []),
+                    ...(canDelete ? [{ label: 'Delete', onClick: () => openDeleteModal(activeCohort), tone: 'danger' as const }] : []),
+                  ]}
+                />
+              )}
             </div>
           </div>
         </section>
@@ -1060,15 +1072,18 @@ const CohortsPage: React.FC = () => {
                 <CohortStatusPill status={cohort.status} />
               </div>
               <div className="flex items-center justify-end">
+                {/* "Set active" only changes which cohort this person is looking at, so it stays for everyone. */}
                 <AppOverflowMenu
                   align="right"
                   items={[
                     { label: 'Set active', onClick: () => void setActiveCohort(cohort.id) },
-                    { label: 'Details', onClick: () => openDetailsModal(cohort) },
-                    { label: 'Members', onClick: () => openMembersModal(cohort) },
-                    { label: cohort.status === 'COMPLETED' ? 'Reopen cohort' : 'Mark completed', onClick: () => void handleCompletedToggle(cohort) },
-                    { label: cohort.status === 'ARCHIVED' ? 'Unarchive' : 'Archive', onClick: () => void handleArchiveToggle(cohort) },
-                    { label: 'Delete', onClick: () => openDeleteModal(cohort), tone: 'danger' },
+                    ...(canEdit ? [
+                      { label: 'Details', onClick: () => openDetailsModal(cohort) },
+                      { label: 'Members', onClick: () => openMembersModal(cohort) },
+                      { label: cohort.status === 'COMPLETED' ? 'Reopen cohort' : 'Mark completed', onClick: () => void handleCompletedToggle(cohort) },
+                      { label: cohort.status === 'ARCHIVED' ? 'Unarchive' : 'Archive', onClick: () => void handleArchiveToggle(cohort) },
+                    ] : []),
+                    ...(canDelete ? [{ label: 'Delete', onClick: () => openDeleteModal(cohort), tone: 'danger' as const }] : []),
                   ]}
                 />
               </div>
@@ -1093,15 +1108,18 @@ const CohortsPage: React.FC = () => {
                 <p><span className="font-semibold text-gray-900">Weeks:</span> {weekCounts[cohort.id] || 0}</p>
               </div>
               <div className="mt-3 flex items-center justify-end">
+                {/* "Set active" only changes which cohort this person is looking at, so it stays for everyone. */}
                 <AppOverflowMenu
                   align="right"
                   items={[
                     { label: 'Set active', onClick: () => void setActiveCohort(cohort.id) },
-                    { label: 'Details', onClick: () => openDetailsModal(cohort) },
-                    { label: 'Members', onClick: () => openMembersModal(cohort) },
-                    { label: cohort.status === 'COMPLETED' ? 'Reopen cohort' : 'Mark completed', onClick: () => void handleCompletedToggle(cohort) },
-                    { label: cohort.status === 'ARCHIVED' ? 'Unarchive' : 'Archive', onClick: () => void handleArchiveToggle(cohort) },
-                    { label: 'Delete', onClick: () => openDeleteModal(cohort), tone: 'danger' },
+                    ...(canEdit ? [
+                      { label: 'Details', onClick: () => openDetailsModal(cohort) },
+                      { label: 'Members', onClick: () => openMembersModal(cohort) },
+                      { label: cohort.status === 'COMPLETED' ? 'Reopen cohort' : 'Mark completed', onClick: () => void handleCompletedToggle(cohort) },
+                      { label: cohort.status === 'ARCHIVED' ? 'Unarchive' : 'Archive', onClick: () => void handleArchiveToggle(cohort) },
+                    ] : []),
+                    ...(canDelete ? [{ label: 'Delete', onClick: () => openDeleteModal(cohort), tone: 'danger' as const }] : []),
                   ]}
                 />
               </div>
@@ -1228,6 +1246,9 @@ const CohortsPage: React.FC = () => {
                   onAdd={(weekNumber) => openAddWeekModal(selectedCohort.id, weekNumber)}
                   onDelete={(week) => openDeleteWeekModal(selectedCohort.id, week)}
                   onEdit={(week) => openEditWeekModal(selectedCohort.id, week)}
+                  allowAdd={canAdd}
+                  allowEdit={canEdit}
+                  allowDelete={canDelete}
                 />
               </div>
             )}
@@ -1239,22 +1260,26 @@ const CohortsPage: React.FC = () => {
                 >
                   Switch Active Cohort
                 </button>
-                <button
-                  type="button"
-                  onClick={() => selectedCohort && void handleArchiveToggle(selectedCohort)}
-                  disabled={!selectedCohort}
-                  className="rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  {selectedCohort?.status === 'ARCHIVED' ? 'Unarchive' : 'Archive'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => selectedCohort && openDeleteModal(selectedCohort)}
-                  disabled={!selectedCohort}
-                  className="rounded-full border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
-                >
-                  Delete Cohort
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => selectedCohort && void handleArchiveToggle(selectedCohort)}
+                    disabled={!selectedCohort}
+                    className="rounded-full border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {selectedCohort?.status === 'ARCHIVED' ? 'Unarchive' : 'Archive'}
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => selectedCohort && openDeleteModal(selectedCohort)}
+                    disabled={!selectedCohort}
+                    className="rounded-full border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                  >
+                    Delete Cohort
+                  </button>
+                )}
             </div>
           </div>
 
@@ -2050,7 +2075,11 @@ const WeekChipRow: React.FC<{
   onAdd: (weekNumber: number) => void;
   onDelete: (week: Week) => void;
   onEdit: (week: Week) => void;
-}> = ({ weeks, disabled = false, onAdd, onDelete, onEdit }) => {
+  // The Cohorts ticks: without any of them the weeks are shown but cannot be changed.
+  allowAdd: boolean;
+  allowEdit: boolean;
+  allowDelete: boolean;
+}> = ({ weeks, disabled = false, onAdd, onDelete, onEdit, allowAdd, allowEdit, allowDelete }) => {
   const [expanded, setExpanded] = useState(false);
   const sortedWeeks = [...weeks].sort((a, b) => a.weekNumber - b.weekNumber);
   const weekByNumber = new Map(sortedWeeks.map((week) => [week.weekNumber, week]));
@@ -2066,17 +2095,19 @@ const WeekChipRow: React.FC<{
         <span className="inline-flex h-9 items-center rounded-2xl border border-orange-100 bg-white px-3 text-sm font-semibold text-gray-800 shadow-sm">
           Weeks ({sortedWeeks.length})
         </span>
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="grid h-9 w-9 place-items-center rounded-2xl border border-orange-100 bg-white text-gray-500 shadow-sm hover:bg-orange-50 hover:text-primary"
-          aria-label="Edit weeks"
-          title="Edit weeks"
-        >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z" />
-          </svg>
-        </button>
+        {(allowAdd || allowEdit || allowDelete) && (
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="grid h-9 w-9 place-items-center rounded-2xl border border-orange-100 bg-white text-gray-500 shadow-sm hover:bg-orange-50 hover:text-primary"
+            aria-label="Edit weeks"
+            title="Edit weeks"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z" />
+            </svg>
+          </button>
+        )}
       </div>
     );
   }
@@ -2094,6 +2125,7 @@ const WeekChipRow: React.FC<{
       {slots.map((weekNumber) => {
         const week = weekByNumber.get(weekNumber);
         if (!week) {
+          if (!allowAdd) return null;
           return (
             <button
               key={`gap-${weekNumber}`}
@@ -2112,15 +2144,15 @@ const WeekChipRow: React.FC<{
           <div
             key={week.id}
             role="button"
-            tabIndex={0}
-            onClick={() => onEdit(week)}
+            tabIndex={allowEdit ? 0 : -1}
+            onClick={allowEdit ? () => onEdit(week) : undefined}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
+              if (allowEdit && (event.key === 'Enter' || event.key === ' ')) {
                 event.preventDefault();
                 onEdit(week);
               }
             }}
-            className="inline-flex h-9 min-w-[112px] cursor-pointer items-center justify-between gap-2 rounded-2xl border border-orange-100 bg-white px-3 text-xs font-semibold text-gray-700 shadow-sm hover:bg-orange-50"
+            className={`inline-flex h-9 min-w-[112px] ${allowEdit ? 'cursor-pointer' : 'cursor-default'} items-center justify-between gap-2 rounded-2xl border border-orange-100 bg-white px-3 text-xs font-semibold text-gray-700 shadow-sm hover:bg-orange-50`}
             title={`${week.title ? `Week ${week.weekNumber}: ${week.title}` : `Set title for Week ${week.weekNumber}`}${week.recapDocumentUrl ? ' · Recap added' : ''}`}
           >
             <span className="flex min-w-0 items-center gap-1.5">
@@ -2139,31 +2171,35 @@ const WeekChipRow: React.FC<{
                 {week.title?.trim() ? `W${week.weekNumber}: ${week.title}` : `Week ${week.weekNumber}`}
               </span>
             </span>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onDelete(week);
-              }}
-              disabled={!canDelete}
-              className="grid h-5 w-5 place-items-center rounded-full text-gray-400 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30"
-              aria-label={`Delete Week ${week.weekNumber}`}
-              title={canDelete ? `Delete Week ${week.weekNumber}` : 'A cohort must keep at least one week'}
-            >
-              <span aria-hidden="true">x</span>
-            </button>
+            {allowDelete && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDelete(week);
+                }}
+                disabled={!canDelete}
+                className="grid h-5 w-5 place-items-center rounded-full text-gray-400 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30"
+                aria-label={`Delete Week ${week.weekNumber}`}
+                title={canDelete ? `Delete Week ${week.weekNumber}` : 'A cohort must keep at least one week'}
+              >
+                <span aria-hidden="true">x</span>
+              </button>
+            )}
           </div>
         );
       })}
-      <button
-        type="button"
-        onClick={() => onAdd(maxWeekNumber + 1)}
-        disabled={disabled}
-        className="inline-flex h-9 min-w-[92px] items-center justify-center rounded-2xl border border-primary bg-primary/5 px-3 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-50"
-        title={`Add Week ${maxWeekNumber + 1}`}
-      >
-        + Week {maxWeekNumber + 1}
-      </button>
+      {allowAdd && (
+        <button
+          type="button"
+          onClick={() => onAdd(maxWeekNumber + 1)}
+          disabled={disabled}
+          className="inline-flex h-9 min-w-[92px] items-center justify-center rounded-2xl border border-primary bg-primary/5 px-3 text-xs font-semibold text-primary hover:bg-primary/10 disabled:opacity-50"
+          title={`Add Week ${maxWeekNumber + 1}`}
+        >
+          + Week {maxWeekNumber + 1}
+        </button>
+      )}
     </div>
   );
 };

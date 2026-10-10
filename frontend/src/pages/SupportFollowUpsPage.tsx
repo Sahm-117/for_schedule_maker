@@ -227,7 +227,7 @@ const SupportFollowUpsPage: React.FC = () => {
   const unread = unreadCount(visibleIssues);
 
   if (user && user.role !== 'SUPPORT') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
   }
 
   const replaceContact = (updated: FollowUpContact) => {

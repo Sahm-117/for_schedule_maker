@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader';
 import AnnouncementsModal from '../components/AnnouncementsModal';
 import { announcementsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { usePolling } from '../hooks/usePolling';
 import type { Announcement } from '../types';
 
@@ -11,6 +12,8 @@ const sameList = (a: Announcement[], b: Announcement[]) => JSON.stringify(a) ===
 
 const AdminAnnouncementsPage: React.FC = () => {
   const { isAdmin, user, userCohortIds } = useAuth();
+  const { can } = usePermissions();
+  const canAdd = can('announcements', 'add');
   const [showComposer, setShowComposer] = React.useState(false);
   const [history, setHistory] = useState<Announcement[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -56,7 +59,7 @@ const AdminAnnouncementsPage: React.FC = () => {
         title="Announcements"
         tourId="admin:announcements"
         subtitle="Send updates and urgent messages to support users."
-        action={(
+        action={canAdd ? (
           <button
             type="button"
             onClick={() => setShowComposer(true)}
@@ -64,7 +67,7 @@ const AdminAnnouncementsPage: React.FC = () => {
           >
             Add Announcement
           </button>
-        )}
+        ) : undefined}
       />
       <div data-wt="announcements-history">
         <AnnouncementsModal isOpen onClose={() => {}} embedded showComposer={false} showHistory history={history} loadingHistory={loadingHistory} onSent={() => void fetchHistory(true)} />

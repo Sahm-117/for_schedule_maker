@@ -3,10 +3,12 @@ import { Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PendingChangesPanel from '../components/PendingChangesPanel';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 
 const AdminApprovalsPage: React.FC = () => {
   const { isAdmin } = useAuth();
+  const { can } = usePermissions();
   const { globalPendingChanges, handlePendingApprove, handlePendingReject, weeks } = useAppData();
 
   if (!isAdmin) {
@@ -24,7 +26,7 @@ const AdminApprovalsPage: React.FC = () => {
         pendingChanges={globalPendingChanges}
         onApprove={handlePendingApprove}
         onReject={handlePendingReject}
-        isAdmin
+        isAdmin={can('schedule', 'edit')}
         weeks={weeks}
       />
     </div>

@@ -4,6 +4,7 @@ import ModalShell from '../followups/ModalShell';
 import Spinner from '../Spinner';
 import { useToast } from '../Toast';
 import { supportTagsApi } from '../../services/api';
+import { usePermissions } from '../../hooks/usePermissions';
 import type { SupportTag, User } from '../../types';
 
 interface SupportTagsModalProps {
@@ -22,6 +23,10 @@ const primary = 'rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-w
 /** Admin-made labels for supports ("Teen support"). The group builder decides what each one does. */
 const SupportTagsModal: React.FC<SupportTagsModalProps> = ({ isOpen, onClose, supports, onChanged }) => {
   const toast = useToast();
+  const { can } = usePermissions();
+  const canAdd = can('supports', 'add');
+  const canEdit = can('supports', 'edit');
+  const canDelete = can('supports', 'delete');
   const [tags, setTags] = useState<SupportTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
@@ -137,18 +142,20 @@ const SupportTagsModal: React.FC<SupportTagsModalProps> = ({ isOpen, onClose, su
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex gap-2">
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void add(); }}
-              placeholder="New tag, e.g. Men only"
-              aria-label="New tag name"
-              maxLength={40}
-              className={inputClass}
-            />
-            <button type="button" onClick={() => void add()} disabled={busy || !newName.trim()} className={primary}>Add</button>
-          </div>
+          {canAdd && (
+            <div className="flex gap-2">
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void add(); }}
+                placeholder="New tag, e.g. Men only"
+                aria-label="New tag name"
+                maxLength={40}
+                className={inputClass}
+              />
+              <button type="button" onClick={() => void add()} disabled={busy || !newName.trim()} className={primary}>Add</button>
+            </div>
+          )}
           {loading ? (
             <p className="flex items-center gap-2 text-sm text-gray-500"><Spinner className="h-4 w-4" />Loading…</p>
           ) : tags.length === 0 ? (
@@ -181,11 +188,11 @@ const SupportTagsModal: React.FC<SupportTagsModalProps> = ({ isOpen, onClose, su
                         <p className="mt-1 text-xs text-gray-500">{tag.userIds.map(nameOf).filter(Boolean).join(', ')}</p>
                       )}
                       <div className="mt-2.5 flex flex-wrap gap-2">
-                        <button type="button" onClick={() => openMembers(tag)} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-gray-700 shadow-[0_1px_2px_rgba(17,24,39,0.10)]">Choose supports</button>
-                        {!tag.systemKey && (
+                        {canEdit && <button type="button" onClick={() => openMembers(tag)} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-gray-700 shadow-[0_1px_2px_rgba(17,24,39,0.10)]">Choose supports</button>}
+                        {canEdit && !tag.systemKey && (
                           <button type="button" onClick={() => setRenaming({ id: tag.id, name: tag.name })} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-gray-700 shadow-[0_1px_2px_rgba(17,24,39,0.10)]">Rename</button>
                         )}
-                        {tag.systemKey ? null : confirmDelete === tag.id ? (
+                        {!canDelete || tag.systemKey ? null : confirmDelete === tag.id ? (
                           <>
                             <button type="button" onClick={() => void remove(tag.id)} disabled={busy} className="rounded-full bg-red-100/80 px-3 py-1 text-[12px] font-semibold text-red-700">Yes, delete</button>
                             <button type="button" onClick={() => setConfirmDelete(null)} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-gray-600">Keep</button>

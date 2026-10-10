@@ -4,6 +4,7 @@ import Avatar from '../Avatar';
 import ConfirmationModal from '../ConfirmationModal';
 import PageLoader from '../PageLoader';
 import { useToast } from '../Toast';
+import { usePermissions } from '../../hooks/usePermissions';
 import { notificationDeliveryApi } from '../../services/api';
 import type { NotificationRecipient, NotificationSend } from '../../types';
 
@@ -71,6 +72,8 @@ const ReadMeter: React.FC<{ send: NotificationSend }> = ({ send }) => {
 
 const RecipientsSheet: React.FC<{ send: NotificationSend; onClose: () => void; onReminded: () => void }> = ({ send, onClose, onReminded }) => {
   const toast = useToast();
+  const { can } = usePermissions();
+  const canEdit = can('notifications', 'edit');
   const [people, setPeople] = useState<NotificationRecipient[] | null>(null);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -131,7 +134,7 @@ const RecipientsSheet: React.FC<{ send: NotificationSend; onClose: () => void; o
               <p className="mt-1.5 text-[14.5px] text-gray-500">
                 {people ? (unread.length > 0 ? `${unread.length} haven’t opened it yet` : 'Everyone has read it') : 'read so far'}
               </p>
-              {unread.length > 0 && (
+              {canEdit && unread.length > 0 && (
                 <button type="button" onClick={() => setConfirmAll(true)} className={`${PRIMARY} mt-4`}>Remind all {unread.length}</button>
               )}
             </div>
@@ -163,7 +166,7 @@ const RecipientsSheet: React.FC<{ send: NotificationSend; onClose: () => void; o
                       {!p.hasPush && <span className="text-gray-400">· No phone alerts</span>}
                     </p>
                   </div>
-                  {p.read === false && send.tracked && (
+                  {canEdit && p.read === false && send.tracked && (
                     <button type="button" disabled={busyId === p.id} onClick={() => void remindOne(p)} className="h-9 flex-none rounded-full bg-[#f2f2f4] px-4 text-[13px] font-semibold text-gray-900 transition active:scale-95 disabled:opacity-60">
                       {busyId === p.id ? 'Sending…' : 'Remind'}
                     </button>

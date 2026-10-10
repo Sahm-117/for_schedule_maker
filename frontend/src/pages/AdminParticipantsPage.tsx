@@ -6,6 +6,7 @@ import Avatar from '../components/Avatar';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { participantsApi, practiceApi, groupsApi, participantFlagsApi, participantPushApi, cohortsApi, settingsApi, profileFieldsApi, wrapUpApi, departmentReferralsApi } from '../services/api';
 import { buildDashboardModel, type PeopleSummary } from '../components/dashboard/healthModel';
@@ -768,6 +769,10 @@ const AdminParticipantsPage: React.FC = () => {
 
 const AdminParticipantsContent: React.FC = () => {
   const { user } = useAuth();
+  const { can } = usePermissions();
+  const canAdd = can('participants', 'add');
+  const canEdit = can('participants', 'edit');
+  const canDelete = can('participants', 'delete');
   const { activeCohort, cohorts, liveRevision } = useAppData();
 
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -1116,7 +1121,7 @@ const AdminParticipantsContent: React.FC = () => {
   // The little status chips beside a name, shared by the table row and the phone card.
   const renderChips = (p: Participant) => (
     <>
-                        <RetakingChip participant={p} matches={retakeMatches.get(p.id)} onUpdate={(patch) => handleRetakeUpdate(p, patch)} className="ml-2" />
+                        <RetakingChip participant={p} matches={retakeMatches.get(p.id)} onUpdate={canEdit ? (patch) => handleRetakeUpdate(p, patch) : undefined} className="ml-2" />
                         {flagsByParticipant.has(p.id) && (
                           <button
                             type="button"
@@ -1172,22 +1177,26 @@ const AdminParticipantsContent: React.FC = () => {
                               align="right"
                               items={[
                                 { label: 'View profile', onClick: () => navigate(`/participants/${p.id}`) },
-                                { label: 'Edit', onClick: () => { setEditing(p); setAddOpen(true); } },
-                                { label: 'Assign to group', onClick: () => setAssigning(p) },
-                                { label: 'Mark as retaking', onClick: () => setRetakeMarking(p) },
-                                { label: 'Reset first-time experience', onClick: () => setFirstTimeTarget(p) },
-                                { label: 'Reset password', onClick: () => setResetFor(p) },
-                                { label: p.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => void handleSetTest(p, !p.isTest) },
-                                { label: 'Archive', onClick: () => setArchiveTarget(p), tone: 'danger' },
+                                ...(canEdit ? [
+                                  { label: 'Edit', onClick: () => { setEditing(p); setAddOpen(true); } },
+                                  { label: 'Assign to group', onClick: () => setAssigning(p) },
+                                  { label: 'Mark as retaking', onClick: () => setRetakeMarking(p) },
+                                  { label: 'Reset first-time experience', onClick: () => setFirstTimeTarget(p) },
+                                  { label: 'Reset password', onClick: () => setResetFor(p) },
+                                  { label: p.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => void handleSetTest(p, !p.isTest) },
+                                  { label: 'Archive', onClick: () => setArchiveTarget(p), tone: 'danger' as const },
+                                ] : []),
                               ]}
                             />
-                          ) : (
+                          ) : (canEdit || canDelete) && (
                             <AppOverflowMenu
                               align="right"
                               items={[
-                                { label: 'Unarchive', onClick: () => void handleUnarchive(p) },
-                                { label: p.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => void handleSetTest(p, !p.isTest) },
-                                { label: 'Delete permanently', onClick: () => setDeleteTarget(p), tone: 'danger' },
+                                ...(canEdit ? [
+                                  { label: 'Unarchive', onClick: () => void handleUnarchive(p) },
+                                  { label: p.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => void handleSetTest(p, !p.isTest) },
+                                ] : []),
+                                ...(canDelete ? [{ label: 'Delete permanently', onClick: () => setDeleteTarget(p), tone: 'danger' as const }] : []),
                               ]}
                             />
                           )}
@@ -1203,14 +1212,16 @@ const AdminParticipantsContent: React.FC = () => {
         action={
           activeCohort && (
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => { setEditing(null); setAddOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
-                + Add
-              </button>
+              {canAdd && (
+                <button type="button" onClick={() => { setEditing(null); setAddOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
+                  + Add
+                </button>
+              )}
               <AppOverflowMenu
                 align="right"
                 items={[
-                  { label: 'Request information', onClick: () => setRequestInfoOpen(true) },
-                  { label: 'Import participants', onClick: () => setImportOpen(true) },
+                  ...(canAdd ? [{ label: 'Request information', onClick: () => setRequestInfoOpen(true) }] : []),
+                  ...(canAdd ? [{ label: 'Import participants', onClick: () => setImportOpen(true) }] : []),
                   { label: 'Export for WhatsApp', onClick: () => setExportOpen(true) },
                 ]}
               />

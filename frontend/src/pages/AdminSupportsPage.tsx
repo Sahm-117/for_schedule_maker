@@ -17,6 +17,7 @@ import Avatar from '../components/Avatar';
 import LoadRing from '../components/LoadRing';
 import { cohortHasStarted } from '../utils/cohortStarted';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { cohortsApi, followUpContactsApi, groupDiscussionApi, participantNotesApi, settingsApi, supportHubsApi, supportKindApi, supportNotesApi, supportSessionsApi, usersApi } from '../services/api';
 import type { HubMembership, OnboardingProgressParticipant, ParticipantNote, SupportHub, SupportKind, SupportNote, SupportSession, User } from '../types';
@@ -76,6 +77,9 @@ type Filter = 'all' | PersonHealth;
 const AdminSupportsPage: React.FC = () => {
   const { isAdmin } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
+  const { can } = usePermissions();
+  const canEdit = can('supports', 'edit');
+  const canManageTags = canEdit || can('supports', 'add') || can('supports', 'delete');
   // The open follow-ups ring is for the lead-up; it goes once the cohort starts.
   const cohortStarted = cohortHasStarted(activeCohort);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -381,7 +385,7 @@ const AdminSupportsPage: React.FC = () => {
         subtitle={pageTab === 'supports' && model ? countSubtitle : 'Group meeting records and onboarding for every support.'}
         tourId="admin:supports"
         action={pageTab === 'supports' && model ? (
-          <AppOverflowMenu align="right" items={[{ label: 'Support tags', onClick: () => setTagsOpen(true) }, { label: 'Export for WhatsApp', onClick: () => setExportOpen(true) }]} />
+          <AppOverflowMenu align="right" items={[...(canManageTags ? [{ label: 'Support tags', onClick: () => setTagsOpen(true) }] : []), { label: 'Export for WhatsApp', onClick: () => setExportOpen(true) }]} />
         ) : undefined}
       />
 
@@ -549,7 +553,7 @@ const AdminSupportsPage: React.FC = () => {
                             onChange={(v) => void saveKind(u.id, v as SupportKind)}
                             options={KIND_OPTIONS}
                             placeholder="Participant support"
-                            disabled={savingKindIds.has(u.id)}
+                            disabled={!canEdit || savingKindIds.has(u.id)}
                             loading={savingKindIds.has(u.id)}
                             compact
                           />
@@ -644,6 +648,9 @@ const SupportCard: React.FC<{
   lastSeen: string | null | undefined;
   stages: StageSummary | null;
 }> = ({ evaluation, user, groupName, supportName, rules, judgedCount, hub, training, reportFor, kind, kindSaving, onKindChange, isTeenSupport, hasNotes, onNoteAdded, followUps, showLoad, onViewProfile, lastSeen, stages }) => {
+  const { can } = usePermissions();
+  const canEdit = can('supports', 'edit');
+  const canAdd = can('supports', 'add');
   const [open, setOpen] = useState(false);
   const [openReport, setOpenReport] = useState<number | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -749,7 +756,7 @@ const SupportCard: React.FC<{
           KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
         ]} />
         <div className="mt-3 w-full sm:w-56">
-          <AppSelect value={kind} onChange={(v) => onKindChange(v as SupportKind)} options={KIND_OPTIONS} placeholder="Participant support" disabled={kindSaving} loading={kindSaving} compact label="Kind" />
+          <AppSelect value={kind} onChange={(v) => onKindChange(v as SupportKind)} options={KIND_OPTIONS} placeholder="Participant support" disabled={!canEdit || kindSaving} loading={kindSaving} compact label="Kind" />
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">WhatsApp</a>}
@@ -763,23 +770,25 @@ const SupportCard: React.FC<{
 
       {notesOpen && (
         <div className="mt-3 rounded-xl bg-gray-50 p-3">
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              type="text"
-              value={noteBody}
-              onChange={(e) => setNoteBody(e.target.value)}
-              placeholder="Private note — only admin and this support's hub lead can see it."
-              className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-            <button
-              type="button"
-              onClick={() => void handleAddNote()}
-              disabled={noteSaving || !noteBody.trim()}
-              className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white active:scale-95 disabled:opacity-60"
-            >
-              {noteSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Add'}
-            </button>
-          </div>
+          {canAdd && (
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                type="text"
+                value={noteBody}
+                onChange={(e) => setNoteBody(e.target.value)}
+                placeholder="Private note — only admin and this support's hub lead can see it."
+                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <button
+                type="button"
+                onClick={() => void handleAddNote()}
+                disabled={noteSaving || !noteBody.trim()}
+                className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white active:scale-95 disabled:opacity-60"
+              >
+                {noteSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Add'}
+              </button>
+            </div>
+          )}
           {notes === null ? (
             <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
           ) : notes.length === 0 ? (
@@ -923,6 +932,9 @@ const NoLeadSupportCard: React.FC<{
   onViewProfile: () => void;
   lastSeen: string | null | undefined;
 }> = ({ user, hub, training, kind, kindSaving, onKindChange, isTeenSupport, hasNotes, onNoteAdded, followUps, showLoad, maxFollowUps, onViewProfile, lastSeen }) => {
+  const { can } = usePermissions();
+  const canEdit = can('supports', 'edit');
+  const canAdd = can('supports', 'add');
   const [open, setOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState<SupportNote[] | null>(null);
@@ -1005,7 +1017,7 @@ const NoLeadSupportCard: React.FC<{
           KIND_PILL[kind] && <span key="kind" className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${KIND_PILL[kind]}`}>{KIND_LABEL[kind]}</span>,
         ]} />
         <div className="mt-3 w-full sm:w-56">
-          <AppSelect value={kind} onChange={(v) => onKindChange(v as SupportKind)} options={KIND_OPTIONS} placeholder="Participant support" disabled={kindSaving} loading={kindSaving} compact label="Kind" />
+          <AppSelect value={kind} onChange={(v) => onKindChange(v as SupportKind)} options={KIND_OPTIONS} placeholder="Participant support" disabled={!canEdit || kindSaving} loading={kindSaving} compact label="Kind" />
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">WhatsApp</a>}
@@ -1017,23 +1029,25 @@ const NoLeadSupportCard: React.FC<{
 
       {notesOpen && (
         <div className="mt-3 rounded-xl bg-gray-50 p-3">
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              type="text"
-              value={noteBody}
-              onChange={(e) => setNoteBody(e.target.value)}
-              placeholder="Private note — only admin and this support's hub lead can see it."
-              className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-            <button
-              type="button"
-              onClick={() => void handleAddNote()}
-              disabled={noteSaving || !noteBody.trim()}
-              className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white active:scale-95 disabled:opacity-60"
-            >
-              {noteSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Add'}
-            </button>
-          </div>
+          {canAdd && (
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                type="text"
+                value={noteBody}
+                onChange={(e) => setNoteBody(e.target.value)}
+                placeholder="Private note — only admin and this support's hub lead can see it."
+                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <button
+                type="button"
+                onClick={() => void handleAddNote()}
+                disabled={noteSaving || !noteBody.trim()}
+                className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white active:scale-95 disabled:opacity-60"
+              >
+                {noteSaving ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Add'}
+              </button>
+            </div>
+          )}
           {notes === null ? (
             <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-400"><Spinner className="h-3.5 w-3.5" />Loading…</p>
           ) : notes.length === 0 ? (

@@ -7,6 +7,7 @@ import Avatar from '../components/Avatar';
 import PageLoader from '../components/PageLoader';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { practiceApi } from '../services/api';
 import { PRACTICE_ROLE_LABEL, PRACTICE_SCENARIOS } from '../constants/practiceScenarios';
 import type { PracticeOverview, PracticeOverviewMember } from '../types';
@@ -37,6 +38,8 @@ const WALK_STATUS: Record<string, string> = { PENDING: 'Waiting', ACTIVE: 'Runni
 
 const AdminPracticePage: React.FC = () => {
   const { isAdmin } = useAuth();
+  const { can } = usePermissions();
+  const canEdit = can('practice', 'edit');
   const toast = useToast();
   const [data, setData] = useState<PracticeOverview | null>(null);
   const [error, setError] = useState('');
@@ -91,7 +94,7 @@ const AdminPracticePage: React.FC = () => {
         title="Practice"
         back={{ label: 'Settings', fallbackTo: '/settings' }}
         subtitle="A read-only record of who is using Practice. People reset their own practice."
-        action={data && (
+        action={data && canEdit && (
           <button
             type="button"
             role="switch"

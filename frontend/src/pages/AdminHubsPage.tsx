@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useTeenSupportIds } from '../hooks/useTeenSupportIds';
 import TeenSupportPill from '../components/supports/TeenSupportPill';
 import { useAppData } from '../context/AppDataContext';
@@ -476,6 +477,10 @@ const AdminHubsPage: React.FC = () => {
   const { ids: teenSupportIds } = useTeenSupportIds(true);
   const { isAdmin } = useAuth();
   const { activeCohort, liveRevision, weeks } = useAppData();
+  const { can } = usePermissions();
+  const canAdd = can('hubs', 'add');
+  const canEdit = can('hubs', 'edit');
+  const canDelete = can('hubs', 'delete');
 
   const [hubs, setHubs] = useState<SupportHub[]>([]);
   // Admins set every meeting time and link: each hub's weekly meeting, and the one for Hub Leads.
@@ -693,7 +698,7 @@ const AdminHubsPage: React.FC = () => {
         title="Hubs"
         subtitle={activeCohort ? `${hubs.length} hubs · ${activeCohort.name}` : 'No active cohort'}
         action={
-          activeCohort && (
+          activeCohort && canAdd && (
             <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
               + New Hub
             </button>
@@ -720,9 +725,11 @@ const AdminHubsPage: React.FC = () => {
                 {leadsMeeting?.callLink ? 'Link set. Hub Leads meet once a week.' : 'Add a time and link so Hub Leads can join.'}
               </p>
             </div>
-            <button type="button" onClick={() => setLeadsMeetingOpen(true)} className="flex-none rounded-full bg-[#f5f5f7] px-4 py-2 text-[13px] font-semibold text-gray-800 active:scale-[0.98]">
-              {leadsMeeting?.meetingDay ? 'Edit' : 'Set up'}
-            </button>
+            {canEdit && (
+              <button type="button" onClick={() => setLeadsMeetingOpen(true)} className="flex-none rounded-full bg-[#f5f5f7] px-4 py-2 text-[13px] font-semibold text-gray-800 active:scale-[0.98]">
+                {leadsMeeting?.meetingDay ? 'Edit' : 'Set up'}
+              </button>
+            )}
           </section>
         </>
       )}
@@ -799,17 +806,21 @@ const AdminHubsPage: React.FC = () => {
                     </h3>
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-1">
-                    <AppOverflowMenu
-                      align="right"
-                      items={[
-                        { label: 'Manage members', onClick: () => setMembersTarget(h) },
-                        { label: 'Hub roles', onClick: () => setLeadTarget(h) },
-                        { label: 'Meeting time & link', onClick: () => setMeetingTarget(h) },
-                        { label: 'Recap attendance', onClick: () => setRecapTarget(h) },
-                        { label: 'Edit name', onClick: () => { setEditing(h); setFormOpen(true); } },
-                        { label: 'Delete hub', onClick: () => setDeleteTarget(h), tone: 'danger' },
-                      ]}
-                    />
+                    {(canEdit || canDelete) && (
+                      <AppOverflowMenu
+                        align="right"
+                        items={[
+                          ...(canEdit ? [
+                            { label: 'Manage members', onClick: () => setMembersTarget(h) },
+                            { label: 'Hub roles', onClick: () => setLeadTarget(h) },
+                            { label: 'Meeting time & link', onClick: () => setMeetingTarget(h) },
+                            { label: 'Recap attendance', onClick: () => setRecapTarget(h) },
+                            { label: 'Edit name', onClick: () => { setEditing(h); setFormOpen(true); } },
+                          ] : []),
+                          ...(canDelete ? [{ label: 'Delete hub', onClick: () => setDeleteTarget(h), tone: 'danger' as const }] : []),
+                        ]}
+                      />
+                    )}
                   </div>
                 </div>
 

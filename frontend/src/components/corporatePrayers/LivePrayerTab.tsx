@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Spinner from '../Spinner';
 import { useToast } from '../Toast';
+import { usePermissions } from '../../hooks/usePermissions';
 import { corporatePrayersApi } from '../../services/api';
 import type { PrayerOverview } from '../../types';
 import { Field, INPUT, Notice, PRIMARY_BTN } from './ui';
@@ -9,6 +10,8 @@ import { Field, INPUT, Notice, PRIMARY_BTN } from './ui';
 
 const LivePrayerTab: React.FC<{ overview: PrayerOverview; cohortId: string; onReload: () => void }> = ({ overview, cohortId, onReload }) => {
   const toast = useToast();
+  const { can } = usePermissions();
+  const canEdit = can('corporate_prayers', 'edit');
   const [link, setLink] = useState(overview.settings.telegramLink ?? '');
   const [wait, setWait] = useState(String(overview.settings.liveWaitMinutes));
   const [message, setMessage] = useState(overview.settings.liveMessage ?? '');
@@ -44,6 +47,7 @@ const LivePrayerTab: React.FC<{ overview: PrayerOverview; cohortId: string; onRe
           <h2 className="text-base font-bold text-gray-900">Live prayer on Telegram</h2>
           <p className="mt-1 text-[13px] leading-normal text-gray-500">At the live slot, everyone sees a pop-up with this link. Someone is waiting on Telegram to lead. The pop-up cannot be closed until they tap Prayed.</p>
         </div>
+        <fieldset disabled={!canEdit} className="space-y-4">
         {hasLiveSlot && !link.trim() && <Notice tone="warn">There is a live slot but no link yet, so the pop-up will not appear. Add the link and save.</Notice>}
         <Field label="Telegram link" htmlFor="live-link" hint="A t.me link to the group, channel or call.">
           <input id="live-link" type="url" inputMode="url" value={link} onChange={(event) => setLink(event.target.value)} className={INPUT} placeholder="https://t.me/…" />
@@ -62,9 +66,12 @@ const LivePrayerTab: React.FC<{ overview: PrayerOverview; cohortId: string; onRe
           <input id="live-message" value={message} maxLength={120} onChange={(event) => setMessage(event.target.value)} className={INPUT} placeholder="Join the live prayer on Telegram" />
         </Field>
         {error && <Notice tone="error">{error}</Notice>}
-        <button type="button" onClick={() => { void save(); }} disabled={saving} className={PRIMARY_BTN}>
-          {saving ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span> : 'Save'}
-        </button>
+        {canEdit && (
+          <button type="button" onClick={() => { void save(); }} disabled={saving} className={PRIMARY_BTN}>
+            {saving ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span> : 'Save'}
+          </button>
+        )}
+        </fieldset>
       </section>
       <p className="text-[13px] text-gray-500">If someone cannot open Telegram, a way out appears for them ten minutes after they opened the pop-up.</p>
     </div>

@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import SegmentedTabs from '../components/SegmentedTabs';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { corporatePrayersApi } from '../services/api';
 import type { PrayerOverview, PrayerSlot } from '../types';
@@ -61,6 +62,8 @@ const StatusStrip: React.FC<{ overview: PrayerOverview; cohortName: string }> = 
 
 const AdminCorporatePrayersPage: React.FC = () => {
   const { isAdmin } = useAuth();
+  const { can } = usePermissions();
+  const canAdd = can('corporate_prayers', 'add');
   const { activeCohort, weeks } = useAppData();
   const [tab, setTab] = useState<TabKey>('schedule');
   const [overview, setOverview] = useState<PrayerOverview | null>(null);
@@ -97,7 +100,7 @@ const AdminCorporatePrayersPage: React.FC = () => {
         title="Corporate prayers"
         tourId="admin:corporate-prayers"
         subtitle={activeCohort ? 'When the cohort prays together, what is prayed, and who is prayed for.' : 'No active cohort'}
-        action={cohortId && overview && (
+        action={cohortId && overview && canAdd && (
           <button type="button" onClick={openAdd} className={PRIMARY_BTN}>Add slot</button>
         )}
       />

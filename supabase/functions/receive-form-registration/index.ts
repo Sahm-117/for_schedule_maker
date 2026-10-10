@@ -28,7 +28,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore — web-push ESM build
 import webPush from 'https://esm.sh/web-push@3'
 import { sendToSubscriptions } from '../_shared/webpush.ts'
-import { insertNotifications } from '../_shared/notifications.ts'
+import { insertNotifications, moduleViewerIds } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -193,9 +193,8 @@ const currentProgrammeCohortId = async () => {
 }
 
 const tellAdmins = async (title: string, body: string) => {
-  const { data: admins } = await supabase.from('User').select('id').eq('role', 'ADMIN').neq('isActive', false)
-  if (!admins?.length) return
-  const adminIds = admins.map((a: { id: string }) => a.id)
+  const adminIds = await moduleViewerIds(supabase, 'follow_ups')
+  if (!adminIds.length) return
   await insertNotifications(
     supabase,
     adminIds.map((userId) => ({ userId, title, body, path: '/follow-ups', type: 'FOLLOWUP_ASSIGNMENT' })),

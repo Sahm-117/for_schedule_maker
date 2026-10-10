@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { announcementsApi, labelsApi, groupsApi, supportHubsApi, usersApi, participantsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { startPolling } from '../hooks/usePolling';
 import { useAppData } from '../context/AppDataContext';
 import { announcementPopupsApi } from '../services/api';
@@ -91,6 +92,9 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
   onSent,
 }) => {
   const { user, isAdmin, userCohortIds } = useAuth();
+  const { can } = usePermissions();
+  const canEdit = can('announcements', 'edit');
+  const canDelete = can('announcements', 'delete');
   const { activeCohort, liveRevision } = useAppData();
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -805,7 +809,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                         <span className="text-xs text-gray-400">
                           {new Date(a.sentAt).toLocaleString('en-US', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true })}
                         </span>
-                        {isAdmin && (
+                        {isAdmin && canDelete && (
                           <button
                             type="button"
                             onClick={() => setDeleteTarget(a)}
@@ -828,7 +832,7 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                         <span className="rounded-full bg-red-100/80 px-2 py-0.5 text-[11px] font-semibold text-red-700">
                           On home until {new Date(a.homeUntil).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                         </span>
-                        {isAdmin && (
+                        {isAdmin && canEdit && (
                           <button
                             type="button"
                             onClick={() => { void handleRemoveFromHome(a); }}

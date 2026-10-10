@@ -107,7 +107,7 @@ export const SegmentBar: React.FC<{ segments: Array<{ label: string; value: numb
   );
 };
 
-export const AttentionList: React.FC<{ items: AttentionItem[]; onAction: (item: AttentionItem) => void }> = ({ items, onAction }) => {
+export const AttentionList: React.FC<{ items: AttentionItem[]; onAction: (item: AttentionItem) => void; canAct?: boolean }> = ({ items, onAction, canAct = true }) => {
   const [showAll, setShowAll] = useState(false);
   const preview = items.slice(0, 4);
   const renderItems = (entries: AttentionItem[], closeAfterAction = false) => (
@@ -120,7 +120,7 @@ export const AttentionList: React.FC<{ items: AttentionItem[]; onAction: (item: 
             <span className="min-w-0 flex-1 text-sm text-gray-800">{item.text}</span>
             {item.to ? (
               <NavLink to={item.to} onClick={() => closeAfterAction && setShowAll(false)} className="flex-none rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200">{item.actionLabel}</NavLink>
-            ) : (
+            ) : canAct && (
               <button type="button" onClick={() => { if (closeAfterAction) setShowAll(false); onAction(item); }} className="flex-none rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-dark">{item.actionLabel}</button>
             )}
           </li>

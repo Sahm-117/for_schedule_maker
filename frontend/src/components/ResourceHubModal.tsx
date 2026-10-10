@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { resourcesApi, supportHubsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import type { Resource, SupportHub } from '../types';
 import { downloadFile } from '../utils/download';
@@ -30,6 +31,10 @@ function formatBytes(bytes: number) {
 
 const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, onViewed, embedded = false, layout = 'list' }) => {
   const { isAdmin } = useAuth();
+  const { can } = usePermissions();
+  const canAdd = can('resources', 'add');
+  const canEdit = can('resources', 'edit');
+  const canDelete = can('resources', 'delete');
   const { activeCohort, liveRevision } = useAppData();
   const [resources, setResources] = useState<Resource[]>([]);
   const [viewing, setViewing] = useState<Resource | null>(null);
@@ -98,7 +103,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
           <p className="text-xs text-gray-500 mt-0.5">Guides, links, and files for the team</p>
         </div>
         <div className="flex items-center gap-2">
-          {isAdmin && (
+          {isAdmin && canAdd && (
             <button
               onClick={() => setEditor({ mode: 'add', resource: null })}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-dark"
@@ -133,7 +138,7 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
                 </svg>
               </div>
               <p className="text-sm text-gray-500 font-medium">No resources yet</p>
-              {isAdmin && <p className="text-xs text-gray-400 mt-1">Tap Add to upload files or add links</p>}
+              {isAdmin && canAdd && <p className="text-xs text-gray-400 mt-1">Tap Add to upload files or add links</p>}
             </div>
           ) : layout === 'grid' ? (
             <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 210px), 1fr))' }}>
@@ -230,9 +235,9 @@ const ResourceHubModal: React.FC<ResourceHubModalProps> = ({ isOpen, onClose, on
                       <AppOverflowMenu
                         align="right"
                         items={[
-                          { label: 'Update document', onClick: () => setEditor({ mode: 'update', resource: r }) },
+                          ...(canEdit ? [{ label: 'Update document', onClick: () => setEditor({ mode: 'update', resource: r }) }] : []),
                           { label: 'Version history', onClick: () => setHistoryFor(r) },
-                          { label: deletingId === r.id ? 'Deleting…' : 'Delete', onClick: () => { void handleDelete(r.id); }, tone: 'danger' },
+                          ...(canDelete ? [{ label: deletingId === r.id ? 'Deleting…' : 'Delete', onClick: () => { void handleDelete(r.id); }, tone: 'danger' as const }] : []),
                         ]}
                       />
                     )}

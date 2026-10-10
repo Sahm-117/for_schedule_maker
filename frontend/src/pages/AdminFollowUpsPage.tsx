@@ -23,6 +23,7 @@ import SheetSyncBanner from '../components/followups/SheetSyncBanner';
 import ExportContactsPopup from '../components/followups/ExportContactsPopup';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { cohortHasStarted } from '../utils/cohortStarted';
 import {
@@ -121,6 +122,10 @@ function activeFilterCount(f: FilterState): number {
 
 const AdminFollowUpsPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
+  const { can } = usePermissions();
+  const canAdd = can('follow_ups', 'add');
+  const canEdit = can('follow_ups', 'edit');
+  const canDeleteFollowUps = can('follow_ups', 'delete');
   const { cohorts, activeCohort, liveRevision } = useAppData();
   const cohortStarted = cohortHasStarted(activeCohort);
 
@@ -540,13 +545,15 @@ const AdminFollowUpsPage: React.FC = () => {
         subtitle="Track interested people, assign them to a support, and get them into the app."
         action={(
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => { setEditingContact(null); setShowContactModal(true); }}
-              className="inline-flex h-11 items-center justify-center rounded-2xl bg-[#3f4757] px-4 text-sm font-semibold text-white transition hover:bg-[#333a49] active:scale-95"
-            >
-              Add Contact
-            </button>
+            {canAdd && (
+              <button
+                type="button"
+                onClick={() => { setEditingContact(null); setShowContactModal(true); }}
+                className="inline-flex h-11 items-center justify-center rounded-2xl bg-[#3f4757] px-4 text-sm font-semibold text-white transition hover:bg-[#333a49] active:scale-95"
+              >
+                Add Contact
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowAssignSettings(true)}
@@ -562,9 +569,9 @@ const AdminFollowUpsPage: React.FC = () => {
             <AppOverflowMenu
               align="right"
               items={[
-                { label: assigning ? 'Assigning…' : 'Assign follow-ups now', onClick: () => { if (!assigning) setConfirmAssignNow(true); } },
+                ...(canEdit ? [{ label: assigning ? 'Assigning…' : 'Assign follow-ups now', onClick: () => { if (!assigning) setConfirmAssignNow(true); } }] : []),
                 ...(tab === 'contacts' ? [
-                  { label: 'Import contacts', onClick: () => setShowImport(true) },
+                  ...(canAdd ? [{ label: 'Import contacts', onClick: () => setShowImport(true) }] : []),
                   { label: 'Export contacts', onClick: () => setShowExport(true) },
                 ] : []),
               ]}
@@ -782,9 +789,11 @@ const AdminFollowUpsPage: React.FC = () => {
                       <p className="truncate text-[13.5px] font-semibold text-gray-900">{c.fullName}</p>
                       <p className="truncate text-[12px] text-gray-500">WhatsApp: {c.phone ? `“${c.phone}”` : 'none'}{c.email ? ` · ${c.email}` : ''}</p>
                     </div>
-                    <button type="button" onClick={() => { setEditingContact(c); setShowContactModal(true); }} className="flex-none rounded-full bg-primary px-3 py-1.5 text-[12px] font-semibold text-white">
-                      Fix number
-                    </button>
+                    {canEdit && (
+                      <button type="button" onClick={() => { setEditingContact(c); setShowContactModal(true); }} className="flex-none rounded-full bg-primary px-3 py-1.5 text-[12px] font-semibold text-white">
+                        Fix number
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -853,6 +862,11 @@ const AdminFollowUpsPage: React.FC = () => {
               contacts={contacts}
               owners={assignOwners}
               currentUserId={user?.id}
+              canCreate={canAdd}
+              canReply={canAdd}
+              canResolve={canEdit}
+              canAssignOwner={canEdit}
+              canDelete={canDeleteFollowUps}
             />
           )}
         </>
@@ -1034,7 +1048,7 @@ const AdminFollowUpsPage: React.FC = () => {
       {showAssignSettings && createPortal(
         <div className="fixed inset-0 z-[120] grid place-items-center bg-black/30 p-4 backdrop-blur-sm" onClick={() => setShowAssignSettings(false)}>
           <div className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <FollowUpAssignmentSettings waitingCount={waitingCount} onClose={() => setShowAssignSettings(false)} />
+            <FollowUpAssignmentSettings waitingCount={waitingCount} onClose={() => setShowAssignSettings(false)} readOnly={!canEdit} />
           </div>
         </div>,
         document.body

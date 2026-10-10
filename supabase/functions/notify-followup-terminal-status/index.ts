@@ -24,7 +24,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore — web-push ESM build
 import webPush from 'https://esm.sh/web-push@3'
 import { sendToSubscriptions } from '../_shared/webpush.ts'
-import { insertNotifications } from '../_shared/notifications.ts'
+import { insertNotifications, isAdminRole, moduleViewerIds } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       throw new Error(actorError?.message || 'Actor not found')
     }
 
-    if (actor.role === 'ADMIN' && !loginIssue) {
+    if (isAdminRole(actor.role) && !loginIssue) {
       return new Response(JSON.stringify({ ok: true, sent: 0, skipped: 'actor_is_admin' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -112,18 +112,8 @@ Deno.serve(async (req) => {
       throw new Error(contactError?.message || 'Contact not found')
     }
 
-    let adminQuery = supabase
-      .from('User')
-      .select('id')
-      .eq('role', 'ADMIN')
-    if (loginIssue) adminQuery = adminQuery.neq('isActive', false)
-    const { data: admins, error: adminsError } = await adminQuery
-
-    if (adminsError) {
-      throw new Error(adminsError.message)
-    }
-
-    const adminRecipientIds: string[] = (admins || []).map((admin: { id: string }) => admin.id)
+    // Everyone who can See Follow-ups (admins, and Team members whose roles include it).
+    const adminRecipientIds: string[] = await moduleViewerIds(supabase, 'follow_ups')
     let itRecipientIds: string[] = []
     let description = ''
 

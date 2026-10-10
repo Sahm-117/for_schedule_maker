@@ -4,6 +4,7 @@ import AppOverflowMenu from '../AppOverflowMenu';
 import ConfirmationModal from '../ConfirmationModal';
 import Spinner from '../Spinner';
 import { useToast } from '../Toast';
+import { usePermissions } from '../../hooks/usePermissions';
 import { corporatePrayersApi, faithProjectSettingsApi } from '../../services/api';
 import type { PrayerOverview, PrayerSlot, Week } from '../../types';
 import { PRAYER_TYPE_LABEL, clockLabel } from '../../utils/prayerText';
@@ -34,6 +35,10 @@ const dayLabel = (iso: string | null) => {
 
 const ScheduleTab: React.FC<Props> = ({ overview, cohortId, weeks, onReload, onAdd, onEdit }) => {
   const toast = useToast();
+  const { can } = usePermissions();
+  const canAdd = can('corporate_prayers', 'add');
+  const canEdit = can('corporate_prayers', 'edit');
+  const canDelete = can('corporate_prayers', 'delete');
   const [startWeek, setStartWeek] = useState(overview.startWeekNumber ? String(overview.startWeekNumber) : '');
   const [daysBefore, setDaysBefore] = useState(String(overview.popupDaysBefore));
   const [saving, setSaving] = useState(false);
@@ -92,6 +97,7 @@ const ScheduleTab: React.FC<Props> = ({ overview, cohortId, weeks, onReload, onA
       <section className="surface-card p-5" aria-labelledby="cp-start">
         <h2 id="cp-start" className="text-base font-bold text-gray-900">When prayers start</h2>
         <p className="mt-1 text-[13px] leading-normal text-gray-500">From the class day of this week, the slots below run every day. A few days before, participants are asked whether they are happy to be prayed for.</p>
+        <fieldset disabled={!canEdit} className="contents">
         <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
           <AppSelect
             label="Starts in"
@@ -103,10 +109,13 @@ const ScheduleTab: React.FC<Props> = ({ overview, cohortId, weeks, onReload, onA
           <Field label="Pop-up days before" htmlFor="cp-days">
             <input id="cp-days" type="number" inputMode="numeric" min={0} max={30} value={daysBefore} onChange={(event) => setDaysBefore(event.target.value)} className={`${INPUT} sm:w-28`} />
           </Field>
-          <button type="button" onClick={() => { void saveStart(); }} disabled={saving} className={PRIMARY_BTN}>
-            {saving ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span> : 'Save'}
-          </button>
+          {canEdit && (
+            <button type="button" onClick={() => { void saveStart(); }} disabled={saving} className={PRIMARY_BTN}>
+              {saving ? <span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span> : 'Save'}
+            </button>
+          )}
         </div>
+        </fieldset>
         {startText && <p className="mt-3 text-sm font-semibold text-gray-700">First prayer day: {startText}</p>}
         {error && <div className="mt-3"><Notice tone="error">{error}</Notice></div>}
       </section>
@@ -120,26 +129,24 @@ const ScheduleTab: React.FC<Props> = ({ overview, cohortId, weeks, onReload, onA
         </div>
         {overview.slots.length === 0 ? (
           <div className="rounded-2xl bg-gray-50/80 px-4 py-10 text-center">
-            <p className="text-sm text-gray-500">No slots yet. Add the first one.</p>
-            <button type="button" onClick={onAdd} className={`${PRIMARY_BTN} mt-3`}>Add a slot</button>
+            <p className="text-sm text-gray-500">{canAdd ? 'No slots yet. Add the first one.' : 'No slots yet.'}</p>
+            {canAdd && <button type="button" onClick={onAdd} className={`${PRIMARY_BTN} mt-3`}>Add a slot</button>}
           </div>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {overview.slots.map((slot) => (
+            {overview.slots.map((slot) => {
+              const menuItems = [
+                ...(canEdit ? [{ label: 'Edit', onClick: () => onEdit(slot) }, { label: slot.active ? 'Switch off' : 'Switch on', onClick: () => { void toggleActive(slot); } }] : []),
+                ...(canDelete ? [{ label: 'Delete', onClick: () => setDeleting(slot), tone: 'danger' as const }] : []),
+              ];
+              return (
               <li key={slot.id} className={`surface-card flex flex-col gap-2.5 p-4 ${slot.active ? '' : 'opacity-60'}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-[26px] font-extrabold leading-none tracking-tight text-gray-900">{clockLabel(slot.time)}</p>
                     <p className="mt-1 truncate text-sm text-gray-600">{slot.name || PRAYER_TYPE_LABEL[slot.slotType]}</p>
                   </div>
-                  <AppOverflowMenu
-                    align="right"
-                    items={[
-                      { label: 'Edit', onClick: () => onEdit(slot) },
-                      { label: slot.active ? 'Switch off' : 'Switch on', onClick: () => { void toggleActive(slot); } },
-                      { label: 'Delete', onClick: () => setDeleting(slot), tone: 'danger' },
-                    ]}
-                  />
+                  {menuItems.length > 0 && <AppOverflowMenu align="right" items={menuItems} />}
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${TYPE_CHIP[slot.slotType]}`}>{PRAYER_TYPE_LABEL[slot.slotType]}</span>
@@ -151,7 +158,8 @@ const ScheduleTab: React.FC<Props> = ({ overview, cohortId, weeks, onReload, onA
                 </div>
                 {slot.today && <p className="text-[13px] text-gray-500">Today: {slot.today.counts.praying} praying, {slot.today.counts.amen} said Amen</p>}
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </section>

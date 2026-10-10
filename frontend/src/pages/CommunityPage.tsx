@@ -10,6 +10,7 @@ import TourHelpButton from '../components/tour/TourHelpButton';
 import { hubApi } from '../services/api';
 import { reconcileById } from '../utils/reconcile';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { usePolling } from '../hooks/usePolling';
 import { useAppData } from '../context/AppDataContext';
 import type { HubTopic } from '../types';
@@ -315,6 +316,9 @@ type Tab = 'OPEN' | 'CLOSED';
 
 const CommunityPage: React.FC = () => {
   const { user } = useAuth();
+  const { can } = usePermissions();
+  const canAdd = can('community', 'add');
+  const canDelete = can('community', 'delete');
   const { markHubSeen } = useAppData();
   const [section, setSection] = useState<'discussion' | 'people'>('discussion');
   const [tab, setTab] = useState<Tab>('OPEN');
@@ -422,7 +426,7 @@ const CommunityPage: React.FC = () => {
           <h1 className="page-title">Community</h1>
           <TourHelpButton tourId="community" />
         </div>
-        {section === 'discussion' && (
+        {section === 'discussion' && canAdd && (
           <button
             type="button"
             onClick={() => setNewTopicOpen(true)}
@@ -471,7 +475,7 @@ const CommunityPage: React.FC = () => {
               topic={topic}
               onClick={() => setSelectedTopicId(topic.id)}
               onToggleLike={() => handleToggleLike(topic.id)}
-              onDelete={isAdmin ? () => void handleDeleteTopicFromList(topic.id) : undefined}
+              onDelete={isAdmin && canDelete ? () => void handleDeleteTopicFromList(topic.id) : undefined}
               onAuthorClick={() => setProfileUserId(topic.authorId)}
             />
           ))}
@@ -532,6 +536,10 @@ const HubTopicView: React.FC<{
   onAuthorClick: (authorId: string) => void;
   onToggleLike: () => void;
 }> = ({ topic, users, currentUser, onBack, onTopicDeleted, onTopicUpdated, onAuthorClick, onToggleLike }) => {
+  const { can } = usePermissions();
+  const canAdd = can('community', 'add');
+  const canEdit = can('community', 'edit');
+  const canDelete = can('community', 'delete');
   const [comments, setComments] = useState<HubComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(true);
   const [newComment, setNewComment] = useState('');
@@ -766,7 +774,7 @@ const HubTopicView: React.FC<{
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${topic.status === 'OPEN' ? 'bg-emerald-100/80 text-emerald-700' : 'bg-neutral-100 text-neutral-600'}`}>
               {topic.status === 'OPEN' ? 'Open' : 'Closed'}
             </span>
-            {canClose && (
+            {canClose && canEdit && (
               <button
                 type="button"
                 onClick={handleToggleClose}
@@ -776,7 +784,7 @@ const HubTopicView: React.FC<{
                 {closingTopic ? '…' : topic.status === 'OPEN' ? 'Close topic' : 'Reopen'}
               </button>
             )}
-            {isAdmin && (
+            {isAdmin && canDelete && (
               <button type="button" onClick={() => void handleDeleteTopic()} title="Delete topic" className="rounded-full p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </button>
@@ -800,7 +808,7 @@ const HubTopicView: React.FC<{
         ) : (
           <div className="mt-2 flex items-start gap-2">
             <div className="flex-1"><BodyText text={topic.body} users={users} /></div>
-            {currentUser.id === topic.authorId && (
+            {currentUser.id === topic.authorId && canEdit && (
               <button type="button" onClick={() => { setTopicBodyDraft(topic.body); setEditingTopicBody(true); }} className="flex-shrink-0 rounded-full p-1 text-gray-300 hover:text-primary">
                 <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
               </button>
@@ -881,7 +889,7 @@ const HubTopicView: React.FC<{
                   <span className="text-sm font-semibold text-gray-800">{comment.authorName}</span>
                   <span className="text-xs text-gray-400">{formatDate(comment.createdAt)}</span>
                 </button>
-                {isAdmin && (
+                {isAdmin && canDelete && (
                   <button type="button" onClick={() => void handleDeleteComment(comment.id)} title="Delete comment" className="rounded-full p-1 text-gray-300 hover:bg-red-50 hover:text-red-500">
                     <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                   </button>
@@ -909,15 +917,15 @@ const HubTopicView: React.FC<{
                     {expandedReplies.has(comment.id) ? 'Hide' : `${comment.replyCount} repl${comment.replyCount === 1 ? 'y' : 'ies'}`}
                   </button>
                 )}
-                {topic.status === 'OPEN' && (
+                {topic.status === 'OPEN' && canAdd && (
                   <button type="button" onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)} className="text-xs text-gray-500 hover:text-primary">
                     Reply
                   </button>
                 )}
-                {currentUser.id === comment.authorId && editingCommentId !== comment.id && (
+                {currentUser.id === comment.authorId && editingCommentId !== comment.id && (canEdit || canDelete) && (
                   <>
-                    <button type="button" onClick={() => { setCommentDrafts((prev) => ({ ...prev, [comment.id]: comment.body })); setEditingCommentId(comment.id); }} className="text-xs text-gray-400 hover:text-primary">Edit</button>
-                    <button type="button" onClick={() => void handleDeleteComment(comment.id)} className="text-xs text-gray-400 hover:text-red-500">Delete</button>
+                    {canEdit && <button type="button" onClick={() => { setCommentDrafts((prev) => ({ ...prev, [comment.id]: comment.body })); setEditingCommentId(comment.id); }} className="text-xs text-gray-400 hover:text-primary">Edit</button>}
+                    {canDelete && <button type="button" onClick={() => void handleDeleteComment(comment.id)} className="text-xs text-gray-400 hover:text-red-500">Delete</button>}
                   </>
                 )}
               </div>
@@ -937,7 +945,7 @@ const HubTopicView: React.FC<{
                           <span className="text-xs font-semibold text-gray-800">{reply.authorName}</span>
                           <span className="text-xs text-gray-400">{formatDate(reply.createdAt)}</span>
                         </button>
-                        {isAdmin && (
+                        {isAdmin && canDelete && (
                           <button type="button" onClick={() => void handleDeleteReply(comment.id, reply.id)} title="Delete reply" className="rounded-full p-1 text-gray-300 hover:bg-red-50 hover:text-red-500">
                             <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                           </button>
@@ -959,10 +967,10 @@ const HubTopicView: React.FC<{
                       ) : (
                         <div className="mt-1 pl-7 flex items-start gap-2">
                           <div className="flex-1"><BodyText text={reply.body} users={users} /></div>
-                          {currentUser.id === reply.authorId && (
+                          {currentUser.id === reply.authorId && (canEdit || canDelete) && (
                             <div className="flex gap-1.5 flex-shrink-0">
-                              <button type="button" onClick={() => { setReplyDrafts((prev) => ({ ...prev, [reply.id]: reply.body })); setEditingReplyId(reply.id); }} className="text-xs text-gray-400 hover:text-primary">Edit</button>
-                              <button type="button" onClick={() => void handleDeleteReply(comment.id, reply.id)} className="text-xs text-gray-400 hover:text-red-500">Delete</button>
+                              {canEdit && <button type="button" onClick={() => { setReplyDrafts((prev) => ({ ...prev, [reply.id]: reply.body })); setEditingReplyId(reply.id); }} className="text-xs text-gray-400 hover:text-primary">Edit</button>}
+                              {canDelete && <button type="button" onClick={() => void handleDeleteReply(comment.id, reply.id)} className="text-xs text-gray-400 hover:text-red-500">Delete</button>}
                             </div>
                           )}
                         </div>
@@ -999,7 +1007,7 @@ const HubTopicView: React.FC<{
       </div>
 
       {/* New comment */}
-      {topic.status === 'OPEN' && (
+      {topic.status === 'OPEN' && canAdd && (
         <div className="mt-4 surface-card p-4">
           <div className="flex items-start gap-3">
             <Avatar name={currentUser.name} avatarUrl={currentUser.avatarUrl} size="sm" className="mt-0.5" />

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import FilterBar, { describeFilters, type FilterGroup } from '../components/filters/FilterBar';
 import { useUrlFilters } from '../hooks/useUrlFilters';
@@ -451,6 +452,9 @@ const AdminGroupsContent: React.FC = () => {
   const { user } = useAuth();
   const { activeCohort, liveRevision } = useAppData();
   const navigate = useNavigate();
+  const { can } = usePermissions();
+  const canAdd = can('groups', 'add');
+  const canEdit = can('groups', 'edit');
 
   const [groups, setGroups] = useState<Group[]>([]);
   // A Teen Support's teens, kept apart: no meetings or recaps, Sunday attendance only.
@@ -700,12 +704,16 @@ const AdminGroupsContent: React.FC = () => {
         action={
           activeCohort && (
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => navigate('/allocation')} className="rounded-2xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">
-                Allocate participants
-              </button>
-              <button type="button" onClick={() => setChooserOpen(true)} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
-                + New Group
-              </button>
+              {canEdit && (
+                <button type="button" onClick={() => navigate('/allocation')} className="rounded-2xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">
+                  Allocate participants
+                </button>
+              )}
+              {canAdd && (
+                <button type="button" onClick={() => setChooserOpen(true)} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
+                  + New Group
+                </button>
+              )}
               <AppOverflowMenu
                 align="right"
                 items={[
@@ -760,9 +768,11 @@ const AdminGroupsContent: React.FC = () => {
       ) : groups.length === 0 ? (
         <div className="rounded-2xl bg-gray-50/80 py-12 text-center">
           <p className="text-sm text-gray-500">No groups yet.</p>
-          <button type="button" onClick={() => setChooserOpen(true)} className="mt-3 rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
-            Build groups
-          </button>
+          {canAdd && (
+            <button type="button" onClick={() => setChooserOpen(true)} className="mt-3 rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
+              Build groups
+            </button>
+          )}
         </div>
       ) : displayedGroups.length === 0 ? (
         <div className="rounded-2xl bg-gray-50/80 py-12 text-center">
@@ -789,18 +799,20 @@ const AdminGroupsContent: React.FC = () => {
                     <span className="rounded-full bg-sky-100/80 px-2.5 py-0.5 text-xs font-semibold text-sky-700">
                       {g.participantCount ?? members.length}
                     </span>
-                    <AppOverflowMenu
-                      align="right"
-                      items={g.archivedAt
-                        ? [{ label: 'Restore group', onClick: () => void handleRestore(g) }]
+                    {(() => {
+                      const menuItems = g.archivedAt
+                        ? (canEdit ? [{ label: 'Restore group', onClick: () => void handleRestore(g) }] : [])
                         : [
                             ...(g.supportId ? [{ label: 'Open group & discussion', onClick: () => navigate(`/group-view/${g.supportId}?cohort=${g.cohortId}`) }] : []),
-                            { label: 'Manage members', onClick: () => setMembersTarget(g) },
-                            { label: 'Assign support', onClick: () => setSupportTarget(g) },
-                            { label: 'Edit', onClick: () => { setEditing(g); setFormOpen(true); } },
-                            { label: 'Archive group', onClick: () => setArchiveTarget(g), tone: 'danger' },
-                          ]}
-                    />
+                            ...(canEdit ? [
+                              { label: 'Manage members', onClick: () => setMembersTarget(g) },
+                              { label: 'Assign support', onClick: () => setSupportTarget(g) },
+                              { label: 'Edit', onClick: () => { setEditing(g); setFormOpen(true); } },
+                              { label: 'Archive group', onClick: () => setArchiveTarget(g), tone: 'danger' as const },
+                            ] : []),
+                          ];
+                      return menuItems.length > 0 ? <AppOverflowMenu align="right" items={menuItems} /> : null;
+                    })()}
                   </div>
                 </div>
 
@@ -861,14 +873,16 @@ const AdminGroupsContent: React.FC = () => {
                             <p className="truncate text-sm font-semibold leading-tight text-gray-900">{p.fullName}</p>
                             <p className="truncate text-xs text-gray-400">{[p.guardianPhone ?? p.phone, genderAgeLine(p)].filter(Boolean).join(' · ')}</p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setMovingTeen({ participantId: p.id, name: p.fullName })}
-                            className="min-h-[36px] flex-none rounded-full border border-gray-200 px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 active:scale-95"
-                            aria-label={`Move ${p.fullName} to another Teen Support`}
-                          >
-                            Move
-                          </button>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => setMovingTeen({ participantId: p.id, name: p.fullName })}
+                              className="min-h-[36px] flex-none rounded-full border border-gray-200 px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 active:scale-95"
+                              aria-label={`Move ${p.fullName} to another Teen Support`}
+                            >
+                              Move
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>

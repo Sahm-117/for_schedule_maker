@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { followUpContactsApi } from '../../services/api';
+import { usePermissions } from '../../hooks/usePermissions';
 import type { FollowUpContact } from '../../types';
 import Spinner from '../Spinner';
 
@@ -14,6 +15,8 @@ const whenLabel = (iso?: string) =>
   iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
 
 const SheetSyncBanner: React.FC<{ contacts: FollowUpContact[]; onRetried: () => void }> = ({ contacts, onRetried }) => {
+  const { can } = usePermissions();
+  const canEdit = can('follow_ups', 'edit');
   const [open, setOpen] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [result, setResult] = useState('');
@@ -66,7 +69,7 @@ const SheetSyncBanner: React.FC<{ contacts: FollowUpContact[]; onRetried: () => 
         <button type="button" onClick={() => setOpen((value) => !value)} className="text-xs font-semibold underline-offset-2 hover:underline">
           {open ? 'Hide' : 'View'}
         </button>
-        {isFailure && (
+        {isFailure && canEdit && (
           <button
             type="button"
             onClick={() => { void retry(); }}

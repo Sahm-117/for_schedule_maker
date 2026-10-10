@@ -27,7 +27,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore — web-push ESM build
 import webPush from 'https://esm.sh/web-push@3'
 import { sendToSubscriptions } from '../_shared/webpush.ts'
-import { insertNotifications } from '../_shared/notifications.ts'
+import { insertNotifications, isAdminRole, moduleViewerIds } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       throw new Error(reporterError?.message || 'Reporter not found')
     }
 
-    if (reporter.role === 'ADMIN') {
+    if (isAdminRole(reporter.role)) {
       return new Response(JSON.stringify({ ok: true, sent: 0, skipped: 'reporter_is_admin' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -145,16 +145,8 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { data: admins, error: adminsError } = await supabase
-      .from('User')
-      .select('id')
-      .eq('role', 'ADMIN')
-
-    if (adminsError) {
-      throw new Error(adminsError.message)
-    }
-
-    const adminIds = Array.from(new Set((admins || []).map((admin: { id: string }) => admin.id).filter(Boolean)))
+    // Everyone who can See Follow-ups (admins, and Team members whose roles include it).
+    const adminIds = await moduleViewerIds(supabase, 'follow_ups')
 
     if (adminIds.length === 0) {
       return new Response(JSON.stringify({ ok: true, sent: 0 }), {

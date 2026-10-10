@@ -7,6 +7,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import Spinner from '../components/Spinner';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { settingsApi } from '../services/api';
 import LandingImagesCard from '../components/landing/LandingImagesCard';
 import {
@@ -145,6 +146,8 @@ const IconPicker: React.FC<{ value: LandingIconKey; onChange: (v: LandingIconKey
 
 const AdminWebsitePage: React.FC = () => {
   const { isAdmin } = useAuth();
+  const { can } = usePermissions();
+  const canEdit = can('website', 'edit');
   const toast = useToast();
   const [tab, setTab] = useState<string>('hero');
   const [heroPreview, setHeroPreview] = useState<string | null>(null);
@@ -229,7 +232,7 @@ const AdminWebsitePage: React.FC = () => {
           <AppOverflowMenu
             items={[
               { label: 'View homepage', onClick: () => window.open(homepageUrl, '_blank', 'noopener') },
-              { label: 'Reset all to default', onClick: () => setResetAllOpen(true), tone: 'danger' },
+              ...(canEdit ? [{ label: 'Reset all to default', onClick: () => setResetAllOpen(true), tone: 'danger' as const }] : []),
             ]}
           />
         )}
@@ -243,7 +246,7 @@ const AdminWebsitePage: React.FC = () => {
         <>
           <SegmentedTabs tabs={TABS.map((t) => ({ key: t.key, label: t.label }))} active={tab} onChange={setTab} />
 
-          <div className="mt-4 space-y-4 pb-8">
+          <fieldset disabled={!canEdit} className="mt-4 min-w-0 space-y-4 pb-8">
             {tab === 'hero' && (
               <>
                 <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800">
@@ -489,9 +492,9 @@ const AdminWebsitePage: React.FC = () => {
                 </Field>
               </SectionCard>
             )}
-          </div>
+          </fieldset>
 
-          <div className="sticky bottom-4 z-10 flex items-center justify-between gap-3 rounded-2xl border-t border-gray-100 bg-white/80 px-4 py-3 shadow-lg backdrop-blur-xl">
+          {canEdit && <div className="sticky bottom-4 z-10 flex items-center justify-between gap-3 rounded-2xl border-t border-gray-100 bg-white/80 px-4 py-3 shadow-lg backdrop-blur-xl">
             <span className="text-[13px] font-medium text-gray-700">
               {dirty ? 'Unsaved changes' : savedFlash ? '✓ Saved' : 'No changes'}
             </span>
@@ -514,7 +517,7 @@ const AdminWebsitePage: React.FC = () => {
                 {saving ? 'Saving…' : 'Save'}
               </button>
             </div>
-          </div>
+          </div>}
         </>
       )}
 

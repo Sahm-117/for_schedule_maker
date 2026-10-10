@@ -15,6 +15,8 @@ interface ActivityCardProps {
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   isAdmin: boolean;  // true = show edit/delete buttons
+  canEditActivity?: boolean;  // the schedule Edit tick (edit and move buttons)
+  canDeleteActivity?: boolean;  // the schedule Delete tick (delete button)
   isCompleted?: boolean;
   canToggleCompleted?: boolean;
   onToggleCompleted?: (nextValue: boolean) => void;
@@ -30,6 +32,8 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
   canMoveUp = false,
   canMoveDown = false,
   isAdmin,
+  canEditActivity = true,
+  canDeleteActivity = true,
   isCompleted = false,
   canToggleCompleted = false,
   onToggleCompleted,
@@ -166,6 +170,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
         <div className="flex items-start gap-1 sm:gap-2 flex-shrink-0">
           {isAdmin && (
             <>
+              {canEditActivity && (
               <button
                 onClick={onEdit}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
@@ -175,7 +180,9 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </button>
+              )}
 
+              {canDeleteActivity && (
               <button
                 onClick={onDelete}
                 className="p-1 text-gray-400 hover:text-red-600 transition-colors"
@@ -185,11 +192,12 @@ const ActivityCard: React.FC<ActivityCardProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
+              )}
             </>
           )}
 
           {/* Move Up/Down Buttons */}
-          {isAdmin && (onMoveUp || onMoveDown) && (
+          {isAdmin && canEditActivity && (onMoveUp || onMoveDown) && (
             <div className="flex flex-col gap-1">
               {onMoveUp && (
                 <button

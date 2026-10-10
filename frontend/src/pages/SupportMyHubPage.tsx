@@ -433,7 +433,7 @@ const SupportMyHubPage: React.FC = () => {
     }
   };
 
-  if (user?.role !== 'SUPPORT') return <Navigate to="/dashboard" replace />;
+  if (user?.role !== 'SUPPORT') return <Navigate to="/" replace />;
 
   const isLead = !!myHub?.isLead;
   const canAttendance = isLead || !!myHub?.canAttendance;

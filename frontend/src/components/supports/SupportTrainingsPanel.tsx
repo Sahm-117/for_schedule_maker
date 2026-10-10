@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Cohort, SupportAttendanceStatus, SupportSession, SupportSessionType, User } from '../../types';
 import { cohortsApi, supportSessionsApi, usersApi } from '../../services/api';
 import { useAppData } from '../../context/AppDataContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import ModalShell from '../followups/ModalShell';
 import ConfirmationModal from '../ConfirmationModal';
 import AppOverflowMenu from '../AppOverflowMenu';
@@ -260,7 +261,8 @@ const SessionResultsModal: React.FC<{
   people: User[];
   attendance: Array<{ sessionId: string; userId: string; status: SupportAttendanceStatus; learned?: string | null; willApply?: string | null }>;
   onMark: () => void;
-}> = ({ isOpen, onClose, session, people, attendance, onMark }) => {
+  canMark: boolean;
+}> = ({ isOpen, onClose, session, people, attendance, onMark, canMark }) => {
   const [filter, setFilter] = useState<ResultKey>('ALL');
   // Which "what I learned" chip is filtering the list, if any.
   const [sharedFilter, setSharedFilter] = useState<'ALL' | 'SHARED' | 'NOT_SHARED'>('ALL');
@@ -288,7 +290,7 @@ const SessionResultsModal: React.FC<{
       footer={
         <>
           <button type="button" onClick={onClose} className="rounded-2xl border border-orange-200 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-orange-50 active:scale-95">Close</button>
-          <button type="button" onClick={onMark} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95">Mark attendance</button>
+          {canMark && <button type="button" onClick={onMark} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white active:scale-95">Mark attendance</button>}
         </>
       }
     >
@@ -358,6 +360,10 @@ const SessionResultsModal: React.FC<{
 
 const SupportTrainingsPanel: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
   const { activeCohort, cohorts, liveRevision } = useAppData();
+  const { can } = usePermissions();
+  const canAdd = can('supports', 'add');
+  const canEdit = can('supports', 'edit');
+  const canDelete = can('supports', 'delete');
   const [sessions, setSessions] = useState<SupportSession[]>([]);
   const [sessionAttendance, setSessionAttendance] = useState<Array<{ sessionId: string; userId: string; status: SupportAttendanceStatus; learned?: string | null; willApply?: string | null }>>([]);
   const [resultsTarget, setResultsTarget] = useState<SupportSession | null>(null);
@@ -440,12 +446,16 @@ const SupportTrainingsPanel: React.FC<{ onChanged?: () => void }> = ({ onChanged
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <button type="button" onClick={() => setMarkersOpen(true)} className="rounded-2xl border border-orange-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 active:scale-95">
-          Who can mark
-        </button>
-        <button type="button" onClick={() => { setEditingSession(null); setSessionFormOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
-          + New session
-        </button>
+        {canEdit && (
+          <button type="button" onClick={() => setMarkersOpen(true)} className="rounded-2xl border border-orange-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 active:scale-95">
+            Who can mark
+          </button>
+        )}
+        {canAdd && (
+          <button type="button" onClick={() => { setEditingSession(null); setSessionFormOpen(true); }} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
+            + New session
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -482,9 +492,11 @@ const SupportTrainingsPanel: React.FC<{ onChanged?: () => void }> = ({ onChanged
                     align="right"
                     items={[
                       { label: 'See results', onClick: () => setResultsTarget(s) },
-                      { label: 'Mark attendance', onClick: () => setMarkSessionTarget(s) },
-                      { label: 'Edit', onClick: () => { setEditingSession(s); setSessionFormOpen(true); } },
-                      { label: 'Delete', onClick: () => setDeleteSessionTarget(s), tone: 'danger' },
+                      ...(canEdit ? [
+                        { label: 'Mark attendance', onClick: () => setMarkSessionTarget(s) },
+                        { label: 'Edit', onClick: () => { setEditingSession(s); setSessionFormOpen(true); } },
+                      ] : []),
+                      ...(canDelete ? [{ label: 'Delete', onClick: () => setDeleteSessionTarget(s), tone: 'danger' as const }] : []),
                     ]}
                   />
                   </div>
@@ -557,6 +569,7 @@ const SupportTrainingsPanel: React.FC<{ onChanged?: () => void }> = ({ onChanged
           people={supportUsers}
           attendance={sessionAttendance}
           onMark={() => { setMarkSessionTarget(resultsTarget); setResultsTarget(null); }}
+          canMark={canEdit}
         />
       )}
 

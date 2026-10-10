@@ -31,6 +31,7 @@ import { sortByText } from '../../utils/sort';
 import { formatDate, formatDateTime } from '../../utils/time';
 import { followUpContactsApi, followUpLoginIssuesApi } from '../../services/api';
 import { useTeenSupportIds } from '../../hooks/useTeenSupportIds';
+import { usePermissions } from '../../hooks/usePermissions';
 import FormQuestionBox from './FormQuestionBox';
 
 interface FollowUpContactsTableProps {
@@ -97,6 +98,9 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   cohorts,
   activeCohortId,
 }) => {
+  const { can } = usePermissions();
+  const canEdit = can('follow_ups', 'edit');
+  const canDelete = can('follow_ups', 'delete');
   // Assigning past a support's max asks first; it's a warning, not a block.
   const [overLoad, setOverLoad] = useState<{ name: string; load: number; adding: number; run: () => void } | null>(null);
   const withLoadCheck = (ownerId: string | null, adding: number, run: () => void) => {
@@ -165,7 +169,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   // Email in the i pop-up: tap it to email them, or Copy it.
   const emailLine = (contact: FollowUpContact) => contact.email && (
     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-      {onEmail ? (
+      {onEmail && canEdit ? (
         <button type="button" onClick={() => onEmail(contact)} className="max-w-full break-words text-left text-sky-200 underline">{contact.email}</button>
       ) : (
         <a href={`mailto:${contact.email}`} className="max-w-full break-words text-sky-200 underline">{contact.email}</a>
@@ -270,7 +274,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
   const addedByLine = (contact: FollowUpContact) => (
     <p className="mt-0.5 text-[11px] text-gray-400">
       Added for follow up by {contact.registeredByName}
-      {canAssign && !contact.ownerId && contact.registeredById && (
+      {canAssign && canEdit && !contact.ownerId && contact.registeredById && (
         <button
           type="button"
           onClick={() => assignToAdder(contact)}
@@ -288,7 +292,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
       contact={contact}
       cohorts={cohorts ?? []}
       activeCohortId={activeCohortId}
-      onChange={canAssign && cohorts ? (patch) => onFieldChange(contact, patch) : undefined}
+      onChange={canAssign && canEdit && cohorts ? (patch) => onFieldChange(contact, patch) : undefined}
     />
   );
 
@@ -307,7 +311,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     </button>
   );
   const questionBox = (contact: FollowUpContact) => openQuestionId === contact.id && (
-    <FormQuestionBox contact={contact} onPatch={(patch) => onFieldChange(contact, patch)} className="mt-2 max-w-md" />
+    <FormQuestionBox contact={contact} onPatch={canEdit ? (patch) => onFieldChange(contact, patch) : undefined} className="mt-2 max-w-md" />
   );
   const testChip = (contact: FollowUpContact) => contact.isTest && (
     <span title="Test contact: never auto-assigned and left out of counts and exports." className="inline-flex items-center rounded-full border border-dashed border-gray-300 bg-gray-50 px-2 py-1 text-[11px] font-semibold text-gray-500">Test · ignored</span>
@@ -359,6 +363,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         options={followUpStatusOptions}
         placeholder="—"
         compact
+        disabled={!canEdit}
         className="min-w-[160px]"
       />
     );
@@ -368,15 +373,15 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
     <AppOverflowMenu
       items={[
         { label: 'Copy number', onClick: () => { void copyNumber(contact); }, icon: PhoneIcon },
-        { label: 'Send message', onClick: () => onMessage(contact), icon: WhatsAppIcon },
-        ...(contact.email ? [{ label: 'Send email', onClick: () => { if (onEmail) onEmail(contact); else window.location.href = `mailto:${contact.email}`; }, icon: EmailIcon }] : []),
-        ...(canAssign ? [{ label: 'Assign a support', onClick: () => { setOwnerSearch(''); if (isTeenContact(contact)) reloadTeenSupports(); setAssigningOwner(contact); } }] : []),
-        { label: 'Edit contact', onClick: () => onEdit(contact) },
-        ...(hasLoginToSend(contact) ? [{ label: 'Reset password', onClick: () => setResetLoginContact(contact) }] : []),
-        { label: `Due date: ${contact.dueDate ? dateLabel(contact.dueDate) : 'none'}`, onClick: () => { setDueDateValue(contact.dueDate || ''); setEditingDueDate(contact); } },
-        { label: contact.notes ? `View note` : `Add note`, onClick: () => { setNotesValue(contact.notes || ''); setEditingNotes(contact); } },
-        ...(canAssign ? [{ label: contact.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => onFieldChange(contact, { isTest: !contact.isTest }) }] : []),
-        ...(canAssign && onDelete ? [{ label: 'Delete contact', onClick: () => onDelete(contact), tone: 'danger' as const }] : []),
+        ...(canEdit ? [{ label: 'Send message', onClick: () => onMessage(contact), icon: WhatsAppIcon }] : []),
+        ...(canEdit && contact.email ? [{ label: 'Send email', onClick: () => { if (onEmail) onEmail(contact); else window.location.href = `mailto:${contact.email}`; }, icon: EmailIcon }] : []),
+        ...(canAssign && canEdit ? [{ label: 'Assign a support', onClick: () => { setOwnerSearch(''); if (isTeenContact(contact)) reloadTeenSupports(); setAssigningOwner(contact); } }] : []),
+        ...(canEdit ? [{ label: 'Edit contact', onClick: () => onEdit(contact) }] : []),
+        ...(canEdit && hasLoginToSend(contact) ? [{ label: 'Reset password', onClick: () => setResetLoginContact(contact) }] : []),
+        ...(canEdit ? [{ label: `Due date: ${contact.dueDate ? dateLabel(contact.dueDate) : 'none'}`, onClick: () => { setDueDateValue(contact.dueDate || ''); setEditingDueDate(contact); } }] : []),
+        ...(canEdit || contact.notes ? [{ label: contact.notes ? `View note` : `Add note`, onClick: () => { setNotesValue(contact.notes || ''); setEditingNotes(contact); } }] : []),
+        ...(canAssign && canEdit ? [{ label: contact.isTest ? 'Unmark as test' : 'Mark as test', onClick: () => onFieldChange(contact, { isTest: !contact.isTest }) }] : []),
+        ...(canAssign && canDelete && onDelete ? [{ label: 'Delete contact', onClick: () => onDelete(contact), tone: 'danger' as const }] : []),
       ]}
     />
   );
@@ -399,7 +404,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
 
   return (
     <div className="space-y-3">
-      {canAssign && selected.size > 0 && (
+      {canAssign && canEdit && selected.size > 0 && (
         <div className="surface-card sticky top-16 z-40 flex flex-wrap items-center gap-2 rounded-[28px] px-3.5 py-3">
           <span className="text-sm font-semibold text-gray-900">{selected.size} selected</span>
           <div className="w-44">
@@ -440,7 +445,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
         <table className="w-full text-left text-sm">
           <thead className="bg-orange-50/60 text-[11px] uppercase tracking-wide text-gray-500">
             <tr>
-              {canAssign && (
+              {canAssign && canEdit && (
                 <th className="px-3 py-3">
                   <input type="checkbox" checked={selected.size === contacts.length && contacts.length > 0} onChange={toggleAll} className="h-4 w-4 rounded border-orange-200 text-primary" />
                 </th>
@@ -455,7 +460,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
           <tbody>
             {contacts.map((contact) => (
               <tr key={contact.id} className="border-t border-orange-50 align-middle">
-                {canAssign && (
+                {canAssign && canEdit && (
                   <td className="px-3 py-3.5">
                     <input type="checkbox" checked={selected.has(contact.id)} onChange={() => toggle(contact.id)} className="h-4 w-4 rounded border-orange-200 text-primary" />
                   </td>
@@ -525,6 +530,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                       options={ownerOptionsFor(contact)}
                       placeholder="Unassigned"
                       compact
+                      disabled={!canEdit}
                       className="min-w-[136px]"
                     />
                   </td>
@@ -554,7 +560,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
             <div className="flex items-start justify-between px-4 pt-3.5">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1">
-                  {canAssign && (
+                  {canAssign && canEdit && (
                     <input type="checkbox" checked={selected.has(contact.id)} onChange={() => toggle(contact.id)} className="mr-1 h-4 w-4 shrink-0 rounded border-orange-200 text-primary" />
                   )}
                   <span className="truncate text-[16px] font-bold leading-5 text-gray-900">{contact.fullName}</span>
@@ -627,7 +633,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
             <div className="mt-2.5 border-t border-orange-50 px-4 py-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <button
+                  {canEdit && <button
                     type="button"
                     data-wt="fu-whatsapp"
                     onPointerDown={() => onMessage(contact)}
@@ -635,7 +641,7 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
                   >
                     <span className="h-3.5 w-3.5">{WhatsAppIcon}</span>
                     Message
-                  </button>
+                  </button>}
                   <button
                     type="button"
                     onPointerDown={() => { void copyNumber(contact); }}
@@ -856,11 +862,12 @@ const FollowUpContactsTable: React.FC<FollowUpContactsTableProps> = ({
               value={notesValue}
               onChange={(e) => setNotesValue(e.target.value)}
               placeholder="Anything worth remembering"
+              readOnly={!canEdit}
               className="min-h-[100px] w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm shadow-sm outline-none transition focus:border-orange-300"
             />
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setEditingNotes(null)} className="rounded-2xl border border-orange-100 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-orange-50">Cancel</button>
-              <button type="button" onClick={handleNotesSave} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark">Save</button>
+              {canEdit && <button type="button" onClick={handleNotesSave} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark">Save</button>}
             </div>
           </div>
         </div>,

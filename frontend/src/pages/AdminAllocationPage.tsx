@@ -19,6 +19,7 @@ import PageLoader from '../components/PageLoader';
 import Spinner from '../components/Spinner';
 import AppSelect from '../components/AppSelect';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { groupsApi, participantsApi } from '../services/api';
 import type { Group, Participant } from '../types';
@@ -34,10 +35,11 @@ interface ChipProps {
   selected: boolean;
   onToggle: (id: string) => void;
   dragCount: number; // how many chips will move if this one is dragged
+  canMove: boolean; // without the Edit tick the chip is plain text: no drag, no select
 }
 
-const ParticipantChip: React.FC<ChipProps> = ({ participant, selected, onToggle, dragCount }) => {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: participant.id });
+const ParticipantChip: React.FC<ChipProps> = ({ participant, selected, onToggle, dragCount, canMove }) => {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: participant.id, disabled: !canMove });
   return (
     <button
       ref={setNodeRef}
@@ -194,6 +196,8 @@ const AdminAllocationPage: React.FC = () => {
 const AdminAllocationContent: React.FC = () => {
   const { activeCohort, liveRevision } = useAppData();
   const navigate = useNavigate();
+  const { can } = usePermissions();
+  const canEdit = can('groups', 'edit');
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -312,6 +316,7 @@ const AdminAllocationContent: React.FC = () => {
 
   const handleDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
+    if (!canEdit) return;
     const draggedId = String(e.active.id);
     const overId = e.over ? String(e.over.id) : null;
     if (!overId) return;
@@ -360,14 +365,14 @@ const AdminAllocationContent: React.FC = () => {
 
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-gray-500">
-              {isTouchLayout
+              {!canEdit ? 'You can view who is in each group.' : isTouchLayout
                 ? 'Tap “Move” on anyone to assign them, or select several and use “Move selected”.'
                 : 'Tap people to select them, then drag onto a group — or use “Move selected”.'} {saving && <span className="inline-flex items-center gap-1 text-primary"><Spinner className="h-3 w-3" />Saving…</span>}
             </p>
           </div>
 
           {/* Explicit move bar — reliable on every device, complements drag */}
-          {selected.size > 0 && (
+          {canEdit && selected.size > 0 && (
             <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm font-semibold text-gray-800">
                 {selected.size} selected
@@ -421,14 +426,16 @@ const AdminAllocationContent: React.FC = () => {
                       key={p.id}
                       className={`flex items-center gap-3 rounded-2xl border bg-white px-3 py-2.5 shadow-sm transition ${selected.has(p.id) ? 'border-primary bg-primary/5' : 'border-gray-100'}`}
                     >
-                      <button
-                        type="button"
-                        onClick={() => toggle(p.id)}
-                        aria-label={selected.has(p.id) ? 'Deselect' : 'Select'}
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[11px] ${selected.has(p.id) ? 'border-primary bg-primary text-white' : 'border-gray-200 text-transparent'}`}
-                      >
-                        ✓
-                      </button>
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => toggle(p.id)}
+                          aria-label={selected.has(p.id) ? 'Deselect' : 'Select'}
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[11px] ${selected.has(p.id) ? 'border-primary bg-primary text-white' : 'border-gray-200 text-transparent'}`}
+                        >
+                          ✓
+                        </button>
+                      )}
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-gray-900">{p.fullName}{p.isTest ? ' (test)' : ''}</p>
                         <p className="truncate text-xs text-gray-400">
@@ -436,14 +443,16 @@ const AdminAllocationContent: React.FC = () => {
                           <span className={p.groupName ? 'text-gray-500' : 'text-amber-600'}>{p.groupName ?? 'Unassigned'}</span>
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setPickerTarget(p)}
-                        disabled={saving}
-                        className="shrink-0 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 active:scale-95 disabled:opacity-50"
-                      >
-                        Move
-                      </button>
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => setPickerTarget(p)}
+                          disabled={saving}
+                          className="shrink-0 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 active:scale-95 disabled:opacity-50"
+                        >
+                          Move
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -477,7 +486,7 @@ const AdminAllocationContent: React.FC = () => {
                 </p>
               ) : (
                 filteredUnassigned.map((p) => (
-                  <ParticipantChip key={p.id} participant={p} selected={selected.has(p.id)} onToggle={toggle} dragCount={dragCount} />
+                  <ParticipantChip key={p.id} participant={p} selected={selected.has(p.id)} onToggle={toggle} dragCount={dragCount} canMove={canEdit} />
                 ))
               )}
             </Column>
@@ -495,7 +504,7 @@ const AdminAllocationContent: React.FC = () => {
                       <p className="py-4 text-center text-xs text-gray-400">Drag people here</p>
                     ) : (
                       members.map((p) => (
-                        <ParticipantChip key={p.id} participant={p} selected={selected.has(p.id)} onToggle={toggle} dragCount={dragCount} />
+                        <ParticipantChip key={p.id} participant={p} selected={selected.has(p.id)} onToggle={toggle} dragCount={dragCount} canMove={canEdit} />
                       ))
                     )}
                   </Column>

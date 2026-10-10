@@ -71,7 +71,7 @@ const formatWhen = (value: string) => {
 
 const SupportHomePage: React.FC = () => {
   const { user } = useAuth();
-  if (user?.role !== 'SUPPORT') return <Navigate to="/dashboard" replace />;
+  if (user?.role !== 'SUPPORT') return <Navigate to="/" replace />;
   return <SupportHomeContent user={user} />;
 };
 

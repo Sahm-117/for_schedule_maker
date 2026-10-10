@@ -14,6 +14,7 @@ import {
 } from '../components/dashboard/healthModel';
 import Spinner from '../components/Spinner';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import {
   attendanceApi,
@@ -135,6 +136,9 @@ const AdminParticipantProfilePage: React.FC = () => {
   const { participantId = '' } = useParams();
   const { user, isAdmin } = useAuth();
   const { cohorts } = useAppData();
+  const { can } = usePermissions();
+  const canAdd = can('participants', 'add');
+  const canEdit = can('participants', 'edit');
   const showToast = useToast();
 
   const [data, setData] = useState<ProfileData | null>(null);
@@ -298,7 +302,7 @@ const AdminParticipantProfilePage: React.FC = () => {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">{participant.fullName}</h1>
-              <RetakingChip participant={participant} matches={data.retakeMatches} onUpdate={updateRetake} />
+              <RetakingChip participant={participant} matches={data.retakeMatches} onUpdate={canEdit ? updateRetake : undefined} />
               <TourHelpButton tourId="admin:participant-profile" />
             </div>
             <p className="mt-1 text-sm text-gray-500">
@@ -307,11 +311,11 @@ const AdminParticipantProfilePage: React.FC = () => {
           </div>
           <span className={`rounded-full px-3 py-1 text-xs font-semibold ${headerPill.cls}`}>{headerPill.label}</span>
         </div>
-        {isAdmin && (
+        {isAdmin && (canAdd || canEdit) && (
           <div className="mt-5 flex flex-wrap gap-2">
-            <button type="button" onClick={() => setModal('checkin')} className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark">Log a check-in</button>
-            <button type="button" onClick={() => setModal('stage')} className="rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50">Move journey stage</button>
-            <button type="button" onClick={() => setModal('flag')} className="rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50">Flag a concern</button>
+            {canAdd && <button type="button" onClick={() => setModal('checkin')} className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark">Log a check-in</button>}
+            {canEdit && <button type="button" onClick={() => setModal('stage')} className="rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50">Move journey stage</button>}
+            {canAdd && <button type="button" onClick={() => setModal('flag')} className="rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50">Flag a concern</button>}
           </div>
         )}
       </section>
@@ -343,7 +347,7 @@ const AdminParticipantProfilePage: React.FC = () => {
         {data.contact && (
           <FormQuestionBox
             contact={data.contact}
-            onChange={(contact) => setData((prev) => (prev ? { ...prev, contact } : prev))}
+            onChange={canEdit ? (contact) => setData((prev) => (prev ? { ...prev, contact } : prev)) : undefined}
             className="mt-4 max-w-xl"
           />
         )}
@@ -355,8 +359,9 @@ const AdminParticipantProfilePage: React.FC = () => {
       {/* Participant app */}
       <section data-wt="pp-app" className={CARD}>
         <h2 className="text-lg font-semibold text-gray-900">Participant app</h2>
-        <p className="mt-1 text-sm text-gray-500">Send {participant.fullName.split(' ')[0]} their login, and see what they have done in the app.</p>
-        <LoginDetailsCard participantId={participant.id} email={participant.email} startDate={cohorts.find((c) => c.id === participant.cohortId)?.startDate} className="mt-4 max-w-xl" />
+        <p className="mt-1 text-sm text-gray-500">{canEdit ? `Send ${participant.fullName.split(' ')[0]} their login, and see` : 'See'} what they have done in the app.</p>
+        {/* Opening the login card issues the first-time code and sends it, so it needs the Edit tick. */}
+        {canEdit && <LoginDetailsCard participantId={participant.id} email={participant.email} startDate={cohorts.find((c) => c.id === participant.cohortId)?.startDate} className="mt-4 max-w-xl" />}
         <ParticipantAppActivity participantId={participant.id} cohortId={participant.cohortId} weeks={weeks} />
       </section>
 
@@ -510,7 +515,7 @@ const AdminParticipantProfilePage: React.FC = () => {
         ) : (
           <ul className="mt-3 space-y-2">
             {data.flags.map((flag) => (
-              <ConcernRow key={flag.id} flag={flag} canClear={isAdmin && !!user} onClear={async () => {
+              <ConcernRow key={flag.id} flag={flag} canClear={isAdmin && canEdit && !!user} onClear={async () => {
                 if (!user) return;
                 await participantFlagsApi.clear(flag.id, user.id);
                 showToast({ message: 'Concern cleared' });
@@ -531,7 +536,7 @@ const AdminParticipantProfilePage: React.FC = () => {
         <DepartmentHandoff
           participant={participant}
           referrals={data.referrals}
-          userId={user?.id ?? null}
+          userId={canEdit ? (user?.id ?? null) : null}
           onChanged={(message) => { showToast({ message }); void load(); }}
           onError={(message) => showToast({ message, tone: 'error' })}
         />

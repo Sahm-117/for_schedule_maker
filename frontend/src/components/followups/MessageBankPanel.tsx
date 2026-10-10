@@ -7,6 +7,7 @@ import AppOverflowMenu from '../AppOverflowMenu';
 import { messageTemplatesApi, settingsApi } from '../../services/api';
 import { buildTemplatePlaceholderSummary } from '../../utils/followUps';
 import { sortByText } from '../../utils/sort';
+import { usePermissions } from '../../hooks/usePermissions';
 import Spinner from '../Spinner';
 import AppSelect from '../AppSelect';
 
@@ -30,6 +31,10 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
   readOnly = false,
   currentUser,
 }) => {
+  const { can } = usePermissions();
+  const canAdd = can('follow_ups', 'add');
+  const canEdit = can('follow_ups', 'edit');
+  const canDelete = can('follow_ups', 'delete');
   const [editing, setEditing] = useState<MessageTemplate | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [useCase, setUseCase] = useState('');
@@ -117,7 +122,7 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
               {registrationLink || 'Not set yet.'}
             </p>
           </div>
-          {!readOnly && (
+          {!readOnly && canEdit && (
             <button
               type="button"
               onClick={() => setShowLinkEditor(true)}
@@ -138,7 +143,7 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
           <p className="text-sm font-bold text-gray-900">Templates</p>
           <p className="text-xs text-gray-500">{placeholderSummary.join(' • ')}</p>
         </div>
-        {!readOnly && (
+        {!readOnly && canAdd && (
           <button
             type="button"
             onClick={() => openForm()}
@@ -163,12 +168,12 @@ const MessageBankPanel: React.FC<MessageBankPanelProps> = ({
                   {t.category === 'TEEN' && <span className="ml-2 rounded-full bg-sky-100/80 px-2 py-0.5 text-[11px] font-semibold text-sky-700">Teen</span>}
                   {t.category === 'TEEN_PARENT' && <span className="ml-2 rounded-full bg-violet-100/80 px-2 py-0.5 text-[11px] font-semibold text-violet-700">Teen's parent</span>}
                 </p>
-                {!readOnly && (
+                {!readOnly && (canEdit || canDelete) && (
                   <AppOverflowMenu
                     align="right"
                     items={[
-                      { label: 'Edit', onClick: () => openForm(t) },
-                      { label: 'Delete', onClick: () => setDeleting(t), tone: 'danger' },
+                      ...(canEdit ? [{ label: 'Edit', onClick: () => openForm(t) }] : []),
+                      ...(canDelete ? [{ label: 'Delete', onClick: () => setDeleting(t), tone: 'danger' as const }] : []),
                     ]}
                   />
                 )}

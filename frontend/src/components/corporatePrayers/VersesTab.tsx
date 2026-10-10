@@ -5,6 +5,7 @@ import AppOverflowMenu from '../AppOverflowMenu';
 import PageLoader from '../PageLoader';
 import Spinner from '../Spinner';
 import { useToast } from '../Toast';
+import { usePermissions } from '../../hooks/usePermissions';
 import { corporatePrayersApi } from '../../services/api';
 import type { PrayerVerse } from '../../types';
 import { gendered, parseBulkVerses, renderPrayer } from '../../utils/prayerText';
@@ -143,6 +144,10 @@ const BulkModal: React.FC<{ isOpen: boolean; onClose: () => void; onSaved: () =>
 
 const VersesTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
   const toast = useToast();
+  const { can } = usePermissions();
+  const canAdd = can('corporate_prayers', 'add');
+  const canEdit = can('corporate_prayers', 'edit');
+  const canDelete = can('corporate_prayers', 'delete');
   const [verses, setVerses] = useState<PrayerVerse[] | null>(null);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<PrayerVerse | null>(null);
@@ -191,42 +196,43 @@ const VersesTab: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
           <h2 className="text-base font-bold text-gray-900">Verse library</h2>
           <p className="text-[13px] text-gray-500">{verses ? `${verses.filter((verse) => verse.active).length} active. Slots use them in this order, then start again.` : ''} {PLACEHOLDER_HELP}</p>
         </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={() => setBulkOpen(true)} className={SECONDARY_BTN}>Add several</button>
-          <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className={PRIMARY_BTN}>Add verse</button>
-        </div>
+        {canAdd && (
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setBulkOpen(true)} className={SECONDARY_BTN}>Add several</button>
+            <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className={PRIMARY_BTN}>Add verse</button>
+          </div>
+        )}
       </div>
       {error && <Notice tone="error">{error}</Notice>}
       {verses && verses.length === 0 ? (
         <div className="rounded-2xl bg-gray-50/80 px-4 py-10 text-center text-sm text-gray-500">No verses yet. Slots of type Verse and Faith project cannot run until there is at least one.</div>
       ) : (
         <ol className="space-y-2.5">
-          {(verses ?? []).map((verse, index) => (
+          {(verses ?? []).map((verse, index) => {
+            const menuItems = [
+              ...(canEdit ? [{ label: 'Edit', onClick: () => { setEditing(verse); setFormOpen(true); } }, { label: verse.active ? 'Switch off' : 'Switch on', onClick: () => { void toggleActive(verse); } }] : []),
+              ...(canDelete ? [{ label: verse.used > 0 ? 'Delete (used, switch off instead)' : 'Delete', onClick: () => { if (verse.used === 0) setDeleting(verse); else toast({ message: 'This verse has been used, so it can only be switched off.' }); }, tone: 'danger' as const }] : []),
+            ];
+            return (
             <li key={verse.id} className={`surface-card flex items-start gap-3 p-4 ${verse.active ? '' : 'opacity-60'}`}>
               <div className="flex flex-none flex-col items-center gap-1 pt-0.5">
-                <button type="button" onClick={() => { void move(index, -1); }} disabled={index === 0} aria-label={`Move verse ${index + 1} up`} className="grid h-8 w-8 place-items-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30">
+                {canEdit && <button type="button" onClick={() => { void move(index, -1); }} disabled={index === 0} aria-label={`Move verse ${index + 1} up`} className="grid h-8 w-8 place-items-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30">
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="m6 15 6-6 6 6" /></svg>
-                </button>
+                </button>}
                 <span className="text-xs font-bold tabular-nums text-gray-400">{index + 1}</span>
-                <button type="button" onClick={() => { void move(index, 1); }} disabled={index === (verses?.length ?? 0) - 1} aria-label={`Move verse ${index + 1} down`} className="grid h-8 w-8 place-items-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30">
+                {canEdit && <button type="button" onClick={() => { void move(index, 1); }} disabled={index === (verses?.length ?? 0) - 1} aria-label={`Move verse ${index + 1} down`} className="grid h-8 w-8 place-items-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30">
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="m6 9 6 6 6-6" /></svg>
-                </button>
+                </button>}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="line-clamp-3 text-[15px] leading-relaxed text-gray-900">{verse.prayer}</p>
                 <p className="mt-1 text-[13px] font-semibold text-orange-700">{verse.reference}</p>
                 <p className="mt-1 text-xs text-gray-500">{verse.used === 0 ? 'Not used yet' : `Used ${verse.used} time${verse.used === 1 ? '' : 's'}`}{verse.active ? '' : ' · Off'}</p>
               </div>
-              <AppOverflowMenu
-                align="right"
-                items={[
-                  { label: 'Edit', onClick: () => { setEditing(verse); setFormOpen(true); } },
-                  { label: verse.active ? 'Switch off' : 'Switch on', onClick: () => { void toggleActive(verse); } },
-                  { label: verse.used > 0 ? 'Delete (used, switch off instead)' : 'Delete', onClick: () => { if (verse.used === 0) setDeleting(verse); else toast({ message: 'This verse has been used, so it can only be switched off.' }); }, tone: 'danger' },
-                ]}
-              />
+              {menuItems.length > 0 && <AppOverflowMenu align="right" items={menuItems} />}
             </li>
-          ))}
+            );
+          })}
         </ol>
       )}
       <VerseModal isOpen={formOpen} verse={editing} onClose={() => setFormOpen(false)} onSaved={changed} />

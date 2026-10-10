@@ -10,7 +10,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore
 import webPush from 'https://esm.sh/web-push@3'
 import { PARTICIPANT_PUSH_STORE, sendToSubscriptions } from '../_shared/webpush.ts'
-import { insertNotifications, insertParticipantNotifications } from '../_shared/notifications.ts'
+import { insertNotifications, insertParticipantNotifications, moduleViewerIds } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,6 +33,8 @@ interface NotifyRequest {
   /** Participant app devices. Push only: participants have no in-app feed. */
   participantIds?: string[]
   role?: 'ADMIN' | 'SOP_PREPARER' | 'SUPPORT'
+  /** Everyone who can See this permission module (admins, and Team members whose roles include it), e.g. 'participants'. */
+  module?: string
   cohortId?: string
   excludeUserId?: string
   title: string
@@ -62,6 +64,10 @@ const resolveRecipients = async (input: NotifyRequest): Promise<string[]> => {
     ;(data ?? []).forEach((row: { id: string }) => ids.add(row.id))
   }
 
+  if (input.module) {
+    ;(await moduleViewerIds(supabase, input.module)).forEach((id) => ids.add(id))
+  }
+
   if (input.excludeUserId) ids.delete(input.excludeUserId)
   return Array.from(ids)
 }
@@ -73,7 +79,7 @@ Deno.serve(async (req) => {
   try {
     const input = await req.json() as NotifyRequest
     if (!input?.title || !input?.body) return json({ ok: false, error: 'title and body are required' }, 400)
-    if (!input.userIds?.length && !input.role && !input.participantIds?.length) return json({ ok: false, error: 'userIds, role or participantIds is required' }, 400)
+    if (!input.userIds?.length && !input.role && !input.module && !input.participantIds?.length) return json({ ok: false, error: 'userIds, role, module or participantIds is required' }, 400)
 
     if (input.participantIds?.length) {
       // Participant bell row for everyone targeted, push or not.

@@ -5,6 +5,7 @@ import ActivityModal from './ActivityModal';
 import CrossWeekModal from './CrossWeekModal';
 import { exportWeekToPDF } from '../utils/pdfExport';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface ScheduleViewProps {
   week: Week;
@@ -56,6 +57,8 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
   compactHeader = false,
 }) => {
   const { userLabelIds } = useAuth();
+  const { can } = usePermissions();
+  const canAddActivity = can('schedule', 'add');
   const [selectedDay, setSelectedDay] = useState<Day | null>(null);
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [crossWeekModalOpen, setCrossWeekModalOpen] = useState(false);
@@ -197,6 +200,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
         {/* Action buttons below title */}
         {(isAdmin || canEdit) && showInlineAdminActions ? (
           <div className="flex flex-col gap-2 mt-3">
+            {canAddActivity && (
             <button
               onClick={handleCrossWeekActivity}
               className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 border border-primary text-primary bg-white rounded-lg hover:bg-primary/5 transition-colors text-sm font-medium"
@@ -206,6 +210,7 @@ const ScheduleView: React.FC<ScheduleViewProps> = ({
               </svg>
               Cross-Week Activity
             </button>
+            )}
           </div>
         ) : (
           <div className={compactHeader ? 'mt-2' : 'mt-3'}>

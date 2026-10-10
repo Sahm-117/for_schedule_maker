@@ -33,7 +33,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore — web-push ESM build
 import webPush from 'https://esm.sh/web-push@3'
 import { PARTICIPANT_PUSH_STORE, sendToSubscriptions } from '../_shared/webpush.ts'
-import { insertNotifications, insertParticipantNotifications } from '../_shared/notifications.ts'
+import { insertNotifications, insertParticipantNotifications, moduleViewerIds } from '../_shared/notifications.ts'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -1323,11 +1323,11 @@ Deno.serve(async (req) => {
           const { data: dueBirthdays } = await supabase.rpc('birthday_alerts_due')
           const alerts = (dueBirthdays ?? []) as Array<{ subject_key: string; person_name: string; kind: string; birthday_date: string; days_before: number }>
           if (alerts.length > 0) {
-            const { data: adminRows } = await supabase
-              .from('User')
-              .select('id, isTest')
-              .eq('role', 'ADMIN')
-              .eq('isActive', true)
+            // Everyone who can See Birthdays (admins, and Team members whose roles include it), test accounts left out.
+            const viewerIds = await moduleViewerIds(supabase, 'birthdays')
+            const { data: adminRows } = viewerIds.length > 0
+              ? await supabase.from('User').select('id, isTest').in('id', viewerIds)
+              : { data: [] }
             const adminIds = ((adminRows ?? []) as any[]).filter((a) => a.isTest !== true).map((a) => a.id as string)
             const ordinal = (n: number) => {
               const v = n % 100

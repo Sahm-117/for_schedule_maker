@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { usePolling } from '../../hooks/usePolling';
+import { usePermissions } from '../../hooks/usePermissions';
 import React, { useCallback, useEffect, useState } from 'react';
 import { practiceApi } from '../../services/api';
 import { useToast } from '../Toast';
@@ -10,6 +11,8 @@ import type { PracticeStatus } from '../../types';
 // each other and reset their own practice.
 const PracticeModeCard: React.FC = () => {
   const toast = useToast();
+  const { can } = usePermissions();
+  const canEdit = can('settings', 'edit');
   const [status, setStatus] = useState<PracticeStatus | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -40,7 +43,7 @@ const PracticeModeCard: React.FC = () => {
         type="button"
         role="switch"
         aria-checked={!!status?.on}
-        disabled={!status || busy}
+        disabled={!status || busy || !canEdit}
         onClick={() => void toggle()}
         className="flex w-full items-center gap-4 text-left disabled:opacity-60"
       >

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { activitiesApi, pendingChangesApi, labelsApi } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import type { Day, Activity, Week, Label } from '../types';
 import AppSelect from './AppSelect';
 import ActivityDescriptionToolbar from './ActivityDescriptionToolbar';
@@ -27,6 +28,8 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
   isAdmin,
 }) => {
   const { user } = useAuth();
+  const { can } = usePermissions();
+  const canDeleteActivity = can('schedule', 'delete');
   const [time, setTime] = useState('');
   const [description, setDescription] = useState('');
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -358,7 +361,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
           <div className="shrink-0 px-4 py-3 sm:px-6 sm:py-4 border-t border-gray-200 bg-white">
             <div className="flex items-center justify-between gap-3">
               <div>
-                {activity && (
+                {activity && canDeleteActivity && (
                   <button
                     type="button"
                     onClick={handleDelete}

@@ -5,11 +5,14 @@ import Spinner from '../Spinner';
 import IntroComposer, { SUPPORT_INTRO_PROMPTS } from './IntroComposer';
 import DiscussionFeedView, { type DiscussionActions } from './DiscussionFeedView';
 import { groupDiscussionApi } from '../../services/api';
+import { usePermissions } from '../../hooks/usePermissions';
 import type { DiscussionFeed } from '../../types';
 
 // A group's discussion for staff. What they can do follows feed.access:
 // the group's support posts and moderates, admins moderate, hub leads only read.
 const StaffDiscussionPanel: React.FC<{ groupId: string; viewerName: string; viewerAvatarUrl?: string | null; onChanged?: () => void }> = ({ groupId, viewerName, viewerAvatarUrl, onChanged }) => {
+  const { can } = usePermissions();
+  const canEdit = can('groups', 'edit');
   const [feed, setFeed] = useState<DiscussionFeed | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -58,9 +61,10 @@ const StaffDiscussionPanel: React.FC<{ groupId: string; viewerName: string; view
         moderate: groupDiscussionApi.moderate,
       };
     }
-    if (feed.access === 'ADMIN') return { pin: groupDiscussionApi.pin, moderate: groupDiscussionApi.moderate };
+    // Pinning and keeping/removing posts change data, so an admin view needs the Edit tick for them.
+    if (feed.access === 'ADMIN' && canEdit) return { pin: groupDiscussionApi.pin, moderate: groupDiscussionApi.moderate };
     return {};
-  }, [feed, groupId]);
+  }, [feed, groupId, canEdit]);
 
   const loadMore = async () => {
     const last = feed?.posts[feed.posts.length - 1];

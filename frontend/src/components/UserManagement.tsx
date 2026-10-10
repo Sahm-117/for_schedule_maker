@@ -9,6 +9,9 @@ import { formatDate, formatDateTime } from '../utils/time';
 import { sortByText } from '../utils/sort';
 import { selectedFirst } from '../utils/selectedFirst';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
+import { permissionsApi } from '../services/supabase-api';
+import type { PermissionRole } from '../utils/permissions';
 import Spinner from './Spinner';
 import InviteMessageCard, { type InviteDetails } from './InviteMessageCard';
 import { toLocalNigerianPhone } from '../utils/phone';
@@ -16,24 +19,30 @@ import { INSTALL_VIDEO_ANDROID, INSTALL_VIDEO_IOS } from '../constants/installVi
 import NotOpenedTag from './participants/NotOpenedTag';
 import { STAFF_NOT_OPENED_HINT } from '../utils/appUse';
 
-const ROLE_BADGE: Record<User['role'], string> = {
+const ROLE_BADGE: Record<string, string> = {
   ADMIN: 'bg-orange-100/80 text-orange-700',
   SUPPORT: 'bg-sky-100/80 text-sky-700',
+  STAFF: 'bg-violet-100/80 text-violet-700',
   PARTICIPANT: 'bg-neutral-100 text-neutral-600',
 };
 // Everyone holds at least their home role; some hold more and can switch between them.
-type StaffRole = 'ADMIN' | 'SUPPORT';
+// STAFF is the Team member role: it sees the modules their custom roles allow.
+type StaffRole = 'ADMIN' | 'SUPPORT' | 'STAFF';
 const rolesOf = (user: User): StaffRole[] => (user.roles && user.roles.length > 0 ? user.roles : [user.role as StaffRole]);
-const RoleBadges: React.FC<{ user: User }> = ({ user }) => (
+const RoleBadges: React.FC<{ user: User; customNames?: string[] }> = ({ user, customNames = [] }) => (
   <span className="inline-flex flex-wrap justify-end gap-1">
     {rolesOf(user).map((role) => (
       <span key={role} className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${ROLE_BADGE[role]}`}>{ROLE_LABEL[role]}</span>
     ))}
+    {customNames.map((name) => (
+      <span key={name} className="inline-flex rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-semibold text-neutral-600">{name}</span>
+    ))}
   </span>
 );
-const ROLE_LABEL: Record<User['role'], string> = {
+const ROLE_LABEL: Record<string, string> = {
   ADMIN: 'Admin',
   SUPPORT: 'Support',
+  STAFF: 'Team member',
   PARTICIPANT: 'Participant',
 };
 
@@ -59,7 +68,12 @@ const UserManagement: React.FC<UserManagementProps> = ({
   showUserList = true,
   showCreateForm = true,
 }) => {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, isRealAdmin } = useAuth();
+  const { can } = usePermissions();
+  const canEdit = can('users', 'edit');
+  const canDelete = can('users', 'delete');
+  // The row menu would be empty without any of these, so it is not shown.
+  const hasRowActions = canEdit || canDelete || isRealAdmin;
   const [users, setUsers] = useState<User[]>([]);
   const [allLabels, setAllLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(false);
@@ -95,12 +109,19 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const [noAlertsCopied, setNoAlertsCopied] = useState(false);
   const [roleChangeTarget, setRoleChangeTarget] = useState<User | null>(null);
   const [roleChangeValues, setRoleChangeValues] = useState<StaffRole[]>(['SUPPORT']);
+  // Custom roles (what a Team member can see and do) and who holds which. Only a real admin manages them.
+  const [customRoles, setCustomRoles] = useState<PermissionRole[]>([]);
+  const [assignments, setAssignments] = useState<Record<string, string[]>>({});
+  // False until the custom roles and who holds them have loaded; saving before that could wipe someone's roles.
+  const [customLoaded, setCustomLoaded] = useState(false);
+  const [roleChangeCustomIds, setRoleChangeCustomIds] = useState<string[]>([]);
+  const [newUserCustomIds, setNewUserCustomIds] = useState<string[]>([]);
 
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
     phone: '',
-    role: 'SUPPORT' as 'ADMIN' | 'SUPPORT',
+    role: 'SUPPORT' as StaffRole,
   });
 
   const shouldRender = embedded || isOpen;
@@ -112,7 +133,23 @@ const UserManagement: React.FC<UserManagementProps> = ({
     if (shouldRender && (showUserList || showCreateForm)) {
       loadLabels();
     }
-  }, [shouldRender, showCreateForm, showUserList]);
+    if (shouldRender && isRealAdmin && (showUserList || showCreateForm)) {
+      void loadCustomRoles();
+    }
+  }, [shouldRender, showCreateForm, showUserList, isRealAdmin]);
+
+  const loadCustomRoles = async () => {
+    try {
+      const [roleList, held] = await Promise.all([permissionsApi.listRoles(), permissionsApi.userAssignments()]);
+      setCustomRoles(roleList.filter((r) => !r.isSystem));
+      setAssignments(Object.fromEntries(held.map((h) => [h.userId, h.roleIds])));
+      setCustomLoaded(true);
+    } catch {
+      // The list still works without custom roles; the Roles picker just stays empty.
+    }
+  };
+  const customNamesFor = (userId: string) =>
+    (assignments[userId] ?? []).map((id) => customRoles.find((r) => r.id === id)?.name).filter((n): n is string => !!n);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -264,6 +301,10 @@ const UserManagement: React.FC<UserManagementProps> = ({
       if (newUser.role === 'SUPPORT' && newUserLabelIds.length > 0 && created?.user?.id) {
         await usersApi.setUserLabels(created.user.id, newUserLabelIds);
       }
+      if (newUser.role === 'STAFF' && newUserCustomIds.length > 0 && created?.user?.id) {
+        await permissionsApi.setUserRoles(created.user.id, newUserCustomIds);
+        setAssignments((prev) => ({ ...prev, [created.user.id]: newUserCustomIds }));
+      }
       if (created?.user) {
         setUsers((prev) => sortByText(
           [...prev.filter((entry) => entry.id !== created.user.id), created.user],
@@ -273,6 +314,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
       setInvite({ name: newUser.name, email: newUser.email.trim(), phone, password });
       setNewUser({ name: '', email: '', phone: '', role: 'SUPPORT' });
       setNewUserLabelIds([]);
+      setNewUserCustomIds([]);
     } catch (error: any) {
       // The API layer already returns a friendly message (e.g. phone/email
       // already registered), so surface it directly.
@@ -383,12 +425,16 @@ const UserManagement: React.FC<UserManagementProps> = ({
     }
   };
 
-  const handleRoleChange = async (userId: string, newRoles: StaffRole[]) => {
+  const handleRoleChange = async (userId: string, newRoles: StaffRole[], customIds: string[]) => {
     setLoading(true);
     setError('');
     setSuccess('');
     try {
       const response = await usersApi.update(userId, { roles: newRoles });
+      // Custom roles only mean something to a Team member; anyone else keeps none.
+      const keep = newRoles.includes('STAFF') ? customIds : [];
+      await permissionsApi.setUserRoles(userId, keep);
+      setAssignments((prev) => ({ ...prev, [userId]: keep }));
       setUsers((prev) => sortByText(
         prev.map((entry) => (entry.id === userId ? { ...entry, ...response.user } : entry)),
         (user) => user.name
@@ -397,6 +443,9 @@ const UserManagement: React.FC<UserManagementProps> = ({
       setSuccess('User role updated successfully');
     } catch (error: any) {
       setError(getErrorMessage(error, 'Failed to update user role'));
+      // The two saves are separate calls, so show what is really stored.
+      void loadUsers();
+      if (isRealAdmin) void loadCustomRoles();
     } finally {
       setLoading(false);
     }
@@ -423,6 +472,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
   const headCount = [
     `${activeUsers.filter((u) => rolesOf(u).includes('ADMIN')).length} admins`,
     `${activeUsers.filter((u) => rolesOf(u).includes('SUPPORT')).length} supports`,
+    activeUsers.some((u) => rolesOf(u).includes('STAFF')) ? `${activeUsers.filter((u) => rolesOf(u).includes('STAFF')).length} team members` : '',
     deactivatedCount > 0 ? `${deactivatedCount} deactivated` : '',
   ].filter(Boolean).join(' · ');
 
@@ -479,13 +529,27 @@ const UserManagement: React.FC<UserManagementProps> = ({
     <>
       <button type="button" aria-label="Close user actions" className="fixed inset-0 z-[90] cursor-default" onClick={() => setOpenMenuId(null)} />
       <div className="fixed z-[100] w-44 rounded-2xl border border-gray-200 bg-white py-1 shadow-xl" style={menuPosition} role="menu">
-        <button onClick={() => { openUserDetails(user); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-gray-50" role="menuitem">Manage</button>
-        <button onClick={() => { setRoleChangeTarget(user); setRoleChangeValues(rolesOf(user)); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">Roles</button>
-        <button onClick={() => { void handleTestChange(user); setOpenMenuId(null); }} disabled={loading} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">{user.isTest ? 'Unmark as test' : 'Mark as test'}</button>
-        <button onClick={() => { setResetPasswordUserId(user.id); setError(''); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-orange-500 hover:bg-gray-50" role="menuitem">Reset password</button>
-        <button onClick={() => { setFirstTimeTarget(user); setFirstTimePassword(false); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">Reset first-time experience</button>
-        <button onClick={() => { void handleActivationChange(user); setOpenMenuId(null); }} disabled={loading || (user.isActive !== false && user.id === currentUser?.id)} className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">{user.isActive === false ? 'Reactivate' : 'Deactivate'}</button>
-        <button onClick={() => { void handlePermanentDeleteUser(user); setOpenMenuId(null); }} disabled={loading || user.id === currentUser?.id} className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">Permanent delete</button>
+        {canEdit && (
+          <button onClick={() => { openUserDetails(user); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-blue-600 hover:bg-gray-50" role="menuitem">Manage</button>
+        )}
+        {isRealAdmin && (
+          <button onClick={() => { setRoleChangeTarget(user); setRoleChangeValues(rolesOf(user)); setRoleChangeCustomIds(assignments[user.id] ?? []); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">Roles</button>
+        )}
+        {canEdit && (
+          <button onClick={() => { void handleTestChange(user); setOpenMenuId(null); }} disabled={loading} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">{user.isTest ? 'Unmark as test' : 'Mark as test'}</button>
+        )}
+        {canEdit && (
+          <button onClick={() => { setResetPasswordUserId(user.id); setError(''); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-orange-500 hover:bg-gray-50" role="menuitem">Reset password</button>
+        )}
+        {canEdit && (
+          <button onClick={() => { setFirstTimeTarget(user); setFirstTimePassword(false); setOpenMenuId(null); }} className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">Reset first-time experience</button>
+        )}
+        {canEdit && (
+          <button onClick={() => { void handleActivationChange(user); setOpenMenuId(null); }} disabled={loading || (user.isActive !== false && user.id === currentUser?.id)} className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">{user.isActive === false ? 'Reactivate' : 'Deactivate'}</button>
+        )}
+        {canDelete && (
+          <button onClick={() => { void handlePermanentDeleteUser(user); setOpenMenuId(null); }} disabled={loading || user.id === currentUser?.id} className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50" role="menuitem">Permanent delete</button>
+        )}
       </div>
     </>,
     document.body,
@@ -532,16 +596,26 @@ const UserManagement: React.FC<UserManagementProps> = ({
             <label className="mb-1 block text-sm font-medium text-gray-700">Role *</label>
             <AppSelect
               value={newUser.role}
-              onChange={(value) => setNewUser((prev) => ({ ...prev, role: value as 'ADMIN' | 'SUPPORT' }))}
-              options={[
-                { value: 'SUPPORT', label: 'Support' },
-                { value: 'ADMIN', label: 'Admin' },
-              ]}
+              onChange={(value) => setNewUser((prev) => ({ ...prev, role: value as StaffRole }))}
+              options={isRealAdmin
+                ? [
+                  { value: 'SUPPORT', label: 'Support' },
+                  { value: 'STAFF', label: 'Team member' },
+                  { value: 'ADMIN', label: 'Admin' },
+                ]
+                : [{ value: 'SUPPORT', label: 'Support' }]}
               placeholder="Choose role"
               compact
             />
           </div>
         </div>
+        {newUser.role === 'STAFF' && (
+          <CustomRolePicker
+            roles={customRoles}
+            selectedIds={newUserCustomIds}
+            onToggle={(id) => setNewUserCustomIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))}
+          />
+        )}
         {newUser.role === 'SUPPORT' && allLabels.length > 0 && (
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Activity tags</label>
@@ -631,6 +705,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                       { value: 'ALL', label: 'All roles' },
                       { value: 'ADMIN', label: 'Admin' },
                       { value: 'SUPPORT', label: 'Support' },
+                      { value: 'STAFF', label: 'Team member' },
                     ]}
                     placeholder="All roles"
                     compact
@@ -706,17 +781,19 @@ const UserManagement: React.FC<UserManagementProps> = ({
                         </div>
                         {/* Role badge + hamburger */}
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <RoleBadges user={user} />
-                          <div>
-                            <button
-                              onClick={(event) => toggleUserMenu(user.id, event.currentTarget)}
-                              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7h16M4 12h16M4 17h16" />
-                              </svg>
-                            </button>
-                          </div>
+                          <RoleBadges user={user} customNames={customNamesFor(user.id)} />
+                          {hasRowActions && (
+                            <div>
+                              <button
+                                onClick={(event) => toggleUserMenu(user.id, event.currentTarget)}
+                                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7h16M4 12h16M4 17h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                       {/* Inline reset password */}
@@ -770,22 +847,24 @@ const UserManagement: React.FC<UserManagementProps> = ({
                             <div className="text-sm text-gray-500">{user.email || user.phone}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <RoleBadges user={user} />
+                            <RoleBadges user={user} customNames={customNamesFor(user.id)} />
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {user.createdAt ? formatDate(user.createdAt) : 'N/A'}
                           </td>
                           <td className="px-6 py-4 text-right text-sm">
-                            <div className="inline-flex">
-                              <button
-                                onClick={(event) => toggleUserMenu(user.id, event.currentTarget)}
-                                className="rounded-xl border border-orange-100 p-2 text-gray-500 hover:bg-orange-50 hover:text-gray-700"
-                              >
-                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7h16M4 12h16M4 17h16" />
-                                </svg>
-                              </button>
-                            </div>
+                            {hasRowActions && (
+                              <div className="inline-flex">
+                                <button
+                                  onClick={(event) => toggleUserMenu(user.id, event.currentTarget)}
+                                  className="rounded-xl border border-orange-100 p-2 text-gray-500 hover:bg-orange-50 hover:text-gray-700"
+                                >
+                                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7h16M4 12h16M4 17h16" />
+                                  </svg>
+                                </button>
+                              </div>
+                            )}
                             {resetPasswordUserId === user.id && (
                               <div className="mt-2 flex items-center gap-2">
                                 <span className="text-xs text-gray-600">New first-time password?</span>
@@ -897,7 +976,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md">
-                    <RoleBadges user={selectedUser} />
+                    <RoleBadges user={selectedUser} customNames={customNamesFor(selectedUser.id)} />
                   </div>
                 </div>
                 <div>
@@ -1061,15 +1140,18 @@ const UserManagement: React.FC<UserManagementProps> = ({
       <ConfirmationModal
         isOpen={!!roleChangeTarget}
         onClose={() => setRoleChangeTarget(null)}
-        onConfirm={() => { if (roleChangeTarget) void handleRoleChange(roleChangeTarget.id, roleChangeValues); }}
+        onConfirm={() => { if (roleChangeTarget) void handleRoleChange(roleChangeTarget.id, roleChangeValues, roleChangeCustomIds); }}
         title={`Roles for ${roleChangeTarget?.name ?? 'this user'}`}
-        message="Someone with more than one role can switch between them from their profile menu, without logging out. They always sign in as the lowest one."
+        message="Someone with more than one role can switch between them from their profile menu, without logging out. They always sign in as the lowest one. A Team member sees only the modules their custom roles allow."
         type="warning"
         confirmText="Save roles"
-        confirmDisabled={!roleChangeTarget || roleChangeValues.length === 0 || [...roleChangeValues].sort().join() === [...rolesOf(roleChangeTarget)].sort().join()}
+        confirmDisabled={!roleChangeTarget || roleChangeValues.length === 0 || (roleChangeValues.includes('STAFF') && !customLoaded) || (
+          [...roleChangeValues].sort().join() === [...rolesOf(roleChangeTarget)].sort().join()
+          && [...roleChangeCustomIds].sort().join() === [...(assignments[roleChangeTarget.id] ?? [])].sort().join()
+        )}
       >
         <div className="space-y-2">
-          {(['SUPPORT', 'ADMIN'] as StaffRole[]).map((role) => {
+          {(['SUPPORT', 'STAFF', 'ADMIN'] as StaffRole[]).map((role) => {
             const on = roleChangeValues.includes(role);
             const lockedSelf = role === 'ADMIN' && roleChangeTarget?.id === currentUser?.id;
             return (
@@ -1084,10 +1166,36 @@ const UserManagement: React.FC<UserManagementProps> = ({
               </label>
             );
           })}
+          {roleChangeValues.includes('STAFF') && (
+            <CustomRolePicker
+              roles={customRoles}
+              selectedIds={roleChangeCustomIds}
+              onToggle={(id) => setRoleChangeCustomIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))}
+            />
+          )}
         </div>
       </ConfirmationModal>
     </>
   );
 };
+
+// The custom roles a Team member can hold (made on the Roles page). Their ticks decide what the person sees.
+const CustomRolePicker: React.FC<{ roles: PermissionRole[]; selectedIds: string[]; onToggle: (id: string) => void }> = ({ roles, selectedIds, onToggle }) => (
+  <div className="rounded-xl bg-neutral-50 p-3" data-testid="custom-role-picker">
+    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Team member roles</p>
+    {roles.length === 0 ? (
+      <p className="text-xs text-gray-500">No roles yet, or they could not be loaded. Make one on the Roles page first, then come back.</p>
+    ) : (
+      <div className="space-y-1.5">
+        {roles.map((role) => (
+          <label key={role.id} className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 text-sm text-gray-800 hover:bg-white">
+            <input type="checkbox" checked={selectedIds.includes(role.id)} onChange={() => onToggle(role.id)} />
+            {role.name}
+          </label>
+        ))}
+      </div>
+    )}
+  </div>
+);
 
 export default UserManagement;

@@ -62,7 +62,7 @@ const Login: React.FC = () => {
     try {
       await login(trimmed.toLowerCase(), password);
       const cachedUser = JSON.parse(localStorage.getItem('user') || 'null');
-      navigate(cachedUser?.role === 'SUPPORT' ? '/support' : cachedUser?.role === 'PARTICIPANT' ? '/me' : '/dashboard');
+      navigate(cachedUser?.role === 'SUPPORT' ? '/support' : cachedUser?.role === 'PARTICIPANT' ? '/me' : '/');
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || 'Login failed';
 

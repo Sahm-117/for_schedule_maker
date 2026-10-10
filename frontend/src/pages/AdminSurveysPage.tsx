@@ -6,6 +6,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import Spinner from '../components/Spinner';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { surveyApi } from '../services/api';
 import type { SurveyListItem } from '../types';
@@ -40,6 +41,10 @@ const TABS = [
 
 const AdminSurveysPage: React.FC = () => {
   const { user } = useAuth();
+  const { can } = usePermissions();
+  const canAdd = can('surveys', 'add');
+  const canEdit = can('surveys', 'edit');
+  const canDelete = can('surveys', 'delete');
   const { activeCohort } = useAppData();
   const navigate = useNavigate();
   const toast = useToast();
@@ -95,11 +100,11 @@ const AdminSurveysPage: React.FC = () => {
       <PageHeader
         title="Surveys"
         subtitle="Ask participants, supports and staff questions, and see what they said."
-        action={(
+        action={canAdd ? (
           <button type="button" onClick={() => setBuilder({ open: true })} className="inline-flex h-11 items-center justify-center rounded-2xl bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
             New survey
           </button>
-        )}
+        ) : undefined}
       />
       <SegmentedTabs tabs={TABS} active={tab} onChange={setTab} scrollable className="mb-4 max-w-xl" />
 
@@ -134,9 +139,9 @@ const AdminSurveysPage: React.FC = () => {
               </div>
               <div className="mt-3 flex flex-wrap gap-2 text-[13px] font-semibold">
                 <button type="button" onClick={() => navigate(`/surveys/${s.id}`)} className="rounded-xl bg-gray-100 px-3 py-1.5 text-gray-700 hover:bg-gray-200">Results</button>
-                <button type="button" onClick={() => setBuilder({ open: true, id: s.id })} className="rounded-xl bg-gray-100 px-3 py-1.5 text-gray-700 hover:bg-gray-200">Edit</button>
-                {!s.builtinKey && <button type="button" onClick={() => setBuilder({ open: true, copyOf: s.id })} className="rounded-xl bg-gray-100 px-3 py-1.5 text-gray-700 hover:bg-gray-200">Duplicate</button>}
-                {!s.builtinKey && <button type="button" onClick={() => setDeleting(s)} className="rounded-xl bg-red-50 px-3 py-1.5 text-red-600 hover:bg-red-100">Delete</button>}
+                {canEdit && <button type="button" onClick={() => setBuilder({ open: true, id: s.id })} className="rounded-xl bg-gray-100 px-3 py-1.5 text-gray-700 hover:bg-gray-200">Edit</button>}
+                {canAdd && !s.builtinKey && <button type="button" onClick={() => setBuilder({ open: true, copyOf: s.id })} className="rounded-xl bg-gray-100 px-3 py-1.5 text-gray-700 hover:bg-gray-200">Duplicate</button>}
+                {canDelete && !s.builtinKey && <button type="button" onClick={() => setDeleting(s)} className="rounded-xl bg-red-50 px-3 py-1.5 text-red-600 hover:bg-red-100">Delete</button>}
               </div>
             </div>
           ))}

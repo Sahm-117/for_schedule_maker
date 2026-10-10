@@ -5,6 +5,7 @@ import Avatar from '../components/Avatar';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from '../components/Toast';
 import { useAppData } from '../context/AppDataContext';
 import { faithProjectsApi, faithProjectCategoriesApi, faithProjectSettingsApi, faithHelpRequestsApi, testimoniesApi, participantsApi, groupsApi } from '../services/api';
@@ -44,6 +45,8 @@ const ProjectModal: React.FC<{
   categories: FaithProjectCategory[];
   onCategoryChanged: (project: FaithProject) => void;
 }> = ({ isOpen, onClose, participant, group, project, categories, onCategoryChanged }) => {
+  const { can } = usePermissions();
+  const canEdit = can('participants', 'edit');
   const [versions, setVersions] = useState<FaithProjectVersion[]>([]);
   const [historyFailed, setHistoryFailed] = useState(false);
   const [categoryId, setCategoryId] = useState(project?.categoryId ?? '');
@@ -97,7 +100,7 @@ const ProjectModal: React.FC<{
           )}
         </div>
         {project && (
-          <AppSelect label="Category (optional)" value={categoryId} onChange={(value) => { void changeCategory(value); }} options={[{ value: '', label: 'No category' }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} placeholder="No category" />
+          <AppSelect label="Category (optional)" disabled={!canEdit} value={categoryId} onChange={(value) => { void changeCategory(value); }} options={[{ value: '', label: 'No category' }, ...categories.map((category) => ({ value: category.id, label: category.name }))]} placeholder="No category" />
         )}
         <FaithProjectHistory versions={versions} participantLabel={firstName} loadFailed={historyFailed} />
       </div>
@@ -126,6 +129,8 @@ const TestimoniesPanel: React.FC<{
   onReviewed: (testimony: Testimony) => void;
 }> = ({ testimonies, helpRequests, onReviewed }) => {
   const showToast = useToast();
+  const { can } = usePermissions();
+  const canEdit = can('participants', 'edit');
   const [filter, setFilter] = useState<TestimonyStatus | ''>('PENDING');
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -197,7 +202,7 @@ const TestimoniesPanel: React.FC<{
               </div>
               {t.title && <p className="mt-2 text-sm font-semibold text-gray-800">{t.title}</p>}
               <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{t.body}</p>
-              {(t.status === 'PENDING' || t.status === 'APPROVED') && (
+              {canEdit && (t.status === 'PENDING' || t.status === 'APPROVED') && (
                 <div className="mt-3 flex gap-2">
                   {t.status === 'PENDING' && (
                     <button type="button" onClick={() => void review(t.id, 'APPROVED')} disabled={busyId === t.id} className="rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
@@ -227,6 +232,8 @@ const AdminFaithProjectsPage: React.FC = () => {
 
 const AdminFaithProjectsContent: React.FC = () => {
   const { activeCohort, liveRevision } = useAppData();
+  const { can } = usePermissions();
+  const canEdit = can('participants', 'edit');
   const [searchParams] = useSearchParams();
 
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -345,9 +352,9 @@ const AdminFaithProjectsContent: React.FC = () => {
         action={
           !loading && (
             <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setShowSettings(true)} aria-label="Faith Project settings" title="Faith Project settings" className="grid h-11 w-11 place-items-center rounded-2xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50">
+            {canEdit && <button type="button" onClick={() => setShowSettings(true)} aria-label="Faith Project settings" title="Faith Project settings" className="grid h-11 w-11 place-items-center rounded-2xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50">
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317a1.5 1.5 0 0 1 2.85 0l.267.879a1.5 1.5 0 0 0 1.81 1.004l.88-.267a1.5 1.5 0 0 1 2.015 2.015l-.267.88a1.5 1.5 0 0 0 1.004 1.81l.879.267a1.5 1.5 0 0 1 0 2.85l-.879.267a1.5 1.5 0 0 0-1.004 1.81l.267.88a1.5 1.5 0 0 1-2.015 2.015l-.88-.267a1.5 1.5 0 0 0-1.81 1.004l-.267.879a1.5 1.5 0 0 1-2.85 0l-.267-.879a1.5 1.5 0 0 0-1.81-1.004l-.88.267a1.5 1.5 0 0 1-2.015-2.015l.267-.88a1.5 1.5 0 0 0-1.004-1.81l-.879-.267a1.5 1.5 0 0 1 0-2.85l.879-.267a1.5 1.5 0 0 0 1.004-1.81l-.267-.88a1.5 1.5 0 0 1 2.015-2.015l.88.267a1.5 1.5 0 0 0 1.81-1.004l.267-.879Z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
-            </button>
+            </button>}
             {groups.length > 0 && <button
               type="button"
               onClick={() => setShowExportPopup(true)}

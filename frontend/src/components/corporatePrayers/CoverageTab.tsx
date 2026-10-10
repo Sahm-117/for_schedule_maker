@@ -4,6 +4,7 @@ import PageLoader from '../PageLoader';
 import { useToast } from '../Toast';
 import { corporatePrayersApi } from '../../services/api';
 import { usePolling } from '../../hooks/usePolling';
+import { usePermissions } from '../../hooks/usePermissions';
 import type { PrayerCoverage, PrayerCoveragePerson, PrayerOverview, PrayerPool } from '../../types';
 import { PRAYER_TYPE_LABEL, clockLabel } from '../../utils/prayerText';
 import { INPUT, Notice, SECONDARY_BTN } from './ui';
@@ -24,6 +25,8 @@ const shortDate = (iso: string | null) => {
 const PoolCard: React.FC<{
   pool: PrayerPool; coverage: PrayerCoverage; onRestart: (pool: PrayerPool) => void; onSkip: (person: PrayerCoveragePerson, skip: boolean) => void;
 }> = ({ pool, coverage, onRestart, onSkip }) => {
+  const { can } = usePermissions();
+  const canEdit = can('corporate_prayers', 'edit');
   const cycle = coverage.cycles?.[pool];
   const notYet = useMemo(() => coverage.notYet?.[pool] ?? [], [coverage.notYet, pool]);
   const done = useMemo(() => coverage.doneList?.[pool] ?? [], [coverage.doneList, pool]);
@@ -65,9 +68,11 @@ const PoolCard: React.FC<{
                   <p className="truncate text-sm font-semibold text-gray-900">{person.name}{person.skipped && <span className="ml-2 rounded-full bg-amber-100/80 px-2 py-0.5 align-middle text-[11px] font-semibold text-amber-800">Skipped</span>}</p>
                   <p className="text-xs text-gray-500">Last prayed for: {shortDate(person.lastOn)}</p>
                 </div>
-                <button type="button" onClick={() => onSkip(person, !person.skipped)} className="min-h-[36px] flex-none rounded-lg border border-gray-200 px-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">
-                  {person.skipped ? 'Include again' : 'Skip this cycle'}
-                </button>
+                {canEdit && (
+                  <button type="button" onClick={() => onSkip(person, !person.skipped)} className="min-h-[36px] flex-none rounded-lg border border-gray-200 px-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">
+                    {person.skipped ? 'Include again' : 'Skip this cycle'}
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -83,7 +88,7 @@ const PoolCard: React.FC<{
           )}
         </>
       )}
-      <button type="button" onClick={() => onRestart(pool)} className={SECONDARY_BTN}>Restart the cycle</button>
+      {canEdit && <button type="button" onClick={() => onRestart(pool)} className={SECONDARY_BTN}>Restart the cycle</button>}
     </section>
   );
 };

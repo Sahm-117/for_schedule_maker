@@ -4,6 +4,9 @@ import LiveNavDot from './LiveNavDot';
 import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
+import PermissionGate from './PermissionGate';
+import type { ModuleKey } from '../utils/permissions';
 import { useAppData } from '../context/AppDataContext';
 import AppSelect from './AppSelect';
 import PracticeExitConfirm, { type PracticeExitKind } from './practice/PracticeExitConfirm';
@@ -48,7 +51,10 @@ type NavItem = {
   label: string;
   mobileLabel?: string;
   icon: React.ReactNode;
-  adminOnly?: boolean;
+  /** The permission module this item belongs to. Someone who cannot See the module does not get the item. */
+  module?: ModuleKey;
+  /** Only a real admin (the Roles screen). */
+  realAdminOnly?: boolean;
   mobileHidden?: boolean;
   mobileMore?: boolean;
   /** Only shown to a support who is in a hub for the active cohort. */
@@ -105,6 +111,7 @@ const ICONS = {
   more: <IconBox><svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4.25 10a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm7 0a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm7 0a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z" /></svg></IconBox>,
   feedback: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8M8 14h5m-9 6l2.5-3H18a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14z" /></svg></IconBox>,
   rota: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 9h18M9 4v16M4 20h16a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z" /></svg></IconBox>,
+  roles: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 3 4 6v5c0 4.5 3.2 8.2 8 10 4.8-1.8 8-5.5 8-10V6l-8-3Zm-3 9 2 2 4-4" /></svg></IconBox>,
   website: <IconBox><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0 0c2.21 0 4-4.03 4-9s-1.79-9-4-9-4 4.03-4 9 1.79 9 4 9Zm-9-9h18" /></svg></IconBox>,
 };
 
@@ -112,73 +119,75 @@ const ICONS = {
 // Participants (+ Attendance, Faith projects, Onboarding), Groups (+ Allocation,
 // Group meetings), Schedule (+ Approvals, Rota, Activity overview).
 const adminNav: NavItem[] = [
-  { to: '/dashboard', label: 'Dashboard', icon: ICONS.dashboard },
-  { to: '/schedule', label: 'Schedule', icon: ICONS.schedule },
-  { to: '/planner', label: 'Planner', icon: ICONS.planner, adminOnly: true },
-  { to: '/participants', label: 'Participants', icon: ICONS.participants, adminOnly: true },
-  { to: '/groups', label: 'Groups', icon: ICONS.groups, adminOnly: true },
-  { to: '/supports', label: 'Supports', icon: ICONS.attendance, adminOnly: true },
-  { to: '/hubs', label: 'Hubs', icon: ICONS.groups, adminOnly: true },
-  { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
-  { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
-  { to: '/feedback', label: 'Feedback', icon: ICONS.feedback, adminOnly: true },
-  { to: '/surveys', label: 'Surveys', icon: ICONS.feedback, adminOnly: true },
-  { to: '/birthdays', label: 'Birthdays', icon: ICONS.birthdays, adminOnly: true },
-  { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
-  { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
-  { to: '/notifications', label: 'Notifications', icon: ICONS.bell, adminOnly: true },
-  { to: '/practice', label: 'Practice', icon: ICONS.practice, adminOnly: true },
-  { to: '/community', label: 'Community', icon: ICONS.hub },
-  { to: '/resources', label: 'Resources', icon: ICONS.resources },
-  { to: '/website', label: 'Website', icon: ICONS.website, adminOnly: true },
-  { to: '/settings', label: 'Settings', icon: ICONS.settings },
+  { to: '/dashboard', label: 'Dashboard', icon: ICONS.dashboard, module: 'dashboard' },
+  { to: '/schedule', label: 'Schedule', icon: ICONS.schedule, module: 'schedule' },
+  { to: '/planner', label: 'Planner', icon: ICONS.planner, module: 'planner' },
+  { to: '/participants', label: 'Participants', icon: ICONS.participants, module: 'participants' },
+  { to: '/groups', label: 'Groups', icon: ICONS.groups, module: 'groups' },
+  { to: '/supports', label: 'Supports', icon: ICONS.attendance, module: 'supports' },
+  { to: '/hubs', label: 'Hubs', icon: ICONS.groups, module: 'hubs' },
+  { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, module: 'cohorts' },
+  { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, module: 'follow_ups' },
+  { to: '/feedback', label: 'Feedback', icon: ICONS.feedback, module: 'feedback' },
+  { to: '/surveys', label: 'Surveys', icon: ICONS.feedback, module: 'surveys' },
+  { to: '/birthdays', label: 'Birthdays', icon: ICONS.birthdays, module: 'birthdays' },
+  { to: '/users', label: 'Users', icon: ICONS.users, module: 'users' },
+  { to: '/roles', label: 'Roles', icon: ICONS.roles, realAdminOnly: true },
+  { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, module: 'announcements' },
+  { to: '/notifications', label: 'Notifications', icon: ICONS.bell, module: 'notifications' },
+  { to: '/practice', label: 'Practice', icon: ICONS.practice, module: 'practice' },
+  { to: '/community', label: 'Community', icon: ICONS.hub, module: 'community' },
+  { to: '/resources', label: 'Resources', icon: ICONS.resources, module: 'resources' },
+  { to: '/website', label: 'Website', icon: ICONS.website, module: 'website' },
+  { to: '/settings', label: 'Settings', icon: ICONS.settings, module: 'settings' },
 ];
 
 const adminNavGroups: NavGroup[] = [
   {
     label: 'Overview',
     items: [
-      { to: '/dashboard', label: 'Dashboard', icon: ICONS.dashboard },
+      { to: '/dashboard', label: 'Dashboard', icon: ICONS.dashboard, module: 'dashboard' },
     ],
   },
   {
     label: 'Programme',
     items: [
-      { to: '/schedule', label: 'Schedule', icon: ICONS.schedule },
-      { to: '/planner', label: 'Planner', icon: ICONS.planner, adminOnly: true },
+      { to: '/schedule', label: 'Schedule', icon: ICONS.schedule, module: 'schedule' },
+      { to: '/planner', label: 'Planner', icon: ICONS.planner, module: 'planner' },
     ],
   },
   {
     label: 'People & groups',
     items: [
-      { to: '/participants', label: 'Participants', icon: ICONS.participants, adminOnly: true },
-      { to: '/groups', label: 'Groups', icon: ICONS.groups, adminOnly: true },
-      { to: '/supports', label: 'Supports', icon: ICONS.attendance, adminOnly: true },
-      { to: '/hubs', label: 'Hubs', icon: ICONS.groups, adminOnly: true },
-      { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, adminOnly: true },
+      { to: '/participants', label: 'Participants', icon: ICONS.participants, module: 'participants' },
+      { to: '/groups', label: 'Groups', icon: ICONS.groups, module: 'groups' },
+      { to: '/supports', label: 'Supports', icon: ICONS.attendance, module: 'supports' },
+      { to: '/hubs', label: 'Hubs', icon: ICONS.groups, module: 'hubs' },
+      { to: '/cohorts', label: 'Cohorts', icon: ICONS.cohorts, module: 'cohorts' },
     ],
   },
   {
     label: 'Engagement',
     items: [
-      { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, adminOnly: true },
-      { to: '/feedback', label: 'Feedback', icon: ICONS.feedback, adminOnly: true },
-      { to: '/surveys', label: 'Surveys', icon: ICONS.feedback, adminOnly: true },
-      { to: '/corporate-prayers', label: 'Corporate prayers', icon: ICONS.prayer, adminOnly: true },
-      { to: '/birthdays', label: 'Birthdays', icon: ICONS.birthdays, adminOnly: true },
-      { to: '/community', label: 'Community', icon: ICONS.hub },
+      { to: '/follow-ups', label: 'Follow-ups', icon: ICONS.followups, module: 'follow_ups' },
+      { to: '/feedback', label: 'Feedback', icon: ICONS.feedback, module: 'feedback' },
+      { to: '/surveys', label: 'Surveys', icon: ICONS.feedback, module: 'surveys' },
+      { to: '/corporate-prayers', label: 'Corporate prayers', icon: ICONS.prayer, module: 'corporate_prayers' },
+      { to: '/birthdays', label: 'Birthdays', icon: ICONS.birthdays, module: 'birthdays' },
+      { to: '/community', label: 'Community', icon: ICONS.hub, module: 'community' },
     ],
   },
   {
     label: 'Administration',
     items: [
-      { to: '/users', label: 'Users', icon: ICONS.users, adminOnly: true },
-      { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, adminOnly: true },
-      { to: '/notifications', label: 'Notifications', icon: ICONS.bell, adminOnly: true },
-      { to: '/practice', label: 'Practice', icon: ICONS.practice, adminOnly: true },
-      { to: '/resources', label: 'Resources', icon: ICONS.resources },
-      { to: '/website', label: 'Website', icon: ICONS.website, adminOnly: true },
-      { to: '/settings', label: 'Settings', icon: ICONS.settings },
+      { to: '/users', label: 'Users', icon: ICONS.users, module: 'users' },
+      { to: '/roles', label: 'Roles', icon: ICONS.roles, realAdminOnly: true },
+      { to: '/announcements', label: 'Announcements', icon: ICONS.megaphone, module: 'announcements' },
+      { to: '/notifications', label: 'Notifications', icon: ICONS.bell, module: 'notifications' },
+      { to: '/practice', label: 'Practice', icon: ICONS.practice, module: 'practice' },
+      { to: '/resources', label: 'Resources', icon: ICONS.resources, module: 'resources' },
+      { to: '/website', label: 'Website', icon: ICONS.website, module: 'website' },
+      { to: '/settings', label: 'Settings', icon: ICONS.settings, module: 'settings' },
     ],
   },
 ];
@@ -214,7 +223,8 @@ const isNavActive = (pathname: string, to: string) => {
   return pathname === to || pathname.startsWith(`${to}/`) || sectionMatches(pathname, to);
 };
 
-const canShowNavItem = (item: NavItem, isAdmin: boolean) => !(item.adminOnly && !isAdmin);
+const canShowNavItem = (item: NavItem, can: (key: ModuleKey) => boolean, isRealAdmin: boolean) =>
+  item.realAdminOnly ? isRealAdmin : !item.module || can(item.module);
 
 const NavDot: React.FC = () => (
   <span className="ml-auto h-2 w-2 flex-shrink-0 rounded-full bg-primary" />
@@ -330,6 +340,8 @@ const NavGroupSection: React.FC<{
 
 const AppShell: React.FC = () => {
   const { user, isAdmin, logout, refreshUserCohorts, switchRole } = useAuth();
+  const { can, isRealAdmin, landingPath } = usePermissions();
+  const homePath = user?.role === 'SUPPORT' ? '/support' : (landingPath ?? '/dashboard');
   const {
     cohorts,
     loading: appDataLoading,
@@ -502,18 +514,18 @@ const AppShell: React.FC = () => {
   const canShowForKind = (item: NavItem) => !(item.hiddenForHubOnly && isHubOnlySupport);
   const navItems = useMemo(() => {
     if (isSupport) return supportNav.filter((item) => (!item.hubOnly || !!myHub?.hub) && canShowForKind(item) && (!item.practiceOnly || practiceOn));
-    return adminNav.filter((item) => canShowNavItem(item, isAdmin));
+    return adminNav.filter((item) => canShowNavItem(item, can, isRealAdmin));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, isSupport, myHub?.hub, isHubOnlySupport, practiceOn]);
+  }, [can, isRealAdmin, isSupport, myHub?.hub, isHubOnlySupport, practiceOn]);
   const navGroups = useMemo(() => {
     if (isSupport) return [];
     return adminNavGroups
       .map((group) => ({
         ...group,
-        items: group.items.filter((item) => canShowNavItem(item, isAdmin)),
+        items: group.items.filter((item) => canShowNavItem(item, can, isRealAdmin)),
       }))
       .filter((group) => group.items.length > 0);
-  }, [isAdmin, isSupport]);
+  }, [can, isRealAdmin, isSupport]);
   const isNavGroupOpen = (label: string) => openNavGroups[label] ?? true;
   const toggleNavGroup = (label: string) => {
     setOpenNavGroups((current) => ({
@@ -563,7 +575,7 @@ const AppShell: React.FC = () => {
   const groupMeetingLive = !!groupMeetingLiveInfo;
   const groupLiveWeekId = groupMeetingLiveInfo?.weekId ?? null;
   const hubMeetingLive = hubsMeetingLive || !!myHub?.meetingLive;
-  const currentLabel = isAdmin ? 'Admin' : ([...myGroupNames, ...myHubJobLabels].join(' · ') || null);
+  const currentLabel = isAdmin ? (user?.teamMember ? 'Team member' : 'Admin') : ([...myGroupNames, ...myHubJobLabels].join(' · ') || null);
   const formatDateLabel = (value?: string | null) => {
     if (!value) return null;
     const date = new Date(`${value}T12:00:00`);
@@ -579,7 +591,7 @@ const AppShell: React.FC = () => {
 
   const practiceLocked = isAdmin && !!activeCohort?.isPractice;
   useEffect(() => {
-    if (practiceLocked && isLockedInPractice(location.pathname)) navigate('/dashboard', { replace: true });
+    if (practiceLocked && isLockedInPractice(location.pathname)) navigate('/', { replace: true });
   }, [practiceLocked, location.pathname, navigate]);
 
   return (
@@ -701,8 +713,8 @@ const AppShell: React.FC = () => {
           <div
             role="button"
             tabIndex={0}
-            onClick={() => navigate(isSupport ? '/support' : '/dashboard')}
-            onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigate(isSupport ? '/support' : '/dashboard'); } }}
+            onClick={() => navigate(homePath)}
+            onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); navigate(homePath); } }}
             aria-label="FOF Ops home"
             className="flex items-center gap-3 text-left cursor-pointer"
           >
@@ -863,7 +875,7 @@ const AppShell: React.FC = () => {
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
 
-            {user && <ProfileMenu name={user.name} avatarUrl={user.avatarUrl} profilePath={isSupport ? '/support/profile' : '/settings'} onLogout={logout} roles={user.roles} activeRole={user.role} onSwitchRole={switchRole} />}
+            {user && <ProfileMenu name={user.name} avatarUrl={user.avatarUrl} profilePath={isSupport ? '/support/profile' : '/settings'} onLogout={logout} roles={user.roles} activeRole={user.teamMember ? 'STAFF' : user.role} onSwitchRole={switchRole} />}
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{user?.name}</p>
@@ -916,7 +928,7 @@ const AppShell: React.FC = () => {
               <SectionTabs pathname={location.pathname} isAdmin={isAdmin} pendingApprovals={globalPendingChanges.length} />
             )}
             {/* A seat switch in Practice remounts the page so it loads the new group and hub. */}
-            <PracticeEntryProvider value={practiceEntry}><React.Fragment key={workspaceRevision}><Outlet /></React.Fragment></PracticeEntryProvider>
+            <PracticeEntryProvider value={practiceEntry}><React.Fragment key={workspaceRevision}><PermissionGate><Outlet /></PermissionGate></React.Fragment></PracticeEntryProvider>
           </ErrorBoundary>
         </main>
 

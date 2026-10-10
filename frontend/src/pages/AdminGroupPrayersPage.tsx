@@ -5,6 +5,7 @@ import PageLoader from '../components/PageLoader';
 import FilterBar, { type FilterGroup, type FilterValues } from '../components/filters/FilterBar';
 import { formatMeetingSlot } from '../components/GroupMeetingSlotEditor';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import ModalShell from '../components/followups/ModalShell';
 import { groupPrayerFocusApi, groupPrayerStatusApi, groupsApi, meetingAttendanceApi } from '../services/api';
@@ -298,6 +299,8 @@ const MeetingAttendanceModal: React.FC<{
   onMarked: (record: MeetingAttendance) => void;
 }> = ({ target, records, submitted, onSubmittedChange, onClose, onMarked }) => {
   const { user } = useAuth();
+  const { can } = usePermissions();
+  const canEdit = can('groups', 'edit');
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -335,17 +338,19 @@ const MeetingAttendanceModal: React.FC<{
       subtitle={submitted ? 'Submitted by the support · who joined the group meeting' : 'Not submitted yet · who joined the group meeting'}
       footer={(
         <>
-          <button
-            type="button"
-            onClick={async () => {
-              setReopening(true);
-              try { await onSubmittedChange(!submitted); } finally { setReopening(false); }
-            }}
-            disabled={reopening}
-            className="rounded-2xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60"
-          >
-            {reopening ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : submitted ? 'Reopen for the support' : 'Mark as submitted'}
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={async () => {
+                setReopening(true);
+                try { await onSubmittedChange(!submitted); } finally { setReopening(false); }
+              }}
+              disabled={reopening}
+              className="rounded-2xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-60"
+            >
+              {reopening ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : submitted ? 'Reopen for the support' : 'Mark as submitted'}
+            </button>
+          )}
           <button type="button" onClick={onClose} className="rounded-2xl bg-primary px-5 py-2.5 text-sm font-semibold text-white">Close</button>
         </>
       )}
@@ -362,12 +367,12 @@ const MeetingAttendanceModal: React.FC<{
               <div key={participant.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-100 px-3 py-2.5">
                 <p className="min-w-0 flex-1 text-sm font-semibold text-gray-900">{participant.fullName}</p>
                 <div className="flex flex-none gap-1.5">
-                  {MARK_OPTIONS.map((option) => (
+                  {(canEdit ? MARK_OPTIONS : MARK_OPTIONS.filter((option) => option.value === status)).map((option) => (
                     <button
                       key={option.value}
                       type="button"
                       onClick={() => void mark(participant.id, option.value)}
-                      disabled={savingId === participant.id}
+                      disabled={!canEdit || savingId === participant.id}
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold transition disabled:opacity-50 ${status === option.value ? option.cls : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}
                     >
                       {option.label}

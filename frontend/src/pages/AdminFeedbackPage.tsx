@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader';
 import AppSelect from '../components/AppSelect';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { aiApi, feedbackApi, groupsApi, manualQuestionsApi } from '../services/api';
 import type { ClassFeedbackWeekResult, FeedbackAnswers, FeedbackRating, FeedbackResults, Group, ManualQuestion } from '../types';
@@ -97,6 +98,8 @@ const ClassFeedbackWeekCard: React.FC<{ week: ClassFeedbackWeekResult }> = ({ we
 // with the same "To be answered in class" / "Reply" actions as the support
 // Recap page's version, plus the group name since an admin sees every group.
 const ManualQuestionRow: React.FC<{ question: ManualQuestion; onChanged: () => void }> = ({ question, onChanged }) => {
+  const { can } = usePermissions();
+  const canEdit = can('feedback', 'edit');
   const [replying, setReplying] = useState(false);
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
@@ -137,7 +140,7 @@ const ManualQuestionRow: React.FC<{ question: ManualQuestion; onChanged: () => v
       <p className="mt-1 text-sm text-gray-700">{question.body}</p>
       {question.status === 'REPLIED' && question.reply ? (
         <p className="mt-2 text-sm text-gray-600"><span className="font-semibold text-gray-800">Reply: </span>{question.reply}</p>
-      ) : replying ? (
+      ) : !canEdit ? null : replying ? (
         <div className="mt-2">
           <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={2} placeholder="Write a short reply" className="w-full resize-y rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none" />
           <div className="mt-2 flex gap-2">
@@ -170,6 +173,8 @@ const FEEDBACK_TABS: Array<{ key: FeedbackTab; label: string; shortLabel?: strin
 
 const AdminFeedbackPage: React.FC = () => {
   const { isAdmin } = useAuth();
+  const { can } = usePermissions();
+  const canEdit = can('feedback', 'edit');
   const { activeCohort, weeks } = useAppData();
   const toast = useToast();
   const [searchParams] = useSearchParams();
@@ -287,9 +292,9 @@ const AdminFeedbackPage: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-3">
                   <p className="text-sm font-semibold text-gray-900">Themes</p>
                   {themes && <span className="text-xs text-gray-500">Written by AI · {formatDate(themes.createdAt)}</span>}
-                  <button type="button" onClick={() => { void summariseThemes(); }} disabled={themesBusy} className="ml-auto rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50">
+                  {canEdit && <button type="button" onClick={() => { void summariseThemes(); }} disabled={themesBusy} className="ml-auto rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50">
                     {themesBusy ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Summarising…</span>) : themes ? 'Summarise again' : 'Summarise themes with AI'}
-                  </button>
+                  </button>}
                 </div>
                 {themes ? (
                   <div className="mt-2 whitespace-pre-line text-sm leading-relaxed text-gray-700">{themes.themes.replace(/\*\*/g, '')}</div>

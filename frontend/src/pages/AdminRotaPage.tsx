@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { activitiesApi, labelsApi, usersApi } from '../services/api';
 import type { Label, User } from '../types';
@@ -21,6 +22,8 @@ const labelCollator = new Intl.Collator(undefined, { numeric: true, sensitivity:
 
 const AdminRotaPage: React.FC = () => {
   const { isAdmin } = useAuth();
+  const { can } = usePermissions();
+  const canEdit = can('schedule', 'edit');
   const navigate = useNavigate();
   const { weeks, activeCohort, reloadWeeks } = useAppData();
 
@@ -170,7 +173,8 @@ const AdminRotaPage: React.FC = () => {
             labelOwners={labelOwners}
             staged={staged}
             onStage={handleStage}
-            applying={applying}
+            // Without the Edit tick the duty pickers are locked, same as while applying.
+            applying={applying || !canEdit}
             blockedDutyIds={blockedDutyIds}
           />
 

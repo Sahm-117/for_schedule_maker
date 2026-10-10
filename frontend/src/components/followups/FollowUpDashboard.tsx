@@ -3,6 +3,7 @@ import type { FollowUpContact, FollowUpStatus } from '../../types';
 import { computeFollowUpFunnel, computeFollowUpStatus, computeIntroducerBreakdown, computeOwnerBreakdown, isClosedContact, type OwnerBreakdownRow } from '../../utils/followUps';
 import RegistrationOverviewCards from './RegistrationOverviewCards';
 import { settingsApi } from '../../services/api';
+import { usePermissions } from '../../hooks/usePermissions';
 
 // One colour per status, matching the tone each status already carries on its
 // pill: slate before contact, amber while waiting, emerald once they reply or
@@ -66,6 +67,8 @@ const SupportBar: React.FC<{ row: OwnerBreakdownRow }> = ({ row }) => {
 // The cohort's sign-up goal, set by the admin, with how far along it is and
 // how many are still to go. Saved per cohort.
 const MobilisationTarget: React.FC<{ cohortId: string; cohortName?: string; signedUp: number | null; onTarget?: (target: number | null) => void }> = ({ cohortId, cohortName, signedUp, onTarget }) => {
+  const { can } = usePermissions();
+  const canEdit = can('follow_ups', 'edit');
   const [target, setTargetState] = useState<number | null>(null);
   // The Signed up card below measures against the same target.
   const setTarget = (value: number | null) => { setTargetState(value); onTarget?.(value); };
@@ -125,10 +128,10 @@ const MobilisationTarget: React.FC<{ cohortId: string; cohortName?: string; sign
               </>)}
             </p>
           ) : (
-            <p className="mt-1 text-sm text-gray-500">No target set yet. Set how many people this cohort is aiming to register.</p>
+            <p className="mt-1 text-sm text-gray-500">{canEdit ? 'No target set yet. Set how many people this cohort is aiming to register.' : 'No target set yet.'}</p>
           )}
         </div>
-        {!editing && (
+        {canEdit && !editing && (
           <button type="button" onClick={startEdit} className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
             {target ? 'Edit target' : 'Set target'}
           </button>

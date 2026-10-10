@@ -12,7 +12,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore - web-push ESM build
 import webPush from 'https://esm.sh/web-push@3'
 import { sendToSubscriptions } from '../_shared/webpush.ts'
-import { insertNotifications } from '../_shared/notifications.ts'
+import { insertNotifications, isAdminRole, moduleViewerIds } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -97,11 +97,8 @@ const buildNotification = (event: EventRow): NotificationTarget | null => {
   }
 }
 
-const getAdminIds = async (): Promise<string[]> => {
-  const { data, error } = await supabase.from('User').select('id').eq('role', 'ADMIN').eq('isActive', true)
-  if (error) throw new Error(error.message)
-  return Array.from(new Set((data || []).map((row: { id: string }) => row.id).filter(Boolean)))
-}
+// Everyone who can See Participants (admins, and Team members whose roles include it): onboarding lives there.
+const getAdminIds = async (): Promise<string[]> => moduleViewerIds(supabase, 'participants')
 
 const getActiveCohortUsers = async (cohortId: string): Promise<UserRecipient[]> => {
   const { data: memberships, error: membershipError } = await supabase
@@ -125,7 +122,7 @@ const getActiveCohortUsers = async (cohortId: string): Promise<UserRecipient[]> 
 }
 
 const buildCompletionNotifications = async (event: EventRow): Promise<NotificationTarget[]> => {
-  if (event.type !== 'GROUP_COMPLETED' || event.actor?.role === 'ADMIN' || !event.group?.cohortId) {
+  if (event.type !== 'GROUP_COMPLETED' || isAdminRole(event.actor?.role) || !event.group?.cohortId) {
     return []
   }
 
@@ -137,7 +134,7 @@ const buildCompletionNotifications = async (event: EventRow): Promise<Notificati
   const adminIds = await getAdminIds()
   const adminIdSet = new Set(adminIds)
   const supportIds = cohortUsers
-    .filter((user) => user.role !== 'ADMIN' && !adminIdSet.has(user.id))
+    .filter((user) => !isAdminRole(user.role) && !adminIdSet.has(user.id))
     .map((user) => user.id)
 
   const notifications: NotificationTarget[] = []
@@ -264,7 +261,7 @@ Deno.serve(async (req) => {
 
     if (event.type === 'GROUP_COMPLETED') {
       notifications.push(...await buildCompletionNotifications(event))
-    } else if ((event.type === 'GROUP_CREATED_UPDATED' || event.type === 'PARTICIPANT_STATUS_UPDATED') && event.actor?.role !== 'ADMIN') {
+    } else if ((event.type === 'GROUP_CREATED_UPDATED' || event.type === 'PARTICIPANT_STATUS_UPDATED') && !isAdminRole(event.actor?.role)) {
       const adminIds = await getAdminIds()
       const actorName = event.actor?.name?.trim() || 'A support'
       const groupName = event.group?.name?.trim() || 'a group'

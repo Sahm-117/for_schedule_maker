@@ -4,6 +4,7 @@ import SegmentedTabs from '../SegmentedTabs';
 import AppMultiSelect from '../AppMultiSelect';
 import { useToast } from '../Toast';
 import { useAuth } from '../../hooks/useAuth';
+import { usePermissions } from '../../hooks/usePermissions';
 import { useAppData } from '../../context/AppDataContext';
 import { groupsApi, participantPushApi, participantsApi, profileFieldsApi } from '../../services/api';
 import type { Group, Participant, ProfileField, ProfileFieldType } from '../../types';
@@ -32,6 +33,8 @@ interface RequestInfoModalProps {
 
 const RequestInfoModal: React.FC<RequestInfoModalProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
+  const { can } = usePermissions();
+  const canEdit = can('participants', 'edit');
   const { cohorts, activeCohort } = useAppData();
   const toast = useToast();
   const [tab, setTab] = useState<'new' | 'list'>('new');
@@ -254,7 +257,7 @@ const RequestInfoModal: React.FC<RequestInfoModalProps> = ({ isOpen, onClose }) 
                   <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">{TYPE_LABEL[field.fieldType]}</span>
                   <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${field.required ? 'bg-sky-100/80 text-sky-700' : 'bg-neutral-100 text-neutral-600'}`}>{field.required ? 'Required' : 'Optional'}</span>
                   {field.archivedAt && <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">Stopped</span>}
-                  {!field.archivedAt && (
+                  {canEdit && !field.archivedAt && (
                     <button type="button" onClick={() => { void stopAsking(field); }} disabled={stopping === field.id} className="ml-auto text-xs font-semibold text-red-700 disabled:opacity-50">
                       {stopping === field.id ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Stopping…</span>) : 'Stop asking'}
                     </button>

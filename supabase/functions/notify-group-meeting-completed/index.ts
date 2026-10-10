@@ -6,7 +6,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore
 import webPush from 'https://esm.sh/web-push@3'
 import { sendToSubscriptions } from '../_shared/webpush.ts'
-import { insertNotifications } from '../_shared/notifications.ts'
+import { insertNotifications, moduleViewerIds } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,9 +30,8 @@ Deno.serve(async (req) => {
     const { groupName, weekNumber, supportName, teen } = await req.json() as { groupName: string; weekNumber?: number; supportName: string; teen?: boolean }
     if (!groupName || !supportName) throw new Error('groupName and supportName are required')
 
-    const { data: admins, error: adminError } = await supabase.from('User').select('id').eq('role', 'ADMIN')
-    if (adminError) throw adminError
-    const adminIds = Array.from(new Set((admins ?? []).map((admin: { id: string }) => admin.id).filter(Boolean)))
+    // Everyone who can See Groups (admins, and Team members whose roles include it).
+    const adminIds = await moduleViewerIds(supabase, 'groups')
     if (adminIds.length === 0) return new Response(JSON.stringify({ ok: true, sent: 0 }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
     const week = weekNumber ? `Week ${weekNumber}` : 'this week'

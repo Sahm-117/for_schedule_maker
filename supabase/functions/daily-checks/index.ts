@@ -28,7 +28,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore
 import webPush from 'https://esm.sh/web-push@3'
 import { sendToSubscriptions } from '../_shared/webpush.ts'
-import { insertNotifications } from '../_shared/notifications.ts'
+import { insertNotifications, moduleViewerIds } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -114,7 +114,11 @@ Deno.serve(async (req) => {
     // ── Cohort week maths: each week runs from its class date for 7 days ──
     const cohortQuery = supabase.from('Cohort').select('id, name, startDate')
     const { data: cohorts } = replayCohortId ? await cohortQuery.eq('id', replayCohortId) : await cohortQuery.eq('status', 'ACTIVE')
-    const admins = ((await supabase.from('User').select('id').eq('role', 'ADMIN')).data ?? []).map((a: any) => a.id)
+    // Each digest goes to everyone who can See the module it points at (admins, and Team members whose roles include it).
+    const [groupViewers, participantViewers, supportViewers, followUpViewers] = await Promise.all([
+      moduleViewerIds(supabase, 'groups'), moduleViewerIds(supabase, 'participants'),
+      moduleViewerIds(supabase, 'supports'), moduleViewerIds(supabase, 'follow_ups'),
+    ])
     const outstanding: string[] = []
 
     for (const cohort of (cohorts ?? []) as any[]) {
@@ -156,7 +160,7 @@ Deno.serve(async (req) => {
 
     // One digest for operations rather than a message per group.
     if (outstanding.length > 0) {
-      for (const adminId of admins) {
+      for (const adminId of groupViewers) {
         add({
           userId: adminId,
           title: `${outstanding.length} meeting report${outstanding.length === 1 ? '' : 's'} outstanding`,
@@ -343,12 +347,14 @@ Deno.serve(async (req) => {
     }
 
     const listOf = (names: string[]) => `${names.slice(0, 6).join(', ')}${names.length > 6 ? ` and ${names.length - 6} more` : ''}`
-    for (const adminId of admins) {
+    for (const adminId of participantViewers) {
       if (digestParticipants.length > 0) {
         escalation(adminId, `${digestParticipants.length} participant${digestParticipants.length === 1 ? ' needs' : 's need'} attention`,
           `Missed ${rules.participantRedSundayMisses}+ Sunday classes and ${rules.participantRedMeetingMisses}+ group meetings: ${listOf(digestParticipants)}.`,
           '/participants?health=critical')
       }
+    }
+    for (const adminId of supportViewers) {
       if (digestSupports.length > 0) {
         escalation(adminId, `${digestSupports.length} support${digestSupports.length === 1 ? ' needs' : 's need'} attention`,
           `Not fully recorded for ${rules.supportRedMissedWeeks}+ weeks: ${listOf(digestSupports)}.`,
@@ -373,7 +379,7 @@ Deno.serve(async (req) => {
       helpNames.push(row.participant.fullName)
     }
     if (helpNames.length > 0) {
-      for (const adminId of admins) {
+      for (const adminId of participantViewers) {
         escalation(adminId, `${helpNames.length} participant${helpNames.length === 1 ? '' : 's'} asked for help 2+ days ago`,
           `No support has followed up yet: ${listOf(helpNames)}.`,
           '/participants')
@@ -404,7 +410,7 @@ Deno.serve(async (req) => {
       const summary = failCount > 0
         ? `${failCount} prospect${failCount === 1 ? '' : 's'} didn't reach the Google sheet`
         : `${warnCount} prospect${warnCount === 1 ? '' : 's'} reached the sheet with missing columns`
-      for (const adminId of admins) {
+      for (const adminId of followUpViewers) {
         add({
           userId: adminId,
           title: 'Sign-up sheet sync needs attention',

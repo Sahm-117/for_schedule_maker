@@ -112,7 +112,7 @@ const ReassignmentSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 // Shown on Settings and on the Follow-ups page. Turning automatic assigning on
 // asks first, since it starts handing out everyone already waiting.
-const FollowUpAssignmentSettings: React.FC<{ waitingCount?: number; onClose?: () => void }> = ({ waitingCount, onClose }) => {
+const FollowUpAssignmentSettings: React.FC<{ waitingCount?: number; onClose?: () => void; readOnly?: boolean }> = ({ waitingCount, onClose, readOnly }) => {
   const [autoAssign, setAutoAssign] = useState(false);
   const [adminAlerts, setAdminAlerts] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -153,7 +153,7 @@ const FollowUpAssignmentSettings: React.FC<{ waitingCount?: number; onClose?: ()
       {loading ? (
         <p className="mt-3 flex items-center gap-1.5 text-sm text-gray-500"><Spinner className="h-3.5 w-3.5" />Loading…</p>
       ) : (
-        <div className="mt-2 divide-y divide-gray-100">
+        <fieldset disabled={readOnly} className="mt-2 min-w-0 divide-y divide-gray-100">
           <ToggleRow
             label="Assign automatically"
             description="Anyone still unassigned 2 hours after being added gets handed to a support."
@@ -183,10 +183,10 @@ const FollowUpAssignmentSettings: React.FC<{ waitingCount?: number; onClose?: ()
               settingsApi.setFollowUpAdminAlertsEnabled(next).catch(() => setAdminAlerts(!next)).finally(() => setSaving(null));
             }}
           />
-        </div>
+        </fieldset>
       )}
       {!loading && (
-        <div className="mt-3 rounded-2xl bg-gray-50 px-4 py-2">
+        <fieldset disabled={readOnly} className="mt-3 min-w-0 rounded-2xl bg-gray-50 px-4 py-2">
           <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-gray-500">If no same-gender support has room</p>
           <div className="divide-y divide-gray-100">
             <ToggleRow
@@ -220,7 +220,7 @@ const FollowUpAssignmentSettings: React.FC<{ waitingCount?: number; onClose?: ()
               }}
             />
           </div>
-        </div>
+        </fieldset>
       )}
       {!loading && (
         <button type="button" onClick={() => setShowMoves(true)} className="mt-3 text-sm font-semibold text-primary hover:underline">

@@ -24,6 +24,8 @@ interface FollowUpIssuesPanelProps {
   canDelete?: boolean;
   canAssignOwner?: boolean;
   canReply?: boolean;
+  /** Show the "Log an issue" button. */
+  canCreate?: boolean;
   onIssuesOpen?: () => void;
   /** Open the "Log an issue or question" form straight away with these contacts picked. */
   startWithContactIds?: string[];
@@ -43,6 +45,7 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
   canDelete = true,
   canAssignOwner = true,
   canReply = true,
+  canCreate = true,
   onIssuesOpen,
   startWithContactIds,
 }) => {
@@ -226,9 +229,11 @@ const FollowUpIssuesPanel: React.FC<FollowUpIssuesPanelProps> = ({
             </button>
           ))}
         </div>
-        <button type="button" onClick={() => { setError(''); setShowForm(true); }} className="min-h-[44px] flex-none rounded-xl bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
-          Log an issue
-        </button>
+        {canCreate && (
+          <button type="button" onClick={() => { setError(''); setShowForm(true); }} className="min-h-[44px] flex-none rounded-xl bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-dark">
+            Log an issue
+          </button>
+        )}
       </div>
 
       {actionError && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</p>}

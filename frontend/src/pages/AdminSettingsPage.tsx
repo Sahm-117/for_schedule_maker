@@ -12,6 +12,7 @@ import { DEFAULT_CLASS_START_TIME } from '../utils/classStartTime';
 import type { ChurchDepartment } from '../constants/departments';
 import { setChurchDepartmentsCache } from '../hooks/useChurchDepartments';
 import { useAppData } from '../context/AppDataContext';
+import { usePermissions } from '../hooks/usePermissions';
 import Spinner from '../components/Spinner';
 import FollowUpAssignmentSettings from '../components/followups/FollowUpAssignmentSettings';
 import TeenSettingsCard from '../components/followups/TeenSettingsCard';
@@ -40,14 +41,18 @@ const SettingsCard: React.FC<{
   status?: string;
   loading?: boolean;
   children: React.ReactNode;
-}> = ({ title, description, summary, editing, onEdit, onCancel, onSave, saving, canSave = true, saveLabel = 'Save', extraAction, status, loading, children }) => (
+}> = ({ title, description, summary, editing, onEdit, onCancel, onSave, saving, canSave = true, saveLabel = 'Save', extraAction, status, loading, children }) => {
+  // Without the Edit tick the card stays a read-only summary: no Edit button, so no form and no Save.
+  const { can } = usePermissions();
+  const canEdit = can('settings', 'edit');
+  return (
   <div className="surface-card p-6">
     <div className="mb-4 flex items-start justify-between gap-3">
       <div className="min-w-0">
         <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
         <p className="mt-1 text-sm text-gray-500">{description}</p>
       </div>
-      {!editing && !loading && (
+      {canEdit && !editing && !loading && (
         <button
           type="button"
           onClick={onEdit}
@@ -89,7 +94,8 @@ const SettingsCard: React.FC<{
 
     {status && <p className={`mt-3 text-sm ${/could not|please enter/i.test(status) ? 'text-red-600' : 'text-gray-600'}`}>{status}</p>}
   </div>
-);
+  );
+};
 
 /** Read-only label/value rows used by the collapsed summaries. */
 const SummaryRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (

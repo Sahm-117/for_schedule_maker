@@ -12,6 +12,24 @@
 // deno-lint-ignore no-explicit-any
 type SupabaseClient = any
 
+/** An admin, or a Team member (STAFF), who acts as an admin everywhere. */
+export const isAdminRole = (role: string | null | undefined): boolean => role === 'ADMIN' || role === 'STAFF'
+
+/**
+ * Everyone who should get the admin notifications of a module: every admin, plus Team members whose roles let them
+ * See it (database function module_viewers). If the lookup fails, falls back to the admins so a hiccup never silences them.
+ * `module` is a permission module key, e.g. 'follow_ups', 'groups', 'participants', 'supports', 'birthdays', 'feedback'.
+ */
+export async function moduleViewerIds(supabase: SupabaseClient, module: string): Promise<string[]> {
+  const { data, error } = await supabase.rpc('module_viewers', { p_module: module })
+  if (!error && Array.isArray(data)) {
+    return Array.from(new Set((data as unknown[]).map((id) => String(id)).filter(Boolean)))
+  }
+  console.error('moduleViewerIds failed, falling back to admins:', error?.message)
+  const { data: admins } = await supabase.from('User').select('id').eq('role', 'ADMIN').neq('isActive', false)
+  return Array.from(new Set(((admins ?? []) as Array<{ id: string }>).map((a) => a.id).filter(Boolean)))
+}
+
 export interface NotificationRow {
   userId: string
   title: string

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supportNotesApi } from '../../services/api';
+import { usePermissions } from '../../hooks/usePermissions';
 import type { SupportNote } from '../../types';
 import { PERSON_OF_INTEREST_INFO } from './hubJobs';
 import Spinner from '../Spinner';
@@ -11,6 +12,9 @@ import LinkText from '../LinkText';
 const dateLabel = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 const SupportNotesStar: React.FC<{ supportId: string; name: string; hubId: string }> = ({ supportId, name, hubId }) => {
+  const { can } = usePermissions();
+  const canAdd = can('hubs', 'add');
+  const canEdit = can('hubs', 'edit');
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState<SupportNote[] | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -84,23 +88,25 @@ const SupportNotesStar: React.FC<{ supportId: string; name: string; hubId: strin
             <p className="text-center text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Notes</p>
             <p className="mb-4 truncate text-center text-sm font-semibold text-gray-900">{name}</p>
 
-            <div className="flex flex-col gap-2">
-              <textarea
-                value={noteBody}
-                onChange={(e) => setNoteBody(e.target.value)}
-                rows={2}
-                placeholder="Add a note — only admin and this support's hub lead can see it."
-                className="w-full resize-none rounded-2xl border border-orange-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <button
-                type="button"
-                onClick={() => void handleAdd()}
-                disabled={adding || !noteBody.trim()}
-                className="self-end rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white active:scale-95 disabled:opacity-60"
-              >
-                {adding ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Add note'}
-              </button>
-            </div>
+            {canAdd && (
+              <div className="flex flex-col gap-2">
+                <textarea
+                  value={noteBody}
+                  onChange={(e) => setNoteBody(e.target.value)}
+                  rows={2}
+                  placeholder="Add a note — only admin and this support's hub lead can see it."
+                  className="w-full resize-none rounded-2xl border border-orange-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleAdd()}
+                  disabled={adding || !noteBody.trim()}
+                  className="self-end rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white active:scale-95 disabled:opacity-60"
+                >
+                  {adding ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Saving…</span>) : 'Add note'}
+                </button>
+              </div>
+            )}
 
             {error && <p className="mt-2 text-xs font-medium text-red-600">{error}</p>}
 
@@ -141,7 +147,7 @@ const SupportNotesStar: React.FC<{ supportId: string; name: string; hubId: strin
                           <p className="whitespace-pre-line text-sm text-gray-800"><LinkText text={n.body} /></p>
                           <div className="mt-1 flex items-center justify-between gap-2">
                             <p className="text-[11px] text-gray-400">{n.authorName || 'Admin'} · {dateLabel(n.createdAt)}</p>
-                            <button type="button" onClick={() => { setEditingId(n.id); setEditBody(n.body); setError(''); }} className="text-xs font-semibold text-primary hover:text-primary-dark">Edit</button>
+                            {canEdit && <button type="button" onClick={() => { setEditingId(n.id); setEditBody(n.body); setError(''); }} className="text-xs font-semibold text-primary hover:text-primary-dark">Edit</button>}
                           </div>
                         </>
                       )}

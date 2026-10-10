@@ -16,6 +16,7 @@ import MonthCalendar from '../components/planner/MonthCalendar';
 import YearTimeline, { runsInYear } from '../components/planner/YearTimeline';
 import { EXTENSION_STRIPES, KIND_BAR, SKIPPED_WEEK } from '../components/planner/PlannerBits';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { plannerApi } from '../services/api';
 import {
@@ -64,6 +65,9 @@ const LEGEND: Array<{ label: string; cls: string; stripes?: boolean; sunday?: bo
 
 const AdminPlannerPage: React.FC = () => {
   const { isAdmin } = useAuth();
+  const { can } = usePermissions();
+  const canAdd = can('planner', 'add');
+  const canEdit = can('planner', 'edit');
   const { cohorts, reloadCohorts } = useAppData();
   const today = plannerToday();
   const thisYear = Number(today.slice(0, 4));
@@ -235,11 +239,13 @@ const AdminPlannerPage: React.FC = () => {
         subtitle="When each cohort runs, and what could get in its way"
         action={(
           <div className="flex items-center gap-2">
-            {nextPlanned && (
+            {canAdd && nextPlanned && (
               <button type="button" onClick={() => setCohortSheet({ cohort: nextPlanned, adding: true })} className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-white active:scale-95">Add cohort</button>
             )}
-            <button type="button" onClick={() => setEventSheet({ event: null })} className="rounded-2xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Add event</button>
-            <AppOverflowMenu items={[{ label: showTest ? 'Hide test cohorts' : 'Show test cohorts', onClick: toggleTest }, { label: refreshing ? 'Refreshing…' : 'Refresh public holidays', onClick: () => { if (!refreshing) void refreshHolidays(); } }]} />
+            {canAdd && (
+              <button type="button" onClick={() => setEventSheet({ event: null })} className="rounded-2xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 active:scale-95">Add event</button>
+            )}
+            <AppOverflowMenu items={[{ label: showTest ? 'Hide test cohorts' : 'Show test cohorts', onClick: toggleTest }, ...(canEdit ? [{ label: refreshing ? 'Refreshing…' : 'Refresh public holidays', onClick: () => { if (!refreshing) void refreshHolidays(); } }] : [])]} />
           </div>
         )}
       />
@@ -253,23 +259,23 @@ const AdminPlannerPage: React.FC = () => {
       ) : (
         <div className="space-y-4">
           {firstClash ? (
-            <button type="button" onClick={() => setActiveClash(firstClash)} className="block w-full rounded-[22px] bg-red-100/80 p-4 text-left active:scale-[0.99]">
+            <button type="button" onClick={() => { if (canEdit) setActiveClash(firstClash); }} disabled={!canEdit} className="block w-full rounded-[22px] bg-red-100/80 p-4 text-left active:scale-[0.99] disabled:active:scale-100">
               <p className="text-[17px] font-bold leading-snug text-red-700">
                 {firstClash.event.name} lands on {firstClash.cohort.name}’s class {firstClash.cls.weekNumber}
               </p>
               <p className="mt-0.5 text-[13px] text-red-700">
-                {formatPlannerDate(firstClash.cls.date, true, today)}{clashes.length > 1 ? ` · and ${clashes.length - 1} more` : ''} · Tap to see what moves ›
+                {formatPlannerDate(firstClash.cls.date, true, today)}{clashes.length > 1 ? ` · and ${clashes.length - 1} more` : ''}{canEdit ? ' · Tap to see what moves ›' : ''}
               </p>
             </button>
           ) : null}
 
           {pullForwards.length > 0 ? (
-            <button type="button" onClick={() => setActivePull(pullForwards[0])} className="block w-full rounded-[22px] bg-emerald-100/80 p-4 text-left active:scale-[0.99]">
+            <button type="button" onClick={() => { if (canEdit) setActivePull(pullForwards[0]); }} disabled={!canEdit} className="block w-full rounded-[22px] bg-emerald-100/80 p-4 text-left active:scale-[0.99] disabled:active:scale-100">
               <p className="text-[17px] font-bold leading-snug text-emerald-700">
                 {pullForwards[0].event.name} no longer stops FOF
               </p>
               <p className="mt-0.5 text-[13px] text-emerald-700">
-                {pullForwards[0].cohort.name} can move {pullForwards[0].dates.length} class{pullForwards[0].dates.length === 1 ? '' : 'es'} back up{pullForwards.length > 1 ? ` · and ${pullForwards.length - 1} more cohort${pullForwards.length === 2 ? '' : 's'}` : ''} · Tap to see what moves ›
+                {pullForwards[0].cohort.name} can move {pullForwards[0].dates.length} class{pullForwards[0].dates.length === 1 ? '' : 'es'} back up{pullForwards.length > 1 ? ` · and ${pullForwards.length - 1} more cohort${pullForwards.length === 2 ? '' : 's'}` : ''}{canEdit ? ' · Tap to see what moves ›' : ''}
               </p>
             </button>
           ) : null}
@@ -307,9 +313,9 @@ const AdminPlannerPage: React.FC = () => {
               events={events}
               holidays={periodHolidays}
               clashes={clashes}
-              onOpenCohort={(cohort) => setCohortSheet({ cohort, adding: false })}
-              onOpenEvent={(event) => setEventSheet({ event })}
-              onOpenClash={setActiveClash}
+              onOpenCohort={(cohort) => { if (canEdit) setCohortSheet({ cohort, adding: false }); }}
+              onOpenEvent={(event) => { if (canEdit) setEventSheet({ event }); }}
+              onOpenClash={(clash) => { if (canEdit) setActiveClash(clash); }}
             /> : <YearTimeline
               start={period.start}
               end={period.end}
@@ -320,9 +326,9 @@ const AdminPlannerPage: React.FC = () => {
               clashes={clashes}
               today={today}
               scrollRef={scroller}
-              onOpenCohort={(cohort) => setCohortSheet({ cohort, adding: false })}
-              onOpenEvent={(event) => setEventSheet({ event })}
-              onOpenClash={setActiveClash}
+              onOpenCohort={(cohort) => { if (canEdit) setCohortSheet({ cohort, adding: false }); }}
+              onOpenEvent={(event) => { if (canEdit) setEventSheet({ event }); }}
+              onOpenClash={(clash) => { if (canEdit) setActiveClash(clash); }}
             />}
             {view !== 'month' && <><div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-gray-100 pt-4 text-xs font-semibold text-gray-600">
               {LEGEND.map((item) => (
@@ -335,7 +341,7 @@ const AdminPlannerPage: React.FC = () => {
 
           <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             {periodCohorts.map((cohort) => (
-              <CohortCard key={cohort.key} cohort={cohort} events={events} today={today} onOpen={() => setCohortSheet({ cohort, adding: false })} />
+              <CohortCard key={cohort.key} cohort={cohort} events={events} today={today} onOpen={() => { if (canEdit) setCohortSheet({ cohort, adding: false }); }} />
             ))}
           </ul>
 
@@ -349,7 +355,7 @@ const AdminPlannerPage: React.FC = () => {
                       <p className={`text-[14px] ${change.undoneAt ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{change.summary}</p>
                       <p className="text-xs text-gray-500">{updatedAgo(change.createdAt).replace(/^./, (c) => c.toUpperCase())}{change.undoneAt ? ' · undone' : ''}</p>
                     </div>
-                    {latestChange?.id === change.id && (
+                    {canEdit && latestChange?.id === change.id && (
                       <button type="button" onClick={() => void undoChange(change)} disabled={undoing} className="inline-flex shrink-0 items-center gap-1 rounded-2xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-200 disabled:opacity-60">
                         {undoing ? (<><Spinner className="h-3 w-3" />Undoing…</>) : 'Undo'}
                       </button>

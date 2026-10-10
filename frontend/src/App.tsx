@@ -39,6 +39,7 @@ const SupportSurveyPage = lazy(() => import('./pages/SupportSurveyPage'));
 const AdminSchedulePage = lazy(() => import('./pages/AdminSchedulePage'));
 const AdminApprovalsPage = lazy(() => import('./pages/AdminApprovalsPage'));
 const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage'));
+const AdminRolesPage = lazy(() => import('./pages/AdminRolesPage'));
 const AdminAnnouncementsPage = lazy(() => import('./pages/AdminAnnouncementsPage'));
 const AdminResourcesPage = lazy(() => import('./pages/AdminResourcesPage'));
 const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
@@ -140,6 +141,7 @@ function App() {
             <Route path="/planner" element={<Suspense fallback={<RouteFallback />}><AdminPlannerPage /></Suspense>} />
             <Route path="/approvals" element={<Suspense fallback={<RouteFallback />}><AdminApprovalsPage /></Suspense>} />
             <Route path="/users" element={<Suspense fallback={<RouteFallback />}><AdminUsersPage /></Suspense>} />
+            <Route path="/roles" element={<Suspense fallback={<RouteFallback />}><AdminRolesPage /></Suspense>} />
             <Route path="/announcements" element={<Suspense fallback={<RouteFallback />}><AdminAnnouncementsPage /></Suspense>} />
             <Route path="/notifications" element={<Suspense fallback={<RouteFallback />}><AdminNotificationsPage /></Suspense>} />
             <Route path="/team-announcements" element={<Suspense fallback={<RouteFallback />}><AnnouncementsFeedPage /></Suspense>} />

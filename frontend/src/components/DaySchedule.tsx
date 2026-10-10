@@ -4,6 +4,7 @@ import type { Day, Activity, PendingChange } from '../types';
 import ActivityCard from './ActivityCard';
 import ConfirmationModal from './ConfirmationModal';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { compareTimeStrings, parseTimeToMinutes } from '../utils/time';
 import { activityDescriptionToPlainText } from '../utils/activityDescription';
 import PeriodIcon, { getPeriodStyle } from './PeriodIcon';
@@ -45,6 +46,10 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
   onToggleCompleted,
 }) => {
   const { user } = useAuth();
+  const { can } = usePermissions();
+  const canAddActivity = can('schedule', 'add');
+  const canEditActivity = can('schedule', 'edit');
+  const canDeleteActivity = can('schedule', 'delete');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState<Activity | null>(null);
   const [deleteSimilarWeeks, setDeleteSimilarWeeks] = useState<number[]>([]);
@@ -240,7 +245,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
               </span>
             )}
 
-            {(isAdmin || canEdit) && (
+            {(isAdmin || canEdit) && canAddActivity && (
               <button
                 onClick={onAddActivity}
                 className="inline-flex items-center px-3 py-1 border border-primary text-primary bg-white rounded-md hover:bg-primary/5 transition-colors text-sm"
@@ -310,6 +315,8 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
                         canMoveUp={canMoveUpSameTime}
                         canMoveDown={canMoveDownSameTime}
                         isAdmin={isAdmin || canEdit}
+                        canEditActivity={canEditActivity}
+                        canDeleteActivity={canDeleteActivity}
                         isCompleted={completedActivityIds.includes(activity.id)}
                         canToggleCompleted={completableActivityIds.includes(activity.id)}
                         onToggleCompleted={onToggleCompleted ? (nextValue) => onToggleCompleted(activity.id, nextValue) : undefined}
@@ -324,7 +331,7 @@ const DaySchedule: React.FC<DayScheduleProps> = ({
                     <p className="text-sm text-gray-500">
                       No {period.label.toLowerCase()} activities scheduled
                     </p>
-                    {(isAdmin || canEdit) && (
+                    {(isAdmin || canEdit) && canAddActivity && (
                       <button
                         onClick={onAddActivity}
                         className="mt-2 text-primary hover:text-primary-dark text-sm font-medium"

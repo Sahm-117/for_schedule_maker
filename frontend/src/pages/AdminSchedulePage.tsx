@@ -7,6 +7,7 @@ import ScheduleView from '../components/ScheduleView';
 import WeekSelector from '../components/WeekSelector';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { labelsApi, usersApi, cohortsApi } from '../services/api';
 import AppOverflowMenu from '../components/AppOverflowMenu';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -20,6 +21,10 @@ import { hasSupportRole } from '../utils/people';
 
 const AdminSchedulePage: React.FC = () => {
   const { user, isAdmin, userLabelIds } = useAuth();
+  const { can } = usePermissions();
+  const canAdd = can('schedule', 'add');
+  const canEdit = can('schedule', 'edit');
+  const canDelete = can('schedule', 'delete');
   const {
     weeks,
     selectedWeek,
@@ -126,7 +131,7 @@ const AdminSchedulePage: React.FC = () => {
 
   const headerAction = canManageSchedule ? (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {isAdmin && (
+      {isAdmin && canEdit && (
         <button
           type="button"
           onClick={() => setConfirmPublishOpen(true)}
@@ -142,6 +147,7 @@ const AdminSchedulePage: React.FC = () => {
       )}
       {selectedWeek && (
         <>
+      {canAdd && (
       <button
         type="button"
         onClick={() => setShowDayAddPicker(true)}
@@ -149,15 +155,16 @@ const AdminSchedulePage: React.FC = () => {
       >
         Add Activity
       </button>
+      )}
       <AppOverflowMenu
         align="right"
         items={[
-          ...(isAdmin ? [{ label: 'Add task for supports', onClick: () => setShowSupportTask(true) }] : []),
+          ...(isAdmin && canAdd ? [{ label: 'Add task for supports', onClick: () => setShowSupportTask(true) }] : []),
           { label: 'Daily export', onClick: () => setShowDayExportPicker(true) },
           { label: 'Export week', onClick: () => { void exportSelectedWeek(); } },
           { label: 'Export all', onClick: () => { void exportAllWeeks(); } },
-          ...(isAdmin ? [{ label: 'Manage tags', onClick: () => setShowTagManagement(true) }] : []),
-          { label: 'Cross-Week', onClick: () => setCrossWeekRequest((prev) => prev + 1) },
+          ...(isAdmin && (canAdd || canEdit || canDelete) ? [{ label: 'Manage tags', onClick: () => setShowTagManagement(true) }] : []),
+          ...(canAdd ? [{ label: 'Cross-Week', onClick: () => setCrossWeekRequest((prev) => prev + 1) }] : []),
         ]}
       />
         </>

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { labelsApi } from '../services/api';
+import { usePermissions } from '../hooks/usePermissions';
 import type { Label } from '../types';
 import { deltaE76, normalizeHexColor } from '../utils/color';
 import LabelChip from './LabelChip';
@@ -16,6 +17,10 @@ const DEFAULT_COLOR = '#FF914D';
 const SIMILARITY_THRESHOLD = 12; // Delta-E 76. Lower = stricter.
 
 const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embedded = false }) => {
+  const { can } = usePermissions();
+  const canAdd = can('schedule', 'add');
+  const canEdit = can('schedule', 'edit');
+  const canDelete = can('schedule', 'delete');
   const [labels, setLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -192,6 +197,7 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
 
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-medium">Tags ({sorted.length})</h3>
+        {canAdd && (
         <button
           onClick={() => {
             setShowAdd((v) => !v);
@@ -204,6 +210,7 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
         >
           {showAdd ? 'Cancel' : 'Add tag'}
         </button>
+        )}
       </div>
 
       {showAdd && (
@@ -343,10 +350,11 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
               </div>
               <div className="flex-1 text-sm text-gray-900">{label.name}</div>
               <div className="w-12 flex justify-end">
+                {(canEdit || canDelete) && (
                 <AppOverflowMenu
                   align="right"
                   items={[
-                    {
+                    ...(canEdit ? [{
                       label: 'Edit',
                       onClick: () => {
                         setEditing(label);
@@ -354,10 +362,11 @@ const LabelManagement: React.FC<LabelManagementProps> = ({ isOpen, onClose, embe
                         setError('');
                         setSuccess('');
                       },
-                    },
-                    { label: 'Delete', onClick: () => { void handleDelete(label); }, tone: 'danger' },
+                    }] : []),
+                    ...(canDelete ? [{ label: 'Delete', onClick: () => { void handleDelete(label); }, tone: 'danger' as const }] : []),
                   ]}
                 />
+                )}
               </div>
             </div>
           ))

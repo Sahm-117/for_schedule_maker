@@ -609,6 +609,21 @@ duplicating the logic anywhere else is a bug waiting to happen.
     (`20261012090000_prayer_skip_drop_cohort_fk.sql`). Before adding a table, check it has no two foreign keys to tables that are already embedded together; keep one as a plain column,
     then replay the real embed through the API with a test session.
 
+56. **Roles and permissions: an Admin makes roles, ticks See / Add / Edit / Delete per module, and gives them to Team members. Phase 1 hides; it does not yet block.**
+    The Roles page (`/roles`, real admins only) edits `PermissionRole` and `PermissionRoleModule` (21 module keys, `perm_module_keys()`, mirrored by `frontend/src/utils/permissions.ts`; keep the two in step).
+    A person gets a custom role through `UserPermissionRole` (`perm_set_user_roles`). The built-in **Support** role row holds ticks too, but they only apply to a Support person who also holds Team member
+    access, in their Team member view. **Team member = database role `STAFF`.** Behind the scenes it is an admin: `app_staff()` returns it as ADMIN and `app_is_admin()` /
+    `attendance_session_actor_is_admin()` accept it, so every existing admin-only function and rule lets it through; the app limits what it sees (menu, `PermissionGate` for typed addresses, `can()` on buttons).
+    Anything that changes who has access uses the true role (`app_staff_real`): `set_user_role(s)`, `create_user` above Support, `set_user_password` on an admin, and every `perm_*` function (admin only).
+    The client maps STAFF to `role: 'ADMIN'` plus `teamMember: true` (`asClientUser`, `supabase-api.ts`), so legacy `role === 'ADMIN'` checks keep working; `isRealAdmin` is the strict one.
+    `get_my_permissions` resolves what the signed-in person may do (admins: everything; Support view: nothing extra; Team member: union of custom roles plus Support's ticks if they also hold Support).
+    A Support who needs more modules is given Team member access too and switches views from the profile menu (existing multi-role switch); they always sign in as Support (`app_lowest_role` ranks STAFF above Support).
+    A Support in the Support view keeps a few admin routes their own screens link to (`SUPPORT_KEPT_PATHS`: group view, group prayers, faith projects, schedule, community, resources, team announcements) and `can()` answers yes for them.
+    Admin notifications go to everyone who can See the module, not to a fixed role: `module_viewers(module)` (admins plus Team members with the See tick) is used by the edge functions (`moduleViewerIds` in `_shared/notifications.ts`),
+    `notify-users` (`module` input) and the reported-post trigger. Source: `20261013085500_staff_role_value.sql`, `20261013090100_roles_and_permissions.sql`, `20261013100000_permissions_support_view.sql`,
+    `20261013110000_lowest_role_staff_above_support.sql`, `20261013120000_module_viewers.sql`, `20261013130000_roles_review_fixes.sql`, `docs/specs/roles-and-permissions.md`.
+    Frontend: `utils/permissions.ts`, `hooks/usePermissions.ts`, `hooks/useAuth.tsx`, `components/PermissionGate.tsx`, `pages/AdminRolesPage.tsx`, `pages/NoAccessPage.tsx`, `components/AppShell.tsx`, `components/UserManagement.tsx`.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the

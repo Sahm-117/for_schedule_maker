@@ -31,7 +31,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // @ts-ignore — web-push ESM build
 import webPush from 'https://esm.sh/web-push@3'
 import { sendToSubscriptions } from '../_shared/webpush.ts'
-import { insertNotifications } from '../_shared/notifications.ts'
+import { insertNotifications, moduleViewerIds } from '../_shared/notifications.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -133,8 +133,7 @@ Deno.serve(async (req) => {
           await notifyOwner(ownerId, teenBatches[ownerId].count, teenBatches[ownerId].names ?? [])
         }
         const tellAdmins = async (title: string, body: string) => {
-          const { data: admins } = await supabase.from('User').select('id').eq('role', 'ADMIN').neq('isActive', false)
-          const adminIds = (admins ?? []).map((a: { id: string }) => a.id)
+          const adminIds = await moduleViewerIds(supabase, 'follow_ups')
           if (!adminIds.length) return
           await insertNotifications(supabase, adminIds.map((userId: string) => ({ userId, title, body, path: '/follow-ups', type: 'FOLLOWUP_ASSIGNMENT' })))
           const { data: subs } = await supabase.from('PushSubscription').select('userId, endpoint, p256dh, auth').in('userId', adminIds)
@@ -262,8 +261,7 @@ Deno.serve(async (req) => {
           alertSent = true
           const title = 'Follow-ups waiting to be assigned'
           const body = `${waitingCount} ${waitingCount === 1 ? 'person has' : 'people have'} been waiting more than 2 hours for a follow-up support.`
-          const { data: admins } = await supabase.from('User').select('id').eq('role', 'ADMIN').neq('isActive', false)
-          const adminIds = (admins ?? []).map((a: { id: string }) => a.id)
+          const adminIds = await moduleViewerIds(supabase, 'follow_ups')
           if (adminIds.length > 0) {
             await insertNotifications(supabase, adminIds.map((userId: string) => ({ userId, title, body, path: '/follow-ups', type: 'FOLLOWUP_ASSIGNMENT' })))
             const { data: subs } = await supabase

@@ -19,6 +19,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import SaveStatus, { type SaveState } from '../components/SaveStatus';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { scripturesApi, settingsApi } from '../services/api';
 import type { Scripture } from '../types';
 
@@ -91,26 +92,28 @@ interface CardProps {
   position: number;
   onReplace: () => void;
   onRemove: () => void;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
-const ScriptureCard: React.FC<CardProps> = ({ scripture, position, onReplace, onRemove }) => {
-  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: scripture.id });
+const ScriptureCard: React.FC<CardProps> = ({ scripture, position, onReplace, onRemove, canEdit, canDelete }) => {
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: scripture.id, disabled: !canEdit });
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: scripture.id });
   const setRefs = (node: HTMLDivElement | null) => { setDragRef(node); setDropRef(node); };
 
   return (
     <div
       ref={setRefs}
-      {...attributes}
-      {...listeners}
-      style={{ touchAction: 'none' }}
-      className={`surface-card cursor-grab p-2 active:cursor-grabbing ${isDragging ? 'opacity-30' : ''} ${isOver && !isDragging ? 'ring-2 ring-primary' : ''}`}
+      {...(canEdit ? attributes : {})}
+      {...(canEdit ? listeners : {})}
+      style={canEdit ? { touchAction: 'none' } : undefined}
+      className={`surface-card p-2 ${canEdit ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-30' : ''} ${isOver && !isDragging ? 'ring-2 ring-primary' : ''}`}
     >
       <img src={scripture.imageUrl} alt={`Scripture, ${ordinal(position)} post`} className="aspect-[4/5] w-full rounded-xl bg-gray-50 object-cover" loading="lazy" draggable={false} />
       <div className="mt-2 flex items-center gap-2 px-1">
         <span className="text-sm font-semibold text-gray-900">{ordinal(position)}</span>
-        <button type="button" onClick={(e) => { e.stopPropagation(); onReplace(); }} className="ml-auto text-xs font-semibold text-primary">Replace</button>
-        <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }} className="text-xs font-semibold text-red-700">Remove</button>
+        {canEdit && <button type="button" onClick={(e) => { e.stopPropagation(); onReplace(); }} className="ml-auto text-xs font-semibold text-primary">Replace</button>}
+        {canDelete && <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }} className={`text-xs font-semibold text-red-700 ${canEdit ? '' : 'ml-auto'}`}>Remove</button>}
       </div>
     </div>
   );
@@ -118,6 +121,10 @@ const ScriptureCard: React.FC<CardProps> = ({ scripture, position, onReplace, on
 
 const AdminScripturesPage: React.FC = () => {
   const { user } = useAuth();
+  const { can } = usePermissions();
+  const canAdd = can('resources', 'add');
+  const canEdit = can('resources', 'edit');
+  const canDelete = can('resources', 'delete');
   const toast = useToast();
   const [scriptures, setScriptures] = useState<Scripture[]>([]);
   const [loading, setLoading] = useState(true);
@@ -297,11 +304,11 @@ const AdminScripturesPage: React.FC = () => {
         title="Scriptures"
         tourId="admin:scriptures"
         subtitle="The daily Inspirational Scripture on the participant Home. Drag to reorder; the first post shows from 2:00 PM on the FOF day set below, then one more each day."
-        action={(
+        action={canAdd ? (
           <button type="button" onClick={() => addInput.current?.click()} className="rounded-2xl bg-primary px-4 py-2 text-sm font-semibold text-white active:scale-95">
             + Upload
           </button>
-        )}
+        ) : undefined}
       />
       <input ref={addInput} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
       <input ref={replaceInput} type="file" accept="image/*" className="hidden" onChange={(e) => { void replace(e.target.files?.[0]); e.target.value = ''; }} />
@@ -320,7 +327,7 @@ const AdminScripturesPage: React.FC = () => {
               aria-checked={enabled}
               aria-label="Show Scriptures to participants"
               onClick={() => { void toggleEnabled(); }}
-              disabled={enabledSaveState === 'saving'}
+              disabled={enabledSaveState === 'saving' || !canEdit}
               className={`relative inline-flex h-8 w-14 flex-none items-center rounded-full transition disabled:opacity-60 ${enabled ? 'bg-primary' : 'bg-slate-200'}`}
             >
               <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${enabled ? 'translate-x-7' : 'translate-x-1'}`} />
@@ -336,6 +343,7 @@ const AdminScripturesPage: React.FC = () => {
             onChange={(e) => setStartDay(e.target.value)}
             onBlur={() => { void saveStartDay(); }}
             onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+            disabled={!canEdit}
             className="w-16 rounded-lg border border-gray-200 px-2 py-1 text-sm"
           />
           of FOF
@@ -375,7 +383,7 @@ const AdminScripturesPage: React.FC = () => {
       ) : scriptures.length === 0 ? (
         <section className="surface-card px-5 py-12 text-center">
           <p className="text-sm font-semibold text-gray-900">No scriptures yet</p>
-          <p className="mt-1 text-sm text-gray-500">Upload the daily designs to show them to participants.</p>
+          <p className="mt-1 text-sm text-gray-500">{canAdd ? 'Upload the daily designs to show them to participants.' : 'Nothing has been uploaded for participants yet.'}</p>
         </section>
       ) : (
         <>
@@ -389,6 +397,8 @@ const AdminScripturesPage: React.FC = () => {
                   position={scripture.dayNumber}
                   onReplace={() => { setReplaceDay(scripture.dayNumber); replaceInput.current?.click(); }}
                   onRemove={() => setToDelete(scripture)}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
                 />
               ))}
             </div>

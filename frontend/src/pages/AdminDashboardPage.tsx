@@ -27,6 +27,7 @@ import {
 } from '../components/dashboard/healthModel';
 import NextCohortAssignModal from '../components/followups/NextCohortAssignModal';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { announcementsApi, cohortsApi, followUpContactsApi, settingsApi, supportActivityCompletionsApi, teenMeetingsApi, usersApi } from '../services/api';
 import { DEFAULT_PROGRAMME_RULES, type CohortPeoplePayload, type ProgrammeRules } from '../utils/programmeRules';
@@ -60,6 +61,8 @@ const pct = (value: number | null) => (value === null ? '–' : `${Math.round(va
 
 const AdminDashboardPage: React.FC = () => {
   const { user, isAdmin } = useAuth();
+  const { can } = usePermissions();
+  const canAssignNextCohort = can('follow_ups', 'edit');
   const { activeCohort, weeks, selectedWeek, globalPendingChanges, liveRevision } = useAppData();
   const showToast = useToast();
 
@@ -238,7 +241,7 @@ const AdminDashboardPage: React.FC = () => {
           {teenOverview && teenOverview.total > 0 && <TeenOverviewCard overview={teenOverview} meetings={teenMeetingSummary} />}
 
           <div data-wt="dash-attention" className={openingAssign ? 'pointer-events-none opacity-70' : ''}>
-            <AttentionList items={model.attention} onAction={(item) => { void handleAttentionAction(item); }} />
+            <AttentionList items={model.attention} canAct={canAssignNextCohort} onAction={(item) => { void handleAttentionAction(item); }} />
           </div>
 
           {model.mode === 'upcoming' ? (

@@ -7,6 +7,7 @@ import Spinner from '../components/Spinner';
 import Glyph from '../components/Glyph';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { surveyApi } from '../services/api';
 import type { SurveyQuestion, SurveyResults } from '../types';
@@ -20,6 +21,8 @@ const CARD = 'surface-card p-5 sm:p-6';
 const AdminSurveyResultsPage: React.FC = () => {
   const { id } = useParams();
   const { user } = useAuth();
+  const { can } = usePermissions();
+  const canEdit = can('surveys', 'edit');
   const { activeCohort } = useAppData();
   const toast = useToast();
   const [results, setResults] = useState<SurveyResults | null>(null);
@@ -184,9 +187,9 @@ const AdminSurveyResultsPage: React.FC = () => {
           <section className={`${CARD} h-fit`}>
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-gray-900">AI summary</p>
-              <button type="button" onClick={() => void summarise()} disabled={aiBusy || !results.visible || results.answered === 0} className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-50">
+              {canEdit && <button type="button" onClick={() => void summarise()} disabled={aiBusy || !results.visible || results.answered === 0} className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-50">
                 {aiBusy ? (<><Spinner className="h-3.5 w-3.5" />Writing…</>) : (summary.text ? 'Refresh' : 'Summarise')}
-              </button>
+              </button>}
             </div>
             {aiError && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-600">{aiError}</p>}
             {summary.text ? (
@@ -195,7 +198,7 @@ const AdminSurveyResultsPage: React.FC = () => {
                 <p className="mt-3 text-[11.5px] text-gray-400">Written from the answers{summary.at ? `, ${formatDay(summary.at)}` : ''}. Check it before sharing.</p>
               </>
             ) : (
-              <p className="mt-3 text-[13px] text-gray-500">Tap Summarise for the main themes in the answers.</p>
+              <p className="mt-3 text-[13px] text-gray-500">{canEdit ? 'Tap Summarise for the main themes in the answers.' : 'No summary yet.'}</p>
             )}
           </section>
         </div>

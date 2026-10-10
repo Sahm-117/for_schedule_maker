@@ -8,6 +8,7 @@ import AppOverflowMenu from '../components/AppOverflowMenu';
 import ModalShell from '../components/followups/ModalShell';
 import TrainingMarkersModal from '../components/TrainingMarkersModal';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useAppData } from '../context/AppDataContext';
 import { attendanceApi, attendanceFollowUpTasksApi, groupsApi, participantsApi } from '../services/api';
 import type { AttendanceFollowUpTask, AttendanceRecord, AttendanceSession, AttendanceStatus, Group, Participant, Week } from '../types';
@@ -57,6 +58,8 @@ const AdminAttendancePage: React.FC = () => {
 
 const AdminAttendanceContent: React.FC = () => {
   const { activeCohort, weeks } = useAppData();
+  const { can } = usePermissions();
+  const canEdit = can('participants', 'edit');
 
   const cohortWeeks: Week[] = useMemo(
     () => (weeks ?? []).filter((w) => w.cohortId === activeCohort?.id).sort((a, b) => a.weekNumber - b.weekNumber),
@@ -303,7 +306,7 @@ const AdminAttendanceContent: React.FC = () => {
       <PageHeader
         title="Attendance"
         subtitle={activeCohort ? activeCohort.name : 'No active cohort'}
-        action={<AppOverflowMenu items={[{ label: 'Who can mark trainings', onClick: () => setMarkersOpen(true) }]} />}
+        action={canEdit ? <AppOverflowMenu items={[{ label: 'Who can mark trainings', onClick: () => setMarkersOpen(true) }]} /> : undefined}
       />
 
       {!activeCohort ? (
@@ -371,14 +374,14 @@ const AdminAttendanceContent: React.FC = () => {
           <section className="mb-4 flex flex-wrap items-center gap-3 surface-card px-4 py-3">
             <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${finalised ? 'bg-emerald-100 text-emerald-700' : allMarked ? 'bg-sky-100 text-sky-700' : 'bg-neutral-100 text-neutral-600'}`}>{finalised ? 'Report sent' : allMarked ? 'Attendance taken' : `${participants.length - records.size} still unmarked`}</span>
             {!session?.startedAt && !finalised ? (
-              <button type="button" onClick={() => void startAttendance()} disabled={startingWindow} className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{startingWindow ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Starting…</span>) : 'Start attendance'}</button>
+              canEdit && <button type="button" onClick={() => void startAttendance()} disabled={startingWindow} className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{startingWindow ? (<span className="inline-flex items-center gap-1.5"><Spinner className="h-3.5 w-3.5" />Starting…</span>) : 'Start attendance'}</button>
             ) : windowOpen && windowClosesAt ? (
               <span className="rounded-full bg-sky-100/80 px-2.5 py-1 text-xs font-bold text-sky-700">Closes in {countdownLabel(windowClosesAt, now)}</span>
             ) : session?.startedAt && !finalised ? (
               <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-bold text-neutral-600">Register closed</span>
             ) : null}
-            <button type="button" onClick={() => void setAutoFinalize(!autoFinalizeAtNoon)} disabled={sessionSaving || finalised} className="rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50">Auto-finalise at noon: {autoFinalizeAtNoon ? 'On' : 'Off'}</button>
-            {finalised ? <button type="button" onClick={() => void reopen()} disabled={sessionSaving} className="ml-auto rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50">Reopen</button> : !autoFinalizeAtNoon ? <button type="button" onClick={() => void finalise()} disabled={!allMarked || sessionSaving} className="ml-auto rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Send report</button> : <p className="ml-auto text-xs font-medium text-gray-500">Sends automatically at noon Sunday</p>}
+            {canEdit && <button type="button" onClick={() => void setAutoFinalize(!autoFinalizeAtNoon)} disabled={sessionSaving || finalised} className="rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50">Auto-finalise at noon: {autoFinalizeAtNoon ? 'On' : 'Off'}</button>}
+            {finalised ? canEdit && <button type="button" onClick={() => void reopen()} disabled={sessionSaving} className="ml-auto rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50">Reopen</button> : !autoFinalizeAtNoon ? canEdit && <button type="button" onClick={() => void finalise()} disabled={!allMarked || sessionSaving} className="ml-auto rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Send report</button> : <p className="ml-auto text-xs font-medium text-gray-500">Sends automatically at noon Sunday</p>}
           </section>
           {/* Summary cards */}
           {!loading && (
@@ -462,7 +465,7 @@ const AdminAttendanceContent: React.FC = () => {
                         {pillLabel}
                       </span>
                     </div>
-                    <AppOverflowMenu
+                    {canEdit && <AppOverflowMenu
                       align="right"
                       items={[
                         { label: 'Mark present', onClick: () => void handleMark(p.id, 'PRESENT') },
@@ -474,7 +477,7 @@ const AdminAttendanceContent: React.FC = () => {
                           ? [{ label: 'Excuse lateness (appeal)', onClick: () => openExcuseModal(p) }]
                           : []),
                       ]}
-                    />
+                    />}
                   </div>
                 );
               })}
