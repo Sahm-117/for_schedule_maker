@@ -117,23 +117,32 @@ const RegistrationOverviewCards: React.FC<{
 
   // The people (and who has signed in) are read again whenever the contacts the page holds are refreshed,
   // so the cards never mix a new contact list with an old participant list. Switching cohort clears them.
-  // A request that dies (a phone coming back from the background, a dropped signal) is tried once more
-  // before anything is shown. If a refresh still fails while numbers are already on screen, those stay:
-  // the error only replaces the cards when there is nothing to show.
+  // A request that dies in transit (a phone coming back from the background, a dropped signal) is tried
+  // once more, only the one that failed, before the error is shown. Real errors (expired session, no
+  // permission) are not retried. The retry timer is cleared when a newer load starts or the cards go away.
+  const retryTimers = useRef(new Set<number>());
+  const clearRetries = useCallback(() => { retryTimers.current.forEach((t) => window.clearTimeout(t)); retryTimers.current.clear(); }, []);
   const load = useCallback(() => {
     const mine = ++request.current;
+    clearRetries();
     setFailed(false);
-    const fetchAll = () => Promise.all([participantsApi.getAll({ cohortId }), participantPushApi.getSignedInIds(cohortId)]);
-    fetchAll()
-      .catch(() => new Promise<void>((resolve) => { window.setTimeout(resolve, 1500); }).then(fetchAll))
+    const withRetry = <T,>(fn: () => Promise<T>): Promise<T> => fn().catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : '';
+      if (!/load failed|failed to fetch|network|timed? ?out|aborted/i.test(message)) throw err;
+      return new Promise<T>((resolve, reject) => {
+        const timer = window.setTimeout(() => { retryTimers.current.delete(timer); fn().then(resolve, reject); }, 1500);
+        retryTimers.current.add(timer);
+      });
+    });
+    Promise.all([withRetry(() => participantsApi.getAll({ cohortId })), withRetry(() => participantPushApi.getSignedInIds(cohortId))])
       .then(([p, ids]) => { if (mine === request.current) setPeople({ participants: p.participants, signedIn: new Set(ids) }); })
       .catch(() => { if (mine === request.current) setFailed(true); });
-  }, [cohortId]);
+  }, [cohortId, clearRetries]);
   useEffect(() => { setPeople(null); }, [cohortId]);
   useEffect(() => {
     load();
-    return () => { request.current += 1; };
-  }, [load, contacts]);
+    return () => { request.current += 1; clearRetries(); };
+  }, [load, contacts, clearRetries]);
 
   const overview = useMemo(
     () => (people ? computeRegistrationOverview(people.participants, contacts, people.signedIn, cohortId) : null),
@@ -143,7 +152,7 @@ const RegistrationOverviewCards: React.FC<{
   onOverviewRef.current = onOverview;
   useEffect(() => { onOverviewRef.current?.(overview); }, [overview]);
 
-  if (failed && !people) {
+  if (failed) {
     return (
       <div className="surface-card p-5 text-sm text-gray-600">
         Couldn't check who has signed in, so the registration numbers aren't shown (a wrong number is worse than none).{' '}
