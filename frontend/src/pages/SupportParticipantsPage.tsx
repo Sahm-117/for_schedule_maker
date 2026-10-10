@@ -118,9 +118,10 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       // These reads are independent — fire them in one parallel batch
       // instead of waterfalling (each round-trip to eu-west-1 is ~300-900ms).
       const [participantsRes, faithRes, prayerFocusRes, groupStatusInitial, prayerStatusRes, groupsRes, categoriesRes] = await Promise.all([
+        // A failed read must not look like an empty group: it throws, and the page offers Retry.
         participantsApi.getAll({ cohortId: activeCohort.id, supportId: user.id }).catch((err) => {
           console.error('Failed to load participants:', err);
-          return { participants: [] as Participant[] };
+          throw new Error('Could not load the people in your group. Check your connection and tap Retry.');
         }),
         faithProjectsApi.getAll({ cohortId: activeCohort.id }).catch((err) => {
           console.error('Failed to load faith projects:', err);
