@@ -171,6 +171,17 @@ const ParticipantWeekPage: React.FC = () => {
     }, 100);
   }, [wantsReflection, week?.id, week?.released]);
 
+  // Arrived from "Open manual" on Home: open the manual itself, once, with no second tap.
+  const wantsManual = searchParams.get('manual') === '1';
+  const manualOpenedFor = useRef<number | null>(null);
+  useEffect(() => {
+    if (!wantsManual || !week?.manual?.documentUrl || manualOpenedFor.current === week.id) return;
+    manualOpenedFor.current = week.id;
+    if (manualComic) setManualReaderOpen(true);
+    else setManualDocOpen(true);
+    Clarity.event(manualComic ? 'manual_reader_opened' : 'manual_pdf_opened');
+  }, [wantsManual, week?.id, week?.manual?.documentUrl, manualComic]);
+
   useEffect(() => {
     if (week?.manual) Clarity.event('manual_opened');
     // eslint-disable-next-line react-hooks/exhaustive-deps

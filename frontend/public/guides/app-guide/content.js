@@ -3986,8 +3986,47 @@ window.GUIDE_CONTENT = {
        "steps": [
         "**Programme progress** shows which week you're on, for example \"Week 5, 5 of 10\".",
         "The tiles show this week's class, your next Sunday session, your group call time and how your faith project is going.",
-        "Scroll down for **This week's manual**, scriptures for the day, and **This week** (what's expected of you)."
+        "Scroll down for **Next class** and the **Inspirational scripture**, then **This week** (what's expected of you)."
        ],
+       "shot": "participant-home-lower.jpg"
+      },
+      {
+       "id": "p-next-class",
+       "popular": true,
+       "q": "How do I see the next class, its teacher and open the manual?",
+       "keywords": [
+        "next class",
+        "class graphic",
+        "teacher",
+        "manual",
+        "open manual",
+        "who is teaching"
+       ],
+       "steps": [
+        "On Home, find **Next class**: the class picture, its name and the teacher.",
+        "Tap the picture, the name or the arrow to see the full class graphic.",
+        "Tap the teacher's name to read about them. Tap their photo to enlarge it.",
+        "Tap **Open manual** in either place. The manual opens straight away."
+       ],
+       "result": "If the manual has not arrived yet, the button says when it will (for example \"Manual arrives Thu 22 Oct\").",
+       "shot": "participant-home.jpg"
+      },
+      {
+       "id": "p-inspiration",
+       "q": "Where do I find the daily inspirational scripture?",
+       "keywords": [
+        "inspirational scripture",
+        "daily scripture",
+        "see all",
+        "earlier posts",
+        "previous days"
+       ],
+       "steps": [
+        "On Home, the **Inspirational scripture** card moves by itself, showing today and the last few days.",
+        "Touch and hold it to keep a post on screen, swipe to move, or tap a dot to jump to one.",
+        "Tap **See all** (top right of the card) for every post so far. Each one is labelled with its day."
+       ],
+       "result": "A new post opens every day from 2:00 PM.",
        "shot": "participant-home-lower.jpg"
       },
       {

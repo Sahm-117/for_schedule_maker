@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import PrayerNowBanner from '../components/corporatePrayers/PrayerNowBanner';
 import { NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
-import ScriptureCarousel from '../components/ScriptureCarousel';
+import InspirationCarousel from '../components/participantApp/InspirationCarousel';
 import LinkText from '../components/LinkText';
 import PageLoader from '../components/PageLoader';
 import Avatar from '../components/Avatar';
@@ -525,7 +525,7 @@ const ParticipantHomePage: React.FC = () => {
           </NavLink>
         )}
 
-        <ScriptureCarousel scriptures={home.scriptures} startDay={home.scriptureStartDay} cohortStartDate={home.cohort?.startDate} />
+        <InspirationCarousel scriptures={home.scriptures} startDay={home.scriptureStartDay} cohortStartDate={home.cohort?.startDate} />
 
         {week && started && !finished && (
           <section data-wt="ph-week" className={CARD}>

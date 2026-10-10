@@ -223,7 +223,8 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
   'participant:home': [
     { target: wt('ph-progress'), title: 'Your progress', body: 'Which week you’re on, with a shortcut to your group.' },
     { target: wt('ph-call'), title: 'Join your group call', body: 'When your group has a call link, join from here.', optional: true },
-    { target: wt('ph-scripture'), title: 'Daily scripture', body: 'A new Inspirational Scripture every day from 2:00 PM.', optional: true },
+    { target: wt('ph-next-class'), title: 'Next class', body: 'The class picture, its teacher and the manual. Tap the picture for the full graphic, or the teacher to read about them.', optional: true },
+    { target: wt('ph-scripture'), title: 'Daily scripture', body: 'A new Inspirational Scripture every day from 2:00 PM. It moves by itself; tap See all for earlier days.', optional: true },
     { target: wt('ph-week'), title: 'This week', body: 'What this week is about. Tap "See more" for the recap and your reflection.', optional: true },
     { target: wt('app-nav'), title: 'Your menu', body: 'My Group, My Journey and your Faith Project, plus Resources, Feedback and Profile.' },
     HELP_STEP,

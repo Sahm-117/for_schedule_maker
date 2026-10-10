@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 // Who teaches a class: a photo (or initials), name and role, a short bio, and the class they teach.
@@ -38,7 +38,24 @@ export const TeacherChip: React.FC<{ teacher: ClassTeacher; onOpen: () => void; 
   </button>
 );
 
+/** The teacher's photo, full size over a dark backdrop. Tap anywhere or press Escape to close it. */
+const PhotoViewer: React.FC<{ name: string; photoUrl: string; onClose: () => void }> = ({ name, photoUrl, onClose }) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label={`Photo of ${name}`} className="fixed inset-0 z-[90] grid place-items-center bg-black/90 p-5" onClick={onClose}>
+      <button type="button" onClick={onClose} aria-label="Close photo" className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white/20 text-xl text-white">&times;</button>
+      <img src={photoUrl} alt={name} className="max-h-[82vh] max-w-full rounded-2xl object-contain" />
+    </div>,
+    document.body,
+  );
+};
+
 export const TeacherSheet: React.FC<{ teacher: ClassTeacher; title: string; onClose: () => void; footer?: React.ReactNode }> = ({ teacher, title, onClose, footer }) => {
+  const [photoOpen, setPhotoOpen] = useState(false);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   useEffect(() => {
@@ -53,9 +70,18 @@ export const TeacherSheet: React.FC<{ teacher: ClassTeacher; title: string; onCl
       <div role="dialog" aria-modal="true" aria-label={`About ${teacher.name}`} className="w-full max-w-lg rounded-t-[26px] bg-white px-5 pb-5 pt-3 shadow-xl sm:rounded-[26px]">
         <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-gray-300" aria-hidden="true" />
         <div className="flex items-center gap-3.5">
-          <TeacherAvatar name={teacher.name} photoUrl={teacher.photoUrl} size={76} />
+          {teacher.photoUrl ? (
+            <button type="button" onClick={() => setPhotoOpen(true)} aria-label={`Enlarge the photo of ${teacher.name}`} className="relative flex-none rounded-full">
+              <TeacherAvatar name={teacher.name} photoUrl={teacher.photoUrl} size={76} />
+              <span className="absolute -bottom-0.5 -right-0.5 grid h-6 w-6 place-items-center rounded-full bg-[#1c2230] text-white" aria-hidden="true">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" /></svg>
+              </span>
+            </button>
+          ) : (
+            <TeacherAvatar name={teacher.name} photoUrl={teacher.photoUrl} size={76} />
+          )}
           <div className="min-w-0">
-            <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900">{teacher.name}</h2>
+            <h2 className="text-xl font-extrabold leading-tight tracking-tight text-gray-900 [overflow-wrap:anywhere]">{teacher.name}</h2>
             {teacher.role && <p className="mt-0.5 text-[13px] text-gray-500">{teacher.role}</p>}
           </div>
         </div>
@@ -66,6 +92,7 @@ export const TeacherSheet: React.FC<{ teacher: ClassTeacher; title: string; onCl
         {footer}
         <button type="button" onClick={onClose} className="mt-2 min-h-[44px] w-full text-sm font-semibold text-gray-500">Close</button>
       </div>
+      {photoOpen && teacher.photoUrl && <PhotoViewer name={teacher.name} photoUrl={teacher.photoUrl} onClose={() => setPhotoOpen(false)} />}
     </div>,
     document.body,
   );
