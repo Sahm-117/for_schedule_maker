@@ -10,6 +10,7 @@ import AttendanceCountdownCard from '../components/participantApp/AttendanceCoun
 import ConfettiBurst from '../components/participantApp/ConfettiBurst';
 import VenueMapModal from '../components/participantApp/VenueMapModal';
 import ReadyGraphicSheet from '../components/participantApp/ReadyGraphicSheet';
+import { cohortLabel } from '../utils/readyGraphic';
 import NextClassCard, { hasClassCard } from '../components/participantApp/NextClassCard';
 import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
@@ -204,6 +205,9 @@ const ParticipantHomePage: React.FC = () => {
   ] : [];
   const readyDone = readyItems.filter((item) => item.done).length;
   const allDone = readyItems.length > 0 && readyDone === readyItems.length;
+  // The readiness badge is earned when every step is ticked and readiness is confirmed; it stays after the Get ready card is gone.
+  const badgeName = `${cohortLabel(home.cohort?.name)} Readiness Badge`;
+  const badgeEarned = !!onboarding && allDone && (onboarding.readyConfirmed || onboarding.completed);
 
   // A "view the venue map" notification opens /me?map=1: show the map once the person's own state has loaded
   // (so the tick starts right), then drop the flag so a refresh does not open it again.
@@ -455,14 +459,6 @@ const ParticipantHomePage: React.FC = () => {
                 </span>
                 <h2 className="text-lg font-bold text-gray-900">You're ready for class</h2>
               </div>
-              <button type="button" onClick={() => setGiftOpen(true)} className="mt-3 flex min-h-[56px] w-full items-center gap-3 rounded-[16px] border border-[#ffdeca] bg-gradient-to-br from-[#fff1e6] to-[#ffe0cc] px-3.5 py-3 text-left shadow-[0_6px_18px_-10px_rgba(194,65,12,0.5)]">
-                <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-primary text-white"><svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9ZM3 7.5A1.5 1.5 0 0 1 4.5 6H19.5A1.5 1.5 0 0 1 21 7.5V11H3V7.5ZM12 6v15M12 6c-1.2-3-5-3-5-1s3 1 5 1Zm0 0c1.2-3 5-3 5-1s-3 1-5 1Z" /></svg></span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-bold text-[#9a4a12]">Your gift is ready</span>
-                  <span className="block text-xs text-[#9a6a4b]">Make your "I'm fully ready" picture and share it</span>
-                </span>
-                <span className="ml-auto text-[#c2410c]" aria-hidden="true">&#8250;</span>
-              </button>
               </>
             ) : (
               <>
@@ -500,17 +496,28 @@ const ParticipantHomePage: React.FC = () => {
                 {confirming ? <Spinner className="h-4 w-4" /> : <span className="grid h-6 w-6 flex-none place-items-center rounded-full border-2 border-current" aria-hidden="true" />}
                 <span>I have all I need to be ready for class{firstClassDate ? ` on ${formatDateLabel(firstClassDate)}` : ''}</span>
               </button>
-              <div className="mt-1 flex min-h-[56px] items-center gap-3 rounded-[16px] border border-dashed border-[#ecd6c6] bg-[#fffaf6] px-3.5 py-3" aria-label="A gift unlocks when every step is done">
-                <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-[#f3e6dc] text-[#b79a85]"><svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 11h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9ZM3 7.5A1.5 1.5 0 0 1 4.5 6H19.5A1.5 1.5 0 0 1 21 7.5V11H3V7.5ZM12 6v15M12 6c-1.2-3-5-3-5-1s3 1 5 1Zm0 0c1.2-3 5-3 5-1s-3 1-5 1Z" /></svg></span>
+              <div className="mt-1 flex min-h-[56px] items-center gap-3 rounded-[16px] border border-dashed border-[#ecd6c6] bg-[#fffaf6] px-3.5 py-3" aria-label="The readiness badge unlocks when every step is ticked">
+                <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-[#f3e6dc] text-[#b79a85]"><svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.3 6.8 19.1l1-5.8L3.5 9.2l5.9-.9L12 3Z" /></svg></span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-bold text-[#8a6a55]">A gift waits at the end</span>
-                  <span className="block text-xs text-[#a58b78]">Finish every step to unlock your own "I'm fully ready" picture</span>
+                  <span className="block text-sm font-bold text-[#8a6a55]">{badgeName} waits at the end</span>
+                  <span className="block text-xs text-[#a58b78]">Tick every step above to earn it, with your photo on it</span>
                 </span>
               </div>
             </div>
               </>
             )}
           </section>
+        )}
+
+        {badgeEarned && (
+          <button type="button" data-wt="ph-badge" onClick={() => setGiftOpen(true)} className="flex min-h-[64px] w-full items-center gap-3 rounded-[22px] border border-[#ffdeca] bg-gradient-to-br from-[#fff1e6] to-[#ffe0cc] px-4 py-3.5 text-left shadow-[0_6px_18px_-10px_rgba(194,65,12,0.5)]">
+            <span className="grid h-11 w-11 flex-none place-items-center rounded-full bg-primary text-white"><svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.3 6.8 19.1l1-5.8L3.5 9.2l5.9-.9L12 3Z" /></svg></span>
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-[#9a4a12]">Your {badgeName} is ready</span>
+              <span className="block text-xs text-[#9a6a4b]">Make your badge picture and share it</span>
+            </span>
+            <span className="ml-auto text-[#c2410c]" aria-hidden="true">&#8250;</span>
+          </button>
         )}
 
         {week && reflection?.goal ? (
@@ -574,7 +581,7 @@ const ParticipantHomePage: React.FC = () => {
         )}
       </div>
       {confetti && <ConfettiBurst onDone={() => setConfetti(false)} />}
-      {giftOpen && <ReadyGraphicSheet name={home.participant.name} photoUrl={home.profile.avatarUrl} cohortName={home.cohort?.name} onClose={() => setGiftOpen(false)} />}
+      {giftOpen && <ReadyGraphicSheet badgeName={badgeName} name={home.participant.name} photoUrl={home.profile.avatarUrl} cohortName={home.cohort?.name} onClose={() => setGiftOpen(false)} />}
       {mapOpen && <VenueMapModal acknowledged={!!onboarding?.venueMapAcknowledged} onAcknowledge={acknowledgeMap} onClose={() => setMapOpen(false)} />}
       {introOpen && introManual && <ClassManualReader content={introManual} onClose={() => setIntroOpen(false)} />}
     </div>

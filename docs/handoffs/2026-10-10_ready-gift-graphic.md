@@ -1,4 +1,4 @@
-# Ready gift: "I'm fully ready" graphic
+# FOF 10 Readiness Badge: "I'm fully ready" graphic
 
 ## Summary
 - Participant Home, Get ready card: a dashed **"A gift waits at the end"** row while steps are open; once the participant confirms they are ready it becomes **"Your gift is ready"**, which opens a sheet with a graphic: their photo (initials if none, with a link to add one), their name, a green tick, "I'M FULLY READY for FOF 10 class" and "I just completed all my onboarding steps." Download and Share (the phone's own share sheet).
@@ -16,3 +16,6 @@
 ## Open items
 - The gift lives in the Get ready card, which disappears after first attendance; nobody can open it after that. If it should stay, it needs its own place (for example Profile).
 - Not counted anywhere (no likes/downloads tracking), unlike the scripture posts.
+
+## Update: badge wording and availability
+- Renamed from "gift" to **FOF N Readiness Badge** (N from the cohort name). Earned only when every Get ready step is ticked and readiness is confirmed, and shown as its own card on Home, so it stays after the Get ready card disappears at first attendance (tested). The graphic carries "FOF 10 READINESS BADGE" under the name.

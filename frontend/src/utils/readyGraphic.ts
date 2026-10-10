@@ -149,6 +149,12 @@ export const drawReadyGraphic = async (target: HTMLCanvasElement, input: ReadyGr
   ctx.fillText(shown, cx, 1066 + 52 + size * 0.34);
   spaced(ctx, 0);
 
+  // The badge name, under the banner.
+  ctx.fillStyle = GOLD;
+  ctx.font = `800 24px ${SANS}`;
+  spaced(ctx, 5);
+  ctx.fillText(`${cohortLabel(input.cohortName)} READINESS BADGE`.toUpperCase(), cx, 1236);
+  spaced(ctx, 0);
   star(ctx, 70, 1240, 18, GOLD);
   star(ctx, 1010, 1260, 22, '#FFFFFF');
   star(ctx, 110, 1290, 11, '#FFFFFF');

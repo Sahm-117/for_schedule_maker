@@ -645,9 +645,9 @@ duplicating the logic anywhere else is a bug waiting to happen.
     goes to every active participant of the running cohort whether or not they have opened the map, is deduped per person by `VENUE_MAP:<service date>:<slot>`, and opens `/me?map=1`, which shows the venue map.
     The two Sundays are counted from the cohort's start date, not from the Planner's class days (week 2 can be moved).
 
-60. **Finishing every Get ready step unlocks a gift: the participant's own "I'm fully ready" picture.** On the participant Home, the Get ready card shows a locked gift row until "I have all I need" is confirmed, then a "Your gift is ready" button that opens `ReadyGraphicSheet`
-    (their photo or initials, name, "I'm fully ready for FOF N class"; Download and Share). Drawn in the browser (`utils/readyGraphic.ts`), nothing stored. It is part of the Get ready card, so it goes away with it at first attendance.
-    Frontend only.
+60. **Ticking every Get ready step earns the "FOF N Readiness Badge": the participant's own "I'm fully ready" picture.** While steps are open the Get ready card shows a locked "waits at the end" row; once every step is ticked and readiness is confirmed, a "Your FOF N Readiness Badge is ready" card
+    opens `ReadyGraphicSheet` (their photo or initials, name, "I'm fully ready for FOF N class", Download and Share). The card is separate from the Get ready card, so it stays after the Get ready card goes away at first attendance.
+    Drawn in the browser (`utils/readyGraphic.ts`), nothing stored. Frontend only.
 
 ## 5. Edge functions and schedules
 

@@ -9,7 +9,7 @@ import { drawReadyGraphic } from '../../utils/readyGraphic';
 
 const fileName = (name: string) => `ready-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'graphic'}.png`;
 
-const ReadyGraphicSheet: React.FC<{ name: string; photoUrl?: string | null; cohortName?: string | null; onClose: () => void }> = ({ name, photoUrl, cohortName, onClose }) => {
+const ReadyGraphicSheet: React.FC<{ badgeName: string; name: string; photoUrl?: string | null; cohortName?: string | null; onClose: () => void }> = ({ badgeName, name, photoUrl, cohortName, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const blobRef = useRef<Blob | null>(null);
   const [drawing, setDrawing] = useState(true);
@@ -53,11 +53,11 @@ const ReadyGraphicSheet: React.FC<{ name: string; photoUrl?: string | null; coho
   };
 
   return (
-    <HomeSheet label="Your ready graphic" onClose={onClose}>
-      <h2 className="pr-10 text-lg font-extrabold tracking-tight text-gray-900">Your gift</h2>
-      <p className="mb-2.5 text-[12.5px] text-gray-500">You finished every step. Download it or share it with your friends.</p>
+    <HomeSheet label={badgeName} onClose={onClose}>
+      <h2 className="pr-10 text-lg font-extrabold tracking-tight text-gray-900">{badgeName}</h2>
+      <p className="mb-2.5 text-[12.5px] text-gray-500">You ticked every step. Download your badge picture or share it with your friends.</p>
       <div className="overflow-hidden rounded-2xl bg-[#fff1e6] shadow-[0_8px_24px_-12px_rgba(17,24,39,0.25)]" style={{ aspectRatio: `${GRAPHIC_W} / ${GRAPHIC_H}` }}>
-        <canvas ref={canvasRef} className={`h-full w-full transition-opacity ${drawing ? 'opacity-40' : 'opacity-100'}`} aria-label={`Ready graphic for ${name}`} />
+        <canvas ref={canvasRef} className={`h-full w-full transition-opacity ${drawing ? 'opacity-40' : 'opacity-100'}`} aria-label={`${badgeName} for ${name}`} />
       </div>
       {!drawing && !photoUsed && (
         <p className="mt-2 text-[12.5px] text-gray-500">Want your face on it? <NavLink to="/me/profile" className="font-semibold text-[#c2410c]">Add your photo</NavLink> and open this again.</p>
