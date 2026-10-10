@@ -8582,8 +8582,8 @@ export const scriptureEngagementApi = {
     if (error) throw new Error(error.message);
     return (data as number[]) ?? [];
   },
-  async summary(): Promise<import('../types').ScriptureEngagementCounts[]> {
-    const { data, error } = await supabase.rpc('scripture_engagement_summary', { p_token: getSessionToken() });
+  async summary(cohortId: string | null = null): Promise<import('../types').ScriptureEngagementCounts[]> {
+    const { data, error } = await supabase.rpc('scripture_engagement_summary', { p_token: getSessionToken(), p_cohort_id: cohortId });
     if (error) throw new Error(error.message);
     return (data as import('../types').ScriptureEngagementCounts[]) ?? [];
   },

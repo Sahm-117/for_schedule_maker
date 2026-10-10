@@ -18,6 +18,8 @@ import PageHeader from '../components/PageHeader';
 import ConfirmationModal from '../components/ConfirmationModal';
 import SaveStatus, { type SaveState } from '../components/SaveStatus';
 import { useToast } from '../components/Toast';
+import AppSelect from '../components/AppSelect';
+import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { scriptureEngagementApi, scripturesApi, settingsApi } from '../services/api';
@@ -159,6 +161,10 @@ const AdminScripturesPage: React.FC = () => {
 
   const [orderSaveState, setOrderSaveState] = useState<SaveState | undefined>();
   const [engagement, setEngagement] = useState<Record<number, ScriptureEngagementCounts>>({});
+  // Which cohort the like, download and share counts are for ('' = all cohorts). Practice cohorts never count.
+  const { cohorts } = useAppData();
+  const [engagementCohort, setEngagementCohort] = useState('');
+  const cohortOptions = [{ value: '', label: 'All cohorts' }, ...cohorts.filter((c) => !c.isPractice).map((c) => ({ value: c.id, label: c.name }))];
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -174,14 +180,21 @@ const AdminScripturesPage: React.FC = () => {
       setEnabled(on);
       setStartDay(String(day));
       savedStartDay.current = String(day);
-      // Likes, downloads and shares are a nicety: if they cannot be read the cards just show no counts.
-      scriptureEngagementApi.summary().then((rows) => setEngagement(Object.fromEntries(rows.map((r) => [r.dayNumber, r])))).catch(() => setEngagement({}));
     } catch (err) {
       toast({ message: err instanceof Error ? err.message : 'Could not load scriptures.', tone: 'error' });
     } finally {
       setLoading(false);
     }
   };
+
+  // Likes, downloads and shares for the chosen cohort. A nicety: if they cannot be read the cards just show no counts.
+  useEffect(() => {
+    let cancelled = false;
+    scriptureEngagementApi.summary(engagementCohort || null)
+      .then((rows) => { if (!cancelled) setEngagement(Object.fromEntries(rows.map((r) => [r.dayNumber, r]))); })
+      .catch(() => { if (!cancelled) setEngagement({}); });
+    return () => { cancelled = true; };
+  }, [engagementCohort]);
 
   useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -405,8 +418,11 @@ const AdminScripturesPage: React.FC = () => {
         </section>
       ) : (
         <>
-          <div className="mb-2 flex items-center justify-between gap-3">
-            {Object.keys(engagement).length > 0 ? <EngagementRow big counts={Object.values(engagement).reduce((t, r) => ({ likes: t.likes + r.likes, downloads: t.downloads + r.downloads, shares: t.shares + r.shares }), { likes: 0, downloads: 0, shares: 0 })} /> : <span />}
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="w-44"><AppSelect value={engagementCohort} onChange={setEngagementCohort} options={cohortOptions} placeholder="All cohorts" compact /></div>
+              {Object.keys(engagement).length > 0 && <EngagementRow big counts={Object.values(engagement).reduce((t, r) => ({ likes: t.likes + r.likes, downloads: t.downloads + r.downloads, shares: t.shares + r.shares }), { likes: 0, downloads: 0, shares: 0 })} />}
+            </div>
             <SaveStatus state={orderSaveState} />
           </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>

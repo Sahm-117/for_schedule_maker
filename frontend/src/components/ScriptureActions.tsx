@@ -25,7 +25,7 @@ export const useScriptureLikes = () => {
 };
 
 const Icon: React.FC<{ d: string; filled?: boolean }> = ({ d, filled }) => (
-  <svg viewBox="0 0 24 24" className="h-[19px] w-[19px]" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
+  <svg viewBox="0 0 24 24" className="h-[17px] w-[17px]" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
 );
 const HEART = 'M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2Z';
 const DOWNLOAD = 'M12 4v11m0 0-4-4m4 4 4-4M5 19.5h14';
@@ -76,15 +76,16 @@ const ScriptureActions: React.FC<{ day: number; imageUrl: string; liked: boolean
     navigator.share(data).then(() => count('SHARE')).catch((e) => { if (!(e instanceof DOMException && e.name === 'AbortError')) flash('Could not share this'); });
   };
 
-  const btn = 'grid h-11 w-11 place-items-center rounded-full border border-[#ffdeca] bg-white text-[#9a4a12] shadow-sm transition active:scale-95';
+  // Quiet on purpose: no frame or shadow, a pale icon, and a roomy invisible tap area.
+  const btn = 'grid h-10 w-10 place-items-center rounded-full text-[#c9b8aa] transition hover:text-[#9a6a4b] active:scale-90';
   return (
-    <div className="flex flex-col items-center gap-1.5 pt-2.5">
-      <div className="flex items-center justify-center gap-3">
-        <button type="button" onClick={onToggleLike} aria-pressed={liked} aria-label={liked ? 'Remove like' : 'Like'} title="Like" className={`${btn} ${liked ? '!border-primary !bg-primary !text-white' : ''}`}><Icon d={HEART} filled={liked} /></button>
+    <div className="flex flex-col items-center pt-1">
+      <div className="flex items-center justify-center gap-1">
+        <button type="button" onClick={onToggleLike} aria-pressed={liked} aria-label={liked ? 'Remove like' : 'Like'} title="Like" className={`${btn} ${liked ? '!text-primary' : ''}`}><Icon d={HEART} filled={liked} /></button>
         <button type="button" onClick={download} aria-label="Download" title="Download" className={btn}><Icon d={DOWNLOAD} /></button>
         <button type="button" onClick={share} aria-label="Share" title="Share" className={btn}><Icon d={SHARE} /></button>
       </div>
-      <p className="h-4 text-[11.5px] font-medium text-gray-500" role="status" aria-live="polite">{note}</p>
+      <p className="h-3.5 text-[11px] font-medium text-gray-400" role="status" aria-live="polite">{note}</p>
     </div>
   );
 };
