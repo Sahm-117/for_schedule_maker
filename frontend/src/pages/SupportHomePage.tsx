@@ -233,10 +233,13 @@ const SupportHomeContent: React.FC<{ user: User }> = ({ user }) => {
       return;
     }
     Promise.all([
-      participantsApi.getAll({ cohortId: activeCohort.id, supportId: user.id }).catch(() => ({ participants: [] as Participant[] })),
+      // A failed read keeps what is already on screen instead of showing an empty group; the next refresh tries again.
+      participantsApi.getAll({ cohortId: activeCohort.id, supportId: user.id }).catch(() => null),
       faithProjectsApi.getAll({ cohortId: activeCohort.id }).catch(() => ({ projects: [] as FaithProject[] })),
     ])
-      .then(([participantsRes, faithProjectsRes]) => {
+      .then(([loadedParticipants, faithProjectsRes]) => {
+        if (!loadedParticipants) { setFaithProjects(sortByText(faithProjectsRes.projects, (project) => project.title || project.participantName)); return; }
+        const participantsRes = loadedParticipants;
         setParticipants(sortByText(participantsRes.participants, (participant) => participant.fullName));
         // Unanswered "I need help" from the participant app.
         participantCheckInsApi.getForParticipants(participantsRes.participants.map((participant) => participant.id))

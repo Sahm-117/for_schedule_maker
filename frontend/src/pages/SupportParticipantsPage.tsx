@@ -121,7 +121,9 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
         // A failed read must not look like an empty group: it throws, and the page offers Retry.
         participantsApi.getAll({ cohortId: activeCohort.id, supportId: user.id }).catch((err) => {
           console.error('Failed to load participants:', err);
-          throw new Error('Could not load the people in your group. Check your connection and tap Retry.');
+          // The real reason (signed out, no permission, offline) is kept when it says something useful.
+          const reason = err instanceof Error ? err.message : '';
+          throw new Error(/SESSION_EXPIRED/.test(reason) ? 'Your session has ended. Please sign out and sign in again.' : 'Could not load the people in your group. Tap Retry.');
         }),
         faithProjectsApi.getAll({ cohortId: activeCohort.id }).catch((err) => {
           console.error('Failed to load faith projects:', err);
@@ -133,7 +135,7 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
         }),
         groupOnboardingStatusApi.getForSupport(user.id, activeCohort.id).catch((err) => {
           console.error('Failed to load group statuses:', err);
-          return { statuses: [] as GroupOnboardingStatus[] };
+          throw new Error('Could not load your group. Tap Retry.');
         }),
         groupPrayerStatusApi.getForCohort(activeCohort.id).catch((err) => {
           console.error('Failed to load prayer statuses:', err);
@@ -145,11 +147,11 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
       let groupStatusRes = groupStatusInitial;
 
       if (participantsRes.participants.length === 0 && groupStatusRes.statuses.length === 0) {
-        const { groups } = await groupsApi.getAll({ cohortId: activeCohort.id }).catch(() => ({ groups: [] as import('../types').Group[] }));
+        const { groups } = await groupsApi.getAll({ cohortId: activeCohort.id }).catch(() => { throw new Error('Could not load your group. Tap Retry.'); });
         if (groups.length === 1) {
           const singleGroup = groups[0];
           const [{ participants: groupParticipants }, cohortStatusesRes] = await Promise.all([
-            groupsApi.getParticipants(singleGroup.id).catch(() => ({ participants: [] as Participant[] })),
+            groupsApi.getParticipants(singleGroup.id).catch(() => { throw new Error('Could not load the people in your group. Tap Retry.'); }),
             groupOnboardingStatusApi.getForCohort(activeCohort.id).catch(() => ({ statuses: [] as GroupOnboardingStatus[] })),
           ]);
           participantsRes.participants = groupParticipants;
@@ -219,6 +221,11 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
     } catch (err: any) {
       console.error('Unexpected error loading support participants page:', err);
       setLoadError(err?.message || 'Something went wrong loading your group.');
+      // Nothing from an earlier load (or another cohort) may show behind the error.
+      setParticipants([]);
+      setGroupStatuses([]);
+      setGroups([]);
+      setSelectedGroupId('');
     } finally {
       setLoading(false);
     }
@@ -227,6 +234,15 @@ const SupportParticipantsContent: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // After a failed load, try again by itself when the phone is back online or the tab is shown again.
+  useEffect(() => {
+    if (!loadError) return undefined;
+    const retry = () => { if (document.visibilityState === 'visible') void load(); };
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', retry);
+    return () => { window.removeEventListener('online', retry); document.removeEventListener('visibilitychange', retry); };
+  }, [loadError, load]);
 
   // Categories are managed by back office while supports may already have this
   // page open. Re-read them whenever the app receives fresh workspace activity
