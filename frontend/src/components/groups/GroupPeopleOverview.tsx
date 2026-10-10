@@ -151,7 +151,7 @@ const GroupPeopleOverview: React.FC<{ groupId: string }> = ({ groupId }) => {
                           {p.onboarding.completed
                             ? <span className="rounded-full bg-emerald-100/80 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Onboarded</span>
                             : <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Onboarding {stepsDone}/{PROGRESS_STEPS.length}</span>}
-                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${fp.cls}`}>{fp.label}</span>
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${fp.cls}`}>Faith project: {fp.label.toLowerCase()}</span>
                         </span>
                       </span>
                       <span className="flex-none text-right">
