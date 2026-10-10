@@ -19,14 +19,13 @@ const arrivesLabel = (iso: string | null) => {
 /** The one manual button: opens the manual itself once it has arrived, otherwise says when it will. */
 const ManualButton: React.FC<{ week: ParticipantHomeWeek; className?: string }> = ({ week, className = '' }) => {
   const base = `flex min-h-[46px] w-full items-center justify-center rounded-[14px] px-4 text-[14.5px] font-bold ${className}`;
-  if (week.manual) return <NavLink to={`/me/week/${week.weekNumber}?manual=1`} className={`${base} bg-primary text-white`}>Open manual</NavLink>;
+  if (week.manual?.documentUrl) return <NavLink to={`/me/week/${week.weekNumber}?manual=1`} className={`${base} bg-primary text-white`}>Open manual</NavLink>;
   const when = arrivesLabel(week.manualReleasesAt);
   if (!when) return null; // no manual is coming yet, so there is nothing to promise
   return <span className={`${base} cursor-default bg-gray-100 text-gray-500`} aria-disabled="true">{`Manual arrives ${when}`}</span>;
 };
 
 /** Every class gets the card: its graphic, or a steady gradient with the class name when none was uploaded. */
-// eslint-disable-next-line react-refresh/only-export-components
 export const hasClassCard = (week: ParticipantHomeWeek | null | undefined): boolean => !!week;
 
 const gradientCss = (week: ParticipantHomeWeek) => {

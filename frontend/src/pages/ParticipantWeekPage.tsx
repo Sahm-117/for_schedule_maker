@@ -13,7 +13,7 @@ import { clearReflectionDraft, loadReflectionDraft, recapHasContent, reflectionE
 import { useLeaveGuard } from '../hooks/useLeaveGuard';
 import Spinner from '../components/Spinner';
 import ClassManualReader from '../components/classManual/ClassManualReader';
-import { useManualContent } from '../components/classManual/manuals';
+import { hasManualForWeek, useManualContent } from '../components/classManual/manuals';
 
 const MANUAL_QUESTION_STATUS_LABEL: Record<string, string> = {
   NEW: 'To be answered in class',
@@ -101,7 +101,7 @@ const LockNote: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 
 const ParticipantWeekPage: React.FC = () => {
   const { weekNumber: weekParam } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { home, loading, applyReflection, applyManualQuestion, applyManualNote } = useParticipantApp();
   const toast = useToast();
   const [docOpen, setDocOpen] = useState(false);
@@ -171,16 +171,25 @@ const ParticipantWeekPage: React.FC = () => {
     }, 100);
   }, [wantsReflection, week?.id, week?.released]);
 
-  // Arrived from "Open manual" on Home: open the manual itself, once, with no second tap.
+  // Arrived from "Open manual" on Home: open the manual itself, once, with no second tap. A class with a comic
+  // manual waits for it to load (and gives up after a few seconds, opening the PDF); the link is then used up,
+  // so going back to this page later does not reopen it.
   const wantsManual = searchParams.get('manual') === '1';
-  const manualOpenedFor = useRef<number | null>(null);
+  const hasComic = !!week?.title && hasManualForWeek(week.title);
+  const [comicGaveUp, setComicGaveUp] = useState(false);
   useEffect(() => {
-    if (!wantsManual || !week?.manual?.documentUrl || manualOpenedFor.current === week.id) return;
-    manualOpenedFor.current = week.id;
-    if (manualComic) setManualReaderOpen(true);
-    else setManualDocOpen(true);
-    Clarity.event(manualComic ? 'manual_reader_opened' : 'manual_pdf_opened');
-  }, [wantsManual, week?.id, week?.manual?.documentUrl, manualComic]);
+    if (!wantsManual || !hasComic || manualComic) return undefined;
+    const timer = window.setTimeout(() => setComicGaveUp(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, [wantsManual, hasComic, manualComic]);
+  useEffect(() => {
+    if (!wantsManual || !week) return;
+    if (!week.manual?.documentUrl) { setSearchParams({}, { replace: true }); return; }
+    if (hasComic && !manualComic && !comicGaveUp) return;
+    if (manualComic) { setManualReaderOpen(true); Clarity.event('manual_reader_opened'); }
+    else { setManualDocOpen(true); Clarity.event('manual_pdf_opened'); }
+    setSearchParams({}, { replace: true });
+  }, [wantsManual, week, hasComic, manualComic, comicGaveUp, setSearchParams]);
 
   useEffect(() => {
     if (week?.manual) Clarity.event('manual_opened');

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ParticipantHome } from '../../types';
-import { scriptureDayIndex, scriptureForDay, scripturePosition } from '../../utils/participantApp';
+import { scriptureDayIndex, scripturePosition } from '../../utils/participantApp';
 import HomeSheet from './HomeSheet';
 
 // The daily Inspirational Scripture on the participant Home: today and the last few days move by themselves,
@@ -22,6 +22,7 @@ const InspirationCarousel: React.FC<{
 }> = ({ scriptures, startDay, cohortStartDate }) => {
   const [index, setIndex] = useState(0);
   const [held, setHeld] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [allOpen, setAllOpen] = useState(false);
   const [dragPx, setDragPx] = useState(0);
   const dragStart = useRef<{ id: number; x: number } | null>(null);
@@ -31,12 +32,10 @@ const InspirationCarousel: React.FC<{
   // Newest first. Days with no image are left out.
   const posts = useMemo<Post[]>(() => {
     if (!today) return [];
-    const all: Post[] = [];
-    for (let day = today; day >= 1; day -= 1) {
-      const found = scriptureForDay(scriptures, day);
-      if (found) all.push({ day, imageUrl: found.imageUrl });
-    }
-    return all;
+    return scriptures
+      .filter((entry) => entry.dayNumber >= 1 && entry.dayNumber <= today)
+      .map((entry) => ({ day: entry.dayNumber, imageUrl: entry.imageUrl }))
+      .sort((a, b) => b.day - a.day);
   }, [scriptures, today]);
   const recent = posts.slice(0, RECENT_DAYS);
   const count = recent.length;
@@ -51,7 +50,7 @@ const InspirationCarousel: React.FC<{
 
   // One timer per slide (not a polling loop): it re-arms whenever the slide changes, and stays off while the
   // person is touching the card, the "See all" sheet is open, the tab is hidden, or reduced motion is on.
-  const paused = held || allOpen || hidden || count < 2;
+  const paused = held || focused || allOpen || hidden || count < 2;
   useEffect(() => {
     if (paused || prefersReducedMotion()) return undefined;
     const timer = window.setTimeout(() => setIndex((current) => (current + 1) % count), SLIDE_MS);
@@ -62,6 +61,7 @@ const InspirationCarousel: React.FC<{
 
   const go = (next: number) => setIndex(((next % count) + count) % count);
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (count < 2) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     dragStart.current = { id: e.pointerId, x: e.clientX };
     setHeld(true);
@@ -81,7 +81,7 @@ const InspirationCarousel: React.FC<{
   };
 
   return (
-    <section data-wt="ph-scripture" className="rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-3.5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
+    <section data-wt="ph-scripture" onFocus={() => setFocused(true)} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false); }} className="rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-3.5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
       <div className="flex items-center justify-between gap-2 pb-2">
         <h2 className="px-0.5 text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Inspirational scripture</h2>
         <button type="button" onClick={() => setAllOpen(true)} className="-my-1.5 min-h-[32px] px-0.5 text-[12px] font-bold text-[#c2410c]">See all ›</button>
