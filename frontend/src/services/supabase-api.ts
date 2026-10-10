@@ -8570,6 +8570,25 @@ export const birthdaysApi = {
   },
 };
 
+// Likes, downloads and shares on the daily Inspirational Scripture posts. Posts are named by day number.
+export const scriptureEngagementApi = {
+  async react(dayNumber: number, action: 'LIKE' | 'DOWNLOAD' | 'SHARE'): Promise<{ liked?: boolean }> {
+    const { data, error } = await supabase.rpc('scripture_react', { p_token: getSessionToken(), p_day_number: dayNumber, p_action: action });
+    if (error) throw new Error(error.message.includes('SESSION_EXPIRED') ? 'Please sign out and sign in again.' : error.message);
+    return (data ?? {}) as { liked?: boolean };
+  },
+  async myLikes(): Promise<number[]> {
+    const { data, error } = await supabase.rpc('scripture_my_likes', { p_token: getSessionToken() });
+    if (error) throw new Error(error.message);
+    return (data as number[]) ?? [];
+  },
+  async summary(): Promise<import('../types').ScriptureEngagementCounts[]> {
+    const { data, error } = await supabase.rpc('scripture_engagement_summary', { p_token: getSessionToken() });
+    if (error) throw new Error(error.message);
+    return (data as import('../types').ScriptureEngagementCounts[]) ?? [];
+  },
+};
+
 // Other sign-ups that used the same email as a follow-up contact (for contacts with no working number).
 export const followUpRelatedApi = {
   async forContact(contactId: string): Promise<import('../types').FollowUpRelatedContact[]> {

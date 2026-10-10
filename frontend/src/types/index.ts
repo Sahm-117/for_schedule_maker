@@ -1326,6 +1326,14 @@ export interface Scripture {
   createdAt: string;
 }
 
+/** Admin view: how many times one post was liked (people), downloaded and shared. */
+export interface ScriptureEngagementCounts {
+  dayNumber: number;
+  likes: number;
+  downloads: number;
+  shares: number;
+}
+
 export interface ParticipantCheckIn {
   id: string;
   participantId: string;

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { ParticipantHome } from '../types';
+import ScriptureActions, { useScriptureLikes } from './ScriptureActions';
 import { scriptureDayIndex, scriptureForDay, scripturePosition } from '../utils/participantApp';
 
 // The daily Inspirational Scripture: one image a day, swipe or tap the arrows to look back at earlier days.
@@ -22,6 +23,7 @@ interface ScriptureCarouselProps {
 
 const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, startDay, cohortStartDate }) => {
   const [scriptureDay, setScriptureDay] = useState<number | null>(null);
+  const { liked, toggle } = useScriptureLikes();
   // Live drag offset (px) while swiping, or the animated value while settling/springing back.
   const [scriptureDragPx, setScriptureDragPx] = useState(0);
   const [scriptureAnimating, setScriptureAnimating] = useState(false);
@@ -138,6 +140,7 @@ const ScriptureCarousel: React.FC<ScriptureCarouselProps> = ({ scriptures, start
               <span key={day} className={`h-1.5 w-1.5 rounded-full ${day === scriptureDay ? 'bg-primary' : 'bg-gray-200'}`} />
             ))}
           </div>
+          <ScriptureActions day={scriptureDay} imageUrl={scripture.imageUrl} liked={liked.has(scriptureDay)} onToggleLike={() => void toggle(scriptureDay)} />
         </div>
       </section>
     );

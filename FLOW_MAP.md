@@ -636,6 +636,11 @@ duplicating the logic anywhere else is a bug waiting to happen.
     (`?tab=`), which the Practice "visit" steps read. The card's "Not seen in the app yet" only shows once
     `participants_app_details` has loaded. Frontend only: `SupportParticipantsPage.tsx`, `ParticipantCard.tsx`.
 
+58. **Likes, downloads and shares on the Inspirational Scripture posts are counted by database functions, one like per person, and the admin totals leave out practice and test accounts.**
+    Participants and supports use `scripture_react` (like toggles; a double tap on download or share counts once), `scripture_my_likes` and, for admins only, `scripture_engagement_summary`.
+    `ScriptureEngagement` has one foreign key (to `Scripture`); the person is a plain id and kind, so it adds no second route between User, Participant and Scripture (rule 55).
+    A post is named by its day number, the row keeps the Scripture id, so re-ordering never moves a like. Source: `20261013140000_scripture_engagement.sql`.
+
 ## 5. Edge functions and schedules
 
 All functions authenticate with the session token (`x-session-token`) or the

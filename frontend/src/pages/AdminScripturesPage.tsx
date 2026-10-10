@@ -20,8 +20,8 @@ import SaveStatus, { type SaveState } from '../components/SaveStatus';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
-import { scripturesApi, settingsApi } from '../services/api';
-import type { Scripture } from '../types';
+import { scriptureEngagementApi, scripturesApi, settingsApi } from '../services/api';
+import type { Scripture, ScriptureEngagementCounts } from '../types';
 
 // Daily Inspirational Scripture designs for the participant app. Posts show in
 // the order below, one per FOF day starting from "First post shows on day N".
@@ -85,6 +85,19 @@ const arrayMove = <T,>(list: T[], from: number, to: number): T[] => {
   return copy;
 };
 
+const EIcon: React.FC<{ d: string }> = ({ d }) => (
+  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
+);
+
+// How many people liked, how many downloads and how many shares. Practice and test accounts are not counted.
+const EngagementRow: React.FC<{ counts: Pick<ScriptureEngagementCounts, 'likes' | 'downloads' | 'shares'>; big?: boolean }> = ({ counts, big }) => (
+  <div className={`flex items-center gap-3 px-1 ${big ? 'text-sm' : 'mt-1 text-xs'} font-semibold text-gray-600`}>
+    <span className="inline-flex items-center gap-1" title="Likes"><EIcon d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2Z" /><span className="sr-only">Likes </span>{counts.likes}</span>
+    <span className="inline-flex items-center gap-1" title="Downloads"><EIcon d="M12 4v11m0 0-4-4m4 4 4-4M5 19.5h14" /><span className="sr-only">Downloads </span>{counts.downloads}</span>
+    <span className="inline-flex items-center gap-1" title="Shares"><EIcon d="M12 15V4m0 0L8.5 7.5M12 4l3.5 3.5M6 11H5.5A1.5 1.5 0 0 0 4 12.5v6A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5v-6a1.5 1.5 0 0 0-1.5-1.5H18" /><span className="sr-only">Shares </span>{counts.shares}</span>
+  </div>
+);
+
 // ── Draggable, droppable scripture card ─────────────────────────────────────
 
 interface CardProps {
@@ -94,9 +107,10 @@ interface CardProps {
   onRemove: () => void;
   canEdit: boolean;
   canDelete: boolean;
+  stats?: ScriptureEngagementCounts;
 }
 
-const ScriptureCard: React.FC<CardProps> = ({ scripture, position, onReplace, onRemove, canEdit, canDelete }) => {
+const ScriptureCard: React.FC<CardProps> = ({ scripture, position, onReplace, onRemove, canEdit, canDelete, stats }) => {
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: scripture.id, disabled: !canEdit });
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: scripture.id });
   const setRefs = (node: HTMLDivElement | null) => { setDragRef(node); setDropRef(node); };
@@ -115,6 +129,7 @@ const ScriptureCard: React.FC<CardProps> = ({ scripture, position, onReplace, on
         {canEdit && <button type="button" onClick={(e) => { e.stopPropagation(); onReplace(); }} className="ml-auto text-xs font-semibold text-primary">Replace</button>}
         {canDelete && <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }} className={`text-xs font-semibold text-red-700 ${canEdit ? '' : 'ml-auto'}`}>Remove</button>}
       </div>
+      {stats && <EngagementRow counts={stats} />}
     </div>
   );
 };
@@ -143,6 +158,7 @@ const AdminScripturesPage: React.FC = () => {
   const [enabledSaveState, setEnabledSaveState] = useState<SaveState | undefined>();
 
   const [orderSaveState, setOrderSaveState] = useState<SaveState | undefined>();
+  const [engagement, setEngagement] = useState<Record<number, ScriptureEngagementCounts>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -158,6 +174,8 @@ const AdminScripturesPage: React.FC = () => {
       setEnabled(on);
       setStartDay(String(day));
       savedStartDay.current = String(day);
+      // Likes, downloads and shares are a nicety: if they cannot be read the cards just show no counts.
+      scriptureEngagementApi.summary().then((rows) => setEngagement(Object.fromEntries(rows.map((r) => [r.dayNumber, r])))).catch(() => setEngagement({}));
     } catch (err) {
       toast({ message: err instanceof Error ? err.message : 'Could not load scriptures.', tone: 'error' });
     } finally {
@@ -387,7 +405,10 @@ const AdminScripturesPage: React.FC = () => {
         </section>
       ) : (
         <>
-          <div className="mb-2 flex justify-end"><SaveStatus state={orderSaveState} /></div>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            {Object.keys(engagement).length > 0 ? <EngagementRow big counts={Object.values(engagement).reduce((t, r) => ({ likes: t.likes + r.likes, downloads: t.downloads + r.downloads, shares: t.shares + r.shares }), { likes: 0, downloads: 0, shares: 0 })} /> : <span />}
+            <SaveStatus state={orderSaveState} />
+          </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div data-wt="scriptures-grid" className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
               {scriptures.map((scripture) => (
@@ -399,6 +420,7 @@ const AdminScripturesPage: React.FC = () => {
                   onRemove={() => setToDelete(scripture)}
                   canEdit={canEdit}
                   canDelete={canDelete}
+                  stats={engagement[scripture.dayNumber]}
                 />
               ))}
             </div>

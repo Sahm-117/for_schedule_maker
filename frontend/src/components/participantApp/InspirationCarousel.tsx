@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ParticipantHome } from '../../types';
 import { scriptureDayIndex, scripturePosition } from '../../utils/participantApp';
 import HomeSheet from './HomeSheet';
+import ScriptureActions, { useScriptureLikes } from '../ScriptureActions';
 
 // The daily Inspirational Scripture on the participant Home: today and the last few days move by themselves,
 // five seconds each, with dots underneath. "See all" opens every earlier post, so Home stays short.
@@ -24,6 +25,8 @@ const InspirationCarousel: React.FC<{
   const [held, setHeld] = useState(false);
   const [focused, setFocused] = useState(false);
   const [allOpen, setAllOpen] = useState(false);
+  const [viewDay, setViewDay] = useState<number | null>(null);
+  const { liked, toggle } = useScriptureLikes();
   const [dragPx, setDragPx] = useState(0);
   const dragStart = useRef<{ id: number; x: number } | null>(null);
   const [hidden, setHidden] = useState(() => typeof document !== 'undefined' && document.visibilityState === 'hidden');
@@ -38,6 +41,7 @@ const InspirationCarousel: React.FC<{
       .sort((a, b) => b.day - a.day);
   }, [scriptures, today]);
   const recent = posts.slice(0, RECENT_DAYS);
+  const viewPost = viewDay === null ? null : posts.find((post) => post.day === viewDay) ?? null;
   const count = recent.length;
 
   useEffect(() => { if (index >= count) setIndex(0); }, [count, index]);
@@ -50,7 +54,7 @@ const InspirationCarousel: React.FC<{
 
   // One timer per slide (not a polling loop): it re-arms whenever the slide changes, and stays off while the
   // person is touching the card, the "See all" sheet is open, the tab is hidden, or reduced motion is on.
-  const paused = held || focused || allOpen || hidden || count < 2;
+  const paused = held || focused || allOpen || viewDay !== null || hidden || count < 2;
   useEffect(() => {
     if (paused || prefersReducedMotion()) return undefined;
     const timer = window.setTimeout(() => setIndex((current) => (current + 1) % count), SLIDE_MS);
@@ -118,21 +122,29 @@ const InspirationCarousel: React.FC<{
           ))}
         </div>
       )}
+      {recent[index] && <ScriptureActions day={recent[index].day} imageUrl={recent[index].imageUrl} liked={liked.has(recent[index].day)} onToggleLike={() => void toggle(recent[index].day)} />}
       {allOpen && (
         <HomeSheet label="All inspirational posts" onClose={() => setAllOpen(false)}>
           <h2 className="pr-10 text-lg font-extrabold tracking-tight text-gray-900">All inspirational posts</h2>
           <p className="mb-3 text-[12.5px] text-gray-500">Newest first.</p>
           <div className="grid grid-cols-3 gap-2">
             {posts.map((post) => (
-              <div key={post.day} className="relative aspect-[4/5] overflow-hidden rounded-xl bg-gray-100">
+              <button type="button" key={post.day} onClick={() => setViewDay(post.day)} aria-label={`Open the post for day ${post.day}`} className="relative aspect-[4/5] overflow-hidden rounded-xl bg-gray-100 text-left">
                 <img src={post.imageUrl} alt={`Inspirational scripture, ${post.day === today ? 'today' : `day ${post.day}`}`} loading="lazy" className="h-full w-full object-cover" />
                 {/* The day, so a post is easy to find again in a long list. */}
                 <span className="absolute left-1.5 top-1.5 rounded-full border border-white/50 bg-[rgba(20,24,40,0.5)] px-2 py-0.5 text-[10.5px] font-bold leading-tight text-white backdrop-blur-md">
                   {post.day === today ? `Today · Day ${post.day}` : `Day ${post.day}`}
                 </span>
-              </div>
+              </button>
             ))}
           </div>
+        </HomeSheet>
+      )}
+      {viewPost && (
+        <HomeSheet label={`Inspirational scripture, day ${viewPost.day}`} onClose={() => setViewDay(null)}>
+          <h2 className="pr-10 text-lg font-extrabold tracking-tight text-gray-900">{viewPost.day === today ? `Today · Day ${viewPost.day}` : `Day ${viewPost.day}`}</h2>
+          <img src={viewPost.imageUrl} alt={`Inspirational scripture, day ${viewPost.day}`} className="mt-2 w-full rounded-2xl bg-gray-100" />
+          <ScriptureActions day={viewPost.day} imageUrl={viewPost.imageUrl} liked={liked.has(viewPost.day)} onToggleLike={() => void toggle(viewPost.day)} />
         </HomeSheet>
       )}
     </section>
