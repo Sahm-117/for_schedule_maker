@@ -503,7 +503,7 @@ const ParticipantHomePage: React.FC = () => {
               {reflection.goalDoneAt ? 'Done ✓' : 'I did it'}
             </button>
           </section>
-        ) : week?.released && started && !finished ? (
+        ) : week?.released && started && !finished && (!isPractice || onboarding?.readyConfirmed || onboarding?.completed) ? (
           <section className="rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
             <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Your Week {week.weekNumber} reflection is waiting</p>
             <p className="mt-2 text-base font-semibold leading-[1.45] text-gray-900">The recap is out. Three short questions, about 2 minutes.</p>

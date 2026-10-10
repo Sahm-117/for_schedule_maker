@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import type { ParticipantHomeWeek } from '../../types';
 import { TeacherAvatar as Avatar, TeacherSheet } from '../TeacherSheet';
+import { gradientFor } from '../../utils/prayerText';
 
 // "Thu 22 Oct", in Lagos time, for "Manual arrives …".
 const arrivesLabel = (iso: string | null) => {
@@ -20,19 +21,20 @@ const ManualButton: React.FC<{ week: ParticipantHomeWeek; className?: string }> 
   return <span className={`${base} cursor-default bg-gray-100 text-gray-500`} aria-disabled="true">{`Manual arrives ${when}`}</span>;
 };
 
-/** A class has something to show here when it has a graphic or a teacher. */
-export const hasClassCard = (week: ParticipantHomeWeek | null | undefined): boolean => !!week && (!!week.classGraphicUrl || !!week.teacher);
+/** Every class gets the card: its graphic, or a steady gradient with the class name when none was uploaded. */
+export const hasClassCard = (week: ParticipantHomeWeek | null | undefined): boolean => !!week;
 
 /**
  * "Next class": the class graphic with its name, who is teaching, and one button. It only shows what the home page
- * does not already say (no date, countdown or week count). With neither a graphic nor a teacher it renders nothing,
- * and the page keeps its plain manual row.
+ * does not already say (no date, countdown or week count). With no graphic the poster is a gradient (the same colours
+ * every time for the same class) carrying the class name and teacher.
  */
 const NextClassCard: React.FC<{ week: ParticipantHomeWeek }> = ({ week }) => {
   const [sheetOpen, setSheetOpen] = useState(false);
   if (!hasClassCard(week)) return null;
   const title = week.title?.trim() || `Class ${week.weekNumber}`;
   const teacher = week.teacher;
+  const [posterFrom, posterTo] = gradientFor(`${week.weekNumber}|${title}`);
   const teacherChip = teacher && (
     <button type="button" onClick={() => setSheetOpen(true)} className="mt-2.5 inline-flex min-h-[40px] items-center gap-2 rounded-full border border-white/40 bg-white/25 py-1 pl-1 pr-3.5 text-left backdrop-blur-md" aria-label={`About ${teacher.name}, teaching this class`}>
       <Avatar name={teacher.name} photoUrl={teacher.photoUrl} size={30} />
@@ -42,27 +44,19 @@ const NextClassCard: React.FC<{ week: ParticipantHomeWeek }> = ({ week }) => {
   return (
     <section data-wt="ph-next-class" className="rounded-[22px] border border-[#ffdeca] bg-[#fff8f3] p-3.5 shadow-[0_2px_8px_-3px_rgba(17,24,39,0.10)]">
       <p className="px-1 pb-2.5 text-[11px] font-bold uppercase tracking-[0.06em] text-[#9a6a4b]">Next class</p>
-      {week.classGraphicUrl ? (
-        <div className="relative h-[208px] overflow-hidden rounded-2xl bg-[#f6f7f9]">
+      <div className="relative h-[208px] overflow-hidden rounded-2xl bg-[#f6f7f9]">
+        {week.classGraphicUrl ? (
           <img src={week.classGraphicUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-          {/* A soft dark fade, so the class name reads on any graphic. */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-[rgba(20,10,0,0.62)] via-[rgba(20,10,0,0.34)] to-transparent" aria-hidden="true" />
-          <div className="absolute inset-x-4 bottom-3.5 text-white">
-            <h2 className="text-2xl font-extrabold leading-[1.1] tracking-tight [text-shadow:0_1px_10px_rgba(0,0,0,0.35)]">{title}</h2>
-            {teacherChip}
-          </div>
+        ) : (
+          <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${posterFrom}, ${posterTo})` }} aria-hidden="true" />
+        )}
+        {/* A soft dark fade, so the class name reads on any graphic. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[62%] bg-gradient-to-t from-[rgba(20,10,0,0.62)] via-[rgba(20,10,0,0.34)] to-transparent" aria-hidden="true" />
+        <div className="absolute inset-x-4 bottom-3.5 text-white">
+          <h2 className="text-2xl font-extrabold leading-[1.1] tracking-tight [text-shadow:0_1px_10px_rgba(0,0,0,0.35)]">{title}</h2>
+          {teacherChip}
         </div>
-      ) : (
-        <div className="rounded-2xl border border-[#ffe8d6] bg-white p-4">
-          <h2 className="text-[22px] font-extrabold leading-[1.1] tracking-tight text-gray-900">{title}</h2>
-          {teacher && (
-            <button type="button" onClick={() => setSheetOpen(true)} className="mt-3.5 flex min-h-[44px] w-full items-center gap-2.5 border-t border-[#f3e7dc] pt-3 text-left" aria-label={`About ${teacher.name}, teaching this class`}>
-              <Avatar name={teacher.name} photoUrl={teacher.photoUrl} size={38} />
-              <span className="min-w-0"><b className="block text-[13.5px] text-gray-900">{teacher.name}</b><span className="text-[11.5px] text-gray-500">Tap to meet them ›</span></span>
-            </button>
-          )}
-        </div>
-      )}
+      </div>
       <ManualButton week={week} className="mt-3" />
       {sheetOpen && teacher && <TeacherSheet teacher={teacher} title={title} onClose={() => setSheetOpen(false)} footer={<ManualButton week={week} className="mt-3.5" />} />}
     </section>
